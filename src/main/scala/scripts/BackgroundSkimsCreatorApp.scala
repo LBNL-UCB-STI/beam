@@ -7,7 +7,7 @@ import beam.router.Modes.BeamMode
 import beam.router.skim.ActivitySimSkimmer.ExcerptData
 import beam.router.skim._
 import beam.router.skim.core.{AbstractSkimmer, ODSkimmer}
-import beam.router.skim.urbansim.BackgroundSkimsCreator
+import beam.router.skim.urbansim.{ActivitySimOmxWriter, BackgroundSkimsCreator}
 import beam.router.{FreeFlowTravelTime, LinkTravelTimeContainer}
 import beam.sim.config.BeamExecutionConfig
 import beam.sim.{BeamHelper, BeamServices}
@@ -19,6 +19,7 @@ import scopt.OParser
 
 import java.io.{BufferedWriter, Closeable, File}
 import java.nio.file.Path
+import scala.collection.SortedSet
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
@@ -100,7 +101,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       destinationId = rec.get("destination"),
       weightedTotalTime = rec.get("TIME_minutes").toDouble,
       weightedTotalInVehicleTime = rec.get("TOTIVT_IVT_minutes").toDouble,
-      weightedTotalCost = rec.get("VTOLL_FAR").toDouble,
+      weightedTotalFareInCents = rec.get("VTOLL_FAR").toDouble,
       weightedDistance = rec.get("DIST_meters").toDouble,
       weightedWalkAccess = rec.get("WACC_minutes").toDouble,
       weightedWalkAuxiliary = rec.get("WAUX_minutes").toDouble,
@@ -183,7 +184,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       case None       => new FreeFlowTravelTime
     }
 
-    val tazMap: Map[String, GeoUnit.TAZ] = beamServices.beamScenario.tazTreeMap.getTAZs
+    val tazMap: Map[String, GeoUnit.TAZ] = beamServices.beamScenario.tazTreeMapForASimSkimmer.getTAZs
       .map(taz => taz.tazId.toString -> GeoUnit.TAZ(taz.tazId.toString, taz.coord, taz.areaInSquareMeters))
       .toMap
 
@@ -193,9 +194,8 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
         val origins = tazMap.values
         val destinations = tazMap.values
         origins.flatMap { origin =>
-          destinations.collect {
-            case destination if origin != destination =>
-              ODRow(origin, destination)
+          destinations.map { destination =>
+            ODRow(origin, destination)
           }
         }.toVector
     }
@@ -204,10 +204,13 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
     }.toArray
 
     // "indexing" existing skims by originId
-    val existingSkims: Map[String, Vector[ExcerptData]] =
-      params.ODSkimsPath.map(path => readSkimsCsv(path.toString)).getOrElse(Vector.empty).groupBy(_.originId)
+    val existingSkims: Map[(String, String), Vector[ExcerptData]] =
+      params.ODSkimsPath
+        .map(path => readSkimsCsv(path.toString))
+        .getOrElse(Vector.empty)
+        .groupBy(data => (data.originId, data.destinationId))
 
-    val skimmer = createSkimmer(beamServices, odRows, existingSkims)
+    val skimmer = createSkimmer(beamServices, tazMap.values.toVector, odRows, existingSkims)
 
     implicit val ec = actorSystem.dispatcher
 
@@ -239,12 +242,14 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
 
   def createSkimmer(
     beamServices: BeamServices,
+    allGeoUnits: Vector[GeoUnit.TAZ],
     rows: Vector[ODRow],
-    existingSkims: Map[String, Vector[ExcerptData]]
+    existingSkims: Map[(String, String), Vector[ExcerptData]]
   ): AbstractSkimmer = {
     beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.skimsKind match {
-      case "od"          => createOdSkimmer(beamServices, rows)
-      case "activitySim" => createActivitySimSkimmer(beamServices, rows, existingSkims)
+      case "od"             => createOdSkimmer(beamServices, rows)
+      case "activitySim"    => createActivitySimSkimmer(beamServices, rows, existingSkims)
+      case "activitySimOmx" => createActivitySimOmxSkimmer(beamServices, allGeoUnits, rows, existingSkims)
       case skimsKind =>
         throw new IllegalArgumentException(
           s"Unexpected skims kind ($skimsKind)"
@@ -255,7 +260,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
   def createActivitySimSkimmer(
     beamServices: BeamServices,
     rows: Vector[ODRow],
-    existingSkims: Map[String, Vector[ExcerptData]]
+    existingSkims: Map[(String, String), Vector[ExcerptData]]
   ): ActivitySimSkimmer =
     new ActivitySimSkimmer(beamServices.matsimServices, beamServices.beamScenario, beamServices.beamConfig) {
 
@@ -269,16 +274,13 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
 
             ProfilingUtils.timed("Writing skims for time periods for all pathTypes", x => logger.info(x)) {
               rows.foreach { case ODRow(origin, destination) =>
-                val skims = existingSkims
-                  .get(origin.id)
-                  .map(_.filter(skim => skim.destinationId == destination.id))
-                  .getOrElse(Vector.empty)
-                if (skims.nonEmpty) {
-                  skims.foreach(s => writer.write(s.toCsvString))
-                } else {
-                  getExcerptDataForOD(origin, destination).foreach { excerptData =>
-                    writer.write(excerptData.toCsvString)
-                  }
+                existingSkims.get((origin.id, destination.id)) match {
+                  case Some(skims) =>
+                    skims.foreach(s => writer.write(s.toCsvString))
+                  case None =>
+                    getExcerptDataForOD(origin, destination).foreach { excerptData =>
+                      writer.write(excerptData.toCsvString)
+                    }
                 }
               }
             }
@@ -292,6 +294,29 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
 
           logger.info(s"Written UrbanSim peak skims to $filePath")
         }
+      }
+    }
+
+  def createActivitySimOmxSkimmer(
+    beamServices: BeamServices,
+    allGeoUnits: Vector[GeoUnit.TAZ],
+    rows: Vector[ODRow],
+    existingSkims: Map[(String, String), Vector[ExcerptData]]
+  ): ActivitySimSkimmer =
+    new ActivitySimSkimmer(beamServices.matsimServices, beamServices.beamScenario, beamServices.beamConfig) {
+
+      override def writeToDisk(filePath: String): Unit = {
+        val geoUnits: Seq[String] = SortedSet(allGeoUnits.map(_.id): _*).toSeq
+        val skimData = rows.view.flatMap { case ODRow(origin, destination) =>
+          existingSkims.get((origin.id, destination.id)) match {
+            case Some(skims) => skims
+            case None        => getExcerptDataForOD(origin, destination)
+          }
+        }.iterator
+        ProfilingUtils.timed(s"writeFullOmxSkims", v => logger.info(v)) {
+          ActivitySimOmxWriter.writeToOmx(filePath, skimData, geoUnits)
+        }
+        logger.info("Written {} x {} OMX file to {}", geoUnits.size, geoUnits.size, filePath)
       }
     }
 

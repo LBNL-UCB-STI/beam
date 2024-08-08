@@ -12,7 +12,7 @@ import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode.CAR
 import beam.sim.{BeamServices, Geofence}
 import com.typesafe.scalalogging.LazyLogging
-import com.vividsolutions.jts.geom.Envelope
+import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
@@ -277,10 +277,9 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
   ): ParIterable[RideHailAgentLocation] = {
     nearbyRideHailAgents
       .filter { x =>
-        searchOnlyVehicles.contains(x.vehicleId) &&
-        (x.geofence.isEmpty || ((x.geofence.isDefined && x.geofence.get.contains(pickupLocation)) &&
-        (x.geofence.isDefined && x.geofence.get
-          .contains(dropoffLocation))))
+        searchOnlyVehicles.contains(x.vehicleId) && x.geofence.fold(true)(geofence =>
+          geofence.contains(pickupLocation) && geofence.contains(dropoffLocation)
+        )
       }
   }
 
@@ -868,9 +867,12 @@ object RideHailManagerHelper {
     }
 
     override def equals(obj: Any): Boolean = {
-      obj match {
-        case that: RideHailAgentLocation =>
-          that.canEqual(this) && vehicleId == that.vehicleId
+      if (null == obj) false
+      else {
+        obj match {
+          case that: RideHailAgentLocation =>
+            that.canEqual(this) && vehicleId == that.vehicleId
+        }
       }
     }
 

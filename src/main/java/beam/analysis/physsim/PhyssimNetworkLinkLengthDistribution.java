@@ -3,7 +3,7 @@ package beam.analysis.physsim;
 import beam.sim.config.BeamConfig;
 import org.apache.commons.lang.ArrayUtils;
 import org.jfree.chart.ChartFactory;
-import org.jfree.chart.ChartUtilities;
+import org.jfree.chart.ChartUtils;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.statistics.HistogramDataset;
@@ -71,7 +71,7 @@ public class PhyssimNetworkLinkLengthDistribution {
                 x_axis, y_axis, dataset, PlotOrientation.VERTICAL,false,true,true);
 
         try {
-            ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
+            ChartUtils.saveChartAsPNG(new File(graphImageFile), chart, width,
                     height);
         } catch (IOException e) {
             log.error("exception occurred due to ", e);

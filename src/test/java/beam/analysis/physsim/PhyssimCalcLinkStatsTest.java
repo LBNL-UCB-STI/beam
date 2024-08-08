@@ -50,7 +50,7 @@ public class PhyssimCalcLinkStatsTest {
         com.typesafe.config.Config cfg = BeamHelper.updateConfigToCurrentVersion(
                 TestConfigUtils.testConfig("test/input/equil-square/equil-0.001k.conf")
                         .resolve()
-                        .withValue("beam.physsim.quick_fix_minCarSpeedInMetersPerSecond", ConfigValueFactory.fromAnyRef(0.0))
+                        .withValue("beam.physsim.minCarSpeedInMetersPerSecond", ConfigValueFactory.fromAnyRef(0.0))
         );
         BeamConfig beamConfig = BeamConfig.apply(cfg);
         physsimCalcLinkStats = new PhyssimCalcLinkStats(network, null, beamConfig, defaultTravelTimeCalculator, new BeamConfigChangesObservable(beamConfig, Option.empty()), null);

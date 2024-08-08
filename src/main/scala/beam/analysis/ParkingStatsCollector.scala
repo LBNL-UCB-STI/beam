@@ -10,7 +10,8 @@ import beam.sim.{BeamServices, OutputDataDescription}
 import beam.utils.{FileUtils, OutputDataDescriptor}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{Event, PersonDepartureEvent, PersonEntersVehicleEvent}
+import org.matsim.api.core.v01.events.{Event, PersonEntersVehicleEvent}
+import beam.agentsim.events.BeamPersonDepartureEvent
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.vehicles.Vehicle
@@ -88,7 +89,7 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
              If the occurred event is a PersonDepartureEvent and if the person is being tracked
              store the time of departure of the person.
        */
-      case personDepartureEvent: PersonDepartureEvent =>
+      case personDepartureEvent: BeamPersonDepartureEvent =>
         // check if the person in the event is being tracked
         if (personOutboundParkingStatsTracker.contains(personDepartureEvent.getPersonId.toString)) {
           val personParkingStats: ParkingStatsCollector.PersonOutboundParkingStats =
@@ -391,7 +392,7 @@ object ParkingStatsCollector extends OutputDataDescriptor {
     val outputDirPath: String = ioController.getOutputPath
     val relativePath: String = filePath.replace(outputDirPath, "")
     val outputDataDescription =
-      OutputDataDescription(classOf[ParkingStatsCollector].getSimpleName.dropRight(1), relativePath, "", "")
+      OutputDataDescription(classOf[ParkingStatsCollector].getSimpleName, relativePath, "", "")
     List(
       "timeBin"                     -> "Time bin represented by the lower bound of the interval",
       "TAZ"                         -> "Zone summarizing all parking events",

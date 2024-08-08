@@ -15,6 +15,7 @@ Contents:
     
    about
    users
+   tutorial
    developers
    messages
    grafana
@@ -24,7 +25,6 @@ Contents:
    inputs
    outputs
    protocols
-   devops
 
 
 Indices and tables

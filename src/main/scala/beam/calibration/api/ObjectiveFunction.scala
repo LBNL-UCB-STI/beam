@@ -1,8 +1,7 @@
 package beam.calibration.api
 
-import org.matsim.core.utils.io.IOUtils
-
 import beam.utils.FileUtils._
+import org.matsim.core.utils.io.IOUtils
 
 trait ObjectiveFunction {
   def evaluateFromRun(runDataPath: String): Double

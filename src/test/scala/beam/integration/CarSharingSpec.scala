@@ -18,6 +18,7 @@ import org.matsim.core.controler.AbstractModule
 import org.matsim.core.controler.events.IterationStartsEvent
 import org.matsim.core.controler.listener.IterationStartsListener
 import org.matsim.core.events.handler.BasicEventHandler
+import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers
@@ -134,8 +135,8 @@ class CarSharingSpec extends AnyFlatSpec with Matchers with BeamHelper {
     val nonCarModes = BeamMode.allModes flatMap { mode =>
       if (mode == BeamMode.CAR) None else Some(mode.value.toLowerCase)
     } mkString ","
-    population.getPersons.keySet.forEach { personId =>
-      population.getPersonAttributes.putAttribute(personId.toString, EXCLUDED_MODES, nonCarModes)
+    population.getPersons.values.forEach { person =>
+      PopulationUtils.putPersonAttribute(person, EXCLUDED_MODES, nonCarModes)
     }
 
     // No private vehicles (but we have a car sharing operator)
@@ -256,8 +257,8 @@ class CarSharingSpec extends AnyFlatSpec with Matchers with BeamHelper {
     val nonCarModes = BeamMode.allModes flatMap { mode =>
       if (mode == BeamMode.CAR) None else Some(mode.value.toLowerCase)
     } mkString ","
-    population.getPersons.keySet.forEach { personId =>
-      population.getPersonAttributes.putAttribute(personId.toString, EXCLUDED_MODES, nonCarModes)
+    population.getPersons.values.forEach { person =>
+      PopulationUtils.putPersonAttribute(person, EXCLUDED_MODES, nonCarModes)
     }
 
     // No private vehicles (but we have a car sharing operator)

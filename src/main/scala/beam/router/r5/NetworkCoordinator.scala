@@ -14,7 +14,9 @@ import org.matsim.api.core.v01.network.{Link, Network, NetworkWriter}
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
 
+import java.lang.NullPointerException
 import scala.collection.JavaConverters._
+import scala.util.Try
 import scala.util.control.NonFatal
 
 case class LinkParam(
@@ -101,22 +103,13 @@ trait NetworkCoordinator extends LazyLogging {
           logger.info(
             s"Initializing router by creating network from directory: ${Paths.get(beamConfig.beam.routing.r5.directory).toAbsolutePath}"
           )
+
           transportNetwork = TransportNetwork.fromDirectory(
             Paths.get(beamConfig.beam.routing.r5.directory).toFile,
             beamConfig.beam.physsim.network.removeIslands,
             false,
             beamConfig.beam.routing.r5.linkRadiusMeters
           )
-
-          val maybeTN = for {
-            dir2str <- beamConfig.beam.routing.r5.directory2
-          } yield {
-            val path2 = Paths.get(dir2str)
-            logger.info(
-              s"Initializing the second router by creating network from directory: ${path2.toAbsolutePath}"
-            )
-            TransportNetwork.fromDirectory(path2.toFile)
-          }
 
           // FIXME HACK: It is not only creates PhysSim, but also fixes the speed and the length of `weird` links.
           // Please, fix me in the future
@@ -127,24 +120,46 @@ trait NetworkCoordinator extends LazyLogging {
           // Needed because R5 closes DB on write
           transportNetwork = KryoNetworkSerializer.read(path.toFile)
 
-          networks2 = for {
-            tn   <- maybeTN
-            dir2 <- beamConfig.beam.routing.r5.directory2
-            networkPath2 = Paths.get(dir2).resolve(networkPath.getFileName)
-            net2 = createPhyssimNetwork(tn, networkPath2)
-            path2 = Paths.get(dir2).resolve(path.getFileName)
-            _ = KryoNetworkSerializer.write(tn, path2.toFile)
-            // Needed because R5 closes DB on write
-          } yield {
-            logger.info(
-              s"Saved the second transport network to: ${path2.toAbsolutePath}"
-            )
-            (KryoNetworkSerializer.read(path2.toFile), net2)
+          try {
+
+            val directory2: Option[String] = beamConfig.beam.routing.r5.directory2 match {
+              case Some(path) if path.trim.nonEmpty => Some(path)
+              case _                                => None
+            }
+
+            val maybeTN = for {
+              dir2str <- directory2
+            } yield {
+              val path2 = Paths.get(dir2str)
+              logger.info(
+                s"Initializing the second router by creating network from directory: ${path2.toAbsolutePath}"
+              )
+              TransportNetwork.fromDirectory(path2.toFile)
+            }
+
+            networks2 = for {
+              tn   <- maybeTN
+              dir2 <- directory2
+              networkPath2 = Paths.get(dir2).resolve(networkPath.getFileName)
+              net2 = createPhyssimNetwork(tn, networkPath2)
+              path2 = Paths.get(dir2).resolve(path.getFileName)
+              _ = KryoNetworkSerializer.write(tn, path2.toFile)
+              // Needed because R5 closes DB on write
+            } yield {
+              logger.info(
+                s"Saved the second transport network to: ${path2.toAbsolutePath}"
+              )
+              (KryoNetworkSerializer.read(path2.toFile), net2)
+            }
+          } catch {
+            case e: Exception =>
+              logger.error(s"Error in router2 initialization (verify beam.routing.r5.director2) ${e.getMessage}")
           }
         }
         .get
     } catch {
-      case e: Exception => logger.error(s"Error in router initialization ${e.getMessage}")
+      case e: Exception if network == null => throw new RuntimeException(e)
+      case e: Exception                    => logger.error(s"Error in router initialization ${e.getMessage}")
     }
   }
 
@@ -164,16 +179,38 @@ trait NetworkCoordinator extends LazyLogging {
   }
 
   def overwriteLinkParams(
-    overwriteLinkParamMap: scala.collection.Map[Int, LinkParam],
+    overwriteLinkParamMap: scala.collection.Map[(Int, Int), LinkParam],
     transportNetwork: TransportNetwork,
     network: Network
   ): Unit = {
-    overwriteLinkParamMap.foreach { case (linkId, param) =>
-      val link = network.getLinks.get(Id.createLinkId(linkId))
-      require(link != null, s"Could not find link with id $linkId")
-      val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-      // Overwrite params
-      param.overwriteFor(link, edge)
+    overwriteLinkParamMap.foreach { case ((linkId, osmId), param) =>
+      val listOfLinkAndId: List[(Link, Int)] = if (linkId > 0 && osmId < 0) {
+        List((network.getLinks.get(Id.createLinkId(linkId)), linkId))
+      } else if (linkId < 0 && osmId > 0) {
+        network.getLinks.asScala.values
+          .filter(lnk =>
+            Option(lnk.getAttributes.getAttribute("origid")) match {
+              case Some(maybeId) => Integer.parseInt(maybeId.toString) == osmId
+              case _             => false
+            }
+          )
+          .map(l => (l, l.getId.toString.toInt))
+          .toList
+      } else if (linkId > 0) {
+        logger.error(s"Do not define both a linkId and an OSMid when overwriting link params")
+        List.empty[(Link, Int)]
+      } else {
+        logger.error(s"Must define either a linkId or an OSMid when overwriting link params")
+        List.empty[(Link, Int)]
+      }
+      listOfLinkAndId foreach { case (link, id) =>
+        val maybeEdge = Option(transportNetwork.streetLayer.edgeStore.getCursor(id))
+        // Overwrite params
+        maybeEdge match {
+          case Some(edge) => param.overwriteFor(link, edge)
+          case None       => logger.error(f"Missing link $id, from OSM id $osmId in the streetlayer")
+        }
+      }
     }
   }
 
@@ -251,14 +288,15 @@ trait NetworkCoordinator extends LazyLogging {
     transportNetwork.transitLayer.hasFrequencies = false
   }
 
-  private def getOverwriteLinkParam(beamConfig: BeamConfig): scala.collection.Map[Int, LinkParam] = {
+  private def getOverwriteLinkParam(beamConfig: BeamConfig): scala.collection.Map[(Int, Int), LinkParam] = {
     val path = beamConfig.beam.physsim.overwriteLinkParamPath
     val filePath = new File(path).toPath
     if (path.nonEmpty && Files.exists(filePath) && Files.isRegularFile(filePath)) {
       try {
-        BeamVehicleUtils.readCsvFileByLine(path, scala.collection.mutable.HashMap[Int, LinkParam]()) {
+        BeamVehicleUtils.readCsvFileByLine(path, scala.collection.mutable.HashMap[(Int, Int), LinkParam]()) {
           case (line: java.util.Map[String, String], z) =>
-            val linkId = line.get("link_id").toInt
+            val linkId = Option(line.get("link_id")).map(_.toInt).getOrElse(-1)
+            val osmId = Option(line.get("osm_id")).map(_.toInt).getOrElse(-1)
             val capacity = Option(line.get("capacity")).map(_.toDouble)
             val freeSpeed = Option(line.get("free_speed")).map(_.toDouble)
             val length = Option(line.get("length")).map(_.toDouble)
@@ -267,7 +305,7 @@ trait NetworkCoordinator extends LazyLogging {
             val beta = Option(line.get("beta")).map(_.toDouble)
             val lp = LinkParam(linkId, capacity, freeSpeed, length, lanes, alpha, beta)
 
-            z += ((linkId, lp))
+            z += (((linkId, osmId), lp))
         }
       } catch {
         case NonFatal(ex) =>

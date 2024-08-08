@@ -1,4 +1,6 @@
 
+.. _users-guide:
+
 User's Guide
 ============
 
@@ -13,20 +15,20 @@ System Requirements
 
 * At least 8GB RAM
 * Windows, Mac OSX, Linux
-* Java Development Kit 1.8. Oracle JDK 1.8: https://www.oracle.com/java/technologies/javase-jdk8-downloads.html. You can also use OpenJDK 8 JDK. For Ubuntu you can get it installed by running `sudo apt-get install openjdk-8-jdk`
+* Java Development Kit 11. Oracle JDK 11: https://www.oracle.com/java/technologies/downloads/#java11. You can also use OpenJDK 11 JDK. For Ubuntu you can get it installed by running `sudo apt-get install openjdk-11-jdk`
 * Verify that you have both java runtime and java compiler:
 
 .. code-block:: bash
 
     ubuntu@ip-172-31-14-187:~/git/beam$ java -version
-    openjdk version "1.8.0_252"
-    OpenJDK Runtime Environment (build 1.8.0_252-8u252-b09-1~18.04-b09)
-    OpenJDK 64-Bit Server VM (build 25.252-b09, mixed mode)
-    ubuntu@ip-172-31-14-187:~/git/beam$ javac -version
-    javac 1.8.0_252
-    ubuntu@ip-172-31-14-187:~/git/beam$              
+    openjdk version "11.0.21" 2023-10-17
+    OpenJDK Runtime Environment (build 11.0.21+9-post-Ubuntu-0ubuntu122.04)
+    OpenJDK 64-Bit Server VM (build 11.0.21+9-post-Ubuntu-0ubuntu122.04, mixed mode, sharing)
 
-* We also recommend downloading the VIA vizualization app and obtaining a free or paid license: https://simunto.com/via/
+    ubuntu@ip-172-31-14-187:~/git/beam$ javac -version
+    javac 11.0.21
+
+* We also recommend downloading the VIA visualization app and obtaining a free or paid license: https://simunto.com/via/
 * Git and Git-LFS
 
 Prerequisites :
@@ -34,21 +36,12 @@ Prerequisites :
 
 **Install Java**
 
-BEAM requires Java 1.8 JDK. If a different version of java is already installed on your system, please upgrade the version to 1.8.
-See this `link <https://www.oracle.com/java/technologies/javase-jdk8-downloads.html>`_ for steps to check the current version of your JDK.
+BEAM requires Java 11 JDK. If a different version of java is already installed on your system, please upgrade the version to 11.
+See this `link <https://www.oracle.com/java/technologies/downloads/#java11>`_ for steps to check the current version of your JDK.
 
 If java is not already installed on your system , please follow this `download manual <https://www.java.com/en/download/manual.jsp>`_ to install java on your system.
 
-Please note that BEAM is currently compatible only with Java 1.8 and is not compatible with any of the older or recent versions.
-
-**Install Gradle**
-
-BEAM uses `gradle <https://gradle.org>`_ as its build tool. If gradle is not already installed, check this `gradle installation guide <https://gradle.org/install>`_ for steps on how to download and install gradle.
-Once gradle is successfully installed , verify the installation by running the command
-
-.. code-block:: bash
-
-    gradle
+Please note that BEAM is currently compatible only with Java 11 and is not compatible with any of the older or recent versions.
 
 
 GIT-LFS Configuration
@@ -108,7 +101,7 @@ Fetch the remote branches and tags::
 
 Now checkout the latest stable version of BEAM, v0.7.0::
 
-   git checkout v0.7.0
+   git checkout v0.9.0
 
 
 Run the gradle command to compile BEAM, this will also download all required dependencies automatically::
@@ -148,7 +141,7 @@ Similarly on windows it can be set using the below command :
     setx MAXRAM="10g"
 
 
-The outputs are written to the 'output' directory, should see results appear in a sub-folder called "beamville_%DATE_TIME%".
+The outputs are written to the 'output' directory, should see results appear in a sub-folder called "beamville/beamville_%DATE_TIME%".
 
 Optionally you can also run BEAM from your favourite IDE . Check the below section on how to configure and run BEAM using Intellij IDEA.
 
@@ -157,7 +150,7 @@ There is a way to watch real-time graphs from a BEAM run, see :ref:`real-time-gr
 Running BEAM with Intellij IDE
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-IntelliJ IDEA community edition is an open source IDE available for free. It can be downloaded from `here <https://www.jetbrains.com/idea/download/#section=windows>`_
+IntelliJ IDEA community edition is an open source IDE available for free. It can be downloaded from `here <https://www.jetbrains.com/idea/download>`_
 
 After successful download , run the executable and follow the installation wizard to install Intellij IDEA.
 
@@ -205,8 +198,8 @@ Steps to add a new configuration :
   * Main Class : beam.sim.RunBeam
   * VM options : -Xmx8g
   * Program Arguments : --config test/input/beamville/beam.conf (this runs beamville scenario, changes the folder path to run a different scenario)
-  * Working Directory : /home/beam/BEAM
-  * Environment Variables : PWD=/home/beam/BEAM
+  * Working Directory : /home/user/sources/beam
+  * Environment Variables : PWD=.
   * use submodule of path : beam.main
 * Click Ok to save the configuration.
 
@@ -227,15 +220,19 @@ Steps to add a new configuration :
 
 .. image:: _static/figs/scala_test_configuration.png
 
+.. _building-beam-docker-image:
 
 BEAM in Docker image
 ^^^^^^^^^^^^^^^^^^^^
 
 **Building new BEAM image from any branch**
 
-There is a gradle commands to build new BEAM Docker image. This command will build a docker image and tag it with the `version` taken from build.gradle file.::
+If you need a beam image of a specific version of BEAM then you can build it from the source code. There is a gradle
+command to build a new BEAM Docker image.::
 
-    ./gradlew buildImage
+    ./gradlew -Ptag=beammodel/beam:0.9.12 buildImage
+
+If you skip this step docker will download the BEAM image from docker hub.
 
 **Running the docker image with BEAM**
 
@@ -246,13 +243,13 @@ For example here is a shell script which might be used to run the docker image. 
     #!/bin/bash
 
     config=$1
-    beam_image="beammodel/beam:0.8.6"
+    beam_image="beammodel/beam:0.9.12"
     input_folder_name="test"
     output_folder_name="beam_output"
     mkdir -m 777 $output_folder_name 2>/dev/null
 
     max_ram='10g'
-    java_opts="-Xmx$max_ram -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap"
+    java_opts="-Xmx$max_ram"
 
     docker run \
       --network host \
@@ -303,6 +300,64 @@ At the conclusion of a BEAM run using the default `beamville` scenario, the outp
 Each iteration of the run produces a sub-folder under the `ITERS` directory. Within these, several automatically generated outputs are written including plots of modal usage, TNC dead heading, and energy consumption by mode. 
 
 In addition, raw outputs are available in the two events file (one from the AgentSim and one from the PhysSim, see :ref:`matsim-events` for more details), titled `%ITER%.events.csv` and `%ITER%.physSimEvents.xml.gz` respectively.
+
+Data Analysis
+^^^^^^^^^^^^^
+
+One can execute python scripts after each iteration or after the whole simulation. To do so add the following parameters
+into the beam config file: ::
+
+  beam.outputs.analysis.iterationScripts = ["path/to/iteration/script1.py", "path/to/iteration/script2.py"]
+  beam.outputs.analysis.simulationScripts = ["path/to/simulation/script1.py", "path/to/simulation/script2.py"]
+
+Beam provides the following command line arguments to the iteration scripts:
+  #. Beam config path
+  #. Iteration output directory path
+  #. Iteration number
+And to the simulation scripts:
+  #. Beam config path
+  #. Output directory path
+
+The current working directory of the python scripts is the same as the working directory of the Beam process.
+
+`An example of an iteration script <https://github.com/LBNL-UCB-STI/beam/blob/develop/src/main/python/events_analysis/events_within_beam.py>`_.
+If you need to use a specific version of python (i.e. from a conda environment where you have all the required libs
+installed) then you can provide a path to the
+python using `\-\-python-executable` command line argument when you start Beam. If you want to use a non-standard python
+library then install it to your environment.
+
+Beam docker image contains some of python libraries preinstalled. That's `the command <https://github.com/LBNL-UCB-STI/beam/blob/develop/docker/beam-environment/Dockerfile-java-11#L16-L15>`_ in the build docker file that
+does it. If you want to use some other python libraries within beam docker image you can add a similar instruction to
+`createDockerfile` task in `build.gradle` file.
+
+.. code-block:: groovy
+
+  ...
+  from 'beammodel/beam-environment:jdk-11-4.01'
+  runCommand('pip install emoji')
+  ...
+
+Go to :ref:`building-beam-docker-image` to see how one can build a beam docker image.
+You need to mount your python code directory to the beam container so that it has access to your python code. You can do
+it with the following docker argument:
+
+.. code-block:: bash
+
+  --mount source="/absolute/path/to/code",destination=/app/analysis,type=bind
+
+Then you want to use the path like `analysis/relative/path/to/script` in beam config `beam.outputs.analysis.iterationScripts` param.
+
+Python script output/errors
+...........................
+
+All the python output (including error output) goes to beam log. Besides other errors a script may produce errors like
+the following::
+
+    ModuleNotFoundError: No module named 'plotly'
+
+That means that the specific library is not presented. You need to install it to your environment. As described earlier
+`\-\-python-executable' Beam CLI argument can be used to choose a specific python.
+
 
 Model Config
 ^^^^^^^^^^^^
@@ -655,7 +710,7 @@ Copy the osmosis command generated by conversion tool and run from the command l
 
 11. Warm Start
 
-Beam can be configured to run from a previous, stored state - referred to as warm start. It is a zip archive which contains
+BEAM can be configured to run from a previous, stored state - referred to as warm start. It is a zip archive which contains
 three major parts: scenario, aggregated skims and link stats file for the last iteration.
 
 Archive has the following structure (shown for iteration 30 here)::
@@ -726,7 +781,7 @@ There is a script to convert BEAM events into MATSim events so, one can use Via 
 The script will convert all PathTraversalEvents into sequence of various MATSim events.
 
 There are, at least, two ways to run conversion:
- * directly run script from `beam/src/main/scala/beam/utils/beam_to_matsim/EventsByVehicleMode.scala`
+ * directly run script from `beam/src/main/scala/scripts/beam_to_matsim/EventsByVehicleMode.scala`
  * run script by gradle task:
 
   ::

@@ -7,9 +7,10 @@ import beam.sim.BeamServices;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.ActivityStartEvent;
 import org.matsim.api.core.v01.events.Event;
-import org.matsim.api.core.v01.events.PersonDepartureEvent;
+import beam.agentsim.events.BeamPersonDepartureEvent;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.Population;
+import org.matsim.core.population.PopulationUtils;
 import org.matsim.households.Household;
 import org.matsim.households.Households;
 import org.slf4j.Logger;
@@ -58,13 +59,13 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
   private double getAverageVOT(){
     Population pop=beamServices.matsimServices().getScenario().getPopulation();
     double sumOfVOT=0;
-    for (Id<Person> personId:pop.getPersons().keySet()){
-      if (pop.getPersonAttributes().getAttribute(personId.toString(),votKeyString)==null){
+    for (Person person:pop.getPersons().values()){
+      if (PopulationUtils.getPersonAttribute(person ,votKeyString)==null){
         double defaultValueOfTime=beamServices.beamConfig().beam().agentsim().agents().modalBehaviors().defaultValueOfTime();
         logger.warn("using defaultValueOfTime, as VOT not set in person attribute - :" + defaultValueOfTime);
         return defaultValueOfTime;
       } else {
-        sumOfVOT+=Double.parseDouble(pop.getPersonAttributes().getAttribute(personId.toString(),votKeyString).toString());
+        sumOfVOT+=Double.parseDouble(PopulationUtils.getPersonAttribute(person, votKeyString).toString());
       }
     }
 
@@ -96,8 +97,8 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
         personCostCount.merge(statType, 1, Integer::sum);
       }
     }
-    if (event instanceof PersonDepartureEvent || event.getEventType().equalsIgnoreCase(PersonDepartureEvent.EVENT_TYPE)) {
-      PersonDepartureEvent pde = (PersonDepartureEvent)event;
+    if (event instanceof BeamPersonDepartureEvent || event.getEventType().equalsIgnoreCase(BeamPersonDepartureEvent.EVENT_TYPE)) {
+      BeamPersonDepartureEvent pde = (BeamPersonDepartureEvent)event;
       personDepartureTime.put(pde.getPersonId().toString(), pde.getTime());
       numberOfTrips++;
     }

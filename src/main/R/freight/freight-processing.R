@@ -11,6 +11,8 @@ library(sjmisc)
 library(ggmap)
 library(sf)
 library(stringr)
+library(geojsonsf)
+
 
 getHPMSAADT <- function(linkAADT) {
   linkAADT$Volume_hpms <- linkAADT$AADT_Combi+linkAADT$AADT_Singl
@@ -28,11 +30,136 @@ isCav <- function(x) {
   return(x >= 4)
 }
 
-# city <- "sfbay"
-# linkAADTFile <- "/hpms/sf_hpms_inventory_clipped_original.geojson"
+### RouteE
+
+work_folder <- normalizePath("~/Workspace/Data/FREIGHT/seattle")
+household <- readCsv(pp(work_folder, "/households.csv.gz"))
+ggplot(household, aes(x=income/1000)) + geom_histogram() + xlim(0, 100)
+
+
+work_folder <- normalizePath("~/Workspace/Data/FREIGHT/seattle")
+geo <- geojson_sf(pp(work_folder, "/validation/npmrds/Seattle_counties.geojson"))
+
+plans <- readCsv(pp(work_folder, "/beam/plans.csv.gz"))
+df_filtered <- plans[!is.na(plans$departure_time), ]
+
+# Plot the histogram of departure times
+ggplot(df_filtered, aes(x = departure_time)) +
+  geom_histogram(bins = 24, fill = "blue", color = "black") +
+  theme_minimal() +
+  labs(title = "Distribution of Departure Times",
+       x = "Departure Time (hours)",
+       y = "Frequency") +
+  scale_x_continuous(breaks = seq(0, 24, by = 1))  # Set breaks every hour
+
+plans <- readCsv(pp(work_folder, "/beam_freight/2024-04-20/Baseline/freight-merged-payload-plans.csv"))
+plans[,departure_time_hour:=(estimatedTimeOfArrivalInSec+operationDurationInSec)/3600.0]
+df_filtered <- plans[!is.na(plans$departure_time_hour), ]
+
+# Plotting the histogram of departure times
+ggplot(df_filtered, aes(x = departure_time_hour)) +
+  geom_histogram(bins = 80, fill = "blue", color = "black") + # You can adjust the number of bins
+  theme_minimal() +
+  labs(title = "Histogram of Departure Time Hours",
+       x = "Departure Time (hour)",
+       y = "Frequency") +
+  scale_x_continuous(breaks = seq(0, 80, by = 5)) 
+
+
+
+network <- readCsv(pp(work_folder, "/network.csv.gz"))
+linkstats0 <- readCsv(pp(work_folder, "/0.linkstats.csv.gz"))
+linkstats1 <- readCsv(pp(work_folder, "/1.linkstats.csv.gz"))
+linkstats2 <- readCsv(pp(work_folder, "/2.linkstats.csv.gz"))
+
+carriers <- readCsv(pp(work_folder, "/freight-merged-carriers.csv"))
+carriers[, vehicleTypeId:=pp(vehicleTypeId,"-RefHighp6")]
+write.csv(carriers, file = pp(work_folder, "/freight-merged-carriers.csv"), row.names=F, quote=F)
+
+
+vehicletypes <- readCsv(pp(work_folder, "/vehicletypes-all.csv"))
+unique_data <- distinct(vehicletypes)
+write.csv(unique_data, file = pp(work_folder, "/vehicletypes-all-2.csv"), row.names=F, quote=F)
+
+library(sf)
+geojson_file_path <- pp(work_folder, "/input/beam_npmrds_network_map.geojson")
+geo_data <- st_read(geojson_file_path)
+library(data.table)
+geo_data_dt <- as.data.table(geo_data)
+
+ggplot(geo_data_dt, aes(x = F_System)) + 
+  geom_histogram(binwidth = 1, fill = "blue", color = "black") +
+  theme_minimal() 
+
+
+linkstats <- readCsv(pp(work_folder, "/sfbay-simp-jdeq-0.07__2024-02-21_19-22-50_obb/10.linkstats.csv.gz"))
+network <- readCsv(pp(work_folder, "/sfbay-simp-jdeq-0.07__2024-02-21_19-22-50_obb/network.csv.gz"))
+
+network <- readCsv(pp(work_folder, "/sfbay-simp-jdeq-0.07__2024-02-21_19-22-50_obb/network.csv.gz"))
+
+## test
+work_folder <- normalizePath("~/Workspace/Data/FREIGHT/")
+linkstats <- readCsv(pp(work_folder, "/sfbay/0.linkstats.csv.gz"))
+network <- readCsv(pp(work_folder, "/sfbay/beam/network.csv.gz"))
+##
+debug_file <- readCsv(pp(work_folder, "/sfbay/beam/runs/baseline/2018_routeE_new/beamLog.filtered.csv"))
+#
+events_file <- readCsv(pp(work_folder, "/sfbay/beam/runs/baseline/2018_routeE_new/0.events.csv.gz"))
+##
+## test 2
+#/Users/haitamlaarabi/Workspace/Data/FREIGHT/sfbay/vehicle-tech/2020
+filename1 <- pp(work_folder, "/vehicle-tech/2020/Class_6_Box_truck_(Diesel,_2020,_no_program).csv")
+filename2 <- pp(work_folder, "/vehicle-tech/2020/Class_8_Box_truck_(Diesel,_2020,_no_program).csv")
+filename3 <- pp(work_folder, "/vehicle-tech/2020/Class_8_Sleeper_cab_high_roof_(Diesel,_2020,_no_program).csv")
+
+filename4 <- pp(work_folder, "/vehicle-tech/2025/Class_6_Box_truck_(BEV,_2025,_no_program).csv")
+filename5 <- pp(work_folder, "/vehicle-tech/2025/Class_6_Box_truck_(HEV,_2025,_no_program).csv")
+filename6 <- pp(work_folder, "/vehicle-tech/2025/Class_8_Box_truck_(BEV,_2025,_no_program).csv")
+filename7 <- pp(work_folder, "/vehicle-tech/2025/Class_8_Box_truck_(HEV,_2025,_no_program).csv")
+filename8 <- pp(work_folder, "/vehicle-tech/2025/Class_8_Sleeper_cab_high_roof_(BEV,_2025,_no_program).csv")
+filename9 <- pp(work_folder, "/vehicle-tech/2025/Class_8_Sleeper_cab_high_roof_(HEV,_2025,_no_program).csv")
+
+filenameX <- filename9
+class6Diesel <- readCsv(filenameX)
+#class6Diesel <- cbind(index = 1:nrow(class6Diesel), class6Diesel)
+write.csv(class6Diesel, file = filenameX, row.names=F, quote=T)
+
+allClasses <- rbind(class6Diesel, class8vDiesel, class8tDiesel, class6BEV, class6HEV, class8vBEV, class8vHEV, class8tBEV, class8tHEV)
+test <- allClasses[rate==0.6621670216912081]
+allClasses[rate==0.6621670216912081]
+####
+
+linstatsPlus <- merge(linkstats, network, by.x="link", by.y="linkId")
+
+
+
+#### Calibration
+run_dir = '/sfbay/beam/runs'
+network <- readCsv(pp(work_folder, run_dir, "/../network.csv.gz"))
+
+linkstats_jd_200 <- readCsv(pp(work_folder, run_dir, "/calibration-jdeqsim/2018-200/15.linkstats.csv.gz"))
+linkstats_bp_150 <- readCsv(pp(work_folder, run_dir, "/calibration-bprsim/2018-150/15.linkstats.csv.gz"))
+
+
+linkstats_jd_200_merged <- linkstats_jd_200[network, on=c("link"="linkId")]
+linkstats_bp_150_merged <- linkstats_bp_150[network, on=c("link"="linkId")]
+
+
+res <- linkstats_bp_150_merged[attributeOrigType %in% c("motorway", "primary", "secondary", "motorway_link", "tertiary")][
+  ,.(avgSpeedMPH=sum(volume*length)/sum(volume*traveltime)),by=.(hour,attributeOrigType)]
+
+ggplot(res, aes(hour, avgSpeedMPH, color=attributeOrigType)) + 
+  geom_line() + theme_marain() + xlim(0, 40) + 
+  ggtitle("bprsim - 150% FC/Pop - min speed 0.5mps")
+
+####
+
+
+city <- "sfbay"
+linkAADTFile <- "/hpms/sf_hpms_inventory_clipped_original.geojson"
 # batch <- 5
-city <- "austin"
-linkAADTFile <- "/hpms/austin_hpms_inventory.geojson"
+# city <- "austin"
+# linkAADTFile <- "/hpms/austin_hpms_inventory.geojson"
 #batch <- "/Oct30"
 batch <- ""
 cityCRS <- 26910
@@ -42,7 +169,7 @@ cityCRS <- 26910
 # scenario2 <- "2040"
 iteration <- 0
 eventsPrefix <- ""
-expansionFactor <- 1/0.5
+expansionFactor <- 1/0.1
 scenario <- "price-sensitivity"
 
 ## PATHS
@@ -479,7 +606,7 @@ sfBayTAZs <- st_read(pp(validationDir, "/TAZs/Transportation_Analysis_Zones.shp"
 ## ***************************
 #FRISM
 ## ***************************
-freightDir <- pp(workDir,"/beam_freight/","2050_high")
+freightDir <- pp(work_folder,"/sfbay/runs/baseline/")
 carriers <- readCsv(pp(freightDir, "/freight-merged-carriers.csv"))
 payload <- readCsv(pp(freightDir, "/freight-merged-payload-plans.csv"))
 tours <- readCsv(pp(freightDir, "/freight-merged-tours.csv"))

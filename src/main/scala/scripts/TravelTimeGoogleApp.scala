@@ -15,6 +15,7 @@ import org.matsim.analysis.{CalcLinkStats, IterationStopWatch, ScoreStats, Volum
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.Config
+import org.matsim.core.config.groups.ControlerConfigGroup.CompressionType
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.ControlerListener
@@ -73,7 +74,11 @@ object TravelTimeGoogleApp extends App with StrictLogging {
     }
     logger.info(s"${statistic.loadedEventNumber} events loaded")
 
-    val controller = new OutputDirectoryHierarchy(execCfg.outputDirectory, OverwriteFileSetting.overwriteExistingFiles)
+    val controller = new OutputDirectoryHierarchy(
+      execCfg.outputDirectory,
+      OverwriteFileSetting.overwriteExistingFiles,
+      CompressionType.none
+    )
     controller.createIterationDirectory(iteration)
     statistic.notifyIterationEnds(new IterationEndsEvent(new SimplifiedMatsimServices(controller), iteration))
   }

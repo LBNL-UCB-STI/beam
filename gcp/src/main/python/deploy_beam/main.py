@@ -73,6 +73,7 @@ def create_beam_instance(request):
     shutdown_behaviour = request_payload.get('shutdown_behaviour', "terminate")
     jupyter_token = request_payload.get('jupyter_token', '')
     jupyter_image = request_payload.get('jupyter_image', '')
+    jabba_version = request_payload.get('jabba_version', '')
 
     project = 'beam-core'
     zone = 'us-central1-a'
@@ -92,10 +93,12 @@ def create_beam_instance(request):
 
     startup_script = """
 #!/bin/sh
+set -o xtrace
 CLOUD_INIT_SCRIPT_URL=$(curl http://metadata/computeMetadata/v1/instance/attributes/cloud_init_script_url -H "Metadata-Flavor: Google")
 sudo chown -R clu:clu /home/clu
 sudo -u clu bash -c "cd; wget $CLOUD_INIT_SCRIPT_URL"
 sudo -u clu bash -c "cd; chmod 755 cloud-init.sh"
+REPLACE_FORJABBA
 sudo -u clu bash -c "cd; ./cloud-init.sh &> cloud-init-output.log"
     """
     shutdown_script = """
@@ -104,6 +107,11 @@ INSTANCE_NAME=$(curl http://metadata/computeMetadata/v1/instance/name -H "Metada
 INSTANCE_ZONE=$(curl http://metadata/computeMetadata/v1/instance/zone -H "Metadata-Flavor: Google")
 gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
     """
+
+    if jabba_version != "":
+        startup_script = startup_script.replace("REPLACE_FORJABBA", """sudo sed -i 's/#!\\/bin\\/bash/#!\\/bin\\/bash\\nset -o xtrace\\n\\/home\\/clu\\/.jabba\\/bin\\/jabba install {jabba}\\nexport JAVA_HOME="\\/home\\/clu\\/.jabba\\/jdk\\/{jabba}"\\nexport PATH="$JAVA_HOME\\/bin:$PATH"\\njava -version\\n/' /home/clu/cloud-init.sh""".format(jabba=jabba_version))
+    else:
+        startup_script = startup_script.replace("REPLACE_FORJABBA", "")
 
     metadata = [
         ('startup-script', startup_script),

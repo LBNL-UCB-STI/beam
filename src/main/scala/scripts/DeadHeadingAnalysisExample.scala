@@ -4,6 +4,7 @@ import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.DeadHeadingAnalysis
 import beam.sim.metrics.NoOpSimulationMetricCollector
 import beam.utils.{EventReader, ProfilingUtils}
+import org.matsim.core.config.groups.ControlerConfigGroup.CompressionType
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
 import org.matsim.core.controler.events.IterationEndsEvent
@@ -11,7 +12,8 @@ import org.matsim.core.controler.events.IterationEndsEvent
 object DeadHeadingAnalysisExample {
 
   def main(args: Array[String]): Unit = {
-    val outputDirectoryHierarchy = new OutputDirectoryHierarchy("temp", OverwriteFileSetting.deleteDirectoryIfExists)
+    val outputDirectoryHierarchy =
+      new OutputDirectoryHierarchy("temp", OverwriteFileSetting.deleteDirectoryIfExists, CompressionType.none)
     outputDirectoryHierarchy.createIterationDirectory(10)
 
     val matsimService = new SimplifiedMatsimServices(outputDirectoryHierarchy)

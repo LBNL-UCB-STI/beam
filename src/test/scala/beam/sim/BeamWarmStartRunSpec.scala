@@ -4,6 +4,7 @@ import beam.utils.TestConfigUtils.testConfig
 import beam.utils.csv.GenericCsvReader
 import beam.utils.{FileUtils, MathUtils}
 import com.typesafe.config.ConfigFactory
+import org.matsim.core.config.groups.ControlerConfigGroup.CompressionType
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
@@ -42,7 +43,6 @@ class BeamWarmStartRunSpec
       zipIn.close()
 
       val expectedFiles = List(
-        "output_personAttributes.xml.gz",
         "population.csv.gz",
         "households.csv.gz",
         "vehicles.csv.gz",
@@ -50,6 +50,7 @@ class BeamWarmStartRunSpec
         "ITERS/it.2/2.skimsTAZ_Aggregated.csv.gz",
         "ITERS/it.2/2.skimsTravelTimeObservedVsSimulated_Aggregated.csv.gz",
         "ITERS/it.2/2.skimsRidehail_Aggregated.csv.gz",
+        "ITERS/it.2/2.skimsODVehicleType_Aggregated.csv.gz",
         "ITERS/it.2/2.skimsFreight_Aggregated.csv.gz",
         "ITERS/it.2/2.skimsParking_Aggregated.csv.gz",
         "ITERS/it.2/2.skimsTransitCrowding_Aggregated.csv.gz",
@@ -153,7 +154,11 @@ class BeamWarmStartRunSpec
     fileName: String = "CarRideStats.personal.csv.gz"
   ): String = {
     val outputDirectoryHierarchy =
-      new OutputDirectoryHierarchy(outputDir, OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles)
+      new OutputDirectoryHierarchy(
+        outputDir,
+        OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles,
+        CompressionType.none
+      )
 
     outputDirectoryHierarchy.getIterationFilename(iterationNumber, fileName)
   }

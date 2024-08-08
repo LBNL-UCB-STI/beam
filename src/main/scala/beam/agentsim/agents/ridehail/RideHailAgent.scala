@@ -34,7 +34,8 @@ import beam.utils.NetworkHelper
 import beam.utils.logging.LogActorState
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
+import org.matsim.api.core.v01.events.PersonEntersVehicleEvent
+import beam.agentsim.events.BeamPersonDepartureEvent
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.utils.misc.Time
@@ -227,6 +228,8 @@ class RideHailAgent(
     1
   )
 
+  override def payloadInKgForLeg(leg: BeamLeg, drivingData: DrivingData): Option[Double] = None
+
   val myUnhandled: StateFunction = {
     case ev @ Event(TriggerWithId(StartShiftTrigger(tick), triggerId), _) =>
       // Wait five minutes
@@ -347,7 +350,7 @@ class RideHailAgent(
     vehicle.becomeDriver(self)
     vehicle.setManager(Some(rideHailManager))
     eventsManager.processEvent(
-      new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_tnc_driver")
+      new BeamPersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_tnc_driver", "")
     )
     eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
     val isTimeForShift =

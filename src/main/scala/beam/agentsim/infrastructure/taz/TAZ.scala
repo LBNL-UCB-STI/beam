@@ -5,7 +5,7 @@ import beam.router.BeamRouter.Location
 import beam.sim.common.GeoUtils
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
-import com.vividsolutions.jts.geom.Geometry
+import org.locationtech.jts.geom.Geometry
 
 import scala.collection.JavaConverters._
 
@@ -19,6 +19,8 @@ class TAZ(val tazId: Id[TAZ], val coord: Coord, val areaInSquareMeters: Double, 
   def this(tazIdString: String, coord: Coord, area: Double, geometry: Option[Geometry] = None) {
     this(Id.create(tazIdString, classOf[TAZ]), coord, area, geometry)
   }
+
+  override def toString: String = s"TAZ{$tazId}"
 }
 
 object TAZ {

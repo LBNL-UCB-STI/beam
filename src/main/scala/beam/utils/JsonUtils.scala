@@ -26,7 +26,7 @@ object JsonUtils {
   }
 
   def processEventsFileVizData(inFile: String, outFile: String): Unit = {
-    val xml = XML.load(IOUtils.getInputStream(inFile))
+    val xml = XML.load(IOUtils.getInputStream(IOUtils.getFileUrl(inFile)))
     val events = xml \\ "events" \ "event"
     val out = for {
       event <- events if (event.attribute("type").get.toString() == "pathTraversal" | event

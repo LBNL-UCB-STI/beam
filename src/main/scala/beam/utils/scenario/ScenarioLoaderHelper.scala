@@ -5,15 +5,19 @@ import beam.sim.common.GeoUtilsImpl
 import beam.utils.SnapCoordinateUtils
 import beam.utils.SnapCoordinateUtils.{Category, CsvFile, ErrorInfo, SnapLocationHelper}
 import beam.utils.logging.ExponentialLazyLogging
-import org.matsim.api.core.v01.population.{Activity, Leg, Person}
+import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.scenario.MutableScenario
-import org.matsim.households.{Household, HouseholdsFactoryImpl}
+import org.matsim.households.{Household, HouseholdUtils, HouseholdsFactoryImpl}
 
 import scala.collection.compat.IterableFactoryExtensionMethods
 import scala.collection.immutable.HashSet
 import scala.collection.mutable.ListBuffer
-import scala.jdk.CollectionConverters.{collectionAsScalaIterableConverter, seqAsJavaListConverter}
+import scala.jdk.CollectionConverters.{
+  collectionAsScalaIterableConverter,
+  mapAsScalaMapConverter,
+  seqAsJavaListConverter
+}
 
 object ScenarioLoaderHelper extends ExponentialLazyLogging {
 
@@ -27,6 +31,10 @@ object ScenarioLoaderHelper extends ExponentialLazyLogging {
     householdResult.setIncome(household.getIncome)
     householdResult.setVehicleIds(household.getVehicleIds)
     householdResult.setMemberIds(members.asJava)
+    val originHouseAttributes = household.getAttributes.getAsMap.asScala
+    originHouseAttributes.foreach { case (key, value) =>
+      HouseholdUtils.putHouseholdAttribute(householdResult, key, value)
+    }
     householdResult
   }
 
@@ -86,28 +94,40 @@ object ScenarioLoaderHelper extends ExponentialLazyLogging {
       beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
     )
 
-    val planErrors: ListBuffer[ErrorInfo] = ListBuffer()
-
-    val people: List[Person] = scenario.getPopulation.getPersons.values().asScala.toList
-    people.par.foreach { person =>
-      val plans = person.getPlans.asScala.toList
-      plans.foreach { plan =>
-        val elements: Vector[PlanElement] = plan.getPlanElements.asScala.toVector
-        val errors: Vector[ErrorInfo] = updatePlanElementCoord(
-          person.getId,
-          elements,
-          snapLocationHelper,
-          beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm
-        )
-        if (errors.nonEmpty) {
-          planErrors.appendAll(errors)
-          person.removePlan(plan)
+    val people: IndexedSeq[Person] = scenario.getPopulation.getPersons.values().asScala.toIndexedSeq
+    val (noPlanPersons, planErrors) = people.par.aggregate((IndexedSeq.empty[Person], IndexedSeq.empty[ErrorInfo]))(
+      { case ((noPlanPersons, planErrors), person) =>
+        val plans = person.getPlans.asScala.toIndexedSeq
+        val planToErrors: IndexedSeq[(Plan, Vector[ErrorInfo])] = plans.map { plan =>
+          val elements: Vector[PlanElement] = plan.getPlanElements.asScala.toVector
+          val errors: Vector[ErrorInfo] = updatePlanElementCoord(
+            person.getId,
+            elements,
+            snapLocationHelper,
+            beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm
+          )
+          plan -> errors
         }
+        planToErrors.foreach { case (plan, errors) =>
+          if (errors.nonEmpty) {
+            person.removePlan(plan)
+          }
+        }
+        val combinedPlanErrors: IndexedSeq[ErrorInfo] = planErrors ++ planToErrors.flatMap(_._2)
+        val planCount = person.getPlans.size()
+        if (planCount == 0) {
+          (noPlanPersons :+ person, combinedPlanErrors)
+        } else {
+          (noPlanPersons, combinedPlanErrors)
+        }
+      },
+      { case ((noPlanPersons1, planErrors1), (noPlanPersons2, planErrors2)) =>
+        (noPlanPersons1 ++ noPlanPersons2, planErrors1 ++ planErrors2)
       }
-      val planCount = person.getPlans.size()
-      if (planCount == 0) {
-        scenario.getPopulation.removePerson(person.getId)
-      }
+    )
+
+    noPlanPersons.foreach { person =>
+      scenario.getPopulation.removePerson(person.getId)
     }
 
     outputDirMaybe.foreach { path =>
@@ -123,7 +143,7 @@ object ScenarioLoaderHelper extends ExponentialLazyLogging {
       val validMembers = members.filter(validPeople)
 
       if (validMembers.isEmpty) {
-        scenario.getHouseholds.getHouseholdAttributes.removeAllAttributes(household.getId.toString)
+        scenario.getHouseholds.getHouseholds.get(household.getId).getAttributes.clear()
         scenario.getHouseholds.getHouseholds.remove(household.getId)
       } else if (validMembers != members) {
         val updatedHousehold = createHouseholdWithGivenMembers(household, validMembers.toList)
@@ -136,15 +156,14 @@ object ScenarioLoaderHelper extends ExponentialLazyLogging {
     val householdsWithMembers: List[Household] = scenario.getHouseholds.getHouseholds.values().asScala.toList
     householdsWithMembers.par.foreach { household =>
       val householdId = household.getId.toString
-      val attr = scenario.getHouseholds.getHouseholdAttributes
-      val locationX = attr.getAttribute(householdId, "homecoordx").asInstanceOf[Double]
-      val locationY = attr.getAttribute(householdId, "homecoordy").asInstanceOf[Double]
+      val locationX = HouseholdUtils.getHouseholdAttribute(household, "homecoordx").asInstanceOf[Double]
+      val locationY = HouseholdUtils.getHouseholdAttribute(household, "homecoordy").asInstanceOf[Double]
       val planCoord = new Coord(locationX, locationY)
 
       snapLocationHelper.computeResult(planCoord) match {
         case Right(splitCoord) =>
-          attr.putAttribute(householdId, "homecoordx", splitCoord.getX)
-          attr.putAttribute(householdId, "homecoordy", splitCoord.getY)
+          HouseholdUtils.putHouseholdAttribute(household, "homecoordx", splitCoord.getX)
+          HouseholdUtils.putHouseholdAttribute(household, "homecoordy", splitCoord.getY)
         case Left(error) =>
           household.getMemberIds.asScala.toList.foreach(personId => scenario.getPopulation.getPersons.remove(personId))
           scenario.getHouseholds.getHouseholds.remove(household.getId)

@@ -4,7 +4,7 @@ import java.io.File
 
 import beam.utils.FileUtils
 import scripts.shape.ShapeWriter.OriginalToPersistedFeatureIdMap
-import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory, Point}
+import org.locationtech.jts.geom.{Coordinate, GeometryFactory, Point}
 import org.matsim.core.utils.gis.ShapeFileReader
 import org.opengis.feature.simple.SimpleFeature
 import org.scalatest.BeforeAndAfterAll

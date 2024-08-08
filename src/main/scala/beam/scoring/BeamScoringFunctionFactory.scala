@@ -78,6 +78,7 @@ class BeamScoringFunctionFactory @Inject() (
       private var finalScore = 0.0
       private val trips = mutable.ListBuffer[EmbodiedBeamTrip]()
       private var leavingParkingEventScore = 0.0
+      private var replanningEventCount = 0
 
       override def handleEvent(event: Event): Unit = {
         event match {
@@ -91,6 +92,7 @@ class BeamScoringFunctionFactory @Inject() (
                 s"a replanning. Value if  replanOnTheFlyWhenHouseholdVehiclesAreNotAvailable is " +
                 s"${beamConfig.beam.agentsim.agents.vehicles.replanOnTheFlyWhenHouseholdVehiclesAreNotAvailable}"
               )
+              replanningEventCount += 1
             } else if (!e.getReason.startsWith("RouteNotAvailableForChosenMode")) {
               // Don't need to remove a trip if a route wasn't found because no initial trip was taken
               logger.error(
@@ -101,6 +103,7 @@ class BeamScoringFunctionFactory @Inject() (
           case _: ReplanningEvent =>
             // FIXME? If this happens often, maybe we can optimize it:
             // trips is a ListBuffer meaning removing is O(n)
+            replanningEventCount += 1
             trips.remove(trips.size - 1)
           case leavingParkingEvent: LeavingParkingEvent =>
             leavingParkingEventScore += leavingParkingEvent.score
@@ -153,8 +156,9 @@ class BeamScoringFunctionFactory @Inject() (
           }
           .filter(activity => !activity.getType.equalsIgnoreCase("Home") & !activity.getType.equalsIgnoreCase("Work"))
         val activityScore = personActivities.foldLeft(0.0)(_ + getActivityBenefit(_, attributes))
+        val replanningScore = -replanningEventCount.toFloat * beamConfig.beam.replanning.replanningPenaltyInDollars
 
-        finalScore = allDayScore + leavingParkingEventScore + activityScore
+        finalScore = allDayScore + leavingParkingEventScore + activityScore + replanningScore
         finalScore = Math.max(
           finalScore,
           -100000

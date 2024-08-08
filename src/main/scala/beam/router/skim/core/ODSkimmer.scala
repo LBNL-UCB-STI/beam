@@ -9,7 +9,7 @@ import beam.router.skim.{readonly, GeoUnit, Skims}
 import beam.router.skim.readonly.ODSkims
 import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
-import beam.utils.{MathUtils, ProfilingUtils}
+import beam.utils.{MathUtils, OutputDataDescriptor, OutputDataDescriptorObject, ProfilingUtils}
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
@@ -402,7 +402,7 @@ object ODSkimmer extends LazyLogging {
 
   def fromCsv(
     row: scala.collection.Map[String, String]
-  ): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
+  ): (ODSkimmerKey, ODSkimmerInternal) = {
     (
       ODSkimmerKey(
         hour = row("hour").toInt,
@@ -522,4 +522,48 @@ object ODSkimmer extends LazyLogging {
   def getODSkimmerRideHailNames(beamConfig: BeamConfig) = {
     "" :: beamConfig.beam.agentsim.agents.rideHail.managers.map(_.name)
   }
+
+  def odSkimOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("ODSkimmer", "skimsOD.csv.gz", iterationLevel = true)(
+      """
+        hour                              | Hour this statistic applies to
+        mode                              | Trip mode
+        rideHailName                      | Ride-hail manager name if trip is a ride-hail(-pooled) trip or empty otherwise
+        origTaz                           | TAZ id of trip origin
+        destTaz                           | TAZ id of trip destination
+        travelTimeInS                     | Average travel time in seconds
+        generalizedTimeInS                | Average generalized travel time in seconds
+        cost                              | Average trip total cost
+        generalizedCost                   | Average trip generalized cost
+        distanceInM                       | Average trip distance in meters
+        payloadWeightInKg                 | Average payload weight (if it's not a freight trip then it is zero)
+        energy                            | Average energy consumed in Joules
+        level4CavTravelTimeScalingFactor  | Always 1.0
+        failedTrips                       | Number of failed trips
+        observations                      | Number of trips
+        iterations                        | Iteration number
+        """
+    )
+
+  def aggregatedOdSkimOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("ODSkimmer", "skimsOD_Aggregated.csv.gz", iterationLevel = true)(
+      """
+        hour                              | Hour this statistic applies to
+        mode                              | Trip mode
+        rideHailName                      | Ride-hail manager name if trip is a ride-hail(-pooled) trip or empty otherwise
+        origTaz                           | TAZ id of trip origin
+        destTaz                           | TAZ id of trip destination
+        travelTimeInS                     | Average (over last n iterations) travel time in seconds
+        generalizedTimeInS                | Average generalized travel time in seconds
+        cost                              | Average trip total cost
+        generalizedCost                   | Average trip generalized cost
+        distanceInM                       | Average trip distance in meters
+        payloadWeightInKg                 | Average payload weight (if it's not a freight trip then it is zero)
+        energy                            | Average energy consumed in Joules
+        level4CavTravelTimeScalingFactor  | Always 1.0
+        failedTrips                       | Average number of failed trips
+        observations                      | Average number of trips
+        iterations                        | Number of iterations
+        """
+    )
 }

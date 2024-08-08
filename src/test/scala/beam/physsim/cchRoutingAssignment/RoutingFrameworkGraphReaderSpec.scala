@@ -1,7 +1,7 @@
 package beam.physsim.cchRoutingAssignment
 
 import java.io.File
-import com.vividsolutions.jts.geom.Coordinate
+import org.locationtech.jts.geom.Coordinate
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 

@@ -17,7 +17,7 @@ import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm
 import beam.sim.{BeamServices, Geofence}
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.typesafe.scalalogging.LazyLogging
-import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory}
+import org.locationtech.jts.geom.{Coordinate, GeometryFactory}
 import org.geotools.referencing.GeodeticCalculator
 import org.geotools.referencing.crs.DefaultGeographicCRS
 import org.jgrapht.graph.{DefaultEdge, DefaultUndirectedWeightedGraph}
@@ -353,10 +353,11 @@ object RideHailMatching {
   ): QuadTree[CustomerRequest] = {
     createSpatialPooledCustomerRequests(
       requests.map { rhr =>
+        val departureTime = math.max(tick, rhr.departAt)
         createPersonRequest(
           rhr.customer,
           rhr.pickUpLocationUTM,
-          tick,
+          departureTime,
           rhr.destinationUTM,
           rideHailManager.managerConfig,
           rideHailManager.beamServices,
