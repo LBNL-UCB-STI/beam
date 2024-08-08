@@ -249,6 +249,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
           bind(classOf[DriveTimeSkimmer]).asEagerSingleton()
           bind(classOf[TransitCrowdingSkimmer]).asEagerSingleton()
           bind(classOf[RideHailSkimmer]).asEagerSingleton()
+          bind(classOf[ODVehicleTypeSkimmer]).asEagerSingleton()
           bind(classOf[FreightSkimmer]).asEagerSingleton()
           bind(classOf[ParkingSkimmer]).asEagerSingleton()
           bind(classOf[ActivitySimSkimmer]).asEagerSingleton()

@@ -1500,8 +1500,8 @@ trait ChoosesMode {
       (origGeo, destGeo)
     } else {
       (
-        geoMap.getTAZ(originActivity.getCoord).toString,
-        geoMap.getTAZ(destinationActivity.getCoord).toString
+        geoMap.getTAZ(originActivity.getCoord).tazId.toString,
+        geoMap.getTAZ(destinationActivity.getCoord).tazId.toString
       )
     }
 
