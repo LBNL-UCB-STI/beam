@@ -52,10 +52,6 @@ class VehicleEmissions(
     vehicleType: BeamVehicleType,
     beamServices: BeamServices
   ): Option[EmissionsProfile] = {
-    val emissionsConfig = beamServices.beamConfig.beam.exchange.output.emissions
-    if (!emissionsConfig.events && !emissionsConfig.skims)
-      return None
-
     val emissionsProfiles = for {
       process                    <- identifyProcesses(vehicleActivityData, vehicleActivity)
       data                       <- vehicleActivityData
@@ -65,7 +61,7 @@ class VehicleEmissions(
       rates <- getRatesUsing(emissionsRatesFilter, data, process).orElse(fallBack.flatMap(_.values.get(process)))
     } yield {
       val emissions = calculationMap(process)(rates, data)
-      if (emissionsConfig.skims) {
+      if (beamServices.beamConfig.beam.exchange.output.emissions.skims) {
         // Create and process EmissionsSkimmerEvent
         beamServices.matsimServices.getEvents.processEvent(
           EmissionsSkimmerEvent(
@@ -93,13 +89,14 @@ class VehicleEmissions(
     value: Double,
     getDefaultInterval: Boolean = true
   ): Option[(DoubleTypedRange, T)] = {
-    Try {
-      map.view
-        .filter(_._1.has(value))
-        .maxBy { case (range, _) =>
-          (range.upperBound - range.lowerBound) * (if (getDefaultInterval) 1 else -1)
-        }
-    }.toOption
+    val filteredMap = map.filter(_._1.has(value))
+    if (filteredMap.isEmpty) {
+      None
+    } else {
+      Some(filteredMap.maxBy { case (range, _) =>
+        (range.upperBound - range.lowerBound) * (if (getDefaultInterval) 1 else -1)
+      })
+    }
   }
 
   private def getRatesUsing(

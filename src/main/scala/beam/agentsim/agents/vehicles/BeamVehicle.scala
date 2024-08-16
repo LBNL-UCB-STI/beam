@@ -291,17 +291,28 @@ class BeamVehicle(
     vehicleActivity: Class[E],
     beamServices: BeamServices
   ): Option[EmissionsProfile] = {
-    val emissions =
-      beamServices.beamScenario.vehicleEmissions.getEmissionsProfileInGram(
+    val emissionsConfig = beamServices.beamConfig.beam.exchange.output.emissions
+
+    if (emissionsConfig.events || emissionsConfig.skims) {
+      val emissionsMaybe = beamServices.beamScenario.vehicleEmissions.getEmissionsProfileInGram(
         vehicleActivityData,
         vehicleActivity,
         beamVehicleType,
         beamServices
       )
-    emissionsRWLock.write(emissions.map(_.values.foreach { case (source, rates) =>
-      emissionsProfileInGramInternal.values.get(source).map(_ + rates)
-    }))
-    if (beamServices.beamConfig.beam.exchange.output.emissions.events) emissions else None
+
+      emissionsMaybe.foreach { emissions =>
+        emissionsRWLock.write {
+          emissions.values.foreach { case (source, rates) =>
+            emissionsProfileInGramInternal.values.get(source).foreach(_ += rates)
+          }
+        }
+      }
+
+      if (emissionsConfig.events) emissionsMaybe else None
+    } else {
+      None
+    }
   }
 
   /**

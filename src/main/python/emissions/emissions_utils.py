@@ -71,9 +71,9 @@ fuel_color_map = {
     'H2fc': '#6495ED',  # Cornflower Blue
     'Phe': '#87CEEB',  # Sky Blue
     'NG': '#B0E0E6',    # Pale Blue
-    'BioDsl': '#EEE8AA',  # Pale Gold
+    'BioDsl': '#98FB98',  # Pale Green
     'Dsl': '#FFD700',  # Gold
-    'Gas': '#B8860B'   # Dark Goldenrod
+    'Gas': '#708090'  # Slate Gray
 }
 
 process_color_map = {
@@ -131,6 +131,11 @@ skims_schema = pa.schema([
     ('SOx', pa.float64()),
     ('TOG', pa.float64())
 ])
+
+
+def darken_color(color, factor=0.8):
+    rgb = mcolors.to_rgb(color)
+    return tuple(max(0, c * factor) for c in rgb)
 
 
 def sanitize_name(filename):
@@ -988,9 +993,6 @@ def plot_hourly_emissions_by_scenario_class_fuel(emissions_skims, pollutant, out
     fuel_classes = sorted(grouped_data['fuel_class'].unique())
     all_hours = sorted(grouped_data['hour'].unique())
 
-    # Function to darken a color
-    def darken_color(color, factor=0.7):
-        return mcolors.to_rgba(mcolors.to_rgb(color), alpha=None)[:3] + (factor,)
 
     # Create color map for fuel_classes
     fuel_class_colors = {}
@@ -1011,20 +1013,21 @@ def plot_hourly_emissions_by_scenario_class_fuel(emissions_skims, pollutant, out
     for i, scenario in enumerate(scenarios):
         scenarios_labeling.append(scenario)
         scenario_data = grouped_data[grouped_data['scenario'] == scenario]
-
         bottom = np.zeros(len(all_hours))
         for fuel_class in fuel_classes:
             fuel_class_data = scenario_data[scenario_data['fuel_class'] == fuel_class]
-
             # Create an array of rates for all hours, filling with zeros where data is missing
             rates = np.zeros(len(all_hours))
             for _, row in fuel_class_data.iterrows():
                 hour_index = all_hours.index(row['hour'])
                 rates[hour_index] = row['rate']
 
+            # Add edgecolor and linewidth parameters to create a subtle border
             plt.bar(x + i * width, rates, width, bottom=bottom,
                     label=f"{fuel_class}" if i == 0 else "",
-                    color=fuel_class_colors[fuel_class])
+                    color=fuel_class_colors[fuel_class],
+                    edgecolor='black',  # Add black edge color
+                    linewidth=0.5)  # Adjust linewidth as needed
             bottom += rates
 
     plt.title(
@@ -1088,7 +1091,15 @@ def plot_hourly_activity(tours_types, output_dir, height_size):
                                      fuel_order), x))
 
     # Create a color map for all fuel types
-    color_map = {fuel: fuel_color_map[fuel] for fuel in fuel_order}
+    #color_map = {fuel: fuel_color_map[fuel] for fuel in fuel_order}
+    color_map = {}
+    for fc in sorted_fuel_classes:
+        fuel, vehicle_class = fc.split('-')
+        base_color = fuel_color_map[fuel] # Default to black if fuel not found
+        if any(c in vehicle_class for c in ['7', '8']):
+            color_map[fc] = darken_color(base_color)
+        else:
+            color_map[fc] = base_color
 
     # Plot stacked bars for each scenario
     legend_handles = []
@@ -1104,7 +1115,7 @@ def plot_hourly_activity(tours_types, output_dir, height_size):
             else:
                 values = np.zeros(24)
 
-            bar = plt.bar(x + i * width, values, width, bottom=bottom, color=color)
+            bar = plt.bar(x + i * width, values, width, bottom=bottom, color=color, edgecolor='black', linewidth=0.5)
             bottom += values
 
             if fuel_class not in legend_labels:
@@ -1165,9 +1176,6 @@ def plot_hourly_vmt(df, output_dir, height_size):
                                  fuel_order.index(x.split('-')[0]) if x.split('-')[0] in fuel_order else len(
                                      fuel_order), x))
 
-    # Function to darken a color
-    def darken_color(color, factor=0.7):
-        return mcolors.to_rgba(mcolors.to_rgb(color), alpha=None)[:3] + (factor,)
 
     # Create color map for fuel_classes
     color_map = {}
@@ -1190,7 +1198,7 @@ def plot_hourly_vmt(df, output_dir, height_size):
             else:
                 values = np.zeros(24)
 
-            bar = plt.bar(x + i * width, values, width, bottom=bottom, color=color_map[fuel_class])
+            bar = plt.bar(x + i * width, values, width, bottom=bottom, color=color_map[fuel_class], edgecolor='black', linewidth=0.5)
             bottom += values
 
             if fuel_class not in legend_labels:
@@ -1645,9 +1653,6 @@ def plot_pollution_variability_by_process_vehicle_types(skims, pollutant, scenar
     # Sort fuel_class by median emission rate
     fuel_class_order = data.groupby('fuel_class')['rate_micro_gram'].median().sort_values(ascending=False).index
 
-    def darken_color(color, factor=0.7):
-        return mcolors.to_rgba(mcolors.to_rgb(color), alpha=None)[:3] + (factor,)
-
     # Set up the plot
     fig, ax = plt.subplots(figsize=(20, height_size))
 
@@ -1730,7 +1735,7 @@ def plot_pollutants_by_process(skims, scenario, plot_dir, height_size, font_size
     normalized.plot(kind='bar', stacked=True, ax=ax, color=[process_color_map[col] for col in normalized.columns])
 
     # Customize the plot
-    plt.title('Normalized Pollutant Emissions by Process', fontsize=font_size+4)
+    plt.title(f'Normalized Emissions by Process - {scenario}', fontsize=font_size+4)
     plt.xlabel('Pollutant', fontsize=font_size)
     plt.ylabel('Relative Emissions (%)', fontsize=font_size)
     plt.xticks(rotation=0, ha='center', fontsize=font_size)

@@ -72,12 +72,12 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
 
 
 city = "sfbay"
-scenario_name = "2024-01-23"
+scenario_name = "2024-08-07"
 run_name = "Baseline"
 
-directory_input = os.path.expanduser('~/Workspace/Data/FREIGHT/' + city + '/frism/' + scenario_name + "/" + run_name)
+directory_input = os.path.expanduser('~/Workspace/Simulation/' + city + '/frism/' + scenario_name + "/" + run_name)
 directory_output = os.path.expanduser(
-    '~/Workspace/Data/FREIGHT/' + city + '/beam_freight/' + scenario_name + "/" + run_name)
+    '~/Workspace/Simulation/' + city + '/beam-freight/' + scenario_name + "/" + run_name)
 Path(directory_output).mkdir(parents=True, exist_ok=True)
 carriers = None
 payload_plans = None
