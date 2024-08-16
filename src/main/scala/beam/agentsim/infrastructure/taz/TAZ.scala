@@ -31,6 +31,8 @@ class TAZ(
   ) {
     this(Id.create(tazIdString, classOf[TAZ]), coord, area, geometry, county)
   }
+
+  override def toString: String = s"TAZ{$tazId}"
 }
 
 object TAZ {

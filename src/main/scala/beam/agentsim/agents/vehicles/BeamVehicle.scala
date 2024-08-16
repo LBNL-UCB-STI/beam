@@ -553,7 +553,9 @@ object BeamVehicle {
     secondaryFuel: Double /*, vehicleActivityData: IndexedSeq[VehicleActivityData],
                           primaryLoggingData: IndexedSeq[LoggingData],
                           secondaryLoggingData: IndexedSeq[LoggingData]*/
-  )
+  ) {
+    def totalEnergyConsumed: Double = primaryFuel + secondaryFuel
+  }
 
   val idPrefixSharedTeleportationVehicle = "teleportationSharedVehicle"
   private val idPrefixRideHail = "rideHailVehicle"

@@ -39,11 +39,9 @@ WORKDIR /app
 RUN chown $MAMBA_USER:$MAMBA_USER /app
 # a script to test the docker from python is working
 COPY --chown=$MAMBA_USER:$MAMBA_USER run_hello_world_docker.py /misc/run_hello_world_docker.py
-# a script to pull images described in the settings.yaml file
-COPY --chown=$MAMBA_USER:$MAMBA_USER pull_images_from_settings_yaml.py /misc/pull_images_from_settings_yaml.py
 # adding additional scripts
-COPY --chown=$MAMBA_USER:$MAMBA_USER run_docker_and_execute_pilates.sh /usr/local/bin/run_docker_and_execute_pilates.sh
 COPY --chown=$MAMBA_USER:$MAMBA_USER second_entrypoint.sh /usr/local/bin/second_entrypoint.sh
-RUN chmod +x /usr/local/bin/run_docker_and_execute_pilates.sh
 RUN chmod +x /usr/local/bin/second_entrypoint.sh
+COPY --chown=$MAMBA_USER:$MAMBA_USER prepare_pilates_output.sh /usr/local/bin/prepare_pilates_output.sh
+RUN chmod +x /usr/local/bin/prepare_pilates_output.sh
 ENTRYPOINT ["/usr/local/bin/_entrypoint.sh", "/usr/local/bin/second_entrypoint.sh"]
