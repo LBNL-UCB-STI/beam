@@ -4,6 +4,7 @@ import beam.agentsim.agents.Population
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.sim.{BeamScenario, BeamServices}
+import beam.utils.scenario.HouseholdId
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.Coord
 
@@ -30,7 +31,8 @@ case class UniformVehiclesAdjustment(beamScenario: BeamScenario) extends Vehicle
     householdSize: Int,
     householdPopulation: Population,
     householdLocation: Coord,
-    realDistribution: UniformRealDistribution
+    realDistribution: UniformRealDistribution,
+    householdId: Option[HouseholdId]
   ): List[BeamVehicleType] = {
     val vehTypeWithProbability = vehicleTypesAndProbabilitiesByCategory(vehicleCategory, "Usage Not Set")
     (1 to numVehicles).map { _ =>

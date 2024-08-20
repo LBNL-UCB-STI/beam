@@ -1548,6 +1548,7 @@ object BeamConfig {
         }
 
         case class RideHailTransit(
+          intermodalUse: java.lang.String,
           modesToConsider: java.lang.String
         )
 
@@ -1555,6 +1556,8 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHailTransit = {
             BeamConfig.Beam.Agentsim.Agents.RideHailTransit(
+              intermodalUse =
+                if (c.hasPathOrNull("intermodalUse")) c.getString("intermodalUse") else "AccessAndOrEgress",
               modesToConsider = if (c.hasPathOrNull("modesToConsider")) c.getString("modesToConsider") else "MASS"
             )
           }
@@ -2860,7 +2863,11 @@ object BeamConfig {
     object Exchange {
 
       case class Output(
-        activity_sim_skimmer: scala.Option[BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer]
+        activity_sim_skimmer: scala.Option[BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer],
+        activitySimSkimsEnabled: scala.Boolean,
+        generateSkimsForAllModes: scala.Boolean,
+        generateSkimsForRideHailTransit: scala.Boolean,
+        sendNonChosenTripsToSkimmer: scala.Boolean
       )
 
       object Output {
@@ -2886,7 +2893,7 @@ object BeamConfig {
           }
 
           case class Secondary(
-            beamModeFilter: scala.List[java.lang.String],
+            beamModeFilter: scala.Option[scala.List[java.lang.String]],
             enabled: scala.Boolean,
             taz: BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz
           )
@@ -2924,8 +2931,8 @@ object BeamConfig {
                 c: com.typesafe.config.Config
               ): BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz = {
                 BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz(
-                  filePath = c.getString("filePath"),
-                  tazIdFieldName = c.getString("tazIdFieldName"),
+                  filePath = if (c.hasPathOrNull("filePath")) c.getString("filePath") else "''",
+                  tazIdFieldName = if (c.hasPathOrNull("tazIdFieldName")) c.getString("tazIdFieldName") else "''",
                   tazMapping =
                     if (c.hasPathOrNull("tazMapping"))
                       scala.Some(
@@ -2939,7 +2946,8 @@ object BeamConfig {
 
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary = {
               BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary(
-                beamModeFilter = $_L$_str(c.getList("beamModeFilter")),
+                beamModeFilter =
+                  if (c.hasPathOrNull("beamModeFilter")) scala.Some($_L$_str(c.getList("beamModeFilter"))) else None,
                 enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
                 taz = BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz(
                   if (c.hasPathOrNull("taz")) c.getConfig("taz")
@@ -2968,7 +2976,15 @@ object BeamConfig {
             activity_sim_skimmer =
               if (c.hasPathOrNull("activity-sim-skimmer"))
                 scala.Some(BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer(c.getConfig("activity-sim-skimmer")))
-              else None
+              else None,
+            activitySimSkimsEnabled =
+              c.hasPathOrNull("activitySimSkimsEnabled") && c.getBoolean("activitySimSkimsEnabled"),
+            generateSkimsForAllModes =
+              c.hasPathOrNull("generateSkimsForAllModes") && c.getBoolean("generateSkimsForAllModes"),
+            generateSkimsForRideHailTransit =
+              c.hasPathOrNull("generateSkimsForRideHailTransit") && c.getBoolean("generateSkimsForRideHailTransit"),
+            sendNonChosenTripsToSkimmer =
+              !c.hasPathOrNull("sendNonChosenTripsToSkimmer") || c.getBoolean("sendNonChosenTripsToSkimmer")
           )
         }
       }
@@ -4528,9 +4544,9 @@ object BeamConfig {
             osmMapdbFile =
               if (c.hasPathOrNull("osmMapdbFile")) c.getString("osmMapdbFile")
               else "/test/input/beamville/r5/osm.mapdb",
-            suboptimalMinutes = if (c.hasPathOrNull("suboptimalMinutes")) c.getInt("suboptimalMinutes") else 0,
+            suboptimalMinutes = if (c.hasPathOrNull("suboptimalMinutes")) c.getInt("suboptimalMinutes") else 10,
             transitAlternativeList =
-              if (c.hasPathOrNull("transitAlternativeList")) c.getString("transitAlternativeList") else "OPTIMAL",
+              if (c.hasPathOrNull("transitAlternativeList")) c.getString("transitAlternativeList") else "SUBOPTIMAL",
             travelTimeNoiseFraction =
               if (c.hasPathOrNull("travelTimeNoiseFraction")) c.getDouble("travelTimeNoiseFraction") else 0.0
           )
