@@ -72,12 +72,12 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
 
 
 city = "sfbay"
-scenario_name = "2024-08-07"
-run_name = "Baseline"
+scenario_name = "2024-01-23"
+year, run_name = "2018", "Baseline"
 
 directory_input = os.path.expanduser('~/Workspace/Simulation/' + city + '/frism/' + scenario_name + "/" + run_name)
 directory_output = os.path.expanduser(
-    '~/Workspace/Simulation/' + city + '/beam-freight/' + scenario_name + "/" + run_name)
+    '~/Workspace/Simulation/' + city + '/beam-freight/' + scenario_name + "/" + year + "_" + run_name.replace("_",""))
 Path(directory_output).mkdir(parents=True, exist_ok=True)
 carriers = None
 payload_plans = None
@@ -185,7 +185,7 @@ for filename in sorted(os.listdir(directory_input)):
     else:
         print(f'SKIPPING {filename}')
 
-vehicle_types.to_csv(f'{directory_output}/freight-vehicletypes--{run_name}.csv', index=False)
+vehicle_types.to_csv(f'{directory_output}/../vehicle-tech/ft-vehicletypes--{year}-{run_name.replace("_","")}.csv', index=False)
 
 # In[9]:
 
@@ -201,7 +201,7 @@ carriers_drop = ['x', 'y', 'index']
 carriers.rename(columns=carriers_renames, inplace=True)
 carriers.drop(carriers_drop, axis=1, inplace=True, errors='ignore')
 carriers['warehouseZone'] = carriers['warehouseZone'].astype(int)
-carriers.to_csv(f'{directory_output}/freight-carriers.csv', index=False)
+carriers.to_csv(f'{directory_output}/carriers--{year}-{run_name.replace("_","")}.csv', index=False)
 
 # In[10]:
 
@@ -219,7 +219,7 @@ tours['departureTimeInSec'] = tours['departureTimeInSec'].astype(int)
 tours['maxTourDurationInSec'] = tours['maxTourDurationInSec'].astype(int)
 tours['departureLocationZone'] = tours['departureLocationZone'].astype(int)
 tours.drop(['index'], axis=1, inplace=True, errors='ignore')
-tours.to_csv(f'{directory_output}/freight-tours.csv', index=False)
+tours.to_csv(f'{directory_output}/tours--{year}-{run_name.replace("_","")}.csv', index=False)
 
 # In[11]:
 
@@ -244,6 +244,6 @@ payload_plans['arrivalTimeWindowInSecLower'] = payload_plans['arrivalTimeWindowI
 payload_plans['arrivalTimeWindowInSecUpper'] = payload_plans['arrivalTimeWindowInSecUpper'].astype(int)
 payload_plans['operationDurationInSec'] = payload_plans['operationDurationInSec'].astype(int)
 payload_plans['locationZone'] = payload_plans['locationZone'].astype(int)
-payload_plans.to_csv(f'{directory_output}/freight-payloads.csv', index=False)
+payload_plans.to_csv(f'{directory_output}/payloads--{year}-{run_name.replace("_","")}.csv', index=False)
 
 print("END")
