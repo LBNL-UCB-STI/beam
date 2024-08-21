@@ -17,9 +17,9 @@ ft_iteration = "2024-01-23"
 area = "sfbay"
 ##
 # emfac_year, ft_year, ft_scenario, pax_year, pax_scenario = 2050, 2050, "HOPhighp2", 2045, "LowTech"
-emfac_year, ft_year, ft_scenario, pax_year, pax_scenario = 2018, 2018, "Baseline", 2018, "Baseline"
-# emfac_year, ft_year, ft_scenario, pax_year, pax_scenario = 2050, 2050, "Refhighp2", 2045, "LowTech"
-# emfac_year, ft_year, ft_scenario, pax_year, pax_scenario = 2050, 2050, "HOPhighp2", 2045, "LowTech"
+# emfac_year, ft_year, ft_scenario, pax_year, pax_scenario = 2018, 2018, "Baseline", 2018, "Baseline"
+# emfac_year, ft_year, ft_scenario, pax_year, pax_scenario = 2050, 2050, "Refhighp6", 2045, "LowTech"
+emfac_year, ft_year, ft_scenario, pax_year, pax_scenario = 2050, 2050, "HOPhighp6", 2045, "LowTech"
 ##
 input_dir = os.path.expanduser(f"~/Workspace/Simulation/{area}/beam-freight/{ft_iteration}")
 carriers_file = f"{input_dir}/{str(ft_year)}_{ft_scenario}/carriers--{str(ft_year)}-{ft_scenario}.csv"

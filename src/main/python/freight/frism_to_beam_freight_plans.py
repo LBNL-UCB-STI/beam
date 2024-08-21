@@ -73,11 +73,13 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
 
 city = "sfbay"
 scenario_name = "2024-01-23"
-year, run_name = "2018", "Baseline"
+# year, run_name = "2018", "Baseline"
+year, run_name = "2050", "Ref_highp6"
+run_name_label = run_name.replace("_", "")
 
 directory_input = os.path.expanduser('~/Workspace/Simulation/' + city + '/frism/' + scenario_name + "/" + run_name)
 directory_output = os.path.expanduser(
-    '~/Workspace/Simulation/' + city + '/beam-freight/' + scenario_name + "/" + year + "_" + run_name.replace("_",""))
+    '~/Workspace/Simulation/' + city + '/beam-freight/' + scenario_name + "/" + year + "_" + run_name_label)
 Path(directory_output).mkdir(parents=True, exist_ok=True)
 carriers = None
 payload_plans = None
@@ -104,7 +106,7 @@ for filename in sorted(os.listdir(directory_input)):
                                    axis=1).tolist()
         df['vehicleTypeId'] = df.apply(
             lambda row: add_prefix('freight-', 'vehicleTypeId', row, to_num=True, store_dict=None, veh_type=True,
-                                   suffix="-" + run_name),
+                                   suffix="-" + run_name_label),
             axis=1).tolist()
         df['vehicleId'] = df.apply(lambda row: add_prefix(row['carrierId'] + '-', 'vehicleId', row), axis=1).tolist()
         # df['tourId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'tourId', row), axis=1)
@@ -139,7 +141,7 @@ for filename in sorted(os.listdir(directory_input)):
         # JoulePerMeter = 121300000/(mpgge*1609.34)
         vehicle_types_ids = df.apply(
             lambda row: add_prefix('freight-', 'veh_type_id', row, to_num=True, store_dict=None, veh_type=True,
-                                   suffix="-" + run_name), axis=1).tolist()
+                                   suffix="-" + run_name_label), axis=1).tolist()
         vehicles_techs = {
             "vehicleTypeId": vehicle_types_ids,
             "seatingCapacity": list(np.repeat(1, len(df.index))),
@@ -185,7 +187,7 @@ for filename in sorted(os.listdir(directory_input)):
     else:
         print(f'SKIPPING {filename}')
 
-vehicle_types.to_csv(f'{directory_output}/../vehicle-tech/ft-vehicletypes--{year}-{run_name.replace("_","")}.csv', index=False)
+vehicle_types.to_csv(f'{directory_output}/../vehicle-tech/ft-vehicletypes--{year}-{run_name_label}.csv', index=False)
 
 # In[9]:
 
@@ -201,7 +203,7 @@ carriers_drop = ['x', 'y', 'index']
 carriers.rename(columns=carriers_renames, inplace=True)
 carriers.drop(carriers_drop, axis=1, inplace=True, errors='ignore')
 carriers['warehouseZone'] = carriers['warehouseZone'].astype(int)
-carriers.to_csv(f'{directory_output}/carriers--{year}-{run_name.replace("_","")}.csv', index=False)
+carriers.to_csv(f'{directory_output}/carriers--{year}-{run_name_label}.csv', index=False)
 
 # In[10]:
 
@@ -219,7 +221,7 @@ tours['departureTimeInSec'] = tours['departureTimeInSec'].astype(int)
 tours['maxTourDurationInSec'] = tours['maxTourDurationInSec'].astype(int)
 tours['departureLocationZone'] = tours['departureLocationZone'].astype(int)
 tours.drop(['index'], axis=1, inplace=True, errors='ignore')
-tours.to_csv(f'{directory_output}/tours--{year}-{run_name.replace("_","")}.csv', index=False)
+tours.to_csv(f'{directory_output}/tours--{year}-{run_name_label}.csv', index=False)
 
 # In[11]:
 
@@ -244,6 +246,6 @@ payload_plans['arrivalTimeWindowInSecLower'] = payload_plans['arrivalTimeWindowI
 payload_plans['arrivalTimeWindowInSecUpper'] = payload_plans['arrivalTimeWindowInSecUpper'].astype(int)
 payload_plans['operationDurationInSec'] = payload_plans['operationDurationInSec'].astype(int)
 payload_plans['locationZone'] = payload_plans['locationZone'].astype(int)
-payload_plans.to_csv(f'{directory_output}/payloads--{year}-{run_name.replace("_","")}.csv', index=False)
+payload_plans.to_csv(f'{directory_output}/payloads--{year}-{run_name_label}.csv', index=False)
 
 print("END")
