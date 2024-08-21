@@ -54,7 +54,7 @@ object LeavingParkingEvent {
       case Some(value) => value.toString
     }
 
-  def getParkingDuration(stall: ParkingStall, parkingDepartureTime: Double): Double = {
+  private def getParkingDuration(stall: ParkingStall, parkingDepartureTime: Double): Double = {
     if (parkingDepartureTime >= stall.getParkingTime) {
       parkingDepartureTime - stall.getParkingTime
     } else {
