@@ -173,6 +173,14 @@ object VehicleEmissions extends LazyLogging {
         key -> (values.getOrElse(key, 0.0) + other.values.getOrElse(key, 0.0))
       }.toMap)
 
+    def +=(other: Emissions): Emissions = {
+      Emissions(
+        (values.keySet ++ other.values.keySet).map { key =>
+          key -> (values.getOrElse(key, 0.0) + other.values.getOrElse(key, 0.0))
+        }.toMap
+      )
+    }
+
     def get(emissionType: EmissionType): Option[Double] = values.get(emissionType)
 
     override def toString: String =
