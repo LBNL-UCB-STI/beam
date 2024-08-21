@@ -22,15 +22,18 @@ secondary_energy_profile_for_phev = {
     # "freight-md-D-Diesel-Baseline": np.nan,
     # "freight-md-E-BE-Baseline": np.nan,
     # "freight-md-E-H2FC-Baseline": np.nan,
-    "freight-md-E-PHEV-Baseline": ("Diesel", 9595.796035186175, 12000000000000000, "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(HEV,_2025,_no_program).csv"),
+    "freight-md-E-PHEV-Baseline": ("Diesel", 9595.796035186175, 12000000000000000,
+                                   "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(HEV,_2025,_no_program).csv"),
     # "freight-hdt-D-Diesel-Baseline": np.nan,
     # "freight-hdt-E-BE-Baseline": np.nan,
     # "freight-hdt-E-H2FC-Baseline": np.nan,
-    "freight-hdt-E-PHEV-Baseline": ("Diesel", 13817.086117829229, 12000000000000000, "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(HEV,_2025,_no_program).csv"),
+    "freight-hdt-E-PHEV-Baseline": ("Diesel", 13817.086117829229, 12000000000000000,
+                                    "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(HEV,_2025,_no_program).csv"),
     # "freight-hdv-D-Diesel-Baseline": np.nan,
     # "freight-hdv-E-BE-Baseline": np.nan,
     # "freight-hdv-E-H2FC-Baseline": np.nan,
-    "freight-hdv-E-PHEV-Baseline": ("Diesel", 14026.761465378302, 12000000000000000, "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(HEV,_2025,_no_program).csv")
+    "freight-hdv-E-PHEV-Baseline": ("Diesel", 14026.761465378302, 12000000000000000,
+                                    "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(HEV,_2025,_no_program).csv")
 }
 
 
@@ -68,12 +71,19 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
     return new
 
 
-scenario_name = "2024-04-23"
-run_name = "Baseline"
-city = "seattle"
-directory_input = os.path.expanduser('~/Workspace/Data/FREIGHT/' + city + '/frism/'+scenario_name+"/"+run_name)
-directory_output = os.path.expanduser('~/Workspace/Data/FREIGHT/' + city + '/beam_freight/'+scenario_name+"/"+run_name)
+frism_version = 1.5
+city = "sfbay"
+scenario_name = "2024-08-07"
+year, run_name = "2018", "Baseline"
+# year, run_name = "2050", "Ref_highp6"
+run_name_label = run_name.replace("_", "")
+
+directory_input = os.path.expanduser('~/Workspace/Simulation/' + city + '/frism/' + scenario_name + "/" + run_name)
+directory_output = os.path.expanduser(
+    '~/Workspace/Simulation/' + city + '/beam-freight/' + scenario_name + "/" + year + "_" + run_name_label)
 Path(directory_output).mkdir(parents=True, exist_ok=True)
+directory_vehicle_tech = f'{directory_output}/../vehicle-tech'
+Path(directory_vehicle_tech).mkdir(parents=True, exist_ok=True)
 carriers = None
 payload_plans = None
 tours = None
@@ -95,13 +105,14 @@ for filename in sorted(os.listdir(directory_input)):
         df = pd.read_csv(filepath)
         # df['carrierId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'carrierId', row), axis=1)
         # df['vehicleId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'vehicleId', row), axis=1)
-        df['carrierId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'carrierId', row, False), axis=1).tolist()
+        df['carrierId'] = df.apply(lambda row: add_prefix(f'', 'carrierId', row, False), axis=1).tolist()
         df['vehicleTypeId'] = df.apply(
-            lambda row: add_prefix('freight-', 'vehicleTypeId', row, to_num=True, store_dict=None, veh_type=True, suffix="-"+run_name),
+            lambda row: add_prefix('', 'vehicleTypeId', row, to_num=True, store_dict=None, veh_type=True,
+                                   suffix="-" + run_name_label),
             axis=1).tolist()
-        df['vehicleId'] = df.apply(lambda row: add_prefix(row['carrierId']+'-', 'vehicleId', row), axis=1).tolist()
+        df['vehicleId'] = df.apply(lambda row: add_prefix('', 'vehicleId', row), axis=1).tolist()
         # df['tourId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'tourId', row), axis=1)
-        df['tourId'] = df.apply(lambda row: add_prefix(row['carrierId']+'-', 'tourId', row, True, tourId_with_prefix), axis=1).tolist()
+        df['tourId'] = df.apply(lambda row: add_prefix('', 'tourId', row, True, tourId_with_prefix), axis=1).tolist()
         if carriers is None:
             carriers = df
         else:
@@ -118,7 +129,7 @@ for filename in sorted(os.listdir(directory_input)):
         df = pd.read_csv(filepath)
         # df['tourId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'tourId', row), axis=1)
         df['tourId'] = df.apply(lambda row: tourId_with_prefix[str(int(row['tourId']))], axis=1).tolist()
-        df['payloadId'] = df.apply(lambda row: add_prefix(row['tourId']+'-', 'payloadId', row, False), axis=1).tolist()
+        df['payloadId'] = df.apply(lambda row: add_prefix('', 'payloadId', row, False), axis=1).tolist()
         if payload_plans is None:
             payload_plans = df
         else:
@@ -128,32 +139,47 @@ for filename in sorted(os.listdir(directory_input)):
         df = pd.read_csv(filepath)
         empty_vectors = list(np.repeat("", len(df.index)))
         # JoulePerMeter = 121300000/(mpgge*1609.34)
-        vehicle_types_ids = df.apply(lambda row: add_prefix('freight-', 'veh_type_id', row, to_num=True, store_dict=None, veh_type=True, suffix="-"+run_name), axis=1).tolist()
+        vehicle_types_ids = df.apply(
+            lambda row: add_prefix('', 'veh_type_id', row, to_num=True, store_dict=None, veh_type=True,
+                                   suffix="-" + run_name_label), axis=1).tolist()
         vehicles_techs = {
             "vehicleTypeId": vehicle_types_ids,
             "seatingCapacity": list(np.repeat(1, len(df.index))),
             "standingRoomCapacity": list(np.repeat(0, len(df.index))),
             "lengthInMeter": list(np.repeat(12, len(df.index))),
             "primaryFuelType": df["primary_fuel_type"],
-            "primaryFuelConsumptionInJoulePerMeter": np.divide(121300000, np.float_(df["primary_fuel_rate"])*1609.34),
+            "primaryFuelConsumptionInJoulePerMeter": np.divide(121300000, np.float_(df["primary_fuel_rate"]) * 1609.34),
             "primaryFuelCapacityInJoule": list(np.repeat(12000000000000000, len(df.index))),
-            "primaryVehicleEnergyFile": [primary_energy_files[id] if id in primary_energy_files else np.nan for id in vehicle_types_ids],
-            "secondaryFuelType": [secondary_energy_profile_for_phev[id][0] if id in secondary_energy_profile_for_phev else np.nan for id in vehicle_types_ids],
-            "secondaryFuelConsumptionInJoulePerMeter": [secondary_energy_profile_for_phev[id][1] if id in secondary_energy_profile_for_phev else np.nan for id in vehicle_types_ids],
-            "secondaryVehicleEnergyFile": [secondary_energy_profile_for_phev[id][3] if id in secondary_energy_profile_for_phev else np.nan for id in vehicle_types_ids],
-            "secondaryFuelCapacityInJoule": [secondary_energy_profile_for_phev[id][2] if id in secondary_energy_profile_for_phev else np.nan for id in vehicle_types_ids],
+            "primaryVehicleEnergyFile": [primary_energy_files[id] if id in primary_energy_files else np.nan for id in
+                                         vehicle_types_ids],
+            "secondaryFuelType": [
+                secondary_energy_profile_for_phev[id][0] if id in secondary_energy_profile_for_phev else np.nan for id
+                in vehicle_types_ids],
+            "secondaryFuelConsumptionInJoulePerMeter": [
+                secondary_energy_profile_for_phev[id][1] if id in secondary_energy_profile_for_phev else np.nan for id
+                in vehicle_types_ids],
+            "secondaryVehicleEnergyFile": [
+                secondary_energy_profile_for_phev[id][3] if id in secondary_energy_profile_for_phev else np.nan for id
+                in vehicle_types_ids],
+            "secondaryFuelCapacityInJoule": [
+                secondary_energy_profile_for_phev[id][2] if id in secondary_energy_profile_for_phev else np.nan for id
+                in vehicle_types_ids],
             "automationLevel": list(np.repeat(1, len(df.index))),
-            "maxVelocity": df["max_speed(mph)"], # convert to meter per second
+            "maxVelocity": df["max_speed(mph)"],  # convert to meter per second
             "passengerCarUnit": empty_vectors,
             "rechargeLevel2RateLimitInWatts": empty_vectors,
             "rechargeLevel3RateLimitInWatts": empty_vectors,
-            "vehicleCategory": list(np.repeat("LightDutyTruck", len(df.index))),
+            "vehicleCategory": list(np.repeat("Class456Vocational", len(df.index))),
             "sampleProbabilityWithinCategory": empty_vectors,
             "sampleProbabilityString": empty_vectors,
-            "payloadCapacityInKg": df["payload_capacity_weight"]
+            "payloadCapacityInKg": df["payload_capacity_weight"],
+            "vehicleClass": df["veh_class"]
         }
         df2 = pd.DataFrame(vehicles_techs)
-        df2["vehicleCategory"] = np.where(df2["vehicleTypeId"].str.contains('hd'), 'HeavyDutyTruck', df2.vehicleCategory)
+        df2["vehicleCategory"] = np.where(df2["vehicleTypeId"].str.contains('hd'), 'Class78Vocational',
+                                          df2.vehicleCategory)
+        df2["vehicleCategory"] = np.where(df2["vehicleTypeId"].str.contains('ld'), 'Class2b3Vocational',
+                                          df2.vehicleCategory)
         if vehicle_types is None:
             vehicle_types = df2
         else:
@@ -161,9 +187,7 @@ for filename in sorted(os.listdir(directory_input)):
     else:
         print(f'SKIPPING {filename}')
 
-
-vehicle_types.to_csv(f'{directory_output}/freight-only-vehicletypes--{run_name}.csv', index=False)
-
+vehicle_types.to_csv(f'{directory_vehicle_tech}/ft-vehicletypes--{year}-{run_name_label}.csv', index=False)
 
 # In[9]:
 
@@ -173,14 +197,14 @@ vehicle_types.to_csv(f'{directory_output}/freight-only-vehicletypes--{run_name}.
 carriers_renames = {
     'depot_zone': 'warehouseZone',
     'depot_zone_x': 'warehouseX',
-    'depot_zone_y': 'warehouseY'
+    'depot_zone_y': 'warehouseY',
+    'true_depot_zone': 'mesoZone'
 }
 carriers_drop = ['x', 'y', 'index']
 carriers.rename(columns=carriers_renames, inplace=True)
 carriers.drop(carriers_drop, axis=1, inplace=True, errors='ignore')
 carriers['warehouseZone'] = carriers['warehouseZone'].astype(int)
-carriers.to_csv(f'{directory_output}/freight-merged-carriers.csv', index=False)
-
+carriers.to_csv(f'{directory_output}/carriers--{year}-{run_name_label}.csv', index=False)
 
 # In[10]:
 
@@ -191,39 +215,76 @@ tours_renames = {
     'tour_id': 'tourId',
     'departureLocation_zone': 'departureLocationZone',
     'departureLocation_x': 'departureLocationX',
-    'departureLocation_y': 'departureLocationY'
+    'departureLocation_y': 'departureLocationY',
+    'true_depot_zone': 'mesoZone'
 }
 tours.rename(columns=tours_renames, inplace=True)
 tours['departureTimeInSec'] = tours['departureTimeInSec'].astype(int)
 tours['maxTourDurationInSec'] = tours['maxTourDurationInSec'].astype(int)
 tours['departureLocationZone'] = tours['departureLocationZone'].astype(int)
 tours.drop(['index'], axis=1, inplace=True, errors='ignore')
-tours.to_csv(f'{directory_output}/freight-merged-tours.csv', index=False)
-
+tours.to_csv(f'{directory_output}/tours--{year}-{run_name_label}.csv', index=False)
 
 # In[11]:
 
 
 # payloadId,sequenceRank,tourId,payloadType,weightInKg,requestType,locationZone,estimatedTimeOfArrivalInSec,arrivalTimeWindowInSecLower,arrivalTimeWindowInSecUpper,operationDurationInSec,locationX,locationY
-# payloadId,sequenceRank,tourId,payloadType,weightInKg,requestType,locationZone,estimatedTimeOfArrivalInSec,arrivalTimeWindowInSecLower,arrivalTimeWindowInSecUpper,operationDurationInSec,locationX,locationY
 payload_plans_renames = {
     'arrivalTimeWindowInSec_lower': 'arrivalTimeWindowInSecLower',
     'arrivalTimeWindowInSec_upper': 'arrivalTimeWindowInSecUpper',
     'locationZone_x': 'locationX',
-    'locationZone_y': 'locationY'
+    'locationZone_y': 'locationY',
+    'true_locationZone': 'mesoZone',
+    'BuyerNAICS': "buyerNAICS",
+    "SellerNAICS": "sellerNAICS"
 }
-payload_plans_drop = ['weightInlb', 'cummulativeWeightInlb', 'index']
-payload_plans['weightInKg'] = abs(payload_plans['weightInlb'].astype(int)) * 0.45359237
+payload_plans_drop = ['truck_mode', 'weightInlb', 'cummulativeWeightInlb', 'index']
+int_columns = ['sequenceRank', 'payloadType', 'requestType', 'estimatedTimeOfArrivalInSec',
+               'arrivalTimeWindowInSecLower', 'arrivalTimeWindowInSecUpper',
+               'operationDurationInSec', 'locationZone']
+payload_type_map = {
+    1: 'bulk',
+    2: 'fuel_fert',
+    3: 'interm_food',
+    4: 'mfr_goods',
+    5: 'others'
+}
+
 payload_plans.rename(columns=payload_plans_renames, inplace=True)
+
+# Convert columns to integer type
+for col in int_columns:
+    payload_plans[col] = payload_plans[col].astype(int)
+
+payload_plans['payloadType'] = payload_plans['payloadType'].map(payload_type_map)
+# Convert weightInlb to weightInKg without applying abs yet
+payload_plans['weightInKg'] = payload_plans['weightInlb'].astype(float) * 0.45359237
+
+# Apply modifications for frism version > 1.0
+if frism_version > 1.0:
+    # Create DeliveryType column
+    payload_plans['deliveryType'] = payload_plans['requestType'].map({1: 'delivery-only', 3: 'pickup-delivery'})
+
+    # Update requestType based on weightInKg
+    payload_plans.loc[payload_plans['weightInKg'] < 0, 'requestType'] = 'unloading'
+    payload_plans.loc[payload_plans['weightInKg'] >= 0, 'requestType'] = 'loading'
+
+    # Now make weightInKg positive
+    payload_plans['weightInKg'] = np.abs(payload_plans['weightInKg'])
+
+else:
+    # For frism version 1.0, just ensure weightInKg is positive
+    payload_plans['requestType'] = payload_plans['requestType'].map({1: 'unloading', 0: 'loading'})
+    payload_plans['weightInKg'] = np.abs(payload_plans['weightInKg'])
+
+payload_plans['fleetType'] = payload_plans['truck_mode'].map({
+    'Private Truck': 'private',
+    'For-hire Truck': 'for-hire'
+}, na_action='ignore')  # This keeps NA values as they are
+
 payload_plans.drop(payload_plans_drop, axis=1, inplace=True, errors='ignore')
-payload_plans['sequenceRank'] = payload_plans['sequenceRank'].astype(int)
-payload_plans['payloadType'] = payload_plans['payloadType'].astype(int)
-payload_plans['requestType'] = payload_plans['requestType'].astype(int)
-payload_plans['estimatedTimeOfArrivalInSec'] = payload_plans['estimatedTimeOfArrivalInSec'].astype(int)
-payload_plans['arrivalTimeWindowInSecLower'] = payload_plans['arrivalTimeWindowInSecLower'].astype(int)
-payload_plans['arrivalTimeWindowInSecUpper'] = payload_plans['arrivalTimeWindowInSecUpper'].astype(int)
-payload_plans['operationDurationInSec'] = payload_plans['operationDurationInSec'].astype(int)
-payload_plans['locationZone'] = payload_plans['locationZone'].astype(int)
-payload_plans.to_csv(f'{directory_output}/freight-merged-payload-plans.csv', index=False)
+
+# Save the modified DataFrame
+payload_plans.to_csv(f'{directory_output}/payloads--{year}-{run_name_label}.csv', index=False)
 
 print("END")
