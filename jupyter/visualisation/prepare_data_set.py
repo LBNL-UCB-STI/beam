@@ -3,7 +3,7 @@
 
 # # scenario class init block
 
-# In[11]:
+# In[1]:
 
 
 import json
@@ -29,22 +29,28 @@ class Scenario():
     def __init__(self, beam_output_path, beam_crs, output_path):
         self.beam_crs = beam_crs
         self.beam_output_path = beam_output_path
+        self.scenario_title = output_path.replace('_', ' ')
         
-        self.events_file = "events.csv"
-        self.events_layer_file = "events_settings.json"
-        self.network_layer_file = "network_settings.json"
-        self.trajectories_file = "trajectories.csv"
-        self.trajectories_layer_file = "trajectories_settings.json"
-        self.dynamic_network_layer_file = "dynamic_network_settings.json"
+        # self.events_file = "events.csv"
+        # self.events_layer_file = "events_settings.json"
+        # self.network_layer_file = "network_settings.json"
+        # self.trajectories_file = "trajectories.csv"
+        # self.trajectories_layer_file = "trajectories_settings.json"
+        # self.dynamic_network_layer_file = "dynamic_network_settings.json"
+        
+        self.layer_id = 0
         
         self.folder_name_events_icons = "EventIcons"
         self.folder_name_trajectory_icons = "TrajectoryIcons"
         self.image_folders_to_copy = ['image_folders/EventIcons', 'image_folders/TrajectoryIcons']
         
-        self.events = pd.DataFrame(columns=['LinkId', 'StartTime', 'EndTime', 'Type'])
-        self.trajectories = pd.DataFrame(columns=['ObjectId', 'Type', 'ProgressBarType', 'ExitTimeLastLink', 'Path'])
-        self.dynamic_network = pd.DataFrame(columns=['LinkId', 'EndTime', 'AnimationSequence'])
+        self.layers = []
         
+        self.events = []
+        self.network = []
+        self.trajectories = [] 
+        self.dynamic_network = []
+                
         self.trajectories_icons = [
             {"Type":"Car", "BackgroundColor":"FFA100", "Label":"Taxis", "Icon":"Diamond" },
             {"Type":"Pedastrian", "BackgroundColor":"FF0021", "Label":"Pedastrian", "Icon":"Triangle"},
@@ -55,9 +61,6 @@ class Scenario():
             {"Icon":"Solid", "Label":"Traffic Jam"}
         ]
 
-        self.network_written = False
-        self.dynamic_network_written = False
-        
         self.out_path = self.prepare_output_folder(output_path)
 
     
@@ -71,20 +74,19 @@ class Scenario():
             self.log(f"'{src_folder}' copied to '{dest_folder}' successfully.")
         except shutil.Error as e:
             self.log(f"Error: {e}")
-
     
     
     def prepare_output_folder(self, output_folder_path):
         out_path = pathlib.Path(output_folder_path).resolve()
-        out_path.mkdir(exist_ok=True)
 
-        for filename in os.listdir(out_path):
-            file_path = os.path.join(out_path, filename)
-            try:
-                if os.path.isfile(file_path):
-                    os.remove(file_path)
-            except Exception as e:
-                self.log(f"Failed to delete {file_path}. Reason: {e}")
+        try:
+            if os.path.exists(out_path):
+                shutil.rmtree(out_path)
+                self.log(f"folder '{out_path}' and all its contents have been deleted.")
+        except Exception as e:
+            self.log(f"!! Failed to delete {file_path}. Reason: {e}")
+
+        out_path.mkdir(exist_ok=True)
         
         for image_folder in self.image_folders_to_copy:
             image_folder_name = pathlib.Path(image_folder).resolve().name
@@ -94,6 +96,10 @@ class Scenario():
         return out_path
 
     
+    def read_beam_output(self):
+        self.log("reading beam output folder")
+        self.read_network()
+
     
     def read_network(self):
         in_network_path = self.beam_output_path + "/network.csv.gz"
@@ -114,46 +120,102 @@ class Scenario():
         network["linkId"] = pd.to_numeric(network["linkId"], downcast='integer')
         
         self.log(f"read network ({len(network.index)}) from '{in_network_path}'")
-        self.network = network
+        self.add_network(network)
+
+    
+    def add_network(self, network):
+        self.log(f"adding network with {len(network)} records")
+        
+        network_file = f"network_{self.layer_id}.csv"
+        network_config_file = f"network_{self.layer_id}_settings.json"
+        layer = {
+            "LayerName": f"Network_{self.layer_id}",
+            "LayerType": 0,
+            "OrderId": self.layer_id,
+            "FileName": network_config_file,
+            "Visible": True
+        }
+        
+        self.layer_id += 1
+        self.layers.append(layer)
+        self.network.append((network, network_file, network_config_file))
+
+        
+    def add_events(self, events, events_icons, suffix=""):
+        self.log(f"adding events with {len(events)} records, with {len(events_icons)} icons")
+        
+        csv_file = f"events_{suffix}_{self.layer_id}.csv"
+        config_file = f"events_{suffix}_{self.layer_id}_settings.json"
+        layer = {
+            "LayerName": f"Event_{suffix}_{self.layer_id}",
+            "LayerType": 2,
+            "OrderId": self.layer_id,
+            "FileName": config_file,
+            "Visible": True
+        }
+        
+        self.layer_id += 1
+        self.layers.append(layer)
+        self.events.append((events, events_icons, csv_file, config_file))
+        
+
+    def add_trajectory(self, trajectory, trajectory_icons, suffix=""):
+        self.log(f"adding trajectory with {len(trajectory)} records, with {len(trajectory_icons)} icons")
+        
+        csv_file = f"trajectory_{suffix}_{self.layer_id}.csv"
+        config_file = f"trajectory_{suffix}_{self.layer_id}_settings.json"
+        layer = {
+            "LayerName": f"Trajectory_{suffix}_{self.layer_id}",
+            "LayerType": 1,
+            "OrderId": self.layer_id,
+            "FileName": config_file,
+            "Visible": True
+        }
+        
+        self.layer_id += 1
+        self.layers.append(layer)
+        self.trajectories.append((trajectory, trajectory_icons, csv_file, config_file))
+
+        
+    def add_dynamic_network(self, network):
+        self.log(f"adding dynamic network with {len(network)} records")
+        
+        network_file = f"dynamic_network_{self.layer_id}.csv"
+        network_config_file = f"dynamic_network_{self.layer_id}_settings.json"
+        layer = {
+            "LayerName": f"DynamicNetwork_{self.layer_id}",
+            "LayerType": 3,
+            "OrderId": self.layer_id,
+            "FileName": network_config_file,
+            "Visible": True
+        }
+        self.layer_id += 1
+        self.layers.append(layer)
+        self.dynamic_network.append((network, network_file, network_config_file))
         
         
-    def read_beam_output(self):
-        self.log("reading beam output folder")
-        self.read_network()
+    def add_empty_events(self):
+        events = pd.DataFrame(columns=['LinkId', 'StartTime', 'EndTime', 'Type'])
+        self.add_events(events, [], "empty")
+        
+
+    def add_empty_trajectories(self):
+        trajectories = pd.DataFrame(columns=['ObjectId', 'Type', 'ProgressBarType', 'ExitTimeLastLink', 'Path'])
+        self.add_trajectory(trajectories, [], "empty")
+
+
+    def add_empty_dynamic_network(self):
+        dynamic_network = pd.DataFrame(columns=['LinkId', 'EndTime', 'AnimationSequence'])
+        self.add_dynamic_network(dynamic_network)
         
         
     def write_config(self): 
         config = {
-            "WindowTitle": "Title from config",
+            "WindowTitle": self.scenario_title,
             "SimulationTimeSpeed": 5.0,
             "EndSimulationTime": 1600,
             "MapBoxAPIAccessToken": "pk.eyJ1IjoieXVuZWViOTAiLCJhIjoiY2x2ZHE3NjR4MDFvNjJubzBta2ZmaHo3aCJ9.5leK6jjiUYupP1b8DeiMLw",
-            "Layers": [
-                {
-                    "LayerName": "Network",
-                    "OrderId": 0,
-                    "FileName": self.network_layer_file,
-                    "Visible": True
-                },
-                {
-                    "LayerName": "Trajectory",
-                    "OrderId": 2,
-                    "FileName": self.trajectories_layer_file,
-                    "Visible": True
-                },
-                {
-                    "LayerName": "Event",
-                    "OrderId": 3,
-                    "FileName": self.events_layer_file,
-                    "Visible": True
-                },
-                {
-                    "LayerName": "DynamicNetwork",
-                    "OrderId": 1,
-                    "FileName": self.dynamic_network_layer_file,
-                    "Visible": True
-                }
-            ]
+            "Layers": self.layers
         }
         config_path = str((self.out_path / "config.json").resolve())
         with open(config_path, "w") as file:
@@ -161,45 +223,97 @@ class Scenario():
     
     
     def write_network_with_settings(self):
-        if self.network_written:
-            self.log("network already written out to file.")
-        else:
-            network_file_name = "network.csv"
+        while self.network:
+            network, network_file_name, network_layer_file = self.network.pop()
+            
             network_path = (self.out_path / network_file_name).resolve()
-            self.network.to_csv(network_path, index=False)
+            network.to_csv(network_path, index=False)
             self.log(f"network written to '{network_path}'")
 
             network_settings = { "NetworkWidth":6, "NetworkColor":"55DDAA", "SelectionColor":"FF8A00", "FileName":network_file_name }
-            network_settings_path = str((self.out_path / self.network_layer_file).resolve())
+            network_settings_path = str((self.out_path / network_layer_file).resolve())
             with open(network_settings_path, "w") as file:
                 file.write(json.dumps(network_settings))
                 
-            self.log(f"network settings written to {network_settings_path}")
-            
-            self.network_written = True
-            self.network = pd.DataFrame()
+            self.log(f"network settings written to {network_settings_path}")    
 
         
     def write_dynamic_network_with_settings(self):
-        if self.dynamic_network_written:
-            self.log("dynamic network already written out to file.")
-        else:
-            network_path = (self.out_path / "dynamic_network.csv").resolve()
-            self.dynamic_network.to_csv(network_path, index=False)
+        while self.dynamic_network:
+            dynamic_network, network_file_name, dynamic_network_layer_file = self.dynamic_network.pop()
+
+            network_path = (self.out_path / network_file_name).resolve()
+            dynamic_network.to_csv(network_path, index=False)
             self.log(f"dynamic network written to {network_path}")
 
-            network_settings = { "FileName":"dynamic_network.csv" }
-            network_settings_path = str((self.out_path / self.dynamic_network_layer_file).resolve())
+            network_settings = { "FileName": network_file_name }
+            network_settings_path = str((self.out_path / dynamic_network_layer_file).resolve())
             with open(network_settings_path, "w") as file:
                 file.write(json.dumps(network_settings))
             
             self.log(f"dynamic network settings written to {network_settings_path}")
-            
-            self.dynamic_network_written = True
-            self.dynamic_network = pd.DataFrame()
+
+        
+    def write_trajectories_with_settings(self):
+        while self.trajectories:
+            trajectories, trajectories_icons, trajectories_file, trajectories_layer_file = self.trajectories.pop()
+
+            path_to_output_file = str((self.out_path / trajectories_file).resolve())
+            trajectories.to_csv(path_to_output_file, index=False)
+            self.log(f"{len(trajectories.index)} trajectories written to {path_to_output_file} ...")
+
+            trajectories_settings = {
+                "IconAlignmentType": "Perpendicular",
+                "IconZoomScaleFactor": 800,
+                "IconFolderPath": self.folder_name_trajectory_icons,
+                "IconConfig": trajectories_icons,
+                "FileName": trajectories_file   
+            }
+
+            trajectories_settings_path = str((self.out_path / trajectories_layer_file).resolve())
+            with open(trajectories_settings_path, "w") as file:
+                file.write(json.dumps(trajectories_settings))
+
+            self.log(f"trajectories settings written to {trajectories_settings_path}")
+
+        
+    def write_events_with_settings(self):
+        while self.events:
+            events, events_icons, events_file, events_layer_file = self.events.pop()
+
+            path_to_output_file = str((self.out_path / events_file).resolve())
+            events.to_csv(path_to_output_file, index=False)
+            self.log(f"{len(events.index)} events written to {path_to_output_file} ...")
+
+            events_settings = {
+                "IconZoomScaleFactor":1600,
+                "IconFolderPath": self.folder_name_events_icons,
+                "IconConfig": events_icons,
+                "FileName": events_file
+            }
+
+            events_settings_path = str((self.out_path / events_layer_file).resolve())
+            with open(events_settings_path, "w") as file:
+                file.write(json.dumps(events_settings))
+
+            self.log(f"events settings written to {events_settings_path}")
+
+        
+    def write_network(self):
+        self.write_network_with_settings()
+        self.write_dynamic_network_with_settings()
         
         
-    def set_trajectoris(self, PTE_df, pte_to_icon, pte_to_progressbar, icon_settings):
+    def write_scenario(self):
+        self.write_config()
+        self.write_network_with_settings()
+        self.write_dynamic_network_with_settings()
+        self.write_trajectories_with_settings()
+        self.write_events_with_settings()
+        self.log(f"scenario files written to {self.out_path}")
+        
+        
+    def add_trajectories_from_pte(self, PTE_df, icon_settings, suffix=""):
 
         def path_traversal_to_lastlinktime_path(path_traversal_event):
             links = path_traversal_event['links'].split(',')
@@ -225,66 +339,14 @@ class Scenario():
 
             return exit_time_last_link, "+".join(path)        
         
-        self.trajectories = pd.DataFrame(columns=['ObjectId', 'Type', 'ProgressBarType', 'ExitTimeLastLink', 'Path'])
+        trajectories = pd.DataFrame(columns=['ObjectId', 'Type', 'ExitTimeLastLink', 'Path'])
 
-        self.trajectories['Type'] = PTE_df.apply(pte_to_icon, axis=1)
-        self.trajectories['ObjectId'] = PTE_df['vehicle']
-        self.trajectories['ProgressBarType'] = PTE_df.apply(pte_to_progressbar, axis=1)
-        self.trajectories[['ExitTimeLastLink', 'Path']] = PTE_df.apply(path_traversal_to_lastlinktime_path, axis=1, result_type="expand")
+        trajectories['Type'] = PTE_df['Type']
+        trajectories['ObjectId'] = PTE_df['vehicle']
+        trajectories[['ExitTimeLastLink', 'Path']] = PTE_df.apply(path_traversal_to_lastlinktime_path, axis=1, result_type="expand")
         
-        self.log(f"got {len(self.trajectories.index)} trajectories")
-        self.trajectories_icons = icon_settings
-
-        
-    def write_trajectories_with_settings(self):
-        path_to_output_file = str((self.out_path / self.trajectories_file).resolve())
-        self.trajectories.to_csv(path_to_output_file, index=False)
-        self.log(f"{len(self.trajectories.index)} trajectories written to {path_to_output_file} ...")
-
-        trajectories_settings = {
-            "IconAlignmentType": "Perpendicular",
-            "IconZoomScaleFactor": 800,
-            "IconFolderPath": self.folder_name_trajectory_icons,
-            "IconConfig": self.trajectories_icons,
-            "FileName": self.trajectories_file   
-        }
-
-
-        trajectories_settings_path = str((self.out_path / self.trajectories_layer_file).resolve())
-        with open(trajectories_settings_path, "w") as file:
-            file.write(json.dumps(trajectories_settings))
-        self.log(f"trajectories settings written to {trajectories_settings_path}")
-
-    def write_events_with_settings(self):
-        path_to_output_file = str((self.out_path / self.events_file).resolve())
-        self.events.to_csv(path_to_output_file, index=False)
-        self.log(f"{len(self.events.index)} events written to {path_to_output_file} ...")
-        
-        events_settings = {
-            "IconZoomScaleFactor":1600,
-            "IconFolderPath": self.folder_name_events_icons,
-            "IconConfig": self.events_icons,
-            "FileName": self.events_file
-        }
-
-        events_settings_path = str((self.out_path / self.events_layer_file).resolve())
-        with open(events_settings_path, "w") as file:
-            file.write(json.dumps(events_settings))
-        self.log(f"events settings written to {events_settings_path}")
-
-        
-    def write_network(self):
-        self.write_network_with_settings()
-        self.write_dynamic_network_with_settings()
-        
-        
-    def write_scenario(self):
-        self.write_config()
-        self.write_network_with_settings()
-        self.write_dynamic_network_with_settings()
-        self.write_trajectories_with_settings()
-        self.write_events_with_settings()
-        self.log(f"scenario files written to {self.out_path}")
+        self.log(f"got {len(trajectories.index)} trajectories")
+        self.add_trajectory(trajectories, icon_settings, suffix)
 
         
     def pack_to_archive(self, archive_type='zip'):
@@ -326,7 +388,7 @@ print("initialized")
 
 # # independant functions init block
 
-# In[12]:
+# In[2]:
 
 
 ### a set of functions to read and process BEAM events
@@ -697,15 +759,21 @@ print("initialized")
 
 # ## an empty scenario with map and without events\trajectories
 
-# In[ ]:
+# In[20]:
 
 
-beam_output = "../beam_root/output/sf-light/sf-light-1k-xml__2024-05-06_18-09-08_xjf"
+beam_output = "../beam_root/output/sf-light/sf-light-1k-xml__2024-08-20_14-17-57_vcp"
+
 output_folder_path = "sflight-1k-network-only"
 beam_crs = 26910
 
 scenario = Scenario(beam_output, beam_crs, output_folder_path)
 scenario.read_beam_output()
+
+scenario.add_empty_events()
+scenario.add_empty_trajectories()
+scenario.add_empty_dynamic_network()
+
 scenario.write_scenario()
 scenario.pack_to_archive()
 
@@ -721,6 +789,9 @@ beam_crs = 26910
 
 scenario = Scenario(beam_output, beam_crs, output_folder_path)
 scenario.read_beam_output()
+
+scenario.add_empty_events()
+scenario.add_empty_dynamic_network()
 
 all_pte = read_pte_events(beam_output, 0)
 is_rh = all_pte['vehicleType'] == "RH_Car"
@@ -765,37 +836,48 @@ scenario.write_scenario()
 # scenario.pack_to_archive()
 
 
-# ## all RH PT events split into 3 groups: withpassengers, dead heading, repositioning
+# ## ALL events to three layers - RH, BUS, others
 
-# In[ ]:
+# In[3]:
 
 
-# beam_output = "../beam_root/output/sf-light/sf-light-1k-xml__2024-05-06_18-09-08_xjf"
-# output_folder_path = "sflight-1k_rh_deadheading_repositioning"
-beam_output = "../downloaded_data/sfbay/sfbay-freight-23Jan24-Base__2024-01-31_18-10-36_gfh"
-output_folder_path = "sfbay-freight-23Jan24-Base-rh_passengers"
+beam_output = "../beam_root/output/sf-light/sf-light-1k-xml__2024-08-20_14-17-57_vcp"
+output_folder_path = "sflight-1k_rh_bus_other"
+# beam_output = "../downloaded_data/sfbay/sfbay-freight-23Jan24-Base__2024-01-31_18-10-36_gfh"
+# output_folder_path = "sfbay-freight-23Jan24-Base-rh_passengers"
 
 beam_crs = 26910
 
 scenario = Scenario(beam_output, beam_crs, output_folder_path)
 scenario.read_beam_output()
 
+scenario.add_empty_events()
+scenario.add_empty_dynamic_network()
+
+scenario.write_network()
+
+
+# In[4]:
+
+
 all_pte = read_pte_events(beam_output, 0)
-# is_rh = all_pte['vehicleType'] == "RH_Car"
+print(all_pte.shape)
+display(all_pte['mode'].value_counts())
+all_pte.head(2)
+
+
+# ### RH PT into 3 groups:withpassengers, dead heading, repositioning
+
+# In[5]:
+
+
 is_rh = all_pte['driver'].str.startswith('rideHailAgent')
 all_rh = all_pte[is_rh].copy()
 
-print(f" ->> total number of RH rows in DF {len(all_rh)}")
-display(all_rh.head(2))
+print(f" ->> total number of RH rows in DF {len(all_rh)}, all rows in DF {len(all_pte)}")
 
 
-# In[ ]:
-
-
-
-
-
-# In[ ]:
+# In[7]:
 
 
 vehicle_to_passengers = {}
@@ -805,12 +887,40 @@ for idx, row in all_rh.sort_values('time', ascending=False).iterrows():
     all_rh.loc[idx, 'futurePassengers'] = vehicle_to_passengers.get(v, 0)
     vehicle_to_passengers[v] = int(row['numPassengers'])
 
+def pte_to_icon_type(path_traversal_event):
+    now_passengers = path_traversal_event['numPassengers']
+    future_passengers = path_traversal_event['futurePassengers']
+    if now_passengers == 1.0:
+        return "RH_ps1"
+    elif now_passengers > 1.0:
+        return "RH_ps2"
+    elif now_passengers == 0.0 and future_passengers == 1.0:
+        return "RH_dh"
+    elif now_passengers == 0.0 and future_passengers == 0.0:
+        return "RH_rp"
+    else:
+        print(f"!!!Unexpected values of passengers: now_passengers == {now_passengers} and future_passengers == {future_passengers}")
+        return ""
+
+all_rh['Type'] = all_rh.apply(pte_to_icon_type, axis=1)
+
+all_rh.head(2)
+
+
+# In[8]:
+
 
 rh_icons = [
     {
-        "Type":"RH_ps",
+        "Type":"RH_ps1",
         "BackgroundColor":"c4c4c4",
-        "Label":"RH with passenger(s)",
+        "Label":"RH with 1 passenger",
+        "Icon":"Triangle"
+    },
+    {
+        "Type":"RH_ps2",
+        "BackgroundColor":"888888",
+        "Label":"RH with few passengers",
         "Icon":"Triangle"
     },
     {
@@ -827,51 +937,39 @@ rh_icons = [
     }
 ]
 
+
+scenario.add_trajectories_from_pte(all_rh, rh_icons, 'RH')
+
+
+# ### BUS PT based on passengers
+
+# In[9]:
+
+
+bus_pte = all_pte[all_pte['mode'] == 'bus'].copy()
+bus_pte['numPassengers'].value_counts()
+
+
+# In[10]:
+
+
+bus_pte = all_pte[all_pte['mode'] == 'bus'].copy()
+
 def pte_to_icon_type(path_traversal_event):
-    now_passengers = path_traversal_event['numPassengers']
-    future_passengers = path_traversal_event['futurePassengers']
-    if now_passengers == 1.0:
-        return "RH_ps"
-    elif now_passengers == 0.0 and future_passengers == 1.0:
-        return "RH_dh"
+    passengers = path_traversal_event['numPassengers']
+    if passengers == 0.0:
+        return "BUS0"
+    elif passengers == 1.0:
+        return "BUS1"
     else:
-        return "RH_rp"
+        return "BUS2"
 
-def pte_to_progress_bar(pte):
-    return "None"
-
-
-scenario.set_trajectoris(all_rh, pte_to_icon_type, pte_to_progress_bar, rh_icons)
-scenario.write_scenario()
-scenario.pack_to_archive()
+bus_pte['Type'] = bus_pte.apply(pte_to_icon_type, axis=1)
+bus_pte['Type'].value_counts()
 
 
-# In[ ]:
+# In[11]:
 
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# ## all bus PT events split based on passengers
-
-# In[ ]:
-
-
-beam_output = "../beam_root/output/sf-light/sf-light-1k-xml__2024-05-06_18-09-08_xjf"
-output_folder_path = "sflight-1k_bus_passengers"
-beam_crs = 26910
-
-scenario = Scenario(beam_output, beam_crs, output_folder_path)
-scenario.read_beam_output()
-
-all_pte = read_pte_events(beam_output, 0)
-pte = all_pte[all_pte['mode'] == 'bus'].copy()
 
 icons = [
     {
@@ -894,22 +992,69 @@ icons = [
     }
 ]
 
-def pte_to_icon_type(path_traversal_event):
-    passengers = path_traversal_event['numPassengers']
-    if passengers == 0.0:
-        return "BUS0"
-    elif passengers == 1.0:
-        return "BUS1"
-    else:
-        return "BUS2"
+scenario.add_trajectories_from_pte(bus_pte, icons, 'BUS')
 
-def pte_to_progress_bar(pte):
-    return "None"
 
-    
-scenario.set_trajectoris(pte, pte_to_icon_type, pte_to_progress_bar, icons)
+# ### the rest of events
+
+# In[12]:
+
+
+is_rh = all_pte['driver'].str.startswith('rideHailAgent')
+is_bus = all_pte['mode'] == 'bus'
+
+rest_pte = all_pte[~is_rh & ~is_bus].copy()
+display(rest_pte['mode'].value_counts())
+rest_pte.head(2)
+
+
+# In[13]:
+
+
+rest_pte['Type'] = rest_pte.apply(lambda e: 'car' if e['mode']=='car' else 'walk', axis=1)
+rest_pte['Type'].value_counts()
+
+
+# In[14]:
+
+
+icons = [
+    {
+        "Type":"car",
+        "BackgroundColor":"333333",
+        "Label":"regular car",
+        "Icon":"Triangle"
+    },
+    {
+        "Type":"walk",
+        "BackgroundColor":"339933",
+        "Label":"regular pedastrian",
+        "Icon":"Triangle"
+    }
+]
+
+scenario.add_trajectories_from_pte(rest_pte, icons, 'walk_car')
+
+
+# ### finish
+
+# In[15]:
+
+
 scenario.write_scenario()
 scenario.pack_to_archive()
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
 
 
 # ## all PT events
