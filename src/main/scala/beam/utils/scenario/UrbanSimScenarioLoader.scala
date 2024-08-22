@@ -145,7 +145,7 @@ class UrbanSimScenarioLoader(
   private def clear(): Unit = {
     scenario.getPopulation.getPersons.clear()
     scenario.getHouseholds.getHouseholds.clear()
-    scenario.getHouseholds.getHouseholds.values.asScala.map(_.getAttributes.clear())
+    scenario.getHouseholds.getHouseholds.values.asScala.foreach(_.getAttributes.clear())
 
     beamScenario.privateVehicles.clear()
     beamScenario.privateVehicleInitialSoc.clear()
