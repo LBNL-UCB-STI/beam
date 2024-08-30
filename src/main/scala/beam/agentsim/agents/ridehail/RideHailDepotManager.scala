@@ -152,7 +152,7 @@ trait RideHailDepotManager extends {
     */
   private def releaseStall(parkingStall: ParkingStall, tick: Int, beamVehicle: BeamVehicle, triggerId: Long): Unit = {
     if (parkingStall.chargingPointType.isEmpty) {
-      ParkingNetworkManager.handleReleasingParkingSpot(tick, beamVehicle, None, this.id, parkingManager, beamServices)
+      ParkingNetworkManager.handleReleasingParkingSpot(tick, beamVehicle, None, this.id, parkingManager, beamServices, eventsManager)
     } else {
       (chargingNetworkManager ? ChargingUnplugRequest(tick, this.id, beamVehicle, triggerId))
         .pipeTo(beamVehicle.getDriver.get)

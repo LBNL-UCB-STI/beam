@@ -11,6 +11,7 @@ import beam.utils.logging.LoggingMessageActor
 import beam.utils.metrics.SimpleCounter
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
+import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.network.NetworkUtils
 
 import scala.concurrent.duration._
@@ -67,7 +68,8 @@ object ParkingNetworkManager extends LazyLogging {
     energyChargedMaybe: Option[Double],
     driver: Id[_],
     parkingManager: ActorRef,
-    beamServices: BeamServices
+    beamServices: BeamServices,
+    eventsManager: EventsManager
   ): Unit = {
     val stallForLeavingParkingEventMaybe = currentBeamVehicle.stall match {
       case Some(stall) =>
@@ -93,7 +95,7 @@ object ParkingNetworkManager extends LazyLogging {
         currentBeamVehicle.emitEmissions(vehicleActivityData, classOf[LeavingParkingEvent], beamServices)
       val energyCharge: Double = energyChargedMaybe.getOrElse(0.0)
       val score = calculateScore(stall.costInDollars, energyCharge)
-      beamServices.matsimServices.getEvents.processEvent(
+      eventsManager.processEvent(
         LeavingParkingEvent(
           tick,
           stall,

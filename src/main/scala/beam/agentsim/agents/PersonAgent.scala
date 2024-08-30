@@ -1100,14 +1100,14 @@ class PersonAgent(
       stay using updatedData
     case Event(UnpluggingVehicle(tick, _, vehicle, _, energyCharged), data: BasePersonData) =>
       log.debug(s"Vehicle ${vehicle.id} ended charging and it is not handled by the CNM at tick $tick")
-      handleReleasingParkingSpot(tick, vehicle, Some(energyCharged), id, parkingManager, beamServices)
+      handleReleasingParkingSpot(tick, vehicle, Some(energyCharged), id, parkingManager, beamServices, eventsManager)
       goto(ProcessingNextLegOrStartActivity) using data
     case Event(UnhandledVehicle(tick, _, vehicle, _), data: BasePersonData) =>
       log.error(
         s"Vehicle ${vehicle.id} is not handled by the CNM at tick $tick. Something is broken." +
         s"the agent will now disconnect the vehicle ${currentBeamVehicle.id} to let the simulation continue!"
       )
-      handleReleasingParkingSpot(tick, vehicle, None, id, parkingManager, beamServices)
+      handleReleasingParkingSpot(tick, vehicle, None, id, parkingManager, beamServices, eventsManager)
       goto(ProcessingNextLegOrStartActivity) using data
   }
 
