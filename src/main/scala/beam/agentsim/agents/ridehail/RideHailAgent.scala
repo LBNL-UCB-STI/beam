@@ -1099,7 +1099,15 @@ class RideHailAgent(
         vehicle.getState
       )
     }
-    handleReleasingParkingSpot(tick, currentBeamVehicle, Some(energyCharged), id, parkingManager, beamServices, eventsManager)
+    handleReleasingParkingSpot(
+      tick,
+      currentBeamVehicle,
+      Some(energyCharged),
+      id,
+      parkingManager,
+      beamServices,
+      eventsManager
+    )
   }
 
   private def parkAndStartRefueling(stall: ParkingStall, data: RideHailAgentData): Unit = {

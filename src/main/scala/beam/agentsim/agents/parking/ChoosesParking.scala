@@ -335,7 +335,15 @@ trait ChoosesParking extends {
       }
 
     case Event(StateTimeout, data) =>
-      handleReleasingParkingSpot(getCurrentTick.get, currentBeamVehicle, None, id, parkingManager, beamServices, eventsManager)
+      handleReleasingParkingSpot(
+        getCurrentTick.get,
+        currentBeamVehicle,
+        None,
+        id,
+        parkingManager,
+        beamServices,
+        eventsManager
+      )
       releaseTickAndTriggerId()
       goto(WaitingToDrive) using data
   }
