@@ -29,6 +29,7 @@ class ChargingFunctions(
       distanceFunction,
       parkingConfig.minSearchRadius,
       parkingConfig.maxSearchRadius,
+      0.0,
       parkingConfig.searchMaxDistanceRelativeToEllipseFoci,
       parkingConfig.estimatedMinParkingDurationInSeconds,
       parkingConfig.estimatedMeanEnRouteChargingDurationInSeconds,
