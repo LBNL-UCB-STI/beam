@@ -24,7 +24,7 @@ class ODVehicleTypeSkimmerSpec extends AnyWordSpecLike with Matchers with BeamHe
           .parseString("""
           beam.agentsim.lastIteration = 1
           beam.agentsim.agents.freight.replanning.disableAfterIteration = 0
-          beam.router.skim.origin-destination-vehicle-type-skimmer.vehicleCategories = "LightDutyTruck, HeavyDutyTruck"
+          beam.router.skim.origin-destination-vehicle-type-skimmer.vehicleCategories = "Class456Vocational, Class78Vocational"
                         """)
           .withFallback(testConfig("test/input/beamville/beam-freight.conf"))
           .resolve()
