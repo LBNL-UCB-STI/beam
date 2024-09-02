@@ -1,7 +1,7 @@
 package beam.agentsim.agents.vehicles
 
 import beam.agentsim.agents.vehicles.FuelType._
-import beam.agentsim.agents.vehicles.VehicleCategory.{Class78Tractor, _}
+import beam.agentsim.agents.vehicles.VehicleCategory._
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import org.matsim.api.core.v01.Id
 
@@ -85,7 +85,11 @@ object VehicleCategory {
   case object Class78Vocational extends VehicleCategory // CLass 7&8 (GVWR 26001-33,000 lbs.)
   case object Class78Tractor extends VehicleCategory // Class 7&8 Tractor (GVWR >33,000 lbs.)
 
-  def fromString(value: String): VehicleCategory = fromStringOptional(value).get
+  def fromString(value: String): VehicleCategory =
+    try { fromStringOptional(value).get }
+    catch {
+      case exception: Exception => throw new RuntimeException(f"Can not parse vehicle category: '$value'.", exception)
+    }
 
   private def fromStringOptional(value: String): Option[VehicleCategory] = {
     Vector(
