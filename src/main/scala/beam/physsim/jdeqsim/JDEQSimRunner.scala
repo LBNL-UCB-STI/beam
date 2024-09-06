@@ -3,6 +3,7 @@ package beam.physsim.jdeqsim
 import beam.analysis.physsim.{PhyssimCalcLinkStats, PhyssimSpeedHandler}
 import beam.analysis.plot.PlotGraph
 import beam.physsim.bprsim.{BPRSimConfig, BPRSimulation, ParallelBPRSimulation}
+import beam.physsim.conditions.DoubleParking
 import beam.physsim.jdeqsim.cacc.CACCSettings
 import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.{
   Hao2018CaccRoadCapacityAdjustmentFunction,
@@ -214,6 +215,7 @@ class JDEQSimRunner(
             beamConfig.beam.physsim.bprsim.travelTimeFunction,
             beamConfig.beam.physsim.flowCapacityFactor,
             beamConfig.beam.physsim.bprsim.minFlowToUseBPRFunction,
+            new DoubleParking.SimpleCapacityReductionFunction(0.1, 0.9),
             maybeCACCSettings,
             maybePickUpDropOffHolder,
             defaultAlpha = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.alpha,
@@ -243,6 +245,7 @@ class JDEQSimRunner(
             beamConfig.beam.physsim.bprsim.travelTimeFunction,
             beamConfig.beam.physsim.flowCapacityFactor,
             beamConfig.beam.physsim.bprsim.minFlowToUseBPRFunction,
+            new DoubleParking.SimpleCapacityReductionFunction(0.1, 0.9),
             maybeCACCSettings,
             maybePickUpDropOffHolder,
             defaultAlpha = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.alpha,
@@ -307,12 +310,13 @@ object JDEQSimRunner {
     functionName: String,
     flowCapacityFactor: Double,
     minVolumeToUseBPRFunction: Int,
+    doubleParkingCapacityReduction: DoubleParking.CapacityReductionFunction,
     maybeCaccSettings: Option[CACCSettings],
     maybePickUpDropOffHolder: Option[PickUpDropOffHolder],
     defaultAlpha: Double,
     defaultBeta: Double,
     minSpeed: Double
-  ): (Double, Link, Double, Double) => Double = {
+  ): (Double, Link, Double, Double, Int) => Double = {
     val additionalTravelTime: (Link, Double) => Double = {
       maybePickUpDropOffHolder match {
         case Some(holder) =>
@@ -325,11 +329,11 @@ object JDEQSimRunner {
     functionName match {
 
       case "FREE_FLOW" =>
-        (time, link, _, _) =>
+        (time, link, _, _, _) =>
           val originalTravelTime = link.getLength / link.getFreespeed(time)
           originalTravelTime + additionalTravelTime(link, time)
       case "BPR" =>
-        (time, link, caccShare, volume) => {
+        (time, link, caccShare, volume, numberOfDoubleParked) => {
           val alpha =
             Option(link.getAttributes.getAttribute("alpha")).map(_.toString.toDouble).getOrElse(defaultAlpha)
           val beta =
@@ -344,8 +348,12 @@ object JDEQSimRunner {
               val ftt = link.getLength / link.getFreespeed(time)
               (ftt, link.getCapacity(time) * flowCapacityFactor)
           }
+          val capacity =
+            if (numberOfDoubleParked > 0)
+              doubleParkingCapacityReduction.calculateCapacity(time, link, numberOfDoubleParked, adjustedCapacity)
+            else adjustedCapacity
           val bprTravelTime = if (volume >= minVolumeToUseBPRFunction) {
-            val volumeOverCapacityRatio = volume / adjustedCapacity
+            val volumeOverCapacityRatio = volume / capacity
             freeFlowTT * (1 + alpha * math.pow(volumeOverCapacityRatio, beta))
           } else {
             freeFlowTT

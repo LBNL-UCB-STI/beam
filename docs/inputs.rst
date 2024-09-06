@@ -316,6 +316,7 @@ Choosing Parking
     beam.agentsim.agents.parking.rangeAnxietyBuffer = 20000.0
     beam.agentsim.agents.parking.minSearchRadius = 250.00
     beam.agentsim.agents.parking.maxSearchRadius = 8046.72
+    beam.agentsim.agents.parking.searchDoubleParkingRadius = 0.0
     beam.agentsim.agents.parking.searchMaxDistanceRelativeToEllipseFoci = 4.0
     beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds = 60.0
     beam.agentsim.agents.parking.estimatedMeanEnRouteChargingDurationInSeconds = 1800.0
@@ -340,6 +341,8 @@ Choosing Parking
 * rangeAnxietyBuffer - if our remaining range exceeds our remaining tour plus this many meters, then we feel no anxiety; default 20k.
 * minSearchRadius - radius of a circle around requested parking location that the parking search starts off.
 * maxSearchRadius - max parking search radius.
+* searchDoubleParkingRadius - if a regular stall is not found within this radius then a double parking stall is provided.
+  If it equals or less than zero then this feature is off.
 * searchMaxDistanceRelativeToEllipseFoci - max distance to both foci of an ellipse (used in en-route parking).
 * estimatedMeanEnRouteChargingDurationInSeconds - mean en-route charging duration in seconds.
 * fractionOfSameTypeZones - fraction of the zones of certain type to be considered among all the same type zones within the current radius.

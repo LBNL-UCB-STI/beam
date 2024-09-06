@@ -123,6 +123,11 @@ class EndLegSimEvent(
     )
 
     val nextLegExists = person.getSelectedPlan.getPlanElements.size() > legIdx + 2
+    if (leg.getAttributes.getAttribute("ended_with_double_parking") == true) {
+      val doubleParkingDuration =
+        nextActivity.getEndTime.seconds() - leg.getAttributes.getAttribute("event_time").asInstanceOf[Double]
+      params.doubleParkingCounter.addTemporalEvent(linkId, time, time + doubleParkingDuration)
+    }
     val simEvent = if (nextLegExists) {
       val activityDurationInterpretation = scenario.getConfig.plans.getActivityDurationInterpretation
       val departureTime = ActivityDurationUtils.calculateDepartureTime(nextAct, time, activityDurationInterpretation)
@@ -150,7 +155,8 @@ class EnteringLinkSimEvent(time: Double, priority: Int, person: Person, isCACC: 
     val link = scenario.getNetwork.getLinks.get(linkId)
     // calculate time, when the car reaches the end of the link
     val (volume: Double, caccShare: Double) = params.volumeCalculator.getVolumeAndCACCShare(linkId, time)
-    val linkTravelTime = params.config.travelTimeFunction(time, link, caccShare, volume)
+    val numberOfDoubleParked = params.doubleParkingCounter.getEventCount(linkId, time)
+    val linkTravelTime = params.config.travelTimeFunction(time, link, caccShare, volume, numberOfDoubleParked)
 
     (
       events,

@@ -2,7 +2,9 @@ package beam.physsim.jdeqsim;
 
 import akka.actor.ActorRef;
 import beam.agentsim.agents.vehicles.BeamVehicleType;
+import beam.agentsim.events.LeavingParkingEvent;
 import beam.agentsim.events.PathTraversalEvent;
+import beam.agentsim.infrastructure.parking.ParkingType;
 import beam.analysis.IterationStatsProvider;
 import beam.physsim.PickUpDropOffCollector;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedDistributionStats;
@@ -27,7 +29,9 @@ import beam.sim.population.PopulationAdjustment$;
 import beam.utils.*;
 import com.conveyal.r5.transit.TransportNetwork;
 import com.google.common.base.Suppliers;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.math.DoubleMath;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.matsim.analysis.VolumesAnalyzer;
@@ -44,6 +48,7 @@ import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.gbl.MatsimRandom;
 import org.matsim.core.population.PopulationUtils;
+import org.matsim.core.population.routes.NetworkRoute;
 import org.matsim.core.population.routes.RouteUtils;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.utils.misc.Time;
@@ -73,6 +78,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     public static final String CAR = "car";
     public static final String BUS = "bus";
     private static final String DUMMY_ACTIVITY = "DummyActivity";
+    public static final double TOLERANCE = 0.00001;
     private final PhyssimCalcLinkSpeedStats linkSpeedStatsGraph;
     private final PhyssimCalcLinkSpeedDistributionStats linkSpeedDistributionStatsGraph;
     private final PhyssimNetworkLinkLengthDistribution physsimNetworkLinkLengthDistribution;
@@ -351,7 +357,28 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         if (event instanceof PathTraversalEvent) {
             handlePathTraversalEvent((PathTraversalEvent) event);
+        } else if (event instanceof LeavingParkingEvent) {
+            handleLeavingParkingEvent((LeavingParkingEvent) event);
         }
+    }
+
+    private void handleLeavingParkingEvent(LeavingParkingEvent event) {
+        if (event.parkingType() != ParkingType.DoubleParking$.MODULE$) {
+            return;
+        }
+
+        String vehicleId = event.vehicleId().toString();
+        final Person person = jdeqsimPopulation.getPersons().get(Id.createPersonId(vehicleId));
+        if (person == null) {
+            return;
+        }
+        Leg lastLeg = (Leg) Iterables.getLast(person.getSelectedPlan().getPlanElements());
+        boolean zeroTimeParking = DoubleMath.fuzzyEquals(
+                (Double) lastLeg.getAttributes().getAttribute("event_time"), event.time(), TOLERANCE);
+        if (zeroTimeParking) {
+            return;
+        }
+        lastLeg.getAttributes().putAttribute("ended_with_double_parking", true);
     }
 
     private void handlePathTraversalEvent(PathTraversalEvent pte) {
@@ -418,17 +445,25 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         // - Create dummy activity
         final Person person = initializePersonAndPlanIfNeeded(Id.createPersonId(vehicleId), Id.createPersonId(driverId));
         final Plan plan = person.getSelectedPlan();
-        final Leg leg = createLeg(pte, departureTimeShift);
+        final Leg lastLeg = (Leg) Iterables.getLast(plan.getPlanElements(), null);
+        // it means that this is the same leg that is probably split for parking
+        final Leg connectedLeg = lastLeg != null && DoubleMath.fuzzyEquals(
+                (Double) lastLeg.getAttributes().getAttribute("event_time"), pte.departureTime(), TOLERANCE)
+                ? lastLeg : null;
+        final Leg leg = createLeg(pte, connectedLeg, departureTimeShift);
 
         if (leg == null) {
             return;
         }
 
-        Activity previousActivity = jdeqsimPopulation.getFactory().createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getStartLinkId());
-        // math max in case of negative departure time shift
-        previousActivity.setEndTime(Math.max(0, pte.departureTime() + departureTimeShift));
-        plan.addActivity(previousActivity);
-        plan.addLeg(leg);
+        if (connectedLeg == null) {
+            Activity previousActivity = jdeqsimPopulation.getFactory().createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getStartLinkId());
+            previousActivity.setEndTime(leg.getDepartureTime().seconds());
+            plan.addActivity(previousActivity);
+            plan.addLeg(leg);
+        } else {
+            plan.getPlanElements().set(plan.getPlanElements().size() - 1, leg);
+        }
     }
 
     private void writeIterationCsv(int iteration) {
@@ -474,10 +509,33 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
     }
 
-    private Leg createLeg(PathTraversalEvent pte, Integer departureTimeShift) {
+    /**
+     * Creates a matsim Leg
+     *
+     * @param pte                PathTraversalEvent
+     * @param connectedLeg       the previous leg that is directly connected to the current one (no activity/delay between them).
+     *                           If it is provided then the previous leg is united with the current PTE
+     * @param departureTimeShift a time sift to
+     * @return
+     */
+    private Leg createLeg(PathTraversalEvent pte, Leg connectedLeg, Integer departureTimeShift) {
         List<Id<Link>> linkIds = new ArrayList<>();
 
-        for (Object linkObjId : pte.linkIdsJava()) {
+        if (connectedLeg != null) {
+            NetworkRoute lastRoute = (NetworkRoute) connectedLeg.getRoute();
+            linkIds.add(lastRoute.getStartLinkId());
+            linkIds.addAll(lastRoute.getLinkIds());
+            if (!lastRoute.getLinkIds().isEmpty() || lastRoute.getStartLinkId() != lastRoute.getEndLinkId()) {
+                linkIds.add(lastRoute.getEndLinkId());
+            }
+        }
+
+        List<Object> objects = pte.linkIdsJava();
+        // most of the time the last link of previous leg is the first link of current leg
+        boolean sameLinkAtTheEnd = !linkIds.isEmpty()
+                && pte.linkIds().head().toString().equals(Iterables.getLast(linkIds).toString());
+        for (int i = sameLinkAtTheEnd ? 1 : 0; i < objects.size(); i++) {
+            Object linkObjId = objects.get(i);
             Id<Link> linkId = Id.createLinkId(linkObjId.toString());
             linkIds.add(linkId);
         }
@@ -501,14 +559,24 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         route.setDistance(length);
 
         Leg leg = jdeqsimPopulation.getFactory().createLeg(CAR);
-        leg.setDepartureTime(pte.departureTime());
+        double actualDepartureTime = connectedLeg == null
+                ? pte.departureTime()
+                : connectedLeg.getDepartureTime().seconds();
+        double departureTime = Math.max(0.0, actualDepartureTime + departureTimeShift);
+        double travelTime = pte.arrivalTime() - actualDepartureTime;
+        leg.setDepartureTime(departureTime);
         leg.setTravelTime(0);
         leg.setRoute(route);
-        leg.getAttributes().putAttribute("travel_time", pte.arrivalTime() - pte.departureTime());
+        leg.getAttributes().putAttribute("travel_time", travelTime);
         // math.max in case of negative departureTimeShift
-        leg.getAttributes().putAttribute("departure_time", Math.max(0, pte.departureTime() + departureTimeShift));
-        leg.getAttributes().putAttribute("event_time", Math.max(0, pte.time() + departureTimeShift));
+        leg.getAttributes().putAttribute("departure_time", departureTime);
+        leg.getAttributes().putAttribute("event_time", departureTime + travelTime);
         return leg;
+    }
+
+    public Population generatePopulation() {
+        createLastActivityOfDayForPopulation();
+        return jdeqsimPopulation;
     }
 
     public void startPhysSim(IterationEndsEvent iterationEndsEvent, TravelTime initialTravelTime) {
@@ -516,7 +584,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         if (initialTravelTime != null) {
             prevTravelTime = initialTravelTime;
         }
-        createLastActivityOfDayForPopulation();
+        generatePopulation();
         writePhyssimPlans(iterationEndsEvent);
         long start = System.currentTimeMillis();
         setupActorsAndRunPhysSim(iterationEndsEvent);
@@ -528,8 +596,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         for (Person p : jdeqsimPopulation.getPersons().values()) {
             Plan plan = p.getSelectedPlan();
             if (!plan.getPlanElements().isEmpty()) {
-                Leg leg = (Leg) plan.getPlanElements().get(plan.getPlanElements().size() - 1);
-                plan.addActivity(jdeqsimPopulation.getFactory().createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getEndLinkId()));
+                PlanElement planElement = plan.getPlanElements().get(plan.getPlanElements().size() - 1);
+                if (planElement instanceof Leg) {
+                    Leg leg = (Leg) planElement;
+                    plan.addActivity(jdeqsimPopulation.getFactory().createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getEndLinkId()));
+                }
             }
         }
     }

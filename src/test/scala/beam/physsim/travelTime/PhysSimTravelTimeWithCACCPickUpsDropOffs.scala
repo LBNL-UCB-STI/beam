@@ -1,6 +1,7 @@
 package beam.physsim.travelTime
 
 import beam.physsim.bprsim.{BPRSimConfig, BPRSimulation, ParallelBPRSimulation}
+import beam.physsim.conditions.DoubleParking
 import beam.physsim.jdeqsim.cacc.CACCSettings
 import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.{
   Hao2018CaccRoadCapacityAdjustmentFunction,
@@ -181,6 +182,7 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers
       "FREE_FLOW",
       beamConfig.beam.physsim.flowCapacityFactor,
       0,
+      (_: Double, _: Link, _: Int, capacity: Double) => capacity,
       maybeCaccSettings,
       maybePickUpDropOffHolder,
       defaultAlpha = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.alpha,
@@ -212,6 +214,7 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers
       "FREE_FLOW",
       beamConfig.beam.physsim.flowCapacityFactor,
       0,
+      (_: Double, _: Link, _: Int, capacity: Double) => capacity,
       maybeCaccSettings,
       maybePickUpDropOffHolder,
       defaultAlpha = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.alpha,

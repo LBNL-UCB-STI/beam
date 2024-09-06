@@ -71,7 +71,7 @@ class PhysSimulationSpec extends AnyWordSpecLike with Matchers {
           0,
           1.0,
           900,
-          (time, link, _, _) => link.getLength / link.getFreespeed(time),
+          (time, link, _, _, _) => link.getLength / link.getFreespeed(time),
           None
         )
       val (eventManager: EventsManagerImpl, eventBuffer: BufferEventHandler) = createEventManager
@@ -90,7 +90,7 @@ class PhysSimulationSpec extends AnyWordSpecLike with Matchers {
           60,
           1.0,
           900,
-          (time, link, _, _) => link.getLength / link.getFreespeed(time),
+          (time, link, _, _, _) => link.getLength / link.getFreespeed(time),
           None
         )
       val (eventManager: EventsManagerImpl, eventBuffer: BufferEventHandler) = createEventManager
