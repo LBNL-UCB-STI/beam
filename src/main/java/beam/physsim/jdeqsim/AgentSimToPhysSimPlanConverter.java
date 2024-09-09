@@ -446,7 +446,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         final Person person = initializePersonAndPlanIfNeeded(Id.createPersonId(vehicleId), Id.createPersonId(driverId));
         final Plan plan = person.getSelectedPlan();
         final Leg lastLeg = (Leg) Iterables.getLast(plan.getPlanElements(), null);
-        // it means that this is the same leg that is probably split for parking
+        // it means that this is the same leg that is split for parking
         final Leg connectedLeg = lastLeg != null && DoubleMath.fuzzyEquals(
                 (Double) lastLeg.getAttributes().getAttribute("event_time"), pte.departureTime(), TOLERANCE)
                 ? lastLeg : null;
@@ -514,7 +514,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
      *
      * @param pte                PathTraversalEvent
      * @param connectedLeg       the previous leg that is directly connected to the current one (no activity/delay between them).
-     *                           If it is provided then the previous leg is united with the current PTE
+     *                           If it is provided then the previous leg is combined with the current PTE
      * @param departureTimeShift a time sift to
      * @return
      */
@@ -531,7 +531,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
 
         List<Object> objects = pte.linkIdsJava();
-        // most of the time the last link of previous leg is the first link of current leg
+        // most of the time the last link of previous leg is the first link of current leg - we are avoiding this
         boolean sameLinkAtTheEnd = !linkIds.isEmpty()
                 && pte.linkIds().head().toString().equals(Iterables.getLast(linkIds).toString());
         for (int i = sameLinkAtTheEnd ? 1 : 0; i < objects.size(); i++) {

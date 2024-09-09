@@ -342,7 +342,7 @@ Choosing Parking
 * minSearchRadius - radius of a circle around requested parking location that the parking search starts off.
 * maxSearchRadius - max parking search radius.
 * searchDoubleParkingRadius - if a regular stall is not found within this radius then a double parking stall is provided.
-  If it equals or less than zero then this feature is off.
+  If it is equal to zero or less, then this feature is turned off.
 * searchMaxDistanceRelativeToEllipseFoci - max distance to both foci of an ellipse (used in en-route parking).
 * estimatedMeanEnRouteChargingDurationInSeconds - mean en-route charging duration in seconds.
 * fractionOfSameTypeZones - fraction of the zones of certain type to be considered among all the same type zones within the current radius.
