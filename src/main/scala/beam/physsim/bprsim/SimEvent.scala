@@ -123,7 +123,7 @@ class EndLegSimEvent(
     )
 
     val nextLegExists = person.getSelectedPlan.getPlanElements.size() > legIdx + 2
-    if (leg.getAttributes.getAttribute("ended_with_double_parking") == true) {
+    if (Boolean.unbox(leg.getAttributes.getAttribute("ended_with_double_parking"))) {
       val doubleParkingDuration =
         nextActivity.getEndTime.seconds() - leg.getAttributes.getAttribute("event_time").asInstanceOf[Double]
       params.doubleParkingCounter.addTemporalEvent(linkId, time, time + doubleParkingDuration)
