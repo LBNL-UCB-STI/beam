@@ -153,10 +153,13 @@ class BeamScoringFunctionFactory @Inject() (
         val tripsWithUpdatedAttributes = trips
           .zip(personLegs)
           .map { case (x, y) =>
-            x -> Map(
-              "travelTimeRatio" -> x.totalTravelTimeInSecs.toDouble / 60.0 / NumberUtils
-                .toDouble(y.getAttributes.getAttribute("trip_dur_min").toString)
-            )
+            x -> Map("travelTimeRatio" -> (Option(y.getAttributes.getAttribute("trip_dur_min")) match {
+              case Some(expectedTravelTime) =>
+                x.totalTravelTimeInSecs.toDouble / 60.0 / NumberUtils.toDouble(expectedTravelTime.toString)
+              case None =>
+                logger.warn(s"Missing expected travel time ratio for leg $y")
+                1.0
+            }))
           }
           .toMap
         val allDayExpectedScore = if (beamConfig.beam.replanning.subtractExpectedScores) {

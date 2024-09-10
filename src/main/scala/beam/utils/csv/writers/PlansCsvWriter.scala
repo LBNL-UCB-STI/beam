@@ -96,9 +96,11 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           legDepartureTime = leg.getDepartureTime.toOption.map(_.toString),
           legTravelTime = leg.getTravelTime.toOption.map(_.toString),
           legExpectedTravelTime =
-            Option(leg.getAttributes.getAttribute("trip_dur_min").toString).filterNot(_.isEmpty).map(_.toDouble),
-          legExpectedCost =
-            Option(leg.getAttributes.getAttribute("trip_cost_dollars").toString).filterNot(_.isEmpty).map(_.toDouble),
+            Option(leg.getAttributes.getAttribute("trip_dur_min")).map(_.toString).filterNot(_.isEmpty).map(_.toDouble),
+          legExpectedCost = Option(leg.getAttributes.getAttribute("trip_cost_dollars"))
+            .map(_.toString)
+            .filterNot(_.isEmpty)
+            .map(_.toDouble),
           legRouteType = route.map(_.getRouteType),
           legRouteStartLink = route.map(_.getStartLinkId.toString),
           legRouteEndLink = route.map(_.getEndLinkId.toString),
