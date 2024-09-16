@@ -1,16 +1,14 @@
 package beam.calibration.impl.example
 
-import java.io.File
-import java.net.URI
-
-import scala.util.Try
-
 import beam.calibration.impl.example.ModeChoiceObjectiveFunction.ModeChoiceStats
 import beam.utils.FileUtils
 import io.circe._
 import io.circe.generic.semiauto._
 import io.circe.parser._
 import org.apache.http.client.fluent.{Content, Request}
+
+import java.net.URI
+import scala.util.Try
 
 class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) {
 

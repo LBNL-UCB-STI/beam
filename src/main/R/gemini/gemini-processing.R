@@ -48,7 +48,9 @@ process_evs <- function(DATA_) {
 
 ###
 
-eventsTest <- readCsv(pp(workDir, "/2021-22-Oakland/BATCH3Bis/events/filtered.0.events.SC2.csv.gz"))
+eventsTest <- readCsv(pp(workDir, "/2022-07-05/events/filtered.0.events.5bBase.csv.gz"))
+res <- eventsTest[(startsWith(vehicleType, "phev-")|startsWith(vehicleType, "ev-"))&!startsWith(vehicle, "rideHailVehicle")]
+res[startsWith(vehicle, "rideHailVehicle")]
 #eventsTest <- process_evs(events6HighEV)
 eventsTest_rs <- eventsTest[type=="RefuelSessionEvent"][,starTime:=time-duration]
 eventsTest_rs_sum <- eventsTest_rs[,.(count=.N),by=.(starTimeBin=as.integer(starTime/3600))]

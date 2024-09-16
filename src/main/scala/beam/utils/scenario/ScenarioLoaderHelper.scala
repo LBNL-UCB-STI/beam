@@ -5,7 +5,7 @@ import beam.sim.common.GeoUtilsImpl
 import beam.utils.SnapCoordinateUtils
 import beam.utils.SnapCoordinateUtils.{Category, CsvFile, ErrorInfo, SnapLocationHelper}
 import beam.utils.logging.ExponentialLazyLogging
-import org.matsim.api.core.v01.population.{Activity, Leg, Person}
+import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.households.{Household, HouseholdUtils, HouseholdsFactoryImpl}
@@ -32,7 +32,9 @@ object ScenarioLoaderHelper extends ExponentialLazyLogging {
     householdResult.setVehicleIds(household.getVehicleIds)
     householdResult.setMemberIds(members.asJava)
     val originHouseAttributes = household.getAttributes.getAsMap.asScala
-    originHouseAttributes.map { case (key, value) => HouseholdUtils.putHouseholdAttribute(householdResult, key, value) }
+    originHouseAttributes.foreach { case (key, value) =>
+      HouseholdUtils.putHouseholdAttribute(householdResult, key, value)
+    }
     householdResult
   }
 
@@ -92,28 +94,40 @@ object ScenarioLoaderHelper extends ExponentialLazyLogging {
       beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
     )
 
-    val planErrors: ListBuffer[ErrorInfo] = ListBuffer()
-
-    val people: List[Person] = scenario.getPopulation.getPersons.values().asScala.toList
-    people.par.foreach { person =>
-      val plans = person.getPlans.asScala.toList
-      plans.foreach { plan =>
-        val elements: Vector[PlanElement] = plan.getPlanElements.asScala.toVector
-        val errors: Vector[ErrorInfo] = updatePlanElementCoord(
-          person.getId,
-          elements,
-          snapLocationHelper,
-          beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm
-        )
-        if (errors.nonEmpty) {
-          planErrors.appendAll(errors)
-          person.removePlan(plan)
+    val people: IndexedSeq[Person] = scenario.getPopulation.getPersons.values().asScala.toIndexedSeq
+    val (noPlanPersons, planErrors) = people.par.aggregate((IndexedSeq.empty[Person], IndexedSeq.empty[ErrorInfo]))(
+      { case ((noPlanPersons, planErrors), person) =>
+        val plans = person.getPlans.asScala.toIndexedSeq
+        val planToErrors: IndexedSeq[(Plan, Vector[ErrorInfo])] = plans.map { plan =>
+          val elements: Vector[PlanElement] = plan.getPlanElements.asScala.toVector
+          val errors: Vector[ErrorInfo] = updatePlanElementCoord(
+            person.getId,
+            elements,
+            snapLocationHelper,
+            beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm
+          )
+          plan -> errors
         }
+        planToErrors.foreach { case (plan, errors) =>
+          if (errors.nonEmpty) {
+            person.removePlan(plan)
+          }
+        }
+        val combinedPlanErrors: IndexedSeq[ErrorInfo] = planErrors ++ planToErrors.flatMap(_._2)
+        val planCount = person.getPlans.size()
+        if (planCount == 0) {
+          (noPlanPersons :+ person, combinedPlanErrors)
+        } else {
+          (noPlanPersons, combinedPlanErrors)
+        }
+      },
+      { case ((noPlanPersons1, planErrors1), (noPlanPersons2, planErrors2)) =>
+        (noPlanPersons1 ++ noPlanPersons2, planErrors1 ++ planErrors2)
       }
-      val planCount = person.getPlans.size()
-      if (planCount == 0) {
-        scenario.getPopulation.removePerson(person.getId)
-      }
+    )
+
+    noPlanPersons.foreach { person =>
+      scenario.getPopulation.removePerson(person.getId)
     }
 
     outputDirMaybe.foreach { path =>

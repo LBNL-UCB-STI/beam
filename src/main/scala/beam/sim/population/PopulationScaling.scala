@@ -236,14 +236,14 @@ class PopulationScaling extends LazyLogging {
         logger.info(
           s"After plan removal. $nPeopleWithWorkingActivitiesAfter out of ${scenario.getPopulation.getPersons.size()} have working activity"
         )
-      case x =>
+      case _ =>
         logger.warn(
           s"Don't know beam.agentsim.agents.population.industryRemovalProbabilty.removalStrategy=${beamConfig.beam.agentsim.agents.population.industryRemovalProbabilty.removalStrategy}"
         )
     }
   }
 
-  def removePeople(scenario: MutableScenario, peopleToRemove: Iterable[Person]): Unit = {
+  private def removePeople(scenario: MutableScenario, peopleToRemove: Iterable[Person]): Unit = {
     val memberIdToHousehold = scenario.getHouseholds.getHouseholds
       .values()
       .asScala
@@ -271,7 +271,7 @@ class PopulationScaling extends LazyLogging {
     )
   }
 
-  def getSelectedPersons(
+  private def getSelectedPersons(
     rndSeed: Int,
     persons: Iterable[Person],
     industrialProbability: Map[String, Double]
@@ -283,12 +283,10 @@ class PopulationScaling extends LazyLogging {
     selectedPersons
   }
 
-  def getIndustry(person: Person): String = {
-    val industryAttribute = person.getAttributes.getAttribute("industry")
-    if (industryAttribute != null) industryAttribute.toString else ""
-  }
+  private def getIndustry(person: Person): String =
+    Option(person.getAttributes.getAttribute("industry")).map(_.toString).getOrElse("")
 
-  def removeWorkPlan(persons: Iterable[Person]): Unit = {
+  private def removeWorkPlan(persons: Iterable[Person]): Unit = {
     var nRemovedWorkPlans: Int = 0
     persons.foreach { person: Person =>
       val originalPlan = person.getSelectedPlan
@@ -308,7 +306,7 @@ class PopulationScaling extends LazyLogging {
     logger.info(s"Removed $nRemovedWorkPlans working plans from ${persons.size} people")
   }
 
-  def isWorkActivity(plan: PlanElement): Boolean = {
+  private def isWorkActivity(plan: PlanElement): Boolean = {
     plan match {
       case activity: Activity =>
         activity.getType.toLowerCase() == "work"

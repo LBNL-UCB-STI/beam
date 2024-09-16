@@ -3,19 +3,26 @@
 ##
 ## logging CPU | RAM usage during simulation
 ##
-cpu_ram_log="/app/sources/cpu_ram_usage.csv"
+cpu_ram_log="/root/sources/cpu_ram_usage.csv"
 echo "CPU and RAM usage logging started, the output: 'cpu_ram_usage.csv'"
 /app/write_cpu_ram_usage.sh > "$cpu_ram_log" &
 
 
+if [ -n "$START_SSH_WITH_GRADLE_COMMAND" ]; then
+  echo "Starting open-ssh because START_SSH_WITH_GRADLE_COMMAND is set to '$START_SSH_WITH_GRADLE_COMMAND'"
+  /usr/sbin/sshd -D &
+  echo "Open ssh started"
+fi
+
+
 ##
 ## production configs usually require common folder being at location ../common
-## one way of doing it - to copy common content from <code>/production/common to /app/common
+## one way of doing it - to copy common content from <code>/production/common to /root/common
 ##
-PATH_TO_DATA="/app/data"
-PATH_TO_CODE="/app/sources"
-echo "Copy content of $PATH_TO_CODE/production/common to /app/common"
-cp -R $PATH_TO_CODE/production/common/* /app/common/
+PATH_TO_DATA="/root/data"
+PATH_TO_CODE="/root/sources"
+echo "Copy content of $PATH_TO_CODE/production/common to /root/common"
+cp -R $PATH_TO_CODE/production/common/* /root/common/
 
 
 ##
@@ -29,14 +36,8 @@ cd "$PATH_TO_CODE" || echo "ERROR: the path '$PATH_TO_CODE' is not available"
 if [ "$DEBUG" = true ]; then
   echo ""
   echo "'DEBUG' set to '$DEBUG', printing out different folders content."
-  echo ".. content of /app/sources"
-  ls /app/sources
-  echo ""
-  echo ".. content of /app/data"
-  ls /app/data
-  echo ""
-  echo ".. content of /app/common"
-  ls /app/common
+  echo ".. content of /root/*"
+  ls /root/*
   echo ""
 fi
 
@@ -46,12 +47,12 @@ fi
 ## the file put in there in Dockefile, so, if anything mounted - there will be no file.
 ##
 gradle_cache_path="$PATH_TO_CODE/.gradle"
-if [ -e "/app/gradle_cache/.this_volume_was_not_mounted.txt" ]; then
-  echo "Gradle cache was not mounted, using a default directory in the root of code folder: '.gradle'"
+if [ -e "/root/gradle_cache/.this_volume_was_not_mounted.txt" ]; then
+  echo "Gradle cache is not mounted to /root/gradle_cache, using a default directory in the root of code folder: '.gradle'"
   mkdir -p "$gradle_cache_path"
 else
-  gradle_cache_path="/app/gradle_cache"
-  echo "Gradle cache was mounted to /app/gradle_cache, going to use it."
+  gradle_cache_path="/root/gradle_cache"
+  echo "Gradle cache was mounted to /root/gradle_cache, going to use it."
 fi
 
 

@@ -38,7 +38,7 @@ object ActivitySimPathType {
     //    WLK_EXP_DRV,
 
     val (_, longestCarLegId) = tryGetLongestLegId(trip, isCar)
-    val (longestWalkTransitLeg, longestWalkTransitLegId) = tryGetLongestLegId(trip, isWalkTransit)
+    val (longestWalkTransitLeg, longestWalkTransitLegId) = tryGetLongestLegId(trip, isTransit)
 
     if (longestCarLegId.isEmpty || longestWalkTransitLeg.isEmpty || longestWalkTransitLegId.isEmpty) {
       OTHER
@@ -117,7 +117,7 @@ object ActivitySimPathType {
     //    WLK_EXP_WLK, = express bus
     //    WLK_TRN_WLK  = walk transit (general)
 
-    val (longestWalkTransitLeg, _) = tryGetLongestLegId(trip, isWalkTransit)
+    val (longestWalkTransitLeg, _) = tryGetLongestLegId(trip, isTransit)
     longestWalkTransitLeg.map(leg => leg.beamLeg.mode) match {
       case Some(BeamMode.FERRY) | Some(BeamMode.TRAM) | Some(BeamMode.CABLE_CAR) => WLK_LRF_WLK
       case Some(BeamMode.BUS)                                                    => WLK_LOC_WLK
@@ -132,34 +132,28 @@ object ActivitySimPathType {
     trip.tripClassifier match {
       case _ => OTHER
     }
-//    val (longestWalkTransitLeg, _) = tryGetLongestLegId(trip, isWalkTransit)
-//    longestWalkTransitLeg.map(leg => leg.beamLeg.mode) match {
-//      case Some(BeamMode.FERRY) | Some(BeamMode.TRAM) | Some(BeamMode.CABLE_CAR) => WLK_LRF_WLK
-//      case Some(BeamMode.BUS)                                                    => WLK_LOC_WLK
-//      case Some(BeamMode.RAIL)                                                   => WLK_COM_WLK
-//      case Some(BeamMode.SUBWAY)                                                 => WLK_HVY_WLK
-//      case _                                                                     => OTHER
-//    }
   }
 
   def determineTripPathType(trip: EmbodiedBeamTrip): ActivitySimPathType = {
-    val allMods = trip.legs.map(_.beamLeg.mode).toSet
-    val uniqueNotWalkingModes: Set[BeamMode] = allMods.filter { mode =>
-      isCar(mode) || isWalkTransit(mode)
+    val allModes = trip.legs.map(_.beamLeg.mode).toSet
+    val uniqueNotWalkingModes: Set[BeamMode] = allModes.filter { mode =>
+      isCar(mode) || isTransit(mode)
     }
 
     if (uniqueNotWalkingModes.exists(isCar)) {
-      if (uniqueNotWalkingModes.exists(isWalkTransit)) {
+      if (uniqueNotWalkingModes.exists(isTransit)) {
         determineDriveTransitPathType(trip)
       } else {
         determineCarPathType()
       }
-    } else if (uniqueNotWalkingModes.exists(isWalkTransit)) {
+    } else if (uniqueNotWalkingModes.exists(isTransit)) {
       if (uniqueNotWalkingModes.contains(BeamMode.BIKE)) { determineBikeTransitPathType(trip) }
       else { determineWalkTransitPathType(trip) }
-    } else if (allMods.contains(BeamMode.BIKE) && allMods.size == 3) {
+    } else if (
+      allModes.contains(BeamMode.BIKE) && allModes.forall(m => List(BeamMode.BIKE, BeamMode.WALK).contains(m))
+    ) {
       BIKE
-    } else if (allMods.contains(BeamMode.WALK) && allMods.size == 1) {
+    } else if (allModes.contains(BeamMode.WALK) && allModes.size == 1) {
       WALK
     } else {
       OTHER
@@ -350,7 +344,7 @@ object ActivitySimPathType {
 
   def fromString(str: String): Option[ActivitySimPathType] = allPathTypesMap.get(str)
 
-  private def isWalkTransit(beamMode: BeamMode): Boolean = beamMode match {
+  private def isTransit(beamMode: BeamMode): Boolean = beamMode match {
     case BeamMode.BUS | BeamMode.FERRY | BeamMode.RAIL | BeamMode.SUBWAY | BeamMode.TRAM | BeamMode.CABLE_CAR => true
 
     case _ => false

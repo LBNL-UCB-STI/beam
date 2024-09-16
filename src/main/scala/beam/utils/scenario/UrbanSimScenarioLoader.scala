@@ -47,14 +47,34 @@ class UrbanSimScenarioLoader(
 
   private val wereCoordinatesInWGS = false //beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm // make false
 
-  def utmCoord(x: Double, y: Double): Coord = {
+  def utmCoord(x: Double, y: Double, fromExistingPlans: Boolean = false): Coord = {
     val coord = new Coord(x, y)
-    if (wereCoordinatesInWGS) geo.wgs2Utm(coord) else coord
+    if (fromExistingPlans) coord else { if (wereCoordinatesInWGS) geo.wgs2Utm(coord) else coord }
   }
 
-  def wgsCoord(x: Double, y: Double): Coord = {
-    val coord = new Coord(x, y)
-    if (wereCoordinatesInWGS) coord else geo.utm2Wgs(coord)
+  private def buildAndAddLegToPlan(currentPlan: Plan, planElement: PlanElement): Leg = {
+    val leg = PopulationUtils.createAndAddLeg(currentPlan, planElement.legMode.getOrElse(""))
+    planElement.legDepartureTime.foreach(v => leg.setDepartureTime(v.toDouble))
+    planElement.legTravelTime.foreach(v => leg.setTravelTime(v.toDouble))
+    planElement.legMode.foreach(v => leg.setMode(v))
+    leg.getAttributes.putAttribute("trip_id", planElement.tripId)
+
+    val legRoute: NetworkRoute = {
+      val links = planElement.legRouteLinks.map(v => Id.create(v, classOf[Link])).asJava
+      if (links.isEmpty) {
+        null
+      } else {
+        RouteUtils.createNetworkRoute(links, beamScenario.network)
+      }
+    }
+    if (legRoute != null) {
+      leg.setRoute(legRoute)
+      planElement.legRouteDistance.foreach(legRoute.setDistance)
+      planElement.legRouteStartLink.foreach(v => legRoute.setStartLinkId(Id.create(v, classOf[Link])))
+      planElement.legRouteEndLink.foreach(v => legRoute.setEndLinkId(Id.create(v, classOf[Link])))
+      planElement.legRouteTravelTime.foreach(v => legRoute.setTravelTime(v))
+    }
+    leg
   }
 
   private def buildAndAddLegToPlan(currentPlan: Plan, planElement: PlanElement): Leg = {
@@ -198,7 +218,7 @@ class UrbanSimScenarioLoader(
     assignVehicles(households, householdIdToPersons, personId2Score).foreach { case (householdInfo, nVehicles) =>
       val id = Id.create(householdInfo.householdId.id, classOf[Household])
       val household = new HouseholdsFactoryImpl().createHousehold(id)
-      val coord = utmCoord(householdInfo.locationX, householdInfo.locationY)
+      val coord = utmCoord(householdInfo.locationX, householdInfo.locationY, fromExistingPlans = true)
 
       household.setIncome(new IncomeImpl(householdInfo.income, Income.IncomePeriod.year))
 
@@ -275,7 +295,7 @@ class UrbanSimScenarioLoader(
   private def plansToTravelStats(planElements: Iterable[PlanElement]): PersonTravelStats = {
     val homeCoord = planElements.find(_.activityType.getOrElse("") == "Home") match {
       case Some(homeElement) =>
-        Some(utmCoord(homeElement.activityLocationX.get, homeElement.activityLocationY.get))
+        Some(utmCoord(homeElement.activityLocationX.get, homeElement.activityLocationY.get, fromExistingPlans = true))
       case None =>
         None
     }
@@ -287,10 +307,15 @@ class UrbanSimScenarioLoader(
           Some(
             PlanTripStats(
               firstElement.activityEndTime.getOrElse(0.0),
-              utmCoord(firstElement.activityLocationX.getOrElse(0.0), firstElement.activityLocationY.getOrElse(0.0)),
+              utmCoord(
+                firstElement.activityLocationX.getOrElse(0.0),
+                firstElement.activityLocationY.getOrElse(0.0),
+                fromExistingPlans = true
+              ),
               utmCoord(
                 secondElement.activityLocationX.getOrElse(0.0),
-                secondElement.activityLocationY.getOrElse(0.0)
+                secondElement.activityLocationY.getOrElse(0.0),
+                fromExistingPlans = true
               )
             )
           )
@@ -627,7 +652,7 @@ class UrbanSimScenarioLoader(
             planInfo.activityLocationY.isDefined,
             s"planElement is `activity`, but `y` is None! planInfo: $planInfo"
           )
-          val coord = utmCoord(planInfo.activityLocationX.get, planInfo.activityLocationY.get)
+          val coord = utmCoord(planInfo.activityLocationX.get, planInfo.activityLocationY.get, fromExistingPlans = true)
           val activityType = planInfo.activityType.getOrElse(
             throw new IllegalStateException(
               s"planElement is `activity`, but `activityType` is None. planInfo: $planInfo"

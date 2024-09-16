@@ -123,7 +123,6 @@ class PhysSim(
         val rerouter = new ReRouter(workerParams, beamServices)
         val before = rerouter.printRouteStats(s"Before rerouting at $currentIter iter", population)
 //        logger.info("AverageCarTravelTime before replanning")
-//        PhysSim.printAverageCarTravelTime(getCarPeople(population))
         val reroutedTravelTimeStats = reroute(simulationResult.travelTime, reroutePerIterPct, rerouter)
         reroutedTravelTimeWriter.writeRow(
           Vector(
@@ -139,7 +138,6 @@ class PhysSim(
         )
         reroutedTravelTimeWriter.flush()
 //        logger.info("AverageCarTravelTime after replanning")
-//        PhysSim.printAverageCarTravelTime(getCarPeople(population))
         val after = rerouter.printRouteStats(s"After rerouting at $currentIter iter", population)
         val absTotalLenDiff = Math.abs(before.totalRouteLen - after.totalRouteLen)
         val absAvgLenDiff = Math.abs(before.totalRouteLen / before.nRoutes - after.totalRouteLen / after.nRoutes)
@@ -185,7 +183,6 @@ class PhysSim(
       .toList
       .sortBy { case (k, _) => k }
     logger.info(s"Diff in eventTypeToNumberOfMessages map: \n${diffMap.mkString("\n")}")
-//    PhysSim.printAverageCarTravelTime(getCarPeople)
     logger.info(s"Car travel time stats at iteration ${prevResult.iteration}: ${prevResult.carTravelTimeStats}")
     logger.info(s"Car travel time stats at iteration ${currentResult.iteration}: ${currentResult.carTravelTimeStats}")
   }
@@ -217,18 +214,5 @@ class PhysSim(
     val endTimeInSeconds = Time.parseTime(beamConfig.beam.agentsim.endTime).toInt
     jdeqSimScenario.getConfig.travelTimeCalculator().setMaxTime(endTimeInSeconds)
     jdeqSimScenario
-  }
-}
-
-object PhysSim extends LazyLogging {
-
-  def printAverageCarTravelTime(people: Seq[Person]): Unit = {
-    val timeToTravelTime = people.flatMap { person =>
-      person.getSelectedPlan.getPlanElements.asScala.collect { case leg: Leg =>
-        val travelTime = leg.getAttributes.getAttribute("travel_time").toString.toDouble.toInt
-        travelTime
-      }
-    }
-    logger.info(s"Some others stats about travel time: ${Statistics(timeToTravelTime.map(_.toDouble))}")
   }
 }

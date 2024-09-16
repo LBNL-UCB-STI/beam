@@ -235,11 +235,15 @@ class BeamVehicle(
       )
 
     val primaryEnergyForFullLeg =
-      beamScenario.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
-        fuelConsumptionData,
-        fallBack = powerTrain.getRateInJoulesPerMeter,
-        Primary
-      )
+      if (fuelConsumptionData.nonEmpty) {
+        beamScenario.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
+          fuelConsumptionData,
+          fallBack = powerTrain.getRateInJoulesPerMeter,
+          Primary
+        )
+      } else {
+        beamLeg.travelPath.distanceInM * beamVehicleType.primaryFuelConsumptionInJoulePerMeter
+      }
     var primaryEnergyConsumed = primaryEnergyForFullLeg
     var secondaryEnergyConsumed = 0.0
     fuelRWLock.write {
@@ -403,6 +407,8 @@ class BeamVehicle(
 
   def isSharedVehicle: Boolean = beamVehicleType.id.toString.startsWith("sharedVehicle")
 
+  def isFreightVehicle: Boolean = id.toString.startsWith("freightVehicle")
+
   def isCAV: Boolean = beamVehicleType.isConnectedAutomatedVehicle
 
   def isBEV: Boolean =
@@ -538,7 +544,9 @@ object BeamVehicle {
     secondaryFuel: Double /*, fuelConsumptionData: IndexedSeq[FuelConsumptionData],
                           primaryLoggingData: IndexedSeq[LoggingData],
                           secondaryLoggingData: IndexedSeq[LoggingData]*/
-  )
+  ) {
+    def totalEnergyConsumed: Double = primaryFuel + secondaryFuel
+  }
 
   val idPrefixSharedTeleportationVehicle = "teleportationSharedVehicle"
   val idPrefixRideHail = "rideHailVehicle"

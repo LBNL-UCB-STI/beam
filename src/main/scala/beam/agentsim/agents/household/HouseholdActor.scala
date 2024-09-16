@@ -8,6 +8,7 @@ import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents._
 import beam.agentsim.agents.freight.input.FreightReader
+import beam.agentsim.agents.household.CAVSchedule.RouteOrEmbodyRequest
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavTripLegsResponse}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
@@ -48,7 +49,6 @@ import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.population.PopulationUtils
-import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
 
 import java.util.concurrent.TimeUnit
@@ -164,7 +164,7 @@ object HouseholdActor {
     implicit val executionContext: ExecutionContext = context.dispatcher
     implicit val debug: Debug = beamServices.beamConfig.beam.debug
 
-    protected val generateEmergencyHousehold: Boolean =
+    private val generateEmergencyHousehold: Boolean =
       beamScenario.beamConfig.beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt
 
     override val supervisorStrategy: OneForOneStrategy =
@@ -315,7 +315,7 @@ object HouseholdActor {
               ),
               s"cavDriver-${cav.id.toString}"
             )
-            log.warning(
+            log.debug(
               s"Setting up household cav ${cav.id} with driver ${cav.getDriver} to be set with driver $cavDriverRef"
             )
             context.watch(cavDriverRef)
@@ -350,7 +350,7 @@ object HouseholdActor {
             val requestsAndUpdatedPlans = optimalPlan.filter(_.schedule.size > 1).map {
               _.toRoutingRequests(beamServices, transportNetwork, routeHistory, triggerId)
             }
-            val routingRequests = requestsAndUpdatedPlans.flatMap(_._1.flatten)
+            val routingRequests: Seq[RouteOrEmbodyRequest] = requestsAndUpdatedPlans.flatMap(_._1.flatten)
             cavPlans ++= requestsAndUpdatedPlans.map(_._2)
             val memberMap = household.members.map(person => person.getId -> person).toMap
             cavPlans.foreach { plan =>
@@ -385,11 +385,7 @@ object HouseholdActor {
                   beam.utils.logging.pattern
                     .ask(
                       router,
-                      if (req.routeReq.isDefined) {
-                        req.routeReq.get
-                      } else {
-                        req.embodyReq.get
-                      }
+                      req.merge
                     )
                     .mapTo[RoutingResponse]
                 )
@@ -581,7 +577,11 @@ object HouseholdActor {
 
     }
 
-    def completeInitialization(tick: Int, triggerId: Long, triggersToSchedule: Vector[ScheduleTrigger]): Unit = {
+    private def completeInitialization(
+      tick: Int,
+      triggerId: Long,
+      triggersToSchedule: Vector[ScheduleTrigger]
+    ): Unit = {
       // Pipe my cars through the parking manager
       // and complete initialization only when I got them all.
       Future
@@ -638,7 +638,7 @@ object HouseholdActor {
       )
       // TODO Overnight charging is still a work in progress and might produce unexpected results
       if (vehicle.isEV && beamServices.beamConfig.beam.agentsim.chargingNetworkManager.overnightChargingEnabled) {
-        log.info(s"Overnight charging vehicle $vehicle with state of charge ${vehicle.getStateOfCharge}")
+        log.debug(s"Overnight charging vehicle $vehicle with state of charge ${vehicle.getStateOfCharge}")
         chargingNetworkManager ? inquiry
       } else {
         log.debug(s"Overnight parking vehicle $vehicle")

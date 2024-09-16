@@ -42,7 +42,7 @@ def parse_config(s3url, complain=True):
     url = s3path + "/fullBeamConfig.conf"
     config = urllib.request.urlopen(url)
 
-    config_keys = ["flowCapacityFactor", "speedScalingFactor", "quick_fix_minCarSpeedInMetersPerSecond",
+    config_keys = ["flowCapacityFactor", "speedScalingFactor", "minCarSpeedInMetersPerSecond",
                    "activitySimEnabled", "transitCapacity",
                    "minimumRoadSpeedInMetersPerSecond", "fractionOfInitialVehicleFleet",
                    "agentSampleSizeAsFractionOfPopulation",
