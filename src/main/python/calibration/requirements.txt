@@ -1,3 +1,7 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:2a3b66ef8542cebbd63aac3df4a3300dc3a33c20ae337fb1fb936dabce4c569b
-size 100
+DateTime==4.3
+np==1.0.2
+pathlib==1.0.1
+pd==0.0.1
+pytz==2020.1
+tabulate==0.8.7
+zope.interface==5.1.0
