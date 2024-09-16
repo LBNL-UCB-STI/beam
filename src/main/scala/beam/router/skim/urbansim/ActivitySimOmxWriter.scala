@@ -31,13 +31,6 @@ object ActivitySimOmxWriter {
       } yield pathType -> limitedData
     ).toMap
     HDF5Loader.prepareHdf5Library()
-    val pathTypeToMatrixData: Map[ActivitySimPathType, MatrixData] = (
-      for {
-        data     <- activitySimMatrixData
-        pathType <- data.pathTypes
-        limitedData = data.copy(metrics = data.metrics & ExcerptData.supportedActivitySimMetric)
-      } yield pathType -> limitedData
-    ).toMap
     FileUtils.using(
       new OmxFile(filePath)
     ) { omxFile =>
