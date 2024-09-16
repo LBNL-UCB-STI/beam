@@ -53,8 +53,7 @@ class RideHailStopsSpec extends AnyWordSpecLike with Matchers with BeamHelper {
         "PersonLeavesVehicle",
         "actstart",
         "actend",
-        "ModeChoice",
-        "ModeChoiceEvent"
+        "ModeChoice"
       )
       val (eventIterator, closable) = fromCsvFile(filePath, event => neededTypes.contains(event.getEventType))
       val events = eventIterator.toList

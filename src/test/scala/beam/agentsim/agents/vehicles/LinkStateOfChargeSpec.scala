@@ -48,6 +48,7 @@ class LinkStateOfChargeSpec extends AnyWordSpecLike with Matchers with BeamHelpe
             beam.agentsim.agents.rideHail.linkFleetStateAcrossIterations = true
             beam.agentsim.agents.vehicles.linkSocAcrossIterations = true
             beam.physsim.skipPhysSim = true
+            beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_intercept = 20
           """)
           .withFallback(testConfig("test/input/beamville/beam.conf"))
           .resolve()
