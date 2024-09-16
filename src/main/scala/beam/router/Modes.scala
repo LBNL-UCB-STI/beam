@@ -304,9 +304,11 @@ object TourModes {
         case CAR | CAR_HOV2 | CAR_HOV3 =>
           if (availableVehicles.exists(!_.vehicle.isSharedVehicle)) {
             // Assume that if they have access to a personal vehicle they'll take it
-            // on the whole tour, otherwise they'll need to use an emergency vehicle
+            // on the whole tour, otherwise they'll use any available shared vehicles.
+            // If neither work, they'll need to use an emergency vehicle
             (Some(CAR_BASED), availableVehicles.find(!_.vehicle.isSharedVehicle).map(_.vehicle))
-          } else (Some(CAR_BASED), None)
+          } else if (availableVehicles.exists(_.vehicle.isSharedVehicle)) { (Some(WALK_BASED), None) }
+          else (Some(CAR_BASED), None)
         case BIKE =>
           if (availableVehicles.exists(!_.vehicle.isSharedVehicle)) {
             // Assume that if they have access to a personal vehicle they'll take it
