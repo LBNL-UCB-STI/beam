@@ -137,6 +137,8 @@ object BeamOutputDataDescriptionGenerator {
     beam.router.skim.core.FreightSkimmer.aggregatedFreightSkimOutputDataDescriptor,
     beam.router.skim.core.ODSkimmer.odSkimOutputDataDescriptor,
     beam.router.skim.core.ODSkimmer.aggregatedOdSkimOutputDataDescriptor,
+    beam.router.skim.core.ODVehicleTypeSkimmer.odVehicleTypeSkimOutputDataDescriptor,
+    beam.router.skim.core.ODVehicleTypeSkimmer.aggregatedODVehicleTypeSkimOutputDataDescriptor,
     beam.router.skim.core.ParkingSkimmer.parkingSkimOutputDataDescriptor,
     beam.router.skim.core.ParkingSkimmer.aggregatedParkingSkimOutputDataDescriptor,
     beam.router.skim.core.RideHailSkimmer.rideHailSkimOutputDataDescriptor,
