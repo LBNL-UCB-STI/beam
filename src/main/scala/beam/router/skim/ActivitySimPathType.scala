@@ -61,52 +61,6 @@ object ActivitySimPathType {
     }
   }
 
-//  def determineKeyTransitPathType(
-//    accessBeamMode: Option[BeamMode],
-//    leg: Option[EmbodiedBeamLeg],
-//    egressBeamMode: Option[BeamMode]
-//  ): ActivitySimPathType = {
-//    (accessBeamMode, leg.map(leg => leg.beamLeg.mode), egressBeamMode) match {
-//      case (
-//            Some(BeamMode.WALK),
-//            Some(BeamMode.FERRY) | Some(BeamMode.TRAM) | Some(BeamMode.CABLE_CAR),
-//            Some(BeamMode.WALK)
-//          ) =>
-//        WLK_LRF_WLK
-//      case (Some(BeamMode.WALK), Some(BeamMode.BUS), Some(BeamMode.WALK)) =>
-//        val uniqueTransitVehicle = leg.map(_.beamVehicleId.toString)
-//        uniqueTransitVehicle.map(_.split(":").toList).toList.flatten match {
-//          case agencyName :: routeName :: _ if (agencyName == "AC") && Character.isLetter(routeName.charAt(0)) =>
-//            print(routeName)
-//          case agencyName :: routeName =>
-//            print(routeName)
-//          case _ =>
-//        }
-//        WLK_LOC_WLK
-//      case (Some(BeamMode.WALK), Some(BeamMode.RAIL), Some(BeamMode.WALK))   => WLK_COM_WLK
-//      case (Some(BeamMode.WALK), Some(BeamMode.SUBWAY), Some(BeamMode.WALK)) => WLK_HVY_WLK
-//      case (
-//            Some(BeamMode.WALK),
-//            Some(BeamMode.FERRY) | Some(BeamMode.TRAM) | Some(BeamMode.CABLE_CAR),
-//            Some(BeamMode.CAR)
-//          ) =>
-//        WLK_LRF_DRV
-//      case (Some(BeamMode.WALK), Some(BeamMode.BUS), Some(BeamMode.CAR))    => WLK_LOC_DRV
-//      case (Some(BeamMode.WALK), Some(BeamMode.RAIL), Some(BeamMode.CAR))   => WLK_COM_DRV
-//      case (Some(BeamMode.WALK), Some(BeamMode.SUBWAY), Some(BeamMode.CAR)) => WLK_HVY_DRV
-//      case (
-//            Some(BeamMode.CAR),
-//            Some(BeamMode.FERRY) | Some(BeamMode.TRAM) | Some(BeamMode.CABLE_CAR),
-//            Some(BeamMode.WALK)
-//          ) =>
-//        DRV_LRF_WLK
-//      case (Some(BeamMode.CAR), Some(BeamMode.BUS), Some(BeamMode.WALK))    => DRV_LOC_WLK
-//      case (Some(BeamMode.CAR), Some(BeamMode.RAIL), Some(BeamMode.WALK))   => DRV_COM_WLK
-//      case (Some(BeamMode.CAR), Some(BeamMode.SUBWAY), Some(BeamMode.WALK)) => DRV_HVY_WLK
-//      case _                                                                => OTHER
-//    }
-//  }
-
   private def determineWalkTransitPathType(trip: EmbodiedBeamTrip): ActivitySimPathType = {
     //    WLK_COM_WLK, = commuter rail
     //    WLK_HVY_WLK, = heavy rail
@@ -354,11 +308,6 @@ object ActivitySimPathType {
     case BeamMode.CAR | BeamMode.CAV => true
     case _                           => false
   }
-
-//  private def isBike(beamMode: BeamMode): Boolean = beamMode match {
-//    case BeamMode.BIKE => true
-//    case _             => false
-//  }
 
   private def tryGetLongestLegId(
     trip: EmbodiedBeamTrip,
