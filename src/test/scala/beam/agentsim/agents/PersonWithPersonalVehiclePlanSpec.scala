@@ -781,7 +781,7 @@ class PersonWithPersonalVehiclePlanSpec
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
       scheduler ! StartSchedule(0)
 
-//      expectMsgType[TourModeChoiceEvent]
+      expectMsgType[TourModeChoiceEvent]
 
       val routingRequest = expectMsgType[RoutingRequest]
       lastSender ! RoutingResponse(
