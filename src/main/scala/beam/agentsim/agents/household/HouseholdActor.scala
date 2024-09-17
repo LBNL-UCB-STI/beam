@@ -120,6 +120,8 @@ object HouseholdActor {
 
   case class MobilityStatusResponse(streetVehicle: Vector[VehicleOrToken], triggerId: Long) extends HasTriggerId
 
+  case class RetryModeChoice(triggerId: Long) extends HasTriggerId
+
   case class GetVehicleTypes(triggerId: Long) extends HasTriggerId
 
   case class VehicleTypesResponse(vehicleTypes: Set[BeamVehicleType], triggerId: Long) extends HasTriggerId

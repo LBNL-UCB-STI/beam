@@ -633,14 +633,13 @@ class PersonAgent(
         val nextCoord = nextActivity(data).get.getCoord
         goto(ChoosingMode) using ChoosesModeData(
           personData = data.copy(
-            // If the mode of the next leg is defined and is CAV, use it, otherwise,
-            // If we don't have a current tour mode (i.e. are not on a tour aka at home),
-            // use the mode of the next leg as the new tour mode.
-            currentTourMode = modeOfNextLeg match {
-              case Some(CAV) =>
-                Some(CAV)
+            currentTrip = None,
+            restOfCurrentTrip = List.empty[EmbodiedBeamLeg],
+            currentTourMode = data.currentTourMode match {
+              case Some(mode) =>
+                Some(mode)
               case _ =>
-                data.currentTourMode.orElse(modeOfNextLeg)
+                modeOfNextLeg
             },
             numberOfReplanningAttempts = 0,
             failedTrips = IndexedSeq.empty,
@@ -781,12 +780,19 @@ class PersonAgent(
     goto(ChoosingMode) using ChoosesModeData(
       data.copy(
         currentTourMode = None,
-        numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1
+        currentTrip = None,
+        restOfCurrentTrip = List.empty[EmbodiedBeamLeg],
+        numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1,
+        passengerSchedule = PassengerSchedule()
       ),
       currentLocation = SpaceTime(
         currentCoord,
         tick
       ),
+      pendingChosenTrip = None,
+      rideHail2TransitRoutingResponse = None,
+      rideHail2TransitAccessResult = None,
+      rideHail2TransitEgressResult = None,
       isWithinTripReplanning = true,
       excludeModes = (if (data.numberOfReplanningAttempts > 0) Vector(RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT)
                       else Vector()) ++ (if (canUseCars(currentCoord, nextCoord)) Vector.empty[BeamMode]
@@ -820,8 +826,16 @@ class PersonAgent(
         )
       )
       goto(ChoosingMode) using ChoosesModeData(
-        data.copy(numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
+        data.copy(
+          numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1,
+          currentTrip = None,
+          restOfCurrentTrip = List.empty[EmbodiedBeamLeg]
+        ),
         currentLocation = SpaceTime(currentCoord, _currentTick.get),
+        pendingChosenTrip = None,
+        rideHail2TransitRoutingResponse = None,
+        rideHail2TransitAccessResult = None,
+        rideHail2TransitEgressResult = None,
         isWithinTripReplanning = true,
         excludeModes =
           if (canUseCars(currentCoord, nextCoord)) Vector.empty
@@ -1074,10 +1088,16 @@ class PersonAgent(
       goto(ChoosingMode) using ChoosesModeData(
         basePersonData.copy(
           currentTourMode = None, // Have to give up my mode as well, perhaps there's no option left for driving.
+          currentTrip = None,
+          restOfCurrentTrip = List.empty[EmbodiedBeamLeg],
           currentTourPersonalVehicle = None,
           numberOfReplanningAttempts = basePersonData.numberOfReplanningAttempts + 1
         ),
         SpaceTime(currentCoord, _currentTick.get),
+        pendingChosenTrip = None,
+        rideHail2TransitRoutingResponse = None,
+        rideHail2TransitAccessResult = None,
+        rideHail2TransitEgressResult = None,
         excludeModes =
           if (canUseCars(currentCoord, nextCoord)) Vector.empty
           else Vector(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
@@ -1264,6 +1284,10 @@ class PersonAgent(
         personData = data
           .copy(currentTourMode = Some(WALK_TRANSIT), numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
         currentLocation = SpaceTime(currentCoord, _currentTick.get),
+        pendingChosenTrip = None,
+        rideHail2TransitRoutingResponse = None,
+        rideHail2TransitAccessResult = None,
+        rideHail2TransitEgressResult = None,
         isWithinTripReplanning = true,
         excludeModes =
           if (canUseCars(currentCoord, nextCoord)) Vector.empty
@@ -1311,6 +1335,10 @@ class PersonAgent(
         personData = data
           .copy(currentTourMode = Some(WALK_TRANSIT), numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
         currentLocation = SpaceTime(currentCoord, _currentTick.get),
+        pendingChosenTrip = None,
+        rideHail2TransitRoutingResponse = None,
+        rideHail2TransitAccessResult = None,
+        rideHail2TransitEgressResult = None,
         isWithinTripReplanning = true,
         excludeModes =
           if (canUseCars(currentCoord, nextCoord)) Vector.empty
@@ -1378,7 +1406,8 @@ class PersonAgent(
             restOfCurrentTrip = List(),
             currentTourPersonalVehicle = None,
             currentTourMode = if (activity.getType.equals("Home")) None else data.currentTourMode,
-            hasDeparted = false
+            hasDeparted = false,
+            passengerSchedule = PassengerSchedule()
           )
         case None =>
           logDebug("PersonAgent nextActivity returned None")
