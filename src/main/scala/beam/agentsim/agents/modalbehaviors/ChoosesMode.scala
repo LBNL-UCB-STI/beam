@@ -564,20 +564,24 @@ trait ChoosesMode {
           }
 
           // If you dont have mode pre-chosen, you can only use personal vehicles on vehicle based tours -- if you're
-          // on a walk based tour, you can used shared vehicles all the time and personal vehicles for access/egress
-          val availableStreetVehiclesGivenTourMode = newlyAvailableBeamVehicles.map { vehicleOrToken =>
+          // on a walk based tour, you can use shared vehicles all the time and personal vehicles for access/egress
+          val availableStreetVehiclesGivenTourMode = newlyAvailableBeamVehicles.flatMap { vehicleOrToken =>
             val isPersonalVehicle = {
               !vehicleOrToken.vehicle.isSharedVehicle &&
-              !BeamVehicle.isSharedTeleportationVehicle(vehicleOrToken.vehicle.id)
+              !BeamVehicle.isSharedTeleportationVehicle(vehicleOrToken.vehicle.id) &&
+              !vehicleOrToken.vehicle.isRideHail
             }
 
             chosenCurrentTourMode match {
-              case Some(BIKE_BASED) if isPersonalVehicle  => vehicleOrToken.streetVehicle
-              case Some(CAR_BASED) if isPersonalVehicle   => vehicleOrToken.streetVehicle
-              case Some(WALK_BASED) if !isPersonalVehicle => vehicleOrToken.streetVehicle
+              case Some(BIKE_BASED) if isPersonalVehicle =>
+                Some(vehicleOrToken.streetVehicle)
+              case Some(CAR_BASED) if isPersonalVehicle =>
+                Some(vehicleOrToken.streetVehicle)
+              case Some(WALK_BASED) if vehicleOrToken.vehicle.isSharedVehicle =>
+                Some(vehicleOrToken.streetVehicle)
               case Some(WALK_BASED) if isPersonalVehicle && isFirstOrLastTripWithinTour(nextAct) =>
-                vehicleOrToken.streetVehicle
-              case _ => dummyRHVehicle.copy(locationUTM = currentPersonLocation)
+                Some(vehicleOrToken.streetVehicle)
+              case _ => None
             }
           } :+ bodyStreetVehicle
 
