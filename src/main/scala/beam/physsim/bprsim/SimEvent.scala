@@ -125,8 +125,13 @@ class EndLegSimEvent(
     val nextLegExists = person.getSelectedPlan.getPlanElements.size() > legIdx + 2
     if (Boolean.unbox(leg.getAttributes.getAttribute("ended_with_double_parking"))) {
       val doubleParkingDuration =
-        nextActivity.getEndTime.seconds() - leg.getAttributes.getAttribute("event_time").asInstanceOf[Double]
-      params.doubleParkingCounter.addTemporalEvent(linkId, time, time + doubleParkingDuration)
+        if (nextActivity.getEndTime.isDefined)
+          nextActivity.getEndTime.seconds() - leg.getAttributes.getAttribute("event_time").asInstanceOf[Double]
+        else
+          // if the activity during double-parking has no end time then we consider double-parking lasts 12 hours
+          // this shouldn't happen because double-parking may be only at loading/unloading freight vehicles
+          3600 * 12
+      params.doubleParkingCounter.addTemporalEvent(activityLinkId, time, time + doubleParkingDuration)
     }
     val simEvent = if (nextLegExists) {
       val activityDurationInterpretation = scenario.getConfig.plans.getActivityDurationInterpretation

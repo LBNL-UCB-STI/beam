@@ -14,10 +14,11 @@ import beam.physsim.{PickUpDropOffCollector, PickUpDropOffHolder}
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamConfigChangesObservable, BeamServices}
 import beam.utils.ConcurrentUtils.parallelExecution
+import beam.utils.metrics.TemporalEventCounter
 import beam.utils.{DebugLib, ProfilingUtils}
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.analysis.LegHistogram
-import org.matsim.api.core.v01.Scenario
+import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Population
 import org.matsim.core.api.experimental.events.EventsManager
@@ -265,6 +266,8 @@ class JDEQSimRunner(
           beamConfig,
           jdeqSimScenario,
           jdeqsimEvents,
+          new DoubleParking.SimpleCapacityReductionFunction(),
+          new TemporalEventCounter[Id[Link]](30),
           maybeCACCSettings,
           maybePickUpDropOffHolder
         )

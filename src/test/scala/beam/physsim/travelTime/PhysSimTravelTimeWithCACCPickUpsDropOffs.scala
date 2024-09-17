@@ -12,6 +12,7 @@ import beam.physsim.{LinkPickUpsDropOffs, PickUpDropOffHolder, TimeToValueCollec
 import beam.sim.BeamConfigChangesObservable
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.TestConfigUtils.testConfig
+import beam.utils.metrics.TemporalEventCounter
 import com.typesafe.config.{Config, ConfigValueFactory}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
@@ -248,6 +249,8 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers
       beamConfig,
       scenario,
       eventManager,
+      new DoubleParking.SimpleCapacityReductionFunction(),
+      new TemporalEventCounter[Id[Link]](30),
       maybeCaccSettings,
       maybePickUpDropOffHolder
     )
