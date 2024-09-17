@@ -7,12 +7,10 @@ import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.sim.population.PopulationAdjustment.RIDEHAIL_SERVICE_SUBSCRIPTION
 import beam.sim.vehicles.VehiclesAdjustment
-import beam.utils.SequenceUtils
-import beam.utils.csv.readers
 import beam.utils.plan.sampling.AvailableModeUtils
 import beam.utils.scenario.urbansim.HOVModeTransformer
+import beam.utils.{SequenceUtils, UniformRealDistributionEnhanced}
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.{Leg, Person, Plan, Population}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
@@ -79,10 +77,6 @@ class UrbanSimScenarioLoader(
   }
 
   def loadScenario(): (Scenario, Boolean) = {
-    // This is a hack for now. When initially building the scenario we skip reading personal vehicles but do read
-    // in any freight vehicles, so whenever this function is called beamScenario.privateVehicles should only be freight
-    val freightVehicleMap = beamScenario.privateVehicles
-
     clear()
 
     val plansF = Future {
@@ -145,12 +139,8 @@ class UrbanSimScenarioLoader(
 
     logger.info("Applying households...")
     applyHousehold(householdsWithMembers, householdIdToPersons, householdIdToVehicles, plans)
-    // beamServices.privateVehicles is properly populated here, after `applyHousehold` call. Here we add the freight
-    // vehicles back in
-    beamScenario.privateVehicles ++= freightVehicleMap
-    // TODO: Refactor this so we don't need to read vehicles.csv twice
 
-    // beamServices.personHouseholds is used later on in PopulationAdjustment.createAttributesOfIndividual when we
+    // beamServices.personHouseholds is used later on in PopulationAdjustment.createAttributesOfIndividual
     logger.info("Applying persons...")
     applyPersons(personsWithPlans)
 
@@ -165,7 +155,7 @@ class UrbanSimScenarioLoader(
   private def clear(): Unit = {
     scenario.getPopulation.getPersons.clear()
     scenario.getHouseholds.getHouseholds.clear()
-    scenario.getHouseholds.getHouseholds.values.asScala.map(_.getAttributes.clear())
+    scenario.getHouseholds.getHouseholds.values.asScala.foreach(_.getAttributes.clear())
 
     beamScenario.privateVehicles.clear()
     beamScenario.privateVehicleInitialSoc.clear()
@@ -206,7 +196,7 @@ class UrbanSimScenarioLoader(
       beamScenario,
       householdIdToVehicleIdsOption = Option(householdIdToVehicles)
     )
-    val realDistribution: UniformRealDistribution = new UniformRealDistribution()
+    val realDistribution: UniformRealDistributionEnhanced = new UniformRealDistributionEnhanced()
     realDistribution.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
     val bikeVehicleType = beamScenario.vehicleTypes.values

@@ -3159,7 +3159,7 @@ object BeamConfig {
             iterationScripts =
               if (c.hasPathOrNull("iterationScripts")) scala.Some($_L$_str(c.getList("iterationScripts"))) else None,
             processWaitTimeInMinutes =
-              if (c.hasPathOrNull("processWaitTimeInMinutes")) c.getInt("processWaitTimeInMinutes") else 5,
+              if (c.hasPathOrNull("processWaitTimeInMinutes")) c.getInt("processWaitTimeInMinutes") else 60,
             simulationScripts =
               if (c.hasPathOrNull("simulationScripts")) scala.Some($_L$_str(c.getList("simulationScripts"))) else None
           )
@@ -4271,6 +4271,7 @@ object BeamConfig {
         drive_time_skimmer: BeamConfig.Beam.Router.Skim.DriveTimeSkimmer,
         keepKLatestSkims: scala.Int,
         origin_destination_skimmer: BeamConfig.Beam.Router.Skim.OriginDestinationSkimmer,
+        origin_destination_vehicle_type_skimmer: BeamConfig.Beam.Router.Skim.OriginDestinationVehicleTypeSkimmer,
         sendNonChosenTripsToSkimmer: scala.Boolean,
         taz_skimmer: BeamConfig.Beam.Router.Skim.TazSkimmer,
         transit_crowding_skimmer: BeamConfig.Beam.Router.Skim.TransitCrowdingSkimmer,
@@ -4341,6 +4342,19 @@ object BeamConfig {
           }
         }
 
+        case class OriginDestinationVehicleTypeSkimmer(
+          vehicleCategories: java.lang.String
+        )
+
+        object OriginDestinationVehicleTypeSkimmer {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.OriginDestinationVehicleTypeSkimmer = {
+            BeamConfig.Beam.Router.Skim.OriginDestinationVehicleTypeSkimmer(
+              vehicleCategories = if (c.hasPathOrNull("vehicleCategories")) c.getString("vehicleCategories") else "Car"
+            )
+          }
+        }
+
         case class TazSkimmer(
           fileBaseName: java.lang.String,
           geoHierarchy: java.lang.String,
@@ -4388,6 +4402,11 @@ object BeamConfig {
             origin_destination_skimmer = BeamConfig.Beam.Router.Skim.OriginDestinationSkimmer(
               if (c.hasPathOrNull("origin-destination-skimmer")) c.getConfig("origin-destination-skimmer")
               else com.typesafe.config.ConfigFactory.parseString("origin-destination-skimmer{}")
+            ),
+            origin_destination_vehicle_type_skimmer = BeamConfig.Beam.Router.Skim.OriginDestinationVehicleTypeSkimmer(
+              if (c.hasPathOrNull("origin-destination-vehicle-type-skimmer"))
+                c.getConfig("origin-destination-vehicle-type-skimmer")
+              else com.typesafe.config.ConfigFactory.parseString("origin-destination-vehicle-type-skimmer{}")
             ),
             sendNonChosenTripsToSkimmer =
               !c.hasPathOrNull("sendNonChosenTripsToSkimmer") || c.getBoolean("sendNonChosenTripsToSkimmer"),

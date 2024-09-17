@@ -249,6 +249,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
           bind(classOf[DriveTimeSkimmer]).asEagerSingleton()
           bind(classOf[TransitCrowdingSkimmer]).asEagerSingleton()
           bind(classOf[RideHailSkimmer]).asEagerSingleton()
+          bind(classOf[ODVehicleTypeSkimmer]).asEagerSingleton()
           bind(classOf[FreightSkimmer]).asEagerSingleton()
           bind(classOf[ParkingSkimmer]).asEagerSingleton()
           bind(classOf[ActivitySimSkimmer]).asEagerSingleton()
@@ -328,17 +329,17 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     }
 
     val (privateVehicleMap, privateVehicleSoc) = beamConfig.beam.exchange.scenario.source.toLowerCase match {
-      // when reading an urbansim scenario, we read in the vehicles again in ScenarioAdjustment, so there's no need to
-      // bother reading it in now. For now we still do read in freight vehicles, although it's probably cleaner to move
-      // that back to ScenarioAdjustment as well
+      // when reading an urbansim scenario, we read in the vehicles again in ScenarioAdjustment,
+      // so there's no need to bother reading it in now.
       case "urbansim" | "urbansim_v2" =>
         (TrieMap.empty[Id[BeamVehicle], BeamVehicle], TrieMap.empty[Id[BeamVehicle], Double])
       case _ => readPrivateVehicles(beamConfig, vehicleTypes)
     }
+
     BeamScenario(
       readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap,
       vehicleTypes,
-      privateVehicleMap ++ freightCarriers.flatMap(_.fleet),
+      privateVehicleMap,
       privateVehicleSoc,
       new VehicleEnergy(consumptionRateFilterStore, vehicleCsvReader.getLinkToGradeRecordsUsing),
       beamConfig,
@@ -717,15 +718,6 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       )
     }
 
-    // write static metrics, such as population size, vehicles fleet size, etc.
-    // necessary to be called after population sampling
-    BeamStaticMetricsWriter.writeSimulationParameters(
-      scenario,
-      beamScenario,
-      beamServices,
-      beamServices.beamConfig
-    )
-
     if (beamServices.beamConfig.beam.agentsim.agents.freight.enabled) {
       logger.info(s"Generating freight population from ${beamScenario.freightCarriers.size} carriers ...")
       val freightReader = FreightReader(
@@ -759,6 +751,14 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       s"$vehicleType (${groupedValues.size})"
     } mkString " , "
     logger.info(s"Vehicles assigned to households : $vehicleInfo")
+
+    // write static metrics, such as population size, vehicles fleet size, etc.
+    BeamStaticMetricsWriter.writeSimulationParameters(
+      scenario,
+      beamScenario,
+      beamServices,
+      beamServices.beamConfig
+    )
 
     run(beamServices)
   }
