@@ -1400,7 +1400,7 @@ trait ChoosesMode {
         routingResponse.itineraries,
         parkingResponses
       ) ++ rideHail2TransitIineraries)
-        .groupBy(t => t.vehiclesInTrip)
+        .groupBy(t => (t.vehiclesInTrip, t.tripClassifier))
         .map(x => x._2.minBy(_.totalTravelTimeInSecs))
         .toIndexedSeq
 
