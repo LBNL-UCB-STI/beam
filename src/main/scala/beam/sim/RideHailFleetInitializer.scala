@@ -13,21 +13,19 @@ import beam.sim.common.{GeoUtils, Range}
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.OptionalUtils.OptionalTimeExtension
-import beam.utils.OutputDataDescriptor
 import beam.utils.csv.{CsvWriter, GenericCsvReader}
 import beam.utils.matsim_conversion.ShapeUtils.{readShapeFileGeometries, QuadTreeBounds}
+import beam.utils.{OutputDataDescriptor, UniformRealDistributionEnhanced}
 import com.google.inject.Inject
 import com.typesafe.scalalogging.{LazyLogging, Logger}
-import org.locationtech.jts.geom.{Coordinate, Geometry, GeometryFactory}
 import org.apache.commons.io.FilenameUtils
-import org.apache.commons.math3.distribution.UniformRealDistribution
+import org.locationtech.jts.geom.{Coordinate, Geometry, GeometryFactory}
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.households.Household
 
 import java.nio.file.{Files, Paths}
-import java.util
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
@@ -627,7 +625,7 @@ class ProceduralRideHailFleetInitializer(
 ) extends RideHailFleetInitializer {
 
   val rand: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
-  val realDistribution: UniformRealDistribution = new UniformRealDistribution()
+  val realDistribution: UniformRealDistributionEnhanced = new UniformRealDistributionEnhanced()
   realDistribution.reseedRandomGenerator(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
   val passengerPopulation: Iterable[Person] = scenario.getPopulation.getPersons

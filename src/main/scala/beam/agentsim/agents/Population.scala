@@ -18,6 +18,7 @@ import beam.sim.vehicles.VehiclesAdjustment
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.MathUtils
 import beam.utils.logging.LoggingMessageActor
+import beam.utils.scenario.{HouseholdId, VehicleInfo}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
@@ -27,6 +28,7 @@ import org.matsim.households.{Household, HouseholdUtils}
 
 import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters
+import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 class Population(
   val scenario: Scenario,
@@ -97,7 +99,24 @@ class Population(
   }
 
   private def initHouseholds(sharedVehicleTypes: Set[BeamVehicleType]): Unit = {
-    val vehicleAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+    val householdToVehicles = scenario.getHouseholds.getHouseholds
+      .values()
+      .map { household =>
+        HouseholdId(household.getId.toString) -> JavaConverters
+          .collectionAsScalaIterable(household.getVehicleIds)
+          .map(vehId =>
+            VehicleInfo(
+              vehicleId = vehId.toString,
+              vehicleTypeId = beamScenario.privateVehicles(BeamVehicle.createId(vehId)).beamVehicleType.id.toString,
+              initialSoc = None,
+              householdId = household.getId.toString
+            )
+          )
+      }
+      .toMap
+
+    val vehicleAdjustment =
+      VehiclesAdjustment.getVehicleAdjustment(beamScenario, householdIdToVehicleIdsOption = Option(householdToVehicles))
     scenario.getHouseholds.getHouseholds.values().forEach { household =>
       //TODO a good example where projection should accompany the data
       if (HouseholdUtils.getHouseholdAttribute(household, "homecoordx") == null) {
