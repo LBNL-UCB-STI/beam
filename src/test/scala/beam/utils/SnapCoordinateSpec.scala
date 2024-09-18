@@ -272,7 +272,7 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper with 
                         |beam.exchange.scenario.folder = "$pwd/test/test-resources/beam/input/snap-location/scenario/case1/urbansim_v2"
                         |beam.routing.r5.linkRadiusMeters = 350
                         |""".stripMargin)
-        .withFallback(testConfig("test/input/beamville/beam-urbansimv2.conf"))
+        .withFallback(testConfig("test/input/beamville/beam-urbansimv2-hov.conf"))
         .resolve()
 
       val configBuilder = new MatSimBeamConfigBuilder(config)
@@ -305,7 +305,7 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper with 
                         |beam.exchange.scenario.folder = "$pwd/test/test-resources/beam/input/snap-location/scenario/case2/urbansim_v2"
                         |beam.routing.r5.linkRadiusMeters = 350
                         |""".stripMargin)
-        .withFallback(testConfig("test/input/beamville/beam-urbansimv2.conf"))
+        .withFallback(testConfig("test/input/beamville/beam-urbansimv2-hov.conf"))
         .resolve()
 
       val configBuilder = new MatSimBeamConfigBuilder(config)
