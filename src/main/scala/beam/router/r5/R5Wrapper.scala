@@ -894,7 +894,9 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         }
         .filter { trip: EmbodiedBeamTrip =>
           //TODO make a more sensible window not just 30 minutes
-          trip.legs.head.beamLeg.startTime >= request.departureTime && trip.legs.head.beamLeg.startTime <= request.departureTime + 1800
+          trip.legs.forall(l =>
+            l.beamLeg.startTime >= request.departureTime
+          ) && trip.legs.head.beamLeg.startTime <= request.departureTime + 1800
         }
     }
 

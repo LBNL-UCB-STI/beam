@@ -1390,6 +1390,7 @@ class PersonAgent(
         case Some(activity) =>
           val (tick, triggerId) = releaseTickAndTriggerId()
           val activityEndTime = calculateActivityEndTime(activity, tick)
+          activity.setStartTime(tick.toDouble)
 
           assert(activity.getLinkId != null)
           eventsManager.processEvent(
@@ -1435,7 +1436,8 @@ class PersonAgent(
             restOfCurrentTrip = List(),
             currentTourPersonalVehicle = nextTripTourPersonalVehicle,
             currentTripMode = None,
-            hasDeparted = false
+            hasDeparted = false,
+            passengerSchedule = PassengerSchedule()
           )
         case None =>
           logDebug("PersonAgent nextActivity returned None")
@@ -1508,6 +1510,7 @@ class PersonAgent(
             null
           )
           eventsManager.processEvent(activityStartEvent)
+          activity.setStartTime(tick.toDouble)
 
           val nextLegDepartureTime =
             if (activityEndTime > tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow) {
@@ -1549,7 +1552,8 @@ class PersonAgent(
             },
             currentTripMode = None,
             rideHailReservedForLegs = IndexedSeq.empty,
-            hasDeparted = false
+            hasDeparted = false,
+            passengerSchedule = PassengerSchedule()
           )
         case None =>
           logDebug("PersonAgent nextActivity returned None")
