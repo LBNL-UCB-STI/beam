@@ -690,8 +690,8 @@ class PersonAgent(
           ),
           SpaceTime(currentCoord, _currentTick.get),
           excludeModes =
-            if (canUseCars(currentCoord, nextCoord)) Vector.empty
-            else Vector(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
+            if (canUseCars(currentCoord, nextCoord)) Set.empty
+            else Set(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
         )
     }
 
@@ -827,9 +827,9 @@ class PersonAgent(
         tick
       ),
       isWithinTripReplanning = true,
-      excludeModes = (if (data.numberOfReplanningAttempts > 0) Vector(RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT)
-                      else Vector()) ++ (if (canUseCars(currentCoord, nextCoord)) Vector.empty[BeamMode]
-                                         else Vector(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)).distinct
+      excludeModes = (if (data.numberOfReplanningAttempts > 0) Set(RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT)
+                      else Set()) ++ (if (canUseCars(currentCoord, nextCoord)) Set.empty[BeamMode]
+                                      else Set(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV))
     )
   }
 
@@ -863,8 +863,8 @@ class PersonAgent(
         currentLocation = SpaceTime(currentCoord, _currentTick.get),
         isWithinTripReplanning = true,
         excludeModes =
-          if (canUseCars(currentCoord, nextCoord)) Vector.empty
-          else Vector(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
+          if (canUseCars(currentCoord, nextCoord)) Set.empty
+          else Set(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
       )
   }
 
@@ -1125,8 +1125,8 @@ class PersonAgent(
         ),
         SpaceTime(currentCoord, _currentTick.get),
         excludeModes =
-          if (canUseCars(currentCoord, nextCoord)) Vector.empty
-          else Vector(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
+          if (canUseCars(currentCoord, nextCoord)) Set.empty
+          else Set(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
       )
   }
 
@@ -1317,8 +1317,8 @@ class PersonAgent(
         currentLocation = SpaceTime(currentCoord, _currentTick.get),
         isWithinTripReplanning = true,
         excludeModes =
-          if (canUseCars(currentCoord, nextCoord)) Vector.empty
-          else Vector(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
+          if (canUseCars(currentCoord, nextCoord)) Set.empty
+          else Set(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
       )
     // TRANSIT
     case Event(StateTimeout, data: BasePersonData) if data.hasNextLeg && data.nextLeg.beamLeg.mode.isTransit =>
@@ -1364,8 +1364,8 @@ class PersonAgent(
         currentLocation = SpaceTime(currentCoord, _currentTick.get),
         isWithinTripReplanning = true,
         excludeModes =
-          if (canUseCars(currentCoord, nextCoord)) Vector.empty
-          else Vector(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
+          if (canUseCars(currentCoord, nextCoord)) Set.empty
+          else Set(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
       )
     // CAV
     // TODO: Refactor so it uses literally the same code block as transit

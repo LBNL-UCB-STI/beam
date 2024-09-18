@@ -61,7 +61,7 @@ object AvailableModeUtils extends LazyLogging {
     getPersonCustomAttributes(person).map(_.availableModes).getOrElse(Seq.empty)
   }
 
-  def availableModesForPerson(person: Person, excludedModes: Seq[BeamMode]): Seq[BeamMode] = {
+  def availableModesForPerson(person: Person, excludedModes: Set[BeamMode]): Seq[BeamMode] = {
     getPersonCustomAttributes(person).map(_.availableModes).getOrElse(Seq.empty).filterNot(excludedModes.contains)
   }
 
