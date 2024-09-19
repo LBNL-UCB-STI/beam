@@ -1,6 +1,5 @@
 package beam.agentsim.agents
 
-import akka.actor.ActorSystem
 import beam.agentsim.agents.vehicles.VehicleEmissions.Emissions.formatName
 import beam.agentsim.agents.vehicles.VehicleEmissions.{Emissions, EmissionsProfile}
 import beam.agentsim.events.PathTraversalEvent
@@ -91,7 +90,7 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
   }
 
   describe("When BEAM run with emissions generation for RH") {
-    ignore("All links from RH PathTraversal events should be in skims") {
+    it("All links from RH PathTraversal events should be in skims") {
       val rhWithEmissions = mutable.ListBuffer[PathTraversalEvent]()
 
       val outPath = runWithConfig(
@@ -113,8 +112,11 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
       skimsEmissions shouldNot be(empty) withClue "Emissions skims should be generated."
 
       val skimsLinks: Set[String] = skimsEmissions.keys.map(_.linkId).toSet
-      val rhPTLinks: Set[String] = rhWithEmissions.flatMap(pte => pte.linkIds).map(_.toString).toSet
-      (rhPTLinks -- skimsLinks) should be(empty) withClue "All links from RH PathTraversal events should be in skims."
+      rhWithEmissions
+        .flatMap(pte => pte.linkIds)
+        .foreach(linkId =>
+          assert(skimsLinks.contains(linkId.toString), "All links from RH PathTraversal events should be in skims.")
+        )
     }
   }
 }

@@ -8,6 +8,7 @@ import beam.agentsim.agents.vehicles.VehicleCategory._
 import beam.agentsim.agents.vehicles.VehicleEmissions._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingType
@@ -289,8 +290,7 @@ class BeamVehicle(
   def emitEmissions[E <: org.matsim.api.core.v01.events.Event](
     vehicleActivityData: IndexedSeq[VehicleActivityData],
     vehicleActivity: Class[E],
-    beamServices: BeamServices,
-    idleStartSpaceTime: Option[SpaceTime]
+    beamServices: BeamServices
   ): Option[EmissionsProfile] = {
     val emissionsConfig = beamServices.beamConfig.beam.exchange.output.emissions
 
@@ -701,4 +701,64 @@ object BeamVehicle {
     }
   }
 
+  /*
+ To fix emissions calculations:
+ - for first link from PathTraversal event
+ - for possible IDLE vehicle time between shift start event and PathTraversal event
+ - for possible IDLE vehicle time between driver enters vehicle and PathTraversal event
+   */
+  def addMissingActivitiesForEmissions(
+    tick: Int,
+    vehicleActivityData: IndexedSeq[BeamVehicle.VehicleActivityData],
+    lastIDLEStartSpaceTime: Option[SpaceTime],
+    currentLeg: BeamLeg
+  ): IndexedSeq[BeamVehicle.VehicleActivityData] = {
+
+    vehicleActivityData.headOption match {
+      case None => vehicleActivityData
+
+      case Some(secondLinkActivity) =>
+        val firstLinkId = currentLeg.travelPath.linkIds.head
+        val restOfActivityData: IndexedSeq[VehicleActivityData] = vehicleActivityData.tail
+
+        val maybeIDLEActivity = lastIDLEStartSpaceTime match {
+          case Some(spaceTime) if tick - spaceTime.time > 0 =>
+            Some(
+              VehicleActivityData(
+                time = spaceTime.time,
+                linkId = firstLinkId,
+                vehicleType = secondLinkActivity.vehicleType,
+                payloadInKg = None,
+                linkNumberOfLanes = secondLinkActivity.linkNumberOfLanes,
+                linkLength = secondLinkActivity.linkLength,
+                averageSpeed = None,
+                taz = secondLinkActivity.taz,
+                parkingDuration = Some((tick - spaceTime.time).toDouble),
+                parkingType = Some(ParkingType.Public),
+                activityType = Some(ParkingActivityType.Wherever.toString),
+                linkTravelTime = None
+              )
+            )
+          case None => None
+        }
+
+        val travelTime = currentLeg.travelPath.linkTravelTime.head
+        val firstLinkActivity = VehicleActivityData(
+          time = secondLinkActivity.time - travelTime,
+          linkId = firstLinkId,
+          vehicleType = secondLinkActivity.vehicleType,
+          payloadInKg = secondLinkActivity.payloadInKg,
+          linkNumberOfLanes = secondLinkActivity.linkNumberOfLanes,
+          linkLength = secondLinkActivity.linkLength,
+          averageSpeed = secondLinkActivity.averageSpeed,
+          taz = secondLinkActivity.taz,
+          parkingDuration = secondLinkActivity.parkingDuration,
+          parkingType = secondLinkActivity.parkingType,
+          activityType = secondLinkActivity.activityType,
+          linkTravelTime = Some(travelTime)
+        )
+
+        (maybeIDLEActivity.toIndexedSeq :+ firstLinkActivity) ++ vehicleActivityData
+    }
+  }
 }

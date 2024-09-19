@@ -91,8 +91,9 @@ object ParkingNetworkManager extends LazyLogging {
         Some(stall),
         beamServices
       )
+
       val emissionsProfile =
-        currentBeamVehicle.emitEmissions(vehicleActivityData, classOf[LeavingParkingEvent], beamServices, None)
+        currentBeamVehicle.emitEmissions(vehicleActivityData, classOf[LeavingParkingEvent], beamServices)
       val energyCharge: Double = energyChargedMaybe.getOrElse(0.0)
       val score = calculateScore(stall.costInDollars, energyCharge)
       eventsManager.processEvent(

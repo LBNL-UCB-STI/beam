@@ -8,7 +8,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.parking.ChoosesParking.{handleUseParkingSpot, ConnectingToChargingPoint}
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleFullError
-import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed}
+import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed, VehicleActivityData}
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.{BeamAgent, PersonAgent}
@@ -16,6 +16,7 @@ import beam.agentsim.events.RefuelSessionEvent.NotApplicable
 import beam.agentsim.events._
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
+import beam.agentsim.infrastructure.parking.ParkingType
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -333,12 +334,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           case _                             => data.passengerSchedule.schedule(currentLeg).riders.toIndexedSeq.map(_.personId)
         }
       }
+      val vehicleActivityDataFixed =
+        BeamVehicle.addMissingActivitiesForEmissions(tick, vehicleActivityData, lastIDLEStartSpaceTime, currentLeg)
+      lastIDLEStartSpaceTime = None
+
       val emissionsProfile =
         currentBeamVehicle.emitEmissions(
-          vehicleActivityData,
+          vehicleActivityDataFixed,
           classOf[PathTraversalEvent],
-          beamServices,
-          lastIDLEStartSpaceTime
+          beamServices
         )
       val numberOfPassengers: Int = calculateNumberOfPassengersBasedOnCurrentTourMode(data, currentLeg, riders)
       val currentTourMode: Option[String] = getCurrentTourMode(data)
@@ -358,6 +362,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         riders,
         emissionsProfile
       )
+
+      val l1 = vehicleActivityDataFixed.map(_.linkId).toSet
+      val l2 = pte.linkIds.toSet
+      if (l1 != l2) {
+        beam.utils.DebugLib.emptyFunctionForSettingBreakPoint()
+        print("NOT EQUAL")
+      }
 
       eventsManager.processEvent(pte)
       generateTCSEventIfPossible(pte)
@@ -564,13 +575,19 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           beamServices
         )
         val fuelConsumed = currentBeamVehicle.useFuel(partiallyCompletedBeamLeg, vehicleActivityData, beamScenario)
-
+        val vehicleActivityDataFixed =
+          BeamVehicle.addMissingActivitiesForEmissions(
+            updatedStopTick,
+            vehicleActivityData,
+            lastIDLEStartSpaceTime,
+            currentLeg
+          )
+        lastIDLEStartSpaceTime = None
         val emissionsProfile =
           currentBeamVehicle.emitEmissions(
-            vehicleActivityData,
+            vehicleActivityDataFixed,
             classOf[PathTraversalEvent],
-            beamServices,
-            lastIDLEStartSpaceTime
+            beamServices
           )
         val tollOnCurrentLeg = toll(partiallyCompletedBeamLeg)
         tollsAccumulated += tollOnCurrentLeg
