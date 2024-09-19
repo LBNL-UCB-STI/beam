@@ -221,6 +221,7 @@ class RideHailAgent(
   val debugEnabled: Boolean = beamScenario.beamConfig.beam.debug.debugEnabled
   val outgoingMessages: mutable.ListBuffer[Any] = new mutable.ListBuffer[Any]()
   var lastLocationOfRefuel: Option[Coord] = None // for detecting teleportations
+  var shiftStartSpaceTime: Option[SpaceTime] = None // for IDLE emission before first PathTraversal event
 
   val startShiftTriggerTimeout: Int = Math.max(
     beamScenario.beamConfig.beam.agentsim.schedulerParallelismWindow,
@@ -355,6 +356,7 @@ class RideHailAgent(
     val isTimeForShift =
       shifts.isEmpty || shifts.get.exists(shift => shift.range.lowerBound <= tick && shift.range.upperBound >= tick)
     if (isTimeForShift) {
+      shiftStartSpaceTime = Some(vehicle.spaceTime.copy(time = tick))
       eventsManager.processEvent(new ShiftEvent(tick, StartShift, id.toString, vehicle))
       rideHailManager ! NotifyVehicleIdle(
         vehicle.id,
@@ -453,6 +455,7 @@ class RideHailAgent(
         )
       }
       val newShiftToSchedule = if (needsToEndShift) {
+        shiftStartSpaceTime = None
         eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle))
         isCurrentlyOnShift = false
         needsToEndShift = false
@@ -477,11 +480,13 @@ class RideHailAgent(
         stay()
       } else {
         if (needsToEndShift) {
+          shiftStartSpaceTime = None
           eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle))
           needsToEndShift = false
           isCurrentlyOnShift = false
         }
         updateLatestObservedTick(tick)
+        shiftStartSpaceTime = Some(vehicle.spaceTime.copy(time = tick))
         eventsManager.processEvent(new ShiftEvent(tick, StartShift, id.toString, vehicle))
         log.debug("state(RideHailingAgent.Offline): starting shift {}", id)
         holdTickAndTriggerId(tick, triggerId)
@@ -605,6 +610,7 @@ class RideHailAgent(
         ) =>
       log.debug(s"state(RideHailAgent.Idle.EndShiftTrigger; Trigger ID: $triggerId; Vehicle ID: ${vehicle.id}")
       updateLatestObservedTick(tick)
+      shiftStartSpaceTime = None
       eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle))
       isCurrentlyOnShift = false
       val newShiftToSchedule = if (data.remainingShifts.size < 1) {

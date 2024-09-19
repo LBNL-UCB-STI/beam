@@ -91,7 +91,7 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
   }
 
   describe("When BEAM run with emissions generation for RH") {
-    ignore("All links from RH PathTraversal events should be in skims")  {
+    ignore("All links from RH PathTraversal events should be in skims") {
       val rhWithEmissions = mutable.ListBuffer[PathTraversalEvent]()
 
       val outPath = runWithConfig(
