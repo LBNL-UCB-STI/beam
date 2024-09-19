@@ -710,7 +710,7 @@ object BeamVehicle {
   def addMissingActivitiesForEmissions(
     tick: Int,
     vehicleActivityData: IndexedSeq[BeamVehicle.VehicleActivityData],
-    lastIDLEStartSpaceTime: Option[SpaceTime],
+    lastIDLEStartTime: Option[Int],
     currentLeg: BeamLeg
   ): IndexedSeq[BeamVehicle.VehicleActivityData] = {
 
@@ -721,11 +721,11 @@ object BeamVehicle {
         val firstLinkId = currentLeg.travelPath.linkIds.head
         val restOfActivityData: IndexedSeq[VehicleActivityData] = vehicleActivityData.tail
 
-        val maybeIDLEActivity = lastIDLEStartSpaceTime match {
-          case Some(spaceTime) if tick - spaceTime.time > 0 =>
+        val maybeIDLEActivity = lastIDLEStartTime match {
+          case Some(idleStartTime) if tick - idleStartTime > 0 =>
             Some(
               VehicleActivityData(
-                time = spaceTime.time,
+                time = idleStartTime,
                 linkId = firstLinkId,
                 vehicleType = secondLinkActivity.vehicleType,
                 payloadInKg = None,
@@ -733,7 +733,7 @@ object BeamVehicle {
                 linkLength = secondLinkActivity.linkLength,
                 averageSpeed = None,
                 taz = secondLinkActivity.taz,
-                parkingDuration = Some((tick - spaceTime.time).toDouble),
+                parkingDuration = Some((tick - idleStartTime).toDouble),
                 parkingType = Some(ParkingType.Public),
                 activityType = Some(ParkingActivityType.Wherever.toString),
                 linkTravelTime = None

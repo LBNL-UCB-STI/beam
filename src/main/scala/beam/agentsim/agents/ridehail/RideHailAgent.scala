@@ -355,7 +355,7 @@ class RideHailAgent(
     val isTimeForShift =
       shifts.isEmpty || shifts.get.exists(shift => shift.range.lowerBound <= tick && shift.range.upperBound >= tick)
     if (isTimeForShift) {
-      lastIDLEStartSpaceTime = Some(vehicle.spaceTime.copy(time = tick))
+      lastIDLEStartTime = Some(tick)
       eventsManager.processEvent(new ShiftEvent(tick, StartShift, id.toString, vehicle))
       rideHailManager ! NotifyVehicleIdle(
         vehicle.id,
@@ -454,7 +454,7 @@ class RideHailAgent(
         )
       }
       val newShiftToSchedule = if (needsToEndShift) {
-        lastIDLEStartSpaceTime = None
+        lastIDLEStartTime = None
         eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle))
         isCurrentlyOnShift = false
         needsToEndShift = false
@@ -479,13 +479,13 @@ class RideHailAgent(
         stay()
       } else {
         if (needsToEndShift) {
-          lastIDLEStartSpaceTime = None
+          lastIDLEStartTime = None
           eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle))
           needsToEndShift = false
           isCurrentlyOnShift = false
         }
         updateLatestObservedTick(tick)
-        lastIDLEStartSpaceTime = Some(vehicle.spaceTime.copy(time = tick))
+        lastIDLEStartTime = Some(tick)
         eventsManager.processEvent(new ShiftEvent(tick, StartShift, id.toString, vehicle))
         log.debug("state(RideHailingAgent.Offline): starting shift {}", id)
         holdTickAndTriggerId(tick, triggerId)
@@ -609,7 +609,7 @@ class RideHailAgent(
         ) =>
       log.debug(s"state(RideHailAgent.Idle.EndShiftTrigger; Trigger ID: $triggerId; Vehicle ID: ${vehicle.id}")
       updateLatestObservedTick(tick)
-      lastIDLEStartSpaceTime = None
+      lastIDLEStartTime = None
       eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle))
       isCurrentlyOnShift = false
       val newShiftToSchedule = if (data.remainingShifts.size < 1) {

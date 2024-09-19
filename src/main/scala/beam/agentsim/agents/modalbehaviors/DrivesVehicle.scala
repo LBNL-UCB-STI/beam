@@ -209,7 +209,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
 
   var nextNotifyVehicleResourceIdle: Option[NotifyVehicleIdle] = None
   // last time the vehicle started being IDLE
-  var lastIDLEStartSpaceTime: Option[SpaceTime] = None
+  var lastIDLEStartTime: Option[Int] = None
 
   def updateFuelConsumedByTrip(idp: Id[Person], fuelConsumed: FuelConsumed, factor: Int = 1): Unit = {
     val existingFuel = fuelConsumedByTrip.getOrElse(idp, FuelConsumed(0, 0))
@@ -335,8 +335,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         }
       }
       val vehicleActivityDataFixed =
-        BeamVehicle.addMissingActivitiesForEmissions(tick, vehicleActivityData, lastIDLEStartSpaceTime, currentLeg)
-      lastIDLEStartSpaceTime = None
+        BeamVehicle.addMissingActivitiesForEmissions(tick, vehicleActivityData, lastIDLEStartTime, currentLeg)
+      lastIDLEStartTime = None
 
       val emissionsProfile =
         currentBeamVehicle.emitEmissions(
@@ -367,7 +367,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       val l2 = pte.linkIds.toSet
       if (l1 != l2) {
         beam.utils.DebugLib.emptyFunctionForSettingBreakPoint()
-        print("NOT EQUAL")
+        println(
+          "NOT EQUAL! PTE: " + pte.linkIds
+            .mkString(",") + " VAD: " + vehicleActivityDataFixed.map(_.linkId).mkString(",")
+        )
       }
 
       eventsManager.processEvent(pte)
@@ -579,10 +582,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           BeamVehicle.addMissingActivitiesForEmissions(
             updatedStopTick,
             vehicleActivityData,
-            lastIDLEStartSpaceTime,
+            lastIDLEStartTime,
             currentLeg
           )
-        lastIDLEStartSpaceTime = None
+        lastIDLEStartTime = None
         val emissionsProfile =
           currentBeamVehicle.emitEmissions(
             vehicleActivityDataFixed,
