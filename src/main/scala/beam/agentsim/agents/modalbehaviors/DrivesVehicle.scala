@@ -334,8 +334,17 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           case _                             => data.passengerSchedule.schedule(currentLeg).riders.toIndexedSeq.map(_.personId)
         }
       }
-      val vehicleActivityDataFixed =
-        BeamVehicle.addMissingActivitiesForEmissions(tick, vehicleActivityData, lastIDLEStartTime, currentLeg)
+
+      val vehicleActivityDataFixed = BeamVehicle.addMissingActivitiesForEmissions(
+        tick,
+        vehicleActivityData,
+        lastIDLEStartTime,
+        currentBeamVehicle.beamVehicleType,
+        payloadInKg,
+        currentLeg,
+        None,
+        beamServices
+      )
       lastIDLEStartTime = None
 
       val emissionsProfile =
@@ -578,13 +587,16 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           beamServices
         )
         val fuelConsumed = currentBeamVehicle.useFuel(partiallyCompletedBeamLeg, vehicleActivityData, beamScenario)
-        val vehicleActivityDataFixed =
-          BeamVehicle.addMissingActivitiesForEmissions(
-            updatedStopTick,
-            vehicleActivityData,
-            lastIDLEStartTime,
-            currentLeg
-          )
+        val vehicleActivityDataFixed = BeamVehicle.addMissingActivitiesForEmissions(
+          updatedStopTick,
+          vehicleActivityData,
+          lastIDLEStartTime,
+          currentBeamVehicle.beamVehicleType,
+          payloadInKg,
+          currentLeg,
+          None,
+          beamServices
+        )
         lastIDLEStartTime = None
         val emissionsProfile =
           currentBeamVehicle.emitEmissions(

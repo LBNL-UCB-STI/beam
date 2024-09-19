@@ -711,28 +711,55 @@ object BeamVehicle {
     tick: Int,
     vehicleActivityData: IndexedSeq[BeamVehicle.VehicleActivityData],
     lastIDLEStartTime: Option[Int],
-    currentLeg: BeamLeg
+    theVehicleType: BeamVehicleType,
+    payloadInKg: Option[Double],
+    currentLeg: BeamLeg,
+    parkingStall: Option[ParkingStall],
+    beamServices: BeamServices
   ): IndexedSeq[BeamVehicle.VehicleActivityData] = {
 
-    vehicleActivityData.headOption match {
+    currentLeg.travelPath.linkIds.headOption match {
       case None => vehicleActivityData
 
-      case Some(secondLinkActivity) =>
-        val firstLinkId = currentLeg.travelPath.linkIds.head
-        val restOfActivityData: IndexedSeq[VehicleActivityData] = vehicleActivityData.tail
+      case Some(linkId) =>
+        val parkingDuration: Option[Double] = parkingStall.map { stall =>
+          if (tick - stall.getParkingTime < 0) 0.0 else tick - stall.getParkingTime
+        }
+        val parkingType: Option[ParkingType] = parkingStall.map(_.parkingType)
+        val activityType: Option[String] = parkingStall.map(_.activityType)
+        val linkTravelTime: Double = currentLeg.travelPath.linkTravelTime.head
+        val currentLink: Option[Link] = beamServices.networkHelper.getLink(linkId)
+        val averageSpeed =
+          try { if (linkTravelTime > 0) currentLink.map(_.getLength).getOrElse(0.0) / linkTravelTime else 0 }
+          catch { case _: Exception => 0.0 }
+
+        val firstLinkActivity = VehicleActivityData(
+          time = tick - linkTravelTime,
+          linkId = linkId,
+          vehicleType = theVehicleType,
+          payloadInKg = payloadInKg,
+          linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt),
+          linkLength = currentLink.map(_.getLength),
+          averageSpeed = Some(averageSpeed),
+          taz = currentLink.flatMap(link => beamServices.beamScenario.tazTreeMap.getTAZfromLink(link.getId)),
+          parkingDuration = parkingDuration,
+          parkingType = parkingType,
+          activityType = activityType,
+          linkTravelTime = Some(linkTravelTime)
+        )
 
         val maybeIDLEActivity = lastIDLEStartTime match {
           case Some(idleStartTime) if tick - idleStartTime > 0 =>
             Some(
               VehicleActivityData(
                 time = idleStartTime,
-                linkId = firstLinkId,
-                vehicleType = secondLinkActivity.vehicleType,
+                linkId = linkId,
+                vehicleType = theVehicleType,
                 payloadInKg = None,
-                linkNumberOfLanes = secondLinkActivity.linkNumberOfLanes,
-                linkLength = secondLinkActivity.linkLength,
+                linkNumberOfLanes = firstLinkActivity.linkNumberOfLanes,
+                linkLength = firstLinkActivity.linkLength,
                 averageSpeed = None,
-                taz = secondLinkActivity.taz,
+                taz = firstLinkActivity.taz,
                 parkingDuration = Some((tick - idleStartTime).toDouble),
                 parkingType = Some(ParkingType.Public),
                 activityType = Some(ParkingActivityType.Wherever.toString),
@@ -741,22 +768,6 @@ object BeamVehicle {
             )
           case None => None
         }
-
-        val travelTime = currentLeg.travelPath.linkTravelTime.head
-        val firstLinkActivity = VehicleActivityData(
-          time = secondLinkActivity.time - travelTime,
-          linkId = firstLinkId,
-          vehicleType = secondLinkActivity.vehicleType,
-          payloadInKg = secondLinkActivity.payloadInKg,
-          linkNumberOfLanes = secondLinkActivity.linkNumberOfLanes,
-          linkLength = secondLinkActivity.linkLength,
-          averageSpeed = secondLinkActivity.averageSpeed,
-          taz = secondLinkActivity.taz,
-          parkingDuration = secondLinkActivity.parkingDuration,
-          parkingType = secondLinkActivity.parkingType,
-          activityType = secondLinkActivity.activityType,
-          linkTravelTime = Some(travelTime)
-        )
 
         (maybeIDLEActivity.toIndexedSeq :+ firstLinkActivity) ++ vehicleActivityData
     }
