@@ -289,7 +289,8 @@ class BeamVehicle(
   def emitEmissions[E <: org.matsim.api.core.v01.events.Event](
     vehicleActivityData: IndexedSeq[VehicleActivityData],
     vehicleActivity: Class[E],
-    beamServices: BeamServices
+    beamServices: BeamServices,
+    idleStartSpaceTime: Option[SpaceTime]
   ): Option[EmissionsProfile] = {
     val emissionsConfig = beamServices.beamConfig.beam.exchange.output.emissions
 
@@ -651,8 +652,8 @@ object BeamVehicle {
         if (beamLeg.mode.isTransit & !Modes.isOnStreetTransit(beamLeg.mode)) {
           Vector.empty
         } else {
-          val linkIds = beamLeg.travelPath.linkIds //.drop(1)
-          val linkTravelTimes: IndexedSeq[Double] = beamLeg.travelPath.linkTravelTime //.drop(1)
+          val linkIds = beamLeg.travelPath.linkIds.drop(1)
+          val linkTravelTimes: IndexedSeq[Double] = beamLeg.travelPath.linkTravelTime.drop(1)
           var totalTravelTime: Double = 0.0
           linkIds.zipWithIndex.map { case (id, idx) =>
             val travelTime = linkTravelTimes(idx)
