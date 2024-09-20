@@ -281,6 +281,12 @@ trait ChoosesMode {
             TripModeChoiceStrategy(Some(dataMode))
           _experiencedBeamPlan.putStrategy(_experiencedBeamPlan.getTripContaining(nextAct), updatedTripStrategy)
           Some(dataMode)
+        case (Some(DRIVE_TRANSIT), Some(WALK_TRANSIT)) if choosesModeData.isWithinTripReplanning =>
+          logger.debug(
+            "Keeping my _experiencedBeamPlan mode as DRIVE_TRANSIT and ChoosesModeData" +
+            "as WALK_TRANSIT because I missed my initial transit leg but want to keep my vehicle"
+          )
+          Some(WALK_TRANSIT)
         case _ =>
           log.error(
             "Unexpected behavior"
@@ -408,7 +414,7 @@ trait ChoosesMode {
                   out.map(_.value).getOrElse(""),
                   currentTour,
                   availablePersonalStreetVehicles,
-                  modeToTourMode,
+                  firstAndLastTripModeToTourMode,
                   tourModeUtils,
                   modesToQuery,
                   currentActivity(personData)
@@ -418,7 +424,7 @@ trait ChoosesMode {
               case Some(tripMode) =>
                 // If trip mode is already set, determine tour mode from that and available vehicles (sticking
                 // with walk based tour if the only available vehicles are shared)
-                val (chosenTourMode, tourVehicle) = getTourMode(tripMode, availablePersonalStreetVehicles)
+                val (chosenTourMode, tourVehicle) = getTourModeAndVehicle(tripMode, availablePersonalStreetVehicles)
                 val updatedTourStrategy =
                   TourModeChoiceStrategy(chosenTourMode, tourVehicle.map(_.id))
                 _experiencedBeamPlan.putStrategy(_experiencedBeamPlan.getTourContaining(nextAct), updatedTourStrategy)
@@ -681,6 +687,7 @@ trait ChoosesMode {
               if (householdVehiclesWereNotAvailable) {
                 makeRideHailRequest()
               }
+              logger.warn("No HH vehicle available so going back to replanning")
           }
         case Some(mode @ (DRIVE_TRANSIT | BIKE_TRANSIT)) =>
           val vehicleMode = Modes.getAccessVehicleMode(mode)
@@ -1385,6 +1392,11 @@ trait ChoosesMode {
     }
   }
 
+  /**
+    * Checks to see what modes are allowed, given (1) What tour mode you are on, and (2) whether there are any tour
+    * vehicles associated with your plan. 2 becomes important on WALK_BASED tours when you have used a vehicle for
+    * initial access/egress
+    */
   def getAvailableModesGivenTourMode(
     availableModes: Seq[BeamMode],
     availablePersonalStreetVehicles: Vector[VehicleOrToken],
@@ -1402,8 +1414,15 @@ trait ChoosesMode {
               case Some(tourVehicleId) if veh.id == tourVehicleId =>
                 BeamTourMode.enabledModes.get(veh.streetVehicle.mode)
               case None =>
-                logger.warn(s"Why does vehicle ${veh.id} need to be driven home when it's not a tour vehicle?")
+                logger.warn(
+                  s"We're already on a walk based tour, but we have access to a vehicle ${veh.vehicle.id} we shouldn't have"
+                )
                 BeamTourMode.enabledModes.get(veh.streetVehicle.mode) ++ Some(WALK_BASED.allowedBeamModes)
+              case Some(tourVehicleId) =>
+                logger.warn(
+                  s"We're on a walk tour with the wrong tour vehicle: $tourVehicleId when we have access to ${veh.vehicle.id}"
+                )
+                None
             }
           case _ => None
         }.flatten
@@ -1697,7 +1716,7 @@ trait ChoosesMode {
     else { Some(WALK_BASED) }
     val newTourVehicle = choosesModeData.personData.currentTourPersonalVehicle match {
       case Some(id) if beamVehicles.contains(id) =>
-        if (choosesModeData.personData.currentTourMode.contains(WALK_BASED)) {
+        if (choosesModeData.personData.currentTourMode.contains(WALK_BASED) & !onFirstTrip) {
           Some(id)
         } else {
           val vehicle = beamVehicles(id).vehicle
@@ -1943,13 +1962,13 @@ trait ChoosesMode {
 
       val nextAct = nextActivity(data.personData).get
 
-      val tourMode = data.personData.currentTourMode
+      val initialTourMode = data.personData.currentTourMode
 
       val modeChoiceEvent = new ModeChoiceEvent(
         tick,
         id,
         chosenTrip.tripClassifier.value,
-        tourMode.map(_.value).getOrElse(""),
+        initialTourMode.map(_.value).getOrElse(""),
         data.expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
         _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getLinkId.toString,
         data.availableAlternatives.get,
@@ -2060,32 +2079,55 @@ trait ChoosesMode {
             }
           }
 
+          val (finalTourMode, finalTourVehicle) = initialTourMode match {
+            case Some(tm) => (Some(tm), data.personData.currentTourPersonalVehicle.map(x => beamVehicles(x).vehicle))
+            case _        => getTourModeAndVehicle(chosenTrip.tripClassifier, vehiclesUsed)
+          }
+
+          if (
+            _experiencedBeamPlan
+              .getStrategy[TourModeChoiceStrategy](_experiencedBeamPlan.getTourContaining(nextAct))
+              .tourMode
+              .isEmpty
+          ) {
+            val updatedTourStrategy =
+              TourModeChoiceStrategy(
+                finalTourMode,
+                finalTourVehicle.map(_.id)
+              )
+            _experiencedBeamPlan.putStrategy(_experiencedBeamPlan.getTourContaining(nextAct), updatedTourStrategy)
+          }
+
+          val currentPlanMode = _experiencedBeamPlan
+            .getStrategy[TripModeChoiceStrategy](_experiencedBeamPlan.getTripContaining(nextAct))
+            .mode
+
           // Manually set that personal bike transit vehicles must be driven home because it's not handled in parking
           currentTourPersonalVehicle match {
             case Some(veh)
-                if chosenTrip.tripClassifier == BIKE_TRANSIT && isFirstTripWithinTour(nextAct) && !beamVehicles(
+                if currentPlanMode.contains(BIKE_TRANSIT) && isFirstTripWithinTour(nextAct) && !beamVehicles(
                   veh
                 ).vehicle.isSharedVehicle =>
               beamVehicles(veh).vehicle.setMustBeDrivenHome(true)
             case Some(veh)
-                if chosenTrip.tripClassifier == BIKE_TRANSIT && isLastTripWithinTour(nextAct) && !beamVehicles(
+                if currentPlanMode.contains(BIKE_TRANSIT) && isLastTripWithinTour(nextAct) && !beamVehicles(
                   veh
                 ).vehicle.isSharedVehicle =>
               beamVehicles(veh).vehicle.setMustBeDrivenHome(false)
             case _ =>
           }
 
-          val updatedTripStrategy =
-            TripModeChoiceStrategy(Some(chosenTrip.tripClassifier))
-          _experiencedBeamPlan.putStrategy(_experiencedBeamPlan.getTripContaining(nextAct), updatedTripStrategy)
-
-          if (data.personData.currentTourMode.isEmpty) {
-            val updatedTourStrategy =
-              TourModeChoiceStrategy(
-                data.personData.currentTourMode,
-                currentTourPersonalVehicle.filter(vehiclesUsed.contains)
+          currentPlanMode match {
+            case None =>
+              _experiencedBeamPlan.putStrategy(
+                _experiencedBeamPlan.getTripContaining(nextAct),
+                TripModeChoiceStrategy(Some(chosenTrip.tripClassifier))
               )
-            _experiencedBeamPlan.putStrategy(_experiencedBeamPlan.getTourContaining(nextAct), updatedTourStrategy)
+            case Some(strategyMode) if strategyMode == chosenTrip.tripClassifier =>
+            case Some(DRIVE_TRANSIT) if (chosenTrip.tripClassifier == WALK_TRANSIT) && data.isWithinTripReplanning =>
+              logger.debug("Assigning replanning walk_transit trip as part of drive transit trip")
+            case _ =>
+              logger.error("Unexpected difference between trip modes in plans")
           }
 
           goto(WaitingForDeparture) using data.personData.copy(
@@ -2093,6 +2135,7 @@ trait ChoosesMode {
             restOfCurrentTrip = chosenTrip.legs.toList,
             currentTripMode = Some(chosenTrip.tripClassifier),
             currentTourPersonalVehicle = currentTourPersonalVehicle,
+            currentTourMode = finalTourMode,
             failedTrips = data.personData.failedTrips ++ data.personData.currentTrip
           )
       }

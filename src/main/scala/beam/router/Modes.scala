@@ -296,7 +296,7 @@ object TourModes {
 
     override val values: immutable.IndexedSeq[BeamTourMode] = findValues
 
-    def getTourMode(
+    def getTourModeAndVehicle(
       tripMode: BeamMode,
       availableVehicles: Vector[VehicleOrToken] = Vector.empty[VehicleOrToken]
     ): (Option[BeamTourMode], Option[BeamVehicle]) = {
