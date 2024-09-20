@@ -372,16 +372,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         emissionsProfile
       )
 
-      val l1 = vehicleActivityDataFixed.map(_.linkId).toSet
-      val l2 = pte.linkIds.toSet
-      if (l1 != l2) {
-        beam.utils.DebugLib.emptyFunctionForSettingBreakPoint()
-        println(
-          "NOT EQUAL! PTE: " + pte.linkIds
-            .mkString(",") + " VAD: " + vehicleActivityDataFixed.map(_.linkId).mkString(",")
-        )
-      }
-
       eventsManager.processEvent(pte)
       generateTCSEventIfPossible(pte)
 
