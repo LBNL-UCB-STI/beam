@@ -758,19 +758,16 @@ object BeamVehicle {
     tick: Int,
     lastIDLEStartTime: Option[Int],
     theVehicleType: BeamVehicleType,
-    currentLeg: BeamLeg,
+    maybeLinkId: Option[Int],
     beamServices: BeamServices
   ): IndexedSeq[BeamVehicle.VehicleActivityData] = {
 
-    currentLeg.travelPath.linkIds.headOption match {
+    maybeLinkId match {
       case None => IndexedSeq.empty[BeamVehicle.VehicleActivityData]
       case Some(linkId) =>
         val currentLink: Option[Link] = beamServices.networkHelper.getLink(linkId)
         val maybeIDLEActivity = lastIDLEStartTime match {
           case Some(idleStartTime) if tick - idleStartTime > 0 =>
-            if (theVehicleType.vehicleCategory == Car) {
-              println(f"Creating IDLE vehicle activity for $theVehicleType at $idleStartTime")
-            }
             Some(
               VehicleActivityData(
                 time = idleStartTime,

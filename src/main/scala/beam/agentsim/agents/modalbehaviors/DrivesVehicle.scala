@@ -210,6 +210,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
   var nextNotifyVehicleResourceIdle: Option[NotifyVehicleIdle] = None
   // last time the vehicle started being IDLE
   var lastIDLEEmissionStartTime: Option[Int] = None
+  // last link visited in latest PTE, latest location of vehicle
+  var lastPTELinkVisited: Option[Int] = None
 
   def updateFuelConsumedByTrip(idp: Id[Person], fuelConsumed: FuelConsumed, factor: Int = 1): Unit = {
     val existingFuel = fuelConsumedByTrip.getOrElse(idp, FuelConsumed(0, 0))
@@ -348,10 +350,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         tick,
         lastIDLEEmissionStartTime,
         currentBeamVehicle.beamVehicleType,
-        currentLeg,
+        currentLeg.travelPath.linkIds.headOption,
         beamServices
       )
       lastIDLEEmissionStartTime = Some(currentLeg.endTime)
+      lastPTELinkVisited = currentLeg.travelPath.linkIds.lastOption
 
       val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
         maybeIDLEVehicleActivity,
@@ -601,10 +604,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           updatedStopTick,
           lastIDLEEmissionStartTime,
           currentBeamVehicle.beamVehicleType,
-          currentLeg,
+          currentLeg.travelPath.linkIds.headOption,
           beamServices
         )
         lastIDLEEmissionStartTime = Some(currentLeg.endTime)
+        lastPTELinkVisited = currentLeg.travelPath.linkIds.lastOption
 
         val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
           maybeIDLEVehicleActivity,

@@ -1,7 +1,7 @@
 package beam.agentsim.agents.vehicles
 
 import beam.agentsim.agents.freight.FreightRequestType
-import beam.agentsim.agents.vehicles.VehicleEmissions.Emissions.{EmissionType, formatName}
+import beam.agentsim.agents.vehicles.VehicleEmissions.Emissions.{formatName, EmissionType}
 import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsProfile.EmissionsProcess
 import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsRateFilterStore.EmissionsRateFilter
 import beam.agentsim.events.{LeavingParkingEvent, PathTraversalEvent}
