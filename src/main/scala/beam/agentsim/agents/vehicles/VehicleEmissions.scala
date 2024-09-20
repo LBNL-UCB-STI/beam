@@ -1,9 +1,11 @@
 package beam.agentsim.agents.vehicles
 
 import beam.agentsim.agents.freight.FreightRequestType
-import beam.agentsim.agents.vehicles.VehicleEmissions.Emissions.{formatName, EmissionType}
+import beam.agentsim.agents.vehicles.VehicleEmissions.Emissions.{EmissionType, formatName}
 import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsProfile.EmissionsProcess
+import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsRateFilterStore.EmissionsRateFilter
 import beam.agentsim.events.{LeavingParkingEvent, PathTraversalEvent}
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.router.skim.event.EmissionsSkimmerEvent
 import beam.sim.BeamServices
 import beam.sim.common.DoubleTypedRange
@@ -51,14 +53,21 @@ class VehicleEmissions(
     vehicleType: BeamVehicleType,
     beamServices: BeamServices
   ): Option[EmissionsProfile] = {
+    val fallBack = vehicleType.emissionsRatesInGramsPerMile
+    def getEmissionsRatesFilter(vehicleType: BeamVehicleType): Option[EmissionsRateFilter] = {
+      val emissionsRatesFilterFuture: Option[Future[EmissionsRateFilter]] =
+        emissionsRatesFilterStore.getEmissionsRateFilterFor(vehicleType)
+      val maybeEmissionsRateFilter = emissionsRatesFilterFuture.map(future => Await.result(future, 1.minute))
+      maybeEmissionsRateFilter
+    }
+
     val emissionsProfiles = for {
-      process                    <- identifyProcesses(vehicleActivityData, vehicleActivity)
-      data                       <- vehicleActivityData
-      emissionsRatesFilterFuture <- emissionsRatesFilterStore.getEmissionsRateFilterFor(data.vehicleType)
-      emissionsRatesFilter = Await.result(emissionsRatesFilterFuture, 1.minute)
-      fallBack = vehicleType.emissionsRatesInGramsPerMile
-      rates <- getRatesUsing(emissionsRatesFilter, data, process).orElse(fallBack.flatMap(_.values.get(process)))
+      process              <- identifyProcesses(vehicleActivityData, vehicleActivity)
+      data                 <- vehicleActivityData
+      emissionsRatesFilter <- getEmissionsRatesFilter(data.vehicleType)
+      rates                <- getRatesUsing(emissionsRatesFilter, data, process).orElse(fallBack.flatMap(_.values.get(process)))
     } yield {
+
       val emissions = calculationMap(process)(rates, data)
       if (beamServices.beamConfig.beam.exchange.output.emissions.skims) {
         // Create and process EmissionsSkimmerEvent
@@ -232,6 +241,18 @@ object VehicleEmissions extends LazyLogging {
 
     def init(): EmissionsProfile = EmissionsProfile()
 
+    def join(
+      emissionsProfile1: Option[EmissionsProfile],
+      emissionsProfile2: Option[EmissionsProfile]
+    ): Option[EmissionsProfile] = {
+      (emissionsProfile1, emissionsProfile2) match {
+        case (Some(ep1), Some(ep2)) => Some(EmissionsProfile(ep1.values ++ ep2.values))
+        case (Some(ep1), _)         => Some(ep1)
+        case (_, Some(ep2))         => Some(ep2)
+        case _                      => None
+      }
+    }
+
     def apply(values: (EmissionsProcess, Emissions)*): EmissionsProfile = new EmissionsProfile(values.toMap)
 
     def identifyProcesses(
@@ -241,19 +262,33 @@ object VehicleEmissions extends LazyLogging {
       // TODO uncomment once commercial deployment are deployed
       if (data.isEmpty)
         return ValueSet.empty
-      EmissionsProfile.values.flatMap {
-        case process @ IDLEX if vehicleActivity == classOf[LeavingParkingEvent] =>
+
+      val headActivity: Option[String] = data.headOption.flatMap(_.activityType).map(_.toLowerCase)
+
+      val emissionProcesses = {
+        EmissionsProfile.values.flatMap {
+          // IDLE activity should be the first element of VehicleActivity data sequence for PathTraversal
+          case process @ IDLEX
+              if vehicleActivity == classOf[PathTraversalEvent] && headActivity.contains(
+                ParkingActivityType.IDLE.toString.toLowerCase()
+              ) =>
+            Some(process)
+          case process @ (RUNEX | PMBW | PMTW | RUNLOSS) if vehicleActivity == classOf[PathTraversalEvent] =>
+            Some(process)
           // TODO In the future we will need to look at whether vehicle is hotelling
           // If vehicle is loading or unloading
-          if (data.head.activityType.exists(_.toLowerCase.contains(FreightRequestType.Loading.toString.toLowerCase)))
+          case process @ IDLEX
+              if vehicleActivity == classOf[LeavingParkingEvent] && headActivity.contains(
+                FreightRequestType.Loading.toString.toLowerCase()
+              ) =>
             Some(process)
-          else None
-        case process @ (STREX | DIURN | HOTSOAK | RUNLOSS) if vehicleActivity == classOf[LeavingParkingEvent] =>
-          Some(process)
-        case process @ (RUNEX | PMBW | PMTW | RUNLOSS) if vehicleActivity == classOf[PathTraversalEvent] =>
-          Some(process)
-        case _ => None
+          case process @ (STREX | DIURN | HOTSOAK | RUNLOSS) if vehicleActivity == classOf[LeavingParkingEvent] =>
+            Some(process)
+          case _ => None
+        }
       }
+
+      emissionProcesses
     }
 
     def fromString(process: String): Option[EmissionsProcess] = process.toLowerCase match {

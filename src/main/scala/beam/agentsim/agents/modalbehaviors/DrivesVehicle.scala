@@ -8,7 +8,8 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.parking.ChoosesParking.{handleUseParkingSpot, ConnectingToChargingPoint}
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleFullError
-import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed, VehicleActivityData}
+import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed}
+import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsProfile
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.{BeamAgent, PersonAgent}
@@ -16,7 +17,6 @@ import beam.agentsim.events.RefuelSessionEvent.NotApplicable
 import beam.agentsim.events._
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
-import beam.agentsim.infrastructure.parking.ParkingType
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -209,7 +209,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
 
   var nextNotifyVehicleResourceIdle: Option[NotifyVehicleIdle] = None
   // last time the vehicle started being IDLE
-  var lastIDLEStartTime: Option[Int] = None
+  var lastIDLEEmissionStartTime: Option[Int] = None
 
   def updateFuelConsumedByTrip(idp: Id[Person], fuelConsumed: FuelConsumed, factor: Int = 1): Unit = {
     val existingFuel = fuelConsumedByTrip.getOrElse(idp, FuelConsumed(0, 0))
@@ -335,24 +335,35 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         }
       }
 
-      val vehicleActivityDataFixed = BeamVehicle.addMissingActivitiesForEmissions(
+      val vehicleActivityDataFixed = BeamVehicle.addFirstLinkActivityForEmissions(
         tick,
         vehicleActivityData,
-        lastIDLEStartTime,
         currentBeamVehicle.beamVehicleType,
         payloadInKg,
         currentLeg,
         None,
         beamServices
       )
-      lastIDLEStartTime = None
+      val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivityForEmissions(
+        tick,
+        lastIDLEEmissionStartTime,
+        currentBeamVehicle.beamVehicleType,
+        currentLeg,
+        beamServices
+      )
+      lastIDLEEmissionStartTime = Some(currentLeg.endTime)
 
-      val emissionsProfile =
-        currentBeamVehicle.emitEmissions(
-          vehicleActivityDataFixed,
-          classOf[PathTraversalEvent],
-          beamServices
-        )
+      val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
+        maybeIDLEVehicleActivity,
+        classOf[PathTraversalEvent],
+        beamServices
+      )
+      val emissionsProfilePTE = currentBeamVehicle.emitEmissions(
+        vehicleActivityDataFixed,
+        classOf[PathTraversalEvent],
+        beamServices
+      )
+      val emissionsProfile = EmissionsProfile.join(emissionsProfilePTE, emissionsProfileIDLE)
       val numberOfPassengers: Int = calculateNumberOfPassengersBasedOnCurrentTourMode(data, currentLeg, riders)
       val currentTourMode: Option[String] = getCurrentTourMode(data)
       val pte = PathTraversalEvent(
@@ -577,23 +588,36 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           beamServices
         )
         val fuelConsumed = currentBeamVehicle.useFuel(partiallyCompletedBeamLeg, vehicleActivityData, beamScenario)
-        val vehicleActivityDataFixed = BeamVehicle.addMissingActivitiesForEmissions(
+        val vehicleActivityDataFixed = BeamVehicle.addFirstLinkActivityForEmissions(
           updatedStopTick,
           vehicleActivityData,
-          lastIDLEStartTime,
           currentBeamVehicle.beamVehicleType,
           payloadInKg,
           currentLeg,
           None,
           beamServices
         )
-        lastIDLEStartTime = None
-        val emissionsProfile =
-          currentBeamVehicle.emitEmissions(
-            vehicleActivityDataFixed,
-            classOf[PathTraversalEvent],
-            beamServices
-          )
+        val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivityForEmissions(
+          updatedStopTick,
+          lastIDLEEmissionStartTime,
+          currentBeamVehicle.beamVehicleType,
+          currentLeg,
+          beamServices
+        )
+        lastIDLEEmissionStartTime = Some(currentLeg.endTime)
+
+        val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
+          maybeIDLEVehicleActivity,
+          classOf[PathTraversalEvent],
+          beamServices
+        )
+        val emissionsProfilePTE = currentBeamVehicle.emitEmissions(
+          vehicleActivityDataFixed,
+          classOf[PathTraversalEvent],
+          beamServices
+        )
+        val emissionsProfile = EmissionsProfile.join(emissionsProfilePTE, emissionsProfileIDLE)
+
         val tollOnCurrentLeg = toll(partiallyCompletedBeamLeg)
         tollsAccumulated += tollOnCurrentLeg
         val numberOfPassengers: Int =

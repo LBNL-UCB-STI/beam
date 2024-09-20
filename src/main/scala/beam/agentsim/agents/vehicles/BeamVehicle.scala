@@ -704,13 +704,10 @@ object BeamVehicle {
   /*
  To fix emissions calculations:
  - for first link from PathTraversal event
- - for possible IDLE vehicle time between shift start event and PathTraversal event
- - for possible IDLE vehicle time between driver enters vehicle and PathTraversal event
    */
-  def addMissingActivitiesForEmissions(
+  def addFirstLinkActivityForEmissions(
     tick: Int,
     vehicleActivityData: IndexedSeq[BeamVehicle.VehicleActivityData],
-    lastIDLEStartTime: Option[Int],
     theVehicleType: BeamVehicleType,
     payloadInKg: Option[Double],
     currentLeg: BeamLeg,
@@ -748,28 +745,52 @@ object BeamVehicle {
           linkTravelTime = Some(linkTravelTime)
         )
 
+        firstLinkActivity +: vehicleActivityData
+    }
+  }
+
+  /*
+ To fix emissions calculations:
+ - for possible IDLE vehicle time between shift start event and PathTraversal event
+ - for possible IDLE vehicle time between driver enters vehicle and PathTraversal event
+   */
+  def getIDLEActivityForEmissions(
+    tick: Int,
+    lastIDLEStartTime: Option[Int],
+    theVehicleType: BeamVehicleType,
+    currentLeg: BeamLeg,
+    beamServices: BeamServices
+  ): IndexedSeq[BeamVehicle.VehicleActivityData] = {
+
+    currentLeg.travelPath.linkIds.headOption match {
+      case None => IndexedSeq.empty[BeamVehicle.VehicleActivityData]
+      case Some(linkId) =>
+        val currentLink: Option[Link] = beamServices.networkHelper.getLink(linkId)
         val maybeIDLEActivity = lastIDLEStartTime match {
           case Some(idleStartTime) if tick - idleStartTime > 0 =>
+            if (theVehicleType.vehicleCategory == Car) {
+              println(f"Creating IDLE vehicle activity for $theVehicleType at $idleStartTime")
+            }
             Some(
               VehicleActivityData(
                 time = idleStartTime,
                 linkId = linkId,
                 vehicleType = theVehicleType,
                 payloadInKg = None,
-                linkNumberOfLanes = firstLinkActivity.linkNumberOfLanes,
-                linkLength = firstLinkActivity.linkLength,
+                linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt),
+                linkLength = currentLink.map(_.getLength),
                 averageSpeed = None,
-                taz = firstLinkActivity.taz,
+                taz = currentLink.flatMap(link => beamServices.beamScenario.tazTreeMap.getTAZfromLink(link.getId)),
                 parkingDuration = Some((tick - idleStartTime).toDouble),
                 parkingType = Some(ParkingType.Public),
-                activityType = Some(ParkingActivityType.Wherever.toString),
+                activityType = Some(ParkingActivityType.IDLE.toString),
                 linkTravelTime = None
               )
             )
-          case None => None
+          case _ => None
         }
 
-        (maybeIDLEActivity.toIndexedSeq :+ firstLinkActivity) ++ vehicleActivityData
+        maybeIDLEActivity.toIndexedSeq
     }
   }
 }
