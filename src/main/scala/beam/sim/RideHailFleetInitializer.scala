@@ -18,16 +18,15 @@ import beam.utils.csv.{CsvWriter, GenericCsvReader}
 import beam.utils.matsim_conversion.ShapeUtils.{readShapeFileGeometries, QuadTreeBounds}
 import com.google.inject.Inject
 import com.typesafe.scalalogging.{LazyLogging, Logger}
-import org.locationtech.jts.geom.{Coordinate, Geometry, GeometryFactory}
 import org.apache.commons.io.FilenameUtils
 import org.apache.commons.math3.distribution.UniformRealDistribution
+import org.locationtech.jts.geom.{Coordinate, Geometry, GeometryFactory}
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.households.Household
 
 import java.nio.file.{Files, Paths}
-import java.util
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
@@ -663,10 +662,10 @@ class ProceduralRideHailFleetInitializer(
     rideHailManagerId: Id[VehicleManager],
     activityQuadTreeBounds: QuadTreeBounds
   ): IndexedSeq[RideHailAgentInitializer] = {
-    val averageOnDutyHoursPerDay = 3.52 // Measured from Austin Data, assuming drivers took at least 4 trips
-    val meanLogShiftDurationHours = 1.02
-    val stdLogShiftDurationHours = 0.44
-    var equivalentNumberOfDrivers = 0.0
+    val averageOnDutyHoursPerDay = managerConfig.initialization.procedural.averageOnDutyHoursPerDay
+    val meanLogShiftDurationHours = managerConfig.initialization.procedural.meanLogShiftDurationHours
+    val stdLogShiftDurationHours = managerConfig.initialization.procedural.stdLogShiftDurationHours
+    var equivalentNumberOfDrivers = managerConfig.initialization.procedural.equivalentNumberOfDrivers
 
     val personsWithMoreThanOneActivity = passengerPopulation.filter(_.getSelectedPlan.getPlanElements.size > 1)
     val persons: Array[Person] = rand.shuffle(personsWithMoreThanOneActivity).toArray
@@ -690,9 +689,7 @@ class ProceduralRideHailFleetInitializer(
     val numRideHailAgents = computeNumRideHailAgents
     while (equivalentNumberOfDrivers < numRideHailAgents.toDouble) {
       if (idx >= persons.length) {
-        logger.error(
-          "Can't have more ridehail drivers than total population"
-        )
+        throw new IllegalStateException("Can't have more ridehail drivers than total population")
       } else {
         try {
           val person = persons(idx)
