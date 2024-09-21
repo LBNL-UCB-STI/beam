@@ -120,7 +120,7 @@ class BeamVehicle(
     lastIDLEStartTime = time
   }
 
-  def setLastVehicleLinkTime(time: Option[Int], link: Option[Int]): Unit = {
+  def setLastVehicleTimeLink(time: Option[Int], link: Option[Int]): Unit = {
     lastIDLEStartTime = time
     lastLinkVisited = link
   }

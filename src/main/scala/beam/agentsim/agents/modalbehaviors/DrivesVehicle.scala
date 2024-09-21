@@ -348,7 +348,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         currentBeamVehicle,
         beamServices
       )
-      currentBeamVehicle.setLastVehicleLinkTime(
+      currentBeamVehicle.setLastVehicleTimeLink(
         Some(currentLeg.endTime),
         currentLeg.travelPath.linkIds.lastOption
       )
@@ -602,7 +602,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           currentBeamVehicle,
           beamServices
         )
-        currentBeamVehicle.setLastVehicleLinkTime(
+        currentBeamVehicle.setLastVehicleTimeLink(
           Some(currentLeg.endTime),
           currentLeg.travelPath.linkIds.lastOption
         )
@@ -757,7 +757,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
             )
             currentBeamVehicle.stall.foreach { theStall =>
               parkingManager ! ReleaseParkingStall(theStall, tick)
-              currentBeamVehicle.setLastVehicleLinkTime(
+              currentBeamVehicle.setLastVehicleTimeLink(
                 Some(tick),
                 theStall.link.map(_.getId.toString.toInt)
               )
