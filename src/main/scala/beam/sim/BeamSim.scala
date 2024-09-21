@@ -556,6 +556,7 @@ class BeamSim @Inject() (
     beamServices.skims.taz_skimmer.displaySkimStats()
     beamServices.skims.dt_skimmer.displaySkimStats()
     beamServices.skims.tc_skimmer.displaySkimStats()
+    beamServices.skims.emissions_skimmer.displaySkimStats()
 
     // iteration python scripts
     for {

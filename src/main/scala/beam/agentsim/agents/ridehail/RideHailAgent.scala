@@ -355,6 +355,7 @@ class RideHailAgent(
     val isTimeForShift =
       shifts.isEmpty || shifts.get.exists(shift => shift.range.lowerBound <= tick && shift.range.upperBound >= tick)
     if (isTimeForShift) {
+      vehicle.setLastVehicleTime(Some(tick))
       eventsManager.processEvent(new ShiftEvent(tick, StartShift, id.toString, vehicle))
       rideHailManager ! NotifyVehicleIdle(
         vehicle.id,
@@ -453,7 +454,15 @@ class RideHailAgent(
         )
       }
       val newShiftToSchedule = if (needsToEndShift) {
-        eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle))
+        val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivityForEmissions(tick, currentBeamVehicle, beamServices)
+        val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
+          maybeIDLEVehicleActivity,
+          classOf[PathTraversalEvent],
+          beamServices
+        )
+        eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle, emissionsProfileIDLE))
+
+        currentBeamVehicle.resetLastVehicleLinkTime()
         isCurrentlyOnShift = false
         needsToEndShift = false
         if (data.remainingShifts.size < 1) {
@@ -477,11 +486,19 @@ class RideHailAgent(
         stay()
       } else {
         if (needsToEndShift) {
-          eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle))
+          val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivityForEmissions(tick, currentBeamVehicle, beamServices)
+          val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
+            maybeIDLEVehicleActivity,
+            classOf[PathTraversalEvent],
+            beamServices
+          )
+          currentBeamVehicle.resetLastVehicleLinkTime()
+          eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle, emissionsProfileIDLE))
           needsToEndShift = false
           isCurrentlyOnShift = false
         }
         updateLatestObservedTick(tick)
+        currentBeamVehicle.setLastVehicleTime(Some(tick))
         eventsManager.processEvent(new ShiftEvent(tick, StartShift, id.toString, vehicle))
         log.debug("state(RideHailingAgent.Offline): starting shift {}", id)
         holdTickAndTriggerId(tick, triggerId)
@@ -605,7 +622,18 @@ class RideHailAgent(
         ) =>
       log.debug(s"state(RideHailAgent.Idle.EndShiftTrigger; Trigger ID: $triggerId; Vehicle ID: ${vehicle.id}")
       updateLatestObservedTick(tick)
-      eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle))
+      val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivityForEmissions(
+        tick,
+        currentBeamVehicle,
+        beamServices
+      )
+      val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
+        maybeIDLEVehicleActivity,
+        classOf[PathTraversalEvent],
+        beamServices
+      )
+      currentBeamVehicle.resetLastVehicleLinkTime()
+      eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle, emissionsProfileIDLE))
       isCurrentlyOnShift = false
       val newShiftToSchedule = if (data.remainingShifts.size < 1) {
         Vector()
