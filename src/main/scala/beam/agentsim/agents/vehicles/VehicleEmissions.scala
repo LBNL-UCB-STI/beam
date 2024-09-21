@@ -1,11 +1,10 @@
 package beam.agentsim.agents.vehicles
 
 import beam.agentsim.agents.freight.FreightRequestType
-import beam.agentsim.agents.vehicles.VehicleEmissions.Emissions.{formatName, EmissionType}
+import beam.agentsim.agents.vehicles.VehicleEmissions.Emissions.{EmissionType, formatName}
 import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsProfile.EmissionsProcess
 import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsRateFilterStore.EmissionsRateFilter
 import beam.agentsim.events.{LeavingParkingEvent, PathTraversalEvent}
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.router.skim.event.EmissionsSkimmerEvent
 import beam.sim.BeamServices
 import beam.sim.common.DoubleTypedRange
@@ -264,16 +263,16 @@ object VehicleEmissions extends LazyLogging {
         return ValueSet.empty
 
       val headActivity: Option[String] = data.headOption.flatMap(_.activityType).map(_.toLowerCase)
+      val averageSpeed: Double = data.headOption.flatMap(_.averageSpeed).getOrElse(0.0)
 
       val emissionProcesses = {
         EmissionsProfile.values.flatMap {
-          // IDLE activity should be the first element of VehicleActivity data sequence for PathTraversal
-          case process @ IDLEX
-              if vehicleActivity == classOf[PathTraversalEvent] && headActivity.contains(
-                ParkingActivityType.IDLE.toString.toLowerCase()
-              ) =>
+          // IDLE activity should be the first element of VehicleActivity data sequence
+          // the type is PathTraversalEvent because there is no difference, IDLE activity happens between other events
+          case process @ IDLEX if vehicleActivity == classOf[PathTraversalEvent] && averageSpeed == 0 =>
             Some(process)
-          case process @ (RUNEX | PMBW | PMTW | RUNLOSS) if vehicleActivity == classOf[PathTraversalEvent] =>
+          case process @ (RUNEX | PMBW | PMTW | RUNLOSS)
+              if vehicleActivity == classOf[PathTraversalEvent] && averageSpeed > 0.0 =>
             Some(process)
           // TODO In the future we will need to look at whether vehicle is hotelling
           // If vehicle is loading or unloading

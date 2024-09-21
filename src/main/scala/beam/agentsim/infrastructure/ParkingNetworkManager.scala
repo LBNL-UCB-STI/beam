@@ -74,6 +74,10 @@ object ParkingNetworkManager extends LazyLogging {
     val stallForLeavingParkingEventMaybe = currentBeamVehicle.stall match {
       case Some(stall) =>
         parkingManager ! ReleaseParkingStall(stall, tick)
+        currentBeamVehicle.setLastVehicleLinkTime(
+          Some(tick),
+          currentBeamVehicle.stall.flatMap(_.link).map(_.getId.toString.toInt)
+        )
         currentBeamVehicle.unsetParkingStall()
         Some(stall)
       case None if currentBeamVehicle.lastUsedStall.isDefined =>
