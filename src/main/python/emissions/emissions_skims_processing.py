@@ -1,4 +1,5 @@
 from emissions_utils import *
+from pathlib import Path
 pd.set_option('display.max_columns', 20)
 
 
@@ -17,21 +18,21 @@ h3_resolution = 8  # Adjust as needed
 emfac_vmt_file = os.path.expanduser(f"~/Workspace/Models/emfac/Default_Statewide_2018_2025_2030_2040_2050_Annual_vmt_20240612233346.csv")
 run_dir = os.path.expanduser(f"~/Workspace/Simulation/{area}/beam-runs/{batch}")
 scenario_2018 = "2018_Baseline"
-scenario_2050 = "2050_HOPhighp2"
-skims_2018_file = f"{run_dir}/{scenario_2018}_TrAP/0.skimsEmissions.csv.gz"
-skims_2050_file = f"{run_dir}/{scenario_2050}_TrAP/0.skimsEmissions.csv.gz"
+scenario_2050 = "2050_Refhighp6"
+skims_2018_file = f"{run_dir}/{scenario_2018}/0.skimsEmissions.csv.gz"
+skims_2050_file = f"{run_dir}/{scenario_2050}/0.skimsEmissions.csv.gz"
 network_file = f"{run_dir}/network.csv.gz"
 plan_dir = os.path.expanduser(f"~/Workspace/Simulation/{area}/beam-freight/{batch}")
-types_2018_file = f"{plan_dir}/vehicle-tech/ft-vehicletypes--2018-Baseline-TrAP.csv"
-types_2050_file = f"{plan_dir}/vehicle-tech/ft-vehicletypes--2050-HOPhighp2-TrAP.csv"
-tours_2018_file = f"{plan_dir}/{scenario_2018}/tours--2018-Baseline.csv"
-tours_2050_file = f"{plan_dir}/{scenario_2050}/tours--2050-HOPhighp2.csv"
-carriers_2018_file = f"{plan_dir}/{scenario_2018}/carriers--2018-Baseline-TrAP.csv"
-carriers_2050_file = f"{plan_dir}/{scenario_2050}/carriers--2050-HOPhighp2-TrAP.csv"
+types_2018_file = f"{plan_dir}/vehicle-tech/ft-vehicletypes--{scenario_2018.replace('_', '-')}-TrAP.csv"
+types_2050_file = f"{plan_dir}/vehicle-tech/ft-vehicletypes--{scenario_2050.replace('_', '-')}-TrAP.csv"
+tours_2018_file = f"{plan_dir}/{scenario_2018}/tours--{scenario_2018.replace('_', '-')}.csv"
+tours_2050_file = f"{plan_dir}/{scenario_2050}/tours--{scenario_2050.replace('_', '-')}.csv"
+carriers_2018_file = f"{plan_dir}/{scenario_2018}/carriers--{scenario_2018.replace('_', '-')}-TrAP.csv"
+carriers_2050_file = f"{plan_dir}/{scenario_2050}/carriers--{scenario_2050.replace('_', '-')}-TrAP.csv"
 
 # Output
 plot_dir = f'{run_dir}/_plots'
-
+Path(plot_dir).mkdir(parents=True, exist_ok=True)
 
 # ################
 # ##### Main #####

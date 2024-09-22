@@ -1101,14 +1101,16 @@ def plot_hourly_activity(tours_types, output_dir, height_size):
         else:
             color_map[fc] = base_color
 
+    print("Sorted fuel classes:", sorted_fuel_classes)
+    print("Color map:", color_map)
+
     # Plot stacked bars for each scenario
     legend_handles = []
     legend_labels = []
     for i, scenario in enumerate(scenarios):
         bottom = np.zeros(24)
         for fuel_class in sorted_fuel_classes:
-            fuel_type = fuel_class.split('-')[0]
-            color = color_map[fuel_type]
+            color = color_map[fuel_class]
 
             if fuel_class in hourly_activity[scenario].columns:
                 values = hourly_activity[scenario][fuel_class]
