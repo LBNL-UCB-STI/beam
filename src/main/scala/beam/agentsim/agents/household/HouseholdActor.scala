@@ -39,12 +39,12 @@ import beam.sim.config.BeamConfig.Beam.Debug
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.sim.{BeamScenario, BeamServices}
-import beam.utils.DateUtils
 import beam.utils.logging.LoggingMessageActor
 import beam.utils.logging.pattern.ask
+import beam.utils.scenario.HouseholdId
+import beam.utils.{DateUtils, UniformRealDistributionEnhanced}
 import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -661,7 +661,7 @@ object HouseholdActor {
     vehiclesAdjustment: VehiclesAdjustment,
     defaultCategory: VehicleCategory
   ) extends LazyLogging {
-    private val realDistribution: UniformRealDistribution = new UniformRealDistribution()
+    private val realDistribution: UniformRealDistributionEnhanced = new UniformRealDistributionEnhanced()
     realDistribution.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
     def sampleVehicleTypeForEmergencyUse(
@@ -680,7 +680,8 @@ object HouseholdActor {
                 household.getMemberIds.size(),
                 householdPopulation = null,
                 whenWhere.loc,
-                realDistribution
+                realDistribution,
+                Option(HouseholdId(household.getId.toString))
               )
               .headOption
               .orElse {

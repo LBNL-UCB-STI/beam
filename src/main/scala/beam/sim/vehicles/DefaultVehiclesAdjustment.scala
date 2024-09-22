@@ -1,10 +1,11 @@
 package beam.sim.vehicles
 
 import beam.agentsim.agents.Population
-import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
+import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
 import beam.sim.{BeamScenario, BeamServices}
-import org.apache.commons.math3.distribution.UniformRealDistribution
+import beam.utils.UniformRealDistributionEnhanced
+import beam.utils.scenario.HouseholdId
 import org.matsim.api.core.v01.{Coord, Id}
 
 case class DefaultVehiclesAdjustment(beamServices: BeamServices, beamScenario: BeamScenario)
@@ -15,7 +16,7 @@ case class DefaultVehiclesAdjustment(beamServices: BeamServices, beamScenario: B
   override def sampleVehicleTypes(
     numVehicles: Int,
     vehicleCategory: VehicleCategory,
-    realDistribution: UniformRealDistribution
+    realDistribution: UniformRealDistributionEnhanced
   ): List[BeamVehicleType] = {
     if (vehicleCategory != VehicleCategory.Car) throw new NotImplementedError(vehicleCategory.toString)
     List.fill(numVehicles)(vehicleTypesByCategory)
@@ -28,7 +29,8 @@ case class DefaultVehiclesAdjustment(beamServices: BeamServices, beamScenario: B
     householdSize: Int,
     householdPopulation: Population,
     householdLocation: Coord,
-    realDistribution: UniformRealDistribution
+    realDistribution: UniformRealDistributionEnhanced,
+    householdId: Option[HouseholdId]
   ): List[BeamVehicleType] = {
     if (vehicleCategory != VehicleCategory.Car) throw new NotImplementedError(vehicleCategory.toString)
     List.fill(numVehicles)(vehicleTypesByCategory)
