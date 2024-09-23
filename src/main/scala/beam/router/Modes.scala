@@ -127,7 +127,7 @@ object Modes {
 
     val chainBasedModes = Seq(CAR, BIKE)
 
-    val personalVehicleModes = Seq(CAR, BIKE, DRIVE_TRANSIT, BIKE_TRANSIT)
+    val personalVehicleModes = Seq(CAR, CAR_HOV2, CAR_HOV3, BIKE, DRIVE_TRANSIT, BIKE_TRANSIT)
 
     val nonPersonalVehicleModes = Seq(WALK, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, WALK_TRANSIT)
 

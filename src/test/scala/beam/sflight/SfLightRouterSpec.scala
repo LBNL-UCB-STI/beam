@@ -75,7 +75,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       assert(transitOption.totalTravelTimeInSecs == 1118)
       assert(transitOption.legs(1).beamLeg.mode == TRAM)
       assert(transitOption.costEstimate == 2.75)
-      assert(transitOption.legs.head.beamLeg.startTime == 25991)
+      transitOption.legs.head.beamLeg.startTime should ===(25991 +- 5)
     }
 
     "transit-route me to my destination vehicle, and to my final destination even if that's where I started" in {

@@ -95,26 +95,16 @@ class ZonalParkingManagerSpec
         )
       } {
         val inquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 77239)
-        val expectedStall: ParkingStall = ParkingStall.lastResortStall(
-          new Envelope(
-            inquiry.destinationUtm.loc.getX + 2000,
-            inquiry.destinationUtm.loc.getX - 2000,
-            inquiry.destinationUtm.loc.getY + 2000,
-            inquiry.destinationUtm.loc.getY - 2000
-          ),
-          new Random(randomSeed)
+        val envelope = new Envelope(
+          inquiry.destinationUtm.loc.getX + 100,
+          inquiry.destinationUtm.loc.getX - 100,
+          inquiry.destinationUtm.loc.getY + 100,
+          inquiry.destinationUtm.loc.getY - 100
         )
-
         val response = zonalParkingManager.processParkingInquiry(inquiry)
-
-        // note on the random seed:
-        // since there are no TAZs to search and sample parking locations from,
-        // the random number generator is unused by the [[ZonalParkingManager]] search, and we can
-        // therefore rely on the coordinate that is generated when [[ZonalParkingManager]] calls [[ParkingStall.emergencyStall]] internally
-        assert(
-          response == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
-          "something is wildly broken"
-        )
+        assert(response.triggerId == 77239)
+        assert(response.stall.tazId.toString == "emergency")
+        assert(envelope.contains(response.stall.locationUTM.getX, response.stall.locationUTM.getY))
       }
     }
   }

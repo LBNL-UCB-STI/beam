@@ -196,9 +196,6 @@ class HouseholdFleetManager(
               case Some(requiredType) =>
                 logger.debug(s"Ignoring vehicle request because it isn't for the right category")
               case None =>
-                logger.warn(
-                  s"No vehicles available, activate emergency personal vehicles generation as a temporary solution"
-                )
             }
 
           }

@@ -4,7 +4,7 @@ import akka.actor._
 import akka.testkit.TestKitBase
 import beam.agentsim.agents.PersonTestUtil
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
-import beam.agentsim.events.ModeChoiceEvent
+import beam.agentsim.events.{ModeChoiceEvent, TourModeChoiceEvent}
 import beam.replanning.ModeIterationPlanCleaner
 import beam.router.Modes.BeamMode
 import beam.router.RouteHistory
@@ -40,8 +40,12 @@ class BikeTransitModeSpec
       .parseString("""
           |akka.test.timefactor = 10
           |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.drive_transit_intercept = 0
-          |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.bike_intercept = 1
+          |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_pooled_intercept = -10
+          |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.bike_intercept = -10
           |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.bike_transit_intercept = 200
+          |beam.routing.r5.accessBufferTimeSeconds.bike = 1
+          |beam.routing.r5.accessBufferTimeSeconds.bike_rent = 1
+          |beam.routing.r5.accessBufferTimeSeconds.walk = 1500
           |""".stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
 
@@ -65,12 +69,19 @@ class BikeTransitModeSpec
         }
 
       val events = mutable.ListBuffer[PersonDepartureEvent]()
+      val modeChoiceEvents = mutable.ListBuffer[ModeChoiceEvent]()
+      val tourModeChoiceEvents = mutable.ListBuffer[TourModeChoiceEvent]()
+
       services.matsimServices.getEvents.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
             event match {
               case event: PersonDepartureEvent =>
                 events += event
+              case event: ModeChoiceEvent =>
+                modeChoiceEvents += event
+              case event: TourModeChoiceEvent =>
+                tourModeChoiceEvents += event
               case _ =>
             }
           }

@@ -214,19 +214,6 @@ class SingleModeSpec
       withClue("When transit is available majority of agents should use drive_transit") {
         eventsByMode("walk_transit").size should be < 2 * eventsByMode("drive_transit").size
       }
-      // TODO: why did the number of drive transit trips decrease after implementing tour mode choice? Were the old
-      //  drive transit trips legit?
-
-//      val eventsByPerson = regularPersonEvents.groupBy(_.getAttributes.get("person"))
-
-//      eventsByPerson.map {
-//        _._2.span {
-//          case event: ActivityEndEvent if event.getActType == "Home" =>
-//            true
-//          case _ =>
-//            false
-//        }
-//      }
 
       // TODO: Test that what can be printed with the line below makes sense (chains of modes)
       //      filteredEventsByPerson.map(_._2.mkString("--\n","\n","--\n")).foreach(print(_))

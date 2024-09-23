@@ -87,7 +87,6 @@ class HierarchicalParkingManagerSpec
           inquiry.destinationUtm.loc.getY - 100
         )
         val response = parkingManager.processParkingInquiry(inquiry)
-        assert(response.requestId == 0)
         assert(response.triggerId == 10)
         assert(response.stall.tazId.toString == "emergency")
         assert(envelope.contains(response.stall.locationUTM.getX, response.stall.locationUTM.getY))

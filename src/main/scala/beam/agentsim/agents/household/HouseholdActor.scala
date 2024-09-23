@@ -219,8 +219,9 @@ object HouseholdActor {
             person.getSelectedPlan.getPlanElements.asScala.exists {
               case element if element.isInstanceOf[Leg] =>
                 val mode = element.asInstanceOf[Leg].getMode
-                mode.equalsIgnoreCase(BeamMode.CAR.value) || mode.equalsIgnoreCase(BeamMode.CAV.value) || mode
-                  .equalsIgnoreCase(BeamMode.FREIGHT.value)
+                // This previously only looked at CAR legs, which was messing up bike and drive transit tests by putting
+                // household vehicles in the wrong place. Does changing it to look at all driving modes mess things up?
+                (Seq(BeamMode.personalVehicleModes) :+ BeamMode.FREIGHT).contains(mode)
               case _ => false
             }
           }
