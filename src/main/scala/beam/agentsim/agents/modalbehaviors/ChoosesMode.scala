@@ -287,6 +287,12 @@ trait ChoosesMode {
             "as WALK_TRANSIT because I missed my initial transit leg but want to keep my vehicle"
           )
           Some(WALK_TRANSIT)
+        case (Some(BIKE_TRANSIT), Some(WALK_TRANSIT)) if choosesModeData.isWithinTripReplanning =>
+          logger.debug(
+            "Keeping my _experiencedBeamPlan mode as BIKE_TRANSIT and ChoosesModeData" +
+            "as WALK_TRANSIT because I missed my initial transit leg but want to keep my vehicle"
+          )
+          Some(WALK_TRANSIT)
         case _ =>
           log.error(
             "Unexpected behavior"
@@ -2126,6 +2132,8 @@ trait ChoosesMode {
             case Some(strategyMode) if strategyMode == chosenTrip.tripClassifier =>
             case Some(DRIVE_TRANSIT) if (chosenTrip.tripClassifier == WALK_TRANSIT) && data.isWithinTripReplanning =>
               logger.debug("Assigning replanning walk_transit trip as part of drive transit trip")
+            case Some(BIKE_TRANSIT) if (chosenTrip.tripClassifier == BIKE_TRANSIT) && data.isWithinTripReplanning =>
+              logger.debug("Assigning replanning walk_transit trip as part of bike transit trip")
             case _ =>
               logger.error("Unexpected difference between trip modes in plans")
           }

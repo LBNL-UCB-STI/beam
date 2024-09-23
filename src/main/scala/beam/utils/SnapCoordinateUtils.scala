@@ -56,7 +56,7 @@ object SnapCoordinateUtils extends LazyLogging {
       val wgsCoord = geo.utm2Wgs(utmCoord)
       if (streetLayer.envelope.contains(wgsCoord.getX, wgsCoord.getY)) {
         val snapCoordOpt = store.getOrElseUpdate(
-          wgsCoord,
+          utmCoord,
           Option(geo.getR5Split(streetLayer, wgsCoord, maxRadius)).map { split =>
             val updatedPlanCoord = geo.splitToCoord(split)
             geo.wgs2Utm(updatedPlanCoord)

@@ -46,6 +46,7 @@ class BikeTransitModeSpec
           |beam.routing.r5.accessBufferTimeSeconds.bike = 1
           |beam.routing.r5.accessBufferTimeSeconds.bike_rent = 1
           |beam.routing.r5.accessBufferTimeSeconds.walk = 1500
+          |beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt = true
           |""".stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
 
