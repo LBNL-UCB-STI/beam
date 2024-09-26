@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure.parking
 
 import scala.util.Random
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.network.Link
