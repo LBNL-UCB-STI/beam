@@ -256,7 +256,7 @@ object TourModes {
 
   sealed abstract class BeamTourMode(
     val value: String,
-    val vehicleCategory: VehicleCategory,
+    val vehicleCategory: Seq[VehicleCategory],
     val allowedBeamModes: Seq[BeamMode],
     val allowedBeamModesForFirstAndLastLeg: Seq[BeamMode]
   ) extends StringEnumEntry {
@@ -265,9 +265,11 @@ object TourModes {
 
     private def getModeFromVehicle(beamVehicle: BeamVehicle): BeamMode = {
       beamVehicle.beamVehicleType.vehicleCategory match {
-        case VehicleCategory.Car  => CAR
-        case VehicleCategory.Bike => BIKE
-        case _                    => WALK
+        case VehicleCategory.Car            => CAR
+        case VehicleCategory.Bike           => BIKE
+        case VehicleCategory.HeavyDutyTruck => FREIGHT
+        case VehicleCategory.LightDutyTruck => FREIGHT
+        case _                              => WALK
       }
     }
 
@@ -302,7 +304,9 @@ object TourModes {
     ): (Option[BeamTourMode], Option[BeamVehicle]) = {
       tripMode match {
         case CAR | CAR_HOV2 | CAR_HOV3 =>
-          if (availableVehicles.exists(!_.vehicle.isSharedVehicle)) {
+          if (availableVehicles.exists(_.vehicle.isFreightVehicle)) {
+            (Some(FREIGHT_TOUR), availableVehicles.find(_.vehicle.isFreightVehicle).map(_.vehicle))
+          } else if (availableVehicles.exists(!_.vehicle.isSharedVehicle)) {
             // Assume that if they have access to a personal vehicle they'll take it
             // on the whole tour, otherwise they'll use any available shared vehicles.
             // If neither work, they'll need to use an emergency vehicle
@@ -344,7 +348,7 @@ object TourModes {
     case object WALK_BASED
         extends BeamTourMode(
           "walk_based",
-          Body,
+          Seq(Body),
           Seq[BeamMode](
             WALK,
             WALK_TRANSIT,
@@ -389,12 +393,20 @@ object TourModes {
     case object CAR_BASED
         extends BeamTourMode(
           "car_based",
-          Car,
+          Seq(Car),
           Seq[BeamMode](CAR, CAR_HOV2, CAR_HOV3),
           Seq[BeamMode](CAR, CAR_HOV2, CAR_HOV3)
         )
 
-    case object BIKE_BASED extends BeamTourMode("bike_based", Bike, Seq[BeamMode](BIKE), Seq[BeamMode](BIKE))
+    case object FREIGHT_TOUR
+        extends BeamTourMode(
+          "freight_tour",
+          Seq(Car, LightDutyTruck, HeavyDutyTruck),
+          Seq[BeamMode](CAR, FREIGHT),
+          Seq[BeamMode](CAR, FREIGHT)
+        )
+
+    case object BIKE_BASED extends BeamTourMode("bike_based", Seq(Bike), Seq[BeamMode](BIKE), Seq[BeamMode](BIKE))
 
     def fromString(stringMode: String): Option[BeamTourMode] = {
       if (stringMode.equals("") || stringMode.equals("other")) {
@@ -405,6 +417,8 @@ object TourModes {
         Some(BIKE_BASED)
       } else if (stringMode.equalsIgnoreCase("car_based")) {
         Some(CAR_BASED)
+      } else if (stringMode.equalsIgnoreCase("freight") || stringMode.equalsIgnoreCase("freight_tour")) {
+        Some(FREIGHT_TOUR)
       } else {
         Some(BeamTourMode.withValue(stringMode))
       }

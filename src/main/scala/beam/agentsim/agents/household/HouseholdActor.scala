@@ -221,7 +221,7 @@ object HouseholdActor {
                 val mode = element.asInstanceOf[Leg].getMode
                 // This previously only looked at CAR legs, which was messing up bike and drive transit tests by putting
                 // household vehicles in the wrong place. Does changing it to look at all driving modes mess things up?
-                (Seq(BeamMode.personalVehicleModes) :+ BeamMode.FREIGHT).contains(mode)
+                (BeamMode.personalVehicleModes :+ BeamMode.FREIGHT).map(_.value).contains(mode)
               case _ => false
             }
           }

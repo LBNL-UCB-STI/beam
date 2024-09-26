@@ -137,7 +137,7 @@ trait ChoosesMode {
     (nextStateData, currentTripMode, currentTourMode) match {
       // If I am already on a tour in a vehicle, only that vehicle is available to me
       // Unless it's a walk based tour and I used that vehicle for egress on my first trip
-      case (data: ChoosesModeData, _, tourMode @ Some(CAR_BASED | BIKE_BASED)) =>
+      case (data: ChoosesModeData, _, tourMode @ Some(CAR_BASED | BIKE_BASED | FREIGHT_TOUR)) =>
         if (data.personData.currentTourPersonalVehicle.isDefined) {
           val currentTourVehicle = Vector(beamVehicles(data.personData.currentTourPersonalVehicle.get))
           self ! MobilityStatusResponse(
