@@ -30,11 +30,15 @@ class ModeChoiceSpec
   }
 
   def baseBeamvilleUrbansimConfig: Config = testConfig("test/input/beamville/beam-urbansimv2-modechoicespec.conf")
-  //    .withValue("beam.agentsim.lastIteration", ConfigValueFactory.fromAnyRef("0"))
-  //    .withValue("beam.urbansim.fractionOfModesToClear.allModes", ConfigValueFactory.fromAnyRef("1.0"))
-  //    .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml"))
-  //    .withValue("beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet", ConfigValueFactory.fromAnyRef("10.0"))
-  //    .withValue("beam.agentsim.agents.vehicles.fractionOfPeopleWithBicycle", ConfigValueFactory.fromAnyRef("10.0"))
+    //    .withValue("beam.agentsim.lastIteration", ConfigValueFactory.fromAnyRef("0"))
+    //    .withValue("beam.urbansim.fractionOfModesToClear.allModes", ConfigValueFactory.fromAnyRef("1.0"))
+    //    .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml"))
+//      .withValue("beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet", ConfigValueFactory.fromAnyRef("10.0"))
+    .withValue("beam.agentsim.agents.vehicles.fractionOfPeopleWithBicycle", ConfigValueFactory.fromAnyRef("10.0"))
+    .withValue(
+      "beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt",
+      ConfigValueFactory.fromAnyRef("true")
+    )
 
   // these should be as low as possible
   val test_mode_multiplier = 2
