@@ -78,9 +78,8 @@ year, run_name = "2018", "Baseline"
 # year, run_name = "2050", "Ref_highp6"
 run_name_label = run_name.replace("_", "")
 
-directory_input = os.path.expanduser('~/Workspace/Simulation/' + city + '/frism/' + scenario_name + "/" + run_name)
-directory_output = os.path.expanduser(
-    '~/Workspace/Simulation/' + city + '/beam-freight/' + scenario_name + "/" + year + "_" + run_name_label)
+directory_input = os.path.expanduser(f'~/Workspace/Simulation/{city}/frism/{scenario_name}/{run_name}')
+directory_output = os.path.expanduser(f'~/Workspace/Simulation/{city}/beam-freight/{scenario_name}/{year}_{run_name_label}')
 Path(directory_output).mkdir(parents=True, exist_ok=True)
 directory_vehicle_tech = f'{directory_output}/../vehicle-tech'
 Path(directory_vehicle_tech).mkdir(parents=True, exist_ok=True)
@@ -109,9 +108,9 @@ for filename in sorted(os.listdir(directory_input)):
         df['carrierId'] = df.apply(lambda row: add_prefix(f'', 'carrierId', row, False), axis=1).tolist()
         df['vehicleTypeId'] = df.apply(
             lambda row: add_prefix('', 'vehicleTypeId', row, to_num=True, store_dict=None, veh_type=True,
-                                   suffix="-" + run_name_label),
+                                   suffix=f"-{year}-{run_name_label}"),
             axis=1).tolist()
-        df['vehicleId'] = df.apply(lambda row: add_prefix('', 'vehicleId', row), axis=1).tolist()
+        df['vehicleId'] = df.apply(lambda row: add_prefix(row['carrierId'] + '-', 'vehicleId', row), axis=1).tolist()
         # df['tourId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'tourId', row), axis=1)
         df['tourId'] = df.apply(lambda row: add_prefix('', 'tourId', row, True, tourId_with_prefix), axis=1).tolist()
         if carriers is None:
@@ -148,7 +147,7 @@ for filename in sorted(os.listdir(directory_input)):
         # JoulePerMeter = 121300000/(mpgge*1609.34)
         vehicle_types_ids = df.apply(
             lambda row: add_prefix('', 'veh_type_id', row, to_num=True, store_dict=None, veh_type=True,
-                                   suffix="-" + run_name_label), axis=1).tolist()
+                                   suffix=f"-{year}-{run_name_label}"), axis=1).tolist()
         vehicles_techs = {
             "vehicleTypeId": vehicle_types_ids,
             "seatingCapacity": list(np.repeat(1, len(df.index))),
