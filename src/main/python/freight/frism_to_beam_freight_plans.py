@@ -73,7 +73,7 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
 
 frism_version = 1.5
 city = "sfbay"
-scenario_name = "2024-08-07"
+scenario_name = "2024-09-23"
 year, run_name = "2018", "Baseline"
 # year, run_name = "2050", "Ref_highp6"
 run_name_label = run_name.replace("_", "")
@@ -86,6 +86,7 @@ directory_vehicle_tech = f'{directory_output}/../vehicle-tech'
 Path(directory_vehicle_tech).mkdir(parents=True, exist_ok=True)
 carriers = None
 payload_plans = None
+ondemand_plans = None
 tours = None
 vehicle_types = None
 tourId_with_prefix = {}
@@ -127,14 +128,20 @@ for filename in sorted(os.listdir(directory_input)):
             tours = pd.concat([tours, df])
     elif "payload" in filetype:
         df = pd.read_csv(filepath)
-        # df['tourId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'tourId', row), axis=1)
-        df['tourId'] = df.apply(lambda row: tourId_with_prefix[str(int(row['tourId']))], axis=1).tolist()
-        df['payloadId'] = df.apply(lambda row: add_prefix('', 'payloadId', row, False), axis=1).tolist()
-        if payload_plans is None:
-            payload_plans = df
+        if "ondemand" in county:
+            df['tourId'] = df.apply(lambda row: add_prefix(f'ridehail-', 'tourId', row), axis=1)
+            if ondemand_plans is None:
+                ondemand_plans = df
+            else:
+                ondemand_plans = pd.concat([ondemand_plans, df])
         else:
-            payload_plans = pd.concat([payload_plans, df])
-        tourId_with_prefix = {}
+            df['tourId'] = df.apply(lambda row: tourId_with_prefix[str(int(row['tourId']))], axis=1).tolist()
+            df['payloadId'] = df.apply(lambda row: add_prefix('', 'payloadId', row, False), axis=1).tolist()
+            tourId_with_prefix = {}
+            if payload_plans is None:
+                payload_plans = df
+            else:
+                payload_plans = pd.concat([payload_plans, df])
     elif "vehicle_types" in filename:
         df = pd.read_csv(filepath)
         empty_vectors = list(np.repeat("", len(df.index)))
@@ -176,7 +183,9 @@ for filename in sorted(os.listdir(directory_input)):
             "vehicleClass": df["veh_class"]
         }
         df2 = pd.DataFrame(vehicles_techs)
-        df2["vehicleCategory"] = np.where(df2["vehicleTypeId"].str.contains('hd'), 'Class78Vocational',
+        df2["vehicleCategory"] = np.where(df2["vehicleTypeId"].str.contains('hdv'), 'Class78Vocational',
+                                          df2.vehicleCategory)
+        df2["vehicleCategory"] = np.where(df2["vehicleTypeId"].str.contains('hdt'), 'Class78Tractor',
                                           df2.vehicleCategory)
         df2["vehicleCategory"] = np.where(df2["vehicleTypeId"].str.contains('ld'), 'Class2b3Vocational',
                                           df2.vehicleCategory)
@@ -187,7 +196,7 @@ for filename in sorted(os.listdir(directory_input)):
     else:
         print(f'SKIPPING {filename}')
 
-vehicle_types.to_csv(f'{directory_vehicle_tech}/ft-vehicletypes--{year}-{run_name_label}.csv', index=False)
+vehicle_types.to_csv(f'{directory_vehicle_tech}/ft-vehicletypes--{scenario_name.replace("-", "")}--{year}-{run_name_label}.csv', index=False)
 
 # In[9]:
 
@@ -229,62 +238,68 @@ tours.to_csv(f'{directory_output}/tours--{year}-{run_name_label}.csv', index=Fal
 
 
 # payloadId,sequenceRank,tourId,payloadType,weightInKg,requestType,locationZone,estimatedTimeOfArrivalInSec,arrivalTimeWindowInSecLower,arrivalTimeWindowInSecUpper,operationDurationInSec,locationX,locationY
-payload_plans_renames = {
-    'arrivalTimeWindowInSec_lower': 'arrivalTimeWindowInSecLower',
-    'arrivalTimeWindowInSec_upper': 'arrivalTimeWindowInSecUpper',
-    'locationZone_x': 'locationX',
-    'locationZone_y': 'locationY',
-    'true_locationZone': 'mesoZone',
-    'BuyerNAICS': "buyerNAICS",
-    "SellerNAICS": "sellerNAICS"
-}
-payload_plans_drop = ['truck_mode', 'weightInlb', 'cummulativeWeightInlb', 'index']
-int_columns = ['sequenceRank', 'payloadType', 'requestType', 'estimatedTimeOfArrivalInSec',
-               'arrivalTimeWindowInSecLower', 'arrivalTimeWindowInSecUpper',
-               'operationDurationInSec', 'locationZone']
-payload_type_map = {
-    1: 'bulk',
-    2: 'fuel_fert',
-    3: 'interm_food',
-    4: 'mfr_goods',
-    5: 'others'
-}
+def format_payload(_payload):
+    payload_plans_renames = {
+        'arrivalTimeWindowInSec_lower': 'arrivalTimeWindowInSecLower',
+        'arrivalTimeWindowInSec_upper': 'arrivalTimeWindowInSecUpper',
+        'locationZone_x': 'locationX',
+        'locationZone_y': 'locationY',
+        'true_locationZone': 'mesoZone',
+        'BuyerNAICS': "buyerNAICS",
+        "SellerNAICS": "sellerNAICS"
+    }
+    payload_plans_drop = ['truck_mode', 'weightInlb', 'cummulativeWeightInlb', 'index']
+    int_columns = ['sequenceRank', 'payloadType', 'requestType', 'estimatedTimeOfArrivalInSec',
+                   'arrivalTimeWindowInSecLower', 'arrivalTimeWindowInSecUpper',
+                   'operationDurationInSec', 'locationZone']
+    payload_type_map = {
+        1: 'bulk',
+        2: 'fuel_fert',
+        3: 'interm_food',
+        4: 'mfr_goods',
+        5: 'others'
+    }
 
-payload_plans.rename(columns=payload_plans_renames, inplace=True)
+    _payload.rename(columns=payload_plans_renames, inplace=True)
 
-# Convert columns to integer type
-for col in int_columns:
-    payload_plans[col] = payload_plans[col].astype(int)
+    # Convert columns to integer type
+    for col in int_columns:
+        _payload[col] = _payload[col].astype(int)
 
-payload_plans['payloadType'] = payload_plans['payloadType'].map(payload_type_map)
-# Convert weightInlb to weightInKg without applying abs yet
-payload_plans['weightInKg'] = payload_plans['weightInlb'].astype(float) * 0.45359237
+    _payload['payloadType'] = _payload['payloadType'].map(payload_type_map)
+    # Convert weightInlb to weightInKg without applying abs yet
+    _payload['weightInKg'] = _payload['weightInlb'].astype(float) * 0.45359237
 
-# Apply modifications for frism version > 1.0
-if frism_version > 1.0:
-    # Create DeliveryType column
-    payload_plans['deliveryType'] = payload_plans['requestType'].map({1: 'delivery-only', 3: 'pickup-delivery'})
+    # Apply modifications for frism version > 1.0
+    if frism_version > 1.0:
+        # Create DeliveryType column
+        _payload['deliveryType'] = _payload['requestType'].map({1: 'delivery-only', 3: 'pickup-delivery'})
 
-    # Update requestType based on weightInKg
-    payload_plans.loc[payload_plans['weightInKg'] < 0, 'requestType'] = 'unloading'
-    payload_plans.loc[payload_plans['weightInKg'] >= 0, 'requestType'] = 'loading'
+        # Update requestType based on weightInKg
+        _payload.loc[_payload['weightInKg'] < 0, 'requestType'] = 'unloading'
+        _payload.loc[_payload['weightInKg'] >= 0, 'requestType'] = 'loading'
 
-    # Now make weightInKg positive
-    payload_plans['weightInKg'] = np.abs(payload_plans['weightInKg'])
+        # Now make weightInKg positive
+        _payload['weightInKg'] = np.abs(_payload['weightInKg'])
 
-else:
-    # For frism version 1.0, just ensure weightInKg is positive
-    payload_plans['requestType'] = payload_plans['requestType'].map({1: 'unloading', 0: 'loading'})
-    payload_plans['weightInKg'] = np.abs(payload_plans['weightInKg'])
+    else:
+        # For frism version 1.0, just ensure weightInKg is positive
+        _payload['requestType'] = _payload['requestType'].map({1: 'unloading', 0: 'loading'})
+        _payload['weightInKg'] = np.abs(_payload['weightInKg'])
 
-payload_plans['fleetType'] = payload_plans['truck_mode'].map({
-    'Private Truck': 'private',
-    'For-hire Truck': 'for-hire'
-}, na_action='ignore')  # This keeps NA values as they are
+    _payload['fleetType'] = _payload['truck_mode'].map({
+        'Private Truck': 'private',
+        'For-hire Truck': 'for-hire'
+    }, na_action='ignore')  # This keeps NA values as they are
+    _payload.drop(payload_plans_drop, axis=1, inplace=True, errors='ignore')
+    return _payload
 
-payload_plans.drop(payload_plans_drop, axis=1, inplace=True, errors='ignore')
 
 # Save the modified DataFrame
-payload_plans.to_csv(f'{directory_output}/payloads--{year}-{run_name_label}.csv', index=False)
+format_payload(payload_plans).to_csv(f'{directory_output}/payloads--{year}-{run_name_label}.csv', index=False)
+
+if ondemand_plans is not None:
+    format_payload(ondemand_plans).to_csv(f'{directory_output}/ondemand--{year}-{run_name_label}.csv', index=False)
+
 
 print("END")
