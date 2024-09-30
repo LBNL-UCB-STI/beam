@@ -3,6 +3,7 @@ package beam.router
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, VehicleOrToken}
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
 import beam.agentsim.agents.vehicles.VehicleCategory._
+import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import com.conveyal.r5.profile.StreetMode
 import enumeratum.values._
@@ -259,7 +260,8 @@ object TourModes {
     val vehicleCategory: Seq[VehicleCategory],
     val allowedBeamModes: Seq[BeamMode],
     val allowedBeamModesForFirstAndLastLeg: Seq[BeamMode]
-  ) extends StringEnumEntry {
+  ) extends StringEnumEntry
+      with ExponentialLazyLogging {
 
     import BeamTourMode._
 
@@ -294,7 +296,7 @@ object TourModes {
     }
   }
 
-  object BeamTourMode extends StringEnum[BeamTourMode] with StringCirceEnum[BeamTourMode] {
+  object BeamTourMode extends StringEnum[BeamTourMode] with StringCirceEnum[BeamTourMode] with ExponentialLazyLogging {
 
     override val values: immutable.IndexedSeq[BeamTourMode] = findValues
 
@@ -304,7 +306,7 @@ object TourModes {
     ): (Option[BeamTourMode], Option[BeamVehicle]) = {
       tripMode match {
         case CAR | CAR_HOV2 | CAR_HOV3 =>
-          if (availableVehicles.exists(_.vehicle.isFreightVehicle)) {
+          if (availableVehicles.forall(_.vehicle.isFreightVehicle) && availableVehicles.nonEmpty) {
             (Some(FREIGHT_TOUR), availableVehicles.find(_.vehicle.isFreightVehicle).map(_.vehicle))
           } else if (availableVehicles.exists(!_.vehicle.isSharedVehicle)) {
             // Assume that if they have access to a personal vehicle they'll take it
@@ -312,7 +314,10 @@ object TourModes {
             // If neither work, they'll need to use an emergency vehicle
             (Some(CAR_BASED), availableVehicles.find(!_.vehicle.isSharedVehicle).map(_.vehicle))
           } else if (availableVehicles.exists(_.vehicle.isSharedVehicle)) { (Some(WALK_BASED), None) }
-          else (Some(CAR_BASED), None)
+          else {
+            logger.warn("Planned car trip without any cars available. Reverting to a walk_based tour")
+            (Some(WALK_BASED), None)
+          }
         case BIKE =>
           if (availableVehicles.exists(!_.vehicle.isSharedVehicle)) {
             // Assume that if they have access to a personal vehicle they'll take it
@@ -404,7 +409,19 @@ object TourModes {
           Seq(Car, LightDutyTruck, HeavyDutyTruck),
           Seq[BeamMode](CAR, FREIGHT),
           Seq[BeamMode](CAR, FREIGHT)
-        )
+        ) {
+
+      override def allowedBeamModesGivenAvailableVehicles(
+        vehicles: Vector[VehicleOrToken],
+        firstOrLastLeg: Boolean
+      ): Seq[BeamMode] = {
+        if (vehicles.exists(_.vehicle.isFreightVehicle)) {
+          allowedBeamModes
+        } else {
+          Seq.empty[BeamMode]
+        }
+      }
+    }
 
     case object BIKE_BASED extends BeamTourMode("bike_based", Seq(Bike), Seq[BeamMode](BIKE), Seq[BeamMode](BIKE))
 
