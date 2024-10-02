@@ -628,7 +628,8 @@ trait ChoosesParking extends {
         None,
         id,
         parkingManager,
-        eventsManager
+        eventsManager,
+        departed = true
       )
 
       goto(WaitingToDrive) using data.copy(
