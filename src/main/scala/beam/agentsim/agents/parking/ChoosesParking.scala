@@ -208,7 +208,8 @@ trait ChoosesParking extends {
       )
     } else {
       val searchModeChargeOrPark =
-        if (isRefuelAtDestinationNeeded(currentBeamVehicle, activityType)) ParkingSearchMode.DestinationCharging
+        if (isRefuelAtDestinationNeeded(currentBeamVehicle, activityType) && isEnoughTimeForRefueling(parkingDuration))
+          ParkingSearchMode.DestinationCharging
         else ParkingSearchMode.Parking
 
       // for regular parking inquiry, we have vehicle information in `currentBeamVehicle`
@@ -226,6 +227,10 @@ trait ChoosesParking extends {
         triggerId = getCurrentTriggerIdOrGenerate
       )
     }
+  }
+
+  private def isEnoughTimeForRefueling(parkingDuration: Double): Boolean = {
+    beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow.toDouble < parkingDuration
   }
 
   private def isRefuelAtDestinationNeeded(vehicle: BeamVehicle, activityType: String): Boolean = {
