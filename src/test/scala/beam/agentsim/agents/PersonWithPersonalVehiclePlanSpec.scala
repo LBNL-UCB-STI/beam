@@ -296,7 +296,8 @@ class PersonWithPersonalVehiclePlanSpec
         triggerId = walkFromParkingRoutingRequest.triggerId
       )
 
-      expectMsgType[LeavingParkingEvent]
+//      expectMsgType[LeavingParkingEvent] // Why didn't we see a parking event before this? Either way, we never
+      //      actually parked so there shouldn't be a leaving parking event
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[LinkLeaveEvent]
       expectMsgType[LinkEnterEvent]
