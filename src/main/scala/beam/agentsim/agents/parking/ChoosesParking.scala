@@ -29,6 +29,7 @@ import beam.sim.common.GeoUtils
 import beam.utils.DateUtils
 import beam.utils.logging.pattern.ask
 import beam.utils.MeasureUnitConversion._
+import beam.utils.OptionalUtils.OptionalTimeExtension
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
 import org.matsim.api.core.v01.population.Activity
@@ -181,11 +182,11 @@ trait ChoosesParking extends {
     val lastLeg = vehicleTrip.last.beamLeg
     val activityType = nextActivity(data).get.getType
     val remainingTripData = calculateRemainingTripData(data)
-    val parkingDuration = (_currentTick, nextActivity(data)) match {
-      case (Some(tick), Some(act)) => act.getEndTime.orElse(0.0) - tick
-      case (None, Some(act))       => act.getEndTime.orElse(0.0) - lastLeg.endTime
-      case (Some(tick), None)      => endOfSimulationTime - tick
-      case _                       => 0.0
+    val parkingDuration = (_currentTick, nextActivity(data).map(_.getEndTime.toOption)) match {
+      case (Some(tick), Some(maybeEndTime)) => maybeEndTime.getOrElse(endOfSimulationTime.toDouble) - tick
+      case (None, Some(maybeEndTime))       => maybeEndTime.getOrElse(endOfSimulationTime.toDouble) - lastLeg.endTime
+      case (Some(tick), _)                  => endOfSimulationTime - tick
+      case _                                => 0.0
     }
     val destinationUtm = SpaceTime(beamServices.geo.wgs2Utm(lastLeg.travelPath.endPoint.loc), lastLeg.endTime)
     if (data.enrouteData.isInEnrouteState) {
