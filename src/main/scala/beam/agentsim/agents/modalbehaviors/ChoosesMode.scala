@@ -1579,6 +1579,10 @@ trait ChoosesMode {
         )
       }
 
+      val currentPlanMode = _experiencedBeamPlan
+        .getStrategy[TripModeChoiceStrategy](_experiencedBeamPlan.getTripContaining(nextAct))
+        .mode
+
       modeChoiceCalculator(
         itinerariesOfCorrectMode,
         attributesOfIndividual,
@@ -1586,7 +1590,7 @@ trait ChoosesMode {
         Some(currentActivity(choosesModeData.personData)),
         Some(matsimPlan.getPerson)
       ) match {
-        case Some(chosenTrip) =>
+        case Some(chosenTrip) if !currentPlanMode.contains(CAV) =>
           filteredItinerariesForChoice.foreach {
             case possibleTrip
                 if (possibleTrip != chosenTrip) && beamScenario.beamConfig.beam.router.skim.sendNonChosenTripsToSkimmer =>
@@ -2024,32 +2028,28 @@ trait ChoosesMode {
           }
 
           var isCurrentPersonalVehicleVoided = false
-          vehiclesNotUsed.collect { case ActualVehicle(vehicle) =>
-            data.personData.currentTourPersonalVehicle.foreach { currentVehicle =>
-              // We allow people to keep personal vehicles on walk based tours for access/egress
-              if (currentVehicle == vehicle.id) {
-                if (data.personData.currentTourMode.contains(WALK_BASED) && !isFirstTripWithinTour(nextAct)) {
-                  logger.debug(
-                    s"We're keeping vehicle ${vehicle.id} even though it isn't used in this trip " +
-                    s"because we need it for egress at the end of the tour"
-                  )
-                } else {
-                  logError(
-                    s"Current tour vehicle is the same as the one being removed: " +
-                    s"$currentVehicle - ${vehicle.id} - $data"
-                  )
-                  isCurrentPersonalVehicleVoided = true
-                  vehicle.setMustBeDrivenHome(false)
-                  beamVehicles.remove(vehicle.id)
-                  vehicle.getManager.get ! ReleaseVehicle(vehicle, triggerId)
-                }
+          vehiclesNotUsed.collect {
+            case ActualVehicle(vehicle) if data.personData.currentTourPersonalVehicle.contains(vehicle.id) =>
+              if (data.personData.currentTourMode.contains(WALK_BASED) && !isFirstTripWithinTour(nextAct)) {
+                logger.debug(
+                  s"We're keeping vehicle ${vehicle.id} even though it isn't used in this trip " +
+                  s"because we need it for egress at the end of the tour"
+                )
               } else {
-                // Vehicle is neither used nor reserved for a return trip
+                logError(
+                  s"Current tour vehicle is the same as the one being removed: " +
+                  s"${vehicle.id} - $data"
+                )
+                isCurrentPersonalVehicleVoided = true
+                vehicle.setMustBeDrivenHome(false)
                 beamVehicles.remove(vehicle.id)
                 vehicle.getManager.get ! ReleaseVehicle(vehicle, triggerId)
               }
-            }
-
+            case ActualVehicle(vehicle) =>
+              beamVehicles.remove(vehicle.id)
+              vehicle.getManager.get ! ReleaseVehicle(vehicle, triggerId)
+            case _ =>
+              logError("We should only have real vehicles returned by manager")
           }
 
           scheduler ! CompletionNotice(
