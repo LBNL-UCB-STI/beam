@@ -334,7 +334,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         }
       }
 
-      val numberOfPassengers: Int = calculateNumberOfPassengersBasedOnCurrentTourMode(data, currentLeg, riders)
+      val numberOfPassengers: Int = calculateNumberOfPassengersBasedOnCurrentTripMode(data, currentLeg, riders)
       val pte = PathTraversalEvent(
         tick,
         currentVehicleUnderControl,
@@ -505,7 +505,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
   private def getCurrentTripMode(data: DrivingData): Option[String] =
     findPersonData(data).flatMap(_.currentTripMode).map(_.value)
 
-  private def calculateNumberOfPassengersBasedOnCurrentTourMode(
+  private def calculateNumberOfPassengersBasedOnCurrentTripMode(
     data: DrivingData,
     currentLeg: BeamLeg,
     riders: immutable.IndexedSeq[Id[Person]]
@@ -553,7 +553,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         val tollOnCurrentLeg = toll(partiallyCompletedBeamLeg)
         tollsAccumulated += tollOnCurrentLeg
         val numberOfPassengers: Int =
-          calculateNumberOfPassengersBasedOnCurrentTourMode(data, partiallyCompletedBeamLeg, riders)
+          calculateNumberOfPassengersBasedOnCurrentTripMode(data, partiallyCompletedBeamLeg, riders)
         val pte = PathTraversalEvent(
           updatedStopTick,
           currentVehicleUnderControl,

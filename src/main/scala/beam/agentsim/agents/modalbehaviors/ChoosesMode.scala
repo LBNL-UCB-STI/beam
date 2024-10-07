@@ -431,9 +431,7 @@ trait ChoosesMode {
                 // If trip mode is already set, determine tour mode from that and available vehicles (sticking
                 // with walk based tour if the only available vehicles are shared)
                 val (chosenTourMode, tourVehicle) = getTourModeAndVehicle(tripMode, availablePersonalStreetVehicles)
-                val updatedTourStrategy =
-                  TourModeChoiceStrategy(chosenTourMode, tourVehicle.map(_.id))
-                _experiencedBeamPlan.putStrategy(_experiencedBeamPlan.getTourContaining(nextAct), updatedTourStrategy)
+                updateTourModeStrategy(chosenTourMode, tourVehicle.map(_.id), nextAct)
 
                 val tourModeChoiceEvent = new TourModeChoiceEvent(
                   departTime.toDouble,
@@ -686,6 +684,7 @@ trait ChoosesMode {
                   )
                 )
                 householdVehiclesWereNotAvailable = true
+                logger.warn("No HH vehicle available so going back to replanning")
               }
               makeRequestWith(withTransit = householdVehiclesWereNotAvailable, vehicles :+ bodyStreetVehicle)
               responsePlaceholders =
@@ -693,7 +692,6 @@ trait ChoosesMode {
               if (householdVehiclesWereNotAvailable) {
                 makeRideHailRequest()
               }
-              logger.warn("No HH vehicle available so going back to replanning")
           }
         case Some(mode @ (DRIVE_TRANSIT | BIKE_TRANSIT)) =>
           val vehicleMode = Modes.getAccessVehicleMode(mode)
@@ -1721,6 +1719,7 @@ trait ChoosesMode {
   }
 
   private def gotoChoosingModeWithoutPredefinedMode(choosesModeData: ChoosesModeData) = {
+    // TODO: Check modes for subsequent trips here
     val onFirstTrip = isFirstTripWithinTour(currentActivity(choosesModeData.personData))
     val outcomeTourMode = if (onFirstTrip) { None }
     else { Some(WALK_BASED) }
@@ -1757,10 +1756,7 @@ trait ChoosesMode {
         _experiencedBeamPlan.getTripContaining(nextActivity(choosesModeData.personData).get),
         updatedTripStrategy
       )
-      _experiencedBeamPlan.putStrategy(
-        _experiencedBeamPlan.getTourContaining(nextActivity(choosesModeData.personData).get),
-        TourModeChoiceStrategy(outcomeTourMode, newTourVehicle)
-      )
+      updateTourModeStrategy(outcomeTourMode, newTourVehicle, nextActivity(choosesModeData.personData).get)
       goto(ChoosingMode)
     } using choosesModeData.copy(
       personData = choosesModeData.personData.copy(
@@ -2005,7 +2001,7 @@ trait ChoosesMode {
           )
 
           val updatedTourStrategy =
-            TourModeChoiceStrategy(data.personData.currentTourMode, None)
+            TourModeChoiceStrategy(data.personData.currentTourMode, data.personData.currentTourPersonalVehicle)
           val updatedTripStrategy =
             TripModeChoiceStrategy(Some(chosenTrip.tripClassifier))
           _experiencedBeamPlan.putStrategy(_experiencedBeamPlan.getTripContaining(nextAct), updatedTripStrategy)
@@ -2096,12 +2092,13 @@ trait ChoosesMode {
               .tourMode
               .isEmpty
           ) {
-            val updatedTourStrategy =
-              TourModeChoiceStrategy(
-                finalTourMode,
-                finalTourVehicle.map(_.id)
-              )
-            _experiencedBeamPlan.putStrategy(_experiencedBeamPlan.getTourContaining(nextAct), updatedTourStrategy)
+            updateTourModeStrategy(finalTourMode, finalTourVehicle.map(_.id), nextAct)
+//            val updatedTourStrategy =
+//              TourModeChoiceStrategy(
+//                finalTourMode,
+//                finalTourVehicle.map(_.id)
+//              )
+//            _experiencedBeamPlan.putStrategy(_experiencedBeamPlan.getTourContaining(nextAct), updatedTourStrategy)
           }
 
           val currentPlanMode = _experiencedBeamPlan
@@ -2171,6 +2168,46 @@ trait ChoosesMode {
     } else {
       startTimeUpdated
     }
+  }
+
+  private def updateTourModeStrategy(
+    newTourMode: Option[BeamTourMode],
+    newTourVehicle: Option[Id[BeamVehicle]],
+    nextActivity: Activity
+  ) = {
+    val currentTour = _experiencedBeamPlan.getTourContaining(nextActivity)
+//    val currentTourStrategy = _experiencedBeamPlan.getTourStrategy(nextActivity)
+
+    val legStrategies =
+      currentTour.trips.flatMap(_.leg).map(leg => _experiencedBeamPlan.getStrategy[TripModeChoiceStrategy](leg))
+
+    val mismatchedLegStrategies = newTourMode match {
+      case Some(tourMode) =>
+        legStrategies.zipWithIndex.filter { case (x, y) =>
+          (x.mode, y) match {
+            case (Some(maybeTripMode), index) if index == 0 || index == legStrategies.size - 1 =>
+              !tourMode.allowedBeamModesForFirstAndLastLeg.contains(maybeTripMode)
+            case (Some(maybeTripMode), _) =>
+              !tourMode.allowedBeamModes.contains(maybeTripMode)
+            case _ => false
+          }
+        }
+      case _ => Seq()
+    }
+
+    mismatchedLegStrategies.foreach { case (st, idx) =>
+      _experiencedBeamPlan.putStrategy(currentTour.trips.apply(idx), TripModeChoiceStrategy(None))
+      logger.warn(
+        f"Replacing planned ${st.mode.get} trip with none because of conflict with tour mode ${newTourMode.get}"
+      )
+    }
+
+    val updatedTourStrategy =
+      TourModeChoiceStrategy(
+        newTourMode,
+        newTourVehicle
+      )
+    _experiencedBeamPlan.putStrategy(currentTour, updatedTourStrategy)
   }
 }
 

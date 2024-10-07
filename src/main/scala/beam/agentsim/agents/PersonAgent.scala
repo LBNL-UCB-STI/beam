@@ -668,7 +668,7 @@ class PersonAgent(
   when(PerformingActivity) { case Event(TriggerWithId(ActivityEndTrigger(tick), triggerId), data: BasePersonData) =>
     nextActivity(data) match {
       case None =>
-        logger.warn(s"didn't get nextActivity, PersonAgent:$id")
+        logger.debug(s"didn't get nextActivity, PersonAgent:$id")
         stay replying CompletionNotice(triggerId)
       case Some(nextAct) =>
         logDebug(s"wants to go to ${nextAct.getType} @ $tick")
