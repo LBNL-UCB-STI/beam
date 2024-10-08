@@ -2026,7 +2026,10 @@ trait ChoosesMode {
           var isCurrentPersonalVehicleVoided = false
           vehiclesNotUsed.collect {
             case ActualVehicle(vehicle) if data.personData.currentTourPersonalVehicle.contains(vehicle.id) =>
-              if (data.personData.currentTourMode.contains(WALK_BASED) && !isFirstTripWithinTour(nextAct)) {
+              if (
+                data.personData.currentTourMode
+                  .contains(WALK_BASED) && (!isFirstTripWithinTour(nextAct) || data.isWithinTripReplanning)
+              ) {
                 logger.debug(
                   s"We're keeping vehicle ${vehicle.id} even though it isn't used in this trip " +
                   s"because we need it for egress at the end of the tour"
@@ -2082,8 +2085,12 @@ trait ChoosesMode {
           }
 
           val (finalTourMode, finalTourVehicle) = initialTourMode match {
-            case Some(tm) => (Some(tm), data.personData.currentTourPersonalVehicle.map(x => beamVehicles(x).vehicle))
-            case _        => getTourModeAndVehicle(chosenTrip.tripClassifier, vehiclesUsed)
+            case Some(tm) =>
+              (
+                Some(tm),
+                data.personData.currentTourPersonalVehicle.map(x => beamVehicles(x).vehicle)
+              ) // This fails after "Current tour vehicle is the same one as being removed
+            case _ => getTourModeAndVehicle(chosenTrip.tripClassifier, vehiclesUsed)
           }
 
           if (
