@@ -137,6 +137,17 @@ class BeamPlan extends Plan {
     legOption.flatMap(leg => Option(leg.getAttributes.getAttribute("tour_id")).map(_.toString.toInt))
   }
 
+  // partial step for creating nested sub tours
+//  private def hasReturningActivities(currentActivity: Activity): Boolean = {
+//    val currentIndex = activities.indexOf(currentActivity)
+//    if (currentIndex == activities.size - 1) { false }
+//    else {
+//      activities
+//        .slice(activities.indexOf(currentActivity) + 1, activities.size - 1)
+//        .exists(_.getCoord == currentActivity.getCoord)
+//    }
+//  }
+
   private def getTourModeFromMatsimLeg(leg: Leg): Option[BeamTourMode] = {
     Option(leg.getAttributes.getAttribute("tour_mode")).flatMap(x => BeamTourMode.fromString(x.toString))
   }
@@ -150,6 +161,8 @@ class BeamPlan extends Plan {
     var currentTourIndex = -1
     var currentTour = new Tour(-1)
     var previousLeg: Option[Leg] = None
+    // partial step for nested subtours
+//    val subTourBaseLocations: mutable.Seq[Coord] = mutable.Seq.empty[Coord]
     actsLegs.sliding(2).foreach {
       case Vector(leg: Leg, _: Activity) =>
         previousLeg = Some(leg)
