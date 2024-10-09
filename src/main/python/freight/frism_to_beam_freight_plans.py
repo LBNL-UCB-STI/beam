@@ -73,7 +73,7 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
 
 frism_version = 1.5
 city = "sfbay"
-scenario_name = "2024-09-23"
+scenario_name = "2024-08-07"
 year, run_name = "2018", "Baseline"
 # year, run_name = "2050", "Ref_highp6"
 run_name_label = run_name.replace("_", "")
@@ -112,7 +112,7 @@ for filename in sorted(os.listdir(directory_input)):
             axis=1).tolist()
         df['vehicleId'] = df.apply(lambda row: add_prefix(row['carrierId'] + '-', 'vehicleId', row), axis=1).tolist()
         # df['tourId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'tourId', row), axis=1)
-        df['tourId'] = df.apply(lambda row: add_prefix('', 'tourId', row, True, tourId_with_prefix), axis=1).tolist()
+        df['tourId'] = df.apply(lambda row: add_prefix(f'{business_type}-', 'tourId', row, True, tourId_with_prefix), axis=1).tolist()
         if carriers is None:
             carriers = df
         else:
@@ -154,7 +154,7 @@ for filename in sorted(os.listdir(directory_input)):
             "standingRoomCapacity": list(np.repeat(0, len(df.index))),
             "lengthInMeter": list(np.repeat(12, len(df.index))),
             "primaryFuelType": df["primary_fuel_type"],
-            "primaryFuelConsumptionInJoulePerMeter": np.divide(121300000, np.float_(df["primary_fuel_rate"]) * 1609.34),
+            "primaryFuelConsumptionInJoulePerMeter": np.divide(121300000, np.float64(df["primary_fuel_rate"]) * 1609.34),
             "primaryFuelCapacityInJoule": list(np.repeat(12000000000000000, len(df.index))),
             "primaryVehicleEnergyFile": [primary_energy_files[id] if id in primary_energy_files else np.nan for id in
                                          vehicle_types_ids],
@@ -275,6 +275,7 @@ def format_payload(_payload):
         _payload['deliveryType'] = _payload['requestType'].map({1: 'delivery-only', 3: 'pickup-delivery'})
 
         # Update requestType based on weightInKg
+        _payload['requestType'] = _payload['requestType'].astype('object')
         _payload.loc[_payload['weightInKg'] < 0, 'requestType'] = 'unloading'
         _payload.loc[_payload['weightInKg'] >= 0, 'requestType'] = 'loading'
 
