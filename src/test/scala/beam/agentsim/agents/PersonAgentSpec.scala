@@ -201,7 +201,7 @@ class PersonAgentSpec
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
 
       scheduler ! StartSchedule(0)
-      expectMsgType[TourModeChoiceEvent]
+
 
       // The agent will ask for a ride, and we will answer.
       val inquiry = expectMsgType[RideHailRequest]
@@ -256,6 +256,7 @@ class PersonAgentSpec
         triggerId = request2.triggerId
       )
 
+      expectMsgType[TourModeChoiceEvent]
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
       expectMsgType[BeamPersonDepartureEvent]

@@ -154,9 +154,6 @@ class PersonWithPersonalVehiclePlanSpec
 
       scheduler ! StartSchedule(0)
 
-      // Agent will first choose their tour mode before doing detailed routing
-      expectMsgType[TourModeChoiceEvent]
-
       // The agent will ask for current travel times for a route it already knows.
       val embodyRequest = expectMsgType[EmbodyWithCurrentTravelTime]
       assert(services.geo.wgs2Utm(embodyRequest.leg.travelPath.startPoint.loc).getX === homeLocation.getX +- 1)
@@ -189,7 +186,8 @@ class PersonWithPersonalVehiclePlanSpec
         isEmbodyWithCurrentTravelTime = false,
         triggerId = embodyRequest.triggerId
       )
-
+      // Agent will do tour mode choice after routing
+      expectMsgType[TourModeChoiceEvent]
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
       expectMsgType[BeamPersonDepartureEvent]
@@ -397,7 +395,7 @@ class PersonWithPersonalVehiclePlanSpec
 
       scheduler ! StartSchedule(0)
 
-      expectMsgType[TourModeChoiceEvent]
+
 
       // The agent will ask for current travel times for a route it already knows.
       val embodyRequest = expectMsgType[EmbodyWithCurrentTravelTime]
@@ -432,6 +430,7 @@ class PersonWithPersonalVehiclePlanSpec
         triggerId = embodyRequest.triggerId
       )
 
+      expectMsgType[TourModeChoiceEvent]
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
       expectMsgType[BeamPersonDepartureEvent]
@@ -705,7 +704,7 @@ class PersonWithPersonalVehiclePlanSpec
       }
 
       tourModeChoiceEvents.expectMsgType[TourModeChoiceEvent]
-      tourModeChoiceEvents.expectMsgType[TourModeChoiceEvent]
+//      tourModeChoiceEvents.expectMsgType[TourModeChoiceEvent]
 
       modeChoiceEvents.expectMsgType[ModeChoiceEvent]
       expectMsgPF()(messageResponder)
@@ -782,7 +781,6 @@ class PersonWithPersonalVehiclePlanSpec
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
       scheduler ! StartSchedule(0)
 
-      expectMsgType[TourModeChoiceEvent]
 
       val routingRequest = expectMsgType[RoutingRequest]
       lastSender ! RoutingResponse(
@@ -838,7 +836,7 @@ class PersonWithPersonalVehiclePlanSpec
         triggerId = routingRequest.triggerId
       )
 
-//      expectMsgType[TourModeChoiceEvent]
+      expectMsgType[TourModeChoiceEvent]
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
       expectMsgType[BeamPersonDepartureEvent]

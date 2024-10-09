@@ -117,19 +117,23 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
       case Some(_) =>
         val startingPoint = if (firstLegItineraries.isDefined) { 1 }
         else 0
-        firstLegItineraries
+        val firstLegs = firstLegItineraries
           .map(itins =>
             modes
               .flatMap(mode => itins.find(_.tripClassifier == mode).map(x => mode -> ODSkimmerTimeCostTransfer(x)))
               .toMap
           )
-          .toSeq ++ tour.activities
-          .drop(startingPoint)
-          .sliding(2)
-          .map { case Seq(activity1, activity2) =>
-            getSkimInfo(activity1, activity2, modes, vehicleTypeId, vehicleType, fuelPrice)
-          }
           .toSeq
+        val remainingLegs = if (tour.activities.size > 2) {
+          tour.activities
+            .drop(startingPoint)
+            .sliding(2)
+            .map { case Seq(activity1, activity2) =>
+              getSkimInfo(activity1, activity2, modes, vehicleTypeId, vehicleType, fuelPrice)
+            }
+            .toSeq
+        } else { Seq.empty }
+        firstLegs ++ remainingLegs
 
       case _ => Seq[Map[BeamMode, ODSkimmerTimeCostTransfer]]()
     }

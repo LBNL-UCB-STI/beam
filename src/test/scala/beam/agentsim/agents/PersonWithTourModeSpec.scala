@@ -361,12 +361,7 @@ class PersonWithTourModeSpec
 
       scheduler ! StartSchedule(0)
 
-      // The agent will ask for current travel times for a route it already knows.
-      val tmc = expectMsgType[TourModeChoiceEvent]
-      // Make sure that they chose a car_based tour
-      assert(tmc.tourMode === "car_based")
-      // Make sure it didn't actually go through the process of calculating utilities b/c it didn't have to
-      assert(tmc.tourModeToUtilityString === "")
+
       val embodyRequest = expectMsgType[EmbodyWithCurrentTravelTime]
       assert(services.geo.wgs2Utm(embodyRequest.leg.travelPath.startPoint.loc).getX === homeLocation.getX +- 1)
       assert(services.geo.wgs2Utm(embodyRequest.leg.travelPath.endPoint.loc).getY === workLocation.getY +- 1)
@@ -398,6 +393,13 @@ class PersonWithTourModeSpec
         isEmbodyWithCurrentTravelTime = false,
         triggerId = embodyRequest.triggerId
       )
+
+      // The agent will ask for current travel times for a route it already knows.
+      val tmc = expectMsgType[TourModeChoiceEvent]
+      // Make sure that they chose a car_based tour
+      assert(tmc.tourMode === "car_based")
+      // Make sure it didn't actually go through the process of calculating utilities b/c it didn't have to
+      assert(tmc.tourModeToUtilityString === "")
 
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
@@ -871,19 +873,7 @@ class PersonWithTourModeSpec
 
       scheduler ! StartSchedule(0)
 
-      val tmc = expectMsgType[TourModeChoiceEvent]
-      val modeUtilities = tmc.tourModeToUtilityString
-        .replace(" ", "")
-        .split("->")
-        .flatMap(_.split(";"))
-        .sliding(2, 2)
-        .map { x => x(0) -> x(1).toDouble }
-        .toMap
 
-      val chosenTourMode = tmc.tourMode
-      assert(modeUtilities("CAR_BASED") > Double.NegativeInfinity)
-      assert(modeUtilities("WALK_BASED") > Double.NegativeInfinity)
-      assert(modeUtilities("BIKE_BASED") === Double.NegativeInfinity)
       val routingRequest = expectMsgType[RoutingRequest]
       val personVehicle = routingRequest.streetVehicles.find(_.mode == WALK).get
       val linkIds = Array[Int](228, 206, 180, 178, 184, 102)
@@ -917,6 +907,21 @@ class PersonWithTourModeSpec
         isEmbodyWithCurrentTravelTime = false,
         triggerId = routingRequest.triggerId
       )
+
+      val tmc = expectMsgType[TourModeChoiceEvent]
+      val modeUtilities = tmc.tourModeToUtilityString
+        .replace(" ", "")
+        .split("->")
+        .flatMap(_.split(";"))
+        .sliding(2, 2)
+        .map { x => x(0) -> x(1).toDouble }
+        .toMap
+
+      val chosenTourMode = tmc.tourMode
+      assert(modeUtilities("CAR_BASED") > Double.NegativeInfinity)
+      assert(modeUtilities("WALK_BASED") > Double.NegativeInfinity)
+      assert(modeUtilities("BIKE_BASED") === Double.NegativeInfinity)
+
       val mce = expectMsgType[ModeChoiceEvent]
       assert(mce.currentTourMode === chosenTourMode)
       expectMsgType[ActivityEndEvent]
@@ -1020,19 +1025,7 @@ class PersonWithTourModeSpec
         MobilityStatusResponse(Vector(ActualVehicle(vehicle)), triggerId)
       } pipeTo mockSharedVehicleFleet.lastSender
 
-      val tmc = expectMsgType[TourModeChoiceEvent]
-      val modeUtilities = tmc.tourModeToUtilityString
-        .replace(" ", "")
-        .split("->")
-        .flatMap(_.split(";"))
-        .sliding(2, 2)
-        .map { x => x(0) -> x(1).toDouble }
-        .toMap
 
-      val chosenTourMode = tmc.tourMode
-      assert(modeUtilities("CAR_BASED") === Double.NegativeInfinity)
-      assert(modeUtilities("WALK_BASED") > Double.NegativeInfinity)
-      assert(modeUtilities("BIKE_BASED") === Double.NegativeInfinity)
       val routingRequest = expectMsgType[RoutingRequest]
       val personVehicle = routingRequest.streetVehicles.find(_.mode == WALK).get
       val linkIds = Array[Int](228, 206, 180, 178, 184, 102)
@@ -1066,6 +1059,21 @@ class PersonWithTourModeSpec
         isEmbodyWithCurrentTravelTime = false,
         triggerId = routingRequest.triggerId
       )
+
+      val tmc = expectMsgType[TourModeChoiceEvent]
+      val modeUtilities = tmc.tourModeToUtilityString
+        .replace(" ", "")
+        .split("->")
+        .flatMap(_.split(";"))
+        .sliding(2, 2)
+        .map { x => x(0) -> x(1).toDouble }
+        .toMap
+
+      val chosenTourMode = tmc.tourMode
+      assert(modeUtilities("CAR_BASED") === Double.NegativeInfinity)
+      assert(modeUtilities("WALK_BASED") > Double.NegativeInfinity)
+      assert(modeUtilities("BIKE_BASED") === Double.NegativeInfinity)
+
       val mce = expectMsgType[ModeChoiceEvent]
       assert(mce.currentTourMode === "walk_based")
       // Make sure that they consider using the shared car, even though they are on a walk_based tour (they can do this
