@@ -11,12 +11,13 @@ work_dir = os.path.expanduser(f"/Volumes/HG40/Workspace/Simulation/{city}")
 events_filename = f"0.events.csv.gz"
 linkstats_filename = f"0.linkstats.csv.gz"
 
-# batch = "baseline"
-# batch = "2024-08-07"
-batch = "2024-09-23"
-# scenarios = ["2018"]
-# scenarios = ["2018_Baseline"]
-scenarios = ["2018_Baseline"]
+batch, scenarios = "baseline", ["2018"]
+
+
+# batch, scenarios = "2024-08-07", ["2018_Baseline"]
+
+
+# batch, scenarios = "2024-09-23", ["2018_Baseline"]
 
 
 def main():
@@ -35,8 +36,10 @@ def main():
 
         convert_payload_to_trips(payload_df, scenario)
 
-        # linkstats_df = pd.read_csv(os.path.join(get_local_work_directory(scenario), linkstats_filename))
-        # calc_vmt_from_linkstats(linkstats_df, scenario)
+        linkstats_file = os.path.join(get_local_work_directory(scenario), linkstats_filename)
+        if os.path.exists(linkstats_file):
+            linkstats_df = pd.read_csv(linkstats_file)
+            calc_vmt_from_linkstats(linkstats_df, scenario)
 
     logging.info("END")
 
@@ -59,8 +62,6 @@ def merge_vehicle_types(vehicle_types: pd.DataFrame, carrier_df: pd.DataFrame, t
 
     # Ensure uniqueness of vehicleTypeId
     result2_df = result2_df.groupby(['vehicleTypeId', 'vehicleId', 'tourId']).first().reset_index()
-
-    print(f"Merged {len(result2_df)} unique vehicle types from carrier, tour and vehicle types files")
 
     return result2_df
 
@@ -182,7 +183,7 @@ def calc_vmt_from_linkstats(linkstats_df, scenario):
 
     plot_filename = os.path.join(get_local_work_directory(scenario), f"vmt_by_hour_category_{scenario}.png")
     plt.savefig(plot_filename, bbox_inches='tight')
-    print(f"Bar plot saved as {plot_filename}")
+    # print(f"Bar plot saved as {plot_filename}")
 
     return vmt_by_hour
 
@@ -217,7 +218,6 @@ def calc_vmt_from_events(events, scenario):
                           'length'].sum() / 1609.34 / 1_000_000
     vmt_by_category = vmt_by_category.unstack(level='business')
 
-    print(vmt_by_category)
     # Create bar plot
     ax = vmt_by_category.plot(kind='bar', figsize=(12, 6), width=0.8)
     plt.title(f'VMT by Business and Vehicle Category for {scenario}')
@@ -240,7 +240,7 @@ def calc_vmt_from_events(events, scenario):
 def convert_payload_to_trips(payload_df, scenario):
     output_file_path = os.path.join(work_dir, "beam-freight", batch, scenario,
                                     f"trips--{scenario.replace("_", "-")}.csv")
-    log_and_print(f"Total rows in payloads is {len(payload_df)} in scenario {scenario}")
+    log_and_print(f"Total rows in payloads: {len(payload_df)}")
 
     # Count payloads per tour
     payloads_per_tour = payload_df.groupby('tourId').size().reset_index(name='count')
@@ -272,7 +272,7 @@ def convert_payload_to_trips(payload_df, scenario):
                 from_row['locationY'], from_row['locationX'],
                 to_row['locationY'], to_row['locationX']
             )
-            trip['distance_km'] = distance
+            trip['distance_miles'] = distance / 1.609
 
             trips.append(trip)
 
@@ -289,8 +289,8 @@ def convert_payload_to_trips(payload_df, scenario):
 
     log_and_print(f"Total trips: {len(trips_df)}")
 
-    total_distance = trips_df['distance_km'].sum() / 1_000_000
-    log_and_print(f"Total distance of all trips: {total_distance:.2f} million km")
+    total_distance = trips_df['distance_miles'].sum() / 1_000_000
+    log_and_print(f"Total distance of all trips: {total_distance:.2f} million miles")
 
     # Error check
     # Calculate the number of payloads per tour
@@ -303,8 +303,15 @@ def convert_payload_to_trips(payload_df, scenario):
     #     weighted_sum += (payload_count - 1) * tour_count
     # log_and_print(f"Weighted sum of (payload count - 1) * number of tours: {weighted_sum}")
 
+    trips_df['business'] = trips_df['tourId'].apply(determine_business)
+    business_summary = trips_df.groupby('business').agg(
+        total_distance_million_km=pd.NamedAgg(column='distance_miles', aggfunc=lambda x: x.sum() / 1_000_000),
+        trip_count=pd.NamedAgg(column='tourId', aggfunc='count')
+    ).reset_index()
+    log_and_print(f"Trips and Distance by business:\n {business_summary}")
+
     trips_df.to_csv(output_file_path, index=False)
-    log_and_print(f"Trips file saved to {output_file_path}")
+    # log_and_print(f"Trips file saved to {output_file_path}")
 
     return trips_df
 

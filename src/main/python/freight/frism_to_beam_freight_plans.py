@@ -73,13 +73,14 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
 
 frism_version = 1.5
 city = "sfbay"
-scenario_name = "2024-08-07"
+scenario_name = "2024-09-23"
 year, run_name = "2018", "Baseline"
 # year, run_name = "2050", "Ref_highp6"
 run_name_label = run_name.replace("_", "")
 
-directory_input = os.path.expanduser(f'~/Workspace/Simulation/{city}/frism/{scenario_name}/{run_name}')
-directory_output = os.path.expanduser(f'~/Workspace/Simulation/{city}/beam-freight/{scenario_name}/{year}_{run_name_label}')
+directory_input = os.path.expanduser(f'/Volumes/HG40/Workspace/Simulation/{city}/frism/{scenario_name}/{run_name}')
+directory_output = os.path.expanduser(
+    f'/Volumes/HG40/Workspace/Simulation/{city}/beam-freight/{scenario_name}/{year}_{run_name_label}')
 Path(directory_output).mkdir(parents=True, exist_ok=True)
 directory_vehicle_tech = f'{directory_output}/../vehicle-tech'
 Path(directory_vehicle_tech).mkdir(parents=True, exist_ok=True)
@@ -112,7 +113,8 @@ for filename in sorted(os.listdir(directory_input)):
             axis=1).tolist()
         df['vehicleId'] = df.apply(lambda row: add_prefix(row['carrierId'] + '-', 'vehicleId', row), axis=1).tolist()
         # df['tourId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'tourId', row), axis=1)
-        df['tourId'] = df.apply(lambda row: add_prefix(f'{business_type}-', 'tourId', row, True, tourId_with_prefix), axis=1).tolist()
+        df['tourId'] = df.apply(lambda row: add_prefix(f'{business_type}-', 'tourId', row, True, tourId_with_prefix),
+                                axis=1).tolist()
         if carriers is None:
             carriers = df
         else:
@@ -154,7 +156,8 @@ for filename in sorted(os.listdir(directory_input)):
             "standingRoomCapacity": list(np.repeat(0, len(df.index))),
             "lengthInMeter": list(np.repeat(12, len(df.index))),
             "primaryFuelType": df["primary_fuel_type"],
-            "primaryFuelConsumptionInJoulePerMeter": np.divide(121300000, np.float64(df["primary_fuel_rate"]) * 1609.34),
+            "primaryFuelConsumptionInJoulePerMeter": np.divide(121300000,
+                                                               np.float64(df["primary_fuel_rate"]) * 1609.34),
             "primaryFuelCapacityInJoule": list(np.repeat(12000000000000000, len(df.index))),
             "primaryVehicleEnergyFile": [primary_energy_files[id] if id in primary_energy_files else np.nan for id in
                                          vehicle_types_ids],
@@ -195,7 +198,9 @@ for filename in sorted(os.listdir(directory_input)):
     else:
         print(f'SKIPPING {filename}')
 
-vehicle_types.to_csv(f'{directory_vehicle_tech}/ft-vehicletypes--{scenario_name.replace("-", "")}--{year}-{run_name_label}.csv', index=False)
+vehicle_types.to_csv(
+    f'{directory_vehicle_tech}/ft-vehicletypes--{scenario_name.replace("-", "")}--{year}-{run_name_label}.csv',
+    index=False)
 
 # In[9]:
 
@@ -232,6 +237,7 @@ tours['maxTourDurationInSec'] = tours['maxTourDurationInSec'].astype(int)
 tours['departureLocationZone'] = tours['departureLocationZone'].astype(int)
 tours.drop(['index'], axis=1, inplace=True, errors='ignore')
 tours.to_csv(f'{directory_output}/tours--{year}-{run_name_label}.csv', index=False)
+
 
 # In[11]:
 
@@ -300,6 +306,5 @@ format_payload(payload_plans).to_csv(f'{directory_output}/payloads--{year}-{run_
 
 if ondemand_plans is not None:
     format_payload(ondemand_plans).to_csv(f'{directory_output}/ondemand--{year}-{run_name_label}.csv', index=False)
-
 
 print("END")
