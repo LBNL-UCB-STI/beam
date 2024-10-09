@@ -257,7 +257,6 @@ trait ChoosesMode {
       val personData = choosesModeData.personData
       val nextAct = nextActivity(personData).get
 
-
       // Note: This in theory should be duplicative of the tourModeChoiceStrategy in persondata, but for some reason
       // it's not always being copied over correctly there (even though tour personal vehicle is). So, this is
       // duplicative, but the long run goal should be to remove trip/tour mode and personal vehicle from persondata
@@ -330,25 +329,10 @@ trait ChoosesMode {
       //TODO: Check logic: What if we're on a new subtour, so we already have a currentTourVehicle from the parent tour
       availablePersonalStreetVehicles ++= availableVehicleFromParentTour
 
-      val (chosenCurrentTourMode, chosenCurrentTourPersonalVehicle) =
-        chooseTourModeAndVehicle(currentTourStrategy, currentTripMode, availablePersonalStreetVehicles, choosesModeData)
-
-      chosenCurrentTourMode match {
-        case Some(CAR_BASED)
-            if !availablePersonalStreetVehicles
-              .exists(_.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car) =>
-          logger.error("We're on a car based tour without any cars -- this is bad!")
-        case Some(BIKE_BASED)
-            if !availablePersonalStreetVehicles
-              .exists(_.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike) =>
-          logger.error("We're on a bike based tour without any bikes -- this is bad!")
-        case _ =>
-      }
-
       val availableModesGivenTourMode = getAvailableModesGivenTourMode(
         availableModes,
         availablePersonalStreetVehicles,
-        chosenCurrentTourMode,
+        currentTourStrategy.tourMode,
         nextAct,
         personData.currentTourPersonalVehicle
       )
@@ -362,9 +346,9 @@ trait ChoosesMode {
       }
 
       val hasRideHail = availableModesGivenTourMode.contains(RIDE_HAIL)
-      val (responsePlaceholders, requestId) = makeRoutingRequests(
+      val (responsePlaceholders, requestId, remainingAvailableVehicles) = makeRoutingRequests(
         currentTripMode,
-        None,
+        currentTourStrategy.tourMode,
         hasRideHail,
         newlyAvailableBeamVehicles,
         choosesModeData,
@@ -375,14 +359,7 @@ trait ChoosesMode {
         personData = personData
           .copy(
             currentTripMode = currentTripMode,
-            currentTourMode = chosenCurrentTourMode,
-            currentTourPersonalVehicle = chosenCurrentTourMode match {
-              // if they're on a walk based tour we let them keep access to whatever personal vehicle they used on the
-              // first leg or in a parent tour
-              case Some(WALK_BASED) => choosesModeData.personData.currentTourPersonalVehicle
-              // Otherwise they keep track of the chosen vehicle
-              case _ => chosenCurrentTourPersonalVehicle
-            }
+            currentTourMode = currentTourStrategy.tourMode
           ),
         routingResponse = responsePlaceholders.routingResponse,
         rideHailResult = responsePlaceholders.rideHailResult,
@@ -391,7 +368,7 @@ trait ChoosesMode {
         rideHail2TransitAccessResult = responsePlaceholders.rideHail2TransitAccessResult,
         rideHail2TransitEgressResult = responsePlaceholders.rideHail2TransitEgressResult,
         availablePersonalStreetVehicles = availablePersonalStreetVehicles,
-        allAvailableStreetVehicles = newlyAvailableBeamVehicles,
+        allAvailableStreetVehicles = remainingAvailableVehicles,
         cavTripLegs = responsePlaceholders.cavTripLegs,
         routingFinished = choosesModeData.routingFinished
           || responsePlaceholders.routingResponse == RoutingResponse.dummyRoutingResponse
@@ -1025,7 +1002,7 @@ trait ChoosesMode {
                 logger.warn(
                   s"We're already on a walk based tour, but we have access to a vehicle ${veh.vehicle.id} we shouldn't have"
                 )
-                BeamTourMode.enabledModes.get(veh.streetVehicle.mode) ++ Some(WALK_BASED.allowedBeamModes)
+                BeamTourMode.enabledModes.get(veh.streetVehicle.mode)
               case Some(tourVehicleId) =>
                 logger.warn(
                   s"We're on a walk tour with the wrong tour vehicle: $tourVehicleId when we have access to ${veh.vehicle.id}"
@@ -1035,7 +1012,9 @@ trait ChoosesMode {
           case _ => None
         }.flatten
         if (requiredEgressModes.size > 1) {
-          logger.warn("How did we end up in the situation with multiple vehicles that must be driven home?")
+          logger.warn(
+            s"Letting person ${this.id} potentially leave the vehicle behind because it wasn't in their strategy"
+          )
         }
         requiredEgressModes
       case Some(tourMode) =>
@@ -1091,6 +1070,7 @@ trait ChoosesMode {
           && allRequiredParkingResponsesReceived(routingResponse, parkingResponses) =>
       val currentPersonLocation = choosesModeData.currentLocation
       val nextAct = nextActivity(choosesModeData.personData).get
+      val currentTourStrategy = _experiencedBeamPlan.getTourStrategy[TourModeChoiceStrategy](nextAct)
       val rideHail2TransitIinerary = createRideHail2TransitItin(
         rideHail2TransitAccessResult,
         rideHail2TransitEgressResult,
@@ -1127,12 +1107,33 @@ trait ChoosesMode {
         case _ =>
       }
 
+      val (chosenCurrentTourMode, chosenCurrentTourPersonalVehicle) =
+        chooseTourModeAndVehicle(
+          currentTourStrategy,
+          choosesModeData.personData.currentTripMode,
+          allAvailableStreetVehicles,
+          choosesModeData,
+          Some(combinedItinerariesForChoice)
+        )
+
+      chosenCurrentTourMode match {
+        case Some(CAR_BASED)
+            if !allAvailableStreetVehicles
+              .exists(_.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car) =>
+          logger.error("We're on a car based tour without any cars -- this is bad!")
+        case Some(BIKE_BASED)
+            if !allAvailableStreetVehicles
+              .exists(_.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike) =>
+          logger.error("We're on a bike based tour without any bikes -- this is bad!")
+        case _ =>
+      }
+
       val availableModesForTrips = getAvailableModesGivenTourMode(
         availableModesForPerson(matsimPlan.getPerson, choosesModeData.excludeModes),
         choosesModeData.availablePersonalStreetVehicles,
-        choosesModeData.personData.currentTourMode,
+        chosenCurrentTourMode,
         nextAct,
-        choosesModeData.personData.currentTourPersonalVehicle
+        chosenCurrentTourPersonalVehicle
       )
 
       val filteredItinerariesForChoice = choosesModeData.personData.currentTripMode match {
@@ -1176,6 +1177,16 @@ trait ChoosesMode {
 
       def gotoFinishingModeChoice(chosenTrip: EmbodiedBeamTrip) = {
         goto(FinishingModeChoice) using choosesModeData.copy(
+          personData = personData.copy(
+            currentTourMode = chosenCurrentTourMode,
+            currentTourPersonalVehicle = chosenCurrentTourMode match {
+              // if they're on a walk based tour we let them keep access to whatever personal vehicle they used on the
+              // first leg or in a parent tour
+              case Some(WALK_BASED) => choosesModeData.personData.currentTourPersonalVehicle
+              // Otherwise they keep track of the chosen vehicle
+              case _ => chosenCurrentTourPersonalVehicle
+            }
+          ),
           pendingChosenTrip = Some(chosenTrip),
           availableAlternatives = availableAlts
         )
@@ -1787,13 +1798,14 @@ trait ChoosesMode {
     availableVehicles: Vector[VehicleOrToken],
     choosesModeData: ChoosesModeData,
     triggerId: Long
-  ): (ChoosesModeResponsePlaceholders, Option[Int]) = {
+  ): (ChoosesModeResponsePlaceholders, Option[Int], Vector[VehicleOrToken]) = {
 
     val currentPersonLocation = choosesModeData.currentLocation
     val availableModes: Seq[BeamMode] = availableModesForPerson(matsimPlan.getPerson, choosesModeData.excludeModes)
     val nextAct = nextActivity(choosesModeData.personData).get
     val departTime = _currentTick.get
     val bodyStreetVehicle = createBodyStreetVehicle(currentPersonLocation)
+    var resetVehicles = false
 
     def makeRequestWith(
       withTransit: Boolean,
@@ -2037,7 +2049,7 @@ trait ChoosesMode {
               responsePlaceholders = makeResponsePlaceholders(withRouting = true)
             } else {
               // Reset available vehicles so we don't release our car that we've left during this replanning
-//              availableVehicles = Vector()
+              resetVehicles = true
               makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
               responsePlaceholders = makeResponsePlaceholders(withRouting = true)
             }
@@ -2091,14 +2103,20 @@ trait ChoosesMode {
       case Some(m) =>
         logDebug(m.toString)
     }
-    (responsePlaceholders, requestId)
+    (
+      responsePlaceholders,
+      requestId,
+      if (resetVehicles) { Vector.empty[VehicleOrToken] }
+      else availableVehicles
+    )
   }
 
   private def chooseTourModeAndVehicle(
     currentTourStrategy: TourModeChoiceStrategy,
     currentTripMode: Option[BeamMode],
     availableVehicles: Vector[VehicleOrToken],
-    choosesModeData: ChoosesModeData
+    choosesModeData: ChoosesModeData,
+    firstLegItineraries: Option[Vector[EmbodiedBeamTrip]] = None
   ): (Option[BeamTourMode], Option[Id[BeamVehicle]]) = {
     val availableModes: Seq[BeamMode] = availableModesForPerson(matsimPlan.getPerson, choosesModeData.excludeModes)
     val nextAct = nextActivity(choosesModeData.personData).get
@@ -2122,7 +2140,8 @@ trait ChoosesMode {
               currentTour,
               dummyRHVehicle.vehicleTypeId,
               dummyVehicleType,
-              beamScenario.fuelTypePrices(dummyVehicleType.primaryFuelType)
+              beamScenario.fuelTypePrices(dummyVehicleType.primaryFuelType),
+              firstLegItineraries
             )
             val modeToTourMode =
               BeamTourMode.values
@@ -2164,6 +2183,8 @@ trait ChoosesMode {
               case _ =>
                 None
             }
+
+            // TODO: Make sure we grab personal vehicle from EmbodiedBeamTrips
 
             val tourModeChoiceEvent = new TourModeChoiceEvent(
               departTime.toDouble,

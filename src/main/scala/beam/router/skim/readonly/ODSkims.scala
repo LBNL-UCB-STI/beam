@@ -18,6 +18,7 @@ import beam.router.Modes.BeamMode.{
   TRANSIT,
   WALK_TRANSIT
 }
+import beam.router.model.EmbodiedBeamTrip
 import beam.router.skim.SkimsUtils
 import beam.router.skim.SkimsUtils.{distanceAndTime, getRideHailCost, timeToBin}
 import beam.router.skim.core.AbstractSkimmerReadOnly
@@ -109,11 +110,21 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
     tour: Tour,
     vehicleTypeId: Id[BeamVehicleType],
     vehicleType: BeamVehicleType,
-    fuelPrice: Double
+    fuelPrice: Double,
+    firstLegItineraries: Option[Vector[EmbodiedBeamTrip]] = None
   ): Seq[Map[BeamMode, ODSkimmerTimeCostTransfer]] = {
     tour.originActivity match {
       case Some(_) =>
-        tour.activities
+        val startingPoint = if (firstLegItineraries.isDefined) { 1 }
+        else 0
+        firstLegItineraries
+          .map(itins =>
+            modes
+              .flatMap(mode => itins.find(_.tripClassifier == mode).map(x => mode -> ODSkimmerTimeCostTransfer(x)))
+              .toMap
+          )
+          .toSeq ++ tour.activities
+          .drop(startingPoint)
           .sliding(2)
           .map { case Seq(activity1, activity2) =>
             getSkimInfo(activity1, activity2, modes, vehicleTypeId, vehicleType, fuelPrice)

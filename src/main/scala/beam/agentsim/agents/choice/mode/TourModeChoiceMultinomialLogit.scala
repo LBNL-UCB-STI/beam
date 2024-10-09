@@ -42,7 +42,8 @@ class TourModeChoiceMultinomialLogit(
   ): Map[BeamTourMode, Double] = {
     modeToTourMode map { case (beamTourMode, beamModes) =>
       val modeChoice = beamModes.map { beamMode =>
-        val skims = tripModeCosts.getOrElse(beamMode, ODSkimmerTimeCostTransfer())
+        val skims =
+          tripModeCosts.getOrElse(beamMode, ODSkimmerTimeCostTransfer())
         val timeCost = attributesOfIndividual.getVOT(skims.timeInHours)
         val interceptMap = modeLogit.utilityFunctions(beamMode).flatMap(_.get("intercept")).map(_.toMap)
         val monetaryCost = skims.cost

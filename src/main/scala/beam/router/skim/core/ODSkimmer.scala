@@ -4,6 +4,7 @@ import java.io.BufferedWriter
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
+import beam.router.model.EmbodiedBeamTrip
 import beam.router.skim.event.ODSkimmerEvent
 import beam.router.skim.{readonly, GeoUnit, Skims}
 import beam.router.skim.readonly.ODSkims
@@ -413,14 +414,28 @@ object ODSkimmer extends LazyLogging {
         this.timeInHours + other.timeInHours,
         this.cost + other.cost,
         this.numTransfers + other.numTransfers,
-        if (this.timeInHours <= 0) { other.crowdingLevel }
-        else if (other.timeInHours <= 0) { this.crowdingLevel }
-        else {
+        if (this.timeInHours <= 0) {
+          other.crowdingLevel
+        } else if (other.timeInHours <= 0) {
+          this.crowdingLevel
+        } else {
           (this.crowdingLevel / this.timeInHours + other.crowdingLevel / other.timeInHours) *
           (this.timeInHours + other.timeInHours)
         }
       )
     }
+  }
+
+  object ODSkimmerTimeCostTransfer {
+
+    def apply(embodiedBeamTrip: EmbodiedBeamTrip): ODSkimmerTimeCostTransfer =
+      new ODSkimmerTimeCostTransfer(
+        embodiedBeamTrip.totalTravelTimeInSecs.toDouble / 3600.0,
+        embodiedBeamTrip.costEstimate,
+        if (embodiedBeamTrip.tripClassifier.isTransit) {
+          embodiedBeamTrip.legs.count(_.beamLeg.mode.isTransit) - 1
+        } else 0
+      )
   }
 
   def fromCsv(
