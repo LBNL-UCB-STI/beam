@@ -101,6 +101,34 @@ object SkimsUtils extends LazyLogging {
     (travelDistance, travelTime)
   }
 
+  def getRideHailManagerCosts(
+    mode: BeamMode,
+    rideHailName: String,
+    beamConfig: BeamConfig
+  ): (Double, Double, Double) = {
+    val managerConfigs = beamConfig.beam.agentsim.agents.rideHail.managers
+    val managerConfig = managerConfigs.find(_.name == rideHailName)
+    (mode, managerConfig) match {
+      case (RIDE_HAIL, None) =>
+        (
+          avg(managerConfigs.map(_.defaultCostPerMile)),
+          avg(managerConfigs.map(_.defaultCostPerMinute)),
+          avg(managerConfigs.map(_.defaultBaseCost))
+        )
+      case (RIDE_HAIL_POOLED, None) =>
+        (
+          avg(managerConfigs.map(_.pooledCostPerMile)),
+          avg(managerConfigs.map(_.pooledCostPerMinute)),
+          avg(managerConfigs.map(_.pooledBaseCost))
+        )
+      case (RIDE_HAIL, Some(managerConfig)) =>
+        (managerConfig.defaultCostPerMile, managerConfig.defaultCostPerMinute, managerConfig.defaultBaseCost)
+      case (RIDE_HAIL_POOLED, Some(managerConfig)) =>
+        (managerConfig.pooledCostPerMile, managerConfig.pooledCostPerMinute, managerConfig.pooledBaseCost)
+      case _ => throw new IllegalArgumentException(s"It's not a RideHail mode: $mode")
+    }
+  }
+
   def getRideHailCost(
     mode: BeamMode,
     distanceInMeters: Double,
@@ -108,33 +136,7 @@ object SkimsUtils extends LazyLogging {
     rideHailName: String,
     beamConfig: BeamConfig
   ): Double = {
-    val managerConfigs = beamConfig.beam.agentsim.agents.rideHail.managers
-
-    def findManagerConfig = managerConfigs
-      .find(_.name == rideHailName)
-      .getOrElse(throw new IllegalArgumentException(s"Not found rideHailManager with name = $rideHailName"))
-
-    val (costPerMile, costPerMinute, baseCost) = mode match {
-      case RIDE_HAIL if rideHailName == "" =>
-        (
-          avg(managerConfigs.map(_.defaultCostPerMile)),
-          avg(managerConfigs.map(_.defaultCostPerMinute)),
-          avg(managerConfigs.map(_.defaultBaseCost))
-        )
-      case RIDE_HAIL_POOLED if rideHailName == "" =>
-        (
-          avg(managerConfigs.map(_.pooledCostPerMile)),
-          avg(managerConfigs.map(_.pooledCostPerMinute)),
-          avg(managerConfigs.map(_.pooledBaseCost))
-        )
-      case RIDE_HAIL =>
-        val managerConfig = findManagerConfig
-        (managerConfig.defaultCostPerMile, managerConfig.defaultCostPerMinute, managerConfig.defaultBaseCost)
-      case RIDE_HAIL_POOLED =>
-        val managerConfig = findManagerConfig
-        (managerConfig.pooledCostPerMile, managerConfig.pooledCostPerMinute, managerConfig.pooledBaseCost)
-      case _ => throw new IllegalArgumentException(s"It's not a RideHail mode: $mode")
-    }
+    val (costPerMile, costPerMinute, baseCost) = getRideHailManagerCosts(mode, rideHailName, beamConfig)
     costPerMile * distanceInMeters / MeasureUnitConversion.METERS_IN_MILE + costPerMinute * timeInSeconds / 60 + baseCost
   }
 

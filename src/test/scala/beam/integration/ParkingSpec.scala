@@ -36,6 +36,7 @@ class ParkingSpec
         |   {type = strategysettings, disableAfterIteration = -1, strategyName = TimeMutator , weight = 0.0},
         |   {type = strategysettings, disableAfterIteration = -1, strategyName = SelectExpBeta , weight = 0.3},
         | ]
+        | beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt = true
         |}
       """.stripMargin
     )
