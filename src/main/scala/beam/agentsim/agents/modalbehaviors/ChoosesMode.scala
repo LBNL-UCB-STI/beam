@@ -1000,12 +1000,15 @@ trait ChoosesMode {
                 BeamTourMode.enabledModes.get(veh.streetVehicle.mode)
               case None =>
                 logger.warn(
-                  s"We're already on a walk based tour, but we have access to a vehicle ${veh.vehicle.id} we shouldn't have"
+                  s"Person person ${this.id} is already on a walk based tour, and we have access to vehicle " +
+                  s" ${veh.vehicle.id}, and we're" +
+                  " on the way home, but it is not our tour personal vehicle. Going to drive it home."
                 )
                 BeamTourMode.enabledModes.get(veh.streetVehicle.mode)
               case Some(tourVehicleId) =>
                 logger.warn(
-                  s"We're on a walk tour with the wrong tour vehicle: $tourVehicleId when we have access to ${veh.vehicle.id}"
+                  s"Person person ${this.id} is on a walk tour with the wrong tour vehicle: $tourVehicleId when " +
+                  "we have access to ${veh.vehicle.id}"
                 )
                 None
             }
@@ -1660,8 +1663,8 @@ trait ChoosesMode {
                 )
               } else {
                 logError(
-                  s"Current tour vehicle is the same as the one being removed: " +
-                  s"${vehicle.id} - $data"
+                  s"We are going to need to give up vehicle " +
+                  s"${vehicle.id} because there isn't a route for it for our next leg - $data"
                 )
                 isCurrentPersonalVehicleVoided = true
                 vehicle.setMustBeDrivenHome(false)
@@ -1712,7 +1715,7 @@ trait ChoosesMode {
             case Some(tm) =>
               (
                 Some(tm),
-                data.personData.currentTourPersonalVehicle.map(x => beamVehicles(x).vehicle)
+                data.personData.currentTourPersonalVehicle.flatMap(x => beamVehicles.get(x).map(_.vehicle))
               ) // This fails after "Current tour vehicle is the same one as being removed
             case _ => getTourModeAndVehicle(chosenTrip.tripClassifier, vehiclesUsed)
           }
