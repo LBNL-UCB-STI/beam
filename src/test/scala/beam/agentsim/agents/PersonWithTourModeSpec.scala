@@ -1278,6 +1278,41 @@ class PersonWithTourModeSpec
       )
 
       expectMsgType[ActivityStartEvent]
+      val routingRequest2 = expectMsgType[RoutingRequest]
+
+      lastSender ! RoutingResponse(
+        itineraries = Vector(
+          EmbodiedBeamTrip(
+            legs = Vector(
+              EmbodiedBeamLeg.dummyLegAt(
+                routingRequest2.departureTime,
+                routingRequest2.streetVehicles.find(_.mode == WALK).get.id,
+                false,
+                services.geo.utm2Wgs(routingRequest2.originUTM),
+                WALK,
+                personVehicle.vehicleTypeId
+              ),
+              createEmbodiedBeamLeg(routingRequest2, beamVehicle.toStreetVehicle, linkIds, 50d),
+              EmbodiedBeamLeg.dummyLegAt(
+                routingRequest2.departureTime + 250,
+                routingRequest2.streetVehicles.find(_.mode == WALK).get.id,
+                true,
+                services.geo.utm2Wgs(routingRequest2.destinationUTM),
+                WALK,
+                personVehicle.vehicleTypeId
+              )
+            )
+          ),
+          EmbodiedBeamTrip(legs = Vector(createEmbodiedBeamLeg(routingRequest2, personVehicle, linkIds, 150d)))
+
+        ),
+        requestId = routingRequest2.requestId,
+        request = Some(routingRequest2),
+        isEmbodyWithCurrentTravelTime = false,
+        triggerId = routingRequest2.triggerId
+      )
+
+
       val tmc = expectMsgType[TourModeChoiceEvent]
       val modeUtilities = tmc.tourModeToUtilityString
         .replace(" ", "")

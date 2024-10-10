@@ -350,7 +350,7 @@ trait ChoosesMode {
         currentTripMode,
         currentTourStrategy.tourMode,
         hasRideHail,
-        newlyAvailableBeamVehicles,
+        availablePersonalStreetVehicles,
         choosesModeData,
         triggerId
       )
@@ -1218,7 +1218,11 @@ trait ChoosesMode {
             case _ =>
           }
           val dataForNextStep =
-            choosesModeData.copy(pendingChosenTrip = Some(chosenTrip), availableAlternatives = availableAlts)
+            choosesModeData.copy(
+              personData = personData.copy(currentTourMode = chosenCurrentTourMode),
+              pendingChosenTrip = Some(chosenTrip),
+              availableAlternatives = availableAlts
+            )
           goto(FinishingModeChoice) using dataForNextStep
         case None =>
           choosesModeData.personData.currentTripMode match {
