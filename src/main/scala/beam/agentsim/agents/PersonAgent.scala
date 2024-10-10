@@ -13,11 +13,7 @@ import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.parking.ChoosesParking
-import beam.agentsim.agents.parking.ChoosesParking.{
-//  handleReleasingParkingSpot,
-  ChoosingParkingSpot,
-  ReleasingParkingSpot
-}
+import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.BeamPlan.atHome
 import beam.agentsim.agents.planning.Strategy.{TourModeChoiceStrategy, TripModeChoiceStrategy}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
@@ -196,9 +192,9 @@ object PersonAgent {
     currentTrip: Option[EmbodiedBeamTrip] = None,
     restOfCurrentTrip: List[EmbodiedBeamLeg] = List.empty,
     currentVehicle: VehicleStack = Vector.empty,
-    currentTripMode: Option[BeamMode] = None, // We might not need this here any more if it's kept in the plan
-    currentTourMode: Option[BeamTourMode] = None, // ""
-    currentTourPersonalVehicle: Option[Id[BeamVehicle]] = None, // ""
+    currentTripMode: Option[BeamMode] = None,
+    currentTourMode: Option[BeamTourMode] = None,
+    currentTourPersonalVehicle: Option[Id[BeamVehicle]] = None,
     passengerSchedule: PassengerSchedule = PassengerSchedule(),
     currentLegPassengerScheduleIndex: Int = 0,
     hasDeparted: Boolean = false,
@@ -521,10 +517,6 @@ class PersonAgent(
     tripIndexOfElement == 0
   }
 
-  def getParentTour(nextAct: Activity): Option[Tour] = {
-    _experiencedBeamPlan.getTourContaining(nextAct).originActivity.map(_experiencedBeamPlan.getTourContaining(_))
-  }
-
   def isLastTripWithinTour(nextAct: Activity): Boolean = {
     val (tripIndexOfElement: Int, lastTripIndex: Int) = currentTripIndexWithinTour(nextAct)
     tripIndexOfElement == lastTripIndex
@@ -675,7 +667,7 @@ class PersonAgent(
             // If we have the currentTourPersonalVehicle then we should use it
             // use the mode of the next leg as the new trip mode.
             currentTripMode = modeOfNextLeg,
-            currentTourMode = currentTourModeChoiceStrategy.tourMode, // NOTE: Not sure why this is needed...
+            currentTourMode = currentTourModeChoiceStrategy.tourMode,
             numberOfReplanningAttempts = 0,
             failedTrips = IndexedSeq.empty,
             enrouteData = EnrouteData()
@@ -1088,7 +1080,7 @@ class PersonAgent(
       potentiallyChargingBeamVehicles.remove(vehicle.id)
       goto(ProcessingNextLegOrStartActivity)
     case Event(NotAvailable(_), basePersonData: BasePersonData) =>
-      log.warning("{} replanning because vehicle not available when trying to board")
+      log.warning(f"${this.id} replanning because vehicle not available when trying to board")
       val replanningReason = getReplanningReasonFrom(basePersonData, ReservationErrorCode.ResourceUnavailable.entryName)
       val currentCoord =
         beamServices.geo.wgs2Utm(basePersonData.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc
