@@ -211,14 +211,6 @@ object PersonAgent {
   ) extends PersonData
       with ExponentialLazyLogging {
 
-    if (currentTripMode.exists(_.isTeleportation) & currentTourPersonalVehicle.isDefined) {
-      logger.warn(
-        s"Agent on tour with mode ${currentTourMode.getOrElse("N/A")} " +
-        s"is on a teleportation trip but " +
-        s"has a tour vehicle defined from a previous trip -- this is bad"
-      )
-    }
-
     def hasNextLeg: Boolean = restOfCurrentTrip.nonEmpty
     def nextLeg: EmbodiedBeamLeg = restOfCurrentTrip.head
 
@@ -735,7 +727,8 @@ class PersonAgent(
       goto(ProcessingNextLegOrStartActivity) using data.copy(
         hasDeparted = true,
         currentVehicle = Vector.empty[Id[BeamVehicle]],
-        currentTourPersonalVehicle = None
+        currentTourPersonalVehicle =
+          data.currentTourPersonalVehicle // changed to allow you to keep your initial DRIVE_TRANSIT vehicle
       )
 
   }

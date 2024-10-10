@@ -502,13 +502,50 @@ trait ChoosesMode {
         val parkingRequestIds: Seq[(Int, VehicleOnTrip)] = makeParkingInquiries(choosesModeData, response.itineraries)
         choosesModeData.parkingRequestIds ++ parkingRequestIds
       }
+      val currentMode = choosesModeData.personData.currentTripMode
+      val updatedResponse =
+        if (
+          currentMode.exists(_.isTeleportation) & !response.itineraries
+            .exists(_.tripClassifier.isTeleportation)
+        ) {
+          logger.warn(
+            s"Agent ${this.id} is on a " +
+            s"${response.request.map(r => geo.distUTMInMeters(r.originUTM, r.destinationUTM) / 1609.3).getOrElse(-1.0)}" +
+            " mile teleportation trip without a route. Creating a default one."
+          )
+          Some(
+            response.copy(itineraries =
+              response.itineraries :+ RoutingWorker.createBushwackingTrip(
+                response.request.get.originUTM,
+                response.request.get.destinationUTM,
+                response.request.get.departureTime,
+                response.request.get.streetVehicles.find(v => BeamVehicle.isSharedTeleportationVehicle(v.id)) match {
+                  case Some(veh) => veh
+                  case _ =>
+                    logger.warn(
+                      s"Agent ${this.id} is on a teleportation trip without a vehicle. Creating a new one." +
+                      s" Problematic response: $response"
+                    )
+                    createSharedTeleportationVehicle(choosesModeData.currentLocation).toStreetVehicle
+                      .copy(mode = currentMode match {
+                        case Some(HOV2_TELEPORTATION) => CAR_HOV2
+                        case Some(HOV3_TELEPORTATION) => CAR_HOV3
+                        case _                        => CAR
+                      })
+                },
+                geo,
+                choosesModeData.personData.currentTripMode.get
+              )
+            )
+          )
+        } else None
 
       val dummyVehiclesPresented = makeVehicleRequestsForDummySharedVehicles(response.itineraries)
       val newData = if (dummyVehiclesPresented) {
         choosesModeData.copy(routingResponse = Some(response), parkingRequestIds = newParkingRequestIds)
       } else {
         choosesModeData.copy(
-          routingResponse = Some(correctRoutingResponse(response)),
+          routingResponse = Some(correctRoutingResponse(updatedResponse.getOrElse(response))),
           parkingRequestIds = newParkingRequestIds,
           routingFinished = true
         )

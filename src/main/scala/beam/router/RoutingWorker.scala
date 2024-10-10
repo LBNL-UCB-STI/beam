@@ -453,6 +453,7 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
 
 object RoutingWorker {
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 1.38
+  val DEFAULT_CAR_SPEED_IN_METERS_PER_SECOND = 18.0
 
   def fromConfig(config: Config) {
     val (workerParams, networks2) = R5Parameters.fromConfig(config)
@@ -501,11 +502,17 @@ object RoutingWorker {
     atTime: Int,
     startUTM: Location,
     endUTM: Location,
-    geo: GeoUtils
+    geo: GeoUtils,
+    mode: BeamMode = WALK
   ): BeamLeg = {
+    val spd = mode match {
+      case WALK => BUSHWHACKING_SPEED_IN_METERS_PER_SECOND
+      case CAR => DEFAULT_CAR_SPEED_IN_METERS_PER_SECOND
+      case _ => BUSHWHACKING_SPEED_IN_METERS_PER_SECOND
+    }
     val distanceInMeters =
       GeoUtils.minkowskiDistFormula(startUTM, endUTM) //changed from geo.distUTMInMeters(startUTM, endUTM)
-    val bushwhackingTime = Math.round(distanceInMeters / BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
+    val bushwhackingTime = Math.round(distanceInMeters / spd)
     val path = BeamPath(
       Array[Int](),
       Array[Double](),
@@ -514,22 +521,23 @@ object RoutingWorker {
       SpaceTime(geo.utm2Wgs(endUTM), atTime + bushwhackingTime.toInt),
       distanceInMeters
     )
-    BeamLeg(atTime, WALK, bushwhackingTime.toInt, path)
+    BeamLeg(atTime, mode, bushwhackingTime.toInt, path)
   }
 
   def createBushwackingTrip(
     originUTM: Location,
     destUTM: Location,
     atTime: Int,
-    body: StreetVehicle,
-    geo: GeoUtils
+    vehicle: StreetVehicle,
+    geo: GeoUtils,
+    mode: BeamMode = WALK
   ): EmbodiedBeamTrip = {
     EmbodiedBeamTrip(
       Vector(
         EmbodiedBeamLeg(
-          createBushwackingBeamLeg(atTime, originUTM, destUTM, geo),
-          body.id,
-          body.vehicleTypeId,
+          createBushwackingBeamLeg(atTime, originUTM, destUTM, geo, mode),
+          vehicle.id,
+          vehicle.vehicleTypeId,
           asDriver = true,
           0,
           unbecomeDriverOnCompletion = true
