@@ -1,6 +1,7 @@
 package beam.utils.matsim_conversion
 
 import org.matsim.api.core.v01.Id
+import org.matsim.utils.objectattributes.attributable.Attributes
 
 import java.io.{FileOutputStream, OutputStreamWriter}
 import java.nio.charset.StandardCharsets
@@ -214,6 +215,10 @@ object MatsimPlanConversion {
   implicit class IdOps(val id: String) extends AnyVal {
     import scala.reflect.classTag
     def createId[T: ClassTag]: Id[T] = Id.create(id, classTag[T].runtimeClass.asInstanceOf[Class[T]])
+  }
+
+  implicit class AttributesOps(val attributes: Attributes) extends AnyVal {
+    def typedValue[T: ClassTag](attribute: String): T = attributes.getAttribute(attribute).asInstanceOf[T]
   }
 
 }

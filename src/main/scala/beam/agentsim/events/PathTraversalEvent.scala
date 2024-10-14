@@ -1,5 +1,7 @@
 package beam.agentsim.events
 
+import beam.agentsim.agents.freight.PayloadPlan
+
 import java.util
 import java.util.concurrent.atomic.AtomicReference
 
@@ -7,6 +9,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode
 import beam.router.model.BeamLeg
 import beam.utils.FormatUtils
+import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.Person
@@ -42,6 +45,8 @@ case class PathTraversalEvent(
   fromStopIndex: Option[Int],
   toStopIndex: Option[Int],
   currentTourMode: Option[String],
+  payloadIds: IndexedSeq[Id[PayloadPlan]],
+  weight: Double,
   riders: IndexedSeq[Id[Person]] = Vector()
 ) extends Event(time)
     with ScalaEvent {
@@ -88,6 +93,8 @@ case class PathTraversalEvent(
       attr.put(ATTRIBUTE_FROM_STOP_INDEX, fromStopIndex.map(_.toString).getOrElse(""))
       attr.put(ATTRIBUTE_TO_STOP_INDEX, toStopIndex.map(_.toString).getOrElse(""))
       attr.put(ATTRIBUTE_CURRENT_TOUR_MODE, currentTourMode.getOrElse(""))
+      attr.put(ATTRIBUTE_PAYLOAD_IDS, payloadIds.mkString(","))
+      attr.put(ATTRIBUTE_WEIGHT, weight.toString)
       attr.put(ATTRIBUTE_RIDERS, ridersToStr(riders))
       filledAttrs.set(attr)
       attr
@@ -125,6 +132,8 @@ object PathTraversalEvent {
   val ATTRIBUTE_SEATING_CAPACITY: String = "seatingCapacity"
   val ATTRIBUTE_FROM_STOP_INDEX: String = "fromStopIndex"
   val ATTRIBUTE_TO_STOP_INDEX: String = "toStopIndex"
+  val ATTRIBUTE_PAYLOAD_IDS: String = "payloads"
+  val ATTRIBUTE_WEIGHT: String = "weight"
   /*
   val ATTRIBUTE_LINKID_WITH_LANE_MAP: String = "linkIdToLaneMap"
   val ATTRIBUTE_LINKID_WITH_SPEED_MAP: String = "linkIdToSpeedMap"
@@ -150,6 +159,8 @@ object PathTraversalEvent {
     endLegPrimaryFuelLevel: Double,
     endLegSecondaryFuelLevel: Double,
     amountPaid: Double,
+    payloadIds: IndexedSeq[Id[PayloadPlan]],
+    weight: Double,
     riders: IndexedSeq[Id[Person]]
   ): PathTraversalEvent = {
     new PathTraversalEvent(
@@ -180,6 +191,8 @@ object PathTraversalEvent {
       fromStopIndex = beamLeg.travelPath.transitStops.map(_.fromIdx),
       toStopIndex = beamLeg.travelPath.transitStops.map(_.toIdx),
       currentTourMode = currentTourMode,
+      payloadIds = payloadIds,
+      weight = weight,
       riders = riders
     )
   }
@@ -216,6 +229,11 @@ object PathTraversalEvent {
     val endLegPrimaryFuelLevel: Double = attr(ATTRIBUTE_END_LEG_PRIMARY_FUEL_LEVEL).toDouble
     val endLegSecondaryFuelLevel: Double = attr(ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL).toDouble
     val amountPaid: Double = attr(ATTRIBUTE_TOLL_PAID).toDouble
+    val payloadIds: IndexedSeq[Id[PayloadPlan]] = attr
+      .getOrElse(ATTRIBUTE_PAYLOAD_IDS, "")
+      .split(',')
+      .map(_.createId[PayloadPlan])
+    val weight: Double = attr.get(ATTRIBUTE_WEIGHT).fold(0.0)(_.toDouble)
     val riders: IndexedSeq[Id[Person]] = ridersFromStr(attr.getOrElse(ATTRIBUTE_RIDERS, ""))
     val fromStopIndex: Option[Int] =
       attr.get(ATTRIBUTE_FROM_STOP_INDEX).flatMap(Option(_)).flatMap(x => if (x == "") None else Some(x.toInt))
@@ -251,6 +269,8 @@ object PathTraversalEvent {
       fromStopIndex,
       toStopIndex,
       currentTourMode,
+      payloadIds,
+      weight,
       riders
     )
   }
