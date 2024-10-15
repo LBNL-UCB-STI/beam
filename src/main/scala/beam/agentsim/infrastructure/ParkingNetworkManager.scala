@@ -7,7 +7,6 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.LeavingParkingEvent
 import beam.agentsim.infrastructure.parking.ParkingNetwork
 import beam.sim.BeamServices
-import beam.sim.config.BeamConfig
 import beam.utils.logging.LoggingMessageActor
 import beam.utils.metrics.SimpleCounter
 import com.typesafe.scalalogging.LazyLogging
@@ -57,7 +56,7 @@ object ParkingNetworkManager extends LazyLogging {
     Props(new ParkingNetworkManager(services, parkingNetworkMap))
   }
 
-  def calculateScore(
+  private def calculateScore(
     cost: Double,
     energyCharge: Double
   ): Double = -cost - energyCharge

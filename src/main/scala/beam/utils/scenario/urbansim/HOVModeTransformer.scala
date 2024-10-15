@@ -1,6 +1,7 @@
 package beam.utils.scenario.urbansim
 
 import beam.router.Modes.BeamMode._
+import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.scenario.PlanElement.{Activity, Leg}
 import beam.utils.scenario._
 import beam.utils.scenario.urbansim.HOVModeTransformer.ForcedCarHOVTransformer.{
@@ -34,7 +35,7 @@ import scala.util.Random
   * If the person doesnt have an available car from the household, only [[HOV2_TELEPORTATION]] or [[HOV3_TELEPORTATION]]
   * will be assigned, not [[CAR_HOV2]]/[[CAR_HOV3]].
   */
-object HOVModeTransformer extends LazyLogging {
+object HOVModeTransformer extends ExponentialLazyLogging {
 
   def reseedRandomGenerator(randomSeed: Int): Unit = rand.setSeed(randomSeed)
 

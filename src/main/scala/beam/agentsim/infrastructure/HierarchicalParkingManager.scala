@@ -7,7 +7,6 @@ import beam.agentsim.infrastructure.HierarchicalParkingManager._
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZone.UbiqiutousParkingAvailability
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.power.SitePowerManager
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
 import beam.sim.common.GeoUtils
@@ -136,7 +135,7 @@ class HierarchicalParkingManager(
     ParkingInquiryResponse(parkingStall, inquiry.requestId, inquiry.triggerId)
   }
 
-  def findStartingPoint(taz: TAZ, destination: Coord): Coord = {
+  private def findStartingPoint(taz: TAZ, destination: Coord): Coord = {
     if (GeoUtils.isPointWithinCircle(taz.coord, taz.areaInSquareMeters / Math.PI, destination))
       destination
     else GeoUtils.segmentCircleIntersection(taz.coord, Math.sqrt(taz.areaInSquareMeters / Math.PI), destination)

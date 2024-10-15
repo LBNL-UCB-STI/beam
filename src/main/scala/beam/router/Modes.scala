@@ -1,6 +1,6 @@
 package beam.router
 
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, VehicleOrToken}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
 import beam.agentsim.agents.vehicles.VehicleCategory._
 import beam.utils.logging.ExponentialLazyLogging
@@ -126,13 +126,13 @@ object Modes {
           TransportMode.pt
         )
 
-    val chainBasedModes = Seq(CAR, BIKE)
+    val chainBasedModes: Seq[BeamMode] = Seq(CAR, BIKE)
 
-    val personalVehicleModes = Seq(CAR, CAR_HOV2, CAR_HOV3, BIKE, DRIVE_TRANSIT, BIKE_TRANSIT)
+    val personalVehicleModes: Seq[BeamMode] = Seq(CAR, CAR_HOV2, CAR_HOV3, BIKE, DRIVE_TRANSIT, BIKE_TRANSIT)
 
-    val nonPersonalVehicleModes = Seq(WALK, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, WALK_TRANSIT)
+    val nonPersonalVehicleModes: Seq[BeamMode] = Seq(WALK, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, WALK_TRANSIT)
 
-    val transitModes =
+    val transitModes: Seq[BeamMode] =
       Seq(BUS, FUNICULAR, GONDOLA, CABLE_CAR, FERRY, TRAM, TRANSIT, RAIL, SUBWAY)
 
     val massTransitModes: List[BeamMode] = List(FERRY, TRANSIT, RAIL, SUBWAY, TRAM)
@@ -174,7 +174,7 @@ object Modes {
   implicit def beamMode2R5Mode(beamMode: BeamMode): Either[LegMode, TransitModes] =
     beamMode.r5Mode.get
 
-  def isR5TransitMode(beamMode: BeamMode): Boolean = {
+  private def isR5TransitMode(beamMode: BeamMode): Boolean = {
     beamMode.r5Mode match {
       case Some(Right(_)) =>
         true

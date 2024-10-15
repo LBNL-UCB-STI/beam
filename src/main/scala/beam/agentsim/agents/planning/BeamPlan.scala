@@ -5,7 +5,7 @@ import beam.agentsim.agents.planning.BeamPlan.atHome
 import java.{lang, util}
 import beam.agentsim.agents.planning.Strategy.{Strategy, TourModeChoiceStrategy, TripModeChoiceStrategy}
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.router.Modes.{isPersonalVehicleMode, BeamMode}
+import beam.router.Modes.BeamMode
 import beam.router.TourModes.BeamTourMode
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population._
@@ -43,9 +43,9 @@ object BeamPlan {
       case mutable.Buffer(_: Activity, a2: Activity) =>
         beamPlan.addLeg(PopulationUtils.createLeg(""))
         beamPlan.addActivity(a2)
-      case mutable.Buffer(a1: Activity, l1: Leg) =>
+      case mutable.Buffer(_: Activity, l1: Leg) =>
         beamPlan.addLeg(l1)
-      case mutable.Buffer(l1: Leg, a1: Activity) =>
+      case mutable.Buffer(_: Leg, a1: Activity) =>
         beamPlan.addActivity(a1)
       case _ =>
     }
@@ -224,7 +224,7 @@ class BeamPlan extends Plan {
     }
   }
 
-  def indexTrip(trip: Trip): Unit = {
+  private def indexTrip(trip: Trip): Unit = {
     actsLegToTrip.put(trip.activity, trip)
     trip.leg match {
       case Some(leg) =>
