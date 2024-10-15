@@ -202,7 +202,6 @@ class PersonAgentSpec
 
       scheduler ! StartSchedule(0)
 
-
       // The agent will ask for a ride, and we will answer.
       val inquiry = expectMsgType[RideHailRequest]
       lastSender ! RideHailResponse(inquiry, None, "rhm", None)

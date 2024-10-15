@@ -507,8 +507,8 @@ object RoutingWorker {
   ): BeamLeg = {
     val spd = mode match {
       case WALK => BUSHWHACKING_SPEED_IN_METERS_PER_SECOND
-      case CAR => DEFAULT_CAR_SPEED_IN_METERS_PER_SECOND
-      case _ => BUSHWHACKING_SPEED_IN_METERS_PER_SECOND
+      case CAR  => DEFAULT_CAR_SPEED_IN_METERS_PER_SECOND
+      case _    => BUSHWHACKING_SPEED_IN_METERS_PER_SECOND
     }
     val distanceInMeters =
       GeoUtils.minkowskiDistFormula(startUTM, endUTM) //changed from geo.distUTMInMeters(startUTM, endUTM)

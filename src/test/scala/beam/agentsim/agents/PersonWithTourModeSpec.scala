@@ -361,7 +361,6 @@ class PersonWithTourModeSpec
 
       scheduler ! StartSchedule(0)
 
-
       val embodyRequest = expectMsgType[EmbodyWithCurrentTravelTime]
       assert(services.geo.wgs2Utm(embodyRequest.leg.travelPath.startPoint.loc).getX === homeLocation.getX +- 1)
       assert(services.geo.wgs2Utm(embodyRequest.leg.travelPath.endPoint.loc).getY === workLocation.getY +- 1)
@@ -873,7 +872,6 @@ class PersonWithTourModeSpec
 
       scheduler ! StartSchedule(0)
 
-
       val routingRequest = expectMsgType[RoutingRequest]
       val personVehicle = routingRequest.streetVehicles.find(_.mode == WALK).get
       val linkIds = Array[Int](228, 206, 180, 178, 184, 102)
@@ -1024,7 +1022,6 @@ class PersonWithTourModeSpec
         vehicle.useParkingStall(stall)
         MobilityStatusResponse(Vector(ActualVehicle(vehicle)), triggerId)
       } pipeTo mockSharedVehicleFleet.lastSender
-
 
       val routingRequest = expectMsgType[RoutingRequest]
       val personVehicle = routingRequest.streetVehicles.find(_.mode == WALK).get
@@ -1304,14 +1301,12 @@ class PersonWithTourModeSpec
             )
           ),
           EmbodiedBeamTrip(legs = Vector(createEmbodiedBeamLeg(routingRequest2, personVehicle, linkIds, 150d)))
-
         ),
         requestId = routingRequest2.requestId,
         request = Some(routingRequest2),
         isEmbodyWithCurrentTravelTime = false,
         triggerId = routingRequest2.triggerId
       )
-
 
       val tmc = expectMsgType[TourModeChoiceEvent]
       val modeUtilities = tmc.tourModeToUtilityString

@@ -395,8 +395,6 @@ class PersonWithPersonalVehiclePlanSpec
 
       scheduler ! StartSchedule(0)
 
-
-
       // The agent will ask for current travel times for a route it already knows.
       val embodyRequest = expectMsgType[EmbodyWithCurrentTravelTime]
       assert(services.geo.wgs2Utm(embodyRequest.leg.travelPath.startPoint.loc).getX === homeLocation.getX +- 1)
@@ -780,7 +778,6 @@ class PersonWithPersonalVehiclePlanSpec
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
       scheduler ! StartSchedule(0)
-
 
       val routingRequest = expectMsgType[RoutingRequest]
       lastSender ! RoutingResponse(
