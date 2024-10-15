@@ -72,17 +72,18 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
 
 
 frism_version = 1.5
-city = "sfbay"
-scenario_name = "2024-09-23"
+city = "seattle"
+scenario_name = "2024-04-20"
 year, run_name = "2018", "Baseline"
 # year, run_name = "2050", "Ref_highp6"
 run_name_label = run_name.replace("_", "")
 
-directory_input = os.path.expanduser(f'/Volumes/HG40/Workspace/Simulation/{city}/frism/{scenario_name}/{run_name}')
-directory_output = os.path.expanduser(
-    f'/Volumes/HG40/Workspace/Simulation/{city}/beam-freight/{scenario_name}/{year}_{run_name_label}')
+# work_dir = os.path.expanduser(f'/Volumes/HG40/Workspace')
+work_dir = os.path.expanduser(f'~/Workspace')
+directory_input = f'{work_dir}/Simulation/{city}/frism/{scenario_name}/{run_name}'
+directory_output = f'{work_dir}/Simulation/{city}/beam-freight/{scenario_name}/{year}_{run_name_label}'
 Path(directory_output).mkdir(parents=True, exist_ok=True)
-directory_vehicle_tech = f'{directory_output}/../vehicle-tech'
+directory_vehicle_tech = f'{directory_output}/vehicle-tech'
 Path(directory_vehicle_tech).mkdir(parents=True, exist_ok=True)
 carriers = None
 payload_plans = None
@@ -288,15 +289,15 @@ def format_payload(_payload):
         # Now make weightInKg positive
         _payload['weightInKg'] = np.abs(_payload['weightInKg'])
 
+        _payload['fleetType'] = _payload['truck_mode'].map({
+            'Private Truck': 'private',
+            'For-hire Truck': 'for-hire'
+        }, na_action='ignore')  # This keeps NA values as they are
     else:
         # For frism version 1.0, just ensure weightInKg is positive
         _payload['requestType'] = _payload['requestType'].map({1: 'unloading', 0: 'loading'})
         _payload['weightInKg'] = np.abs(_payload['weightInKg'])
 
-    _payload['fleetType'] = _payload['truck_mode'].map({
-        'Private Truck': 'private',
-        'For-hire Truck': 'for-hire'
-    }, na_action='ignore')  # This keeps NA values as they are
     _payload.drop(payload_plans_drop, axis=1, inplace=True, errors='ignore')
     return _payload
 

@@ -10,14 +10,10 @@ city = "sfbay"
 work_dir = os.path.expanduser(f"/Volumes/HG40/Workspace/Simulation/{city}")
 events_filename = f"0.events.csv.gz"
 linkstats_filename = f"0.linkstats.csv.gz"
-
-batch, scenarios = "baseline", ["2018"]
-
-
+# pd.set_option('display.max_columns',10)
+# batch, scenarios = "baseline", ["2018"]
 # batch, scenarios = "2024-08-07", ["2018_Baseline"]
-
-
-# batch, scenarios = "2024-09-23", ["2018_Baseline"]
+batch, scenarios = "2024-09-23", ["2018_Baseline"]
 
 
 def main():
@@ -34,7 +30,10 @@ def main():
         processed_event = process_events(scenario, vehicle_types_combined)
         calc_vmt_from_events(processed_event, scenario)
 
-        convert_payload_to_trips(payload_df, scenario)
+        trips_df = convert_payload_to_trips(payload_df, scenario)
+        summary = trips_by_vehicle_class(trips_df, carrier_df, vehicle_types)
+        pd.set_option('display.max_columns', 10)
+        print(summary)
 
         linkstats_file = os.path.join(get_local_work_directory(scenario), linkstats_filename)
         if os.path.exists(linkstats_file):
@@ -314,6 +313,57 @@ def convert_payload_to_trips(payload_df, scenario):
     # log_and_print(f"Trips file saved to {output_file_path}")
 
     return trips_df
+
+
+def trips_by_vehicle_class(trips_df, carriers_df, vehicle_types_df):
+    # Merge trips with carriers
+    merged_df = pd.merge(trips_df, carriers_df, on=['tourId'], how='inner')
+
+    # Merge with vehicle types
+    result_df = pd.merge(
+        merged_df,
+        vehicle_types_df[['vehicleTypeId', 'vehicleCategory']],
+        on='vehicleTypeId',
+        how='left'
+    )
+
+    # Group by vehicleCategory and count trips
+    trips_count = result_df.groupby('vehicleCategory').size().reset_index(name='trip_count')
+
+    # Calculate total distance by vehicleCategory (in million miles)
+    distance_sum = result_df.groupby('vehicleCategory')['distance_miles'].sum().reset_index(
+        name='total_distance_million_miles')
+    distance_sum['total_distance_million_miles'] /= 1_000_000  # Convert to million miles
+
+    # Merge trip count and total distance
+    summary = pd.merge(trips_count, distance_sum, on='vehicleCategory', how='outer')
+
+    # Calculate average trip distance (in miles)
+    summary['avg_trip_distance_miles'] = (summary['total_distance_million_miles'] * 1_000_000) / summary['trip_count']
+
+    # Sort by trip count in descending order
+    summary = summary.sort_values('trip_count', ascending=False)
+
+    # Calculate percentages
+    total_trips = summary['trip_count'].sum()
+    total_distance = summary['total_distance_million_miles'].sum()
+    summary['trip_percentage'] = (summary['trip_count'] / total_trips) * 100
+    summary['distance_percentage'] = (summary['total_distance_million_miles'] / total_distance) * 100
+
+    # Round numeric columns
+    summary = summary.round({
+        'total_distance_million_miles': 3,
+        'avg_trip_distance_miles': 2,
+        'trip_percentage': 2,
+        'distance_percentage': 2
+    })
+
+    # Reorder columns
+    summary = summary[
+        ['vehicleCategory', 'trip_count', 'trip_percentage', 'total_distance_million_miles', 'distance_percentage',
+         'avg_trip_distance_miles']]
+
+    return summary
 
 
 def get_local_work_directory(scenario):
