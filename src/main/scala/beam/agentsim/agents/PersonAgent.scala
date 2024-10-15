@@ -35,17 +35,7 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentSchedulerTimer, Trigger}
 import beam.router.Modes.BeamMode
 import beam.router.TourModes.BeamTourMode
-import beam.router.Modes.BeamMode.{
-  CAR,
-  CAV,
-  HOV2_TELEPORTATION,
-  HOV3_TELEPORTATION,
-  RIDE_HAIL,
-  RIDE_HAIL_POOLED,
-  RIDE_HAIL_TRANSIT,
-  WALK,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode._
 import beam.router.RouteHistory
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
@@ -375,8 +365,8 @@ class PersonAgent(
 
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
 
-  var totFuelConsumed: FuelConsumed = FuelConsumed(0.0, 0.0)
-  var curFuelConsumed: FuelConsumed = FuelConsumed(0.0, 0.0)
+  private var totFuelConsumed: FuelConsumed = FuelConsumed(0.0, 0.0)
+  private var curFuelConsumed: FuelConsumed = FuelConsumed(0.0, 0.0)
 
   override def payloadInKgForLeg(leg: BeamLeg, drivingData: DrivingData): Option[Double] = {
     drivingData match {
@@ -389,7 +379,7 @@ class PersonAgent(
     attributes.wheelchairUser
   }
 
-  def updateFuelConsumed(fuelOption: Option[FuelConsumed]): Unit = {
+  private def updateFuelConsumed(fuelOption: Option[FuelConsumed]): Unit = {
     val newFuelConsumed = fuelOption.getOrElse(FuelConsumed(0.0, 0.0))
     curFuelConsumed = FuelConsumed(
       curFuelConsumed.primaryFuel + newFuelConsumed.primaryFuel,
@@ -401,7 +391,7 @@ class PersonAgent(
     )
   }
 
-  def resetFuelConsumed(): Unit = curFuelConsumed = FuelConsumed(0.0, 0.0)
+  private def resetFuelConsumed(): Unit = curFuelConsumed = FuelConsumed(0.0, 0.0)
 
   override def logDepth: Int = beamScenario.beamConfig.beam.debug.actor.logDepth
 
@@ -548,7 +538,7 @@ class PersonAgent(
     }
   }
 
-  def findFirstCarLegOfTrip(data: BasePersonData): Option[EmbodiedBeamLeg] = {
+  private def findFirstCarLegOfTrip(data: BasePersonData): Option[EmbodiedBeamLeg] = {
     @tailrec
     def _find(remaining: IndexedSeq[EmbodiedBeamLeg]): Option[EmbodiedBeamLeg] = {
       if (remaining.isEmpty) None
@@ -591,7 +581,7 @@ class PersonAgent(
     }
   }
 
-  def endActivityAndDepart(
+  private def endActivityAndDepart(
     tick: Double,
     currentTrip: EmbodiedBeamTrip,
     data: BasePersonData
@@ -755,7 +745,7 @@ class PersonAgent(
       .isEmpty || beamScenario.trainStopQuadTree.getDisk(nextCoord.getX, nextCoord.getY, minDistanceToTrainStop).isEmpty
   }
 
-  def handleFailedRideHailReservation(
+  private def handleFailedRideHailReservation(
     error: ReservationError,
     response: RideHailResponse,
     data: BasePersonData
@@ -1278,7 +1268,7 @@ class PersonAgent(
       // portion.
       log.debug(
         "Agent {} missed transit pickup on {} trip, late by {} sec",
-        id.toString,
+        id,
         data.currentTripMode.map(_.value).getOrElse("None"),
         _currentTick.get - data.nextLeg.beamLeg.startTime
       )
@@ -1376,6 +1366,7 @@ class PersonAgent(
           val (tick, triggerId) = releaseTickAndTriggerId()
           val activityEndTime = calculateActivityEndTime(activity, tick)
           activity.setStartTime(tick.toDouble)
+          activity.setEndTime(activityEndTime)
 
           assert(activity.getLinkId != null)
           eventsManager.processEvent(
@@ -1682,7 +1673,7 @@ class PersonAgent(
     }
   }
 
-  def generateLegSkimData(
+  private def generateLegSkimData(
     tick: Int,
     accomplishedLegs: IndexedSeq[EmbodiedBeamLeg],
     currentActivityIndex: Int,
@@ -1756,7 +1747,7 @@ class PersonAgent(
     goto(Waiting)
   }
 
-  def handleBoardOrAlightOutOfPlace: State = {
+  private def handleBoardOrAlightOutOfPlace: State = {
     stash
     stay
   }
