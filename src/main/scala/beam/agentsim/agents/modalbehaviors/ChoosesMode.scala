@@ -1049,13 +1049,6 @@ trait ChoosesMode {
             }
           case _ => None
         }.flatten
-        if (requiredEgressModes.size > 1) {
-          logger.warn(
-            s"Letting person ${this.id} potentially leave vehicles " +
-            s"${availablePersonalStreetVehicles.filter(_.vehicle.isMustBeDrivenHome).map(_.id)}" +
-            " behind because it wasn't in their strategy"
-          )
-        }
         requiredEgressModes
       case Some(tourMode) =>
         tourMode.allowedBeamModesGivenAvailableVehicles(
@@ -1797,10 +1790,9 @@ trait ChoosesMode {
                 TripModeChoiceStrategy(Some(chosenTrip.tripClassifier))
               )
             case Some(strategyMode) if strategyMode == chosenTrip.tripClassifier =>
-            case Some(DRIVE_TRANSIT) if (chosenTrip.tripClassifier == WALK_TRANSIT) && data.isWithinTripReplanning =>
-              logger.debug("Assigning replanning walk_transit trip as part of drive transit trip")
-            case Some(BIKE_TRANSIT) if (chosenTrip.tripClassifier == BIKE_TRANSIT) && data.isWithinTripReplanning =>
-              logger.debug("Assigning replanning walk_transit trip as part of bike transit trip")
+            case Some(strategyMode @ (DRIVE_TRANSIT | BIKE_TRANSIT | RIDE_HAIL_TRANSIT))
+                if (chosenTrip.tripClassifier == WALK_TRANSIT) && data.isWithinTripReplanning =>
+              logger.debug(f"Assigning replanning walk_transit trip as part of planned $strategyMode trip")
             case Some(otherMode) =>
               logger.error(
                 s"Unexpected difference between trip modes in plans: Chose a ${chosenTrip.tripClassifier} " +
