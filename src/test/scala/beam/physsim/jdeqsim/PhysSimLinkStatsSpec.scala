@@ -23,7 +23,7 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import scala.jdk.CollectionConverters._
 
 /**
-  * @author Dmitry Openkov
+  * Test for travel times that is produced during PhysSim.
   */
 class PhysSimLinkStatsSpec extends AnyWordSpecLike with Matchers {
 
