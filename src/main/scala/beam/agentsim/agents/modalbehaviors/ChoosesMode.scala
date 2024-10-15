@@ -1733,7 +1733,8 @@ trait ChoosesMode {
                     .filter(!_.vehicle.isSharedVehicle)
                     .find { veh =>
                       (chosenTrip.tripClassifier, data.personData.currentTourMode) match {
-                        case (_, Some(CAR_BASED)) => veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car
+                        case (_, Some(FREIGHT_TOUR)) => veh.vehicle.isFreightVehicle
+                        case (_, Some(CAR_BASED))    => veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car
                         case (_, Some(BIKE_BASED)) =>
                           veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike
                         case (DRIVE_TRANSIT, _) => veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car
@@ -2036,7 +2037,7 @@ trait ChoosesMode {
                 responsePlaceholders = makeResponsePlaceholders(withRouting = true)
                 logger.error(
                   "No vehicle available for existing route of person {} trip of mode {} even though it was created in their plans",
-                  body.id,
+                  this.id,
                   tripMode
                 )
             }
