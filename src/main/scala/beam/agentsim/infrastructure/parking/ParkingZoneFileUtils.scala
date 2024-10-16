@@ -487,7 +487,8 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       val newCostInDollarsString = (feeInCents * parkingCostScalingFactor / 100.0).toString
       val reservedFor = validateReservedFor(reservedForString, beamConfig, defaultReservedFor)
       // parse this row from the source file
-      val taz = tazString.toUpperCase.createId[TAZ]
+
+//      val taz = tazString.toUpperCase.createId[TAZ]
       val parkingType = ParkingType(parkingTypeString)
       val pricingModel = PricingModel(pricingModelString, newCostInDollarsString)
       val timeRestrictions = parseTimeRestrictions(timeRestrictionsString)
@@ -496,11 +497,15 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       val parkingZoneIdMaybe =
         if (isBlank(parkingZoneIdString)) Some(ParkingZone.createId(rowNumber.toString))
         else Some(ParkingZone.createId(parkingZoneIdString))
-      val linkMaybe = !isBlank(locationXString) && !isBlank(locationYString) match {
-        case true if beamServices.isDefined =>
-          val coord = new Coord(locationXString.toDouble, locationYString.toDouble)
+
+      val coordMaybe: Option[Coord] = (Option(locationXString), Option(locationYString)) match {
+        case (Some(xLoc), Some(yLoc)) => Some(new Coord(xLoc.toDouble, yLoc.toDouble))
+        case _ => None
+      }
+      val linkMaybe = coordMaybe match {
+        case Some(coord) if beamServices.isDefined =>
           Some(NetworkUtils.getNearestLink(beamServices.get.beamScenario.network, beamServices.get.geo.wgs2Utm(coord)))
-        case false if beamServices.isDefined && reservedFor.managerType == VehicleManager.TypeEnum.Household =>
+        case None if beamServices.isDefined && reservedFor.managerType == VehicleManager.TypeEnum.Household =>
           getHouseholdLocation(beamServices.get, reservedFor.managerId) map { homeCoord =>
             NetworkUtils.getNearestLink(
               beamServices.get.beamScenario.network,
@@ -509,6 +514,21 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
           }
         case _ => None
       }
+      val geoMap = beamServices.map(_.beamScenario.tazTreeMap)
+      val taz = (Option(tazString), geoMap) match {
+        case (Some(tazId), _) => tazId.toUpperCase.createId[TAZ]
+        case (None, Some(tazTreeMap)) =>
+          linkMaybe
+            .flatMap(link => tazTreeMap.getTAZfromLink(link.getId).map(_.tazId))
+            .getOrElse(
+              coordMaybe
+                .map(coord => tazTreeMap.getTAZ(coord).tazId)
+                .getOrElse(throw new IllegalArgumentException("Invalid Coord for parking zone"))
+            )
+        case _ =>
+          throw new IllegalArgumentException("If parking zone defined by link or coord, we must include a tazTreeMap")
+      }
+
       val sitePowerManagerMaybe = if (isBlank(sitePowerManagerString)) None else Some(sitePowerManagerString)
       val energyStorageCapacityMaybe =
         if (isBlank(energyStorageCapacityString)) None else Some(energyStorageCapacityString.toDouble)
