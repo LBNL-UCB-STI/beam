@@ -229,10 +229,7 @@ object PathTraversalEvent {
     val endLegPrimaryFuelLevel: Double = attr(ATTRIBUTE_END_LEG_PRIMARY_FUEL_LEVEL).toDouble
     val endLegSecondaryFuelLevel: Double = attr(ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL).toDouble
     val amountPaid: Double = attr(ATTRIBUTE_TOLL_PAID).toDouble
-    val payloadIds: IndexedSeq[Id[PayloadPlan]] = attr
-      .getOrElse(ATTRIBUTE_PAYLOAD_IDS, "")
-      .split(',')
-      .map(_.createId[PayloadPlan])
+    val payloadIds: IndexedSeq[Id[PayloadPlan]] = payloadsFromStr(attr.getOrElse(ATTRIBUTE_PAYLOAD_IDS, ""))
     val weight: Double = attr.get(ATTRIBUTE_WEIGHT).fold(0.0)(_.toDouble)
     val riders: IndexedSeq[Id[Person]] = ridersFromStr(attr.getOrElse(ATTRIBUTE_RIDERS, ""))
     val fromStopIndex: Option[Int] =
@@ -281,6 +278,11 @@ object PathTraversalEvent {
     } else {
       ridersStr.split(":").toIndexedSeq.map(Id.create(_, classOf[Person]))
     }
+  }
+
+  def payloadsFromStr(str: String): IndexedSeq[Id[PayloadPlan]] = {
+    if (str.isEmpty) IndexedSeq.empty
+    else str.split(',').map(_.createId[PayloadPlan])
   }
 
   def ridersToStr(riders: IndexedSeq[Id[Person]]): String = {

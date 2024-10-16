@@ -45,11 +45,11 @@ trait FreightReader {
   def calculatePayloadWeights(plans: IndexedSeq[PayloadPlan]): IndexedSeq[(Set[Id[PayloadPlan]], Double)] = {
     plans.foldLeft(IndexedSeq((Set.empty[Id[PayloadPlan]], 0.0))) {
       case (acc, PayloadPlan(payloadId, _, _, _, weight, Unloading, _, _, _, _, _, _, _)) =>
-        val (payloads, paloadWeight) = acc.last
-        acc :+ (payloads - payloadId, paloadWeight - weight)
+        val (payloads, payloadWeight) = acc.last
+        acc :+ (payloads - payloadId, payloadWeight - weight)
       case (acc, PayloadPlan(payloadId, _, _, _, weight, Loading, _, _, _, _, _, _, _)) =>
-        val (payloads, paloadWeight) = acc.last
-        acc :+ (payloads + payloadId, paloadWeight + weight)
+        val (payloads, payloadWeight) = acc.last
+        acc :+ (payloads + payloadId, payloadWeight + weight)
     }
   }
 
