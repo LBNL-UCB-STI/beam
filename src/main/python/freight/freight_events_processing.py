@@ -3,48 +3,50 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-import math
+from geopy import distance
 
 ## Main
-city = "sfbay"
-work_dir = os.path.expanduser(f"/Volumes/HG40/Workspace/Simulation/{city}")
+# city, batch, scenario = "sfbay", "baseline", "2018"
+# city, batch, scenario = "sfbay", "2024-08-07", "2018_Baseline"
+city, batch, scenario, sample = "seattle", "2024-09-24", "2018_Baseline", 0.1
+# city, batch, scenario, sample = "seattle", "2024-04-20", "2018_Baseline", 0.3
+# work_dir = os.path.expanduser(f"/Volumes/HG40/Workspace/Simulation/{city}")
+work_dir = os.path.expanduser(f"~/Workspace/Simulation/{city}")
 events_filename = f"0.events.csv.gz"
 linkstats_filename = f"0.linkstats.csv.gz"
 # pd.set_option('display.max_columns',10)
-# batch, scenarios = "baseline", ["2018"]
-# batch, scenarios = "2024-08-07", ["2018_Baseline"]
-batch, scenarios = "2024-09-23", ["2018_Baseline"]
+scale_up_factor = 1 / sample
 
 
 def main():
-    for scenario in scenarios:
-        scenario_dir = os.path.join(work_dir, "beam-freight", batch, scenario)
-        scenario_label = scenario.replace("_", "-")
-        batch_label = batch.replace("-", "")
-        carrier_df = pd.read_csv(os.path.join(scenario_dir, f"carriers--{scenario_label}.csv"))
-        tour_df = pd.read_csv(os.path.join(scenario_dir, f"tours--{scenario_label}.csv"))
-        payload_df = pd.read_csv(os.path.join(scenario_dir, f"payloads--{scenario_label}.csv"))
-        vehicle_types = pd.read_csv(
-            os.path.join(scenario_dir, "vehicle-tech", f"ft-vehicletypes--{batch_label}--{scenario_label}.csv"))
-        vehicle_types_combined = merge_vehicle_types(vehicle_types, carrier_df, tour_df)
-        processed_event = process_events(scenario, vehicle_types_combined)
-        calc_vmt_from_events(processed_event, scenario)
+    setup_logging(f'{work_dir}/beam-runs/{batch}/{scenario}/freight_events_processing.log')
+    log_and_print(f"Run: {city}/{batch}/{scenario}/{sample}")
+    scenario_dir = os.path.join(work_dir, "beam-freight", batch, scenario)
 
-        trips_df = convert_payload_to_trips(payload_df, scenario)
-        summary = trips_by_vehicle_class(trips_df, carrier_df, vehicle_types)
-        pd.set_option('display.max_columns', 10)
-        print(summary)
+    linkstats_file = os.path.join(get_local_work_directory(scenario), linkstats_filename)
+    if os.path.exists(linkstats_file):
+        linkstats_df = pd.read_csv(linkstats_file)
+        calc_vmt_from_linkstats(linkstats_df, scenario)
 
-        linkstats_file = os.path.join(get_local_work_directory(scenario), linkstats_filename)
-        if os.path.exists(linkstats_file):
-            linkstats_df = pd.read_csv(linkstats_file)
-            calc_vmt_from_linkstats(linkstats_df, scenario)
+    scenario_label = scenario.replace("_", "-")
+    batch_label = batch.replace("-", "")
+    carrier_df = pd.read_csv(os.path.join(scenario_dir, f"carriers--{scenario_label}.csv"))
+    tour_df = pd.read_csv(os.path.join(scenario_dir, f"tours--{scenario_label}.csv"))
+    payload_df = pd.read_csv(os.path.join(scenario_dir, f"payloads--{scenario_label}.csv"))
+    vehicle_types = pd.read_csv(
+        os.path.join(scenario_dir, "vehicle-tech", f"ft-vehicletypes--{batch_label}--{scenario_label}.csv"))
+    vehicle_types_combined = merge_vehicle_types(vehicle_types, carrier_df, tour_df)
+    processed_event = process_events(scenario, vehicle_types_combined)
+    calc_vmt_from_events(processed_event, scenario)
 
-    logging.info("END")
+    log_and_print(f"[FRISM] Total number of vehicles: {int(len(carrier_df['vehicleId'].unique()) * scale_up_factor)}")
+    trips_df = convert_payload_to_trips(payload_df, scenario)
+    summary = trips_by_vehicle_class(trips_df, carrier_df, vehicle_types)
+
+    log_and_print("END")
 
 
 def merge_vehicle_types(vehicle_types: pd.DataFrame, carrier_df: pd.DataFrame, tour_df: pd.DataFrame) -> pd.DataFrame:
-    logging.info("Merging vehicle types, carrier and tours...")
     # Merge carrier and tour dataframes
     merged_df = pd.merge(carrier_df, tour_df, on=['tourId'], how='inner')
 
@@ -71,7 +73,6 @@ def process_events(scenario, vehicle_types_combined):
 
     if not os.path.exists(processed_events_filepath):
         events = read_events_file(events_filepath, scenario)
-        logging.info("Merging with processed events...")
         vehicle_types_combined['vehicleId'] = 'freightVehicle-' + vehicle_types_combined['vehicleId'].astype(
             str)
         processed_event_updated = pd.merge(
@@ -91,9 +92,8 @@ def process_events(scenario, vehicle_types_combined):
 
 
 def read_events_file(full_filename, run_name):
-    setup_logging(full_filename + ".out")
-    logging.info(f"batch {os.path.basename(os.path.dirname(full_filename))}:")
-    logging.info(f"reading: {full_filename}")
+    log_and_print(f"batch {os.path.basename(os.path.dirname(full_filename))}:")
+    log_and_print(f"reading: {full_filename}")
 
     # Use chunksize for memory efficiency
     chunksize = 1000000  # Increased chunksize for better performance
@@ -121,11 +121,18 @@ def read_events_file(full_filename, run_name):
         mask = (
                 chunk['type'].isin(["PathTraversal", "actstart", "actend"]) &
                 chunk['vehicle'].str.startswith("freight", na=False) &
-                (chunk['actType'].isin(["Warehouse", "Unloading", "Loading"]) | chunk['actType'].isnull())
+                (
+                        chunk['actType'].str.split('|', expand=True)[0].isin(["Warehouse", "Unloading", "Loading"]) |
+                        chunk['actType'].isnull()
+                )
         )
 
         filtered_chunk = chunk[mask].copy()  # Create a copy to avoid SettingWithCopyWarning
-        filtered_chunk.loc[:, 'runName'] = run_name  # Use .loc to set values
+        if not filtered_chunk.empty:
+            filtered_chunk.loc[:, 'runName'] = run_name
+        else:
+            log_and_print(f"The current chunk of {len(chunk)} rows resulted in no freight records in it!",
+                          logging.WARNING)
 
         processed_chunks.append(filtered_chunk)
 
@@ -136,45 +143,49 @@ def read_events_file(full_filename, run_name):
                               compression='gzip' if output_filename.endswith('.gz') else None)
         first_chunk = False
 
-    logging.info(f"writing completed: {output_filename}")
+    log_and_print(f"writing completed: {output_filename}")
 
     # Combine all processed chunks into a single dataframe
     processed_events = pd.concat(processed_chunks, ignore_index=True)
+    if processed_events.empty:
+        log_and_print(f"No freight records found in this events file!", logging.ERROR)
     return processed_events
 
 
 def calc_vmt_from_linkstats(linkstats_df, scenario):
-    volume_columns = [col for col in linkstats_df.columns if col.startswith('volume_Class')]
-    required_columns = ['length', 'hour'] + volume_columns
+    freight_classes = ["Class2b3Vocational", "Class456Vocational", "Class78Vocational", "Class78Tractor"]
+    required_columns = ['length', 'hour'] + [f'volume_{col}' for col in freight_classes]
     missing_columns = [col for col in required_columns if col not in linkstats_df.columns]
     if missing_columns:
         raise ValueError(f"Missing required columns: {missing_columns}")
 
     linkstats_df['hour'] = pd.to_numeric(linkstats_df['hour'], errors='coerce')
     linkstats_df['length'] = pd.to_numeric(linkstats_df['length'], errors='coerce')
-    for col in volume_columns:
-        linkstats_df[col] = pd.to_numeric(linkstats_df[col], errors='coerce')
 
-    for col in volume_columns:
-        linkstats_df[f'vmt_{col}'] = linkstats_df['length'] * linkstats_df[col]
+    for col in freight_classes:
+        linkstats_df[f'volume_{col}'] = pd.to_numeric(linkstats_df[f'volume_{col}'], errors='coerce')
+        linkstats_df[f'vmt_{col}'] = linkstats_df['length'] * linkstats_df[f'volume_{col}'] / 1609.34
 
-    total_vmt = linkstats_df[[f'vmt_{col}' for col in volume_columns]].sum().sum() / 1609.34 / 1_000_000
-    print(f"Total VMT from LinkStats for scenario {batch}/{scenario}: {total_vmt:.2f} million miles")
+    total_vmt = linkstats_df[
+                    [f'vmt_{col}' for col in freight_classes]].sum().sum() * scale_up_factor / 1_000_000
+    log_and_print(
+        f"[BEAM] Total VMT from LinkStats for scenario {batch}/{scenario}: {total_vmt:.2f} million miles")
 
-    vmt_by_hour = linkstats_df.groupby('hour')[[f'vmt_{col}' for col in volume_columns]].sum() / 1609.34 / 1_000_000
+    vmt_by_hour = linkstats_df.groupby('hour')[
+                      [f'vmt_{col}' for col in freight_classes]].sum() * scale_up_factor / 1_000_000
 
     fig, ax = plt.subplots(figsize=(15, 8))
-    bar_width = 0.8 / len(volume_columns)
+    bar_width = 0.8 / len(freight_classes)
     index = np.arange(len(vmt_by_hour.index))
 
-    for i, col in enumerate(volume_columns):
+    for i, col in enumerate(freight_classes):
         ax.bar(index + i * bar_width, vmt_by_hour[f'vmt_{col}'],
                bar_width, label=col.replace('volume_', ''))
 
     ax.set_xlabel('Hour of Day')
     ax.set_ylabel('VMT (Million Miles)')
-    ax.set_title('VMT by Hour and Vehicle Class')
-    ax.set_xticks(index + bar_width * (len(volume_columns) - 1) / 2)
+    ax.set_title('BEAM VMT by Hour and Vehicle Class')
+    ax.set_xticks(index + bar_width * (len(freight_classes) - 1) / 2)
     ax.set_xticklabels(vmt_by_hour.index)
     ax.legend(title='Vehicle Class', bbox_to_anchor=(1.05, 1), loc='upper left')
 
@@ -182,7 +193,7 @@ def calc_vmt_from_linkstats(linkstats_df, scenario):
 
     plot_filename = os.path.join(get_local_work_directory(scenario), f"vmt_by_hour_category_{scenario}.png")
     plt.savefig(plot_filename, bbox_inches='tight')
-    # print(f"Bar plot saved as {plot_filename}")
+    # log_and_print(f"Bar plot saved as {plot_filename}")
 
     return vmt_by_hour
 
@@ -198,23 +209,24 @@ def calc_vmt_from_events(events, scenario):
     emergency_vehicles = pt[pt['vehicle'].str.contains('-emergency-', na=False)]
 
     if len(emergency_vehicles) > 0:
-        print("This is a bug")
-        print(f"Number of emergency vehicles found: {len(emergency_vehicles)}")
-        print("Sample of emergency vehicles:")
-        print(emergency_vehicles['vehicle'].head())
+        log_and_print(f"This is a bug. Number of emergency vehicles found: {len(emergency_vehicles)}", logging.ERROR)
+        log_and_print(f"Sample of emergency vehicles: {emergency_vehicles['vehicle'].head()}", logging.ERROR)
 
-    # print(f"powertrains: {pt["primaryFuelType"].unique()}")
-    # print(f"vehicletypes: {pt["vehicleType"].unique()}")
+    # log_and_print(f"powertrains: {pt["primaryFuelType"].unique()}")
+    # log_and_print(f"vehicletypes: {pt["vehicleType"].unique()}")
     # Calculate total VMT
 
-    total_vmt_meters = pt['length'].sum()
-    total_vmt_million_miles = total_vmt_meters / 1609.34 / 1_000_000  # Convert meters to million miles
+    log_and_print(
+        f"[BEAM] Total number of vehicles: {int(len(pt['vehicle'].unique()) * scale_up_factor)}")
+    log_and_print(
+        f"[BEAM] Total number of trips: {len(pt)}")
+    total_vmt_million_miles = pt['length'].sum() * scale_up_factor / 1609.34 / 1_000_000
+    log_and_print(
+        f"[BEAM] Total VMT: {total_vmt_million_miles:.2f} million miles")
 
-    print(f"Total VMT from PathTraversals for scenario {batch}/{scenario}: {total_vmt_million_miles:.2f} million miles")
-
-    # Calculate VMT by business and vehicleCategory
     vmt_by_category = pt.groupby(['business', 'vehicleCategory'])[
-                          'length'].sum() / 1609.34 / 1_000_000
+                          'length'].sum() * scale_up_factor / 1609.34 / 1_000_000
+
     vmt_by_category = vmt_by_category.unstack(level='business')
 
     # Create bar plot
@@ -239,12 +251,13 @@ def calc_vmt_from_events(events, scenario):
 def convert_payload_to_trips(payload_df, scenario):
     output_file_path = os.path.join(work_dir, "beam-freight", batch, scenario,
                                     f"trips--{scenario.replace("_", "-")}.csv")
-    log_and_print(f"Total rows in payloads: {len(payload_df)}")
+    # log_and_print(f"[FRISM] Total rows in payloads: {len(payload_df)}")
 
     # Count payloads per tour
     payloads_per_tour = payload_df.groupby('tourId').size().reset_index(name='count')
     single_payload_tours = payloads_per_tour[payloads_per_tour["count"] == 1]
-    log_and_print(f"Number of tours with only one payload row: {len(single_payload_tours)}")
+    if len(single_payload_tours) > 0:
+        log_and_print(f"[FRISM] Number of tours with only one payload row: {len(single_payload_tours)}")
 
     payload_df = payload_df.sort_values(['tourId', 'sequenceRank'])
 
@@ -267,11 +280,10 @@ def convert_payload_to_trips(payload_df, scenario):
                     trip[f'{col}_to'] = to_row[col]
 
             # Calculate distance
-            distance = haversine_distance(
+            trip['distance_meter'] = calculate_distance(
                 from_row['locationY'], from_row['locationX'],
                 to_row['locationY'], to_row['locationX']
             )
-            trip['distance_miles'] = distance / 1.609
 
             trips.append(trip)
 
@@ -286,10 +298,10 @@ def convert_payload_to_trips(payload_df, scenario):
 
     trips_df = pd.concat(non_empty_trips, ignore_index=True)
 
-    log_and_print(f"Total trips: {len(trips_df)}")
+    log_and_print(f"[FRISM] Total number of trips: {len(trips_df)}")
 
-    total_distance = trips_df['distance_miles'].sum() / 1_000_000
-    log_and_print(f"Total distance of all trips: {total_distance:.2f} million miles")
+    total_distance = trips_df['distance_meter'].sum() * scale_up_factor / 1609.34 / 1_000_000
+    log_and_print(f"[FRISM] Total distance of all trips: {total_distance:.2f} million miles")
 
     # Error check
     # Calculate the number of payloads per tour
@@ -304,10 +316,11 @@ def convert_payload_to_trips(payload_df, scenario):
 
     trips_df['business'] = trips_df['tourId'].apply(determine_business)
     business_summary = trips_df.groupby('business').agg(
-        total_distance_million_km=pd.NamedAgg(column='distance_miles', aggfunc=lambda x: x.sum() / 1_000_000),
-        trip_count=pd.NamedAgg(column='tourId', aggfunc='count')
+        total_distance_million_miles=pd.NamedAgg(column='distance_meter',
+                                                 aggfunc=lambda x: x.sum() * scale_up_factor / 1609.34 / 1_000_000),
+        trip_count_thousands=pd.NamedAgg(column='tourId', aggfunc=lambda x: len(x) * scale_up_factor / 1_000)
     ).reset_index()
-    log_and_print(f"Trips and Distance by business:\n {business_summary}")
+    log_and_print(f"[FRISM] Trips and distance by business:\n {business_summary}")
 
     trips_df.to_csv(output_file_path, index=False)
     # log_and_print(f"Trips file saved to {output_file_path}")
@@ -327,32 +340,29 @@ def trips_by_vehicle_class(trips_df, carriers_df, vehicle_types_df):
         how='left'
     )
 
-    # Group by vehicleCategory and count trips
-    trips_count = result_df.groupby('vehicleCategory').size().reset_index(name='trip_count')
-
-    # Calculate total distance by vehicleCategory (in million miles)
-    distance_sum = result_df.groupby('vehicleCategory')['distance_miles'].sum().reset_index(
-        name='total_distance_million_miles')
-    distance_sum['total_distance_million_miles'] /= 1_000_000  # Convert to million miles
-
-    # Merge trip count and total distance
-    summary = pd.merge(trips_count, distance_sum, on='vehicleCategory', how='outer')
+    summary = result_df.groupby('vehicleCategory').agg(
+        total_distance_million_miles=pd.NamedAgg(column='distance_meter',
+                                                 aggfunc=lambda x: x.sum() * scale_up_factor / 1609.34 / 1_000_000),
+        trip_count_thousands=pd.NamedAgg(column='tourId', aggfunc=lambda x: len(x) * scale_up_factor / 1_000)
+    ).reset_index()
 
     # Calculate average trip distance (in miles)
-    summary['avg_trip_distance_miles'] = (summary['total_distance_million_miles'] * 1_000_000) / summary['trip_count']
+    summary['avg_trip_distance_miles'] = (summary['total_distance_million_miles'] * 1_000_000) / (
+            summary['trip_count_thousands'] * 1000)
 
     # Sort by trip count in descending order
-    summary = summary.sort_values('trip_count', ascending=False)
+    summary = summary.sort_values('trip_count_thousands', ascending=False)
 
     # Calculate percentages
-    total_trips = summary['trip_count'].sum()
+    total_trips = summary['trip_count_thousands'].sum()
     total_distance = summary['total_distance_million_miles'].sum()
-    summary['trip_percentage'] = (summary['trip_count'] / total_trips) * 100
+    summary['trip_percentage'] = (summary['trip_count_thousands'] / total_trips) * 100
     summary['distance_percentage'] = (summary['total_distance_million_miles'] / total_distance) * 100
 
     # Round numeric columns
     summary = summary.round({
         'total_distance_million_miles': 3,
+        'trip_count_thousands': 2,
         'avg_trip_distance_miles': 2,
         'trip_percentage': 2,
         'distance_percentage': 2
@@ -360,8 +370,11 @@ def trips_by_vehicle_class(trips_df, carriers_df, vehicle_types_df):
 
     # Reorder columns
     summary = summary[
-        ['vehicleCategory', 'trip_count', 'trip_percentage', 'total_distance_million_miles', 'distance_percentage',
-         'avg_trip_distance_miles']]
+        ['vehicleCategory', 'trip_count_thousands', 'trip_percentage', 'total_distance_million_miles',
+         'distance_percentage', 'avg_trip_distance_miles']]
+
+    pd.set_option('display.max_columns', 10)
+    log_and_print(f'[FRISM] Trips and distance by vehicle category: \n {summary}')
 
     return summary
 
@@ -395,19 +408,18 @@ def determine_business(tour_id):
         return None
 
 
-def haversine_distance(lat1, lon1, lat2, lon2):
-    R = 6371  # Earth's radius in kilometers
+def calculate_distance(lat1, lon1, lat2, lon2):
+    """
+    Calculate the great circle distance between two points
+    on the earth (specified in decimal degrees)
+    """
+    coord1 = (lat1, lon1)
+    coord2 = (lat2, lon2)
 
-    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
+    # Calculate distance in meters
+    distance_meters = distance.distance(coord1, coord2).meters
 
-    dlat = lat2 - lat1
-    dlon = lon2 - lon1
-
-    a = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
-    c = 2 * math.asin(math.sqrt(a))
-
-    distance = R * c
-    return distance
+    return distance_meters
 
 
 def setup_logging(log_file):
@@ -418,7 +430,7 @@ def setup_logging(log_file):
 
 
 def log_and_print(message, level=logging.INFO):
-    print(message)
+    # print(message)
     if level == logging.INFO:
         logging.info(message)
     elif level == logging.WARNING:
