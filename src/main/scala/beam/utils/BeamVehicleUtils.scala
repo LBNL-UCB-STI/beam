@@ -65,14 +65,18 @@ object BeamVehicleUtils {
     * @param vehicleCategory the vehicle category
     * @return an average curb weight of a vehicle that belongs to the provided category (in kg)
     */
-  def vehcileCategoryToWeightInKg(vehicleCategory: VehicleCategory.VehicleCategory): Double = vehicleCategory match {
-    case VehicleCategory.Body                => 70
-    case VehicleCategory.Bike                => 80
-    case VehicleCategory.Car                 => 2000
-    case VehicleCategory.MediumDutyPassenger => 2500
-    case VehicleCategory.LightDutyTruck      => 2500
-    case VehicleCategory.HeavyDutyTruck      => 6500
-  }
+  private def vehicleCategoryToWeightInKg(vehicleCategory: VehicleCategory.VehicleCategory): Double =
+    vehicleCategory match {
+      case VehicleCategory.Body                => 70
+      case VehicleCategory.Bike                => 80
+      case VehicleCategory.Car                 => 2000 // Class 1&2a (GVWR <= 8500 lbs.)
+      case VehicleCategory.MediumDutyPassenger => 2500
+      case VehicleCategory.Class2b3Vocational  => 4000 // Class 2b&3 (GVWR 8501-14000 lbs. => 2* Curb weight)
+      case VehicleCategory.Class456Vocational =>
+        9000 // Class 4-6 (GVWR 14001-26000 lbs. => 6000-15000, and average of 8000-9000 lbs curb weight)
+      case VehicleCategory.Class78Vocational => 13000 // CLass 7&8 (GVWR 26001 to >33,001 lbs.)
+      case VehicleCategory.Class78Tractor    => 20000 // CLass 7&8 (GVWR 26001 to >33,001 lbs.)
+    }
 
   def readBeamVehicleTypeFile(filePath: String): Map[Id[BeamVehicleType], BeamVehicleType] = {
     readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicleType], BeamVehicleType]()) {
@@ -102,7 +106,7 @@ object BeamVehicleUtils {
         val vehicleCategory = VehicleCategory.fromString(line.get("vehicleCategory"))
         val curbWeight: Double = Option(line.get("curbWeightInKg"))
           .map(_.toDouble)
-          .getOrElse(vehcileCategoryToWeightInKg(vehicleCategory))
+          .getOrElse(vehicleCategoryToWeightInKg(vehicleCategory))
         val sampleProbabilityWithinCategory =
           Option(line.get("sampleProbabilityWithinCategory")).map(_.toDouble).getOrElse(1.0)
         val sampleProbabilityString = Option(line.get("sampleProbabilityString"))

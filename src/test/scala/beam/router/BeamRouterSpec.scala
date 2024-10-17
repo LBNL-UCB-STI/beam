@@ -17,7 +17,7 @@ import beam.utils.{BeamScenarioForTest, DateUtils}
 import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.network.{Link, Network}
+import org.matsim.api.core.v01.network.Network
 import org.matsim.core.utils.collections.QuadTree
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.{mock, when}

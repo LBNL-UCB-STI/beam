@@ -5,17 +5,17 @@ import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.freight.FreightCarrier
 import beam.agentsim.agents.vehicles.FuelType.{Electricity, FuelTypePrices}
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleEnergy}
-import beam.agentsim.infrastructure.taz.{H3TAZ, TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{H3TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
 import beam.sim.config.BeamConfig
 import beam.utils.{DateUtils, MathUtils}
-import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.api.core.v01.network.{Link, Network}
-import org.matsim.core.utils.collections.QuadTree
 import com.conveyal.gtfs.model.Stop
+import com.conveyal.r5.transit.TransportNetwork
+import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.network.Network
+import org.matsim.core.utils.collections.QuadTree
+
 import scala.collection.concurrent.TrieMap
-import scala.jdk.CollectionConverters.mapAsScalaMapConverter
 
 /**
   * This holds together a couple of containers of simulation data, all of which are immutable.

@@ -73,7 +73,7 @@ object Skims {
     val AS_SKIMMER: router.skim.Skims.SkimType.Value = Value("activity-sim-skimmer")
   }
 
-  def skimFileNames(skimCfg: Router.Skim) = IndexedSeq(
+  def skimFileNames(skimCfg: Router.Skim): IndexedSeq[(SkimType.Value, String)] = IndexedSeq(
     SkimType.OD_SKIMMER              -> skimCfg.origin_destination_skimmer.fileBaseName,
     SkimType.TAZ_SKIMMER             -> skimCfg.taz_skimmer.fileBaseName,
     SkimType.DT_SKIMMER              -> skimCfg.drive_time_skimmer.fileBaseName,

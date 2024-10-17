@@ -1,6 +1,6 @@
 package beam.router.skim
 
-import beam.agentsim.agents.vehicles.VehicleCategory.{HeavyDutyTruck, LightDutyTruck}
+import beam.agentsim.agents.vehicles.VehicleCategory.{Class456Vocational, Class78Vocational}
 import beam.router.skim.core.ODVehicleTypeSkimmer.{fromCsv, ODVehicleTypeSkimmerInternal, ODVehicleTypeSkimmerKey}
 import beam.sim.BeamHelper
 import beam.utils.EventReader._
@@ -33,7 +33,7 @@ class ODVehicleTypeSkimmerSpec extends AnyWordSpecLike with Matchers with BeamHe
       val skim0: Map[ODVehicleTypeSkimmerKey, ODVehicleTypeSkimmerInternal] =
         readSkims(matSimConfig, "skimsODVehicleType", 0)
       skim0.size should be > 5
-      skim0.keys.map(_.vehicleCategory) should contain only (LightDutyTruck, HeavyDutyTruck)
+      skim0.keys.map(_.vehicleCategory) should contain only (Class456Vocational, Class78Vocational)
       forAll(skim0.values) { value =>
         value.cost should be > 0.1
         value.cost should be < 15.0
@@ -48,7 +48,7 @@ class ODVehicleTypeSkimmerSpec extends AnyWordSpecLike with Matchers with BeamHe
         readSkims(matSimConfig, "skimsODVehicleType", 1)
       val skimAgg: Map[ODVehicleTypeSkimmerKey, ODVehicleTypeSkimmerInternal] =
         readSkims(matSimConfig, "skimsODVehicleType_Aggregated", 1)
-      skimAgg.keys.map(_.vehicleCategory) should contain only (LightDutyTruck, HeavyDutyTruck)
+      skimAgg.keys.map(_.vehicleCategory) should contain only (Class456Vocational, Class78Vocational)
       def assertAggregation(key: ODVehicleTypeSkimmerKey, getter: ODVehicleTypeSkimmerInternal => Double) = {
         val expectedAggResult = (skim0.get(key), skim1.get(key)) match {
           case (Some(value), None)          => getter(value)

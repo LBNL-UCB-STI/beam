@@ -14,7 +14,7 @@ library(stringr)
 library(tidyr)
 
 ## Functions
-read_freight_events <- function(RUNS_NAMES, RUNS_LABELS, RUNS_DIR, ALL_LABEL, ITER = 0) {
+read_freight_events <- function(RUNS_NAMES, RUNS_LABELS, RUNS_DIR, ALL_LABEL, VEHICLE_TYPES, ITER = 0) {
   events_filtered_all <- data.table::data.table()
   #linkStats_all <- data.table::data.table()
   i<-0
@@ -30,8 +30,11 @@ read_freight_events <- function(RUNS_NAMES, RUNS_LABELS, RUNS_DIR, ALL_LABEL, IT
     #linkStats$runName <- r
     #linkStats_all <- rbind(linkStats_all, linkStats)
   }
+  events_filtered_merged <- events_filtered[
+    VEHICLE_TYPES[,c("vehicleTypeId", "vehicleCategory", "primaryFuelType", "secondaryFuelType")], 
+    on = .(vehicleType = vehicleTypeId)]
   write.csv(
-    events_filtered_all,
+    events_filtered_merged,
     file = pp(RUNS_DIR, pp(ALL_LABEL,".filtered.",ITER,".events.csv")),
     row.names=F,
     quote=T)
@@ -40,10 +43,10 @@ read_freight_events <- function(RUNS_NAMES, RUNS_LABELS, RUNS_DIR, ALL_LABEL, IT
   #   file = pp(runOutputDir, pp(iteration,".linkStats_all.csv")),
   #   row.names=F,
   #   quote=T)
-  return(events_filtered_all)
+  return(events_filtered_merged)
 }
 ###
-format_path_traversals <- function(EVENTS) {
+format_path_traversals <- function(EVENTS, VEHICLE_TYPES) {
   columns <- c("time","type","vehicleType","vehicle","secondaryFuelLevel",
                "primaryFuelLevel","driver","mode","seatingCapacity","startX",
                "startY", "endX", "endY", "capacity", "arrivalTime", "departureTime",
@@ -53,19 +56,18 @@ format_path_traversals <- function(EVENTS) {
   if (nrow(pt[grepl("-emergency-",vehicle)]) > 0) {
     println("This is a bug")
   }
-  pt$energyType <- "Diesel"
-  pt$energyTypeCode <- "Diesel"
-  pt[grepl("E-BE", toupper(vehicleType))]$energyType <- "Electric"
-  pt[grepl("E-BE", toupper(vehicleType))]$energyTypeCode <- "BEV"
+
+  #pt$energyType <- pt$primaryFuelType
+  #pt[primaryFuelType == "Electricity" & secondaryFuelType != ""]$energyTypeCode = "PHEV"
+  #pt[primaryFuelType == "Hydrogen"]$energyTypeCode <- "H2FC"
+
   pt[grepl("E-PHEV", toupper(vehicleType))]$energyType <- "Electric"
   pt[grepl("E-PHEV", toupper(vehicleType))]$energyTypeCode <- "PHEV"
   pt[grepl("H2FC", toupper(vehicleType))]$energyType <- "Hydrogen"
   pt[grepl("H2FC", toupper(vehicleType))]$energyTypeCode <- "H2FC"
-  pt$vehicleCategory <- "Heady Duty"
-  pt$vehicleClass <- "Class 4-6 Vocational"
-  pt[grepl("-md-", vehicleType)]$vehicleCategory <- "Medium Duty"
-  pt[grepl("-hdt-", vehicleType)]$vehicleClass <- "Class 7&8 Tractor"
-  pt[grepl("-hdv-", vehicleType)]$vehicleClass <- "Class 7&8 Vocational"
+  pt$vehicleCategory <- "Class 4-6 Vocational"
+  pt[grepl("-hdt-", vehicleType)]$vehicleCategory <- "Class 7&8 Tractor"
+  pt[grepl("-hdv-", vehicleType)]$vehicleCategory <- "Class 7&8 Vocational"
   pt$business <- "B2B"
   pt[startsWith(vehicle, "freightVehicle-b2c-")]$business <- "B2C"
   print("PT formatted")
@@ -98,9 +100,11 @@ getHPMSAADT <- function(linkAADT) {
 
 ####
 
-expansionFactor <- 1/0.3
-city <- "seattle"
-workDir <- pp(normalizePath("~/Workspace/Data/"), "/FREIGHT/", city, "/")
+expansionFactor <- 1/0.1
+city <- "sfbay"
+batch <- "2024-08-07"
+scenario <- "2018_Baseline"
+workDir <- pp(normalizePath("~/Workspace/Simulation/"), "/", city, "/")
 
 #test <- readCsv(pp(workDir, "/beam/runs/baseline/2018/filtered.0.events.csv.gz"))
 
@@ -108,18 +112,20 @@ workDir <- pp(normalizePath("~/Workspace/Data/"), "/FREIGHT/", city, "/")
 # *************** BASELINE **************
 # ***************************************
 
-baseline_runs_dir <- pp(workDir, "beam/runs/2024-04-23/")
+baseline_runs_dir <- pp(workDir, "beam-runs/", batch, "/")
 baseline_output_dir <- pp(baseline_runs_dir, "output/")
 dir.create(baseline_output_dir, showWarnings = FALSE)
+vehicle_types <- read.csv(pp(workDir, "beam-freight/", batch, "/", scenario, "/vehicle-tech/ft-vehicletypes--20240807--2018-Baseline.csv"))
 
-baseline_runs_labels <- c("Baseline")
-baseline_runs_name <- "2024-04-20"
+baseline_runs_labels <- c("2018_Baseline")
+baseline_runs_name <- "2024-08-07"
 baseline_runs <- 
   read_freight_events(
-    c("Baseline"), 
+    c("2018_Baseline"), 
     baseline_runs_labels, 
     baseline_runs_dir,
-    baseline_runs_name
+    baseline_runs_name,
+    vehicle_types
   )
 
 baseline_runs <- format_path_traversals(baseline_runs)
