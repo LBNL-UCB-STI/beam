@@ -272,6 +272,8 @@ class IterationsPassengerPerTripTests extends AnyWordSpecLike with Matchers with
       None,
       None,
       None,
+      IndexedSeq.empty,
+      0.0,
       null
     )
   }

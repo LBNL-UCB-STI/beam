@@ -4,6 +4,7 @@ import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Stash}
 import beam.agentsim.Resource.{NotifyVehicleIdle, ReleaseParkingStall}
 import beam.agentsim.agents.PersonAgent._
+import beam.agentsim.agents.freight.PayloadPlan
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.parking.ChoosesParking.{handleUseParkingSpot, ConnectingToChargingPoint}
 import beam.agentsim.agents.ridehail.RideHailAgent._
@@ -183,8 +184,14 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
   protected val beamServices: BeamServices
   protected val networkHelper: NetworkHelper
   protected val geo: GeoUtils
-  //we may want to rename this method and make it return more data in the future if we want to improve energy rate calc
-  def payloadInKgForLeg(leg: BeamLeg, drivingData: DrivingData): Option[Double]
+
+  /**
+    * This method is supposed to be implemented only for Freight agents. It's called at the end of each leg.
+    * @param drivingData the driving data
+    * @return list of payload ids and total payload weight in case this vehicle carry any payloads.
+    */
+  def payloadDataForLeg(beamLeg: BeamLeg, drivingData: DrivingData): Option[(IndexedSeq[Id[PayloadPlan]], Double)] =
+    None
   private var tollsAccumulated = 0.0
   protected val beamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
   protected val potentiallyChargingBeamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
@@ -246,11 +253,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       val currentVehicleUnderControl = data.currentVehicle.headOption
         .getOrElse(throw new RuntimeException("Current Vehicle is not available."))
       val isLastLeg = data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
-      val payloadInKg = payloadInKgForLeg(currentLeg, data)
+      val payloadData = payloadDataForLeg(currentLeg, data)
       val fuelConsumed =
         currentBeamVehicle.useFuel(
           currentLeg,
-          payloadInKg,
+          payloadData.map { case (_, payloadWeight) => payloadWeight },
           beamScenario,
           networkHelper,
           eventsManager,
@@ -334,6 +341,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       }
 
       val numberOfPassengers: Int = calculateNumberOfPassengersBasedOnCurrentTripMode(data, currentLeg, riders)
+      val (payloadIds, payloadWeight) = payloadData.getOrElse((IndexedSeq.empty, 0.0))
       val pte = PathTraversalEvent(
         tick,
         currentVehicleUnderControl,
@@ -347,6 +355,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         currentBeamVehicle.primaryFuelLevelInJoules,
         currentBeamVehicle.secondaryFuelLevelInJoules,
         tollOnCurrentLeg,
+        payloadIds,
+        currentBeamVehicle.beamVehicleType.curbWeightInKg + payloadWeight,
         riders
       )
 
@@ -535,13 +545,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       val updatedStopTick = math.max(stopTick, currentLeg.startTime)
       val partiallyCompletedBeamLeg = currentLeg.subLegThrough(updatedStopTick, networkHelper, geo)
       val riders = data.passengerSchedule.schedule(currentLeg).riders.toIndexedSeq.map(_.personId)
-      val payloadInKg = payloadInKgForLeg(currentLeg, data)
+      val payloadData = payloadDataForLeg(currentLeg, data)
 
       val currentLocation = if (updatedStopTick > currentLeg.startTime) {
         val fuelConsumed =
           currentBeamVehicle.useFuel(
             partiallyCompletedBeamLeg,
-            payloadInKg,
+            payloadData.map { case (_, payloadWeight) => payloadWeight },
             beamScenario,
             networkHelper,
             eventsManager,
@@ -553,6 +563,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         tollsAccumulated += tollOnCurrentLeg
         val numberOfPassengers: Int =
           calculateNumberOfPassengersBasedOnCurrentTripMode(data, partiallyCompletedBeamLeg, riders)
+        val (payloadIds, payloadWeight) = payloadData.getOrElse((IndexedSeq.empty, 0.0))
         val pte = PathTraversalEvent(
           updatedStopTick,
           currentVehicleUnderControl,
@@ -566,6 +577,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           currentBeamVehicle.primaryFuelLevelInJoules,
           currentBeamVehicle.secondaryFuelLevelInJoules,
           tollOnCurrentLeg,
+          payloadIds,
+          currentBeamVehicle.beamVehicleType.curbWeightInKg + payloadWeight,
           riders
         )
         eventsManager.processEvent(pte)

@@ -42,8 +42,6 @@ class HouseholdCAVDriverAgent(
 
   override val id: Id[HouseholdCAVDriverAgent] = driverId
 
-  override def payloadInKgForLeg(leg: BeamLeg, drivingData: DrivingData): Option[Double] = None
-
   val myUnhandled: StateFunction = {
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))

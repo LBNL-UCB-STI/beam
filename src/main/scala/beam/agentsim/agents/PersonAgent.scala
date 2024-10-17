@@ -7,6 +7,7 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.choice.mode.TourModeChoiceMultinomialLogit
 import beam.agentsim.agents.freight.input.FreightReader.PAYLOAD_WEIGHT_IN_KG
+import beam.agentsim.agents.freight.PayloadPlan
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicle
 import beam.agentsim.agents.household.HouseholdCAVDriverAgent
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
@@ -368,11 +369,13 @@ class PersonAgent(
   private var totFuelConsumed: FuelConsumed = FuelConsumed(0.0, 0.0)
   private var curFuelConsumed: FuelConsumed = FuelConsumed(0.0, 0.0)
 
-  override def payloadInKgForLeg(leg: BeamLeg, drivingData: DrivingData): Option[Double] = {
-    drivingData match {
-      case data: BasePersonData => getPayloadWeightFromLeg(data.currentActivityIndex)
-      case _                    => None
-    }
+  override def payloadDataForLeg(
+    beamLeg: BeamLeg,
+    drivingData: DrivingData
+  ): Option[(IndexedSeq[Id[PayloadPlan]], Double)] = drivingData match {
+    case data: BasePersonData if beamLeg.mode == BeamMode.CAR =>
+      getPayloadDataFromPlan(data.currentActivityIndex)
+    case _ => None
   }
 
   def wheelchairUser: Boolean = {
@@ -1636,6 +1639,15 @@ class PersonAgent(
     eventsManager.processEvent(asSkimmerEvent)
   }
 
+  /**
+    * Generates skim data for the finished trip.
+    * @param tick The current tick
+    * @param trip The accomplished trip
+    * @param failedTrip indicaytes if the trips is failed
+    * @param currentActivityIndex the index of activity where this trip starts from
+    * @param currentActivity the activity where this trip started from
+    * @param nextActivity the next activity
+    */
   def generateSkimData(
     tick: Int,
     trip: EmbodiedBeamTrip,
@@ -1647,7 +1659,7 @@ class PersonAgent(
     val correctedTrip = correctTripEndTime(trip, tick, body.id, body.beamVehicleType.id)
     val generalizedTime = modeChoiceCalculator.getGeneralizedTimeOfTrip(correctedTrip, Some(attributes), nextActivity)
     val generalizedCost = modeChoiceCalculator.getNonTimeCost(correctedTrip) + attributes.getVOT(generalizedTime)
-    val maybePayloadWeightInKg = getPayloadWeightFromLeg(currentActivityIndex)
+    val maybePayloadWeightInKg = getPayloadDataFromPlan(currentActivityIndex).map(_._2)
 
     if (maybePayloadWeightInKg.isDefined && correctedTrip.tripClassifier != BeamMode.CAR) {
       logger.error("Wrong trip classifier ({}) for freight {}", correctedTrip.tripClassifier, id)
@@ -1708,7 +1720,7 @@ class PersonAgent(
     val trip = EmbodiedBeamTrip(legs)
     val generalizedTime = modeChoiceCalculator.getGeneralizedTimeOfTrip(trip, Some(attributes), nextActivity)
     val generalizedCost = modeChoiceCalculator.getNonTimeCost(trip) + attributes.getVOT(generalizedTime)
-    val maybePayloadWeightInKg = getPayloadWeightFromLeg(currentActivityIndex)
+    val maybePayloadWeightInKg = getPayloadDataFromPlan(currentActivityIndex).map(_._2)
     val odVehicleTypeEvent = ODVehicleTypeSkimmerEvent(
       tick,
       beamServices,
@@ -1722,12 +1734,17 @@ class PersonAgent(
     eventsManager.processEvent(odVehicleTypeEvent)
   }
 
-  private def getPayloadWeightFromLeg(currentActivityIndex: Int): Option[Double] = {
-    val currentLegIndex = currentActivityIndex * 2 + 1
-    if (currentLegIndex < matsimPlan.getPlanElements.size()) {
-      val accomplishedLeg = matsimPlan.getPlanElements.get(currentLegIndex)
-      Option(accomplishedLeg.getAttributes.getAttribute(PAYLOAD_WEIGHT_IN_KG)).asInstanceOf[Option[Double]]
-    } else None
+  private def getPayloadDataFromPlan(
+    startingActivityIndex: Int
+  ): Option[(IndexedSeq[Id[PayloadPlan]], Double)] = {
+    val currentLegIndex = startingActivityIndex * 2 + 1
+    if (currentLegIndex < matsimPlan.getPlanElements.size()) { // matsim plan may contain only activities
+      val planElement: PlanElement = matsimPlan.getPlanElements.get(currentLegIndex)
+      val payloadIds = planElement.getAttributes.getAttribute(PAYLOAD_IDS).asInstanceOf[IndexedSeq[Id[PayloadPlan]]]
+      val payloadWeight = planElement.getAttributes.getAttribute(PAYLOAD_WEIGHT_IN_KG).asInstanceOf[Double]
+      if (payloadIds != null) Some(payloadIds, payloadWeight) else None
+    } else
+      None
   }
 
   def getReplanningReasonFrom(data: BasePersonData, prefix: String): String = {
