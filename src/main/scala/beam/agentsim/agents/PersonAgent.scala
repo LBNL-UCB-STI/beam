@@ -6,7 +6,7 @@ import beam.agentsim.Resource._
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.choice.mode.TourModeChoiceMultinomialLogit
-import beam.agentsim.agents.freight.input.FreightReader.PAYLOAD_WEIGHT_IN_KG
+import beam.agentsim.agents.freight.input.FreightReader.{PAYLOAD_IDS, PAYLOAD_WEIGHT_IN_KG}
 import beam.agentsim.agents.freight.PayloadPlan
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicle
 import beam.agentsim.agents.household.HouseholdCAVDriverAgent
