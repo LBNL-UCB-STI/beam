@@ -218,7 +218,7 @@ object MatsimPlanConversion {
   }
 
   implicit class AttributesOps(val attributes: Attributes) extends AnyVal {
-    def typedValue[T: ClassTag](attribute: String): T = attributes.getAttribute(attribute).asInstanceOf[T]
+    def typedValue[T](attribute: String): T = attributes.getAttribute(attribute).asInstanceOf[T]
   }
 
 }
