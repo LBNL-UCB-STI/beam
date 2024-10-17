@@ -27,7 +27,7 @@ plugins {
     id "org.scoverage" version "8.0.3"
     id 'maven-publish'
     id "me.champeau.gradle.jmh" version "0.5.3"
-    id 'com.bmuschko.docker-java-application' version '6.7.0'
+    id 'com.bmuschko.docker-java-application' version '9.4.0'
     id "cz.alenkacz.gradle.scalafmt" version "1.16.2"
     id "java-library"
 }
@@ -44,7 +44,7 @@ apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
 
 group = 'beam'
-version = '0.9.12'
+version = '1.0.beta'
 
 description = """"""
 
