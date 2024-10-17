@@ -1,9 +1,11 @@
 package beam.agentsim.events
 
+import beam.agentsim.agents.freight.PayloadPlan
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsProfile
 import beam.router.Modes.BeamMode
 import beam.router.model.BeamLeg
+import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import beam.utils.{BeamVehicleUtils, FormatUtils}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
@@ -42,8 +44,10 @@ case class PathTraversalEvent(
   fromStopIndex: Option[Int],
   toStopIndex: Option[Int],
   currentTourMode: Option[String],
-  riders: IndexedSeq[Id[Person]] = Vector(),
-  emissionsProfile: Option[EmissionsProfile]
+  payloadIds: IndexedSeq[Id[PayloadPlan]],
+  weight: Double,
+  emissionsProfile: Option[EmissionsProfile],
+  riders: IndexedSeq[Id[Person]] = Vector()
 ) extends Event(time)
     with ScalaEvent {
   import PathTraversalEvent._
@@ -89,6 +93,8 @@ case class PathTraversalEvent(
       attr.put(ATTRIBUTE_FROM_STOP_INDEX, fromStopIndex.map(_.toString).getOrElse(""))
       attr.put(ATTRIBUTE_TO_STOP_INDEX, toStopIndex.map(_.toString).getOrElse(""))
       attr.put(ATTRIBUTE_CURRENT_TOUR_MODE, currentTourMode.getOrElse(""))
+      attr.put(ATTRIBUTE_PAYLOAD_IDS, payloadIds.mkString(","))
+      attr.put(ATTRIBUTE_WEIGHT, weight.toString)
       attr.put(ATTRIBUTE_RIDERS, ridersToStr(riders))
       attr.put(EMISSIONS_PROFILE, emissionsProfile.map(BeamVehicleUtils.buildEmissionsString).getOrElse(""))
       filledAttrs.set(attr)
@@ -127,6 +133,8 @@ object PathTraversalEvent {
   val ATTRIBUTE_SEATING_CAPACITY: String = "seatingCapacity"
   val ATTRIBUTE_FROM_STOP_INDEX: String = "fromStopIndex"
   val ATTRIBUTE_TO_STOP_INDEX: String = "toStopIndex"
+  val ATTRIBUTE_PAYLOAD_IDS: String = "payloads"
+  val ATTRIBUTE_WEIGHT: String = "weight"
   /*
   val ATTRIBUTE_LINKID_WITH_LANE_MAP: String = "linkIdToLaneMap"
   val ATTRIBUTE_LINKID_WITH_SPEED_MAP: String = "linkIdToSpeedMap"
@@ -153,8 +161,10 @@ object PathTraversalEvent {
     endLegPrimaryFuelLevel: Double,
     endLegSecondaryFuelLevel: Double,
     amountPaid: Double,
-    riders: IndexedSeq[Id[Person]],
-    emissionsProfile: Option[EmissionsProfile]
+    payloadIds: IndexedSeq[Id[PayloadPlan]],
+    weight: Double,
+    emissionsProfile: Option[EmissionsProfile],
+    riders: IndexedSeq[Id[Person]]
   ): PathTraversalEvent = {
     new PathTraversalEvent(
       time = time,
@@ -184,8 +194,10 @@ object PathTraversalEvent {
       fromStopIndex = beamLeg.travelPath.transitStops.map(_.fromIdx),
       toStopIndex = beamLeg.travelPath.transitStops.map(_.toIdx),
       currentTourMode = currentTourMode,
-      riders = riders,
-      emissionsProfile = emissionsProfile
+      payloadIds = payloadIds,
+      weight = weight,
+      emissionsProfile = emissionsProfile,
+      riders = riders
     )
   }
 
@@ -221,6 +233,8 @@ object PathTraversalEvent {
     val endLegPrimaryFuelLevel: Double = attr(ATTRIBUTE_END_LEG_PRIMARY_FUEL_LEVEL).toDouble
     val endLegSecondaryFuelLevel: Double = attr(ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL).toDouble
     val amountPaid: Double = attr(ATTRIBUTE_TOLL_PAID).toDouble
+    val payloadIds: IndexedSeq[Id[PayloadPlan]] = payloadsFromStr(attr.getOrElse(ATTRIBUTE_PAYLOAD_IDS, ""))
+    val weight: Double = attr.get(ATTRIBUTE_WEIGHT).fold(0.0)(_.toDouble)
     val riders: IndexedSeq[Id[Person]] = ridersFromStr(attr.getOrElse(ATTRIBUTE_RIDERS, ""))
     val fromStopIndex: Option[Int] =
       attr.get(ATTRIBUTE_FROM_STOP_INDEX).flatMap(Option(_)).flatMap(x => if (x == "") None else Some(x.toInt))
@@ -257,8 +271,10 @@ object PathTraversalEvent {
       fromStopIndex,
       toStopIndex,
       currentTourMode,
-      riders,
-      emissionsProfile
+      payloadIds,
+      weight,
+      emissionsProfile,
+      riders
     )
   }
 
@@ -268,6 +284,11 @@ object PathTraversalEvent {
     } else {
       ridersStr.split(":").toIndexedSeq.map(Id.create(_, classOf[Person]))
     }
+  }
+
+  private def payloadsFromStr(str: String): IndexedSeq[Id[PayloadPlan]] = {
+    if (str.isEmpty) IndexedSeq.empty
+    else str.split(',').map(_.createId[PayloadPlan])
   }
 
   private def ridersToStr(riders: IndexedSeq[Id[Person]]): String = {
