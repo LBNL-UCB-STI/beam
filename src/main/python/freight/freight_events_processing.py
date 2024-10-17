@@ -6,9 +6,9 @@ import numpy as np
 from geopy import distance
 
 ## Main
-# city, batch, scenario = "sfbay", "baseline", "2018"
-# city, batch, scenario = "sfbay", "2024-08-07", "2018_Baseline"
-city, batch, scenario, sample = "seattle", "2024-09-24", "2018_Baseline", 0.1
+# city, batch, scenario, sample = "sfbay", "baseline", "2018", 0.1
+city, batch, scenario, sample = "sfbay", "2024-08-07", "2018_Baseline", 0.1
+# city, batch, scenario, sample = "seattle", "2024-09-24", "2018_Baseline", 0.1
 # city, batch, scenario, sample = "seattle", "2024-04-20", "2018_Baseline", 0.3
 # work_dir = os.path.expanduser(f"/Volumes/HG40/Workspace/Simulation/{city}")
 work_dir = os.path.expanduser(f"~/Workspace/Simulation/{city}")
