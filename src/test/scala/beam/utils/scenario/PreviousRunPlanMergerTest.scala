@@ -351,6 +351,7 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
   ): PlanElement = {
     PlanElement(
       "",
+      "",
       PersonId(personId),
       planIndex,
       score,
@@ -384,6 +385,7 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
     planScore: Double
   ): PlanElement = PlanElement(
     "",
+    "",
     PersonId(personId),
     0,
     planScore,
@@ -408,6 +410,7 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
 
   def createLegPlanElement(mode: String, personId: String, planElementIdx: Int, planScore: Double): PlanElement =
     PlanElement(
+      "",
       "",
       PersonId(personId),
       0,

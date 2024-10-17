@@ -83,6 +83,11 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
       } else {
         ""
       },
+      tourId = if (rec.get("tour_id") != null) {
+        rec.get("tour_id").filter(x => (x.isDigit || x.equals('.')))
+      } else {
+        ""
+      },
       personId = PersonId(personId),
       planIndex = planIndex,
       planScore = getOrDefault(rec, "planScore", "0").toDouble,

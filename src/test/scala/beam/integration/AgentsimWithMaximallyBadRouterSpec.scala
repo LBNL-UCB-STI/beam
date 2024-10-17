@@ -10,6 +10,7 @@ import beam.replanning.ModeIterationPlanCleaner
 import beam.router.Modes.BeamMode
 import beam.router.RouteHistory
 import beam.sim.common.GeoUtilsImpl
+import beam.sim.config.BeamConfigHolder
 import beam.sim.{BeamHelper, BeamMobsim, RideHailFleetInitializerProvider}
 import beam.utils.SimRunnerForTest
 import beam.utils.TestConfigUtils.testConfig
@@ -50,6 +51,8 @@ class AgentsimWithMaximallyBadRouterSpec
       scenario.getPopulation.getPersons.values
         .forEach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.allModes))
 
+      injector = buildInjector(config, beamConfig, scenario, beamScenario)
+
       val mobsim = new BeamMobsim(
         services,
         beamScenario,
@@ -64,7 +67,8 @@ class AgentsimWithMaximallyBadRouterSpec
         new GeoUtilsImpl(services.beamConfig),
         new ModeIterationPlanCleaner(beamConfig, scenario),
         services.networkHelper,
-        new RideHailFleetInitializerProvider(services, beamScenario, scenario)
+        new RideHailFleetInitializerProvider(services, beamScenario, scenario),
+        injector.getInstance[BeamConfigHolder](classOf[BeamConfigHolder])
       )
       mobsim.run()
     }

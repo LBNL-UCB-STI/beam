@@ -29,6 +29,7 @@ import beam.sim.common.GeoUtils
 import beam.utils.DateUtils
 import beam.utils.logging.pattern.ask
 import beam.utils.MeasureUnitConversion._
+import beam.utils.OptionalUtils.OptionalTimeExtension
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
 import org.matsim.api.core.v01.population.Activity
@@ -64,6 +65,14 @@ object ChoosesParking {
     restOfTrip: Option[List[EmbodiedBeamLeg]]
   ): Unit = {
     currentBeamVehicle.reservedStall.foreach { stall: ParkingStall =>
+      if (!currentBeamVehicle.isSharedVehicle) {
+        nextActivity match {
+          case Some(act) if act.getType.equalsIgnoreCase("Home") =>
+            currentBeamVehicle.setMustBeDrivenHome(false)
+          case _ =>
+            currentBeamVehicle.setMustBeDrivenHome(true)
+        }
+      }
       currentBeamVehicle.useParkingStall(stall)
       val parkEvent = ParkingEvent(
         time = tick,
@@ -173,11 +182,11 @@ trait ChoosesParking extends {
     val lastLeg = vehicleTrip.last.beamLeg
     val activityType = nextActivity(data).get.getType
     val remainingTripData = calculateRemainingTripData(data)
-    val parkingDuration = (_currentTick, nextActivity(data)) match {
-      case (Some(tick), Some(act)) => act.getEndTime.orElse(0.0) - tick
-      case (None, Some(act))       => act.getEndTime.orElse(0.0) - lastLeg.endTime
-      case (Some(tick), None)      => endOfSimulationTime - tick
-      case _                       => 0.0
+    val parkingDuration = (_currentTick, nextActivity(data).map(_.getEndTime.toOption)) match {
+      case (Some(tick), Some(maybeEndTime)) => maybeEndTime.getOrElse(endOfSimulationTime.toDouble) - tick
+      case (None, Some(maybeEndTime))       => maybeEndTime.getOrElse(endOfSimulationTime.toDouble) - lastLeg.endTime
+      case (Some(tick), _)                  => endOfSimulationTime - tick
+      case _                                => 0.0
     }
     val destinationUtm = SpaceTime(beamServices.geo.wgs2Utm(lastLeg.travelPath.endPoint.loc), lastLeg.endTime)
     if (data.enrouteData.isInEnrouteState) {
@@ -200,7 +209,8 @@ trait ChoosesParking extends {
       )
     } else {
       val searchModeChargeOrPark =
-        if (isRefuelAtDestinationNeeded(currentBeamVehicle, activityType)) ParkingSearchMode.DestinationCharging
+        if (isRefuelAtDestinationNeeded(currentBeamVehicle, activityType) && isEnoughTimeForRefueling(parkingDuration))
+          ParkingSearchMode.DestinationCharging
         else ParkingSearchMode.Parking
 
       // for regular parking inquiry, we have vehicle information in `currentBeamVehicle`
@@ -218,6 +228,10 @@ trait ChoosesParking extends {
         triggerId = getCurrentTriggerIdOrGenerate
       )
     }
+  }
+
+  private def isEnoughTimeForRefueling(parkingDuration: Double): Boolean = {
+    beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow.toDouble < parkingDuration
   }
 
   private def isRefuelAtDestinationNeeded(vehicle: BeamVehicle, activityType: String): Boolean = {
@@ -615,7 +629,8 @@ trait ChoosesParking extends {
         None,
         id,
         parkingManager,
-        eventsManager
+        eventsManager,
+        departed = true
       )
 
       goto(WaitingToDrive) using data.copy(
