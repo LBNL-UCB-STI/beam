@@ -7,11 +7,10 @@ import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.sim.population.PopulationAdjustment.RIDEHAIL_SERVICE_SUBSCRIPTION
 import beam.sim.vehicles.VehiclesAdjustment
-import beam.utils.SequenceUtils
 import beam.utils.plan.sampling.AvailableModeUtils
 import beam.utils.scenario.urbansim.HOVModeTransformer
+import beam.utils.{SequenceUtils, UniformRealDistributionEnhanced}
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.{Leg, Person, Plan, Population}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
@@ -98,6 +97,12 @@ class UrbanSimScenarioLoader(
       households
     }
 
+    val vehiclesF = Future {
+      val vehicles = scenarioSource.getVehicles
+      logger.info(s"Read ${vehicles.size} vehicles")
+      vehicles
+    }
+
     val timeOutSeconds = beamScenario.beamConfig.beam.exchange.scenario.urbansim.scenarioLoadingTimeoutSeconds
     val inputPlans = Await.result(plansF, timeOutSeconds.seconds)
     logger.info(s"Reading plans done.")
@@ -107,6 +112,9 @@ class UrbanSimScenarioLoader(
 
     val households = Await.result(householdsF, timeOutSeconds.seconds)
     logger.info(s"Reading households done.")
+
+    val vehicles = Await.result(vehiclesF, timeOutSeconds.seconds)
+    logger.info(s"Reading vehicles done.")
 
     val inputPlansCorrected = {
       HOVModeTransformer.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
@@ -126,11 +134,13 @@ class UrbanSimScenarioLoader(
     val householdsWithMembers = households.filter(household => householdIdToPersons.contains(household.householdId))
     logger.info(s"There are ${householdsWithMembers.size} non-empty households")
 
-    logger.info("Applying households...")
-    applyHousehold(householdsWithMembers, householdIdToPersons, plans)
-    // beamServices.privateVehicles is properly populated here, after `applyHousehold` call
+    val householdIdToVehicles: Map[HouseholdId, Iterable[VehicleInfo]] =
+      vehicles.groupBy(v => HouseholdId(v.householdId))
 
-    // beamServices.personHouseholds is used later on in PopulationAdjustment.createAttributesOfIndividual when we
+    logger.info("Applying households...")
+    applyHousehold(householdsWithMembers, householdIdToPersons, householdIdToVehicles, plans)
+
+    // beamServices.personHouseholds is used later on in PopulationAdjustment.createAttributesOfIndividual
     logger.info("Applying persons...")
     applyPersons(personsWithPlans)
 
@@ -162,6 +172,7 @@ class UrbanSimScenarioLoader(
   private[utils] def applyHousehold(
     households: Iterable[HouseholdInfo],
     householdIdToPersons: Map[HouseholdId, Iterable[PersonInfo]],
+    householdIdToVehicles: Map[HouseholdId, Iterable[VehicleInfo]],
     plans: Iterable[PlanElement]
   ): Unit = {
     val scenarioHouseholds = scenario.getHouseholds.getHouseholds
@@ -181,8 +192,11 @@ class UrbanSimScenarioLoader(
 
     val scaleFactor = beamScenario.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
 
-    val vehiclesAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamScenario)
-    val realDistribution: UniformRealDistribution = new UniformRealDistribution()
+    val vehiclesAdjustment = VehiclesAdjustment.getVehicleAdjustment(
+      beamScenario,
+      householdIdToVehicleIdsOption = Option(householdIdToVehicles)
+    )
+    val realDistribution: UniformRealDistributionEnhanced = new UniformRealDistributionEnhanced()
     realDistribution.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
     val bikeVehicleType = beamScenario.vehicleTypes.values
@@ -213,7 +227,8 @@ class UrbanSimScenarioLoader(
           householdSize = household.getMemberIds.size,
           householdPopulation = null,
           householdLocation = coord,
-          realDistribution
+          realDistribution,
+          Option(householdInfo.householdId)
         )
         .toBuffer
 
