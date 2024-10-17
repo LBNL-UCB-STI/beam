@@ -1,19 +1,21 @@
 package beam.agentsim.agents.freight.input
 
 import beam.agentsim.agents.freight._
+import beam.agentsim.agents.freight.input.FreightReader.{PAYLOAD_IDS, PAYLOAD_WEIGHT_IN_KG}
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.sim.BeamHelper
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
 import beam.utils.BeamVehicleUtils
 import beam.utils.SnapCoordinateUtils.SnapLocationHelper
-import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
-import org.matsim.api.core.v01.population.{Activity, Person, Plan, PopulationFactory}
+import beam.utils.matsim_conversion.MatsimPlanConversion.{AttributesOps, IdOps}
+import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan, PopulationFactory}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.households.{Household, HouseholdImpl, HouseholdsFactory}
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito
 import org.mockito.Mockito.when
+import org.scalatest.LoneElement.convertToCollectionLoneElementWrapper
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
@@ -186,6 +188,23 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
       plan1.getPlanElements.get(2).asInstanceOf[Activity].getCoord should be(
         new Coord(169567.3017564815, 836.6518909569604)
       )
+      val leg1 = plan1.getPlanElements.get(1).asInstanceOf[Leg]
+      leg1.getAttributes.typedValue[Seq[Id[PayloadPlan]]](PAYLOAD_IDS) shouldBe empty
+      leg1.getAttributes.getAttribute(PAYLOAD_WEIGHT_IN_KG) shouldBe 0.0
+      val leg2 = plan1.getPlanElements.get(3).asInstanceOf[Leg]
+      leg2.getAttributes.typedValue[Seq[Id[PayloadPlan]]](PAYLOAD_IDS).loneElement shouldBe "payload-3"
+        .createId[PayloadPlan]
+      leg2.getAttributes.getAttribute(PAYLOAD_WEIGHT_IN_KG) shouldBe 1300.0
+      val leg7 = plan1.getPlanElements.get(7).asInstanceOf[Leg]
+      leg7.getAttributes.typedValue[Seq[Id[PayloadPlan]]](PAYLOAD_IDS) shouldBe empty
+      leg7.getAttributes.getAttribute(PAYLOAD_WEIGHT_IN_KG) shouldBe 0.0
+      val leg13 = plan1.getPlanElements.get(13).asInstanceOf[Leg]
+      leg13.getAttributes.typedValue[Seq[Id[PayloadPlan]]](PAYLOAD_IDS) should contain theSameElementsInOrderAs Seq(
+        "payload-5",
+        "payload-6",
+        "payload-7"
+      ).map(_.createId[PayloadPlan])
+      leg13.getAttributes.getAttribute(PAYLOAD_WEIGHT_IN_KG) shouldBe 4300.0
       plan1.getPlanElements.get(12).asInstanceOf[Activity].getCoord should be(
         new Coord(169576.80444138843, 3380.0075111142937)
       )
