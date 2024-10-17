@@ -249,8 +249,8 @@ def calc_vmt_from_events(events, scenario):
 
 
 def convert_payload_to_trips(payload_df, scenario):
-    output_file_path = os.path.join(work_dir, "beam-freight", batch, scenario,
-                                    f"trips--{scenario.replace("_", "-")}.csv")
+    output_file_path = os.path.join(work_dir, 'beam-freight', batch, scenario,
+                                    f'trips--{scenario.replace("_", "-")}.csv')
     # log_and_print(f"[FRISM] Total rows in payloads: {len(payload_df)}")
 
     # Count payloads per tour
