@@ -6,6 +6,7 @@ import beam.utils.scenario.urbansim.censusblock.EntityTransformer
 
 case class InputPlanElement(
   tripId: Option[String],
+  tourId: Option[String],
   personId: String,
   planElementIndex: Int,
   activityElement: ActivityType,
@@ -20,6 +21,7 @@ object InputPlanElement extends EntityTransformer[InputPlanElement] {
 
   override def transform(m: util.Map[String, String]): InputPlanElement = {
     val tripId = getOptional(m, "trip_id")
+    val tourId = getOptional(m, "tour_id")
     val personId = getIfNotNull(m, "person_id").split("\\.").apply(0)
     val planElementIndex = getIfNotNull(m, "PlanElementIndex").toInt
     val activityElement = ActivityType.determineActivity(getIfNotNull(m, "ActivityElement"))
@@ -31,6 +33,7 @@ object InputPlanElement extends EntityTransformer[InputPlanElement] {
 
     InputPlanElement(
       tripId,
+      tourId,
       personId,
       planElementIndex,
       activityElement,
