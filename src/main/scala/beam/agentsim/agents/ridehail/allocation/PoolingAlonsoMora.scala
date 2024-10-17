@@ -1,6 +1,7 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents._
+import beam.agentsim.agents.goods.GoodsDeliveryManager
 import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail.RideHailMatching.CustomerRequest
 import beam.agentsim.agents.ridehail._
@@ -15,7 +16,7 @@ import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.concurrent.{Await, TimeoutException}
+import scala.concurrent.{Await, Future, TimeoutException}
 
 class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager) {
@@ -162,7 +163,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       // First satisfy the solo customers
       val soloCustomer = toAllocate.filterNot(_.asPooled)
       s = System.currentTimeMillis()
-      toAllocate.filterNot(_.asPooled).foreach { req =>
+      soloCustomer.foreach { req =>
         val pickupTime = math.max(tick, req.departAt)
         Pooling
           .serveOneRequest(req, pickupTime, alreadyAllocated, rideHailManager, beamServices, maxWaitTimeInSec) match {
@@ -181,21 +182,38 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       val availVehicles = RideHailMatching
         .createVehiclesAndSchedulesFromRideHailAgentLocation(tick, vehiclePoolToUse, rideHailManager)
         .toList
-      val spatialPoolCustomerReqs =
-        RideHailMatching.createSpatialPooledCustomerRequests(tick, toAllocate.filter(_.asPooled), rideHailManager)
+      val (packages, persons) = toAllocate
+        .filter(_.asPooled)
+        .partition(request => request.customer.personId.toString.startsWith(GoodsDeliveryManager.GOODS_PREFIX))
+      val spatialPoolCustomerReqs: List[QuadTree[CustomerRequest]] = List(packages, persons)
+        .map(RideHailMatching.createSpatialPooledCustomerRequests(tick, _, rideHailManager))
 
       if (rideHailManager.log.isDebugEnabled) {
         rideHailManager.log
-          .debug("%%%%% Requests: {}", spatialPoolCustomerReqs.values().asScala.map(_.toString).mkString("\n"))
+          .debug(
+            "%%%%% Requests: {}",
+            spatialPoolCustomerReqs
+              .flatMap(_.values().asScala)
+              .map(_.toString)
+              .mkString("\n")
+          )
       }
 
       import scala.concurrent.duration._
-      val assignment =
+      val assignment: List[RideHailMatching.RideHailTrip] =
         try {
-          Await.result(
-            createMatchingAlgorithm(matchingAlgorithm, availVehicles, spatialPoolCustomerReqs).matchAndAssign(tick),
-            atMost = 2.minutes
-          )
+          import scala.concurrent.ExecutionContext.Implicits.global
+          Await
+            .result(
+              Future.sequence(
+                spatialPoolCustomerReqs.map(
+                  createMatchingAlgorithm(matchingAlgorithm, availVehicles, _)
+                    .matchAndAssign(tick)
+                )
+              ),
+              atMost = 3.minutes
+            )
+            .flatten
         } catch {
           case _: TimeoutException =>
             rideHailManager.log.error("timeout of Matching Algorithm with no allocations made")

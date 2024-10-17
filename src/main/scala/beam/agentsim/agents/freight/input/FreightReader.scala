@@ -168,6 +168,8 @@ object FreightReader {
   val FREIGHT_ID_PREFIX = "freight"
   val FREIGHT_REQUEST_TYPE = "FreightRequestType"
   val PAYLOAD_WEIGHT_IN_KG = "PayloadWeightInKg"
+  val NO_CARRIER_ID: Id[FreightCarrier] = Id.create("no-carrier-defined", classOf[FreightCarrier])
+  val NO_VEHICLE_ID: Id[BeamVehicle] = Id.createVehicleId("no-vehicle-defined")
 
   def apply(
     beamConfig: BeamConfig,

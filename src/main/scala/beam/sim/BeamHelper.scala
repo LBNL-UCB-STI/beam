@@ -306,7 +306,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       )
     } else None
 
-    val (freightCarriers, fixedActivitiesDurationsFromFreight) =
+    val (goodCarriers, freightCarriers, fixedActivitiesDurationsFromFreight) =
       readFreights(
         beamConfig,
         networkCoordinator.transportNetwork.streetLayer,
@@ -353,6 +353,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       taz2Map,
       ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath),
       H3TAZ(networkCoordinator.network, tazMap, beamConfig),
+      goodCarriers,
       freightCarriers,
       fixedActivitiesDurations
     )
@@ -364,7 +365,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     networkMaybe: Option[Network],
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
     outputDirMaybe: Option[String]
-  ): (IndexedSeq[FreightCarrier], Map[String, Double]) = {
+  ): (IndexedSeq[FreightCarrier], IndexedSeq[FreightCarrier], Map[String, Double]) = {
     val freightConfig = beamConfig.beam.agentsim.agents.freight
 
     if (freightConfig.enabled) {
@@ -374,7 +375,9 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       val plans = freightReader.readPayloadPlans()
       logger.info(s"Freight before sampling: ${tours.size} tours. ${plans.size} payloads")
       // In principle readFreightCarriers will only keep the carriers and plans that are linked to the sampled tours
-      val carriers = freightReader.readFreightCarriers(tours, plans, vehicleTypes)
+      val (goodCarriers, carriers) = freightReader
+        .readFreightCarriers(tours, plans, vehicleTypes)
+        .partition(carrier => carrier.fleet.isEmpty)
       val finalNumTours = carriers.flatMap(_.tourMap.values).flatten.size
       val finalNumPlans = carriers.flatMap(_.payloadPlans.values).size
       val finalNumCarriers = carriers.size
@@ -384,9 +387,10 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       } else {
         Map.empty[String, Double]
       }
-      (carriers, activityNameToDuration)
+
+      (goodCarriers, carriers, activityNameToDuration)
     } else {
-      (IndexedSeq.empty[FreightCarrier], Map.empty[String, Double])
+      (IndexedSeq.empty[FreightCarrier], IndexedSeq.empty[FreightCarrier], Map.empty[String, Double])
     }
   }
 

@@ -476,13 +476,13 @@ class PersonAgentSpec
       events.expectMsgType[VehicleLeavesTrafficEvent]
       events.expectMsgType[PathTraversalEvent]
 
-      expectMsgType[TransitReservationRequest]
+      val req = expectMsgType[TransitReservationRequest]
       scheduler ! ScheduleTrigger(
-        BoardVehicleTrigger(28800, busPassengerLeg.beamVehicleId),
+        BoardVehicleTrigger(28800, busPassengerLeg.beamVehicleId, req.passenger),
         personActor
       )
       scheduler ! ScheduleTrigger(
-        AlightVehicleTrigger(30000, busPassengerLeg.beamVehicleId),
+        AlightVehicleTrigger(30000, busPassengerLeg.beamVehicleId, req.passenger),
         personActor
       )
       lastSender ! ReservationResponse(Right(ReserveConfirmInfo()), 0)
@@ -496,7 +496,7 @@ class PersonAgentSpec
 
       events.expectMsgType[PersonLeavesVehicleEvent]
 
-      expectMsgType[TransitReservationRequest]
+      val req2 = expectMsgType[TransitReservationRequest]
       lastSender ! ReservationResponse(
         Right(
           ReserveConfirmInfo(
@@ -504,14 +504,16 @@ class PersonAgentSpec
               ScheduleTrigger(
                 BoardVehicleTrigger(
                   30000,
-                  tramPassengerLeg.beamVehicleId
+                  tramPassengerLeg.beamVehicleId,
+                  req2.passenger
                 ),
                 personActor
               ),
               ScheduleTrigger(
                 AlightVehicleTrigger(
                   32000,
-                  tramPassengerLeg.beamVehicleId
+                  tramPassengerLeg.beamVehicleId,
+                  req2.passenger
                 ),
                 personActor
               ) // My tram is late!
@@ -700,12 +702,13 @@ class PersonAgentSpec
       val routingRequest4 = expectMsgType[RoutingRequest]
       val personActor = lastSender
 
+      val passenger = PersonIdWithActorRef(routingRequest4.personId.get, personActor)
       scheduler ! ScheduleTrigger(
-        BoardVehicleTrigger(28800, busPassengerLeg.beamVehicleId),
+        BoardVehicleTrigger(28800, busPassengerLeg.beamVehicleId, passenger),
         personActor
       )
       scheduler ! ScheduleTrigger(
-        AlightVehicleTrigger(34400, busPassengerLeg.beamVehicleId),
+        AlightVehicleTrigger(34400, busPassengerLeg.beamVehicleId, passenger),
         personActor
       )
 
@@ -830,7 +833,7 @@ class PersonAgentSpec
       events.expectMsgType[VehicleLeavesTrafficEvent]
       events.expectMsgType[PathTraversalEvent]
 
-      expectMsgType[TransitReservationRequest]
+      val req = expectMsgType[TransitReservationRequest]
       lastSender ! ReservationResponse(
         Right(
           ReserveConfirmInfo(
@@ -838,14 +841,16 @@ class PersonAgentSpec
               ScheduleTrigger(
                 BoardVehicleTrigger(
                   35000,
-                  replannedTramLeg.beamVehicleId
+                  replannedTramLeg.beamVehicleId,
+                  req.passenger
                 ),
                 personActor
               ),
               ScheduleTrigger(
                 AlightVehicleTrigger(
                   40000,
-                  replannedTramLeg.beamVehicleId
+                  replannedTramLeg.beamVehicleId,
+                  req.passenger
                 ),
                 personActor
               ) // My tram is late!

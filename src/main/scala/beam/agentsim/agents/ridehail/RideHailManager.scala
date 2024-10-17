@@ -264,6 +264,21 @@ object RideHailManager {
     val projectedCoords = coords.map(coord => projectCoordinateToUtm(coord, beamServices))
     ShapeUtils.quadTree(projectedCoords)
   }
+
+  def getSupportedModes(supportedModesStr: String): (Set[BeamMode], Boolean) = {
+    val strModes = supportedModesStr
+      .split(',')
+      .map(_.trim.toLowerCase)
+    val (goods, regular) = strModes.partition(_ == "goods")
+    (
+      regular
+        .flatMap(BeamMode.fromString)
+        .filter(_.isRideHail)
+        .toSet,
+      goods.nonEmpty
+    )
+  }
+
 }
 
 class RideHailManager(
@@ -492,12 +507,7 @@ class RideHailManager(
   var currReposTick: Int = 0
   var nRepositioned: Int = 0
 
-  val supportedModes: Set[BeamMode] = managerConfig.supportedModes
-    .split(',')
-    .map(_.trim.toLowerCase)
-    .flatMap(BeamMode.fromString)
-    .filter(_.isRideHail)
-    .toSet
+  val (supportedModes: Set[BeamMode], goodsSupported: Boolean) = getSupportedModes(managerConfig.supportedModes)
   if (supportedModes.isEmpty)
     throw new IllegalArgumentException(s"Wrong supported modes: ${managerConfig.supportedModes}")
 
@@ -1672,7 +1682,7 @@ class RideHailManager(
       } else {
         rideHailResourceAllocationManager.addRequestToBuffer(request)
       }
-      request.requester ! DelayedRideHailResponse
+      request.requester ! DelayedRideHailResponse(triggerId)
     } else {
       if (currentlyProcessingTimeoutTrigger.isEmpty) {
         // We always use the request buffer even if we will process these requests immediately

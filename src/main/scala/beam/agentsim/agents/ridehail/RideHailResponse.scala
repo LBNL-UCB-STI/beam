@@ -7,7 +7,7 @@ import beam.agentsim.scheduler.{HasTriggerId, Trigger}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 
-case object DelayedRideHailResponse
+case class DelayedRideHailResponse(triggerId: Long) extends HasTriggerId
 
 case class RideHailResponse(
   request: RideHailRequest,
