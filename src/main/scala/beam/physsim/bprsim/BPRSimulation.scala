@@ -1,10 +1,10 @@
 package beam.physsim.bprsim
 
-import java.{lang, util}
-
+import beam.utils.metrics.TemporalEventCounter
 import com.typesafe.scalalogging.StrictLogging
-import org.matsim.api.core.v01.Scenario
+import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.api.core.v01.events.Event
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
@@ -21,7 +21,12 @@ class BPRSimulation(scenario: Scenario, config: BPRSimConfig, eventManager: Even
     extends Mobsim
     with StrictLogging {
   private val queue = mutable.PriorityQueue.empty[SimEvent](BPRSimulation.simEventOrdering)
-  private val params = BPRSimParams(config, new VolumeCalculator(config.inFlowAggregationTimeWindow))
+
+  private val params = BPRSimParams(
+    config,
+    new VolumeCalculator(config.inFlowAggregationTimeWindow),
+    new TemporalEventCounter[Id[Link]](30)
+  )
 
   override def run(): Unit = {
     val persons = scenario.getPopulation.getPersons.values().asScala

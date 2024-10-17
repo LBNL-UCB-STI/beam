@@ -16,11 +16,16 @@ object ParkingType {
     override def toString: String = "Public"
   }
 
+  case object DoubleParking extends ParkingType {
+    override def toString: String = "DoubleParking"
+  }
+
   def apply(s: String): ParkingType = {
     s match {
-      case "Residential" => Residential
-      case "Public"      => Public
-      case "Workplace"   => Workplace
+      case "Residential"   => Residential
+      case "Public"        => Public
+      case "Workplace"     => Workplace
+      case "DoubleParking" => DoubleParking
     }
   }
 

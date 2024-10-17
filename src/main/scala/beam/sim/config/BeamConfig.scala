@@ -794,6 +794,7 @@ object BeamConfig {
           minSearchRadius: scala.Double,
           multinomialLogit: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
           rangeAnxietyBuffer: scala.Double,
+          searchDoubleParkingRadius: scala.Double,
           searchMaxDistanceRelativeToEllipseFoci: scala.Double
         )
 
@@ -868,6 +869,8 @@ object BeamConfig {
               ),
               rangeAnxietyBuffer =
                 if (c.hasPathOrNull("rangeAnxietyBuffer")) c.getDouble("rangeAnxietyBuffer") else 20000.0,
+              searchDoubleParkingRadius =
+                if (c.hasPathOrNull("searchDoubleParkingRadius")) c.getDouble("searchDoubleParkingRadius") else 0.0,
               searchMaxDistanceRelativeToEllipseFoci =
                 if (c.hasPathOrNull("searchMaxDistanceRelativeToEllipseFoci"))
                   c.getDouble("searchMaxDistanceRelativeToEllipseFoci")

@@ -3,6 +3,7 @@ package beam.physsim.jdeqsim
 import beam.analysis.physsim.{PhyssimCalcLinkStats, PhyssimSpeedHandler}
 import beam.analysis.plot.PlotGraph
 import beam.physsim.bprsim.{BPRSimConfig, BPRSimulation, ParallelBPRSimulation}
+import beam.physsim.conditions.DoubleParking
 import beam.physsim.jdeqsim.cacc.CACCSettings
 import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.{
   Hao2018CaccRoadCapacityAdjustmentFunction,
@@ -13,10 +14,11 @@ import beam.physsim.{PickUpDropOffCollector, PickUpDropOffHolder}
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamConfigChangesObservable, BeamServices}
 import beam.utils.ConcurrentUtils.parallelExecution
+import beam.utils.metrics.TemporalEventCounter
 import beam.utils.{DebugLib, ProfilingUtils}
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.analysis.LegHistogram
-import org.matsim.api.core.v01.Scenario
+import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Population
 import org.matsim.core.api.experimental.events.EventsManager
@@ -214,6 +216,7 @@ class JDEQSimRunner(
             beamConfig.beam.physsim.bprsim.travelTimeFunction,
             beamConfig.beam.physsim.flowCapacityFactor,
             beamConfig.beam.physsim.bprsim.minFlowToUseBPRFunction,
+            new DoubleParking.SimpleCapacityReductionFunction(),
             maybeCACCSettings,
             maybePickUpDropOffHolder,
             defaultAlpha = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.alpha,
@@ -243,6 +246,7 @@ class JDEQSimRunner(
             beamConfig.beam.physsim.bprsim.travelTimeFunction,
             beamConfig.beam.physsim.flowCapacityFactor,
             beamConfig.beam.physsim.bprsim.minFlowToUseBPRFunction,
+            new DoubleParking.SimpleCapacityReductionFunction(),
             maybeCACCSettings,
             maybePickUpDropOffHolder,
             defaultAlpha = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.alpha,
@@ -262,6 +266,8 @@ class JDEQSimRunner(
           beamConfig,
           jdeqSimScenario,
           jdeqsimEvents,
+          new DoubleParking.SimpleCapacityReductionFunction(),
+          new TemporalEventCounter[Id[Link]](30),
           maybeCACCSettings,
           maybePickUpDropOffHolder
         )
@@ -307,12 +313,13 @@ object JDEQSimRunner {
     functionName: String,
     flowCapacityFactor: Double,
     minVolumeToUseBPRFunction: Int,
+    doubleParkingCapacityReduction: DoubleParking.CapacityReductionFunction,
     maybeCaccSettings: Option[CACCSettings],
     maybePickUpDropOffHolder: Option[PickUpDropOffHolder],
     defaultAlpha: Double,
     defaultBeta: Double,
     minSpeed: Double
-  ): (Double, Link, Double, Double) => Double = {
+  ): (Double, Link, Double, Double, Int) => Double = {
     val additionalTravelTime: (Link, Double) => Double = {
       maybePickUpDropOffHolder match {
         case Some(holder) =>
@@ -325,11 +332,11 @@ object JDEQSimRunner {
     functionName match {
 
       case "FREE_FLOW" =>
-        (time, link, _, _) =>
+        (time, link, _, _, _) =>
           val originalTravelTime = link.getLength / link.getFreespeed(time)
           originalTravelTime + additionalTravelTime(link, time)
       case "BPR" =>
-        (time, link, caccShare, volume) => {
+        (time, link, caccShare, volume, numberOfDoubleParked) => {
           val alpha =
             Option(link.getAttributes.getAttribute("alpha")).map(_.toString.toDouble).getOrElse(defaultAlpha)
           val beta =
@@ -344,8 +351,12 @@ object JDEQSimRunner {
               val ftt = link.getLength / link.getFreespeed(time)
               (ftt, link.getCapacity(time) * flowCapacityFactor)
           }
+          val capacity =
+            if (numberOfDoubleParked > 0)
+              doubleParkingCapacityReduction.calculateCapacity(time, link, numberOfDoubleParked, adjustedCapacity)
+            else adjustedCapacity
           val bprTravelTime = if (volume >= minVolumeToUseBPRFunction) {
-            val volumeOverCapacityRatio = volume / adjustedCapacity
+            val volumeOverCapacityRatio = volume / capacity
             freeFlowTT * (1 + alpha * math.pow(volumeOverCapacityRatio, beta))
           } else {
             freeFlowTT

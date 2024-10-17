@@ -200,8 +200,12 @@ trait ChoosesParking extends {
       )
     } else {
       val searchModeChargeOrPark =
-        if (isRefuelAtDestinationNeeded(currentBeamVehicle, activityType)) ParkingSearchMode.DestinationCharging
-        else ParkingSearchMode.Parking
+        if (activityType.startsWith("Loading") || activityType.startsWith("Unloading"))
+          ParkingSearchMode.DoubleParkingAllowed
+        else if (isRefuelAtDestinationNeeded(currentBeamVehicle, activityType))
+          ParkingSearchMode.DestinationCharging
+        else
+          ParkingSearchMode.Parking
 
       // for regular parking inquiry, we have vehicle information in `currentBeamVehicle`
       val reservedFor = VehicleManager.getReservedFor(currentBeamVehicle.vehicleManagerId.get).get

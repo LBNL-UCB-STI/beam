@@ -1,17 +1,23 @@
 package beam.physsim.bprsim
 
 import beam.physsim.bprsim.PhysSimulationSpec._
+import beam.physsim.conditions.DoubleParking
+import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.TestConfigUtils.testConfig
+import beam.utils.metrics.TemporalEventCounter
 import com.typesafe.config.Config
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{
   ActivityEndEvent,
+  ActivityStartEvent,
   Event,
   HasLinkId,
   LinkEnterEvent,
   LinkLeaveEvent,
+  PersonArrivalEvent,
   PersonDepartureEvent,
+  VehicleEntersTrafficEvent,
   VehicleLeavesTrafficEvent
 }
 import org.matsim.api.core.v01.network.{Link, Network}
@@ -19,12 +25,11 @@ import org.matsim.core.api.internal.HasPersonId
 import org.matsim.core.config.{Config => MatsimConfig}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
-import org.matsim.core.mobsim.jdeqsim.{JDEQSimConfigGroup, JDEQSimulation}
+import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
 import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
@@ -56,7 +61,16 @@ class PhysSimulationSpec extends AnyWordSpecLike with Matchers {
   "JDEQ Simulation" must {
     "produce the right sequence of events" in {
       val (eventManager: EventsManagerImpl, eventBuffer: BufferEventHandler) = createEventManager
-      val sim = new JDEQSimulation(jdeqConfig, scenario, eventManager)
+      val sim = new JDEQSimulation(
+        jdeqConfig,
+        beamConfig,
+        scenario,
+        eventManager,
+        new DoubleParking.SimpleCapacityReductionFunction(),
+        new TemporalEventCounter[Id[Link]](30),
+        None,
+        None
+      )
       sim.run()
       validateEvents(eventBuffer.buffer)
     }
@@ -71,7 +85,7 @@ class PhysSimulationSpec extends AnyWordSpecLike with Matchers {
           0,
           1.0,
           900,
-          (time, link, _, _) => link.getLength / link.getFreespeed(time),
+          (time, link, _, _, _) => link.getLength / link.getFreespeed(time),
           None
         )
       val (eventManager: EventsManagerImpl, eventBuffer: BufferEventHandler) = createEventManager
@@ -90,7 +104,7 @@ class PhysSimulationSpec extends AnyWordSpecLike with Matchers {
           60,
           1.0,
           900,
-          (time, link, _, _) => link.getLength / link.getFreespeed(time),
+          (time, link, _, _, _) => link.getLength / link.getFreespeed(time),
           None
         )
       val (eventManager: EventsManagerImpl, eventBuffer: BufferEventHandler) = createEventManager
@@ -114,6 +128,18 @@ class PhysSimulationSpec extends AnyWordSpecLike with Matchers {
     person10Events(0) should be(an[ActivityEndEvent])
     person10Events(0).getTime should be(25247.0 +- 0.0001)
     person10Events(0).asInstanceOf[ActivityEndEvent].getLinkId should be(Id.createLinkId(228))
+    person10Events(2) shouldBe a[VehicleEntersTrafficEvent]
+    person10Events(2).asInstanceOf[VehicleEntersTrafficEvent].getLinkId should be(Id.createLinkId(228))
+    person10Events(3) shouldBe a[VehicleLeavesTrafficEvent]
+    person10Events(3).asInstanceOf[VehicleLeavesTrafficEvent].getLinkId should be(Id.createLinkId(102))
+    person10Events(4) shouldBe a[PersonArrivalEvent]
+    person10Events(4).asInstanceOf[PersonArrivalEvent].getLinkId should be(Id.createLinkId(102))
+    person10Events(5) shouldBe an[ActivityStartEvent]
+    person10Events(5).asInstanceOf[ActivityStartEvent].getLinkId should be(Id.createLinkId(102))
+    person10Events(6) shouldBe an[ActivityEndEvent]
+    person10Events(6).asInstanceOf[ActivityEndEvent].getLinkId should be(Id.createLinkId(102))
+    person10Events(7) shouldBe a[PersonDepartureEvent]
+    person10Events(7).asInstanceOf[PersonDepartureEvent].getLinkId should be(Id.createLinkId(102))
     person10Events(12) should be(an[PersonDepartureEvent])
     person10Events(12).getTime should be(72007.0 +- 0.0001)
     person10Events(12).asInstanceOf[PersonDepartureEvent].getLinkId should be(Id.createLinkId(34))

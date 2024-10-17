@@ -128,6 +128,7 @@ object InfrastructureUtils extends LazyLogging {
             geo.distUTMInMeters,
             beamConfig.beam.agentsim.agents.parking.minSearchRadius,
             beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
+            beamConfig.beam.agentsim.agents.parking.searchDoubleParkingRadius,
             envelopeInUTM,
             beamConfig.matsim.modules.global.randomSeed,
             beamConfig.beam.agentsim.agents.parking.multinomialLogit,
