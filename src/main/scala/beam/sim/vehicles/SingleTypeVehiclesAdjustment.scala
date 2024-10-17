@@ -4,7 +4,8 @@ import beam.agentsim.agents.Population
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.sim.BeamScenario
-import org.apache.commons.math3.distribution.UniformRealDistribution
+import beam.utils.UniformRealDistributionEnhanced
+import beam.utils.scenario.HouseholdId
 import org.matsim.api.core.v01.{Coord, Id}
 
 case class SingleTypeVehiclesAdjustment(beamScenario: BeamScenario, vehicleType: Option[String])
@@ -19,7 +20,7 @@ case class SingleTypeVehiclesAdjustment(beamScenario: BeamScenario, vehicleType:
   override def sampleVehicleTypes(
     numVehicles: Int,
     vehicleCategory: VehicleCategory,
-    realDistribution: UniformRealDistribution
+    realDistribution: UniformRealDistributionEnhanced
   ): List[BeamVehicleType] = {
     if (vehicleCategory != vehicleTypesByCategory.vehicleCategory)
       throw new NotImplementedError(vehicleCategory.toString)
@@ -33,7 +34,8 @@ case class SingleTypeVehiclesAdjustment(beamScenario: BeamScenario, vehicleType:
     householdSize: Int,
     householdPopulation: Population,
     householdLocation: Coord,
-    realDistribution: UniformRealDistribution
+    realDistribution: UniformRealDistributionEnhanced,
+    householdId: Option[HouseholdId]
   ): List[BeamVehicleType] = {
     if (vehicleCategory != vehicleTypesByCategory.vehicleCategory)
       throw new NotImplementedError(vehicleCategory.toString)
