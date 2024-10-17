@@ -71,17 +71,17 @@ object ChargingPointType {
   // these were breaking some tests with a ChargingPoint parsing error caused by Event handlers
   def apply(s: String): Option[ChargingPointType] = {
     s.trim.toLowerCase match {
-      case "householdsocket"              => Some(HouseholdSocket)
-      case "bluehouseholdsocket"          => Some(BlueHouseholdSocket)
-      case "cee16asocket"                 => Some(Cee16ASocket)
-      case "cee32asocket"                 => Some(Cee32ASocket)
-      case "cee63asocket"                 => Some(Cee63ASocket)
-      case "chargingstationtype1"         => Some(ChargingStationType1)
-      case "chargingstationtype2"         => Some(ChargingStationType2)
-      case "chargingstationccscombotype1" => Some(ChargingStationCcsComboType1)
-      case "chargingstationccscombotype2" => Some(ChargingStationCcsComboType2)
-      case "teslasupercharger"            => Some(TeslaSuperCharger)
-      case "nocharger" | "none" | ""      => None
+      case "householdsocket"                 => Some(HouseholdSocket)
+      case "bluehouseholdsocket"             => Some(BlueHouseholdSocket)
+      case "cee16asocket"                    => Some(Cee16ASocket)
+      case "cee32asocket"                    => Some(Cee32ASocket)
+      case "cee63asocket"                    => Some(Cee63ASocket)
+      case "chargingstationtype1" | "level1" => Some(ChargingStationType1)
+      case "chargingstationtype2" | "level2" => Some(ChargingStationType2)
+      case "chargingstationccscombotype1"    => Some(ChargingStationCcsComboType1)
+      case "chargingstationccscombotype2"    => Some(ChargingStationCcsComboType2)
+      case "teslasupercharger"               => Some(TeslaSuperCharger)
+      case "nocharger" | "none" | ""         => None
       case CustomChargingPointRegex(id, installedCapacity, currentType) =>
         Some(CustomChargingPoint(id, installedCapacity, currentType))
       case _ =>

@@ -500,7 +500,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
 
       val coordMaybe: Option[Coord] = (Option(locationXString), Option(locationYString)) match {
         case (Some(xLoc), Some(yLoc)) => Some(new Coord(xLoc.toDouble, yLoc.toDouble))
-        case _ => None
+        case _                        => None
       }
       val linkMaybe = coordMaybe match {
         case Some(coord) if beamServices.isDefined =>
@@ -522,7 +522,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
             .flatMap(link => tazTreeMap.getTAZfromLink(link.getId).map(_.tazId))
             .getOrElse(
               coordMaybe
-                .map(coord => tazTreeMap.getTAZ(coord).tazId)
+                .map(coord => tazTreeMap.getTAZ(beamServices.get.geo.wgs2Utm(coord)).tazId)
                 .getOrElse(throw new IllegalArgumentException("Invalid Coord for parking zone"))
             )
         case _ =>
@@ -588,7 +588,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
   }
 
   private def validateCsvRow(csvRow: jMap): Boolean = {
-    val allRequiredPresented = Seq("taz", "parkingType", "pricingModel", "chargingPointType", "numStalls", "feeInCents")
+    val allRequiredPresented = Seq("parkingType", "pricingModel", "chargingPointType", "numStalls", "feeInCents")
       .forall(key => {
         val value = csvRow.get(key)
         value != null && value.nonEmpty
