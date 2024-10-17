@@ -6,11 +6,9 @@ import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, Parking
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
-import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Parking
 import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.utils.collections.QuadTree
 
 import scala.util.Random
 
@@ -127,7 +125,7 @@ class ParkingFunctions(
       case _ =>
         inquiry.parkingActivityType match {
           case ParkingActivityType.Home if inquiry.searchMode != ParkingSearchMode.EnRouteCharging =>
-            val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm.loc)
+            val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm.loc, inquiry.activityType)
             ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
           case _ =>
             // didn't find any stalls, so, as a last resort, create a very expensive stall

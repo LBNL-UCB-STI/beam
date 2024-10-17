@@ -109,7 +109,7 @@ object MatsimConversionTool extends App {
     val midX = (maxX + minX) / 2
     val midY = (maxY + minY) / 2
 
-    CsvTaz("1", midX, midY, 1)
+    CsvTaz("1", midX, midY, 1, "")
   }
 
   def parseFileSubstitutingInputDirectory(fileName: String): com.typesafe.config.Config = {

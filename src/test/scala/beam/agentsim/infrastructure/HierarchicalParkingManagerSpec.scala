@@ -186,6 +186,7 @@ class HierarchicalParkingManagerSpec
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
+            "work",
             reservedFor = VehicleManager.AnyManager
           )
         val response1 = parkingManager.processParkingInquiry(firstInquiry)
@@ -257,6 +258,7 @@ class HierarchicalParkingManagerSpec
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
+            "work",
             reservedFor = VehicleManager.AnyManager
           )
 

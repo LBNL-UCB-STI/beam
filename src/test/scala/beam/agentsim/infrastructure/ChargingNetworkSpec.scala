@@ -112,6 +112,7 @@ class ChargingNetworkSpec
             Some(xfcChargingPoint),
             Some(FlatFee(56.78)),
             ParkingType.Workplace,
+            "charge",
             VehicleManager.AnyManager
           )
         val response1 = chargingNetwork.processParkingInquiry(firstInquiry)

@@ -176,4 +176,104 @@ sum(vmt_emfac[grepl("Diesel", vehicleType)]$beam_pm2.5_emissions_t)
 sum(vmt2050_emfac[grepl("Diesel", vehicleType)]$beam_pm2.5_emissions_t)
 
 
+##
+## ********** ##
+## ********** ##
+## ********** ##
+##
+famos_emfac_freight_population_mapping_file = normalizePath("~/Workspace/Data/FREIGHT/sfbay/beam_freight/2024-01-23/Baseline/famos-emfac-freight-population-mapping.csv")
+emfac_mapping <- readCsv(famos_emfac_freight_population_mapping_file)
+
+tot_vehicles <- nrow(emfac_mapping)
+emfac_mapping[,.(count=.N),by=.(vehicleClass,fuelType)] %>% 
+  ggplot(aes(vehicleClass, count/tot_vehicles, fill=fuelType)) +
+  geom_bar(stat='identity') + 
+  scale_fill_manual(values=c("#999999", "#56B4E9")) +
+  scale_y_continuous(labels = scales::percent) +
+  theme_marain() +
+  labs(y='Count',x='Vehicle Class',fill='Powertrain', title='FAMOS Vehicle Types Distribution')
+
+emfac_fuel_type <- emfac_mapping[, .(percentage = .N/tot_vehicles), by = .(vehicleClass, emfacFuelType)][order(vehicleClass,emfacFuelType)]
+ggplot(emfac_fuel_type, aes(vehicleClass, percentage, fill=emfacFuelType)) +
+  geom_bar(stat='identity') + 
+  scale_fill_manual(values=c("#999999", "#56B4E9", "#66A61E", "goldenrod3")) +
+  scale_y_continuous(labels = scales::percent) +
+  theme_marain() +
+  labs(y='Count',x='Vehicle Class',fill='Powertrain', title='FAMOS Mapped Population')
+
+# ***************
+# ***************
+# ***************
+
+# Calculate total vehicles and counts
+emfac_summary <- emfac_mapping[, .(count = .N, vehicleClass = first(vehicleClass)), by = .(emfacClass, emfacFuelType)] %>%
+  group_by(vehicleClass) %>%
+  mutate(tot_vehicles = sum(count)) %>%
+  ungroup() %>%
+  mutate(percentage = count / tot_vehicles)
+# Plotting
+ggplot(emfac_summary, aes(x = emfacClass, y = percentage, fill = emfacFuelType)) +
+  geom_bar(stat = 'identity') +
+  scale_y_continuous(labels = percent_format()) +
+  scale_fill_manual(values=c("#999999", "#56B4E9", "#66A61E", "goldenrod3")) +
+  labs(y = 'Percentage', x = 'EMFAC Class', fill = 'Fuel Type', title = 'FAMOS-EMFAC Vehicle Types Distribution') +
+  theme_minimal() +  # Assuming theme_marain was a typo or custom theme not provided
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        strip.text.x = element_text(size = rel(1.2))) +
+  facet_wrap(~ vehicleClass, scales = "free_x")
+
+# ***************
+# ***************
+# ***************
+
+emfac_freight_population_file = normalizePath("~/Workspace/Data/FREIGHT/sfbay/beam_freight/2024-01-23/Baseline/CA-emfac-freight-population.csv")
+#emfac_population <- readCsv(emfac_freight_population_file)[mappedVehicleClass!="Class 2b&3 Vocational"]
+emfac_population <- readCsv(emfac_freight_population_file)
+tot_population <- sum(emfac_population$population)
+emfac_fuel_type_raw <- emfac_population[, .(percentage = sum(population)/tot_population), by = .(mappedVehicleClass, fuel)][order(mappedVehicleClass,fuel)]
+ggplot(emfac_fuel_type_raw, aes(mappedVehicleClass, percentage, fill=fuel)) +
+  geom_bar(stat='identity') + 
+  scale_fill_manual(values=c("#999999", "#66A61E", "goldenrod3")) +
+  scale_y_continuous(labels = scales::percent) +
+  theme_marain() +
+  labs(y='Count',x='Vehicle Class',fill='Powertrain', title='EMFAC Population')
+
+
+emfac_class_to_regulatory_class_map <- c(
+  'LHD1' = 'Class 2b',
+  'LHD2' = 'Class 3',
+  'T6 Instate Delivery Class 4' = 'Class 4',
+  'T6 Instate Delivery Class 5' = 'Class 5',
+  'T6 Instate Delivery Class 6' = 'Class 6',
+  'T6 Instate Other Class 4' = 'Class 4',
+  'T6 Instate Other Class 5' = 'Class 5',
+  'T6 Instate Other Class 6' = 'Class 6',
+  'T6 CAIRP Class 4' = 'Class 4',
+  'T6 CAIRP Class 5' = 'Class 5',
+  'T6 CAIRP Class 6' = 'Class 6',
+  'T6 OOS Class 4' = 'Class 4',
+  'T6 OOS Class 5' = 'Class 5',
+  'T6 OOS Class 6' = 'Class 6',
+  'T6 Instate Tractor Class 6' = 'Class 6',
+  'T6 Instate Delivery Class 7' = 'Class 7',
+  'T6 Instate Other Class 7' = 'Class 7',
+  'T7 Single Concrete/Transit Mix Class 8' = 'Class 8',
+  'T7 Single Dump Class 8' = 'Class 8',
+  'T7 Single Other Class 8' = 'Class 8',
+  'T7IS' = 'Class 7',
+  'T6 Instate Tractor Class 7' = 'Class 7',
+  'T7 Tractor Class 8' = 'Class 8',
+  'T6 CAIRP Class 7' = 'Class 7',
+  'T6 OOS Class 7' = 'Class 7',
+  'T7 CAIRP Class 8' = 'Class 8',
+  'T7 NNOOS Class 8' = 'Class 8',
+  'T7 NOOS Class 8' = 'Class 8'
+)
+
+emfac_population$regulatoryClass <- emfac_class_to_regulatory_class_map[emfac_population$emfacClass]
+emfac_population_summary <- emfac_population[,.(tot_population=sum(population)),by=.(regulatoryClass)][order(regulatoryClass)]
+fwrite(emfac_population_summary, file = normalizePath("~/Workspace/Data/FREIGHT/sfbay/beam_freight/2024-01-23/Baseline/CA-emfac-freight-population-bis.csv"))
+
+sum(emfac_population[emfacClass=='T7IS']$population)
+
 

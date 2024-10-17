@@ -30,6 +30,33 @@ isCav <- function(x) {
   return(x >= 4)
 }
 
+# emission
+emfac_sf_file <- normalizePath('~/Workspace/Models/emfac/2018/SF_2018_Annual_fleet_data_population_20240311153419.csv')
+emfac_sf <- readCsv(emfac_sf_file)
+emfac_sf_normalized <- emfac_sf[,.(sum_population=(sum(population))),by=.(vehicle_class, fuel)]
+emfac_sf_normalized$share_population <- emfac_sf_normalized$sum_population/sum(emfac_sf_normalized$sum_population)
+
+###
+
+# Create a sample data frame
+data <- data.frame(
+  Name = c("John", "Jane", "Bob", "Alice", "John", "Jane", "Bob", "Alice"),
+  Age = c(25, 30, 35, 40, 27, 32, 38, 42),
+  City = c("New York", "London", "Paris", "Tokyo", "New York", "London", "Paris", "Tokyo"),
+  Gender = c("M", "F", "M", "F", "M", "F", "M", "F")
+)
+
+# Load the required packages
+library(dplyr)
+library(stringr)
+
+# Group the data frame by 'City' and 'Gender', and concatenate 'Name' into a new column
+grouped <- data %>%
+  group_by(City, Gender) %>%
+  summarise(Names = str_c(Name, collapse = ", "))
+
+print(grouped)
+
 ### RouteE
 
 work_folder <- normalizePath("~/Workspace/Data/FREIGHT/seattle")
@@ -606,11 +633,11 @@ sfBayTAZs <- st_read(pp(validationDir, "/TAZs/Transportation_Analysis_Zones.shp"
 ## ***************************
 #FRISM
 ## ***************************
-freightDir <- pp(work_folder,"/sfbay/runs/baseline/")
-carriers <- readCsv(pp(freightDir, "/freight-merged-carriers.csv"))
-payload <- readCsv(pp(freightDir, "/freight-merged-payload-plans.csv"))
-tours <- readCsv(pp(freightDir, "/freight-merged-tours.csv"))
-vehiclesTypes <- readCsv(pp(freightDir, "/freight-vehicles-types.csv"))
+freightDir <- normalizePath('~/Workspace/Simulation/sfbay/beam-freight/2024-01-23')
+carriers <- readCsv(pp(freightDir, "/2018_Baseline/carriers--2018-Baseline.csv"))
+payload <- readCsv(pp(freightDir, "/2018_Baseline/payloads--2018-Baseline.csv"))
+tours <- readCsv(pp(freightDir, "/2018_Baseline/tours--2018-Baseline.csv"))
+vehiclesTypes <- readCsv(pp(freightDir, "/vehicle-tech/ft-vehicletypes--2018-Baseline.csv"))
 
 tours_carriers <- tours[carriers, on="tourId"]
 tours_carriers[departureTimeInSec <= 3*3600][,.N,by=.(vehicleTypeId)]
@@ -655,21 +682,43 @@ payload[,time24:=estimatedTimeOfArrivalInSec%%(24*3600),][,.N,by=.(timeBin=as.PO
         axis.text.x = element_text(angle = 0, hjust = 1))
 
 
+library(lubridate)
 payload_carriers <- payload[carriers, on="tourId"]
-payload_carriers$vehicleCategory <- "LightDutyTruck"
-payload_carriers[vehicleTypeId == "FREIGHT-2"]$vehicleCategory <- "HeavyDutyTruck"
-p <- payload_carriers[,time24:=estimatedTimeOfArrivalInSec%%(24*3600),][,.N,by=.(timeBin=as.POSIXct(cut(toDateTime(time24),"30 min")), vehicleCategory)] %>%
-  ggplot(aes(timeBin, N, colour=vehicleCategory)) +
+payload_carriers_grouped <- payload_carriers[, time24 := estimatedTimeOfArrivalInSec %% (24 * 3600)] %>%
+  .[, timeBin := lubridate::floor_date(as.POSIXct("1970-01-01") + time24, unit = "30 minutes")] %>%
+  .[, .N, by = .(timeBin)]
+
+p <- payload_carriers_grouped %>%
+  ggplot(aes(timeBin, N)) +
   geom_line() +
   scale_x_datetime("Hour",
                    breaks=scales::date_breaks("2 hour"),
                    labels=scales::date_format("%H", tz = dateTZ)) +
   scale_y_continuous("Activity", breaks = scales::pretty_breaks()) +
-  scale_colour_manual("Vehicle Category", values = c("#eca35b", "#20b2aa")) +
+  #scale_colour_manual("Vehicle Category", values = c("#eca35b", "#20b2aa")) +
   theme_marain() +
   theme(legend.title = element_text(size = 10),
         legend.text = element_text(size = 10),
         axis.text.x = element_text(angle = 0, hjust = 1))
+
+
+tours_grouped <- tours[, time24 := departureTimeInSec] %>%
+  .[, timeBin := lubridate::floor_date(as.POSIXct("1970-01-01") + time24, unit = "30 minutes")] %>%
+  .[, .N, by = .(timeBin)]
+
+tours_grouped %>%
+  ggplot(aes(timeBin, N)) +
+  geom_line() +
+  scale_x_datetime("Hour",
+                   breaks=scales::date_breaks("2 hour"),
+                   labels=scales::date_format("%H", tz = dateTZ)) +
+  scale_y_continuous("Activity", breaks = scales::pretty_breaks()) +
+  #scale_colour_manual("Vehicle Category", values = c("#eca35b", "#20b2aa")) +
+  theme_marain() +
+  theme(legend.title = element_text(size = 10),
+        legend.text = element_text(size = 10),
+        axis.text.x = element_text(angle = 0, hjust = 1))
+
 ggsave(pp(freightWorkDir,'/output/frism-activity-by-category.png'),p,width=6,height=3,units='in')
 
 
@@ -742,7 +791,7 @@ ggsave(pp(freightWorkDir,'/output/b2b-stops.png'),p,width=4,height=5,units='in')
 
 ## FREIGHT ACTIVITY
 to_plot <- rbind(b2b_pt,b2c_pt)
-p <- to_plot[,time24:=arrivalTime%%(24*3600),][,.N,by=.(timeBin=as.POSIXct(cut(toDateTime(time24),"30 min")), label)] %>%
+p <- to_plot[,time24:=arrivalTime%%(24*3600),][,.N,by=.(timeBin=as.POSIXct(cut(toDateTime(time24),"30 minutes")), label)] %>%
   ggplot(aes(timeBin, N, colour=label)) +
   geom_line() + 
   scale_x_datetime("Hour", 
@@ -768,3 +817,4 @@ p <- ggplot(to_plot, aes(x=label,y=VMT,fill=label))+
         legend.title = element_text(size = 10),
         legend.text = element_text(size = 10))
 ggsave(pp(freightWorkDir,'/freight-avg-vmt.png'),p,width=4,height=3,units='in')
+

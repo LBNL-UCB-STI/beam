@@ -13,7 +13,6 @@ import beam.router.skim.Skims
 import beam.sim.config.BeamConfig
 import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.utils.collections.QuadTree
 
 import scala.util.Random
 
@@ -82,7 +81,7 @@ class RideHailDepotFunctions(
       .refuelingSessionDurationAndEnergyInJoulesForStall(
         Some(
           ParkingStall
-            .fromParkingAlternative(parkingAlternative.geo.tazId, parkingAlternative)
+            .fromParkingAlternative(parkingAlternative.geo.tazId, inquiry.activityType, parkingAlternative)
         ),
         None,
         None,

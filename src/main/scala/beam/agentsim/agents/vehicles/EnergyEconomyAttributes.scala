@@ -1,6 +1,6 @@
 package beam.agentsim.agents.vehicles
 
-import beam.agentsim.agents.vehicles.BeamVehicle.FuelConsumptionData
+import beam.agentsim.agents.vehicles.BeamVehicle.VehicleActivityData
 import enumeratum.EnumEntry.LowerCamelcase
 import enumeratum._
 import org.matsim.vehicles.EngineInformation
@@ -36,7 +36,7 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
 
     def getRateInJoulesPerMeter: Double = joulesPerMeter
 
-    def estimateConsumptionInJoules(fuelConsumption: IndexedSeq[FuelConsumptionData]): Double = {
+    def estimateConsumptionInJoules(fuelConsumption: IndexedSeq[VehicleActivityData]): Double = {
       joulesPerMeter * fuelConsumption.map(_.linkLength.getOrElse(0.0)).sum
     }
 
