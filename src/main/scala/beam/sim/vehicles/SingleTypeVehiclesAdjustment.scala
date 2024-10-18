@@ -4,7 +4,7 @@ import beam.agentsim.agents.Population
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.sim.BeamScenario
-import org.apache.commons.math3.distribution.UniformRealDistribution
+import beam.utils.UniformRealDistributionEnhanced
 import beam.utils.scenario.HouseholdId
 import org.matsim.api.core.v01.{Coord, Id}
 
