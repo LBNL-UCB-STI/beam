@@ -30,7 +30,11 @@ class BeamWarmStartRunSpec
 
     "prepare WarmStart data" in {
       val baseConf = ConfigFactory
-        .parseString("beam.warmStart.prepareData = true")
+        .parseString("""beam.warmStart.prepareData = true
+             beam.physsim.duplicatePTE.fractionOfEventsToDuplicate = 1.0
+             beam.physsim.duplicatePTE.departureTimeShiftMin = 0
+             beam.physsim.duplicatePTE.departureTimeShiftMax = 600
+            """)
         .withFallback(testConfig("test/input/beamville/beam.conf"))
         .resolve()
       val (_, output, _) = runBeamWithConfig(baseConf)
