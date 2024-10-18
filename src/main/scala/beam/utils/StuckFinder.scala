@@ -130,12 +130,18 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
     result
   }
 
+  private var maxTimeoutObserved = 0L
+
   def isStuckAgent(st: ScheduledTrigger, startedAtMs: Long, currentTimeMs: Long): Boolean = {
     val diff = currentTimeMs - startedAtMs
     val threshold = class2Threshold.getOrElse(toKey(st), cfg.defaultTimeoutMs)
     val isStuck = diff > threshold
     if (isStuck) {
       logger.warn(s"$st is stuck. Diff: $diff ms, Threshold: $threshold ms")
+    }
+    if (maxTimeoutObserved < diff) {
+      maxTimeoutObserved = diff
+      logger.error(s"$st just set a new maximum observed timeout of $maxTimeoutObserved milliseconds")
     }
     isStuck
   }

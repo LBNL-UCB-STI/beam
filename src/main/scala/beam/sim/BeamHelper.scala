@@ -689,6 +689,18 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     outputDir: String,
     plansMerged: Boolean
   ): Unit = {
+    BeamHelper.synchronized {
+      if (
+        BeamHelper.lastSimulationStartTime > 0 &&
+        System.currentTimeMillis() - BeamHelper.lastSimulationStartTime < BeamHelper.simulationStartupWaitMs
+      ) {
+        val wait =
+          BeamHelper.simulationStartupWaitMs - (System.currentTimeMillis() - BeamHelper.lastSimulationStartTime)
+        logger.error(s"Waiting for $wait ms before starting a new Beam simulation.")
+        Thread.sleep(wait)
+      }
+      BeamHelper.lastSimulationStartTime = System.currentTimeMillis()
+    }
     if (!beamScenario.beamConfig.beam.agentsim.fractionOfPlansWithSingleActivity.equals(0d)) {
       applyFractionOfPlansWithSingleActivity(scenario, beamServices.beamConfig, scenario.getConfig)
     }
@@ -1068,6 +1080,9 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
 }
 
 object BeamHelper {
+
+  var lastSimulationStartTime: Long = -1L
+  val simulationStartupWaitMs: Int = 5000
 
   /**
     * We need to copy the old config values to the first element of rideHail.managers collection.

@@ -6,6 +6,7 @@ import beam.utils.EventReader
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
+import org.scalatest.BeforeAndAfterAll
 import org.matsim.api.core.v01.events.Event
 import org.matsim.vehicles.Vehicle
 import org.scalatest.AppendedClues.convertToClueful
@@ -20,6 +21,7 @@ import scala.util.matching.Regex
 class ElectricVehicleChargingBehaviorTest
     extends AnyFlatSpec
     with Matchers
+    with BeforeAndAfterAll
     with BeamHelper
     with BeforeAndAfterAllConfigMap {
 
@@ -416,8 +418,9 @@ class ElectricVehicleChargingBehaviorTest
     ", expecting most of the 4 legs for each of the 50 people to be ride hail legs."
   }
 
-  // test ignored due to an issue with AV RH which for some reason is much more likely to trigger on this test
-  "Ride Hail Electric vehicles" should "pick chargers choosing smaller DrivingTimeCost." ignore {
+  // this test gets stuck on CI, investigation lead to the conclusion that the culprit is AV RH
+  // getting stuck when beam simulations are running in parallel
+  "Ride Hail Electric vehicles" should "pick chargers choosing smaller DrivingTimeCost." in {
     // this config is only interested on the first charging plugin event when,
     // vehicles are at known coordinates, population plans are set to walk to not interfere with ride hail.
     val config = ConfigFactory
@@ -576,6 +579,18 @@ class ElectricVehicleChargingBehaviorTest
 
     ultrafastTazPluginCAVCount should be > fastTazPluginCAVCount withClue
     ", vehicles should be picking the faster chargers (more power output) more often than the slower ones."
+  }
+
+  override val invokeBeforeAllAndAfterAllEvenIfNoTestsAreExpected = true
+
+  override def beforeAll(): Unit = {
+    logger.error("ElectricVehicleChargingBehaviorTest started.")
+    super.beforeAll()
+  }
+
+  override def afterAll(): Unit = {
+    logger.error("ElectricVehicleChargingBehaviorTest ended.")
+    super.afterAll()
   }
 
   def filterEvents(events: IndexedSeq[Event], filters: (String, String => Boolean)*): IndexedSeq[Event] = {
