@@ -983,6 +983,16 @@ class RideHailAgent(
       if (debugEnabled) outgoingMessages += ev
       updateLatestObservedTick(tick)
       log.debug("state(RideHailingAgent.Refueling.EndingRefuelSession): {}, Vehicle ID: {}", ev, vehicle.id)
+      if (_currentTriggerId.isDefined) {
+        //at some point in the past we forgot to release tick and trigger
+        val (oldTick, oldTrigger) = releaseTickAndTriggerId()
+        log.warning(
+          s"Agent $id has tick $oldTick and trigger $oldTrigger" +
+          s", while holding $tick and $triggerId; event = {}, sender = {}",
+          ev,
+          sender()
+        )
+      }
       holdTickAndTriggerId(tick, triggerId)
       if (currentBeamVehicle.isRideHailCAV)
         rideHailManager ! reply
