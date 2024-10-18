@@ -211,7 +211,9 @@ trait ChoosesParking extends {
       val searchModeChargeOrPark =
         if (activityType.startsWith("Loading") || activityType.startsWith("Unloading"))
           ParkingSearchMode.DoubleParkingAllowed
-        elseif (isRefuelAtDestinationNeeded(currentBeamVehicle, activityType) && isEnoughTimeForRefueling(parkingDuration))
+        else if (
+          isRefuelAtDestinationNeeded(currentBeamVehicle, activityType) && isEnoughTimeForRefueling(parkingDuration)
+        )
           ParkingSearchMode.DestinationCharging
         else ParkingSearchMode.Parking
 
