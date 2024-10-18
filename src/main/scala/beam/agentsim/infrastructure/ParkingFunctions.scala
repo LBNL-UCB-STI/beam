@@ -2,6 +2,7 @@ package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode.DoubleParkingAllowed
 import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
 import beam.agentsim.infrastructure.parking._
@@ -18,6 +19,7 @@ class ParkingFunctions(
   distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
   maxSearchRadius: Double,
+  searchDoubleParkingRadius: Double,
   searchMaxDistanceRelativeToEllipseFoci: Double,
   estimatedMinParkingDurationInSeconds: Double,
   estimatedMeanEnRouteChargingDurationInSeconds: Double,
@@ -32,6 +34,7 @@ class ParkingFunctions(
       distanceFunction,
       minSearchRadius,
       maxSearchRadius,
+      searchDoubleParkingRadius,
       searchMaxDistanceRelativeToEllipseFoci,
       estimatedMinParkingDurationInSeconds,
       estimatedMeanEnRouteChargingDurationInSeconds,
@@ -122,6 +125,12 @@ class ParkingFunctions(
   ): Option[ParkingZoneSearchResult] = {
     val output = parkingZoneSearchResult match {
       case Some(result) => result
+      case _ if inquiry.searchMode == DoubleParkingAllowed && searchDoubleParkingRadius > 0 =>
+        val newStall = ParkingStall.doubleParkingStall(
+          tazTreeMap.getTAZ(inquiry.destinationUtm.loc).tazId,
+          inquiry.destinationUtm.loc
+        )
+        ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
       case _ =>
         inquiry.parkingActivityType match {
           case ParkingActivityType.Home if inquiry.searchMode != ParkingSearchMode.EnRouteCharging =>

@@ -1,6 +1,7 @@
 package beam.physsim.travelTime
 
 import beam.physsim.bprsim.{BPRSimConfig, BPRSimulation, ParallelBPRSimulation}
+import beam.physsim.conditions.DoubleParking
 import beam.physsim.jdeqsim.cacc.CACCSettings
 import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.{
   Hao2018CaccRoadCapacityAdjustmentFunction,
@@ -11,6 +12,7 @@ import beam.physsim.{LinkPickUpsDropOffs, PickUpDropOffHolder, TimeToValueCollec
 import beam.sim.BeamConfigChangesObservable
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.TestConfigUtils.testConfig
+import beam.utils.metrics.TemporalEventCounter
 import com.typesafe.config.{Config, ConfigValueFactory}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
@@ -181,6 +183,7 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers
       "FREE_FLOW",
       beamConfig.beam.physsim.flowCapacityFactor,
       0,
+      (_: Double, _: Link, _: Int, capacity: Double) => capacity,
       maybeCaccSettings,
       maybePickUpDropOffHolder,
       defaultAlpha = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.alpha,
@@ -212,6 +215,7 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers
       "FREE_FLOW",
       beamConfig.beam.physsim.flowCapacityFactor,
       0,
+      (_: Double, _: Link, _: Int, capacity: Double) => capacity,
       maybeCaccSettings,
       maybePickUpDropOffHolder,
       defaultAlpha = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.alpha,
@@ -245,6 +249,8 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers
       beamConfig,
       scenario,
       eventManager,
+      new DoubleParking.SimpleCapacityReductionFunction(),
+      new TemporalEventCounter[Id[Link]](30),
       maybeCaccSettings,
       maybePickUpDropOffHolder
     )

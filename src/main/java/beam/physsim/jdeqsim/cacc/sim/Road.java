@@ -1,8 +1,10 @@
 package beam.physsim.jdeqsim.cacc.sim;
 
 import beam.physsim.AdditionalLinkTravelTimeCalculationFunction;
+import beam.physsim.conditions.DoubleParking;
 import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.EmptyRoadCapacityAdjustmentFunction;
 import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.RoadCapacityAdjustmentFunction;
+import beam.utils.metrics.TemporalEventCounter;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.core.mobsim.jdeqsim.DeadlockPreventionMessage;
@@ -17,6 +19,8 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
     private double flowCapacityFactor;
     private double squeezeTime;
+    private final DoubleParking.CapacityReductionFunction doubleParkingCapacityReduction;
+    private final TemporalEventCounter<Id<Link>> doubleParkingCounter;
 
 
     private static final double INCREASE_TIMESTAMP = 0.0000000001D;
@@ -31,7 +35,9 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
     private final HashMap<Id<Link>, org.matsim.core.mobsim.jdeqsim.Road> allRoads;
 
     public Road(Scheduler scheduler, Link link, double speedAdjustmentFactor, double minimumRoadSpeedInMetersPerSecond,
-                JDEQSimConfigGroup config, HashMap<Id<Link>, org.matsim.core.mobsim.jdeqsim.Road> allRoads) {
+                JDEQSimConfigGroup config, HashMap<Id<Link>, org.matsim.core.mobsim.jdeqsim.Road> allRoads,
+                DoubleParking.CapacityReductionFunction doubleParkingCapacityReduction,
+                TemporalEventCounter<Id<Link>> doubleParkingCounter) {
 
         super(scheduler, link, config);
         this.speedAdjustmentFactor = speedAdjustmentFactor;
@@ -39,6 +45,8 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
         this.allRoads = allRoads;
         this.flowCapacityFactor = config.getFlowCapacityFactor();
         this.squeezeTime = config.getSqueezeTime();
+        this.doubleParkingCapacityReduction = doubleParkingCapacityReduction;
+        this.doubleParkingCounter = doubleParkingCounter;
     }
 
     public static void setRoadCapacityAdjustmentFunction(RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction) {
@@ -113,8 +121,11 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
         }
 
         double capacityWithCACCPerSecond = roadCapacityAdjustmentFunction.getCapacityWithCACCPerSecond(link, caccShare, simTime);
+        double modifiedCapacity = capacityWithCACCPerSecond * this.flowCapacityFactor;
+        int numberOfDoubleParked = doubleParkingCounter.getEventCount(link.getId(), simTime);
+        double capacity = doubleParkingCapacityReduction.calculateCapacity(simTime, link, numberOfDoubleParked, modifiedCapacity);
 
-        return 1 / (capacityWithCACCPerSecond * this.flowCapacityFactor);
+        return 1 / capacity;
     }
 
     @Override

@@ -5,8 +5,8 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsProfile
 import beam.router.Modes.BeamMode
 import beam.router.model.BeamLeg
-import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import beam.utils.{BeamVehicleUtils, FormatUtils}
+import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.Person
@@ -145,8 +145,8 @@ object PathTraversalEvent {
   val ATTRIBUTE_SECONDARY_LINKID_WITH_SELECTED_RATE_MAP: String = "secondaryLinkIdToSelectedRateMap"
   val ATTRIBUTE_SECONDARY_LINKID_WITH_FINAL_CONSUMPTION_MAP: String = "secondaryLinkIdToFinalConsumptionMap"
    */
-  val ATTRIBUTE_RIDERS: String = "riders"
   val EMISSIONS_PROFILE: String = "emissions"
+  val ATTRIBUTE_RIDERS: String = "riders"
 
   def apply(
     time: Double,

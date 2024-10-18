@@ -8,6 +8,7 @@ import beam.agentsim.agents.vehicles.VehicleCategory._
 import beam.agentsim.agents.vehicles.VehicleEmissions._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingType
@@ -105,6 +106,29 @@ class BeamVehicle(
 
   private var waitingToChargeInternal: Boolean = false
   private var waitingToChargeTick: Option[Int] = None
+
+  // last time the vehicle stopped activity
+  private var lastIDLEStartTime: Option[Int] = None
+  // last link visited in latest Leg/Parking, latest location of vehicle
+  private var lastLinkVisited: Option[Int] = None
+
+  def setLastVehicleLink(link: Option[Int]): Unit = {
+    lastLinkVisited = link
+  }
+
+  def setLastVehicleTime(time: Option[Int]): Unit = {
+    lastIDLEStartTime = time
+  }
+
+  def setLastVehicleTimeLink(time: Option[Int], link: Option[Int]): Unit = {
+    lastIDLEStartTime = time
+    lastLinkVisited = link
+  }
+
+  def resetLastVehicleLinkTime(): Unit = {
+    lastIDLEStartTime = None
+    lastLinkVisited = None
+  }
 
   /**
     * Called by the driver.
@@ -697,6 +721,115 @@ object BeamVehicle {
             linkTravelTime = None
           )
         )
+    }
+  }
+
+  /*
+ To fix emissions calculations:
+ - for first link from PathTraversal event
+   */
+  def addFirstLinkActivityForEmissions(
+    tick: Int,
+    vehicleActivityData: IndexedSeq[BeamVehicle.VehicleActivityData],
+    theVehicleType: BeamVehicleType,
+    payloadInKg: Option[Double],
+    currentLeg: BeamLeg,
+    parkingStall: Option[ParkingStall],
+    beamServices: BeamServices
+  ): IndexedSeq[BeamVehicle.VehicleActivityData] = {
+
+    currentLeg.travelPath.linkIds.headOption match {
+      case None => vehicleActivityData
+
+      case Some(linkId) =>
+        val parkingDuration: Option[Double] = parkingStall.map { stall =>
+          if (tick - stall.getParkingTime < 0) 0.0 else tick - stall.getParkingTime
+        }
+        val parkingType: Option[ParkingType] = parkingStall.map(_.parkingType)
+        val activityType: Option[String] = parkingStall.map(_.activityType)
+        val linkTravelTime: Double = currentLeg.travelPath.linkTravelTime.head
+        val currentLink: Option[Link] = beamServices.networkHelper.getLink(linkId)
+        val averageSpeed =
+          try { if (linkTravelTime > 0) currentLink.map(_.getLength).getOrElse(0.0) / linkTravelTime else 0 }
+          catch { case _: Exception => 0.0 }
+
+        val firstLinkActivity = VehicleActivityData(
+          time = tick - linkTravelTime,
+          linkId = linkId,
+          vehicleType = theVehicleType,
+          payloadInKg = payloadInKg,
+          linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt),
+          linkLength = currentLink.map(_.getLength),
+          averageSpeed = Some(averageSpeed),
+          taz = currentLink.flatMap(link => beamServices.beamScenario.tazTreeMap.getTAZfromLink(link.getId)),
+          parkingDuration = parkingDuration,
+          parkingType = parkingType,
+          activityType = activityType,
+          linkTravelTime = Some(linkTravelTime)
+        )
+
+        firstLinkActivity +: vehicleActivityData
+    }
+  }
+
+  def startTimeAndDurationToMultipleIntervals(
+    startTimeSeconds: Double,
+    durationInSeconds: Double
+  ): Iterable[(Double, Double)] = {
+    val startInHours: Double = startTimeSeconds / 3600.0
+    val closestHour: Double = math.ceil(startInHours)
+    val leftToNextHourSeconds = closestHour * 3600 - startTimeSeconds
+    val durationLeft = durationInSeconds - leftToNextHourSeconds
+
+    if (durationLeft <= 0) {
+      Seq((startTimeSeconds, durationInSeconds))
+    } else if (durationLeft <= 3600) {
+      Seq((startTimeSeconds, leftToNextHourSeconds), (closestHour * 3600, durationLeft))
+    } else {
+      val wholeHoursLeft = math.floor(durationLeft / 3600).toInt
+      val durationSecondsLeft = durationLeft - wholeHoursLeft * 3600
+      val middlePairs = (0 until wholeHoursLeft).map(hr => (closestHour * 3600.0 + hr * 3600.0, 3600.0))
+      (
+        startTimeSeconds,
+        leftToNextHourSeconds
+      ) +: middlePairs :+ (closestHour * 3600.0 + wholeHoursLeft * 3600.0, durationSecondsLeft)
+    }
+  }
+
+  /*
+ To fix emissions calculations:
+ - for possible IDLE vehicle time between shift start event and PathTraversal event
+ - for possible IDLE vehicle time between driver enters vehicle and PathTraversal event
+   */
+  def getIDLEActivityForEmissions(
+    tick: Int,
+    beamVehicle: BeamVehicle,
+    beamServices: BeamServices
+  ): IndexedSeq[BeamVehicle.VehicleActivityData] = {
+    (beamVehicle.lastLinkVisited, beamVehicle.lastIDLEStartTime) match {
+      case (Some(linkId), Some(idleStartTime)) if tick - idleStartTime > 0 =>
+        val currentLink: Option[Link] = beamServices.networkHelper.getLink(linkId)
+        val totalDurationSeconds = (tick - idleStartTime).toDouble
+        val startTimeToDurationPairs = startTimeAndDurationToMultipleIntervals(idleStartTime, totalDurationSeconds)
+        val vads = startTimeToDurationPairs.map { case (startTime, duration) =>
+          VehicleActivityData(
+            time = startTime,
+            linkId = linkId,
+            vehicleType = beamVehicle.beamVehicleType,
+            payloadInKg = None,
+            linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt),
+            linkLength = currentLink.map(_.getLength),
+            averageSpeed = None,
+            taz = currentLink.flatMap(link => beamServices.beamScenario.tazTreeMap.getTAZfromLink(link.getId)),
+            parkingDuration = Some(duration),
+            parkingType = Some(ParkingType.Public),
+            activityType = Some(ParkingActivityType.IDLE.toString),
+            linkTravelTime = None
+          )
+        }
+        vads.toIndexedSeq
+
+      case _ => IndexedSeq.empty[BeamVehicle.VehicleActivityData]
     }
   }
 
