@@ -221,7 +221,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     result
   }
 
-  def createProfileRequest = {
+  def createProfileRequest: ProfileRequest = {
     val profileRequest = new ProfileRequest()
     // Warning: carSpeed is not used for link traversal (rather, the OSM travel time model is used),
     // but for R5-internal bushwhacking from network to coordinate, AND ALSO for the A* remaining weight heuristic,
@@ -460,7 +460,12 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         vehicle.locationUTM.loc
       }
       val theDestination = if (mainRouteToVehicle) {
-        destinationVehicle.get.locationUTM.loc
+        destinationVehicle match {
+          case Some(vehicle) => vehicle.locationUTM.loc
+          case None =>
+            logger.error("Route requested with egress vehicles that don't exist")
+            request.destinationUTM
+        }
       } else {
         request.destinationUTM
       }
@@ -890,7 +895,9 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         }
         .filter { trip: EmbodiedBeamTrip =>
           //TODO make a more sensible window not just 30 minutes
-          trip.legs.head.beamLeg.startTime >= request.departureTime && trip.legs.head.beamLeg.startTime <= request.departureTime + 1800
+          trip.legs.forall(l =>
+            l.beamLeg.startTime >= request.departureTime
+          ) && trip.legs.head.beamLeg.startTime <= request.departureTime + 1800
         }
     }
 
@@ -1185,7 +1192,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     shouldAddNoise: Boolean
   ): TravelTimeCalculator = {
     new TravelTimeCalculator {
-      val ttc = travelTimeByLinkCalculator(vehicleType, shouldAddNoise, shouldApplyBicycleScaleFactor = true)
+      val ttc: TravelTimeByLinkCalculator =
+        travelTimeByLinkCalculator(vehicleType, shouldAddNoise, shouldApplyBicycleScaleFactor = true)
       override def getTravelTimeSeconds(
         edge: EdgeStore#Edge,
         durationSeconds: Int,

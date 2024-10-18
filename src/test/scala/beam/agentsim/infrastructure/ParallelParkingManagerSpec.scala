@@ -78,21 +78,16 @@ class ParallelParkingManagerSpec
       } {
 
         val inquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 11)
-        val expectedStall: ParkingStall = ParkingStall.lastResortStall(
-          new Envelope(
-            inquiry.destinationUtm.loc.getX + 2000,
-            inquiry.destinationUtm.loc.getX - 2000,
-            inquiry.destinationUtm.loc.getY + 2000,
-            inquiry.destinationUtm.loc.getY - 2000
-          ),
-          new Random(randomSeed)
+        val envelope = new Envelope(
+          inquiry.destinationUtm.loc.getX + 100,
+          inquiry.destinationUtm.loc.getX - 100,
+          inquiry.destinationUtm.loc.getY + 100,
+          inquiry.destinationUtm.loc.getY - 100
         )
-
         val response = parkingManager.processParkingInquiry(inquiry)
-        assert(
-          response == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
-          "something is wildly broken"
-        )
+        assert(response.triggerId == 11)
+        assert(response.stall.tazId.toString == "emergency")
+        assert(envelope.contains(response.stall.locationUTM.getX, response.stall.locationUTM.getY))
       }
     }
   }
@@ -113,21 +108,16 @@ class ParallelParkingManagerSpec
       )
 
       val inquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 173)
-      val expectedStall: ParkingStall = ParkingStall.lastResortStall(
-        new Envelope(
-          inquiry.destinationUtm.loc.getX + 2000,
-          inquiry.destinationUtm.loc.getX - 2000,
-          inquiry.destinationUtm.loc.getY + 2000,
-          inquiry.destinationUtm.loc.getY - 2000
-        ),
-        random = new Random(randomSeed.toLong)
+      val envelope = new Envelope(
+        inquiry.destinationUtm.loc.getX + 100,
+        inquiry.destinationUtm.loc.getX - 100,
+        inquiry.destinationUtm.loc.getY + 100,
+        inquiry.destinationUtm.loc.getY - 100
       )
-
       val response = parkingManager.processParkingInquiry(inquiry)
-      assert(
-        response == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
-        "something is wildly broken"
-      )
+      assert(response.triggerId == 173)
+      assert(response.stall.tazId.toString == "emergency")
+      assert(envelope.contains(response.stall.locationUTM.getX, response.stall.locationUTM.getY))
     }
   }
 

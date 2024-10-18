@@ -84,6 +84,7 @@ class SimpleScenarioGenerator(
 
   private val planElementTemplate: PlanElement = PlanElement(
     tripId = "",
+    tourId = "",
     personId = PersonId("1"),
     planIndex = 0,
     planScore = 0,

@@ -16,6 +16,7 @@ class VehicleChargingAnalysis extends GraphAnalysis with ExponentialLazyLogging 
 
   private val vehicleChargingTime = mutable.Map[String, Int]()
   private val hourlyChargingCount = mutable.TreeMap[Int, Int]().withDefaultValue(0)
+  private val orphanedPlugOutEvents = mutable.Map[String, Int]()
 
   override def processStats(event: Event): Unit = {
     val hourOfEvent = (event.getTime / 3600).toInt
@@ -30,6 +31,13 @@ class VehicleChargingAnalysis extends GraphAnalysis with ExponentialLazyLogging 
 
         val vehicle = pluginEvent.getAttributes().get(ChargingPlugInEvent.ATTRIBUTE_VEHICLE_ID)
         vehicleChargingTime.update(vehicle, hourOfEvent)
+        if (orphanedPlugOutEvents.contains(vehicle)) {
+          val timeOfOrphanedEvent = orphanedPlugOutEvents.remove(vehicle)
+          logger.warn(
+            f"Found ChargingPlugInEvent at time ${pluginEvent.getTime.toInt} for vehicle $vehicle " +
+            f"after previous unmatched ChargingPlugOutEvent at ${timeOfOrphanedEvent.get}"
+          )
+        }
 
       case plugoutEvent: ChargingPlugOutEvent =>
         countOccurrence(
@@ -49,8 +57,11 @@ class VehicleChargingAnalysis extends GraphAnalysis with ExponentialLazyLogging 
               hourlyChargingCount.update(hour, hourlyChargingCount(hour) + 1)
             })
           case None =>
-            logger.warn("Found ChargingPlugOutEvent without ChargingPlugInEvent")
-
+            logger.warn(
+              f"Found ChargingPlugOutEvent without ChargingPlugInEvent for vehicle $vehicle " +
+              f"at time ${plugoutEvent.getTime.toInt}"
+            )
+            orphanedPlugOutEvents.update(vehicle, plugoutEvent.getTime.toInt)
         }
 
       case _ =>

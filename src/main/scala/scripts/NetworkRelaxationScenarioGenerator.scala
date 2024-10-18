@@ -83,6 +83,7 @@ class NetworkRelaxationScenarioGenerator {
       Seq(
         InputPlanElement(
           tripId = Some(i.toString),
+          tourId = None,
           personId = i.toString,
           planElementIndex = 1,
           activityElement = Activity,
@@ -94,6 +95,7 @@ class NetworkRelaxationScenarioGenerator {
         ),
         InputPlanElement(
           tripId = Some(i.toString),
+          tourId = None,
           personId = i.toString,
           planElementIndex = 2,
           activityElement = Leg,
@@ -105,6 +107,7 @@ class NetworkRelaxationScenarioGenerator {
         ),
         InputPlanElement(
           tripId = Some(i.toString),
+          tourId = None,
           personId = i.toString,
           planElementIndex = 3,
           activityElement = Activity,

@@ -28,6 +28,7 @@ import beam.router.osm.TollCalculator
 import beam.router.skim.TAZSkimsCollector
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam
+import beam.sim.config.BeamConfigHolder
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import beam.sim.metrics.{Metrics, MetricsSupport, SimulationMetricCollector}
 import beam.sim.monitoring.ErrorListener
@@ -68,7 +69,8 @@ class BeamMobsim @Inject() (
   val geo: GeoUtils,
   val planCleaner: ModeIterationPlanCleaner,
   val networkHelper: NetworkHelper,
-  val rideHailFleetInitializerProvider: RideHailFleetInitializerProvider
+  val rideHailFleetInitializerProvider: RideHailFleetInitializerProvider,
+  beamConfigHolder: BeamConfigHolder
 ) extends Mobsim
     with LazyLogging
     with MetricsSupport {
@@ -185,7 +187,8 @@ class BeamMobsim @Inject() (
           rideHailSurgePricingManager,
           rideHailIterationHistory,
           routeHistory,
-          rideHailFleetInitializerProvider
+          rideHailFleetInitializerProvider,
+          beamConfigHolder
         )
       ),
       "BeamMobsim.iteration"
@@ -367,7 +370,8 @@ class BeamMobsimIteration(
   val rideHailSurgePricingManager: RideHailSurgePricingManager,
   val rideHailIterationHistory: RideHailIterationHistory,
   val routeHistory: RouteHistory,
-  val rideHailFleetInitializerProvider: RideHailFleetInitializerProvider
+  val rideHailFleetInitializerProvider: RideHailFleetInitializerProvider,
+  beamConfigHolder: BeamConfigHolder
 ) extends LoggingMessageActor
     with ActorLogging
     with MetricsSupport {
@@ -560,7 +564,8 @@ class BeamMobsimIteration(
       chargingNetworkManager,
       sharedVehicleFleets,
       matsimServices.getEvents,
-      routeHistory
+      routeHistory,
+      beamConfigHolder
     ),
     "population"
   )

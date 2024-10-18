@@ -52,8 +52,10 @@ object SkimsUtils extends LazyLogging {
   // 12.1 mph (5.409184 meter per second), is average bus speed
   // source: https://www.apta.com/resources/statistics/Documents/FactBook/2017-APTA-Fact-Book.pdf
   // assuming for now that it includes the headway
-  val transitSpeedMeterPerSec: Double = 5.409184
+  val transitSpeedMeterPerSec: Double = 5.0 //5.409184
   val bicycleSpeedMeterPerSec: Double = 3
+  val ridehailWaitTimeInSec: Double = 300
+  val transitAccessEgressTimeInSec: Double = 600
   // 3.1 mph -> 1.38 meter per second
   val walkSpeedMeterPerSec: Double = 1.38
   // 940.6 Traffic Signal Spacing, Minor is 1,320 ft => 402.336 meters
@@ -94,10 +96,15 @@ object SkimsUtils extends LazyLogging {
       case BIKE                                                                      => bicycleSpeedMeterPerSec
       case _                                                                         => walkSpeedMeterPerSec
     }
+    val waitTime = mode match {
+      case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | BIKE_TRANSIT => transitAccessEgressTimeInSec
+      case RIDE_HAIL_POOLED | RIDE_HAIL | RIDE_HAIL_TRANSIT      => ridehailWaitTimeInSec
+      case _                                                     => 0
+    }
     val travelDistance: Int = Math.ceil(GeoUtils.minkowskiDistFormula(originUTM, destinationUTM)).toInt
     val travelTime: Int = Math
       .ceil(travelDistance / speed)
-      .toInt + ((travelDistance / trafficSignalSpacing).toInt * waitingTimeAtAnIntersection).toInt
+      .toInt + ((travelDistance / trafficSignalSpacing).toInt * waitingTimeAtAnIntersection).toInt + waitTime.toInt
     (travelDistance, travelTime)
   }
 

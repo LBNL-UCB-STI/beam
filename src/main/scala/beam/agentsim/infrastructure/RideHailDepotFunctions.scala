@@ -146,10 +146,10 @@ class RideHailDepotFunctions(
       case _ =>
         // didn't find any stalls, so, as a last resort, create a very expensive stall
         val boxAroundRequest = new Envelope(
-          inquiry.destinationUtm.loc.getX + 2000,
-          inquiry.destinationUtm.loc.getX - 2000,
-          inquiry.destinationUtm.loc.getY + 2000,
-          inquiry.destinationUtm.loc.getY - 2000
+          inquiry.destinationUtm.loc.getX + 100,
+          inquiry.destinationUtm.loc.getX - 100,
+          inquiry.destinationUtm.loc.getY + 100,
+          inquiry.destinationUtm.loc.getY - 100
         )
         val newStall = ParkingStall.lastResortStall(boxAroundRequest, new Random(seed))
         ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)

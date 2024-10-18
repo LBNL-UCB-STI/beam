@@ -1,9 +1,10 @@
 package beam.agentsim.agents.ridehail
 
 import beam.agentsim.agents.vehicles.BeamVehicle
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 
-object RideHailVehicleId {
+object RideHailVehicleId extends LazyLogging {
   private val VEHICLE_ID_PREFIX = f"rideHailVehicle-"
   private val FLEET_SEPARATOR = "@"
 
@@ -14,17 +15,23 @@ object RideHailVehicleId {
     * @return Corresponding [[RideHailVehicleId]]
     */
   def apply(vehicleId: Id[BeamVehicle]): RideHailVehicleId = {
-    require(isRideHail(vehicleId))
+    try {
+      require(isRideHail(vehicleId))
+      val vehicleIdStr = vehicleId.toString
+      val idWithFleetId = vehicleIdStr.stripPrefix(VEHICLE_ID_PREFIX)
 
-    val vehicleIdStr = vehicleId.toString
-    val idWithFleetId = vehicleIdStr.stripPrefix(VEHICLE_ID_PREFIX)
-
-    idWithFleetId.split(FLEET_SEPARATOR) match {
-      case Array(id, fleetId) =>
-        new RideHailVehicleId(id, fleetId)
-      case _ =>
-        throw new Exception(f"Invalid idWithFleet $idWithFleetId")
+      idWithFleetId.split(FLEET_SEPARATOR) match {
+        case Array(id, fleetId) =>
+          new RideHailVehicleId(id, fleetId)
+        case _ =>
+          throw new Exception(f"Invalid idWithFleet $idWithFleetId")
+      }
+    } catch {
+      case e: Throwable =>
+        logger.error(f"Expecting a ride hail vehicle but have id ${vehicleId.toString}", e)
+        new RideHailVehicleId(vehicleId.toString, "Dummy")
     }
+
   }
 
   /** Returns true if an [[Id[BeamVehicle]]] represents a ride-hail vehicle ID. */

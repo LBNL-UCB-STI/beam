@@ -1,6 +1,8 @@
 package beam.utils.scenario.urbansim
 
 import beam.router.Modes.BeamMode._
+import beam.utils.logging.ExponentialLazyLogging
+import beam.utils.scenario.PlanElement.{Activity, Leg}
 import beam.utils.scenario._
 import beam.utils.scenario.urbansim.HOVModeTransformer.ForcedCarHOVTransformer.{
   isForcedCarHOVTrip,
@@ -33,13 +35,16 @@ import scala.util.Random
   * If the person doesnt have an available car from the household, only [[HOV2_TELEPORTATION]] or [[HOV3_TELEPORTATION]]
   * will be assigned, not [[CAR_HOV2]]/[[CAR_HOV3]].
   */
-object HOVModeTransformer extends LazyLogging {
+object HOVModeTransformer extends ExponentialLazyLogging {
 
   def reseedRandomGenerator(randomSeed: Int): Unit = rand.setSeed(randomSeed)
 
   private implicit val rand: Random = new Random(42)
   private val hov2: String = "hov2" // HOV2
   private val hov3: String = "hov3" // HOV3
+
+  private val toleranceInMeters: Double = 50.0
+  private lazy val squaredToleranceInMeters: Double = math.pow(toleranceInMeters, 2.0)
 
   private def isHOV2(mode: String): Boolean = mode.toLowerCase() match {
     case `hov2` => true
@@ -255,6 +260,11 @@ object HOVModeTransformer extends LazyLogging {
     planElement.legMode.exists(legMode => legMode.toLowerCase == hov3)
   }
 
+  def itIsASOVLeg(planElement: PlanElement): Boolean = {
+    planElement.planElementType == PlanElement.Leg &&
+    planElement.legMode.exists(legMode => legMode.toLowerCase == "car")
+  }
+
   object ForcedHOVTeleportationTransformer {
 
     def isForcedHOVTeleportationTrip(trip: Iterable[PlanElement]): Boolean = {
@@ -312,6 +322,18 @@ object HOVModeTransformer extends LazyLogging {
           forcedHOV3Teleports += 1
           hov3Leg.copy(legMode = Some(HOV3_TELEPORTATION.value))
 
+        case leg if itIsASOVLeg(leg) =>
+          forcedHOV2Teleports += 1
+          val mapping = trip.flatMap { e =>
+            e.planElementType match {
+              case Activity => e.activityType
+              case Leg      => e.legMode
+              case _        => None
+            }
+          }
+
+          logger.warn(f"Replacing an impossible CAR trip with HOV2_TELEPORTATION, sequence ${mapping}")
+          leg.copy(legMode = Some(HOV2_TELEPORTATION.value))
         case leg if leg.planElementType == PlanElement.Leg                => leg
         case activity if activity.planElementType == PlanElement.Activity => activity
       }
@@ -344,7 +366,7 @@ object HOVModeTransformer extends LazyLogging {
       }
 
       def isNearby(x1: Double, x2: Double, y1: Double, y2: Double): Boolean = {
-        x1 == x2 && y1 == y2
+        math.pow(x1 - x2, 2.0) + math.pow(y1 - y2, 2.0) <= squaredToleranceInMeters
       }
     }
   }
@@ -399,12 +421,19 @@ object HOVModeTransformer extends LazyLogging {
         }
       }
 
-      trip.map { planElement =>
-        planElement.legMode match {
-          case Some(value) if isHOV2(value) => planElement.copy(legMode = Some(getHOV2CarOrTeleportation))
-          case Some(value) if isHOV3(value) => planElement.copy(legMode = Some(getHOV3CarOrTeleportation))
-          case _                            => planElement
-        }
+      val modeForTour = trip.view.flatMap(_.legMode).headOption match {
+        case Some(value) if isHOV2(value) => Some(getHOV2CarOrTeleportation)
+        case Some(value) if isHOV3(value) => Some(getHOV3CarOrTeleportation)
+        case _                            => None
+      }
+
+      trip.map {
+        case planElement if planElement.planElementType == PlanElement.Leg =>
+          modeForTour match {
+            case Some(value) => planElement.copy(legMode = Some(value))
+            case _           => planElement
+          }
+        case planElement: PlanElement => planElement
       }
     }
   }

@@ -56,6 +56,7 @@ object CsvPlanElementReader extends PlanElementReader {
       Option(rec.get("legRouteLinks")).map(_.split(ArrayItemSeparator).map(_.trim)).getOrElse(Array.empty[String])
     PlanElement(
       tripId = rec.get("tripId"),
+      tourId = rec.get("tourId"),
       personId = PersonId(personId),
       planIndex = planIndex,
       planScore = getIfNotNull(rec, "planScore").toDouble,
@@ -145,6 +146,9 @@ object XmlPlanElementReader extends PlanElementReader {
       tripId = Option(activity.getAttributes.getAttribute("trip_id"))
         .map(_.toString.filter(x => x.isDigit || x.equals('.')))
         .getOrElse(""),
+      tourId = Option(activity.getAttributes.getAttribute("tour_id"))
+        .map(_.toString.filter(x => x.isDigit || x.equals('.')))
+        .getOrElse(""),
       personId = PersonId(person.getId.toString),
       planIndex = planIdx,
       planScore = plan.getScore,
@@ -171,6 +175,9 @@ object XmlPlanElementReader extends PlanElementReader {
   private def toPlanElement(leg: Leg, plan: Plan, planIdx: Int, person: Person, planElementIdx: Int): PlanElement =
     PlanElement(
       tripId = Option(leg.getAttributes.getAttribute("trip_id"))
+        .map(_.toString.filter(x => x.isDigit || x.equals('.')))
+        .getOrElse(""),
+      tourId = Option(leg.getAttributes.getAttribute("tour_id"))
         .map(_.toString.filter(x => x.isDigit || x.equals('.')))
         .getOrElse(""),
       personId = PersonId(person.getId.toString),
