@@ -127,6 +127,17 @@ object ParkingStall {
     reservedFor = VehicleManager.AnyManager
   )
 
+  def doubleParkingStall(tazId: Id[TAZ], locationUTM: Location): ParkingStall = ParkingStall(
+    tazId = tazId,
+    parkingZoneId = ParkingZone.DefaultParkingZoneId,
+    locationUTM = locationUTM,
+    costInDollars = 0.0,
+    chargingPointType = None,
+    pricingModel = Some(PricingModel.FlatFee(0)),
+    parkingType = ParkingType.DoubleParking,
+    reservedFor = VehicleManager.AnyManager
+  )
+
   /**
     * @param locationUTM Location
     * @return

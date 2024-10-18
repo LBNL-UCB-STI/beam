@@ -59,6 +59,7 @@ object ParkingInquiry extends LazyLogging {
     case object EnRouteCharging extends ParkingSearchMode
     case object DestinationCharging extends ParkingSearchMode
     case object Parking extends ParkingSearchMode
+    case object DoubleParkingAllowed extends ParkingSearchMode
     case object Init extends ParkingSearchMode
   }
 
