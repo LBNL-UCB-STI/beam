@@ -39,6 +39,7 @@ class RideHailDepotFunctions(
       minSearchRadius,
       maxSearchRadius,
       0.0,
+      0.0,
       estimatedMinParkingDurationInSeconds,
       0.0,
       fractionOfSameTypeZones,

@@ -1,5 +1,6 @@
 package beam.physsim.bprsim
 
+import beam.utils.metrics.TemporalEventCounter
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Id, Scenario}
@@ -17,7 +18,7 @@ private[bprsim] class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val
   // we need to use time window at least twice as much as syncInterval
   // in order to keep events for the subsequent sim steps
   private val timeWindow = Math.max(config.inFlowAggregationTimeWindow, config.syncInterval * 2)
-  private val params = BPRSimParams(config, new VolumeCalculator(timeWindow))
+  private val params = BPRSimParams(config, new VolumeCalculator(timeWindow), new TemporalEventCounter[Id[Link]](30))
   private val eventBuffer = ArrayBuffer.empty[Event]
   private val otherWorkerEvents = mutable.Map.empty[BPRSimWorker, ArrayBuffer[SimEvent]]
 
