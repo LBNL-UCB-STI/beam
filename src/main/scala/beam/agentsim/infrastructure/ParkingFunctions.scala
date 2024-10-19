@@ -128,7 +128,8 @@ class ParkingFunctions(
       case _ if inquiry.searchMode == DoubleParkingAllowed && searchDoubleParkingRadius > 0 =>
         val newStall = ParkingStall.doubleParkingStall(
           tazTreeMap.getTAZ(inquiry.destinationUtm.loc).tazId,
-          inquiry.destinationUtm.loc
+          inquiry.destinationUtm.loc,
+          inquiry.activityType
         )
         ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
       case _ =>

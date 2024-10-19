@@ -111,7 +111,7 @@ object LeavingParkingEvent {
       attr.get(ATTRIBUTE_PRICING_MODEL).flatMap(PricingModel(_, attr.getOrElse(ATTRIBUTE_COST, "0")))
     val chargingPointType: Option[ChargingPointType] = attr.get(ATTRIBUTE_CHARGING_TYPE).flatMap(ChargingPointType(_))
     val emissionsProfile = attr.get(ATTRIBUTE_EMISSIONS_PROFILE).flatMap(BeamVehicleUtils.parseEmissionsString(_))
-    val duration: Double = attr(ATTRIBUTE_PARKING_DURATION).toDouble
+    val duration: Double = attr.get(ATTRIBUTE_PARKING_DURATION).map(_.toDouble).getOrElse(0.0)
     LeavingParkingEvent(
       time,
       personId,
