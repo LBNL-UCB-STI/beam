@@ -1,7 +1,7 @@
 package beam.agentsim.agents.freight.input
 
 import beam.agentsim.agents.freight.FreightRequestType.{Loading, Unloading}
-import beam.agentsim.agents.freight.input.FreightReader.{FREIGHT_REQUEST_TYPE, PAYLOAD_WEIGHT_IN_KG}
+import beam.agentsim.agents.freight.input.FreightReader.{FREIGHT_REQUEST_TYPE, PAYLOAD_IDS, PAYLOAD_WEIGHT_IN_KG}
 import beam.agentsim.agents.freight.{FreightCarrier, FreightRequestType, FreightTour, PayloadPlan}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
@@ -42,11 +42,14 @@ trait FreightReader {
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
   ): IndexedSeq[FreightCarrier]
 
-  def calculatePayloadWeights(plans: IndexedSeq[PayloadPlan]): IndexedSeq[Double] = {
-    val initialWeight = 0.0
-    plans.foldLeft(IndexedSeq(initialWeight)) {
-      case (acc, PayloadPlan(_, _, _, _, weight, Unloading, _, _, _, _, _, _, _)) => acc :+ acc.last - weight
-      case (acc, PayloadPlan(_, _, _, _, weight, Loading, _, _, _, _, _, _, _))   => acc :+ acc.last + weight
+  def calculatePayloadWeights(plans: IndexedSeq[PayloadPlan]): IndexedSeq[(Set[Id[PayloadPlan]], Double)] = {
+    plans.foldLeft(IndexedSeq((Set.empty[Id[PayloadPlan]], 0.0))) {
+      case (acc, PayloadPlan(payloadId, _, _, _, weight, Unloading, _, _, _, _, _, _, _)) =>
+        val (payloads, payloadWeight) = acc.last
+        acc :+ (payloads - payloadId, payloadWeight - weight)
+      case (acc, PayloadPlan(payloadId, _, _, _, weight, Loading, _, _, _, _, _, _, _)) =>
+        val (payloads, payloadWeight) = acc.last
+        acc :+ (payloads + payloadId, payloadWeight + weight)
     }
   }
 
@@ -75,11 +78,12 @@ trait FreightReader {
       }
 
       val elements = tourInitialActivity +: firstLeg +: planElements
-      val weightsToCarry: IndexedSeq[Double] = calculatePayloadWeights(plans)
+      val weightsToCarry: IndexedSeq[(Set[Id[PayloadPlan]], Double)] = calculatePayloadWeights(plans)
       elements
         .collect { case leg: Leg => leg }
         .zip(weightsToCarry)
-        .foreach { case (leg, payloadWeight) =>
+        .foreach { case (leg, (payloadIds, payloadWeight)) =>
+          leg.getAttributes.putAttribute(PAYLOAD_IDS, payloadIds.toIndexedSeq)
           leg.getAttributes.putAttribute(PAYLOAD_WEIGHT_IN_KG, payloadWeight)
         }
       elements
@@ -168,6 +172,7 @@ object FreightReader {
   val FREIGHT_ID_PREFIX = "freight"
   val FREIGHT_REQUEST_TYPE = "FreightRequestType"
   val PAYLOAD_WEIGHT_IN_KG = "PayloadWeightInKg"
+  val PAYLOAD_IDS = "PayloadIds"
   val NO_CARRIER_ID: Id[FreightCarrier] = Id.create("no-carrier-defined", classOf[FreightCarrier])
   val NO_VEHICLE_ID: Id[BeamVehicle] = Id.createVehicleId("no-vehicle-defined")
 

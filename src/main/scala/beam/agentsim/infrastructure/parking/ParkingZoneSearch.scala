@@ -4,6 +4,7 @@ import beam.agentsim.agents.choice.logit.MultinomialLogit
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleManager.{ReservedFor, TypeEnum}
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode.DoubleParkingAllowed
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.taz.TAZ
@@ -34,6 +35,7 @@ object ParkingZoneSearch {
     *
     * @param searchStartRadius radius of the first concentric ring search
     * @param searchMaxRadius maximum distance for the search
+    * @param searchDoubleParkingRadius max distance for the search if double parking is allowed
     * @param searchMaxDistanceRelativeToEllipseFoci max distance to both foci of an ellipse
     * @param boundingBox limiting coordinate bounds for simulation area
     * @param distanceFunction function which computes distance (based on underlying coordinate system)
@@ -42,6 +44,7 @@ object ParkingZoneSearch {
   case class ParkingZoneSearchConfiguration(
     searchStartRadius: Double,
     searchMaxRadius: Double,
+    searchDoubleParkingRadius: Double,
     searchMaxDistanceRelativeToEllipseFoci: Double,
     boundingBox: Envelope,
     distanceFunction: (Coord, Coord) => Double,
@@ -411,6 +414,13 @@ object ParkingZoneSearch {
             config.searchMaxDistanceRelativeToEllipseFoci,
             config.searchExpansionFactor,
             config.distanceFunction
+          )
+        case DoubleParkingAllowed if config.searchDoubleParkingRadius > 0 =>
+          DestinationSearch(
+            params.destinationUTM,
+            math.min(config.searchStartRadius, config.searchDoubleParkingRadius),
+            math.min(config.searchMaxRadius, config.searchDoubleParkingRadius),
+            config.searchExpansionFactor
           )
         case _ =>
           DestinationSearch(
