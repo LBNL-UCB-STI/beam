@@ -31,11 +31,11 @@ object ParkingType {
 
   def apply(s: String): ParkingType = {
     s match {
-      case "Residential" => Residential
-      case "Public"      => Public
-      case "Workplace"   => Workplace
-      case "Commercial"  => Commercial
-      case "Depot"       => Depot
+      case "Residential"   => Residential
+      case "Public"        => Public
+      case "Workplace"     => Workplace
+      case "Commercial"    => Commercial
+      case "Depot"         => Depot
       case "DoubleParking" => DoubleParking
     }
   }
