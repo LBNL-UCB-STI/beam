@@ -114,8 +114,6 @@ class TransitDriverAgent(
 
   override val id: Id[TransitDriverAgent] = transitDriverId
 
-  override def payloadInKgForLeg(leg: BeamLeg, drivingData: DrivingData): Option[Double] = None
-
   val myUnhandled: StateFunction = {
     case Event(TransitReservationRequest(fromIdx, toIdx, passenger, triggerId), data) =>
       val slice = legs.slice(fromIdx, toIdx)
