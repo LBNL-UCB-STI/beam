@@ -18,6 +18,7 @@ import org.matsim.core.events.MatsimEventsReader;
 import org.matsim.core.network.io.MatsimNetworkReader;
 import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
+import org.matsim.core.utils.collections.CollectionUtils;
 import scala.Option;
 
 import java.nio.file.Paths;
@@ -43,7 +44,15 @@ public class PhyssimCalcLinkStatsTest {
         matsimNetworkReader.readFile(NETWORK_FILE_PATH);
 
         TravelTimeCalculatorConfigGroup defaultTravelTimeCalculator = config.travelTimeCalculator();
-        TravelTimeCalculator travelTimeCalculator = new TravelTimeCalculator(network, defaultTravelTimeCalculator);
+        TravelTimeCalculator travelTimeCalculator = new TravelTimeCalculator(
+                network,
+                defaultTravelTimeCalculator.getTraveltimeBinSize(),
+                defaultTravelTimeCalculator.getMaxTime(),
+                defaultTravelTimeCalculator.isCalculateLinkTravelTimes(),
+                defaultTravelTimeCalculator.isCalculateLinkToLinkTravelTimes(),
+                defaultTravelTimeCalculator.isFilterModes(),
+                CollectionUtils.stringToSet(defaultTravelTimeCalculator.getAnalyzedModesAsString())
+        );
         EventsManager eventsManager = EventsUtils.createEventsManager();
         eventsManager.addHandler(travelTimeCalculator);
 
@@ -53,10 +62,8 @@ public class PhyssimCalcLinkStatsTest {
                         .withValue("beam.physsim.minCarSpeedInMetersPerSecond", ConfigValueFactory.fromAnyRef(0.0))
         );
         BeamConfig beamConfig = BeamConfig.apply(cfg);
-        physsimCalcLinkStats = new PhyssimCalcLinkStats(network, null, beamConfig, defaultTravelTimeCalculator, new BeamConfigChangesObservable(beamConfig, Option.empty()), null);
-
-        //physsimCalcLinkStats = new PhyssimCalcLinkStats(network, null, null);
-
+        BeamConfigChangesObservable bcco = new BeamConfigChangesObservable(beamConfig, Option.empty());
+        physsimCalcLinkStats = new PhyssimCalcLinkStats(network, null, beamConfig, defaultTravelTimeCalculator, bcco, null);
         physsimCalcLinkStats.notifyIterationStarts(eventsManager, defaultTravelTimeCalculator);
 
         MatsimEventsReader matsimEventsReader = new MatsimEventsReader(eventsManager);
