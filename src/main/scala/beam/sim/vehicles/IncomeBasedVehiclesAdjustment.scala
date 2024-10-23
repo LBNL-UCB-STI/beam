@@ -125,7 +125,7 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
     groupIDs
   }
 
-  def isThisHouseholdInThisGroup(
+  private def isThisHouseholdInThisGroup(
     householdIncome: Double,
     categoryAttributeAndGroup: CategoryAttributeAndGroup
   ): Boolean = {

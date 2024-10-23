@@ -3,7 +3,14 @@ package beam.router.r5
 import java.nio.file.Path
 import scala.util.Random
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
-import beam.agentsim.agents.vehicles.VehicleCategory.{Body, Car, HeavyDutyTruck, LightDutyTruck, MediumDutyPassenger}
+import beam.agentsim.agents.vehicles.VehicleCategory.{
+  Body,
+  Car,
+  Class456Vocational,
+  Class78Tractor,
+  Class78Vocational,
+  MediumDutyPassenger
+}
 import beam.router.Modes.BeamMode
 import beam.sim.config.BeamConfig
 import beam.utils.{FixtureUtils, TestConfigUtils}
@@ -119,8 +126,9 @@ private object BikeLaneAdjustmentSpec {
     Body,
     Car,
     MediumDutyPassenger,
-    LightDutyTruck,
-    HeavyDutyTruck
+    Class456Vocational,
+    Class78Vocational,
+    Class78Tractor
   )
 
 }

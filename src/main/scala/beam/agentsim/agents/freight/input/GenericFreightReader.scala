@@ -99,6 +99,16 @@ class GenericFreightReader(
 
   @Override
   def readPayloadPlans(): Map[Id[PayloadPlan], PayloadPlan] = {
+    /*
+      a- PayloadType represents the commodity type: 1: bulk, 2: fuel_fert, 3: interm_food, 4: mfr_goods, 5: others
+      b- RequestType represent delivery type: 1: delivery only (private truck); 3 pickup-delivery (for-hire truck)
+      c- Weighlnlb: + means loading while – means unloading
+      d- cummulativeWeightInlb: total loaded weight in truck from the stop i to i+1
+      e- true_location: original zones before assigning external zones to a zone along the border of study area.
+      f- BuyerNAICS/SellerNAIC: This is based on the customers, so “NA” means that it is a depot (no info)
+      g- Truck mode: This is based on the customers, so “NA” means that it is a depot (no info)
+     */
+    // TODO: Incorporate all changes
     val errors: ListBuffer[ErrorInfo] = ListBuffer()
 
     val maybePlans = GenericCsvReader
