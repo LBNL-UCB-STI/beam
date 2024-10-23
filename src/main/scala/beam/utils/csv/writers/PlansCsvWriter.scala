@@ -80,6 +80,9 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           tripId = Option(leg.getAttributes.getAttribute("trip_id"))
             .map(_.toString.filter(x => x.isDigit || x.equals('.')))
             .getOrElse(""),
+          tourId = Option(leg.getAttributes.getAttribute("tour_id"))
+            .map(_.toString.filter(x => x.isDigit || x.equals('.')))
+            .getOrElse(""),
           personId = PersonId(personId),
           planIndex = planIndex,
           planScore = planScore,
@@ -104,6 +107,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
       case act: Activity =>
         PlanElement(
           tripId = "",
+          tourId = "",
           personId = PersonId(personId),
           planIndex = planIndex,
           planScore = planScore,

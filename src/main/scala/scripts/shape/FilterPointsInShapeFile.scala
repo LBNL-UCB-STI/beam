@@ -34,8 +34,8 @@ object FilterPointsInShapeFile {
     val points = planReader
       .iterator()
       .flatMap {
-        case InputPlanElement(tripId, personId, _, _, _, _, Some(x), Some(y), _) => Some(personId, x, y)
-        case _                                                                   => None
+        case InputPlanElement(_, _, personId, _, _, _, _, Some(x), Some(y), _) => Some(personId, x, y)
+        case _                                                                 => None
       }
       .map { case (personId, x, y) => (personId, gf.createPoint(new Coordinate(x, y))) }
 

@@ -167,6 +167,8 @@ class EventsFileSpec
     assert(experiencedScenario.getPopulation.getPersons.size() == 50)
     var nCarTrips = 0
     var nBikeTrips = 0
+    var badTours = 0
+    var goodTours = 0
     experiencedScenario.getPopulation.getPersons.values().forEach { person =>
       val experiencedPlan = person.getPlans.get(0)
       assert(experiencedPlan.getPlanElements.size() > 1)
@@ -186,21 +188,24 @@ class EventsFileSpec
             nBikeTrips += 1
           }
       }
+
       val beamPlan = BeamPlan(experiencedPlan)
       beamPlan.tours.foreach { tour =>
         if (tour.trips.size > 1) {
           for (mode <- List("car", "bike")) {
             if (tour.trips.head.leg.get.getMode == mode) {
-              assert(
-                tour.trips.last.leg.get.getMode == mode,
-                s"If I leave home by $mode, I must get home by $mode: " + person.getId
-              )
+              if (tour.trips.last.leg.get.getMode == mode) {
+                goodTours += 1
+              } else {
+                badTours += 1
+              }
             }
           }
         }
       }
     }
     logger.debug("nCarTrips = {}, nBikeTrips = {}", nCarTrips, nBikeTrips)
+    assert(badTours == 0, "All personal vehicle tours end with the same mode as they start with")
     assert(nCarTrips != 0, "At least some people must go by car")
     assert(nBikeTrips != 0, "At least some people must go by bike")
   }

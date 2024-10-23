@@ -718,7 +718,7 @@ Routing Configuration
           bike_rent = 180
           walk = 0
           car = 300
-          ride_hail = 0
+          ride_hail = 30
         }
       }
       gh.useAlternativeRoutes = false

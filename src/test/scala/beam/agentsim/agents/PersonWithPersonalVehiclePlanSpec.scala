@@ -1,14 +1,22 @@
 package beam.agentsim.agents
 
 import akka.actor.{ActorSystem, Props}
+import akka.pattern.ask
 import akka.testkit.{ImplicitSender, TestActorRef, TestKitBase, TestProbe}
+import akka.util.Timeout
+
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.{AnotherTrivialParkingManager, TrivialParkingManager}
+import beam.agentsim.infrastructure.{
+  AnotherTrivialParkingManager,
+  ParkingInquiry,
+  ParkingInquiryResponse,
+  TrivialParkingManager
+}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
@@ -30,14 +38,16 @@ import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
-import org.matsim.households.{Household, HouseholdsFactoryImpl}
+import org.matsim.households.{Household, HouseholdsFactoryImpl, Income, IncomeImpl}
 import org.matsim.vehicles._
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.funspec.AnyFunSpecLike
 
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.{mutable, JavaConverters}
+import scala.concurrent.ExecutionContext
 
 class PersonWithPersonalVehiclePlanSpec
     extends AnyFunSpecLike
@@ -55,12 +65,15 @@ class PersonWithPersonalVehiclePlanSpec
         akka.actor.debug.fsm = true
         akka.loglevel = debug
         akka.test.timefactor = 2
+        beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt = true
         """
     )
     .withFallback(testConfig("test/input/beamville/beam.conf"))
     .resolve()
 
   lazy implicit val system: ActorSystem = ActorSystem("PersonWithPersonalVehiclePlanSpec", config)
+  private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
+  private implicit val executionContext: ExecutionContext = system.dispatcher
 
   override def outputDirPath: String = TestConfigUtils.testOutputDir
 
@@ -132,7 +145,8 @@ class PersonWithPersonalVehiclePlanSpec
             Vector(),
             Set.empty,
             new RouteHistory(beamConfig),
-            VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+            VehiclesAdjustment.getVehicleAdjustment(beamScenario),
+            configHolder
           )
         )
       )
@@ -172,7 +186,8 @@ class PersonWithPersonalVehiclePlanSpec
         isEmbodyWithCurrentTravelTime = false,
         triggerId = embodyRequest.triggerId
       )
-
+      // Agent will do tour mode choice after routing
+      expectMsgType[TourModeChoiceEvent]
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
       expectMsgType[BeamPersonDepartureEvent]
@@ -279,7 +294,8 @@ class PersonWithPersonalVehiclePlanSpec
         triggerId = walkFromParkingRoutingRequest.triggerId
       )
 
-      expectMsgType[LeavingParkingEvent]
+//      expectMsgType[LeavingParkingEvent] // Why didn't we see a parking event before this? Either way, we never
+      //      actually parked so there shouldn't be a leaving parking event
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[LinkLeaveEvent]
       expectMsgType[LinkEnterEvent]
@@ -370,7 +386,8 @@ class PersonWithPersonalVehiclePlanSpec
             Vector(),
             Set.empty,
             new RouteHistory(beamConfig),
-            VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+            VehiclesAdjustment.getVehicleAdjustment(beamScenario),
+            configHolder
           )
         )
       )
@@ -411,6 +428,7 @@ class PersonWithPersonalVehiclePlanSpec
         triggerId = embodyRequest.triggerId
       )
 
+      expectMsgType[TourModeChoiceEvent]
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
       expectMsgType[BeamPersonDepartureEvent]
@@ -453,6 +471,7 @@ class PersonWithPersonalVehiclePlanSpec
 
     it("should use another car when the car that is in the plan is taken") {
       val modeChoiceEvents = new TestProbe(system)
+      val tourModeChoiceEvents = new TestProbe(system)
       val personEntersVehicleEvents = new TestProbe(system)
       val eventsManager = new EventsManagerImpl()
       eventsManager.addHandler(
@@ -460,6 +479,7 @@ class PersonWithPersonalVehiclePlanSpec
           override def handleEvent(event: Event): Unit = {
             event match {
               case _: AbstractSkimmerEvent     => // ignore
+              case _: TourModeChoiceEvent      => tourModeChoiceEvents.ref ! event
               case _: ModeChoiceEvent          => modeChoiceEvents.ref ! event
               case _: PersonEntersVehicleEvent => personEntersVehicleEvents.ref ! event
               case _                           => // ignore
@@ -519,7 +539,8 @@ class PersonWithPersonalVehiclePlanSpec
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario),
+          configHolder
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -552,6 +573,9 @@ class PersonWithPersonalVehiclePlanSpec
         }
       }
 
+      tourModeChoiceEvents.expectMsgType[TourModeChoiceEvent]
+      tourModeChoiceEvents.expectMsgType[TourModeChoiceEvent]
+
       modeChoiceEvents.expectMsgType[ModeChoiceEvent]
       modeChoiceEvents.expectMsgType[ModeChoiceEvent]
 
@@ -566,12 +590,14 @@ class PersonWithPersonalVehiclePlanSpec
     it("should create a last resort car if told to drive but no cars are available") {
       val modeChoiceEvents = new TestProbe(system)
       val personEntersVehicleEvents = new TestProbe(system)
+      val tourModeChoiceEvents = new TestProbe(system)
       val eventsManager = new EventsManagerImpl()
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
             event match {
               case _: AbstractSkimmerEvent     => // ignore
+              case _: TourModeChoiceEvent      => tourModeChoiceEvents.ref ! event
               case _: ModeChoiceEvent          => modeChoiceEvents.ref ! event
               case _: PersonEntersVehicleEvent => personEntersVehicleEvents.ref ! event
               case _                           => // ignore
@@ -595,6 +621,7 @@ class PersonWithPersonalVehiclePlanSpec
       population.addPerson(otherPerson)
 
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId, otherPerson.getId)))
+      household.setIncome(new IncomeImpl(40, Income.IncomePeriod.year))
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
@@ -627,7 +654,8 @@ class PersonWithPersonalVehiclePlanSpec
           Vector(),
           Set(vehicleType),
           new RouteHistory(beamConfig),
-          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario),
+          configHolder
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -665,23 +693,28 @@ class PersonWithPersonalVehiclePlanSpec
             isEmbodyWithCurrentTravelTime = false,
             triggerId = triggerId
           )
+        case inq: ParkingInquiry =>
+          (parkingManager ? inq).mapTo[ParkingInquiryResponse].map(x => lastSender ! x)
       }
 
       for (_ <- 0 to 1) {
         expectMsgPF()(messageResponder)
       }
 
+      tourModeChoiceEvents.expectMsgType[TourModeChoiceEvent]
+//      tourModeChoiceEvents.expectMsgType[TourModeChoiceEvent]
+
       modeChoiceEvents.expectMsgType[ModeChoiceEvent]
       expectMsgPF()(messageResponder)
+      expectMsgPF()(messageResponder)
       modeChoiceEvents.expectMsgType[ModeChoiceEvent]
+//      expectMsgPF()(messageResponder)
 
       personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
       personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
       personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
 
       expectMsgType[CompletionNotice]
-
-      // TODO: Testing last resort vehicle creation
     }
 
     it("should walk to a car that is far away (if told so by the router") {
@@ -739,7 +772,8 @@ class PersonWithPersonalVehiclePlanSpec
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario),
+          configHolder
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -799,6 +833,7 @@ class PersonWithPersonalVehiclePlanSpec
         triggerId = routingRequest.triggerId
       )
 
+      expectMsgType[TourModeChoiceEvent]
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
       expectMsgType[BeamPersonDepartureEvent]

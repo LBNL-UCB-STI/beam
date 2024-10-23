@@ -16,7 +16,7 @@ import scala.math.pow
   */
 object ParkingStallSampling extends ExponentialLazyLogging {
 
-  val maxOffsetDistance = 600.0 // TODO: Make this a config parameter
+  val maxOffsetDistance = 1000.0 // TODO: Make this a config parameter
 
   def linkBasedSampling(
     rand: Random,

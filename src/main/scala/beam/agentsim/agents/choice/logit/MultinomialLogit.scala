@@ -59,6 +59,9 @@ class MultinomialLogit[A, T](
                 thisUtility * scale_factor,
                 math.exp(thisUtility * scale_factor)
               )
+            } else if (thisUtility.isNegInfinity) {
+              // utility of negative infinity means that an alternative isn't feasible, so we filter it out
+              accumulator
             } else {
               AlternativeWithUtility(
                 alt,

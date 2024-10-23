@@ -44,7 +44,7 @@ case class PathTraversalEvent(
   amountPaid: Double,
   fromStopIndex: Option[Int],
   toStopIndex: Option[Int],
-  currentTourMode: Option[String],
+  currentTripMode: Option[String],
   payloadIds: IndexedSeq[Id[PayloadPlan]],
   weight: Double,
   riders: IndexedSeq[Id[Person]] = Vector()
@@ -92,7 +92,7 @@ case class PathTraversalEvent(
       attr.put(ATTRIBUTE_TOLL_PAID, amountPaid.toString)
       attr.put(ATTRIBUTE_FROM_STOP_INDEX, fromStopIndex.map(_.toString).getOrElse(""))
       attr.put(ATTRIBUTE_TO_STOP_INDEX, toStopIndex.map(_.toString).getOrElse(""))
-      attr.put(ATTRIBUTE_CURRENT_TOUR_MODE, currentTourMode.getOrElse(""))
+      attr.put(ATTRIBUTE_CURRENT_TRIP_MODE, currentTripMode.getOrElse(""))
       attr.put(ATTRIBUTE_PAYLOAD_IDS, payloadIds.mkString(","))
       attr.put(ATTRIBUTE_WEIGHT, weight.toString)
       attr.put(ATTRIBUTE_RIDERS, ridersToStr(riders))
@@ -111,7 +111,7 @@ object PathTraversalEvent {
   val ATTRIBUTE_PRIMARY_FUEL: String = "primaryFuel"
   val ATTRIBUTE_SECONDARY_FUEL: String = "secondaryFuel"
   val ATTRIBUTE_NUM_PASS: String = "numPassengers"
-  val ATTRIBUTE_CURRENT_TOUR_MODE: String = "currentTourMode"
+  val ATTRIBUTE_CURRENT_TRIP_MODE: String = "currentTripMode"
 
   val ATTRIBUTE_LINK_IDS: String = "links"
   val ATTRIBUTE_LINK_TRAVEL_TIME: String = "linkTravelTime"
@@ -134,16 +134,6 @@ object PathTraversalEvent {
   val ATTRIBUTE_TO_STOP_INDEX: String = "toStopIndex"
   val ATTRIBUTE_PAYLOAD_IDS: String = "payloads"
   val ATTRIBUTE_WEIGHT: String = "weight"
-  /*
-  val ATTRIBUTE_LINKID_WITH_LANE_MAP: String = "linkIdToLaneMap"
-  val ATTRIBUTE_LINKID_WITH_SPEED_MAP: String = "linkIdToSpeedMap"
-  val ATTRIBUTE_LINKID_WITH_SELECTED_GRADIENT_MAP: String = "linkIdToSelectedGradientMap"
-  val ATTRIBUTE_LINKID_WITH_LENGTH_MAP: String = "linkIdToLengthMap"
-  val ATTRIBUTE_LINKID_WITH_SELECTED_RATE_MAP: String = "primaryLinkIdToSelectedRateMap"
-  val ATTRIBUTE_LINKID_WITH_FINAL_CONSUMPTION_MAP: String = "primaryLinkIdToFinalConsumptionMap"
-  val ATTRIBUTE_SECONDARY_LINKID_WITH_SELECTED_RATE_MAP: String = "secondaryLinkIdToSelectedRateMap"
-  val ATTRIBUTE_SECONDARY_LINKID_WITH_FINAL_CONSUMPTION_MAP: String = "secondaryLinkIdToFinalConsumptionMap"
-   */
   val ATTRIBUTE_RIDERS: String = "riders"
 
   def apply(
@@ -153,7 +143,7 @@ object PathTraversalEvent {
     vehicleType: BeamVehicleType,
     numPass: Int,
     beamLeg: BeamLeg,
-    currentTourMode: Option[String],
+    currentTripMode: Option[String],
     primaryFuelConsumed: Double,
     secondaryFuelConsumed: Double,
     endLegPrimaryFuelLevel: Double,
@@ -190,7 +180,7 @@ object PathTraversalEvent {
       amountPaid = amountPaid,
       fromStopIndex = beamLeg.travelPath.transitStops.map(_.fromIdx),
       toStopIndex = beamLeg.travelPath.transitStops.map(_.toIdx),
-      currentTourMode = currentTourMode,
+      currentTripMode = currentTripMode,
       payloadIds = payloadIds,
       weight = weight,
       riders = riders
@@ -236,8 +226,9 @@ object PathTraversalEvent {
       attr.get(ATTRIBUTE_FROM_STOP_INDEX).flatMap(Option(_)).flatMap(x => if (x == "") None else Some(x.toInt))
     val toStopIndex: Option[Int] =
       attr.get(ATTRIBUTE_TO_STOP_INDEX).flatMap(Option(_)).flatMap(x => if (x == "") None else Some(x.toInt))
-    val currentTourMode: Option[String] =
-      attr.get(ATTRIBUTE_CURRENT_TOUR_MODE).flatMap(x => if (x == "") None else Some(x))
+    val currentTripMode: Option[String] =
+      attr.get(ATTRIBUTE_CURRENT_TRIP_MODE).flatMap(x => if (x == "") None else Some(x))
+
     PathTraversalEvent(
       time,
       vehicleId,
@@ -265,7 +256,7 @@ object PathTraversalEvent {
       amountPaid,
       fromStopIndex,
       toStopIndex,
-      currentTourMode,
+      currentTripMode,
       payloadIds,
       weight,
       riders
