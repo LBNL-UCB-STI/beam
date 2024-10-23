@@ -74,6 +74,10 @@ object ParkingNetworkManager extends LazyLogging {
     val stallForLeavingParkingEventMaybe = currentBeamVehicle.stall match {
       case Some(stall) =>
         parkingManager ! ReleaseParkingStall(stall, tick)
+        currentBeamVehicle.setLastVehicleTimeLink(
+          Some(tick),
+          currentBeamVehicle.stall.flatMap(_.link).map(_.getId.toString.toInt)
+        )
         currentBeamVehicle.unsetParkingStall()
         Some(stall)
       case None if currentBeamVehicle.lastUsedStall.isDefined =>
@@ -91,6 +95,7 @@ object ParkingNetworkManager extends LazyLogging {
         Some(stall),
         beamServices
       )
+
       val emissionsProfile =
         currentBeamVehicle.emitEmissions(vehicleActivityData, classOf[LeavingParkingEvent], beamServices)
       val energyCharge: Double = energyChargedMaybe.getOrElse(0.0)

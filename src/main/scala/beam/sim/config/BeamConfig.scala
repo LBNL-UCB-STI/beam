@@ -794,6 +794,7 @@ object BeamConfig {
           minSearchRadius: scala.Double,
           multinomialLogit: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
           rangeAnxietyBuffer: scala.Double,
+          searchDoubleParkingRadius: scala.Double,
           searchMaxDistanceRelativeToEllipseFoci: scala.Double
         )
 
@@ -868,6 +869,8 @@ object BeamConfig {
               ),
               rangeAnxietyBuffer =
                 if (c.hasPathOrNull("rangeAnxietyBuffer")) c.getDouble("rangeAnxietyBuffer") else 20000.0,
+              searchDoubleParkingRadius =
+                if (c.hasPathOrNull("searchDoubleParkingRadius")) c.getDouble("searchDoubleParkingRadius") else 0.0,
               searchMaxDistanceRelativeToEllipseFoci =
                 if (c.hasPathOrNull("searchMaxDistanceRelativeToEllipseFoci"))
                   c.getDouble("searchMaxDistanceRelativeToEllipseFoci")
@@ -1191,8 +1194,12 @@ object BeamConfig {
               }
 
               case class Procedural(
+                averageOnDutyHoursPerDay: scala.Double,
+                equivalentNumberOfDrivers: scala.Double,
                 fractionOfInitialVehicleFleet: scala.Double,
                 initialLocation: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural.InitialLocation,
+                meanLogShiftDurationHours: scala.Double,
+                stdLogShiftDurationHours: scala.Double,
                 vehicleAdjustmentMethod: java.lang.String,
                 vehicleTypeId: java.lang.String,
                 vehicleTypePrefix: java.lang.String
@@ -1243,6 +1250,12 @@ object BeamConfig {
                   c: com.typesafe.config.Config
                 ): BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural = {
                   BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural(
+                    averageOnDutyHoursPerDay =
+                      if (c.hasPathOrNull("averageOnDutyHoursPerDay")) c.getDouble("averageOnDutyHoursPerDay")
+                      else 3.52,
+                    equivalentNumberOfDrivers =
+                      if (c.hasPathOrNull("equivalentNumberOfDrivers")) c.getDouble("equivalentNumberOfDrivers")
+                      else 0.0,
                     fractionOfInitialVehicleFleet =
                       if (c.hasPathOrNull("fractionOfInitialVehicleFleet")) c.getDouble("fractionOfInitialVehicleFleet")
                       else 0.1,
@@ -1251,6 +1264,12 @@ object BeamConfig {
                         if (c.hasPathOrNull("initialLocation")) c.getConfig("initialLocation")
                         else com.typesafe.config.ConfigFactory.parseString("initialLocation{}")
                       ),
+                    meanLogShiftDurationHours =
+                      if (c.hasPathOrNull("meanLogShiftDurationHours")) c.getDouble("meanLogShiftDurationHours")
+                      else 1.02,
+                    stdLogShiftDurationHours =
+                      if (c.hasPathOrNull("stdLogShiftDurationHours")) c.getDouble("stdLogShiftDurationHours")
+                      else 0.44,
                     vehicleAdjustmentMethod =
                       if (c.hasPathOrNull("vehicleAdjustmentMethod")) c.getString("vehicleAdjustmentMethod") else "",
                     vehicleTypeId = if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "Car",

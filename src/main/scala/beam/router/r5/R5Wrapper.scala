@@ -944,9 +944,11 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
 
   private def timeLimitForVehicleCategory(vehicleCategory: VehicleCategory, default: Int): Int = {
     vehicleCategory match {
-      case VehicleCategory.HeavyDutyTruck => beamConfig.beam.routing.r5.maxTimeLimitForFreightInMinutes
-      case VehicleCategory.LightDutyTruck => beamConfig.beam.routing.r5.maxTimeLimitForFreightInMinutes
-      case _                              => default
+      case VehicleCategory.Class2b3Vocational => beamConfig.beam.routing.r5.maxTimeLimitForFreightInMinutes
+      case VehicleCategory.Class456Vocational => beamConfig.beam.routing.r5.maxTimeLimitForFreightInMinutes
+      case VehicleCategory.Class78Vocational  => beamConfig.beam.routing.r5.maxTimeLimitForFreightInMinutes
+      case VehicleCategory.Class78Tractor     => beamConfig.beam.routing.r5.maxTimeLimitForFreightInMinutes
+      case _                                  => default
     }
   }
 
