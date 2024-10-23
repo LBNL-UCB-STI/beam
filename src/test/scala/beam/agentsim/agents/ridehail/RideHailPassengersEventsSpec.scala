@@ -1,7 +1,5 @@
 package beam.agentsim.agents.ridehail
 
-import java.util.concurrent.atomic.AtomicInteger
-
 import beam.agentsim.events.PathTraversalEvent
 import beam.integration.IntegrationSpecCommon
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -15,9 +13,10 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.vehicles.Vehicle
-import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
+import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.concurrent.TrieMap
 
 class RideHailPassengersEventsSpec extends AnyWordSpecLike with Matchers with BeamHelper with IntegrationSpecCommon {

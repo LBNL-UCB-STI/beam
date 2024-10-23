@@ -1,6 +1,6 @@
 package beam.sim
 
-import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, RefuelSessionEvent, ReplanningEvent}
+import beam.agentsim.events._
 import beam.integration.IntegrationSpecCommon
 import beam.utils.EventReader.{fromXmlFile, getEventsFilePath}
 import beam.utils.TestConfigUtils.testConfig

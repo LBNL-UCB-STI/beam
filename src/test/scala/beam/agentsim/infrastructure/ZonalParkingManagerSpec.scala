@@ -175,6 +175,7 @@ class ZonalParkingManagerSpec
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
+            "work",
             VehicleManager.AnyManager
           )
         val response1 = zonalParkingManager.processParkingInquiry(firstInquiry)
@@ -238,6 +239,7 @@ class ZonalParkingManagerSpec
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
+            "work",
             VehicleManager.AnyManager
           )
 
@@ -393,8 +395,8 @@ class ZonalParkingManagerSpec
     it("should return a stall from the single available zone (index=2)") {
       val parkingDescription: Iterator[String] =
         """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,timeRestrictions,reservedFor,parkingZoneId
-          |4,Public,FlatFee,NoCharger,10,0,Car|0-17:30;LightDutyTruck|17:31-23:59,,a
-          |4,Public,Block,NoCharger,20,0,LightDutyTruck|0-17:30;Car|17:31-23:59,,b""".stripMargin
+          |4,Public,FlatFee,NoCharger,10,0,Car|0-17:30;Class456Vocational|17:31-23:59,,a
+          |4,Public,Block,NoCharger,20,0,Class456Vocational|0-17:30;Car|17:31-23:59,,b""".stripMargin
           .split("\n")
           .toIterator
       val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
@@ -592,6 +594,7 @@ class ZonalParkingManagerSpec
         None,
         Some(pricingModel),
         parkingType,
+        "init",
         reservedFor = reservedFor
       )
     assert(
@@ -652,7 +655,7 @@ object ZonalParkingManagerSpec {
       val quadTree = coords.foldLeft(new QuadTree[TAZ](xMin, yMin, xMax, yMax)) { (tree, tazData) =>
         val (coord, area) = tazData
         val tazId = Id.create(startAtId + tree.size, classOf[TAZ])
-        val taz = new TAZ(tazId, coord, area, None)
+        val taz = new TAZ(tazId, coord, area, None, None)
         tree.put(coord.getX, coord.getY, taz)
         tree
       }

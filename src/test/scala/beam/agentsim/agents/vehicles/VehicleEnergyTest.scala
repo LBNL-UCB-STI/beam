@@ -1,6 +1,6 @@
 /*package beam.agentsim.agents.vehicles
 
-import beam.agentsim.agents.vehicles.BeamVehicle.FuelConsumptionData
+import beam.agentsim.agents.vehicles.BeamVehicle.VehicleActivityData
 import com.univocity.parsers.csv.CsvParser
 import java.io.ByteArrayInputStream
 
@@ -94,7 +94,7 @@ class VehicleEnergyTest extends FunSpecLike with BeforeAndAfterAll with Matchers
 
   private def createFuelConsumptionDataUsing(speed: Int, gradePercent: Int, numberOfLanes: Int) = {
     IndexedSeq(
-      FuelConsumptionData(
+      VehicleActivityData(
         linkId,
         BeamVehicleType.defaultCarBeamVehicleType,
         Option(numberOfLanes),

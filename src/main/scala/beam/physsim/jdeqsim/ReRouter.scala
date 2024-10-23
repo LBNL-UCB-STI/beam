@@ -69,13 +69,21 @@ class ReRouter(val workerParams: R5Parameters, val beamServices: BeamServices) e
                 resp.itineraries.headOption.flatMap(_.legs.headOption.map(_.beamLeg)) match {
                   case Some(beamLeg) =>
                     oldTravelTimes += Option(leg.getAttributes.getAttribute("travel_time"))
-                      .map(_.toString.toLong.toDouble)
+                      .map { attr =>
+                        Try(attr.toString.toDouble).getOrElse {
+                          logger.error(
+                            s"Invalid travel_time attribute value: $attr for person ${person.getId}. Using 0.0 as default."
+                          )
+                          0.0
+                        }
+                      }
                       .getOrElse {
                         logger.error(
-                          s"travel_time attribute has not been found in leg $leg for person ${person.getId}. The travel time 0.0 will be considered"
+                          s"travel_time attribute not found in leg $leg for person ${person.getId}. Using 0.0 as default."
                         )
                         0.0
                       }
+
                     newTravelTimes += beamLeg.duration.toDouble
 
                     val javaLinkIds = beamLeg.travelPath.linkIds

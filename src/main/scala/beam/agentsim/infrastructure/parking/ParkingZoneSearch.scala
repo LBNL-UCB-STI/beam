@@ -76,7 +76,8 @@ object ParkingZoneSearch {
     zoneQuadTree: QuadTree[TAZ],
     random: Random,
     originUTM: Option[Location],
-    reservedFor: ReservedFor
+    reservedFor: ReservedFor,
+    activityType: String
   )
 
   /**
@@ -230,7 +231,9 @@ object ParkingZoneSearch {
                 parkingZone.chargingPointType,
                 parkingZone.pricingModel,
                 parkingType,
-                parkingZone.reservedFor
+                params.activityType,
+                parkingZone.reservedFor,
+                parkingZone.link
               )
 
               val theseParkingZoneIds: List[Id[ParkingZoneId]] = alternatives.map {

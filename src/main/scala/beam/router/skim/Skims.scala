@@ -22,7 +22,8 @@ class Skims @Inject() (
   val odVehicleTypeSkimmer: ODVehicleTypeSkimmer,
   val freightSkimmer: FreightSkimmer,
   val parkingSkimmer: ParkingSkimmer,
-  val asSkimmer: ActivitySimSkimmer
+  val asSkimmer: ActivitySimSkimmer,
+  val emissionsSkimmer: EmissionsSkimmer
 ) extends LazyLogging {
 
   import Skims.SkimType
@@ -36,6 +37,7 @@ class Skims @Inject() (
     lookup(SkimType.OD_VEHICLE_TYPE_SKIMMER).asInstanceOf[ODVehicleTypeSkims]
   lazy val freight_skimmer: FreightSkims = lookup(SkimType.FREIGHT_SKIMMER).asInstanceOf[FreightSkims]
   lazy val parking_skimmer: ParkingSkims = lookup(SkimType.PARKING_SKIMMER).asInstanceOf[ParkingSkims]
+  lazy val emissions_skimmer: EmissionsSkims = lookup(SkimType.EMISSIONS_SKIMMER).asInstanceOf[EmissionsSkims]
 
   private val skims = mutable.Map.empty[SkimType.Value, AbstractSkimmer]
   skims.put(SkimType.OD_SKIMMER, addEvent(odSkimmer))
@@ -47,6 +49,7 @@ class Skims @Inject() (
   skims.put(SkimType.FREIGHT_SKIMMER, addEvent(freightSkimmer))
   skims.put(SkimType.PARKING_SKIMMER, addEvent(parkingSkimmer))
   skims.put(SkimType.AS_SKIMMER, addEvent(asSkimmer))
+  skims.put(SkimType.EMISSIONS_SKIMMER, addEvent(emissionsSkimmer))
 
   private def addEvent(skimmer: AbstractSkimmer): AbstractSkimmer = {
     matsimServices.addControlerListener(skimmer)
@@ -71,9 +74,10 @@ object Skims {
     val FREIGHT_SKIMMER: skim.Skims.SkimType.Value = Value("freight-skimmer")
     val PARKING_SKIMMER: skim.Skims.SkimType.Value = Value("parking-skimmer")
     val AS_SKIMMER: router.skim.Skims.SkimType.Value = Value("activity-sim-skimmer")
+    val EMISSIONS_SKIMMER: router.skim.Skims.SkimType.Value = Value("emissions-skimmer")
   }
 
-  def skimFileNames(skimCfg: Router.Skim) = IndexedSeq(
+  def skimFileNames(skimCfg: Router.Skim): IndexedSeq[(SkimType.Value, String)] = IndexedSeq(
     SkimType.OD_SKIMMER              -> skimCfg.origin_destination_skimmer.fileBaseName,
     SkimType.TAZ_SKIMMER             -> skimCfg.taz_skimmer.fileBaseName,
     SkimType.DT_SKIMMER              -> skimCfg.drive_time_skimmer.fileBaseName,
@@ -81,7 +85,8 @@ object Skims {
     SkimType.OD_VEHICLE_TYPE_SKIMMER -> ODVehicleTypeSkimmer.fileBaseName,
     SkimType.FREIGHT_SKIMMER         -> FreightSkimmer.fileBaseName,
     SkimType.PARKING_SKIMMER         -> ParkingSkimmer.fileBaseName,
-    SkimType.TC_SKIMMER              -> skimCfg.transit_crowding_skimmer.fileBaseName
+    SkimType.TC_SKIMMER              -> skimCfg.transit_crowding_skimmer.fileBaseName,
+    SkimType.EMISSIONS_SKIMMER       -> skimCfg.emissions_skimmer.fileBaseName
   )
 
   def skimAggregatedFileNames(skimCfg: Router.Skim): IndexedSeq[(SkimType.Value, String)] =

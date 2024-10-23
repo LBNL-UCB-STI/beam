@@ -1,7 +1,7 @@
 package scripts
 
 import akka.actor.ActorSystem
-import beam.agentsim.events.PathTraversalEvent
+import beam.agentsim.events.{PathTraversalEvent, ScalaEvent}
 import beam.agentsim.events.handling.TravelTimeGoogleStatistic
 import beam.router.Modes.BeamMode
 import beam.sim.BeamHelper

@@ -7,7 +7,6 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.freight.FreightReplanner
 import beam.agentsim.agents.freight.input.FreightReader
-import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
 import beam.agentsim.agents.ridehail.{
   RideHailIterationHistory,
   RideHailManager,
@@ -165,6 +164,7 @@ class BeamMobsim @Inject() (
       beamServices.skims.taz_skimmer.displaySkimStats()
       beamServices.skims.dt_skimmer.displaySkimStats()
       beamServices.skims.tc_skimmer.displaySkimStats()
+      beamServices.skims.emissions_skimmer.displaySkimStats()
     }
 
     if (beamServices.beamConfig.beam.output.writePlansAndStopSimulation) {

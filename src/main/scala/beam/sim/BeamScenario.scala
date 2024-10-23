@@ -4,7 +4,7 @@ import beam.agentsim.agents.choice.logit.DestinationChoiceModel
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.freight.FreightCarrier
 import beam.agentsim.agents.vehicles.FuelType.{Electricity, FuelTypePrices}
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleEnergy}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleEmissions, VehicleEnergy}
 import beam.agentsim.infrastructure.taz.{H3TAZ, TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
 import beam.sim.config.BeamConfig
@@ -14,6 +14,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.core.utils.collections.QuadTree
 import com.conveyal.gtfs.model.Stop
+
 import scala.collection.concurrent.TrieMap
 import scala.jdk.CollectionConverters.mapAsScalaMapConverter
 
@@ -37,6 +38,7 @@ case class BeamScenario(
   privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle],
   privateVehicleInitialSoc: TrieMap[Id[BeamVehicle], Double],
   vehicleEnergy: VehicleEnergy,
+  vehicleEmissions: VehicleEmissions,
   beamConfig: BeamConfig,
   dates: DateUtils,
   ptFares: PtFares,

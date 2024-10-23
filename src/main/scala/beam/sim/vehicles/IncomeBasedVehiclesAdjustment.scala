@@ -10,7 +10,11 @@ import org.matsim.api.core.v01.Coord
 
 case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends VehiclesAdjustment {
 
-  case class CategoryAttributeAndGroup(vehicleCategory: VehicleCategory, householdAttribute: String, group: String)
+  private case class CategoryAttributeAndGroup(
+    vehicleCategory: VehicleCategory,
+    householdAttribute: String,
+    group: String
+  )
 
   private val vehicleTypesAndProbabilityByCategoryAndGroup =
     scala.collection.mutable.Map[CategoryAttributeAndGroup, Array[(BeamVehicleType, Double)]]()
@@ -125,7 +129,7 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
     groupIDs
   }
 
-  def isThisHouseholdInThisGroup(
+  private def isThisHouseholdInThisGroup(
     householdIncome: Double,
     categoryAttributeAndGroup: CategoryAttributeAndGroup
   ): Boolean = {
