@@ -834,7 +834,7 @@ class PersonAgent(
 
   when(WaitingForRideHailReservationConfirmation) {
     // RIDE HAIL DELAY
-    case Event(DelayedRideHailResponse, data: BasePersonData) =>
+    case Event(_: DelayedRideHailResponse, data: BasePersonData) =>
       // this means ride hail manager is taking time to assign and we should complete our
       // current trigger and wait to be re-triggered by the manager
       val (_, triggerId) = releaseTickAndTriggerId()
@@ -920,7 +920,7 @@ class PersonAgent(
      * Learn as passenger that it is time to board the vehicle
      */
     case Event(
-          TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter), triggerId),
+          TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter, _), triggerId),
           data: BasePersonData
         ) if data.hasNextLeg =>
       val currentLeg = data.nextLeg
@@ -954,7 +954,7 @@ class PersonAgent(
      * Learn as passenger that it is time to alight the vehicle
      */
     case Event(
-          TriggerWithId(AlightVehicleTrigger(tick, vehicleToExit, energyConsumedOption), triggerId),
+          TriggerWithId(AlightVehicleTrigger(tick, vehicleToExit, _, energyConsumedOption), triggerId),
           data: BasePersonData
         ) if data.hasNextLeg && vehicleToExit.equals(data.currentVehicle.head) =>
       updateFuelConsumed(energyConsumedOption)
@@ -1628,6 +1628,7 @@ class PersonAgent(
     val (odSkimmerEvent, _, _) = ODSkimmerEvent.forTaz(
       tick,
       beamServices,
+      mode = if (maybePayloadWeightInKg.isDefined) BeamMode.FREIGHT else trip.tripClassifier,
       correctedTrip,
       generalizedTime,
       generalizedCost,
@@ -1761,7 +1762,7 @@ class PersonAgent(
     case Event(TriggerWithId(_: AlightVehicleTrigger, _), _: ChoosesModeData) =>
       handleBoardOrAlightOutOfPlace
     case Event(
-          TriggerWithId(BoardVehicleTrigger(_, vehicleId), triggerId),
+          TriggerWithId(BoardVehicleTrigger(_, vehicleId, _), triggerId),
           data: BasePersonData
         ) if data.currentVehicle.headOption.contains(vehicleId) =>
       log.debug("Person {} in state {} received Board for vehicle that he is already on, ignoring...", id, stateName)
