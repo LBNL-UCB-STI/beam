@@ -1508,6 +1508,8 @@ class PersonAgent(
             triggerId,
             Vector(ScheduleTrigger(ActivityEndTrigger(nextLegDepartureTime), self))
           )
+          val currentTourStrategy = _experiencedBeamPlan.getStrategy[TourModeChoiceStrategy](currentTour(data))
+
           goto(PerformingActivity) using data.copy(
             currentActivityIndex = data.currentActivityIndex + 1,
             currentTrip = None,
@@ -1520,7 +1522,18 @@ class PersonAgent(
                   beamVehicles -= personalVeh.id
                   personalVeh.getManager.get ! ReleaseVehicle(personalVeh, triggerId)
                   None
+                } else if (_experiencedBeamPlan.isLastElementInTour(activity)) {
+                  // Here we're coming out of a nested tour and need to get the tour of our parent vehicle
+                  _experiencedBeamPlan
+                    .getStrategy[TourModeChoiceStrategy](currentTour(data).originActivity.get)
+                    .tourVehicle
                 } else {
+                  if (
+                    (currentTourStrategy.tourVehicle != data.currentTourPersonalVehicle) && data.currentTourPersonalVehicle.nonEmpty
+                  ) {
+                    //TODO: Fix current tour mode (currently only happening when we sub DRIVE_ or BIKE_TRANSIT into a WALK_BASED tour
+                    logger.error("Why are we keeping a personal vehicle that is different than our tour vehicle?")
+                  }
                   data.currentTourPersonalVehicle
                 }
               case Some(personalVehId) =>
@@ -1573,6 +1586,10 @@ class PersonAgent(
     val rhVehicleId = rideHailLeg.beamVehicleId
     val rideHailLegEndpoint =
       restOfCurrentTrip.takeWhile(_.beamVehicleId == rhVehicleId).last.beamLeg.travelPath.endPoint.loc
+
+    if (rideHailLeg.rideHailManagerName.isEmpty) {
+      logger.error(f"Why are we trying to reserve a ridehail trip on a dummy leg? Current trip: $restOfCurrentTrip")
+    }
 
     rideHailManager ! RideHailRequest(
       ReserveRide(rideHailLeg.rideHailManagerName.get),
