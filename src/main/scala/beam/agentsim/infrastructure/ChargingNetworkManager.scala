@@ -18,6 +18,7 @@ import beam.agentsim.scheduler.{HasTriggerId, Trigger}
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Debug
+import beam.utils.OptionalUtils.OptionalTimeExtension
 import beam.utils.logging.LoggingMessageActor
 import beam.utils.logging.pattern.ask
 import com.typesafe.scalalogging.LazyLogging
@@ -28,7 +29,6 @@ import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import beam.utils.OptionalUtils.OptionalTimeExtension
 
 /**
   * Created by haitamlaarabi
@@ -308,7 +308,15 @@ object ChargingNetworkManager extends LazyLogging {
     parkingNetworkManager: ActorRef,
     scheduler: ActorRef
   ): Props = {
-    Props(new ChargingNetworkManager(beamServices, chargingNetwork, rideHailNetwork, parkingNetworkManager, scheduler))
+    Props(
+      new ChargingNetworkManager(
+        beamServices,
+        chargingNetwork,
+        rideHailNetwork,
+        parkingNetworkManager,
+        scheduler
+      )
+    )
   }
 
   case class ChargingNetworkHelper(chargingNetwork: ChargingNetwork, rideHailNetwork: ChargingNetwork) {

@@ -32,7 +32,9 @@ case class BeamVehicleType(
   chargingCapability: Option[ChargingPointType] = None,
   payloadCapacityInKg: Option[Double] = None,
   wheelchairAccessible: Option[Boolean] = None,
-  restrictRoadsByFreeSpeedInMeterPerSecond: Option[Double] = None
+  restrictRoadsByFreeSpeedInMeterPerSecond: Option[Double] = None,
+  emissionsRatesFile: Option[String] = None,
+  emissionsRatesInGramsPerMile: Option[VehicleEmissions.EmissionsProfile] = None
 ) {
   def isSharedVehicle: Boolean = id.toString.startsWith("sharedVehicle")
 
@@ -60,10 +62,11 @@ object FuelType {
   case object Electricity extends FuelType
   case object Biodiesel extends FuelType
   case object Hydrogen extends FuelType
+  case object NaturalGas extends FuelType
   case object Undefined extends FuelType
 
   def fromString(value: String): FuelType = {
-    Vector(Food, Gasoline, Diesel, Electricity, Biodiesel, Hydrogen, Undefined)
+    Vector(Food, Gasoline, Diesel, Electricity, Biodiesel, Hydrogen, NaturalGas, Undefined)
       .find(_.toString.equalsIgnoreCase(value))
       .getOrElse(Undefined)
   }
@@ -75,15 +78,30 @@ object VehicleCategory {
   sealed trait VehicleCategory
   case object Body extends VehicleCategory
   case object Bike extends VehicleCategory
-  case object Car extends VehicleCategory
+  case object Car extends VehicleCategory // Class 1&2a (GVWR <= 8500 lbs.)
   case object MediumDutyPassenger extends VehicleCategory
-  case object LightDutyTruck extends VehicleCategory
-  case object HeavyDutyTruck extends VehicleCategory
+  case object Class2b3Vocational extends VehicleCategory // Class 2b&3 (GVWR 8501-14000 lbs.)
+  case object Class456Vocational extends VehicleCategory // Class 4-6 (GVWR 14001-26000 lbs.)
+  case object Class78Vocational extends VehicleCategory // CLass 7&8 (GVWR 26001-33,000 lbs.)
+  case object Class78Tractor extends VehicleCategory // Class 7&8 Tractor (GVWR >33,000 lbs.)
 
-  def fromString(value: String): VehicleCategory = fromStringOptional(value).get
+  def fromString(value: String): VehicleCategory =
+    try { fromStringOptional(value).get }
+    catch {
+      case exception: Exception => throw new RuntimeException(f"Can not parse vehicle category: '$value'.", exception)
+    }
 
-  def fromStringOptional(value: String): Option[VehicleCategory] = {
-    Vector(Body, Bike, Car, MediumDutyPassenger, LightDutyTruck, HeavyDutyTruck)
+  private def fromStringOptional(value: String): Option[VehicleCategory] = {
+    Vector(
+      Body,
+      Bike,
+      Car,
+      MediumDutyPassenger,
+      Class2b3Vocational,
+      Class456Vocational,
+      Class78Vocational,
+      Class78Tractor
+    )
       .find(_.toString.equalsIgnoreCase(value))
   }
 }

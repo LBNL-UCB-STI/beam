@@ -4,7 +4,7 @@ import java.io.Closeable
 
 import beam.utils.csv.GenericCsvReader
 
-case class CsvTaz(id: String, coordX: Double, coordY: Double, area: Double)
+case class CsvTaz(id: String, coordX: Double, coordY: Double, area: Double, county: String)
 
 object CsvTaz {
 
@@ -23,7 +23,8 @@ object CsvTaz {
       id = rec.get("taz"),
       coordX = rec.get("coord-x").toDouble,
       coordY = rec.get("coord-y").toDouble,
-      area = rec.get("area").toDouble
+      area = rec.get("area").toDouble,
+      county = Option(rec.get("county")).filter(_.nonEmpty).getOrElse("")
     )
   }
 

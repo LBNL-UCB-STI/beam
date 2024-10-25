@@ -2,7 +2,6 @@ package beam.router.skim.readonly
 
 import beam.router.skim.core.AbstractSkimmerReadOnly
 import beam.router.skim.core.TAZSkimmer.{TAZSkimmerInternal, TAZSkimmerKey}
-import beam.sim.BeamScenario
 import org.matsim.api.core.v01.Id
 
 class TAZSkims() extends AbstractSkimmerReadOnly {

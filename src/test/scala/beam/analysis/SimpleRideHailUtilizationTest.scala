@@ -38,6 +38,7 @@ class SimpleRideHailUtilizationTest extends AnyFunSuite with Matchers {
     None,
     IndexedSeq.empty,
     0.0,
+    None,
     riders = Vector()
   )
 
