@@ -184,7 +184,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         .toList
       val (packages, persons) = toAllocate
         .filter(_.asPooled)
-        .partition(request => request.customer.personId.toString.startsWith(GoodsDeliveryManager.GOODS_PREFIX))
+        .partition(_.isPackageDelivery)
       val spatialPoolCustomerReqs: List[QuadTree[CustomerRequest]] = List(packages, persons)
         .map(RideHailMatching.createSpatialPooledCustomerRequests(tick, _, rideHailManager))
 

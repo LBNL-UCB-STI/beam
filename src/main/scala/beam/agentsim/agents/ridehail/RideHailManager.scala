@@ -508,7 +508,7 @@ class RideHailManager(
   var nRepositioned: Int = 0
 
   val (supportedModes: Set[BeamMode], goodsSupported: Boolean) = getSupportedModes(managerConfig.supportedModes)
-  if (supportedModes.isEmpty)
+  if (supportedModes.isEmpty && !goodsSupported)
     throw new IllegalArgumentException(s"Wrong supported modes: ${managerConfig.supportedModes}")
 
   override def loggedReceive: Receive = super[RideHailDepotManager].loggedReceive orElse BeamLoggingReceive {
@@ -1867,7 +1867,7 @@ class RideHailManager(
             routesRequired.foreach(rReq => routeRequestIdToRideHailRequestId.put(rReq.requestId, request.requestId))
             allRoutesRequired = allRoutesRequired ++ routesRequired
           case alloc @ VehicleMatchedToCustomers(request, _, pickDropIdWithRoutes) if pickDropIdWithRoutes.nonEmpty =>
-            val travelProposal = createTravelProposal(alloc)
+            val travelProposal = createTravelProposal(alloc, request.isPackageDelivery)
             val waitTimeMaximumSatisfied = !travelProposal.passengerSchedule.uniquePassengers.exists { customer =>
               travelProposal.timeToCustomer(
                 customer
@@ -1906,7 +1906,7 @@ class RideHailManager(
     nFindAllocationsAndProcess += 1
   }
 
-  def createTravelProposal(alloc: VehicleMatchedToCustomers): TravelProposal = {
+  def createTravelProposal(alloc: VehicleMatchedToCustomers, isPackageDelivery: Boolean): TravelProposal = {
     val passSched = mobilityRequestToPassengerSchedule(alloc.schedule, alloc.rideHailAgentLocation)
     val updatedPassengerSchedule =
       ridehailManagerCustomizationAPI.updatePassengerScheduleDuringCreateTravelProposalHook(passSched)
@@ -1939,7 +1939,7 @@ class RideHailManager(
         )
         .toMap,
       rideHailResourceAllocationManager.maxWaitTimeInSec,
-      modeOptions = supportedModes,
+      modeOptions = if (isPackageDelivery) Set(RIDE_HAIL_POOLED) else supportedModes,
       poolingInfo = None
     )
   }

@@ -1,7 +1,6 @@
 package beam.agentsim.agents.goods
 
 import akka.actor.{ActorLogging, ActorRef, Props}
-import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.choice.mode.ModeChoiceRideHailIfAvailable
@@ -37,9 +36,13 @@ import org.matsim.api.core.v01.events.{PersonArrivalEvent, PersonEntersVehicleEv
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.experimental.events.EventsManager
 
-import java.util.concurrent.TimeUnit
 import scala.util.Random
 
+/**
+  * It schedules triggers for each package delivery. When a trigger arrives it reserves a ride-hail for
+  * the corresponding package. Then it mimics a person agent who board/alight vehicle etc. And it also generates
+  * appropriate events
+  */
 private class GoodsDeliveryManager(
   val beamScenario: BeamScenario,
   val beamServices: BeamServices,
@@ -57,8 +60,11 @@ private class GoodsDeliveryManager(
       case managerConfig if RideHailManager.getSupportedModes(managerConfig.supportedModes)._2 => managerConfig.name
     }.toIndexedSeq
 
+  /**
+    * It schedules GoodsDeliveryTrigger for each goods plan
+    * @return
+    */
   override def loggedReceive: PartialFunction[Any, Unit] = { case TriggerWithId(InitializeTrigger(_), triggerId) =>
-    implicit val _: Timeout = Timeout(120, TimeUnit.SECONDS)
     val triggers: IndexedSeq[ScheduleTrigger] = (for {
       carrier <- beamScenario.goodsCarriers
       tours   <- carrier.tourMap.values
@@ -97,6 +103,9 @@ private class GoodsDeliveryManager(
     case TriggerWithId(GoodsDeliveryTrigger(currentTick, rhmName, pickup, destination), triggerId) =>
       val virtualPersonId = (GOODS_PREFIX + destination.payloadId.toString).createId[Person]
       rideHailManager ! RideHailRequest(
+        // we are trying to reserve a predefined ride-hail (in goods plans) or choose a random RHM that supports goods
+        // TODO we could send ReserveRide request to a different RHM in case of the first RHM failed to reserver a ride
+        // but that would increase complexity of this class
         ReserveRide(rhmName.getOrElse(MathUtils.selectRandomElement(goodsRhmNames, rand))),
         PersonIdWithActorRef(virtualPersonId, self),
         pickup.locationUTM,
@@ -143,6 +152,8 @@ private class GoodsDeliveryManager(
     // RIDE HAIL SUCCESS (single request mode of RHM)
     case response: RideHailResponse if response.isSuccessful(response.request.customer.personId) =>
       val trip = generateSuccessfulRideHailEvents(response.request.requestTime, response, response.request.customer)
+      response.triggersToSchedule.foreach(scheduler ! _)
+      scheduler ! CompletionNotice(response.triggerId, Vector())
       context.become(operate(goodsData + (response.request.customer.personId -> trip)))
     // RIDE HAIL FAILURE (single request mode of RHM)
     case response: RideHailResponse =>
@@ -152,6 +163,7 @@ private class GoodsDeliveryManager(
         response,
         response.request.customer
       )
+      scheduler ! CompletionNotice(response.triggerId, Vector())
     case TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter, passenger), triggerId) =>
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, passenger.personId, vehicleToEnter))
       scheduler ! CompletionNotice(triggerId)
@@ -299,6 +311,8 @@ private class GoodsDeliveryManager(
 
 object GoodsDeliveryManager {
   val GOODS_PREFIX = "goods-"
+
+  def isPackage(personId: Id[Person]): Boolean = personId.toString.startsWith(GoodsDeliveryManager.GOODS_PREFIX)
 
   case class GoodsDeliveryTrigger(
     tick: Int,
