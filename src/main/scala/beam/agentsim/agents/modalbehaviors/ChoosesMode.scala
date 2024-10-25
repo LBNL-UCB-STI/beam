@@ -1161,11 +1161,11 @@ trait ChoosesMode {
         case Some(CAR_BASED)
             if !allAvailableStreetVehicles
               .exists(_.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car) =>
-          logger.error("We're on a car based tour without any cars -- this is bad!")
+          logger.error(s"Person ${this.id} is on a car based tour without any cars -- this is bad!")
         case Some(BIKE_BASED)
             if !allAvailableStreetVehicles
               .exists(_.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike) =>
-          logger.error("We're on a bike based tour without any bikes -- this is bad!")
+          logger.error(s"Person ${this.id} is on a bike based tour without any bikes -- this is bad!")
         case _ =>
       }
 
@@ -1308,7 +1308,9 @@ trait ChoosesMode {
                 s"activity ${_experiencedBeamPlan.getTripContaining(personData.currentActivityIndex)} " +
                 s"of plan ${_experiencedBeamPlan.activities.map(_.getType)}"
               )
-              goto(ChoosingMode)
+              goto(ChoosingMode) using choosesModeData.copy(personData =
+                personData.copy(currentTourPersonalVehicle = chosenCurrentTourPersonalVehicle)
+              )
             case Some(mode) =>
               val correctedTripMode = correctCurrentTripModeAccordingToRules(None, personData, availableModesForTrips)
               if (correctedTripMode != personData.currentTripMode) {
@@ -1679,7 +1681,6 @@ trait ChoosesMode {
 
           goto(Teleporting) using data.personData.copy(
             currentTrip = Some(chosenTrip),
-            currentTourPersonalVehicle = None,
             restOfCurrentTrip = List()
           )
 
@@ -1704,6 +1705,11 @@ trait ChoosesMode {
                   s"We're keeping vehicle ${vehicle.id} even though it isn't used in this trip " +
                   s"because we need it for egress at the end of the tour"
                 )
+              } else if (parentTourStrategy(data.personData).exists(s => s.tourVehicle.contains(vehicle.id))) {
+                logger.debug(
+                  s"We're keeping vehicle ${vehicle.id} even though it isn't used in this trip " +
+                  s"because we need it in our parent tour"
+                )
               } else {
                 logError(
                   s"We are going to need to give up vehicle " +
@@ -1714,18 +1720,6 @@ trait ChoosesMode {
                 beamVehicles.remove(vehicle.id)
                 vehicle.getManager.get ! ReleaseVehicle(vehicle, triggerId)
               }
-            case ActualVehicle(vehicle)
-                if _experiencedBeamPlan
-                  .getStrategy[TourModeChoiceStrategy](_experiencedBeamPlan.getTripContaining(currentAct))
-                  .tourVehicle
-                  .contains(vehicle.id) =>
-              logError("Should we actually be keeping this vehicle")
-            case ActualVehicle(vehicle)
-                if _experiencedBeamPlan
-                  .getStrategy[TourModeChoiceStrategy](_experiencedBeamPlan.getTripContaining(nextAct))
-                  .tourVehicle
-                  .contains(vehicle.id) =>
-              logError("Should we actually be keeping this vehicle either?")
             case ActualVehicle(vehicle) =>
               beamVehicles.remove(vehicle.id)
               vehicle.getManager.get ! ReleaseVehicle(vehicle, triggerId)
@@ -1822,14 +1816,6 @@ trait ChoosesMode {
               )
           }
 
-          if (
-            (updatedTourModeStrategyMaybe.flatMap(
-              _.tourVehicle
-            ) != currentTourPersonalVehicle) && updatedTourModeStrategyMaybe.nonEmpty && currentTourPersonalVehicle.nonEmpty
-          ) {
-            logger.error("Why are we keeping a personal vehicle that is different than our tour vehicle?")
-          }
-
           goto(WaitingForDeparture) using data.personData.copy(
             currentTrip = Some(chosenTrip),
             restOfCurrentTrip = chosenTrip.legs.toList,
@@ -1880,13 +1866,6 @@ trait ChoosesMode {
     val departTime = _currentTick.get
     val bodyStreetVehicle = createBodyStreetVehicle(currentPersonLocation)
     var resetVehicles = false
-
-    if (
-      currentTripMode.exists(_.isTeleportation) && !availableVehicles
-        .exists(v => BeamVehicle.isSharedTeleportationVehicle(v.id))
-    ) {
-      logger.error("THIS WILL BE A PROBLEM")
-    }
 
     def makeRequestWith(
       withTransit: Boolean,
@@ -2336,8 +2315,8 @@ trait ChoosesMode {
 
     mismatchedLegStrategies.foreach { case (st, idx) =>
       _experiencedBeamPlan.putStrategy(currentTour.trips.apply(idx), TripModeChoiceStrategy(None))
-      logger.warn(
-        f"Replacing planned ${st.mode.get} trip with none because of conflict with tour mode ${newTourMode.get}"
+      logger.debug(
+        f"Replacing person ${this.id}'s planned ${st.mode.get} trip with none because of conflict with tour mode ${newTourMode.get}"
       )
     }
 

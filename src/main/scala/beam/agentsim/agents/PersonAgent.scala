@@ -1391,7 +1391,7 @@ class PersonAgent(
             if (activityEndTime > tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow) {
               activityEndTime.toInt
             } else {
-              logger.warn(
+              logger.debug(
                 "Moving back next activity end time from {} to {} to avoid parallelism issues when teleporting",
                 activityEndTime,
                 tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow
@@ -1523,17 +1523,18 @@ class PersonAgent(
                   personalVeh.getManager.get ! ReleaseVehicle(personalVeh, triggerId)
                   None
                 } else if (_experiencedBeamPlan.isLastElementInTour(activity)) {
-                  // Here we're coming out of a nested tour and need to get the tour of our parent vehicle
-                  _experiencedBeamPlan
-                    .getStrategy[TourModeChoiceStrategy](currentTour(data).originActivity.get)
-                    .tourVehicle
-                } else {
-                  if (
-                    (currentTourStrategy.tourVehicle != data.currentTourPersonalVehicle) && data.currentTourPersonalVehicle.nonEmpty
-                  ) {
-                    //TODO: Fix current tour mode (currently only happening when we sub DRIVE_ or BIKE_TRANSIT into a WALK_BASED tour
-                    logger.error("Why are we keeping a personal vehicle that is different than our tour vehicle?")
+                  parentTourStrategy(data) match {
+                    case Some(parentStrategy) =>
+                      // Here we're coming out of a nested tour and need to get the tour of our parent vehicle
+                      parentStrategy.tourVehicle.orElse(currentTourStrategy.tourVehicle)
+                    case _ =>
+                      logger.warn(
+                        s"Malformed tour for person ${this.id}: ${currentTour(data).activities
+                          .map(act => act.getType + "_" + act.getCoord)}"
+                      )
+                      None
                   }
+                } else {
                   data.currentTourPersonalVehicle
                 }
               case Some(personalVehId) =>
@@ -1770,6 +1771,17 @@ class PersonAgent(
         s"$prefix $mode"
       }
       .getOrElse(prefix)
+  }
+
+  protected def parentTourStrategy(
+    data: BasePersonData
+  ): Option[TourModeChoiceStrategy] = {
+    currentTour(data).originActivity match {
+      case Some(act) if !act.getType.equalsIgnoreCase("home") =>
+        Some(_experiencedBeamPlan.getTourStrategy[TourModeChoiceStrategy](act))
+      case _ =>
+        None
+    }
   }
 
   private def handleSuccessfulTransitReservation(
