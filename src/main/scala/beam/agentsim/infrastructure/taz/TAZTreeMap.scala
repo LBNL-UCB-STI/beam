@@ -255,7 +255,10 @@ object TAZTreeMap {
             String.valueOf(f.getAttribute(tazIDFieldName)),
             new Coord(g.getCoordinate.x, g.getCoordinate.y),
             g.getArea,
-            Some(g)
+            Some(g),
+            f.getProperties.asScala
+              .find(_.getName.toString.toLowerCase.contains("county"))
+              .map(_.getValue.toString.toLowerCase) // Added county attribute to TAZ
           )
           tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
       }
@@ -299,7 +302,7 @@ object TAZTreeMap {
     )
 
     for (l <- lines) {
-      val taz = new TAZ(l.id, new Coord(l.coordX, l.coordY), l.area)
+      val taz = new TAZ(l.id, new Coord(l.coordX, l.coordY), l.area, county = Some(l.county))
       tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
     }
 

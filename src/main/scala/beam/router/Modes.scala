@@ -267,11 +267,13 @@ object TourModes {
 
     private def getModeFromVehicle(beamVehicle: BeamVehicle): BeamMode = {
       beamVehicle.beamVehicleType.vehicleCategory match {
-        case VehicleCategory.Car            => CAR
-        case VehicleCategory.Bike           => BIKE
-        case VehicleCategory.HeavyDutyTruck => FREIGHT
-        case VehicleCategory.LightDutyTruck => FREIGHT
-        case _                              => WALK
+        case VehicleCategory.Car                => CAR
+        case VehicleCategory.Bike               => BIKE
+        case VehicleCategory.Class78Tractor     => FREIGHT
+        case VehicleCategory.Class78Vocational  => FREIGHT
+        case VehicleCategory.Class456Vocational => FREIGHT
+        case VehicleCategory.Class2b3Vocational => FREIGHT
+        case _                                  => WALK
       }
     }
 
@@ -415,7 +417,7 @@ object TourModes {
     case object FREIGHT_TOUR
         extends BeamTourMode(
           "freight_tour",
-          Seq(Car, LightDutyTruck, HeavyDutyTruck),
+          Seq(Car, Class2b3Vocational, Class456Vocational, Class78Vocational, Class78Tractor),
           Seq[BeamMode](CAR, FREIGHT),
           Seq[BeamMode](CAR, FREIGHT)
         ) {

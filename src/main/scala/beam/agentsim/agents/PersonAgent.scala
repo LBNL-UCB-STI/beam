@@ -28,9 +28,10 @@ import beam.agentsim.events.RideHailReservationConfirmationEvent.{Pooled, Solo}
 import beam.agentsim.events._
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
+import beam.agentsim.infrastructure.ParkingNetworkManager._
 import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
-import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingNetworkManager, ParkingStall}
+import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentSchedulerTimer, Trigger}
@@ -1073,7 +1074,7 @@ class PersonAgent(
       potentiallyChargingBeamVehicles.remove(vehicle.id)
       goto(ProcessingNextLegOrStartActivity)
     case Event(NotAvailable(_), basePersonData: BasePersonData) =>
-      log.warning(f"${this.id} replanning because vehicle not available when trying to board")
+      log.warning(f"${this.id} replanning because vehicle not available when trying to board", this.id.toString)
       val replanningReason = getReplanningReasonFrom(basePersonData, ReservationErrorCode.ResourceUnavailable.entryName)
       val currentCoord =
         beamServices.geo.wgs2Utm(basePersonData.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc
@@ -1123,21 +1124,14 @@ class PersonAgent(
       stay using updatedData
     case Event(UnpluggingVehicle(tick, _, vehicle, _, energyCharged), data: BasePersonData) =>
       log.debug(s"Vehicle ${vehicle.id} ended charging and it is not handled by the CNM at tick $tick")
-      ParkingNetworkManager.handleReleasingParkingSpot(
-        tick,
-        vehicle,
-        Some(energyCharged),
-        id,
-        parkingManager,
-        eventsManager
-      )
+      handleReleasingParkingSpot(tick, vehicle, Some(energyCharged), id, parkingManager, beamServices, eventsManager)
       goto(ProcessingNextLegOrStartActivity) using data
     case Event(UnhandledVehicle(tick, _, vehicle, _), data: BasePersonData) =>
       log.error(
         s"Vehicle ${vehicle.id} is not handled by the CNM at tick $tick. Something is broken." +
         s"the agent will now disconnect the vehicle ${currentBeamVehicle.id} to let the simulation continue!"
       )
-      ParkingNetworkManager.handleReleasingParkingSpot(tick, vehicle, None, id, parkingManager, eventsManager)
+      handleReleasingParkingSpot(tick, vehicle, None, id, parkingManager, beamServices, eventsManager)
       goto(ProcessingNextLegOrStartActivity) using data
   }
 

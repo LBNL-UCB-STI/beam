@@ -1,20 +1,19 @@
 package beam.agentsim.events
 
 import beam.agentsim.agents.freight.PayloadPlan
-
-import java.util
-import java.util.concurrent.atomic.AtomicReference
-
 import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsProfile
 import beam.router.Modes.BeamMode
 import beam.router.model.BeamLeg
-import beam.utils.FormatUtils
+import beam.utils.{BeamVehicleUtils, FormatUtils}
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
+import java.util
+import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters._
 
 case class PathTraversalEvent(
@@ -47,6 +46,7 @@ case class PathTraversalEvent(
   currentTripMode: Option[String],
   payloadIds: IndexedSeq[Id[PayloadPlan]],
   weight: Double,
+  emissionsProfile: Option[EmissionsProfile],
   riders: IndexedSeq[Id[Person]] = Vector()
 ) extends Event(time)
     with ScalaEvent {
@@ -96,6 +96,7 @@ case class PathTraversalEvent(
       attr.put(ATTRIBUTE_PAYLOAD_IDS, payloadIds.mkString(","))
       attr.put(ATTRIBUTE_WEIGHT, weight.toString)
       attr.put(ATTRIBUTE_RIDERS, ridersToStr(riders))
+      attr.put(EMISSIONS_PROFILE, emissionsProfile.map(BeamVehicleUtils.buildEmissionsString).getOrElse(""))
       filledAttrs.set(attr)
       attr
     }
@@ -134,6 +135,7 @@ object PathTraversalEvent {
   val ATTRIBUTE_TO_STOP_INDEX: String = "toStopIndex"
   val ATTRIBUTE_PAYLOAD_IDS: String = "payloads"
   val ATTRIBUTE_WEIGHT: String = "weight"
+  val EMISSIONS_PROFILE: String = "emissions"
   val ATTRIBUTE_RIDERS: String = "riders"
 
   def apply(
@@ -151,6 +153,7 @@ object PathTraversalEvent {
     amountPaid: Double,
     payloadIds: IndexedSeq[Id[PayloadPlan]],
     weight: Double,
+    emissionsProfile: Option[EmissionsProfile],
     riders: IndexedSeq[Id[Person]]
   ): PathTraversalEvent = {
     new PathTraversalEvent(
@@ -183,6 +186,7 @@ object PathTraversalEvent {
       currentTripMode = currentTripMode,
       payloadIds = payloadIds,
       weight = weight,
+      emissionsProfile = emissionsProfile,
       riders = riders
     )
   }
@@ -228,7 +232,7 @@ object PathTraversalEvent {
       attr.get(ATTRIBUTE_TO_STOP_INDEX).flatMap(Option(_)).flatMap(x => if (x == "") None else Some(x.toInt))
     val currentTripMode: Option[String] =
       attr.get(ATTRIBUTE_CURRENT_TRIP_MODE).flatMap(x => if (x == "") None else Some(x))
-
+    val emissionsProfile = attr.get(EMISSIONS_PROFILE).flatMap(BeamVehicleUtils.parseEmissionsString(_))
     PathTraversalEvent(
       time,
       vehicleId,
@@ -259,11 +263,12 @@ object PathTraversalEvent {
       currentTripMode,
       payloadIds,
       weight,
+      emissionsProfile,
       riders
     )
   }
 
-  def ridersFromStr(ridersStr: String): IndexedSeq[Id[Person]] = {
+  private def ridersFromStr(ridersStr: String): IndexedSeq[Id[Person]] = {
     if (ridersStr.isEmpty) {
       Vector()
     } else {
@@ -271,12 +276,12 @@ object PathTraversalEvent {
     }
   }
 
-  def payloadsFromStr(str: String): IndexedSeq[Id[PayloadPlan]] = {
+  private def payloadsFromStr(str: String): IndexedSeq[Id[PayloadPlan]] = {
     if (str.isEmpty) IndexedSeq.empty
     else str.split(',').map(_.createId[PayloadPlan])
   }
 
-  def ridersToStr(riders: IndexedSeq[Id[Person]]): String = {
+  private def ridersToStr(riders: IndexedSeq[Id[Person]]): String = {
     riders.mkString(":")
   }
 }

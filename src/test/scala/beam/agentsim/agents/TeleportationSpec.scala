@@ -53,7 +53,7 @@ class TeleportationSpec extends AnyFunSpecLike with Matchers with BeamHelper wit
       val activitiesOfPerson2 = ListBuffer[(String, Double, String)]()
       val modeChoiceEvents = ListBuffer[(String, Double, String, String, String)]()
       runWithConfig(
-        "test/input/beamville/beam-urbansimv2.conf",
+        "test/input/beamville/beam-urbansimv2-hov.conf",
         {
           case _: TeleportationEvent =>
             teleportationEvents = teleportationEvents + 1

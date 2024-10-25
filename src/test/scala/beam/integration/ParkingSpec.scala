@@ -1,17 +1,17 @@
 package beam.integration
 
-import java.io.File
-import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ParkingEvent, PathTraversalEvent}
+import beam.agentsim.events._
 import beam.sim.BeamHelper
 import beam.utils.EventReader
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.apache.commons.io.FileUtils
 import org.matsim.api.core.v01.events.Event
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.tagobjects.Retryable
+import org.scalatest.wordspec.AnyWordSpecLike
 
+import java.io.File
 import scala.collection.mutable.ArrayBuffer
 
 class ParkingSpec

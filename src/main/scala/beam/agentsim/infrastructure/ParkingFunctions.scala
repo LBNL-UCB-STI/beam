@@ -128,13 +128,14 @@ class ParkingFunctions(
       case _ if inquiry.searchMode == DoubleParkingAllowed && searchDoubleParkingRadius > 0 =>
         val newStall = ParkingStall.doubleParkingStall(
           tazTreeMap.getTAZ(inquiry.destinationUtm.loc).tazId,
-          inquiry.destinationUtm.loc
+          inquiry.destinationUtm.loc,
+          inquiry.activityType
         )
         ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
       case _ =>
         inquiry.parkingActivityType match {
           case ParkingActivityType.Home if inquiry.searchMode != ParkingSearchMode.EnRouteCharging =>
-            val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm.loc)
+            val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm.loc, inquiry.activityType)
             ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
           case _ =>
             // didn't find any stalls, so, as a last resort, create a very expensive stall

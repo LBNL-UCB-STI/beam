@@ -59,7 +59,7 @@ case class RefuelSessionEvent(
     attributes.put(ATTRIBUTE_PARKING_TAZ, stall.tazId.toString)
     attributes.put(ATTRIBUTE_VEHICLE_TYPE, vehicleType.id.toString)
     attributes.put(ATTRIBUTE_PERSON, personId.toString)
-    attributes.put(ATTRIBUTE_ACTTYPE, activityType.toString)
+    attributes.put(ATTRIBUTE_ACTTYPE, activityType)
     attributes.put(ATTRIBUTE_SHIFT_STATUS, shiftStatusString)
     attributes
   }
