@@ -134,7 +134,17 @@ class BeamPlan extends Plan {
   }
 
   private def getTourIdFromMatsimLeg(legOption: Option[Leg]): Option[Int] = {
-    legOption.flatMap(leg => Option(leg.getAttributes.getAttribute("tour_id")).map(_.toString.toInt))
+    legOption.flatMap { leg =>
+      Option(leg.getAttributes.getAttribute("tour_id")) match {
+        case Some(value: String) if value.nonEmpty =>
+          try {
+            Some(value.toInt)
+          } catch {
+            case _: NumberFormatException => None
+          }
+        case _ => None
+      }
+    }
   }
 
   // partial step for creating nested sub tours
