@@ -44,7 +44,7 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
     super.handleEvent(event)
     //we also duplicate a RideHail mode event to keep track of generic RideHail mode
     event match {
-      case odEvent: ODSkimmerEvent if odEvent.trip.tripClassifier.isRideHail && odEvent.key.rideHailName.nonEmpty =>
+      case odEvent: ODSkimmerEvent if odEvent.mode.isRideHail && odEvent.key.rideHailName.nonEmpty =>
         super.handleEvent(odEvent.genericRideHailEvent())
       case _ =>
     }

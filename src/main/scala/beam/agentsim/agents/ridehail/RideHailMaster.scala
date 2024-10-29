@@ -5,11 +5,12 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
 import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
-import beam.agentsim.agents.ridehail.RideHailMaster.RequestWithResponses
+import beam.agentsim.agents.ridehail.RideHailMaster.{RequestWithResponses, RideHailManagerData}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.DriverNotFoundError
 import beam.agentsim.agents.vehicles.{PersonIdWithActorRef, VehicleManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_POOLED}
 import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
@@ -51,12 +52,12 @@ class RideHailMaster(
 ) extends LoggingMessageActor
     with LazyLogging {
 
-  private val rideHailManagers: Map[String, ActorRef] =
+  private val rideHailManagers: Map[String, RideHailManagerData] =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.managers.map { managerConfig =>
       val rideHailManagerId =
         VehicleManager.createOrGetReservedFor(managerConfig.name, VehicleManager.TypeEnum.RideHail).managerId
       val rideHailFleetInitializer = rideHailFleetInitializerProvider.get(managerConfig.name)
-      managerConfig.name -> context.actorOf(
+      val rhmActorRef = context.actorOf(
         Props(
           new RideHailManager(
             rideHailManagerId,
@@ -81,9 +82,11 @@ class RideHailMaster(
         ).withDispatcher("ride-hail-manager-pinned-dispatcher"),
         s"RideHailManager-${managerConfig.name}"
       )
+      val (supportedModes, goodsSupported) = RideHailManager.getSupportedModes(managerConfig.supportedModes)
+      managerConfig.name -> RideHailManagerData(rhmActorRef, supportedModes, goodsSupported)
     }.toMap
 
-  for (rhm <- rideHailManagers.values) context.watch(rhm)
+  for (rhm <- rideHailManagers.values) context.watch(rhm.actorRef)
 
   private val inquiriesWithResponses: mutable.Map[Int, RequestWithResponses] = mutable.Map.empty
   val rand: Random = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
@@ -91,12 +94,21 @@ class RideHailMaster(
 
   override def loggedReceive: Receive = {
     case TriggerWithId(trigger: InitializeTrigger, triggerId) =>
-      sender ! CompletionNotice(triggerId, rideHailManagers.values.map(rhm => ScheduleTrigger(trigger, rhm)).toVector)
+      sender ! CompletionNotice(
+        triggerId,
+        rideHailManagers.values.map(rhm => ScheduleTrigger(trigger, rhm.actorRef)).toVector
+      )
 
     case inquiry: RideHailRequest if !inquiry.shouldReserveRide =>
       inquiriesWithResponses.put(inquiry.requestId, RequestWithResponses(inquiry))
       val requestWithModifiedRequester = inquiry.copy(requester = self)
-      getCustomerRideHailManagers(inquiry.rideHailServiceSubscription).foreach(_ ! requestWithModifiedRequester)
+      val rhms = getCustomerRideHailManagers(inquiry.rideHailServiceSubscription)
+      if (rhms.isEmpty) {
+        throw new IllegalArgumentException(
+          s"Cannot find a ride-hail manager for $inquiry, subscription = ${inquiry.rideHailServiceSubscription}"
+        )
+      }
+      rhms.foreach(_.actorRef ! requestWithModifiedRequester)
 
     case rideHailResponse: RideHailResponse if !rideHailResponse.request.shouldReserveRide =>
       val requestId = rideHailResponse.request.requestId
@@ -115,21 +127,25 @@ class RideHailMaster(
     case reserveRide: RideHailRequest if reserveRide.shouldReserveRide =>
       //in case of ReserveRide type requester equals customer.personRef
       val managerName = reserveRide.requestType.asInstanceOf[ReserveRide].rideHailManagerName
-      rideHailManagers(managerName) forward reserveRide
+      rideHailManagers(managerName).actorRef forward reserveRide
 
     case Finish =>
-      rideHailManagers.values.foreach(_ ! Finish)
+      rideHailManagers.values.foreach(_.actorRef ! Finish)
 
     case _: Terminated =>
       if (context.children.isEmpty) context.stop(self)
 
     case anyOtherMessage =>
-      rideHailManagers.values.foreach(_.forward(anyOtherMessage))
+      rideHailManagers.values.foreach(_.actorRef.forward(anyOtherMessage))
   }
 
-  private def getCustomerRideHailManagers(subscription: Seq[String]): Iterable[ActorRef] = {
+  private def getCustomerRideHailManagers(subscription: Seq[String]): Iterable[RideHailManagerData] = {
     val subscribedTo = subscription.collect(rideHailManagers)
-    if (subscribedTo.isEmpty) rideHailManagers.values else subscribedTo
+    if (subscribedTo.isEmpty) {
+      // Goods delivery manager never sends ride-hail inquiry. (Because it doesn't have choose-mode stage)
+      // It reserves a ride-hail vehicle immediately when it's time to deliver a package.
+      rideHailManagers.values.filter(_.supportedModes.nonEmpty)
+    } else subscribedTo
   }
 
   private def findBestProposal(customer: Id[Person], responses: IndexedSeq[RideHailResponse]): RideHailResponse = {
@@ -218,6 +234,7 @@ class RideHailMaster(
 }
 
 object RideHailMaster {
+  case class RideHailManagerData(actorRef: ActorRef, supportedModes: Set[BeamMode], goods: Boolean)
 
   case class RequestWithResponses(
     request: RideHailRequest,

@@ -1,7 +1,7 @@
 package beam.agentsim.agents.ridehail
 
 import akka.actor.ActorRef
-import beam.agentsim.agents.ridehail.RideHailMatching.CustomerRequest
+import beam.agentsim.agents.goods.GoodsDeliveryManager
 import beam.agentsim.agents.vehicles.PersonIdWithActorRef
 import beam.agentsim.scheduler.HasTriggerId
 import beam.router.BeamRouter.Location
@@ -33,6 +33,8 @@ case class RideHailRequest(
   def group: List[RideHailRequest] = this :: groupedWithOtherRequests
   override def equals(that: Any): Boolean = this.requestId == that.asInstanceOf[RideHailRequest].requestId
   override def hashCode: Int = requestId
+
+  def isPackageDelivery: Boolean = GoodsDeliveryManager.isPackage(customer.personId)
 
   override def toString: String =
     s"RideHailRequest(id: $requestId, type: $requestType, customer: ${customer.personId}, pickup: $pickUpLocationUTM" +
