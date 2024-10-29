@@ -314,7 +314,7 @@ class BeamPlanSpec extends AnyWordSpecLike with Matchers with BeamHelper {
     val leg = PopulationUtils.createLeg(mode.map(_.matsimMode).getOrElse(""))
 
     maybeTourId.map { id =>
-      leg.getAttributes.putAttribute("tour_id", id)
+      leg.getAttributes.putAttribute("tour_id", id.toString)
     }
     maybeTourMode.map { mode =>
       leg.getAttributes.putAttribute("tour_mode", mode.value)

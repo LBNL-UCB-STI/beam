@@ -1206,7 +1206,8 @@ trait ChoosesMode {
         case _ =>
       }
 
-      val newAndTourVehicles = allAvailableStreetVehicles ++ currentTourStrategy.tourVehicle
+      val newAndTourVehicles = allAvailableStreetVehicles ++ getParentTourStrategy(personData)
+        .flatMap(_.tourVehicle)
         .flatMap(v => beamVehicles.get(v))
         .filterNot(_.vehicle.isSharedVehicle)
         .toVector
@@ -1322,7 +1323,11 @@ trait ChoosesMode {
               )
             case _ =>
           }
-          if (currentTourStrategy.tourMode.isEmpty) {
+          if (
+            currentTourStrategy.tourMode.isEmpty || (currentTourStrategy.tourMode.exists(
+              _.isVehicleBased
+            ) && currentTourStrategy.tourVehicle.isEmpty)
+          ) {
             updateTourModeStrategy(
               chosenCurrentTourMode,
               chosenCurrentTourPersonalVehicle.getOrElse(chosenTrip, None),
@@ -2253,6 +2258,9 @@ trait ChoosesMode {
           firstLegItineraries.collect {
             case itin if currentTourStrategy.tourVehicle.exists(itin.vehiclesInTrip.contains) =>
               itin -> currentTourStrategy.tourVehicle
+            case itin if currentTourStrategy.tourVehicle.isEmpty && tourMode.isVehicleBased =>
+              logger.warn("Vehicle based tour mode without vehicle defined")
+              itin -> itin.legs.find(l => l.asDriver && (l.beamLeg.mode != WALK)).map(_.beamVehicleId)
           }.toMap
         )
       case None =>

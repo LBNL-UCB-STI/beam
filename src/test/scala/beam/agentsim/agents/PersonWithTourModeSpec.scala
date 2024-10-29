@@ -1446,8 +1446,8 @@ class PersonWithTourModeSpec
       assert(modeChoiceForWorkTrip.mode === "car")
       assert(modeChoiceForWorkTrip.currentTourMode === "car_based")
       assert(modeChoiceForWorkTrip.availableAlternatives === "CAR")
-      expectMsgType[ActivityEndEvent]
 
+      expectMsgType[ActivityEndEvent]
       val parkingRoutingRequest = expectMsgType[RoutingRequest]
       assert(parkingRoutingRequest.destinationUTM == parkingLocation)
       lastSender ! RoutingResponse(
@@ -1738,7 +1738,7 @@ class PersonWithTourModeSpec
     homeActivity.setCoord(homeLocation)
     plan.addActivity(homeActivity)
     val leg = PopulationUtils.createLeg(mode.map(_.matsimMode).getOrElse(""))
-    leg.getAttributes.putAttribute("tour_id", 100)
+    leg.getAttributes.putAttribute("tour_id", "100")
 
     tourMode.map { mode =>
       leg.getAttributes.putAttribute("tour_mode", mode.value)
@@ -1762,7 +1762,7 @@ class PersonWithTourModeSpec
     workActivity.setCoord(workLocation)
     plan.addActivity(workActivity)
     val leg2 = PopulationUtils.createLeg(mode.map(_.matsimMode).getOrElse(""))
-    leg2.getAttributes.putAttribute("tour_id", 100)
+    leg2.getAttributes.putAttribute("tour_id", "100")
     leg2.getAttributes.putAttribute("tour_mode", tourMode.map(_.value).getOrElse(""))
     if (withRoute) {
       val route = RouteUtils.createLinkNetworkRouteImpl(
@@ -1810,7 +1810,7 @@ class PersonWithTourModeSpec
     homeActivity.setCoord(homeLocation)
     plan.addActivity(homeActivity)
     val leg = PopulationUtils.createLeg(primaryTourTripMode.map(_.matsimMode).getOrElse(""))
-    leg.getAttributes.putAttribute("tour_id", 100)
+    leg.getAttributes.putAttribute("tour_id", "100")
 
     primaryTourMode.map { mode =>
       leg.getAttributes.putAttribute("tour_mode", mode.value)
@@ -1826,7 +1826,7 @@ class PersonWithTourModeSpec
     plan.addActivity(workActivity)
 
     val leg2 = PopulationUtils.createLeg(secondaryTourTripMode.map(_.matsimMode).getOrElse(""))
-    leg2.getAttributes.putAttribute("tour_id", 101)
+    leg2.getAttributes.putAttribute("tour_id", "101")
 
     secondaryTourMode.map { mode =>
       leg2.getAttributes.putAttribute("tour_mode", mode.value)
@@ -1842,7 +1842,7 @@ class PersonWithTourModeSpec
     plan.addActivity(otherActivity)
 
     val leg3 = PopulationUtils.createLeg(primaryTourTripMode.map(_.matsimMode).getOrElse(""))
-    leg3.getAttributes.putAttribute("tour_id", 101)
+    leg3.getAttributes.putAttribute("tour_id", "101")
 
     primaryTourMode.map { mode =>
       leg3.getAttributes.putAttribute("tour_mode", mode.value)
@@ -1858,7 +1858,7 @@ class PersonWithTourModeSpec
     plan.addActivity(workActivity2)
 
     val leg4 = PopulationUtils.createLeg(primaryTourTripMode.map(_.matsimMode).getOrElse(""))
-    leg4.getAttributes.putAttribute("tour_id", 100)
+    leg4.getAttributes.putAttribute("tour_id", "100")
 
     primaryTourMode.map { mode =>
       leg4.getAttributes.putAttribute("tour_mode", mode.value)
