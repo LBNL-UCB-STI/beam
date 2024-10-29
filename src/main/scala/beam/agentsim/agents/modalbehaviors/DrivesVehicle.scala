@@ -145,10 +145,11 @@ object DrivesVehicle {
   case class AlightVehicleTrigger(
     tick: Int,
     vehicleId: Id[BeamVehicle],
+    passenger: PersonIdWithActorRef,
     fuelConsumed: Option[FuelConsumed] = None
   ) extends Trigger
 
-  case class BoardVehicleTrigger(tick: Int, vehicleId: Id[BeamVehicle]) extends Trigger
+  case class BoardVehicleTrigger(tick: Int, vehicleId: Id[BeamVehicle], passenger: PersonIdWithActorRef) extends Trigger
 
   case class StopDriving(tick: Int, triggerId: Long) extends HasTriggerId
 
@@ -303,6 +304,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           AlightVehicleTrigger(
             tick,
             data.currentVehicle.head,
+            pv,
             Some(fuelConsumedByTrip(pv.personId))
           ),
           pv.personRef
@@ -779,7 +781,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
               s"Scheduling BoardVehicleTrigger at $tick for Person ${personVehicle.personId} into vehicle ${data.currentVehicle.head} @ $tick"
             )
             ScheduleTrigger(
-              BoardVehicleTrigger(tick, data.currentVehicle.head),
+              BoardVehicleTrigger(tick, data.currentVehicle.head, personVehicle),
               personVehicle.personRef
             )
           }
@@ -893,7 +895,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           ScheduleTrigger(
             BoardVehicleTrigger(
               legsInThePast.head.startTime,
-              data.currentVehicle.head
+              data.currentVehicle.head,
+              req.passengerVehiclePersonId
             ),
             sender()
           )
@@ -906,7 +909,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           ScheduleTrigger(
             AlightVehicleTrigger(
               legsInThePast.last.endTime,
-              data.currentVehicle.head
+              data.currentVehicle.head,
+              req.passengerVehiclePersonId
             ),
             sender()
           )
@@ -924,7 +928,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
               ScheduleTrigger(
                 BoardVehicleTrigger(
                   currentLeg.startTime,
-                  data.currentVehicle.head
+                  data.currentVehicle.head,
+                  req.passengerVehiclePersonId
                 ),
                 sender()
               )
@@ -971,7 +976,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
     // The following 2 (Board and Alight) can happen idiosyncratically if a person ended up taking a much longer than expected
     // trip and meanwhile a CAV was scheduled to pick them up (and then drop them off) for the next trip, but they're still driving baby
     case Event(
-          TriggerWithId(BoardVehicleTrigger(tick, vehicleId), triggerId),
+          TriggerWithId(boardVehcile: BoardVehicleTrigger, triggerId),
           data @ LiterallyDrivingData(_, _, _)
         ) =>
       val currentLeg = data.passengerSchedule.schedule.keys.view
@@ -980,10 +985,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         .getOrElse(throw new RuntimeException("Current Leg is not available."))
       stay() replying CompletionNotice(
         triggerId,
-        Vector(ScheduleTrigger(BoardVehicleTrigger(Math.max(currentLeg.endTime, tick), vehicleId), self))
+        Vector(ScheduleTrigger(boardVehcile.copy(tick = Math.max(currentLeg.endTime, boardVehcile.tick)), self))
       )
     case Event(
-          TriggerWithId(AlightVehicleTrigger(tick, vehicleId, _), triggerId),
+          TriggerWithId(alightVehicle: AlightVehicleTrigger, triggerId),
           data @ LiterallyDrivingData(_, _, _)
         ) =>
       val currentLeg = data.passengerSchedule.schedule.keys.view
@@ -993,7 +998,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       stay() replying CompletionNotice(
         triggerId,
         Vector(
-          ScheduleTrigger(AlightVehicleTrigger(Math.max(currentLeg.endTime + 1, tick), vehicleId), self)
+          ScheduleTrigger(alightVehicle.copy(tick = Math.max(currentLeg.endTime + 1, alightVehicle.tick)), self)
         )
       )
     case _ @Event(EndingRefuelSession(tick, vehicleId, _), _) =>

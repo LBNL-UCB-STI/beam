@@ -49,6 +49,7 @@ case class BeamScenario(
   secondaryTazTreeMap: Option[TAZTreeMap],
   modeIncentives: ModeIncentive,
   h3taz: H3TAZ,
+  goodsCarriers: IndexedSeq[FreightCarrier],
   freightCarriers: IndexedSeq[FreightCarrier],
   fixedActivitiesDurations: Map[String, Double]
 ) {
