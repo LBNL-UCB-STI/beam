@@ -61,7 +61,7 @@ class TourModeChoiceMultinomialLogit(
     modeToTourMode: Map[BeamTourMode, Seq[BeamMode]],
     firstAndLastTripModeToTourModeOption: Option[Map[BeamTourMode, Seq[BeamMode]]] = None
   ): Map[BeamTourMode, Double] = {
-    val tourModeToExpectedUtility = mutable.Map[BeamTourMode, Double]()
+    val tourModeToExpectedUtility = mutable.Map.empty[BeamTourMode, Double]
     tourModeCosts.zipWithIndex foreach { case (modeCosts, idx) =>
       if (idx == 0 | idx == tourModeCosts.length - 1) {
         // Allow inclusion of private vehicles in first/last trips, e.g. for DRIVE_TRANSIT

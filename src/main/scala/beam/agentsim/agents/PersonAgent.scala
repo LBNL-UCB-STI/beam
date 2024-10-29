@@ -662,6 +662,7 @@ class PersonAgent(
             // use the mode of the next leg as the new trip mode.
             currentTripMode = modeOfNextLeg,
             currentTourMode = currentTourModeChoiceStrategy.tourMode,
+            currentTourPersonalVehicle = currentTourModeChoiceStrategy.tourVehicle,
             numberOfReplanningAttempts = 0,
             failedTrips = IndexedSeq.empty,
             enrouteData = EnrouteData()
@@ -1031,7 +1032,7 @@ class PersonAgent(
           if (currentBeamVehicle.beamVehicleType.vehicleCategory != Bike) {
             if (currentBeamVehicle.stall.isEmpty) logWarn("Expected currentBeamVehicle.stall to be defined.")
           }
-          if (currentBeamVehicle.isSharedVehicle) {
+          if (currentBeamVehicle.isSharedVehicle || BeamVehicle.isSharedTeleportationVehicle(currentBeamVehicle.id)) {
             // Is a shared vehicle. Give it up.
             currentBeamVehicle.getManager.get ! ReleaseVehicle(currentBeamVehicle, triggerId)
             beamVehicles -= data.currentVehicle.head
@@ -1511,13 +1512,13 @@ class PersonAgent(
             currentTourPersonalVehicle = data.currentTourPersonalVehicle match {
               case Some(personalVehId) if beamVehicles.contains(personalVehId) =>
                 val personalVeh = beamVehicles(personalVehId).asInstanceOf[ActualVehicle].vehicle
-                if (atHome(activity)) {
+                if (atHome(activity) && _experiencedBeamPlan.isLastElementInTour(activity)) {
                   potentiallyChargingBeamVehicles.put(personalVeh.id, beamVehicles(personalVeh.id))
                   beamVehicles -= personalVeh.id
                   personalVeh.getManager.get ! ReleaseVehicle(personalVeh, triggerId)
                   None
                 } else if (_experiencedBeamPlan.isLastElementInTour(activity)) {
-                  parentTourStrategy(data) match {
+                  getParentTourStrategy(data) match {
                     case Some(parentStrategy) =>
                       // Here we're coming out of a nested tour and need to get the tour of our parent vehicle
                       parentStrategy.tourVehicle.orElse(currentTourStrategy.tourVehicle)
@@ -1767,7 +1768,7 @@ class PersonAgent(
       .getOrElse(prefix)
   }
 
-  protected def parentTourStrategy(
+  protected def getParentTourStrategy(
     data: BasePersonData
   ): Option[TourModeChoiceStrategy] = {
     currentTour(data).originActivity match {
@@ -1776,6 +1777,12 @@ class PersonAgent(
       case _ =>
         None
     }
+  }
+
+  protected def getCurrentTourStrategy(
+    data: BasePersonData
+  ): TourModeChoiceStrategy = {
+    _experiencedBeamPlan.getTourStrategy[TourModeChoiceStrategy](currentActivity(data))
   }
 
   private def handleSuccessfulTransitReservation(

@@ -3,13 +3,14 @@ package beam.router
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
 import beam.agentsim.agents.vehicles.VehicleCategory._
+import beam.router.model.EmbodiedBeamTrip
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import com.conveyal.r5.profile.StreetMode
 import enumeratum.values._
 import org.matsim.api.core.v01.{Id, TransportMode}
 
-import scala.collection.immutable
+import scala.collection.{immutable, mutable}
 import scala.language.implicitConversions
 
 /**
@@ -303,58 +304,87 @@ object TourModes {
     override val values: immutable.IndexedSeq[BeamTourMode] = findValues
 
     def getTourModeAndVehicle(
-      tripMode: BeamMode,
+      trips: Vector[EmbodiedBeamTrip],
       availableVehicles: Vector[VehicleOrToken] = Vector.empty[VehicleOrToken],
       currentTourPersonalVehicle: Option[Id[BeamVehicle]] = None
-    ): (Option[BeamTourMode], Option[BeamVehicle]) = {
+    ): mutable.Map[Option[BeamTourMode], mutable.Map[EmbodiedBeamTrip, Option[BeamVehicle]]] = {
       def findVehicle(condition: VehicleOrToken => Boolean): Option[BeamVehicle] =
         availableVehicles.find(condition).map(_.vehicle)
+      val outcome = mutable.Map.empty[Option[BeamTourMode], mutable.Map[EmbodiedBeamTrip, Option[BeamVehicle]]]
 
-      tripMode match {
-        case CAR | CAR_HOV2 | CAR_HOV3 =>
-          if (availableVehicles.forall(_.vehicle.isFreightVehicle) && availableVehicles.nonEmpty) {
-            (Some(FREIGHT_TOUR), findVehicle(_.vehicle.isFreightVehicle))
-          } else if (currentTourPersonalVehicle.nonEmpty) {
-            if (availableVehicles.map(_.id).contains(currentTourPersonalVehicle.get)) {
-              (Some(CAR_BASED), findVehicle(_.id == currentTourPersonalVehicle.get))
+      trips.foreach { trip =>
+        trip.tripClassifier match {
+          case CAR | CAR_HOV2 | CAR_HOV3 =>
+            if (availableVehicles.forall(_.vehicle.isFreightVehicle) && availableVehicles.nonEmpty) {
+              outcome
+                .getOrElseUpdate(Some(FREIGHT_TOUR), mutable.Map.empty[EmbodiedBeamTrip, Option[BeamVehicle]])
+                .update(trip, findVehicle(_.vehicle.isFreightVehicle))
+            } else if (currentTourPersonalVehicle.nonEmpty) {
+              if (availableVehicles.map(_.id).contains(currentTourPersonalVehicle.get)) {
+                outcome
+                  .getOrElseUpdate(Some(CAR_BASED), mutable.Map.empty[EmbodiedBeamTrip, Option[BeamVehicle]])
+                  .update(trip, findVehicle(_.id == currentTourPersonalVehicle.get))
+              } else {
+                logger.error(
+                  "We have a vehicle in our plans but it's not currently available. Going to need to abandon it"
+                )
+                outcome
+                  .getOrElseUpdate(Some(CAR_BASED), mutable.Map.empty[EmbodiedBeamTrip, Option[BeamVehicle]])
+                  .update(trip, findVehicle(!_.vehicle.isSharedVehicle))
+              }
+            } else if (availableVehicles.exists(!_.vehicle.isSharedVehicle)) {
+              // Assume that if they have access to a personal vehicle they'll take it
+              // on the whole tour, otherwise they'll use any available shared vehicles.
+              // If neither work, they'll need to use an emergency vehicle
+              outcome
+                .getOrElseUpdate(Some(CAR_BASED), mutable.Map.empty[EmbodiedBeamTrip, Option[BeamVehicle]])
+                .update(trip, findVehicle(!_.vehicle.isSharedVehicle))
+            } else if (availableVehicles.exists(_.vehicle.isSharedVehicle)) {
+              outcome
+                .getOrElseUpdate(Some(WALK_BASED), mutable.Map.empty[EmbodiedBeamTrip, Option[BeamVehicle]])
+                .update(trip, None)
             } else {
-              logger.error(
-                "We have a vehicle in our plans but it's not currently available. Going to need to abandon it"
-              )
-              (Some(CAR_BASED), findVehicle(!_.vehicle.isSharedVehicle))
+              logger.warn("Planned car trip without any cars available. Reverting to a walk_based tour")
+              outcome
+                .getOrElseUpdate(Some(WALK_BASED), mutable.Map.empty[EmbodiedBeamTrip, Option[BeamVehicle]])
+                .update(trip, None)
             }
-          } else if (availableVehicles.exists(!_.vehicle.isSharedVehicle)) {
-            // Assume that if they have access to a personal vehicle they'll take it
-            // on the whole tour, otherwise they'll use any available shared vehicles.
-            // If neither work, they'll need to use an emergency vehicle
-            (Some(CAR_BASED), findVehicle(!_.vehicle.isSharedVehicle))
-          } else if (availableVehicles.exists(_.vehicle.isSharedVehicle)) { (Some(WALK_BASED), None) }
-          else {
-            logger.warn("Planned car trip without any cars available. Reverting to a walk_based tour")
-            (Some(WALK_BASED), None)
-          }
-        case BIKE =>
-          if (availableVehicles.exists(!_.vehicle.isSharedVehicle)) {
-            // Assume that if they have access to a personal vehicle they'll take it
-            // on the whole tour, otherwise they'll rely on a shared vehicle // TODO: Check
-            (Some(BIKE_BASED), findVehicle(!_.vehicle.isSharedVehicle))
-          } else (Some(WALK_BASED), None)
-        case DRIVE_TRANSIT =>
-          (
-            Some(WALK_BASED),
-            findVehicle(veh =>
-              (veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car) & !veh.vehicle.isSharedVehicle
-            )
-          )
-        case BIKE_TRANSIT =>
-          (
-            Some(WALK_BASED),
-            findVehicle(veh =>
-              (veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike) & !veh.vehicle.isSharedVehicle
-            )
-          )
-        case _ => (Some(WALK_BASED), None)
+          case BIKE =>
+            if (availableVehicles.exists(!_.vehicle.isSharedVehicle)) {
+              // Assume that if they have access to a personal vehicle they'll take it
+              // on the whole tour, otherwise they'll rely on a shared vehicle // TODO: Check
+              outcome
+                .getOrElseUpdate(Some(BIKE_BASED), mutable.Map.empty[EmbodiedBeamTrip, Option[BeamVehicle]])
+                .update(trip, findVehicle(!_.vehicle.isSharedVehicle))
+            } else
+              outcome
+                .getOrElseUpdate(Some(WALK_BASED), mutable.Map.empty[EmbodiedBeamTrip, Option[BeamVehicle]])
+                .update(trip, None)
+          case DRIVE_TRANSIT =>
+            outcome
+              .getOrElseUpdate(Some(WALK_BASED), mutable.Map.empty[EmbodiedBeamTrip, Option[BeamVehicle]])
+              .update(
+                trip,
+                findVehicle(veh =>
+                  (veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car) & !veh.vehicle.isSharedVehicle
+                )
+              )
+          case BIKE_TRANSIT =>
+            outcome
+              .getOrElseUpdate(Some(WALK_BASED), mutable.Map.empty[EmbodiedBeamTrip, Option[BeamVehicle]])
+              .update(
+                trip,
+                findVehicle(veh =>
+                  (veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike) & !veh.vehicle.isSharedVehicle
+                )
+              )
+          case _ =>
+            outcome
+              .getOrElseUpdate(Some(WALK_BASED), mutable.Map.empty[EmbodiedBeamTrip, Option[BeamVehicle]])
+              .update(trip, None)
+        }
       }
+      outcome
     }
 
     val enabledModes: Map[BeamMode, Seq[BeamMode]] =
