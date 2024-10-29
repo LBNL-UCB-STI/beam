@@ -2,7 +2,6 @@ package beam.analysis;
 
 import beam.agentsim.agents.vehicles.BeamVehicleType;
 import beam.agentsim.events.PathTraversalEvent;
-import beam.sim.common.GeoUtils$;
 import beam.sim.common.GeoUtilsImpl;
 import beam.sim.config.BeamConfig;
 import beam.utils.DebugLib;

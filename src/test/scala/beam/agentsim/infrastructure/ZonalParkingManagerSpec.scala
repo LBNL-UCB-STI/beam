@@ -175,6 +175,7 @@ class ZonalParkingManagerSpec
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
+            "work",
             VehicleManager.AnyManager
           )
         val response1 = zonalParkingManager.processParkingInquiry(firstInquiry)
@@ -238,6 +239,7 @@ class ZonalParkingManagerSpec
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
+            "work",
             VehicleManager.AnyManager
           )
 
@@ -592,6 +594,7 @@ class ZonalParkingManagerSpec
         None,
         Some(pricingModel),
         parkingType,
+        "init",
         reservedFor = reservedFor
       )
     assert(
@@ -652,7 +655,7 @@ object ZonalParkingManagerSpec {
       val quadTree = coords.foldLeft(new QuadTree[TAZ](xMin, yMin, xMax, yMax)) { (tree, tazData) =>
         val (coord, area) = tazData
         val tazId = Id.create(startAtId + tree.size, classOf[TAZ])
-        val taz = new TAZ(tazId, coord, area, None)
+        val taz = new TAZ(tazId, coord, area, None, None)
         tree.put(coord.getX, coord.getY, taz)
         tree
       }

@@ -32,7 +32,9 @@ case class BeamVehicleType(
   chargingCapability: Option[ChargingPointType] = None,
   payloadCapacityInKg: Option[Double] = None,
   wheelchairAccessible: Option[Boolean] = None,
-  restrictRoadsByFreeSpeedInMeterPerSecond: Option[Double] = None
+  restrictRoadsByFreeSpeedInMeterPerSecond: Option[Double] = None,
+  emissionsRatesFile: Option[String] = None,
+  emissionsRatesInGramsPerMile: Option[VehicleEmissions.EmissionsProfile] = None
 ) {
   def isSharedVehicle: Boolean = id.toString.startsWith("sharedVehicle")
 
@@ -60,10 +62,11 @@ object FuelType {
   case object Electricity extends FuelType
   case object Biodiesel extends FuelType
   case object Hydrogen extends FuelType
+  case object NaturalGas extends FuelType
   case object Undefined extends FuelType
 
   def fromString(value: String): FuelType = {
-    Vector(Food, Gasoline, Diesel, Electricity, Biodiesel, Hydrogen, Undefined)
+    Vector(Food, Gasoline, Diesel, Electricity, Biodiesel, Hydrogen, NaturalGas, Undefined)
       .find(_.toString.equalsIgnoreCase(value))
       .getOrElse(Undefined)
   }
@@ -82,7 +85,11 @@ object VehicleCategory {
   case object Class78Vocational extends VehicleCategory // CLass 7&8 (GVWR 26001-33,000 lbs.)
   case object Class78Tractor extends VehicleCategory // Class 7&8 Tractor (GVWR >33,000 lbs.)
 
-  def fromString(value: String): VehicleCategory = fromStringOptional(value).get
+  def fromString(value: String): VehicleCategory =
+    try { fromStringOptional(value).get }
+    catch {
+      case exception: Exception => throw new RuntimeException(f"Can not parse vehicle category: '$value'.", exception)
+    }
 
   private def fromStringOptional(value: String): Option[VehicleCategory] = {
     Vector(

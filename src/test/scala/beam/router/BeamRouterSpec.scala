@@ -1,7 +1,7 @@
 package beam.router
 
 import beam.agentsim.agents.choice.mode.PtFares
-import beam.agentsim.agents.vehicles.{BeamVehicleType, FuelType, VehicleCategory, VehicleEnergy}
+import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.{Location, RoutingResponse}
@@ -115,6 +115,7 @@ class BeamRouterSpec extends AnyFlatSpec with BeamScenarioForTest {
       privateVehicles = TrieMap.empty,
       privateVehicleInitialSoc = TrieMap.empty,
       vehicleEnergy = mock(classOf[VehicleEnergy]),
+      vehicleEmissions = mock(classOf[VehicleEmissions]),
       beamConfig = beamConfig,
       dates = DateUtils(
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
