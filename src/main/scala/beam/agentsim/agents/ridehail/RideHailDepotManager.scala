@@ -158,7 +158,8 @@ trait RideHailDepotManager extends {
         None,
         this.id,
         parkingManager,
-        beamServices.matsimServices.getEvents
+        beamServices,
+        eventsManager
       )
     } else {
       (chargingNetworkManager ? ChargingUnplugRequest(tick, this.id, beamVehicle, triggerId))

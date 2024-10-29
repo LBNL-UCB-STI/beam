@@ -73,7 +73,11 @@ object PolygonShapesToTazIdsMapping extends App with StrictLogging {
             String.valueOf(f.getAttribute(tazIDFieldName)),
             g.getCoordinate.x,
             g.getCoordinate.y,
-            g.getArea
+            g.getArea,
+            f.getProperties.asScala
+              .find(_.getName.toString.toLowerCase.contains("county"))
+              .map(_.getValue.toString.toLowerCase)
+              .getOrElse("")
           )
       }
     }.toSet

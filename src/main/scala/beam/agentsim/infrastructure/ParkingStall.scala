@@ -8,6 +8,7 @@ import beam.agentsim.infrastructure.parking.{ParkingType, _}
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import org.locationtech.jts.geom.Envelope
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.util.Random
@@ -20,12 +21,21 @@ case class ParkingStall(
   chargingPointType: Option[ChargingPointType],
   pricingModel: Option[PricingModel],
   parkingType: ParkingType,
-  reservedFor: ReservedFor
-)
+  activityType: String,
+  reservedFor: ReservedFor,
+  link: Option[Link] = None
+) {
+  private var parkingTime: Double = 0.0
+
+  // To set parking arrival time
+  def setParkingTime(arrivalTime: Double): Unit = {
+    parkingTime = arrivalTime
+  }
+
+  def getParkingTime: Double = parkingTime
+}
 
 object ParkingStall {
-
-  val CostOfEmergencyStallInDollars: Double = 50.0
 
   def init(
     parkingZone: ParkingZone,
@@ -41,6 +51,7 @@ object ParkingStall {
       parkingZone.chargingPointType,
       parkingZone.pricingModel,
       parkingZone.parkingType,
+      "init",
       parkingZone.reservedFor
     )
   }
@@ -59,6 +70,7 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = None,
     parkingType = ParkingType.Public,
+    activityType = "default",
     reservedFor = VehicleManager.AnyManager
   )
 
@@ -73,7 +85,7 @@ object ParkingStall {
   def lastResortStall(
     boundingBox: Envelope,
     random: Random = Random,
-    costInDollars: Double = CostOfEmergencyStallInDollars
+    costInDollars: Double = 50.0
   ): ParkingStall = {
     val x = random.nextDouble() * (boundingBox.getMaxX - boundingBox.getMinX) + boundingBox.getMinX
     val y = random.nextDouble() * (boundingBox.getMaxY - boundingBox.getMinY) + boundingBox.getMinY
@@ -88,6 +100,7 @@ object ParkingStall {
         PricingModel.FlatFee(costInDollars.toInt)
       },
       parkingType = ParkingType.Public,
+      activityType = "emergency",
       reservedFor = VehicleManager.AnyManager
     )
   }
@@ -102,7 +115,7 @@ object ParkingStall {
     * @param locationUTM request location (home)
     * @return a stall that is free and located at the person's home.
     */
-  def defaultResidentialStall(locationUTM: Location): ParkingStall = ParkingStall(
+  def defaultResidentialStall(locationUTM: Location, activity: String): ParkingStall = ParkingStall(
     tazId = TAZ.DefaultTAZId,
     parkingZoneId = ParkingZone.DefaultParkingZoneId,
     locationUTM = locationUTM,
@@ -110,10 +123,11 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = Some(PricingModel.FlatFee(0)),
     parkingType = ParkingType.Residential,
+    activityType = activity,
     reservedFor = VehicleManager.AnyManager
   )
 
-  def doubleParkingStall(tazId: Id[TAZ], locationUTM: Location): ParkingStall = ParkingStall(
+  def doubleParkingStall(tazId: Id[TAZ], locationUTM: Location, activity: String): ParkingStall = ParkingStall(
     tazId = tazId,
     parkingZoneId = ParkingZone.DefaultParkingZoneId,
     locationUTM = locationUTM,
@@ -121,11 +135,12 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = Some(PricingModel.FlatFee(0)),
     parkingType = ParkingType.DoubleParking,
+    activityType = activity,
     reservedFor = VehicleManager.AnyManager
   )
 
   /**
-    * @param locationUTM
+    * @param locationUTM Location
     * @return
     */
   def defaultFastChargingStall(locationUTM: Location): ParkingStall = ParkingStall(
@@ -136,6 +151,7 @@ object ParkingStall {
     chargingPointType = Some(ChargingPointType.ChargingStationCcsComboType2),
     pricingModel = Some(PricingModel.FlatFee(0)),
     parkingType = ParkingType.Public,
+    activityType = "charging",
     reservedFor = VehicleManager.AnyManager
   )
 
@@ -145,7 +161,11 @@ object ParkingStall {
     * @param parkingAlternative Parking Alternative
     * @return
     */
-  def fromParkingAlternative(tazId: Id[TAZ], parkingAlternative: ParkingAlternative): ParkingStall = {
+  def fromParkingAlternative(
+    tazId: Id[TAZ],
+    activityType: String,
+    parkingAlternative: ParkingAlternative
+  ): ParkingStall = {
     ParkingStall(
       tazId,
       parkingAlternative.parkingZone.parkingZoneId,
@@ -154,6 +174,7 @@ object ParkingStall {
       parkingAlternative.parkingZone.chargingPointType,
       None,
       parkingAlternative.parkingType,
+      activityType,
       parkingAlternative.parkingZone.reservedFor
     )
   }

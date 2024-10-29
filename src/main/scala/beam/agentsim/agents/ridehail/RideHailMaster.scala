@@ -8,14 +8,14 @@ import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail.RideHailMaster.{RequestWithResponses, RideHailManagerData}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.DriverNotFoundError
 import beam.agentsim.agents.vehicles.{PersonIdWithActorRef, VehicleManager}
-import beam.sim.population.AttributesOfIndividual
-import beam.sim.population.PopulationAdjustment._
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_POOLED}
 import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
+import beam.sim.population.AttributesOfIndividual
+import beam.sim.population.PopulationAdjustment._
 import beam.sim.{BeamScenario, BeamServices, RideHailFleetInitializerProvider}
 import beam.utils.logging.LoggingMessageActor
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
