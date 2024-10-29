@@ -1070,8 +1070,8 @@ trait ChoosesMode {
         None
       case ActualVehicle(beamVehicle) =>
         Some(ActualVehicle(beamVehicle))
-      case _ =>
-        None
+      case otherVehicle =>
+        Some(otherVehicle)
     }
 
   }
