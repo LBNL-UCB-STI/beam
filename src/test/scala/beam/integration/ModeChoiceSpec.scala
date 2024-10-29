@@ -36,6 +36,10 @@ class ModeChoiceSpec
 //      .withValue("beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet", ConfigValueFactory.fromAnyRef("10.0"))
     .withValue("beam.agentsim.agents.vehicles.fractionOfPeopleWithBicycle", ConfigValueFactory.fromAnyRef("10.0"))
     .withValue(
+      "beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId",
+      ConfigValueFactory.fromAnyRef("beamVilleCar")
+    )
+    .withValue(
       "beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt",
       ConfigValueFactory.fromAnyRef("true")
     )

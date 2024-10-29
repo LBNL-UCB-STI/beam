@@ -213,6 +213,7 @@ trait ChoosesMode {
             getCurrentTriggerIdOrGenerate
           )
         } else {
+          println("BAD BAD BAD")
           logError(
             s"Missing tour strategy vehicle ${currentTourStrategy.tourVehicle.get} in beamVehicles for agent ${this.id}"
           )
@@ -347,6 +348,7 @@ trait ChoosesMode {
       }
 
       val availableVehicleFromParentTour = (currentTourStrategy.tourMode, parentTourStrategy) match {
+        // Can't use additional parent tour vehicles if i've already started on my subtour
         case (Some(_), _) => Vector()
         // Can't use vehicle from parent tour if it was used as access to transit
         case (None, Some(ps)) if ps.tourMode.contains(WALK_BASED) =>
@@ -1099,12 +1101,7 @@ trait ChoosesMode {
               case Some(tourVehicleId) if veh.id == tourVehicleId =>
                 BeamTourMode.enabledModes.get(veh.streetVehicle.mode)
               case None if veh.vehicle.isMustBeDrivenHome =>
-                logger.warn(
-                  s"Person person ${this.id} is already on a walk based tour, and we have access to vehicle " +
-                  s" ${veh.vehicle.id}, and we're on the way home, " +
-                  s" but it is not our tour personal vehicle. Should have already abandoned ${veh.vehicle.id}."
-                )
-                None // BeamTourMode.enabledModes.get(veh.streetVehicle.mode)
+                None
               case Some(tourVehicleId) =>
                 logger.debug(
                   s"Person person ${this.id} is on a walk tour with the wrong tour vehicle: $tourVehicleId when " +
