@@ -206,21 +206,24 @@ trait ChoosesMode {
         ) pipeTo self
       // If we're on a walk based tour and have an egress vehicle defined we NEED to bring it home
 
-      case (_, None, Some(WALK_BASED)) if currentTourStrategy.tourVehicle.isDefined && isLastTripWithinTour(nextAct) =>
+      case (data: ChoosesModeData, None, Some(WALK_BASED))
+          if currentTourStrategy.tourVehicle.isDefined && isLastTripWithinTour(nextAct) =>
         if (beamVehicles.contains(currentTourStrategy.tourVehicle.get)) {
           self ! MobilityStatusResponse(
             Vector(beamVehicles(currentTourStrategy.tourVehicle.get)),
             getCurrentTriggerIdOrGenerate
           )
         } else {
-          println("BAD BAD BAD")
           logError(
             s"Missing tour strategy vehicle ${currentTourStrategy.tourVehicle.get} in beamVehicles for agent ${this.id}"
           )
-          self ! MobilityStatusResponse(
-            Vector(),
-            getCurrentTriggerIdOrGenerate
-          )
+          implicit val executionContext: ExecutionContext = context.system.dispatcher
+          requestAvailableVehicles(
+            vehicleFleets,
+            data.currentLocation,
+            currentActivity(data.personData),
+            Some(VehicleCategory.Car)
+          ) pipeTo self
         }
 
       // Finally, if we're starting from scratch, request all available vehicles

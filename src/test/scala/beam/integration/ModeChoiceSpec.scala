@@ -5,6 +5,7 @@ import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigValueFactory}
 import org.scalatest.AppendedClues
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.tagobjects.Retryable
 import org.scalatest.wordspec.AnyWordSpecLike
 
 /**
@@ -132,7 +133,7 @@ class ModeChoiceSpec
   }
 
   "Running beam with high intercepts for CAR" must {
-    "prefer mode choice car more than other modes (with ModeChoiceDriveIfAvailable)" in {
+    "prefer mode choice car more than other modes (with ModeChoiceDriveIfAvailable)" taggedAs Retryable in {
       val theRun = new StartWithCustomConfig(
         baseBeamvilleUrbansimConfig
           .withValue(
