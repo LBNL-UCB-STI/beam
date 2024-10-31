@@ -1,5 +1,6 @@
 package beam.physsim.analysis
 
+import beam.agentsim.agents.vehicles.VehicleCategory
 import beam.utils.BeamCalcLinkStats
 import beam.utils.BeamCalcLinkStats.LinkData
 import beam.utils.csv.CsvWriter
@@ -82,11 +83,12 @@ class LinkStatsWithVehicleCategory(
     travelTimeForR5: TravelTime,
     filePath: String
   ): Try[(Map[Id[Link], LinkData], Map[String, Map[Id[Link], LinkData]], Int)] = {
+
     val categoryMapping = IndexedSeq(
-      Seq("Class2b3Vocational") -> "volume_Class2b3Vocational",
-      Seq("Class456Vocational") -> "volume_Class456Vocational",
-      Seq("Class78Vocational")  -> "volume_Class78Vocational",
-      Seq("Class78Tractor")     -> "volume_Class78Tractor"
+      Seq(VehicleCategory.Class2b3Vocational.toString) -> f"volume_${VehicleCategory.Class2b3Vocational.toString}",
+      Seq(VehicleCategory.Class456Vocational.toString) -> f"volume_${VehicleCategory.Class456Vocational.toString}",
+      Seq(VehicleCategory.Class78Vocational.toString)  -> f"volume_${VehicleCategory.Class78Vocational.toString}",
+      Seq(VehicleCategory.Class78Tractor.toString)     -> f"volume_${VehicleCategory.Class78Tractor.toString}"
     )
     val categories = categoryMapping.flatMap(_._1).distinct
     val (totalLinkData, linkData, nofHours) = calculateLinkData(volumesAnalyzer, travelTimeForR5, categories)
