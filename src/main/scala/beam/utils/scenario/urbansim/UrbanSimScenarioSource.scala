@@ -60,12 +60,13 @@ class UrbanSimScenarioSource(
       val coord = convertLocation(plan)
       PlanElement(
         tripId = "",
+        tourId = "",
         personId = PersonId(plan.personId),
         planIndex = 0, // TODO FIXME!
-        planElementType = PlanElement.PlanElementType(plan.planElement),
-        planElementIndex = plan.planElementIndex,
         planScore = 0, // TODO: DataExchange.PlanElement does not have score
         planSelected = false, // TODO: DataExchange.PlanElement does not have planSelected
+        planElementType = PlanElement.PlanElementType(plan.planElement),
+        planElementIndex = plan.planElementIndex,
         activityType = plan.activityType,
         activityLocationX = coord.map(_.getX),
         activityLocationY = coord.map(_.getY),

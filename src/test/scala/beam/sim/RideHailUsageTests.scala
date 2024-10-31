@@ -80,11 +80,14 @@ class RideHailUsageTests extends AnyFlatSpec with Matchers with BeamHelper with 
       person == "2" && (isModeChoice || isReplanning)
     }
 
+    // Note: We're now throwing an extra replanning event because 1) there's no vehicle available, and 2) the
+    // remembered route can't be filled in
+
     val replanAndModeChoiceForPerson2 = events
       .filter(e => isReplanningOrModeChoiceEventForPerson2(e))
       .dropWhile(e => !ReplanningEvent.EVENT_TYPE.equalsIgnoreCase(e.getEventType))
       .map(_.getAttributes)
-      .take(2)
+      .take(3)
 
     replanAndModeChoiceForPerson2(0)
       .getOrDefault(
@@ -92,7 +95,7 @@ class RideHailUsageTests extends AnyFlatSpec with Matchers with BeamHelper with 
         ""
       ) shouldBe "HouseholdVehicleNotAvailable CAR" withClue ", expected replanning because there are no household vehicles available"
 
-    replanAndModeChoiceForPerson2(1)
+    replanAndModeChoiceForPerson2(2)
       .getOrDefault(
         ModeChoiceEvent.ATTRIBUTE_MODE,
         ""

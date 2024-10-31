@@ -69,7 +69,8 @@ object ParkingNetworkManager extends LazyLogging {
     driver: Id[_],
     parkingManager: ActorRef,
     beamServices: BeamServices,
-    eventsManager: EventsManager
+    eventsManager: EventsManager,
+    departed: Boolean = false
   ): Unit = {
     val stallForLeavingParkingEventMaybe = currentBeamVehicle.stall match {
       case Some(stall) =>
@@ -80,7 +81,7 @@ object ParkingNetworkManager extends LazyLogging {
         )
         currentBeamVehicle.unsetParkingStall()
         Some(stall)
-      case None if currentBeamVehicle.lastUsedStall.isDefined =>
+      case None if currentBeamVehicle.lastUsedStall.isDefined && !departed =>
         // This can now happen if a vehicle was charging and released the stall already
         Some(currentBeamVehicle.lastUsedStall.get)
       case None =>

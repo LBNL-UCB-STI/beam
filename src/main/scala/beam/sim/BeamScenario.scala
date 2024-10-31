@@ -15,7 +15,6 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Network
 import org.matsim.core.utils.collections.QuadTree
 import com.conveyal.gtfs.model.Stop
-
 import scala.collection.concurrent.TrieMap
 
 /**

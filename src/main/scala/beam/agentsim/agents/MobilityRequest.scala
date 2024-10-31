@@ -71,7 +71,7 @@ object MobilityRequest {
       person,
       act,
       -1,
-      Trip(act, None, new Tour()),
+      Trip(act, None, new Tour(0)),
       BeamMode.CAR,
       requestType,
       -1,

@@ -382,7 +382,8 @@ class RideHailAgent(
   when(Offline) {
     case ev @ Event(ParkingInquiryResponse(stall, _, triggerId), _) =>
       log.debug("state(RideHailAgent.Offline.ParkingInquiryResponse): {}", ev)
-      val currentLocationUTM = beamServices.geo.wgs2Utm(currentBeamVehicle.spaceTime.loc)
+      val currentLocationUTM =
+        currentBeamVehicle.spaceTime.loc // Previously threw a notInWGS error with beamServices.geo.wgs2Utm(currentBeamVehicle.spaceTime.loc)
       vehicle.useParkingStall(stall)
       val carStreetVeh =
         StreetVehicle(
