@@ -272,7 +272,7 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
     trips.size shouldBe 1
   }
 
-  test("trip without car and hov legs should not contain hov_car after transformation") {
+  test("trip without car should not contain hov2 or hov3 after transformation") {
     val fewPlans: Seq[PlanElement] = Seq(
       WALK,
       WALK_TRANSIT,
