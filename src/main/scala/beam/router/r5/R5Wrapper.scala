@@ -7,9 +7,9 @@ import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode._
-import beam.router.Modes.{BeamMode, mapLegMode, toR5StreetMode}
-import beam.router.RoutingWorker.{R5Request, StopVisitor, createBushwackingBeamLeg}
-import beam.router.gtfs.FareCalculator.{BeamFareSegment, filterFaresOnTransfers}
+import beam.router.Modes.{mapLegMode, toR5StreetMode, BeamMode}
+import beam.router.RoutingWorker.{createBushwackingBeamLeg, R5Request, StopVisitor}
+import beam.router.gtfs.FareCalculator.{filterFaresOnTransfers, BeamFareSegment}
 import beam.router.model.BeamLeg.dummyLeg
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model._
