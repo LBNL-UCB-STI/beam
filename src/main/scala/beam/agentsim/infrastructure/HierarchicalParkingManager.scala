@@ -7,7 +7,6 @@ import beam.agentsim.infrastructure.HierarchicalParkingManager._
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZone.UbiqiutousParkingAvailability
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.power.SitePowerManager
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
 import beam.sim.common.GeoUtils
@@ -35,6 +34,7 @@ class HierarchicalParkingManager(
   distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
   maxSearchRadius: Double,
+  searchDoubleParkingRadius: Double,
   boundingBox: Envelope,
   seed: Int,
   mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
@@ -54,6 +54,7 @@ class HierarchicalParkingManager(
       distanceFunction,
       minSearchRadius,
       maxSearchRadius,
+      searchDoubleParkingRadius,
       0.0,
       0.0,
       estimatedMinParkingDurationInSeconds,
@@ -136,7 +137,7 @@ class HierarchicalParkingManager(
     ParkingInquiryResponse(parkingStall, inquiry.requestId, inquiry.triggerId)
   }
 
-  def findStartingPoint(taz: TAZ, destination: Coord): Coord = {
+  private def findStartingPoint(taz: TAZ, destination: Coord): Coord = {
     if (GeoUtils.isPointWithinCircle(taz.coord, taz.areaInSquareMeters / Math.PI, destination))
       destination
     else GeoUtils.segmentCircleIntersection(taz.coord, Math.sqrt(taz.areaInSquareMeters / Math.PI), destination)
@@ -210,10 +211,10 @@ class HierarchicalParkingManager(
 
   private def lastResortStallAndZone(location: Location) = {
     val boxAroundRequest = new Envelope(
-      location.getX + 2000,
-      location.getX - 2000,
-      location.getY + 2000,
-      location.getY - 2000
+      location.getX + 100,
+      location.getX - 100,
+      location.getY + 100,
+      location.getY - 100
     )
     val newStall = ParkingStall.lastResortStall(boxAroundRequest, new Random(seed))
     newStall -> DefaultParkingZone
@@ -256,6 +257,7 @@ object HierarchicalParkingManager {
     distanceFunction: (Coord, Coord) => Double,
     minSearchRadius: Double,
     maxSearchRadius: Double,
+    searchDoubleParkingRadius: Double,
     boundingBox: Envelope,
     seed: Int,
     mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
@@ -268,6 +270,7 @@ object HierarchicalParkingManager {
       distanceFunction,
       minSearchRadius,
       maxSearchRadius,
+      searchDoubleParkingRadius,
       boundingBox,
       seed,
       mnlParkingConfig,
@@ -282,6 +285,7 @@ object HierarchicalParkingManager {
     distanceFunction: (Coord, Coord) => Double,
     minSearchRadius: Double,
     maxSearchRadius: Double,
+    searchDoubleParkingRadius: Double,
     boundingBox: Envelope,
     seed: Int,
     mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
@@ -294,6 +298,7 @@ object HierarchicalParkingManager {
       distanceFunction,
       minSearchRadius,
       maxSearchRadius,
+      searchDoubleParkingRadius,
       boundingBox,
       seed,
       mnlParkingConfig,

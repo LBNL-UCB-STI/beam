@@ -1,6 +1,5 @@
 package beam.integration
 
-import java.nio.charset.StandardCharsets
 import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.TollRevenueAnalysis
@@ -18,10 +17,11 @@ import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.households.Household
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.BeforeAndAfterAll
 
+import java.nio.charset.StandardCharsets
 import scala.collection.JavaConverters._
 import scala.io.Source
 import scala.util.Try
@@ -167,6 +167,8 @@ class EventsFileSpec
     assert(experiencedScenario.getPopulation.getPersons.size() == 50)
     var nCarTrips = 0
     var nBikeTrips = 0
+    var badTours = 0
+    var goodTours = 0
     experiencedScenario.getPopulation.getPersons.values().forEach { person =>
       val experiencedPlan = person.getPlans.get(0)
       assert(experiencedPlan.getPlanElements.size() > 1)
@@ -186,21 +188,24 @@ class EventsFileSpec
             nBikeTrips += 1
           }
       }
+
       val beamPlan = BeamPlan(experiencedPlan)
       beamPlan.tours.foreach { tour =>
         if (tour.trips.size > 1) {
           for (mode <- List("car", "bike")) {
             if (tour.trips.head.leg.get.getMode == mode) {
-              assert(
-                tour.trips.last.leg.get.getMode == mode,
-                s"If I leave home by $mode, I must get home by $mode: " + person.getId
-              )
+              if (tour.trips.last.leg.get.getMode == mode) {
+                goodTours += 1
+              } else {
+                badTours += 1
+              }
             }
           }
         }
       }
     }
     logger.debug("nCarTrips = {}, nBikeTrips = {}", nCarTrips, nBikeTrips)
+    assert(badTours == 0, "All personal vehicle tours end with the same mode as they start with")
     assert(nCarTrips != 0, "At least some people must go by car")
     assert(nBikeTrips != 0, "At least some people must go by bike")
   }

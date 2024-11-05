@@ -2,15 +2,14 @@ package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode.DoubleParkingAllowed
 import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
-import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Parking
 import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.utils.collections.QuadTree
 
 import scala.util.Random
 
@@ -20,6 +19,7 @@ class ParkingFunctions(
   distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
   maxSearchRadius: Double,
+  searchDoubleParkingRadius: Double,
   searchMaxDistanceRelativeToEllipseFoci: Double,
   estimatedMinParkingDurationInSeconds: Double,
   estimatedMeanEnRouteChargingDurationInSeconds: Double,
@@ -34,6 +34,7 @@ class ParkingFunctions(
       distanceFunction,
       minSearchRadius,
       maxSearchRadius,
+      searchDoubleParkingRadius,
       searchMaxDistanceRelativeToEllipseFoci,
       estimatedMinParkingDurationInSeconds,
       estimatedMeanEnRouteChargingDurationInSeconds,
@@ -124,18 +125,25 @@ class ParkingFunctions(
   ): Option[ParkingZoneSearchResult] = {
     val output = parkingZoneSearchResult match {
       case Some(result) => result
+      case _ if inquiry.searchMode == DoubleParkingAllowed && searchDoubleParkingRadius > 0 =>
+        val newStall = ParkingStall.doubleParkingStall(
+          tazTreeMap.getTAZ(inquiry.destinationUtm.loc).tazId,
+          inquiry.destinationUtm.loc,
+          inquiry.activityType
+        )
+        ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
       case _ =>
         inquiry.parkingActivityType match {
           case ParkingActivityType.Home if inquiry.searchMode != ParkingSearchMode.EnRouteCharging =>
-            val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm.loc)
+            val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm.loc, inquiry.activityType)
             ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
           case _ =>
             // didn't find any stalls, so, as a last resort, create a very expensive stall
             val boxAroundRequest = new Envelope(
-              inquiry.destinationUtm.loc.getX + 2000,
-              inquiry.destinationUtm.loc.getX - 2000,
-              inquiry.destinationUtm.loc.getY + 2000,
-              inquiry.destinationUtm.loc.getY - 2000
+              inquiry.destinationUtm.loc.getX + 100,
+              inquiry.destinationUtm.loc.getX - 100,
+              inquiry.destinationUtm.loc.getY + 100,
+              inquiry.destinationUtm.loc.getY - 100
             )
             val newStall = ParkingStall.lastResortStall(boxAroundRequest, new Random(seed))
             ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
@@ -159,30 +167,33 @@ class ParkingFunctions(
   ): Coord = {
     if (parkingZone.link.isDefined)
       parkingZone.link.get.getCoord
-    else if (
-      (parkingZone.reservedFor.managerType == VehicleManager.TypeEnum.Household) ||
-      (inquiry.parkingActivityType == ParkingActivityType.Home && parkingZone.parkingType == ParkingType.Residential) ||
-      (inquiry.parkingActivityType == ParkingActivityType.Work && parkingZone.parkingType == ParkingType.Workplace)
-    )
-      inquiry.destinationUtm.loc
-    else if (tazTreeMap.tazListContainsGeoms) {
-      ParkingStallSampling.linkBasedSampling(
-        new Random(seed),
-        inquiry.destinationUtm.loc,
-        tazTreeMap.tazToLinkIdMapping.get(taz.tazId),
-        distanceFunction,
-        parkingZone.availability,
-        taz,
-        inClosestZone
-      )
-    } else {
-      ParkingStallSampling.availabilityAwareSampling(
-        new Random(seed),
-        inquiry.destinationUtm.loc,
-        taz,
-        parkingZone.availability,
-        inClosestZone
-      )
+    else {
+      val availability = if (
+        (parkingZone.reservedFor.managerType == VehicleManager.TypeEnum.Household) ||
+        (inquiry.parkingActivityType == ParkingActivityType.Home && parkingZone.parkingType == ParkingType.Residential) ||
+        (inquiry.parkingActivityType == ParkingActivityType.Work && parkingZone.parkingType == ParkingType.Workplace)
+      ) {
+        1.0
+      } else { parkingZone.availability }
+      if (tazTreeMap.tazListContainsGeoms) {
+        ParkingStallSampling.linkBasedSampling(
+          new Random(seed),
+          inquiry.destinationUtm.loc,
+          tazTreeMap.tazToLinkIdMapping.get(taz.tazId),
+          distanceFunction,
+          availability,
+          taz,
+          inClosestZone
+        )
+      } else {
+        ParkingStallSampling.availabilityAwareSampling(
+          new Random(seed),
+          inquiry.destinationUtm.loc,
+          taz,
+          availability,
+          inClosestZone
+        )
+      }
     }
   }
 

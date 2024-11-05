@@ -156,8 +156,9 @@ trait NetworkCoordinator extends LazyLogging {
         }
         .get
     } catch {
-      case e: Exception if network == null => throw new RuntimeException(e)
-      case e: Exception                    => logger.error(s"Error in router initialization ${e.getMessage}")
+      case e: Exception if network == null =>
+        throw new RuntimeException(s"Can not read network by ${beamConfig.matsim.modules.network.inputNetworkFile}", e)
+      case e: Exception => logger.error(s"Error in router initialization ${e.getMessage}")
     }
   }
 

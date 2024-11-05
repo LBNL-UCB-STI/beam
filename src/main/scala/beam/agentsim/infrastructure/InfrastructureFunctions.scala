@@ -19,6 +19,7 @@ abstract class InfrastructureFunctions(
   distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
   maxSearchRadius: Double,
+  searchDoubleParkingRadius: Double,
   searchMaxDistanceRelativeToEllipseFoci: Double,
   estimatedMinParkingDurationInSeconds: Double,
   estimatedMeanEnRouteChargingDurationInSeconds: Double,
@@ -90,6 +91,7 @@ abstract class InfrastructureFunctions(
     ParkingZoneSearchConfiguration(
       minSearchRadius,
       maxSearchRadius,
+      searchDoubleParkingRadius,
       searchMaxDistanceRelativeToEllipseFoci,
       boundingBox,
       distanceFunction,
@@ -142,7 +144,8 @@ abstract class InfrastructureFunctions(
         tazTreeMap.tazQuadTree,
         new Random(seed + inquiryHash),
         inquiry.departureLocation,
-        inquiry.reservedFor
+        inquiry.reservedFor,
+        inquiry.activityType
       )
 
     val closestZone =

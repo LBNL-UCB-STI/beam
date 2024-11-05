@@ -1,11 +1,19 @@
 package beam.agentsim.agents.planning
 
-import org.matsim.api.core.v01.population.PlanElement
+import org.matsim.api.core.v01.population.{Activity, PlanElement}
 import org.matsim.utils.objectattributes.attributable.Attributes
 
-class Tour(private var tripsInternal: Vector[Trip] = Vector()) extends PlanElement {
+class Tour(
+  var tourId: Int = 0,
+  private var tripsInternal: Vector[Trip] = Vector(),
+  val originActivity: Option[Activity] = None
+) extends PlanElement {
 
   def trips: Seq[Trip] = tripsInternal
+
+  def setTourId(newTourId: Int): Unit = { tourId = newTourId }
+
+  def activities: Seq[Activity] = originActivity.toSeq ++ trips.map(_.activity)
 
   override def getAttributes = new Attributes
 

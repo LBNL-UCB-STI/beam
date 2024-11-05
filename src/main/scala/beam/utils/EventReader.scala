@@ -101,6 +101,8 @@ object EventReader {
         ParkingEvent(event)
       case ModeChoiceEvent.EVENT_TYPE =>
         ModeChoiceEvent.apply(event)
+      case TourModeChoiceEvent.EVENT_TYPE =>
+        TourModeChoiceEvent.apply(event)
       case PersonCostEvent.EVENT_TYPE =>
         PersonCostEvent.apply(event)
       case ReserveRideHailEvent.EVENT_TYPE =>

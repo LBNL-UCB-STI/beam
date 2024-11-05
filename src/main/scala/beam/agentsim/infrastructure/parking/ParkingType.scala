@@ -16,13 +16,29 @@ object ParkingType {
     override def toString: String = "Public"
   }
 
+  // used by medium duty vehicles
+  case object Commercial extends ParkingType {
+    override def toString: String = "Commercial"
+  }
+
+  case object Depot extends ParkingType {
+    override def toString: String = "Depot"
+  }
+
+  case object DoubleParking extends ParkingType {
+    override def toString: String = "DoubleParking"
+  }
+
   def apply(s: String): ParkingType = {
     s match {
-      case "Residential" => Residential
-      case "Public"      => Public
-      case "Workplace"   => Workplace
+      case "Residential"   => Residential
+      case "Public"        => Public
+      case "Workplace"     => Workplace
+      case "Commercial"    => Commercial
+      case "Depot"         => Depot
+      case "DoubleParking" => DoubleParking
     }
   }
 
-  def AllTypes: Seq[ParkingType] = Seq(Residential, Workplace, Public)
+  def AllTypes: Seq[ParkingType] = Seq(Residential, Workplace, Public, Commercial, Depot, DoubleParking)
 }

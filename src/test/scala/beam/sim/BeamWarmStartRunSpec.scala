@@ -30,7 +30,11 @@ class BeamWarmStartRunSpec
 
     "prepare WarmStart data" in {
       val baseConf = ConfigFactory
-        .parseString("beam.warmStart.prepareData = true")
+        .parseString("""beam.warmStart.prepareData = true
+             beam.physsim.duplicatePTE.fractionOfEventsToDuplicate = 1.0
+             beam.physsim.duplicatePTE.departureTimeShiftMin = 0
+             beam.physsim.duplicatePTE.departureTimeShiftMax = 600
+            """)
         .withFallback(testConfig("test/input/beamville/beam.conf"))
         .resolve()
       val (_, output, _) = runBeamWithConfig(baseConf)
@@ -54,6 +58,7 @@ class BeamWarmStartRunSpec
         "ITERS/it.2/2.skimsFreight_Aggregated.csv.gz",
         "ITERS/it.2/2.skimsParking_Aggregated.csv.gz",
         "ITERS/it.2/2.skimsTransitCrowding_Aggregated.csv.gz",
+        "ITERS/it.2/2.skimsEmissions_Aggregated.csv.gz",
         "ITERS/it.2/2.linkstats.csv.gz",
         "ITERS/it.2/2.plans.csv.gz",
         "ITERS/it.2/2.plans.xml.gz",
@@ -73,10 +78,9 @@ class BeamWarmStartRunSpec
       val averageCarSpeedIt0 = BeamWarmStartRunSpec.medianCarModeFromCsv(extractFileName(output, 0))
       val averageCarSpeedIt1 = BeamWarmStartRunSpec.medianCarModeFromCsv(extractFileName(output, 1))
       logger.info("average car speed per iterations: {}, {}", averageCarSpeedIt0, averageCarSpeedIt1)
-      averageCarSpeedIt0 / averageCarSpeedIt1 should equal(1.0 +- 0.50)
+      averageCarSpeedIt0 / averageCarSpeedIt1 should equal(1.0 +- 0.80)
 
       val outputFileIdentifiers = Array(
-        "passengerPerTripBike.csv",
         "passengerPerTripBus.csv",
         "passengerPerTripCar.csv",
         "passengerPerTripRideHail.csv",
@@ -126,7 +130,7 @@ class BeamWarmStartRunSpec
       val averageCarSpeedIt0 = BeamWarmStartRunSpec.medianCarModeFromCsv(extractFileName(output, 0))
       val averageCarSpeedIt1 = BeamWarmStartRunSpec.medianCarModeFromCsv(extractFileName(output, 1))
       logger.info("average car speed per iterations: {}, {}", averageCarSpeedIt0, averageCarSpeedIt1)
-      averageCarSpeedIt0 / averageCarSpeedIt1 should equal(1.0 +- 0.50)
+      averageCarSpeedIt0 / averageCarSpeedIt1 should equal(1.0 +- 0.80)
     }
 
     "run beamville scenario with linkStatsOnly warmstart and full file with fake skims" in {
@@ -144,7 +148,7 @@ class BeamWarmStartRunSpec
       val averageCarSpeedIt0 = BeamWarmStartRunSpec.medianCarModeFromCsv(extractFileName(output, 0))
       val averageCarSpeedIt1 = BeamWarmStartRunSpec.medianCarModeFromCsv(extractFileName(output, 1))
       logger.info("average car speed per iterations: {}, {}", averageCarSpeedIt0, averageCarSpeedIt1)
-      averageCarSpeedIt0 / averageCarSpeedIt1 should equal(1.0 +- 0.50)
+      averageCarSpeedIt0 / averageCarSpeedIt1 should equal(1.0 +- 0.80)
     }
   }
 

@@ -1,6 +1,7 @@
 package beam.agentsim.agents.modalbehaviors
 
-import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
+import beam.agentsim.agents.choice.logit
+import beam.agentsim.agents.choice.logit.{LatentClassChoiceModel, UtilityFunctionOperation}
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
 import beam.agentsim.agents.choice.mode._
 import beam.agentsim.agents.vehicles.BeamVehicleType
@@ -23,6 +24,15 @@ import scala.util.Random
 trait ModeChoiceCalculator {
 
   val beamConfig: BeamConfig
+
+  val commonUtility: Map[String, UtilityFunctionOperation] = Map(
+    "cost" -> UtilityFunctionOperation("multiplier", -1)
+  )
+
+  val modeChoiceLogit = new logit.MultinomialLogit[BeamMode, String](
+    _ => Option.empty,
+    commonUtility
+  )
 
   lazy val random: Random = new Random(
     beamConfig.matsim.modules.global.randomSeed
@@ -131,7 +141,7 @@ object ModeChoiceCalculator {
 
   type ModeChoiceCalculatorFactory = AttributesOfIndividual => ModeChoiceCalculator
 
-  def getTransitVehicleTypeVOTMultipliers(beamServices: BeamServices): Map[Id[BeamVehicleType], Double] =
+  private def getTransitVehicleTypeVOTMultipliers(beamServices: BeamServices): Map[Id[BeamVehicleType], Double] =
     ModeChoiceMultinomialLogit.getTransitVehicleTypeVOTMultipliers(
       beamServices.beamScenario.vehicleTypes,
       beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.transitVehicleTypeVOTMultipliers

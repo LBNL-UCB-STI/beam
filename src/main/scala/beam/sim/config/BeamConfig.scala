@@ -794,6 +794,7 @@ object BeamConfig {
           minSearchRadius: scala.Double,
           multinomialLogit: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
           rangeAnxietyBuffer: scala.Double,
+          searchDoubleParkingRadius: scala.Double,
           searchMaxDistanceRelativeToEllipseFoci: scala.Double
         )
 
@@ -868,6 +869,8 @@ object BeamConfig {
               ),
               rangeAnxietyBuffer =
                 if (c.hasPathOrNull("rangeAnxietyBuffer")) c.getDouble("rangeAnxietyBuffer") else 20000.0,
+              searchDoubleParkingRadius =
+                if (c.hasPathOrNull("searchDoubleParkingRadius")) c.getDouble("searchDoubleParkingRadius") else 0.0,
               searchMaxDistanceRelativeToEllipseFoci =
                 if (c.hasPathOrNull("searchMaxDistanceRelativeToEllipseFoci"))
                   c.getDouble("searchMaxDistanceRelativeToEllipseFoci")
@@ -1191,8 +1194,12 @@ object BeamConfig {
               }
 
               case class Procedural(
+                averageOnDutyHoursPerDay: scala.Double,
+                equivalentNumberOfDrivers: scala.Double,
                 fractionOfInitialVehicleFleet: scala.Double,
                 initialLocation: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural.InitialLocation,
+                meanLogShiftDurationHours: scala.Double,
+                stdLogShiftDurationHours: scala.Double,
                 vehicleAdjustmentMethod: java.lang.String,
                 vehicleTypeId: java.lang.String,
                 vehicleTypePrefix: java.lang.String
@@ -1243,6 +1250,12 @@ object BeamConfig {
                   c: com.typesafe.config.Config
                 ): BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural = {
                   BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural(
+                    averageOnDutyHoursPerDay =
+                      if (c.hasPathOrNull("averageOnDutyHoursPerDay")) c.getDouble("averageOnDutyHoursPerDay")
+                      else 3.52,
+                    equivalentNumberOfDrivers =
+                      if (c.hasPathOrNull("equivalentNumberOfDrivers")) c.getDouble("equivalentNumberOfDrivers")
+                      else 0.0,
                     fractionOfInitialVehicleFleet =
                       if (c.hasPathOrNull("fractionOfInitialVehicleFleet")) c.getDouble("fractionOfInitialVehicleFleet")
                       else 0.1,
@@ -1251,6 +1264,12 @@ object BeamConfig {
                         if (c.hasPathOrNull("initialLocation")) c.getConfig("initialLocation")
                         else com.typesafe.config.ConfigFactory.parseString("initialLocation{}")
                       ),
+                    meanLogShiftDurationHours =
+                      if (c.hasPathOrNull("meanLogShiftDurationHours")) c.getDouble("meanLogShiftDurationHours")
+                      else 1.02,
+                    stdLogShiftDurationHours =
+                      if (c.hasPathOrNull("stdLogShiftDurationHours")) c.getDouble("stdLogShiftDurationHours")
+                      else 0.44,
                     vehicleAdjustmentMethod =
                       if (c.hasPathOrNull("vehicleAdjustmentMethod")) c.getString("vehicleAdjustmentMethod") else "",
                     vehicleTypeId = if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "Car",
@@ -1854,7 +1873,7 @@ object BeamConfig {
                 c: com.typesafe.config.Config
               ): BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingFleetByTaz = {
                 BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingFleetByTaz(
-                  fleetSize = if (c.hasPathOrNull("fleetSize")) c.getInt("fleetSize") else 10,
+                  fleetSize = 60,
                   maxWalkingDistance =
                     if (c.hasPathOrNull("maxWalkingDistance")) c.getInt("maxWalkingDistance") else 500,
                   vehicleTypeId =
@@ -2856,7 +2875,8 @@ object BeamConfig {
     object Exchange {
 
       case class Output(
-        activity_sim_skimmer: scala.Option[BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer]
+        activity_sim_skimmer: scala.Option[BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer],
+        emissions: BeamConfig.Beam.Exchange.Output.Emissions
       )
 
       object Output {
@@ -2959,12 +2979,35 @@ object BeamConfig {
           }
         }
 
+        case class Emissions(
+          events: scala.Boolean,
+          pollutantsToFilterOut: scala.Option[scala.List[java.lang.String]],
+          skims: scala.Boolean
+        )
+
+        object Emissions {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output.Emissions = {
+            BeamConfig.Beam.Exchange.Output.Emissions(
+              events = c.hasPathOrNull("events") && c.getBoolean("events"),
+              pollutantsToFilterOut =
+                if (c.hasPathOrNull("pollutantsToFilterOut")) scala.Some($_L$_str(c.getList("pollutantsToFilterOut")))
+                else None,
+              skims = c.hasPathOrNull("skims") && c.getBoolean("skims")
+            )
+          }
+        }
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output = {
           BeamConfig.Beam.Exchange.Output(
             activity_sim_skimmer =
               if (c.hasPathOrNull("activity-sim-skimmer"))
                 scala.Some(BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer(c.getConfig("activity-sim-skimmer")))
-              else None
+              else None,
+            emissions = BeamConfig.Beam.Exchange.Output.Emissions(
+              if (c.hasPathOrNull("emissions")) c.getConfig("emissions")
+              else com.typesafe.config.ConfigFactory.parseString("emissions{}")
+            )
           )
         }
       }
@@ -4253,6 +4296,7 @@ object BeamConfig {
       case class Skim(
         activity_sim_skimmer: BeamConfig.Beam.Router.Skim.ActivitySimSkimmer,
         drive_time_skimmer: BeamConfig.Beam.Router.Skim.DriveTimeSkimmer,
+        emissions_skimmer: BeamConfig.Beam.Router.Skim.EmissionsSkimmer,
         keepKLatestSkims: scala.Int,
         origin_destination_skimmer: BeamConfig.Beam.Router.Skim.OriginDestinationSkimmer,
         origin_destination_vehicle_type_skimmer: BeamConfig.Beam.Router.Skim.OriginDestinationVehicleTypeSkimmer,
@@ -4295,6 +4339,21 @@ object BeamConfig {
                 if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName")
                 else "skimsTravelTimeObservedVsSimulated",
               name = if (c.hasPathOrNull("name")) c.getString("name") else "drive-time-skimmer"
+            )
+          }
+        }
+
+        case class EmissionsSkimmer(
+          fileBaseName: java.lang.String,
+          name: java.lang.String
+        )
+
+        object EmissionsSkimmer {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.EmissionsSkimmer = {
+            BeamConfig.Beam.Router.Skim.EmissionsSkimmer(
+              fileBaseName = if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "skimsEmissions",
+              name = if (c.hasPathOrNull("name")) c.getString("name") else "emissions-skimmer"
             )
           }
         }
@@ -4382,6 +4441,10 @@ object BeamConfig {
               if (c.hasPathOrNull("drive-time-skimmer")) c.getConfig("drive-time-skimmer")
               else com.typesafe.config.ConfigFactory.parseString("drive-time-skimmer{}")
             ),
+            emissions_skimmer = BeamConfig.Beam.Router.Skim.EmissionsSkimmer(
+              if (c.hasPathOrNull("emissions-skimmer")) c.getConfig("emissions-skimmer")
+              else com.typesafe.config.ConfigFactory.parseString("emissions-skimmer{}")
+            ),
             keepKLatestSkims = if (c.hasPathOrNull("keepKLatestSkims")) c.getInt("keepKLatestSkims") else 1,
             origin_destination_skimmer = BeamConfig.Beam.Router.Skim.OriginDestinationSkimmer(
               if (c.hasPathOrNull("origin-destination-skimmer")) c.getConfig("origin-destination-skimmer")
@@ -4457,6 +4520,7 @@ object BeamConfig {
         linkRadiusMeters: scala.Double,
         mNetBuilder: BeamConfig.Beam.Routing.R5.MNetBuilder,
         maxDistanceLimitByModeInMeters: BeamConfig.Beam.Routing.R5.MaxDistanceLimitByModeInMeters,
+        maxTimeLimitForFreightInMinutes: scala.Int,
         numberOfSamples: scala.Int,
         osmMapdbFile: java.lang.String,
         suboptimalMinutes: scala.Int,
@@ -4481,8 +4545,8 @@ object BeamConfig {
               bike = if (c.hasPathOrNull("bike")) c.getInt("bike") else 60,
               bike_rent = if (c.hasPathOrNull("bike_rent")) c.getInt("bike_rent") else 180,
               car = if (c.hasPathOrNull("car")) c.getInt("car") else 300,
-              ride_hail = if (c.hasPathOrNull("ride_hail")) c.getInt("ride_hail") else 0,
-              walk = if (c.hasPathOrNull("walk")) c.getInt("walk") else 0
+              ride_hail = if (c.hasPathOrNull("ride_hail")) c.getInt("ride_hail") else 30,
+              walk = if (c.hasPathOrNull("walk")) c.getInt("walk") else 1
             )
           }
         }
@@ -4537,6 +4601,9 @@ object BeamConfig {
               if (c.hasPathOrNull("maxDistanceLimitByModeInMeters")) c.getConfig("maxDistanceLimitByModeInMeters")
               else com.typesafe.config.ConfigFactory.parseString("maxDistanceLimitByModeInMeters{}")
             ),
+            maxTimeLimitForFreightInMinutes =
+              if (c.hasPathOrNull("maxTimeLimitForFreightInMinutes")) c.getInt("maxTimeLimitForFreightInMinutes")
+              else 300,
             numberOfSamples = if (c.hasPathOrNull("numberOfSamples")) c.getInt("numberOfSamples") else 1,
             osmMapdbFile =
               if (c.hasPathOrNull("osmMapdbFile")) c.getString("osmMapdbFile")

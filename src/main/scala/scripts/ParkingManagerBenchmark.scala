@@ -196,6 +196,7 @@ object ParkingManagerBenchmark extends StrictLogging {
               geoUtils.distUTMInMeters,
               beamConfig.beam.agentsim.agents.parking.minSearchRadius,
               beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
+              beamConfig.beam.agentsim.agents.parking.searchDoubleParkingRadius,
               boundingBox,
               seed,
               beamConfig.beam.agentsim.agents.parking.multinomialLogit,

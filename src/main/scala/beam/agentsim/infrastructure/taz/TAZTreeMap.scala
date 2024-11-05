@@ -152,9 +152,8 @@ class TAZTreeMap(
           writer.write(count.toString)
           writer.write(System.lineSeparator())
         } catch {
-          case e: Throwable => logger.error(s"${e.getMessage}. Could not write link $linkId")
+          case e: Throwable => logger.warn(s"Error: ${e.getMessage}. Could not write link $linkId")
         }
-
       }
       writer.flush()
       writer.close()
@@ -256,7 +255,10 @@ object TAZTreeMap {
             String.valueOf(f.getAttribute(tazIDFieldName)),
             new Coord(g.getCoordinate.x, g.getCoordinate.y),
             g.getArea,
-            Some(g)
+            Some(g),
+            f.getProperties.asScala
+              .find(_.getName.toString.toLowerCase.contains("county"))
+              .map(_.getValue.toString.toLowerCase) // Added county attribute to TAZ
           )
           tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
       }
@@ -300,7 +302,7 @@ object TAZTreeMap {
     )
 
     for (l <- lines) {
-      val taz = new TAZ(l.id, new Coord(l.coordX, l.coordY), l.area)
+      val taz = new TAZ(l.id, new Coord(l.coordX, l.coordY), l.area, county = Some(l.county))
       tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
     }
 
@@ -411,6 +413,28 @@ object TAZTreeMap {
     val x = r * Math.cos(a)
     val y = r * Math.sin(a)
     new Coord(taz.coord.getX + x, taz.coord.getY + y)
+  }
+
+  def randomLocationInTAZ(
+    taz: TAZ,
+    rand: scala.util.Random,
+    allLinks: Iterable[Link]
+  ): Coord = {
+    if (allLinks.isEmpty) {
+      randomLocationInTAZ(taz, rand)
+    } else {
+      val totalLength = allLinks.foldRight(0.0)(_.getLength + _)
+      var currentLength = 0.0
+      val stopAt = rand.nextDouble() * totalLength
+      allLinks
+        .takeWhile { lnk =>
+          currentLength += lnk.getLength
+          currentLength <= stopAt
+        }
+        .lastOption
+        .map(_.getCoord)
+        .getOrElse(allLinks.head.getCoord)
+    }
   }
 
   def randomLocationInTAZ(

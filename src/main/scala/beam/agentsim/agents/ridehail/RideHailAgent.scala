@@ -35,7 +35,6 @@ import beam.utils.logging.LogActorState
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent
-import beam.agentsim.events.BeamPersonDepartureEvent
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.utils.misc.Time
@@ -228,8 +227,6 @@ class RideHailAgent(
     1
   )
 
-  override def payloadInKgForLeg(leg: BeamLeg, drivingData: DrivingData): Option[Double] = None
-
   val myUnhandled: StateFunction = {
     case ev @ Event(TriggerWithId(StartShiftTrigger(tick), triggerId), _) =>
       // Wait five minutes
@@ -356,6 +353,7 @@ class RideHailAgent(
     val isTimeForShift =
       shifts.isEmpty || shifts.get.exists(shift => shift.range.lowerBound <= tick && shift.range.upperBound >= tick)
     if (isTimeForShift) {
+      vehicle.setLastVehicleTime(Some(tick))
       eventsManager.processEvent(new ShiftEvent(tick, StartShift, id.toString, vehicle))
       rideHailManager ! NotifyVehicleIdle(
         vehicle.id,
@@ -384,7 +382,8 @@ class RideHailAgent(
   when(Offline) {
     case ev @ Event(ParkingInquiryResponse(stall, _, triggerId), _) =>
       log.debug("state(RideHailAgent.Offline.ParkingInquiryResponse): {}", ev)
-      val currentLocationUTM = beamServices.geo.wgs2Utm(currentBeamVehicle.spaceTime.loc)
+      val currentLocationUTM =
+        currentBeamVehicle.spaceTime.loc // Previously threw a notInWGS error with beamServices.geo.wgs2Utm(currentBeamVehicle.spaceTime.loc)
       vehicle.useParkingStall(stall)
       val carStreetVeh =
         StreetVehicle(
@@ -454,7 +453,15 @@ class RideHailAgent(
         )
       }
       val newShiftToSchedule = if (needsToEndShift) {
-        eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle))
+        val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivityForEmissions(tick, currentBeamVehicle, beamServices)
+        val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
+          maybeIDLEVehicleActivity,
+          classOf[PathTraversalEvent],
+          beamServices
+        )
+        eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle, emissionsProfileIDLE))
+
+        currentBeamVehicle.resetLastVehicleLinkTime()
         isCurrentlyOnShift = false
         needsToEndShift = false
         if (data.remainingShifts.size < 1) {
@@ -478,11 +485,19 @@ class RideHailAgent(
         stay()
       } else {
         if (needsToEndShift) {
-          eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle))
+          val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivityForEmissions(tick, currentBeamVehicle, beamServices)
+          val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
+            maybeIDLEVehicleActivity,
+            classOf[PathTraversalEvent],
+            beamServices
+          )
+          currentBeamVehicle.resetLastVehicleLinkTime()
+          eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle, emissionsProfileIDLE))
           needsToEndShift = false
           isCurrentlyOnShift = false
         }
         updateLatestObservedTick(tick)
+        currentBeamVehicle.setLastVehicleTime(Some(tick))
         eventsManager.processEvent(new ShiftEvent(tick, StartShift, id.toString, vehicle))
         log.debug("state(RideHailingAgent.Offline): starting shift {}", id)
         holdTickAndTriggerId(tick, triggerId)
@@ -606,7 +621,18 @@ class RideHailAgent(
         ) =>
       log.debug(s"state(RideHailAgent.Idle.EndShiftTrigger; Trigger ID: $triggerId; Vehicle ID: ${vehicle.id}")
       updateLatestObservedTick(tick)
-      eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle))
+      val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivityForEmissions(
+        tick,
+        currentBeamVehicle,
+        beamServices
+      )
+      val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
+        maybeIDLEVehicleActivity,
+        classOf[PathTraversalEvent],
+        beamServices
+      )
+      currentBeamVehicle.resetLastVehicleLinkTime()
+      eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle, emissionsProfileIDLE))
       isCurrentlyOnShift = false
       val newShiftToSchedule = if (data.remainingShifts.size < 1) {
         Vector()
@@ -836,7 +862,6 @@ class RideHailAgent(
       }
       isOnWayToParkAtStall match {
         case Some(stall) =>
-          currentBeamVehicle.useParkingStall(stall)
           if (debugEnabled) outgoingMessages += ev
           parkAndStartRefueling(stall, data)
           isOnWayToParkAtStall = None
@@ -985,6 +1010,16 @@ class RideHailAgent(
       if (debugEnabled) outgoingMessages += ev
       updateLatestObservedTick(tick)
       log.debug("state(RideHailingAgent.Refueling.EndingRefuelSession): {}, Vehicle ID: {}", ev, vehicle.id)
+      if (_currentTriggerId.isDefined) {
+        //at some point in the past we forgot to release tick and trigger
+        val (oldTick, oldTrigger) = releaseTickAndTriggerId()
+        log.warning(
+          s"Agent $id has tick $oldTick and trigger $oldTrigger" +
+          s", while holding $tick and $triggerId; event = {}, sender = {}",
+          ev,
+          sender()
+        )
+      }
       holdTickAndTriggerId(tick, triggerId)
       if (currentBeamVehicle.isRideHailCAV)
         rideHailManager ! reply
@@ -1058,6 +1093,7 @@ class RideHailAgent(
   }
 
   def handleEndRefuel(tick: Int, energyCharged: Double): Unit = {
+    import ParkingNetworkManager._
     lastLocationOfRefuel = Some(vehicle.stall.get.locationUTM)
     val newLocation = vehicle.stall match {
       case None =>
@@ -1100,17 +1136,18 @@ class RideHailAgent(
         vehicle.getState
       )
     }
-    ParkingNetworkManager.handleReleasingParkingSpot(
+    handleReleasingParkingSpot(
       tick,
       currentBeamVehicle,
       Some(energyCharged),
       id,
       parkingManager,
+      beamServices,
       eventsManager
     )
   }
 
-  def parkAndStartRefueling(stall: ParkingStall, data: RideHailAgentData): Unit = {
+  private def parkAndStartRefueling(stall: ParkingStall, data: RideHailAgentData): Unit = {
     val (tick, triggerId) = releaseTickAndTriggerId()
     eventsManager.processEvent(
       ParkingEvent(tick, stall, geo.utm2Wgs(stall.locationUTM), currentBeamVehicle.id, id.toString)

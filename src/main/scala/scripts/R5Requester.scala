@@ -349,6 +349,7 @@ object R5Requester extends BeamHelper {
     val utmCoord = geoUtils.wgs2Utm(wgsCoord)
     PlanElement(
       tripId = "",
+      tourId = "",
       personId = PersonId(personId),
       0,
       0,

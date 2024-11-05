@@ -13,7 +13,6 @@ import beam.router.skim.Skims
 import beam.sim.config.BeamConfig
 import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.utils.collections.QuadTree
 
 import scala.util.Random
 
@@ -38,6 +37,7 @@ class RideHailDepotFunctions(
       distanceFunction,
       minSearchRadius,
       maxSearchRadius,
+      0.0,
       0.0,
       estimatedMinParkingDurationInSeconds,
       0.0,
@@ -82,7 +82,7 @@ class RideHailDepotFunctions(
       .refuelingSessionDurationAndEnergyInJoulesForStall(
         Some(
           ParkingStall
-            .fromParkingAlternative(parkingAlternative.geo.tazId, parkingAlternative)
+            .fromParkingAlternative(parkingAlternative.geo.tazId, inquiry.activityType, parkingAlternative)
         ),
         None,
         None,
@@ -145,10 +145,10 @@ class RideHailDepotFunctions(
       case _ =>
         // didn't find any stalls, so, as a last resort, create a very expensive stall
         val boxAroundRequest = new Envelope(
-          inquiry.destinationUtm.loc.getX + 2000,
-          inquiry.destinationUtm.loc.getX - 2000,
-          inquiry.destinationUtm.loc.getY + 2000,
-          inquiry.destinationUtm.loc.getY - 2000
+          inquiry.destinationUtm.loc.getX + 100,
+          inquiry.destinationUtm.loc.getX - 100,
+          inquiry.destinationUtm.loc.getY + 100,
+          inquiry.destinationUtm.loc.getY - 100
         )
         val newStall = ParkingStall.lastResortStall(boxAroundRequest, new Random(seed))
         ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)

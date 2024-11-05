@@ -7,7 +7,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.freight.FreightReplanner
 import beam.agentsim.agents.freight.input.FreightReader
-import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
+import beam.agentsim.agents.goods.GoodsDeliveryManager
 import beam.agentsim.agents.ridehail.{
   RideHailIterationHistory,
   RideHailManager,
@@ -28,6 +28,7 @@ import beam.router.osm.TollCalculator
 import beam.router.skim.TAZSkimsCollector
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam
+import beam.sim.config.BeamConfigHolder
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import beam.sim.metrics.{Metrics, MetricsSupport, SimulationMetricCollector}
 import beam.sim.monitoring.ErrorListener
@@ -68,7 +69,8 @@ class BeamMobsim @Inject() (
   val geo: GeoUtils,
   val planCleaner: ModeIterationPlanCleaner,
   val networkHelper: NetworkHelper,
-  val rideHailFleetInitializerProvider: RideHailFleetInitializerProvider
+  val rideHailFleetInitializerProvider: RideHailFleetInitializerProvider,
+  beamConfigHolder: BeamConfigHolder
 ) extends Mobsim
     with LazyLogging
     with MetricsSupport {
@@ -165,6 +167,7 @@ class BeamMobsim @Inject() (
       beamServices.skims.taz_skimmer.displaySkimStats()
       beamServices.skims.dt_skimmer.displaySkimStats()
       beamServices.skims.tc_skimmer.displaySkimStats()
+      beamServices.skims.emissions_skimmer.displaySkimStats()
     }
 
     if (beamServices.beamConfig.beam.output.writePlansAndStopSimulation) {
@@ -185,7 +188,8 @@ class BeamMobsim @Inject() (
           rideHailSurgePricingManager,
           rideHailIterationHistory,
           routeHistory,
-          rideHailFleetInitializerProvider
+          rideHailFleetInitializerProvider,
+          beamConfigHolder
         )
       ),
       "BeamMobsim.iteration"
@@ -367,7 +371,8 @@ class BeamMobsimIteration(
   val rideHailSurgePricingManager: RideHailSurgePricingManager,
   val rideHailIterationHistory: RideHailIterationHistory,
   val routeHistory: RouteHistory,
-  val rideHailFleetInitializerProvider: RideHailFleetInitializerProvider
+  val rideHailFleetInitializerProvider: RideHailFleetInitializerProvider,
+  beamConfigHolder: BeamConfigHolder
 ) extends LoggingMessageActor
     with ActorLogging
     with MetricsSupport {
@@ -560,13 +565,28 @@ class BeamMobsimIteration(
       chargingNetworkManager,
       sharedVehicleFleets,
       matsimServices.getEvents,
-      routeHistory
+      routeHistory,
+      beamConfigHolder
     ),
     "population"
   )
 
   context.watch(population)
   scheduler ! ScheduleTrigger(InitializeTrigger(0), population)
+
+  private val goodsDeliveryManager = context.actorOf(
+    GoodsDeliveryManager.props(
+      beamScenario,
+      beamServices,
+      scheduler,
+      rideHailManager,
+      matsimServices.getEvents
+    ),
+    "goods-delivery"
+  )
+
+  context.watch(goodsDeliveryManager)
+  scheduler ! ScheduleTrigger(InitializeTrigger(0), goodsDeliveryManager)
 
   //to monitor with TAZSkimmer add actor hereinafter
   private val tazSkimmer = context.actorOf(
@@ -603,6 +623,7 @@ class BeamMobsimIteration(
       stopMeasuring("agentsim-events:agentsim")
 
       population ! Finish
+      goodsDeliveryManager ! Finish
       rideHailManager ! Finish
       transitSystem ! Finish
       tazSkimmer ! Finish

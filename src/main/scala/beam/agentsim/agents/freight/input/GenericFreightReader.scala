@@ -1,7 +1,7 @@
 package beam.agentsim.agents.freight.input
 
 import beam.agentsim.agents.freight._
-import beam.agentsim.agents.freight.input.FreightReader.FREIGHT_ID_PREFIX
+import beam.agentsim.agents.freight.input.FreightReader.{FREIGHT_ID_PREFIX, NO_CARRIER_ID, NO_VEHICLE_ID}
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
@@ -99,6 +99,16 @@ class GenericFreightReader(
 
   @Override
   def readPayloadPlans(): Map[Id[PayloadPlan], PayloadPlan] = {
+    /*
+      a- PayloadType represents the commodity type: 1: bulk, 2: fuel_fert, 3: interm_food, 4: mfr_goods, 5: others
+      b- RequestType represent delivery type: 1: delivery only (private truck); 3 pickup-delivery (for-hire truck)
+      c- Weighlnlb: + means loading while – means unloading
+      d- cummulativeWeightInlb: total loaded weight in truck from the stop i to i+1
+      e- true_location: original zones before assigning external zones to a zone along the border of study area.
+      f- BuyerNAICS/SellerNAIC: This is based on the customers, so “NA” means that it is a depot (no info)
+      g- Truck mode: This is based on the customers, so “NA” means that it is a depot (no info)
+     */
+    // TODO: Incorporate all changes
     val errors: ListBuffer[ErrorInfo] = ListBuffer()
 
     val maybePlans = GenericCsvReader
@@ -213,6 +223,7 @@ class GenericFreightReader(
       warehouseLocationUTM: Coord
     ): IndexedSeq[BeamVehicle] = {
       val vehicles: IndexedSeq[BeamVehicle] = carrierRows
+        .filterNot(_.vehicleId == NO_VEHICLE_ID)
         .groupBy(_.vehicleId)
         .map { case (vehicleId, rows) =>
           val firstRow = rows.head
@@ -235,8 +246,10 @@ class GenericFreightReader(
     def createCarrier(carrierId: Id[FreightCarrier], carrierRows: IndexedSeq[FreightCarrierRow]) = {
       val warehouseLocationUTM: Coord = carrierRows.head.warehouseLocationUTM
       val warehouseLocationZone: Option[Id[TAZ]] = carrierRows.head.warehouseLocationZone
-      val vehicles: scala.IndexedSeq[BeamVehicle] = createCarrierVehicles(carrierId, carrierRows, warehouseLocationUTM)
-      val vehicleMap: Map[Id[BeamVehicle], BeamVehicle] = vehicles.map(vehicle => vehicle.id -> vehicle).toMap
+      val vehicleMap: Map[Id[BeamVehicle], BeamVehicle] = {
+        val vehicles: IndexedSeq[BeamVehicle] = createCarrierVehicles(carrierId, carrierRows, warehouseLocationUTM)
+        vehicles.map(vehicle => vehicle.id -> vehicle).toMap
+      }
 
       val tourMap: Map[Id[BeamVehicle], IndexedSeq[FreightTour]] = carrierRows
         .groupBy(_.vehicleId)
@@ -271,11 +284,20 @@ class GenericFreightReader(
 
     val maybeCarrierRows = GenericCsvReader.readAsSeq[Option[FreightCarrierRow]](config.carriersFilePath) { row =>
       def get(key: String): String = getRowValue(config.carriersFilePath, row, key)
+
       //carrierId,tourId,vehicleId,vehicleTypeId,warehouseZone,warehouseX,warehouseY
-      val carrierId: Id[FreightCarrier] = s"${FREIGHT_ID_PREFIX}Carrier-${get("carrierId")}".createId
+      val vehicleIdStr = get("vehicleId")
+      val isGoodsCarrier = vehicleIdStr == null || vehicleIdStr.isBlank
+      val carrierIdStr = get("carrierId")
+      val carrierId: Id[FreightCarrier] =
+        if (isGoodsCarrier)
+          if (carrierIdStr == null || carrierIdStr.isBlank) NO_CARRIER_ID
+          else carrierIdStr.createId
+        else s"${FREIGHT_ID_PREFIX}Carrier-$carrierIdStr".createId[FreightCarrier]
       val tourId: Id[FreightTour] = get("tourId").createId
-      val vehicleId: Id[BeamVehicle] = Id.createVehicleId(s"${FREIGHT_ID_PREFIX}Vehicle-${get("vehicleId")}")
-      val vehicleTypeId: Id[BeamVehicleType] = get("vehicleTypeId").createId
+      val vehicleId: Id[BeamVehicle] =
+        if (isGoodsCarrier) NO_VEHICLE_ID else Id.createVehicleId(s"${FREIGHT_ID_PREFIX}Vehicle-$vehicleIdStr")
+      val vehicleTypeId: Id[BeamVehicleType] = if (isGoodsCarrier) "no-type".createId else get("vehicleTypeId").createId
       if (!existingAllTours.contains(tourId)) {
         logger.error(f"Following freight carrier row discarded because tour $tourId was filtered out: $row")
         None

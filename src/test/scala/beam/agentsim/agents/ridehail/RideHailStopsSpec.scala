@@ -32,7 +32,7 @@ class RideHailStopsSpec extends AnyWordSpecLike with Matchers with BeamHelper {
               beam.agentsim.agents.rideHail.stopFilePath="./test/test-resources/beam/input/ridehail-stops.csv"
               beam.agentsim.lastIteration = 0
               beam.agentsim.agents.rideHail.maximumWalkDistanceToStopInM=1600
-              beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_intercept = 10
+              beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_intercept = 100
               beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_transit_intercept = -100
               beam.physsim.skipPhysSim = true
               beam.debug.stuckAgentDetection.enabled = false

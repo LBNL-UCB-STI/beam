@@ -91,7 +91,6 @@ def agg_npmrds_to_hourly_speed(npmrds_data, observed_speed_weight):
 
 
 def process_and_extend_link_stats(model_network, link_stats, assume_daylight_savings):
-
     dfs = []
     for link_stat in link_stats:
         df = pv.read_csv(link_stat.file_path).to_pandas()
@@ -199,7 +198,8 @@ def process_regional_npmrds_station(region_boundary, npmrds_geo_file, npmrds_sce
     print(">> Select TMC within region boundaries")
     regional_npmrds_station_out = gpd.overlay(npmrds_station_proj, region_boundary, how='intersection')
     regional_npmrds_station_out['scenario'] = npmrds_scenario_label
-    regional_npmrds_station_out.loc[:, 'road_class'] = regional_npmrds_station_out.loc[:, 'F_System'].map(fsystem_to_roadclass_lookup)
+    regional_npmrds_station_out.loc[:, 'road_class'] = regional_npmrds_station_out.loc[:, 'F_System'].map(
+        fsystem_to_roadclass_lookup)
     regional_npmrds_station_out.rename(columns={'Tmc': 'tmc'}, inplace=True)
     return regional_npmrds_station_out
 
@@ -338,7 +338,8 @@ def collect_taz_boundaries(state_fips_code, year, output_dir):
         return gdf
 
 
-def collect_geographic_boundaries(state_fips_code, county_fips_codes, year, study_area_geo_path, projected_coordinate_system, geo_level):
+def collect_geographic_boundaries(state_fips_code, county_fips_codes, year, study_area_geo_path,
+                                  projected_coordinate_system, geo_level):
     from pygris import counties, block_groups
 
     if geo_level == 'county':
@@ -375,11 +376,11 @@ def collect_geographic_boundaries(state_fips_code, county_fips_codes, year, stud
 
     base_name, extension = os.path.splitext(study_area_geo_path)
 
-    study_area_geo_projected_path = base_name+"_epsg"+str(projected_coordinate_system)+extension
+    study_area_geo_projected_path = base_name + "_epsg" + str(projected_coordinate_system) + extension
     selected_geo.to_crs(epsg=projected_coordinate_system).to_file(study_area_geo_projected_path, driver="GeoJSON")
 
     selected_geo_wgs84 = selected_geo.to_crs(epsg=4326)
-    selected_geo_wgs84.to_file(base_name+"_wgs84"+extension, driver="GeoJSON")
+    selected_geo_wgs84.to_file(base_name + "_wgs84" + extension, driver="GeoJSON")
     return selected_geo_wgs84
 
 
@@ -429,7 +430,6 @@ def prepare_npmrds_data(
         # output
         npmrds_station_geo, npmrds_data_csv, npmrds_hourly_speed_csv, npmrds_hourly_speed_by_road_class_csv,
         beam_network_car_links_geo, beam_npmrds_network_map_geo):
-
     if os.path.exists(npmrds_station_geo):
         print(f"Reading {npmrds_station_geo}")
         regional_npmrds_station = gpd.read_file(npmrds_station_geo)
@@ -443,7 +443,8 @@ def prepare_npmrds_data(
         regional_npmrds_data = pv.read_csv(npmrds_data_csv).to_pandas()
     else:
         print("Process NPMRDS data")
-        regional_npmrds_data = process_regional_npmrds_data(npmrds_raw_data_csv, npmrds_label, regional_npmrds_station['tmc'].unique())
+        regional_npmrds_data = process_regional_npmrds_data(npmrds_raw_data_csv, npmrds_label,
+                                                            regional_npmrds_station['tmc'].unique())
         regional_npmrds_data.to_csv(npmrds_data_csv, index=False)
 
     if os.path.exists(npmrds_hourly_speed_csv):
@@ -491,29 +492,33 @@ class LinkStats:
         self.demand_fraction = demand_fraction
         self.file_path = file_path
 
+    def __repr__(self):
+        return f"LinkStats(scenario='{self.scenario}', demand_fraction='{self.demand_fraction}', file_path='{self.file_path}')"
+
 
 class SpeedValidationSetup:
-    def __init__(self, link_stats, npmrds_hourly_speed_csv, npmrds_hourly_speed_by_road_class_csv,
-                 beam_network_mapped_to_npmrds_geo, assume_daylight_saving):
+    def __init__(self, npmrds_hourly_speed_csv, npmrds_hourly_speed_by_road_class_csv,
+                 beam_network_mapped_to_npmrds_geo):
         st = time.time()
         print("Loading data ...")
         self.npmrds_hourly_speed = pv.read_csv(npmrds_hourly_speed_csv).to_pandas()
         self.beam_npmrds_network_map = gpd.read_file(beam_network_mapped_to_npmrds_geo)
         self.npmrds_hourly_speed_by_road_class = pv.read_csv(npmrds_hourly_speed_by_road_class_csv).to_pandas()
-        self.link_stats_tmc_dfs = process_and_extend_link_stats(self.beam_npmrds_network_map, link_stats,
-                                                                assume_daylight_saving)
         base_name, extension = os.path.splitext(beam_network_mapped_to_npmrds_geo)
         self.generate_link_speed_params(base_name)
         print(f"Execution time of prepare_npmrds_and_beam_data: {(time.time() - st) / 60.0:.2f} minutes")
 
-    def get_hourly_average_speed(self):
+    def process_these_link_stats(self, link_stats, assume_daylight_saving):
+        return process_and_extend_link_stats(self.beam_npmrds_network_map, link_stats, assume_daylight_saving)
+
+    def get_hourly_average_speed(self, link_stats_tmc_dfs):
         st = time.time()
 
         # Initialize a list to collect DataFrames
         data_frames = []
 
         # Process each link_stats DataFrame
-        for link_stats in self.link_stats_tmc_dfs:
+        for link_stats in link_stats_tmc_dfs:
             hourly_speed = run_hourly_speed_mapping(self.npmrds_hourly_speed, link_stats)
             data_frames.append(hourly_speed.reset_index(drop=True))
 
@@ -523,14 +528,14 @@ class SpeedValidationSetup:
         print(f"Execution time of get_hourly_average_speed: {(time.time() - st) / 60.0:.2f} minutes")
         return combined_data
 
-    def get_hourly_average_speed_by_road_class(self):
+    def get_hourly_average_speed_by_road_class(self, link_stats_tmc_dfs):
         st = time.time()
 
         # Initialize a list to collect DataFrames
         data_frames = [self.npmrds_hourly_speed_by_road_class]
 
         # Loop through Link stats DataFrames to calculate metrics and collect them
-        for link_stats_tmc in self.link_stats_tmc_dfs:
+        for link_stats_tmc in link_stats_tmc_dfs:
             hourly_link_speed_by_road_class = link_stats_tmc.groupby(
                 ['hour', 'road_class', 'scenario']).apply(calculate_metrics).reset_index()
             data_frames.append(hourly_link_speed_by_road_class)
@@ -540,7 +545,7 @@ class SpeedValidationSetup:
         print(f"Execution time of get_hourly_average_speed_by_road_class: {(time.time() - st) / 60.0:.2f} minutes")
         return combined_data_by_road_class
 
-    def get_hourly_link_speed(self):
+    def get_hourly_link_speed(self, link_stats_tmc_dfs):
         # Start timing
         st = time.time()
 
@@ -548,7 +553,7 @@ class SpeedValidationSetup:
         data_frames = [self.npmrds_hourly_speed]
 
         # Loop through each TMC DataFrame to calculate metrics and collect them
-        for link_stats_tmc in self.link_stats_tmc_dfs:
+        for link_stats_tmc in link_stats_tmc_dfs:
             hourly_link_speed = link_stats_tmc.groupby(
                 ['tmc', 'hour', 'scenario'], as_index=False).apply(calculate_metrics)
             data_frames.append(hourly_link_speed)
@@ -558,7 +563,7 @@ class SpeedValidationSetup:
         print(f"Execution time of get_hourly_link_speed: {(time.time() - st) / 60.0:.2f} minutes")
         return combined_data
 
-    def get_hourly_link_speed_by_road_class(self):
+    def get_hourly_link_speed_by_road_class(self, link_stats_tmc_dfs):
         # Start timing
         st = time.time()
 
@@ -566,7 +571,7 @@ class SpeedValidationSetup:
         data_frames = [self.npmrds_hourly_speed_by_road_class]
 
         # Loop through TMC DataFrames to calculate metrics and collect them
-        for link_stats_tmc in self.link_stats_tmc_dfs:
+        for link_stats_tmc in link_stats_tmc_dfs:
             hourly_link_speed_by_road_class = link_stats_tmc.groupby(
                 ['tmc', 'hour', 'road_class', 'scenario']).apply(calculate_metrics).reset_index()
             data_frames.append(hourly_link_speed_by_road_class)
@@ -611,7 +616,7 @@ class SpeedValidationSetup:
             npmrds_speed=('speed', lambda x: x.mean(skipna=True) / mps_to_mph)).reset_index()
         merged_df = pd.merge(beam_npmrds_network_map, mean_speed_by_tmc, on='tmc', how='left').dropna(
             subset=['npmrds_speed'])
-        merged_df['free_speed'] = merged_df[['linkFreeSpeed', 'npmrds_speed']].min(axis=1)
+        merged_df['free_speed'] = round(merged_df[['linkFreeSpeed', 'npmrds_speed']].min(axis=1), 2)
 
         # Create a DataFrame with the required columns
         speed_param = merged_df[['link', 'road_class', 'free_speed']].dropna(subset=['free_speed'])
@@ -629,22 +634,23 @@ class SpeedValidationSetup:
         # Save to CSV with all desired columns
         def save_filtered_data(df, filename):
             filtered_data = df[~df['free_speed'].isna() & (df['free_speed'] != '')]
-            filtered_data[output_columns].to_csv(f"{base_path_name}_link-param-for-{filename}.csv", index=False)
+            filtered_data[output_columns].to_csv(f"{base_path_name}_link_param_for_{filename}.csv", index=False)
 
         # Save all links
-        save_filtered_data(speed_param, "all-roads")
+        save_filtered_data(speed_param, "all_roads")
 
         # Filtering and selecting not local roads
-        save_filtered_data(speed_param[speed_param['road_class'] != "Local"], "non-local-roads")
+        save_filtered_data(speed_param[speed_param['road_class'] != "Local"], "non_local_roads")
 
         # Filtering and selecting major roads
         major_roads_classes = ["Freeways and Expressways", "Interstate", "Principal Arterial", "Minor Arterial"]
-        save_filtered_data(speed_param[speed_param['road_class'].isin(major_roads_classes)], "major-roads")
+        save_filtered_data(speed_param[speed_param['road_class'].isin(major_roads_classes)], "major_roads")
 
         # Filtering and selecting freeway only
         freeway_classes = ["Freeways and Expressways", "Interstate"]
-        save_filtered_data(speed_param[speed_param['road_class'].isin(freeway_classes)], "freeway-roads")
+        save_filtered_data(speed_param[speed_param['road_class'].isin(freeway_classes)], "freeway_roads")
 
-
-
-
+        # Find the minimum free_speed
+        min_free_speed = speed_param['free_speed'].min()
+        speed_param['free_speed'] = min_free_speed
+        save_filtered_data(speed_param, "min_speed_all_roads")

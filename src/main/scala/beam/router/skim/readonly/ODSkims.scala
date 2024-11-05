@@ -1,6 +1,7 @@
 package beam.router.skim.readonly
 
 import beam.agentsim.agents.choice.mode.DrivingCost
+import beam.agentsim.agents.planning.Tour
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter
@@ -17,12 +18,14 @@ import beam.router.Modes.BeamMode.{
   TRANSIT,
   WALK_TRANSIT
 }
+import beam.router.model.EmbodiedBeamTrip
 import beam.router.skim.SkimsUtils
 import beam.router.skim.SkimsUtils.{distanceAndTime, getRideHailCost, timeToBin}
 import beam.router.skim.core.AbstractSkimmerReadOnly
-import beam.router.skim.core.ODSkimmer.{ExcerptData, ODSkimmerInternal, ODSkimmerKey, Skim}
+import beam.router.skim.core.ODSkimmer.{ExcerptData, ODSkimmerInternal, ODSkimmerKey, ODSkimmerTimeCostTransfer, Skim}
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamHelper, BeamScenario, BeamServices}
+import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.immutable
@@ -100,6 +103,62 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
     val costFactor = if (solo.cost > 0.0) { pooled.cost / solo.cost }
     else { 1.0 }
     (timeFactor, costFactor)
+  }
+
+  def getTourModeCosts(
+    modes: Seq[BeamMode],
+    tour: Tour,
+    vehicleTypeId: Id[BeamVehicleType],
+    vehicleType: BeamVehicleType,
+    fuelPrice: Double,
+    firstLegItineraries: Option[Vector[EmbodiedBeamTrip]] = None
+  ): Seq[Map[BeamMode, ODSkimmerTimeCostTransfer]] = {
+    tour.originActivity match {
+      case Some(_) =>
+        val startingPoint = if (firstLegItineraries.isDefined) { 1 }
+        else 0
+        val firstLegs = firstLegItineraries
+          .map(itins =>
+            modes
+              .flatMap(mode => itins.find(_.tripClassifier == mode).map(x => mode -> ODSkimmerTimeCostTransfer(x)))
+              .toMap
+          )
+          .toSeq
+        val remainingLegs = if (tour.activities.size > 2) {
+          tour.activities
+            .drop(startingPoint)
+            .sliding(2)
+            .map { case Seq(activity1, activity2) =>
+              getSkimInfo(activity1, activity2, modes, vehicleTypeId, vehicleType, fuelPrice)
+            }
+            .toSeq
+        } else { Seq.empty }
+        firstLegs ++ remainingLegs
+
+      case _ => Seq[Map[BeamMode, ODSkimmerTimeCostTransfer]]()
+    }
+  }
+
+  def getSkimInfo(
+    activity1: Activity,
+    activity2: Activity,
+    modes: Iterable[BeamMode],
+    vehicleTypeId: Id[BeamVehicleType],
+    vehicleType: BeamVehicleType,
+    fuelPrice: Double
+  ): Map[BeamMode, ODSkimmerTimeCostTransfer] = {
+    modes.map { mode =>
+      val skim = getTimeDistanceAndCost(
+        activity1.getCoord,
+        activity2.getCoord,
+        activity1.getEndTime.seconds().toInt,
+        mode,
+        vehicleTypeId,
+        vehicleType,
+        fuelPrice
+      )
+      mode -> ODSkimmerTimeCostTransfer(skim.generalizedTime / 3600.0, skim.cost, 0, 0)
+    }.toMap
   }
 
   def getTimeDistanceAndCost(

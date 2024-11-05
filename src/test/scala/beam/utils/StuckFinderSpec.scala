@@ -4,6 +4,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestActors, TestKit}
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.BoardVehicleTrigger
+import beam.agentsim.agents.vehicles.PersonIdWithActorRef
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduledTrigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection
@@ -50,7 +51,14 @@ class StuckFinderSpec
   val st: ScheduledTrigger = ScheduledTrigger(TriggerWithId(InitializeTrigger(1), 1L), devNull, 1)
 
   val boardVehicleTrigger: ScheduledTrigger =
-    ScheduledTrigger(TriggerWithId(BoardVehicleTrigger(1, Id.createVehicleId(1)), 1L), devNull, 1)
+    ScheduledTrigger(
+      TriggerWithId(
+        BoardVehicleTrigger(1, Id.createVehicleId(1), PersonIdWithActorRef(Id.createPersonId(1), devNull)),
+        1L
+      ),
+      devNull,
+      1
+    )
 
   "A StuckFinder" should {
     "return true" when {

@@ -1,17 +1,17 @@
 package beam.integration
 
-import java.io.File
-import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ParkingEvent, PathTraversalEvent}
+import beam.agentsim.events._
 import beam.sim.BeamHelper
 import beam.utils.EventReader
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.apache.commons.io.FileUtils
 import org.matsim.api.core.v01.events.Event
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.tagobjects.Retryable
+import org.scalatest.wordspec.AnyWordSpecLike
 
+import java.io.File
 import scala.collection.mutable.ArrayBuffer
 
 class ParkingSpec
@@ -30,6 +30,7 @@ class ParkingSpec
     val param = ConfigFactory.parseString(
       """
         |{
+        |beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt = true
         | matsim.modules.strategy.parameterset = [
         |   {type = strategysettings, disableAfterIteration = -1, strategyName = ClearRoutes , weight = 0.7},
         |   {type = strategysettings, disableAfterIteration = -1, strategyName = ClearModes , weight = 0.0}
@@ -216,7 +217,7 @@ class ParkingSpec
     }
 
     "very expensive parking should reduce driving" taggedAs Retryable in {
-      val expensiveEvents = runAndCollectForIterations("very-expensive", 5)
+      val expensiveEvents = runAndCollectForIterations("very-expensive", 10)
 
       val expensiveModeChoiceCarCount = expensiveEvents.map(countForPathTraversalAndCarMode)
       val defaultModeChoiceCarCount = defaultEvents.map(countForPathTraversalAndCarMode)
@@ -230,7 +231,7 @@ class ParkingSpec
     }
 
     "no parking stalls should reduce driving" taggedAs Retryable in {
-      val emptyEvents = runAndCollectForIterations("empty", 5)
+      val emptyEvents = runAndCollectForIterations("empty", 10)
 
       val emptyModeChoiceCarCount = emptyEvents.map(countForPathTraversalAndCarMode)
       val defaultModeChoiceCarCount = defaultEvents.map(countForPathTraversalAndCarMode)
