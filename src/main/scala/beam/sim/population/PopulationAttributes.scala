@@ -93,7 +93,8 @@ case class AttributesOfIndividual(
   ): Double = {
     //NOTE: This gives answers in hours
     embodiedBeamLeg.beamLeg.mode match {
-      case CAR => // NOTE: Ride hail legs are classified as CAR mode. For now we only need to loop through links here
+      case CAR
+          if embodiedBeamLeg.beamLeg.travelPath.linkIds.nonEmpty => // NOTE: Ride hail legs are classified as CAR mode. For now we only need to loop through links here
         val idsAndTravelTimes =
           embodiedBeamLeg.beamLeg.travelPath.linkIds.tail // ignore the first link because activities are located along links
             .zip(embodiedBeamLeg.beamLeg.travelPath.linkTravelTime.tail.map(time => math.round(time.toFloat)))

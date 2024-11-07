@@ -159,7 +159,10 @@ class BeamPlan extends Plan {
 //  }
 
   private def getTourModeFromMatsimLeg(leg: Leg): Option[BeamTourMode] = {
-    Option(leg.getAttributes.getAttribute("tour_mode")).flatMap(x => BeamTourMode.fromString(x.toString))
+    Option(leg.getAttributes.getAttribute("PayloadWeightInKg")) match {
+      case Some(_) => Some(BeamTourMode.FREIGHT_TOUR)
+      case _       => Option(leg.getAttributes.getAttribute("tour_mode")).flatMap(x => BeamTourMode.fromString(x.toString))
+    }
   }
 
   private def getTourVehicleFromMatsimLeg(leg: Leg): Option[Id[BeamVehicle]] = {
