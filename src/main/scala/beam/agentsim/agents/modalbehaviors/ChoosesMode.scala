@@ -1244,7 +1244,10 @@ trait ChoosesMode {
         .flatMap(v => beamVehicles.get(v))
         .filterNot(_.vehicle.isSharedVehicle)
         .toVector
-        .distinct
+        .groupBy(_.id)
+        .values
+        .map(_.head)
+        .toVector
 
       val availableEmergencyVehicles =
         beamVehicles.filterKeys(k => k.toString.startsWith(f"${this.id.toString}-emergency")).values.toVector
@@ -1406,9 +1409,13 @@ trait ChoosesMode {
                 gotoFinishingModeChoice(bushwhackingTrip)
               }
             case Some(CAR) if choosesModeData.personData.currentTourMode.contains(FREIGHT_TOUR) =>
-              logger.error("COULD NOT CREATE A FREIGHT ROUTE")
-              val expensiveWalkTrip = createExpensiveWalkTrip(currentPersonLocation, nextAct, routingResponse)
-              gotoFinishingModeChoice(expensiveWalkTrip)
+              logger.error(
+                f"Routing request for freight agent ${this.id} failed. Creating a bushwhacking CAR trip from " +
+                f"$currentPersonLocation to ${nextAct.getCoord}"
+              )
+              val expensiveFreightTrip =
+                createExpensiveFreightTrip(currentPersonLocation, nextAct, allAvailableStreetVehicles, routingResponse)
+              gotoFinishingModeChoice(expensiveFreightTrip)
             case Some(CAR)
                 if newAndTourVehicles.isEmpty &&
                   beamScenario.beamConfig.beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt =>
@@ -1463,6 +1470,62 @@ trait ChoosesMode {
               gotoFinishingModeChoice(expensiveWalkTrip)
           }
       }
+  }
+
+  private def createExpensiveFreightTrip(
+    currentPersonLocation: SpaceTime,
+    nextAct: Activity,
+    availableStreetVehicles: Vector[VehicleOrToken],
+    routingResponse: RoutingResponse
+  ) = {
+    availableStreetVehicles.find(_.streetVehicle.mode == CAR) match {
+      case Some(availableFreightVehicle) =>
+        val bushwhackingLeg = RoutingWorker
+          .createBushwackingTrip(
+            currentPersonLocation.loc,
+            nextAct.getCoord,
+            _currentTick.get,
+            availableFreightVehicle.streetVehicle,
+            beamServices.geo,
+            mode = CAR,
+            unbecomeDriverOnCompletion = false
+          )
+          .legs
+          .head
+        EmbodiedBeamTrip(
+          Vector(
+            EmbodiedBeamLeg.dummyLegAt(
+              _currentTick.get,
+              body.id,
+              isLastLeg = false,
+              beamServices.geo.utm2Wgs(currentPersonLocation.loc),
+              WALK,
+              body.beamVehicleType.id
+            )
+          ) :+ bushwhackingLeg :+
+          EmbodiedBeamLeg.dummyLegAt(
+            _currentTick.get + bushwhackingLeg.beamLeg.duration,
+            availableFreightVehicle.id,
+            isLastLeg = true,
+            beamServices.geo.utm2Wgs(nextAct.getCoord),
+            CAR,
+            availableFreightVehicle.vehicle.beamVehicleType.id
+          ) :+ EmbodiedBeamLeg.dummyLegAt(
+            _currentTick.get + bushwhackingLeg.beamLeg.duration,
+            body.id,
+            isLastLeg = true,
+            beamServices.geo.utm2Wgs(nextAct.getCoord),
+            WALK,
+            body.beamVehicleType.id
+          )
+        )
+      case _ =>
+        logger.warn(
+          f"Failed to create bushwhacking freight trip for agent ${routingResponse.request.flatMap(_.personId)} " +
+          "because no freight vehicle are available"
+        )
+        createExpensiveWalkTrip(currentPersonLocation, nextAct, routingResponse)
+    }
   }
 
   private def createExpensiveWalkTrip(

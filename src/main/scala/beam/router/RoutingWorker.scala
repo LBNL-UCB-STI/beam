@@ -530,7 +530,8 @@ object RoutingWorker {
     atTime: Int,
     vehicle: StreetVehicle,
     geo: GeoUtils,
-    mode: BeamMode = WALK
+    mode: BeamMode = WALK,
+    unbecomeDriverOnCompletion: Boolean = true
   ): EmbodiedBeamTrip = {
     EmbodiedBeamTrip(
       Vector(
@@ -540,7 +541,7 @@ object RoutingWorker {
           vehicle.vehicleTypeId,
           asDriver = true,
           0,
-          unbecomeDriverOnCompletion = true
+          unbecomeDriverOnCompletion = unbecomeDriverOnCompletion
         )
       ),
       Some("Bushwhacking")
