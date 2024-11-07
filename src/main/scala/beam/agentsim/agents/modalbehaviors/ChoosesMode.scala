@@ -1326,6 +1326,18 @@ trait ChoosesMode {
         .getStrategy[TripModeChoiceStrategy](_experiencedBeamPlan.getTripContaining(nextAct))
         .mode
 
+      choosesModeData.personData.currentTourMode match {
+        case Some(FREIGHT_TOUR) =>
+          if (itinerariesOfCorrectMode.exists(_.tripClassifier == CAR)) {
+            logger.info("THIS IS GOOD")
+          } else if (itinerariesOfCorrectMode.exists(_.tripClassifier == WALK)) {
+            logger.info("THIS IS BAD FOR ONE REASON")
+          } else {
+            logger.info("THIS IS BAD FOR ANOTHER")
+          }
+        case _ =>
+      }
+
       modeChoiceCalculator(
         itinerariesOfCorrectMode,
         attributesOfIndividual,
@@ -1405,6 +1417,10 @@ trait ChoosesMode {
                 )
                 gotoFinishingModeChoice(bushwhackingTrip)
               }
+            case Some(CAR) if choosesModeData.personData.currentTourMode.contains(FREIGHT_TOUR) =>
+              logger.error("COULD NOT CREATE A FREIGHT ROUTE")
+              val expensiveWalkTrip = createExpensiveWalkTrip(currentPersonLocation, nextAct, routingResponse)
+              gotoFinishingModeChoice(expensiveWalkTrip)
             case Some(CAR)
                 if newAndTourVehicles.isEmpty &&
                   beamScenario.beamConfig.beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt =>
