@@ -1326,18 +1326,6 @@ trait ChoosesMode {
         .getStrategy[TripModeChoiceStrategy](_experiencedBeamPlan.getTripContaining(nextAct))
         .mode
 
-      choosesModeData.personData.currentTourMode match {
-        case Some(FREIGHT_TOUR) =>
-          if (itinerariesOfCorrectMode.exists(_.tripClassifier == CAR)) {
-            logger.info("THIS IS GOOD")
-          } else if (itinerariesOfCorrectMode.exists(_.tripClassifier == WALK)) {
-            logger.info("THIS IS BAD FOR ONE REASON")
-          } else {
-            logger.info("THIS IS BAD FOR ANOTHER")
-          }
-        case _ =>
-      }
-
       modeChoiceCalculator(
         itinerariesOfCorrectMode,
         attributesOfIndividual,
