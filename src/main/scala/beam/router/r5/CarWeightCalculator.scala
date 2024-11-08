@@ -11,7 +11,7 @@ class CarWeightCalculator(workerParams: R5Parameters, travelTimeNoiseFraction: D
   private val networkHelper = workerParams.networkHelper
   private val transportNetwork = workerParams.transportNetwork
 
-  val maxFreeSpeed: Double = networkHelper.allLinks.map(_.getFreespeed).max
+  val maxFreeSpeed: Double = networkHelper.allLinks.map(_.getFreespeed).max / 0.621371 // Convert kph to mph
   private val minSpeed = workerParams.beamConfig.beam.physsim.minCarSpeedInMetersPerSecond
 
   private val noiseIdx: AtomicInteger = new AtomicInteger(0)

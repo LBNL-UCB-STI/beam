@@ -1408,13 +1408,35 @@ trait ChoosesMode {
                 )
                 gotoFinishingModeChoice(bushwhackingTrip)
               }
+            case Some(mode @ (HOV2_TELEPORTATION | HOV3_TELEPORTATION)) =>
+              logger.warn(
+                f"Routing request for teleportation person ${this.id} failed. Creating a bushwhacking trip from " +
+                f"$currentPersonLocation to ${nextAct.getCoord}"
+              )
+              val teleportationTripWithoutRoute = createExpensiveVehicleTrip(
+                currentPersonLocation,
+                nextAct,
+                allAvailableStreetVehicles,
+                routingResponse,
+                mode match {
+                  case HOV2_TELEPORTATION => CAR_HOV2
+                  case _                  => CAR_HOV3
+                }
+              )
+              gotoFinishingModeChoice(teleportationTripWithoutRoute)
             case Some(CAR) if choosesModeData.personData.currentTourMode.contains(FREIGHT_TOUR) =>
               logger.error(
                 f"Routing request for freight agent ${this.id} failed. Creating a bushwhacking CAR trip from " +
                 f"$currentPersonLocation to ${nextAct.getCoord}"
               )
               val expensiveFreightTrip =
-                createExpensiveFreightTrip(currentPersonLocation, nextAct, allAvailableStreetVehicles, routingResponse)
+                createExpensiveVehicleTrip(
+                  currentPersonLocation,
+                  nextAct,
+                  allAvailableStreetVehicles,
+                  routingResponse,
+                  CAR
+                )
               gotoFinishingModeChoice(expensiveFreightTrip)
             case Some(CAR)
                 if newAndTourVehicles.isEmpty &&
@@ -1472,22 +1494,23 @@ trait ChoosesMode {
       }
   }
 
-  private def createExpensiveFreightTrip(
+  private def createExpensiveVehicleTrip(
     currentPersonLocation: SpaceTime,
     nextAct: Activity,
     availableStreetVehicles: Vector[VehicleOrToken],
-    routingResponse: RoutingResponse
+    routingResponse: RoutingResponse,
+    mode: BeamMode
   ) = {
     availableStreetVehicles.find(_.streetVehicle.mode == CAR) match {
-      case Some(availableFreightVehicle) =>
+      case Some(availableVehicle) =>
         val bushwhackingLeg = RoutingWorker
           .createBushwackingTrip(
             currentPersonLocation.loc,
             nextAct.getCoord,
             _currentTick.get,
-            availableFreightVehicle.streetVehicle,
+            availableVehicle.streetVehicle,
             beamServices.geo,
-            mode = CAR,
+            mode = mode,
             unbecomeDriverOnCompletion = false
           )
           .legs
@@ -1505,11 +1528,11 @@ trait ChoosesMode {
           ) :+ bushwhackingLeg :+
           EmbodiedBeamLeg.dummyLegAt(
             _currentTick.get + bushwhackingLeg.beamLeg.duration,
-            availableFreightVehicle.id,
+            availableVehicle.id,
             isLastLeg = true,
             beamServices.geo.utm2Wgs(nextAct.getCoord),
-            CAR,
-            availableFreightVehicle.vehicle.beamVehicleType.id
+            mode,
+            availableVehicle.vehicle.beamVehicleType.id
           ) :+ EmbodiedBeamLeg.dummyLegAt(
             _currentTick.get + bushwhackingLeg.beamLeg.duration,
             body.id,
@@ -1521,8 +1544,8 @@ trait ChoosesMode {
         )
       case _ =>
         logger.warn(
-          f"Failed to create bushwhacking freight trip for agent ${routingResponse.request.flatMap(_.personId)} " +
-          "because no freight vehicle are available"
+          f"Failed to create bushwhacking vehicle trip for agent ${routingResponse.request.flatMap(_.personId)} " +
+          "because no  vehicle are available"
         )
         createExpensiveWalkTrip(currentPersonLocation, nextAct, routingResponse)
     }
