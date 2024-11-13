@@ -88,7 +88,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         input_file = sys.argv[1]
     else:
-        input_file = os.path.expanduser("~/Downloads/beamLog.out")
+        input_file = os.path.expanduser("~/Downloads/beamLog (2).out")
 
     # Create output filename by adding '_filtered' before the extension
     input_path = Path(input_file)
