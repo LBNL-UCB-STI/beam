@@ -7,40 +7,50 @@ from geopy import distance
 
 ## Main
 # city, batch, scenario, sample = "sfbay", "baseline", "2018", 0.1
-city, batch, scenario, sample = "sfbay", "2024-08-07", "2018_Baseline", 0.1
+# city, batch, scenario, sample = "sfbay", "2024-08-07", "2018_Baseline", 0.1
+city, batch, scenario, run, sample = "seattle", "2024-04-20", "2018_Baseline", "2018_Baseline_RPS", 0.1
+# city, batch, scenario, run, sample = "seattle", "2024-04-20", "2018_Baseline", "2018_Baseline", 0.1
 # city, batch, scenario, sample = "seattle", "2024-09-24", "2018_Baseline", 0.1
 # city, batch, scenario, sample = "seattle", "2024-04-20", "2018_Baseline", 0.3
 # work_dir = os.path.expanduser(f"/Volumes/HG40/Workspace/Simulation/{city}")
 work_dir = os.path.expanduser(f"~/Workspace/Simulation/{city}")
+run_directory = f'{work_dir}/beam-runs/{batch}/{run}/'
+scenario_directory = f'{work_dir}/beam-freight/{batch}/{scenario}/'
 events_filename = f"0.events.csv.gz"
 linkstats_filename = f"0.linkstats.csv.gz"
+scenario_label = scenario.replace("_", "-")
+run_label = run.replace("_", "-")
+batch_label = batch.replace("-", "")
 # pd.set_option('display.max_columns',10)
 scale_up_factor = 1 / sample
 
 
 def main():
-    setup_logging(f'{work_dir}/beam-runs/{batch}/{scenario}/freight_events_processing.log')
-    log_and_print(f"Run: {city}/{batch}/{scenario}/{sample}")
-    scenario_dir = os.path.join(work_dir, "beam-freight", batch, scenario)
+    setup_logging(f'{run_directory}/freight_events_processing_{run}.log')
 
-    linkstats_file = os.path.join(get_local_work_directory(scenario), linkstats_filename)
+    linkstats_file = os.path.join(run_directory, linkstats_filename)
     if os.path.exists(linkstats_file):
         linkstats_df = pd.read_csv(linkstats_file)
-        calc_vmt_from_linkstats(linkstats_df, scenario)
+        calc_vmt_from_linkstats(linkstats_df)
 
-    scenario_label = scenario.replace("_", "-")
-    batch_label = batch.replace("-", "")
-    carrier_df = pd.read_csv(os.path.join(scenario_dir, f"carriers--{scenario_label}.csv"))
-    tour_df = pd.read_csv(os.path.join(scenario_dir, f"tours--{scenario_label}.csv"))
-    payload_df = pd.read_csv(os.path.join(scenario_dir, f"payloads--{scenario_label}.csv"))
+    carrier_df = pd.read_csv(os.path.join(scenario_directory, f"carriers--{scenario_label}.csv"))
+    tour_df = pd.read_csv(os.path.join(scenario_directory, f"tours--{scenario_label}.csv"))
+    payload_df = pd.read_csv(os.path.join(scenario_directory, f"payloads--{scenario_label}.csv"))
     vehicle_types = pd.read_csv(
-        os.path.join(scenario_dir, "vehicle-tech", f"ft-vehicletypes--{batch_label}--{scenario_label}.csv"))
+        os.path.join(scenario_directory, "vehicle-tech", f"ft-vehicletypes--{batch_label}--{scenario_label}.csv"))
     vehicle_types_combined = merge_vehicle_types(vehicle_types, carrier_df, tour_df)
-    processed_event = process_events(scenario, vehicle_types_combined)
-    calc_vmt_from_events(processed_event, scenario)
+
+    # Process events and get the processed events dataframe
+    processed_events = process_events(vehicle_types_combined)
+
+    # Compare events with payloads and analyze missing tours
+    compare_events_and_payloads(processed_events, payload_df, scenario_directory, run, scenario_label)
+
+    # Calculate VMT from events
+    calc_vmt_from_events(processed_events)
 
     log_and_print(f"[FRISM] Total number of vehicles: {int(len(carrier_df['vehicleId'].unique()) * scale_up_factor)}")
-    trips_df = convert_payload_to_trips(payload_df, scenario)
+    trips_df = convert_payload_to_trips(payload_df)
     summary = trips_by_vehicle_class(trips_df, carrier_df, vehicle_types)
 
     log_and_print("END")
@@ -67,12 +77,12 @@ def merge_vehicle_types(vehicle_types: pd.DataFrame, carrier_df: pd.DataFrame, t
     return result2_df
 
 
-def process_events(scenario, vehicle_types_combined):
-    events_filepath = os.path.join(get_local_work_directory(scenario), events_filename)
-    processed_events_filepath = os.path.join(get_local_work_directory(scenario), f"updated.filtered.{events_filename}")
+def process_events(vehicle_types_combined):
+    events_filepath = os.path.join(run_directory, events_filename)
+    processed_events_filepath = os.path.join(run_directory, f"updated.filtered.{events_filename}")
 
     if not os.path.exists(processed_events_filepath):
-        events = read_events_file(events_filepath, scenario)
+        events = read_events_file(events_filepath, run)
         vehicle_types_combined['vehicleId'] = 'freightVehicle-' + vehicle_types_combined['vehicleId'].astype(
             str)
         processed_event_updated = pd.merge(
@@ -152,7 +162,7 @@ def read_events_file(full_filename, run_name):
     return processed_events
 
 
-def calc_vmt_from_linkstats(linkstats_df, scenario):
+def calc_vmt_from_linkstats(linkstats_df):
     freight_classes = ["Class2b3Vocational", "Class456Vocational", "Class78Vocational", "Class78Tractor"]
     required_columns = ['length', 'hour'] + [f'volume_{col}' for col in freight_classes]
     missing_columns = [col for col in required_columns if col not in linkstats_df.columns]
@@ -169,7 +179,7 @@ def calc_vmt_from_linkstats(linkstats_df, scenario):
     total_vmt = linkstats_df[
                     [f'vmt_{col}' for col in freight_classes]].sum().sum() * scale_up_factor / 1_000_000
     log_and_print(
-        f"[BEAM] Total VMT from LinkStats for scenario {batch}/{scenario}: {total_vmt:.2f} million miles")
+        f"[BEAM] Total VMT from LinkStats ({batch}/{run}): {total_vmt:.2f} million miles")
 
     vmt_by_hour = linkstats_df.groupby('hour')[
                       [f'vmt_{col}' for col in freight_classes]].sum() * scale_up_factor / 1_000_000
@@ -191,14 +201,14 @@ def calc_vmt_from_linkstats(linkstats_df, scenario):
 
     plt.tight_layout()
 
-    plot_filename = os.path.join(get_local_work_directory(scenario), f"vmt_by_hour_category_{scenario}.png")
+    plot_filename = os.path.join(run_directory, f"vmt_by_hour_category_{run}.png")
     plt.savefig(plot_filename, bbox_inches='tight')
     # log_and_print(f"Bar plot saved as {plot_filename}")
 
     return vmt_by_hour
 
 
-def calc_vmt_from_events(events, scenario):
+def calc_vmt_from_events(events):
     # Filter for PathTraversal events and freight vehicles
     pt = events[
         (events['type'] == 'PathTraversal') &
@@ -212,10 +222,6 @@ def calc_vmt_from_events(events, scenario):
         log_and_print(f"This is a bug. Number of emergency vehicles found: {len(emergency_vehicles)}", logging.ERROR)
         log_and_print(f"Sample of emergency vehicles: {emergency_vehicles['vehicle'].head()}", logging.ERROR)
 
-    # log_and_print(f"powertrains: {pt["primaryFuelType"].unique()}")
-    # log_and_print(f"vehicletypes: {pt["vehicleType"].unique()}")
-    # Calculate total VMT
-
     log_and_print(
         f"[BEAM] Total number of vehicles: {int(len(pt['vehicle'].unique()) * scale_up_factor)}")
     log_and_print(
@@ -224,14 +230,33 @@ def calc_vmt_from_events(events, scenario):
     log_and_print(
         f"[BEAM] Total VMT: {total_vmt_million_miles:.2f} million miles")
 
-    vmt_by_category = pt.groupby(['business', 'vehicleCategory'])[
-                          'length'].sum() * scale_up_factor / 1609.34 / 1_000_000
+    # Calculate VMT by business
+    vmt_by_business = pt.groupby('business')['length'].sum() * scale_up_factor / 1609.34 / 1_000_000
+    vmt_by_business = vmt_by_business.round(2)
+    business_table = pd.DataFrame({
+        'Business': vmt_by_business.index,
+        'VMT (Million Miles)': vmt_by_business.values
+    })
+    log_and_print("[BEAM] VMT by Business:" + business_table.to_string(index=False, float_format=lambda x: '%.2f' % x))
 
-    vmt_by_category = vmt_by_category.unstack(level='business')
+    # Calculate VMT by vehicle category
+    vmt_by_category = pt.groupby('vehicleCategory')['length'].sum() * scale_up_factor / 1609.34 / 1_000_000
+    vmt_by_category = vmt_by_category.round(2)
+    category_table = pd.DataFrame({
+        'Vehicle Category': vmt_by_category.index,
+        'VMT (Million Miles)': vmt_by_category.values
+    })
+    log_and_print(
+        "[BEAM] VMT by Vehicle Category:" + category_table.to_string(index=False, float_format=lambda x: '%.2f' % x))
+
+    # Create stacked bar plot
+    vmt_by_business_category = pt.groupby(['business', 'vehicleCategory'])[
+                                   'length'].sum() * scale_up_factor / 1609.34 / 1_000_000
+    vmt_by_business_category = vmt_by_business_category.unstack(level='business')
 
     # Create bar plot
-    ax = vmt_by_category.plot(kind='bar', figsize=(12, 6), width=0.8)
-    plt.title(f'VMT by Business and Vehicle Category for {scenario}')
+    ax = vmt_by_business_category.plot(kind='bar', figsize=(12, 6), width=0.8)
+    plt.title(f'VMT by Business and Vehicle Category: ({batch}/{run})')
     plt.xlabel('Vehicle Category')
     plt.ylabel('VMT (Million Miles)')
     plt.legend(title='Business')
@@ -242,15 +267,14 @@ def calc_vmt_from_events(events, scenario):
         ax.bar_label(container, fmt='%.2f', padding=3)
 
     plt.tight_layout()
-    png_output = os.path.join(get_local_work_directory(scenario), f"vmt_by_category_{scenario}.png")
+    png_output = os.path.join(run_directory, f"vmt_by_category_{run}.png")
     plt.savefig(png_output)
 
     return pt
 
 
-def convert_payload_to_trips(payload_df, scenario):
-    output_file_path = os.path.join(work_dir, 'beam-freight', batch, scenario,
-                                    f'trips--{scenario.replace("_", "-")}.csv')
+def convert_payload_to_trips(payload_df):
+    output_file_path = os.path.join(scenario_directory, f'trips--{scenario_label}.csv')
     # log_and_print(f"[FRISM] Total rows in payloads: {len(payload_df)}")
 
     # Count payloads per tour
@@ -379,9 +403,30 @@ def trips_by_vehicle_class(trips_df, carriers_df, vehicle_types_df):
     return summary
 
 
-def get_local_work_directory(scenario):
-    local_work_directory = f'{work_dir}/beam-runs/{batch}/{scenario}/'
-    return local_work_directory
+def compare_events_and_payloads(events_df, payload_df, scenario_directory, run, scenario_label):
+    """
+    Compare tours in events file with payload file and create a new payload file with missing tours.
+    """
+    # Extract unique tourIds from events and payloads
+    events_tour_ids = set(events_df[events_df['type'] == 'PathTraversal']['tourId'].unique())
+    payload_tour_ids = set(payload_df['tourId'].unique())
+
+    # Also check tours in payload but not in events
+    missing_from_events = payload_tour_ids - events_tour_ids
+
+    # Log summary statistics
+    log_and_print(f"\n[ANALYSIS] Tour comparison summary:")
+    log_and_print(f"Tours in events file: {len(events_tour_ids):,}")
+    log_and_print(f"Tours in payload file: {len(payload_tour_ids):,}")
+    log_and_print(f"Tours missing from events: {len(missing_from_events):,}")
+
+    if len(missing_from_events) > 0:
+        log_and_print(
+            f"\n[WARNING] Found {len(missing_from_events)} tours in payload file that are not in events file!")
+        payload_filtered_df = payload_df[payload_df['tourId'].isin(missing_from_events)].copy()
+        missing_events_file = os.path.join(run_directory, f"payloads--{run_label}--tours-missing-in-events.csv")
+        payload_filtered_df.to_csv(missing_events_file, index=False)
+        log_and_print(f"List of payloads which tours are missing from events saved to: {missing_events_file}")
 
 
 def determine_powertrain(row):
@@ -427,6 +472,7 @@ def setup_logging(log_file):
                         format='%(asctime)s - %(levelname)s - %(message)s',
                         handlers=[logging.FileHandler(log_file, mode='w'),
                                   logging.StreamHandler()])
+    log_and_print(f"Run >> city:{city}, batch:{batch}, scenario:{scenario}, run:{run}, sample:{sample}")
 
 
 def log_and_print(message, level=logging.INFO):
