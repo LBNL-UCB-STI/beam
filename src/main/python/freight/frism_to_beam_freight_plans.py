@@ -1,25 +1,23 @@
-import pandas as pd
-import os
-from pathlib import Path
-import numpy as np
-import geopandas as gpd
-from shapely.geometry import Point, LineString, Polygon
-from shapely.ops import unary_union
-from pyrosm import OSM
 import multiprocessing as mp
-from tqdm import tqdm
+import os
 import random
-import osmium
-from datetime import datetime
-
 import warnings
+from pathlib import Path
+
+import geopandas as gpd
+import numpy as np
+import pandas as pd
+from pyrosm import OSM
+from shapely.geometry import Point
+from shapely.ops import unary_union
+from tqdm import tqdm
 
 warnings.filterwarnings('ignore')
 
 frism_version = 1.0
-frism_crs = 4326
+frism_original_crs = 4326
 city = "seattle"
-city_crs = 32048
+city_utm_crs = 32048
 batch_name = "2024-04-20"
 year, scenario_name, suffix = "2018", "Baseline", "_RPSFerry"
 # year, run_name = "2050", "Ref_highp6"
@@ -114,9 +112,9 @@ def load_osm_network(pbf_path, min_distance_from_edge):
     print("Creating road buffer...")
     # Convert to UTM for proper metric distances
     try:
-        edges_utm = edges.to_crs(epsg=city_crs)
+        edges_utm = edges.to_crs(epsg=city_utm_crs)
     except Exception as e:
-        raise ValueError(f"Failed to convert to UTM (EPSG:{city_crs}): {str(e)}")
+        raise ValueError(f"Failed to convert to UTM (EPSG:{city_utm_crs}): {str(e)}")
 
     # Create buffer in UTM coordinates (where distances are in meters)
     buffered_edges = edges_utm.copy()
@@ -145,7 +143,7 @@ def load_osm_network(pbf_path, min_distance_from_edge):
     try:
         # Save the buffered edges as GeoJSON
         # Convert to geographic coordinates (EPSG:4326) for better compatibility
-        save_gdf = buffered_edges.to_crs(epsg=frism_crs)
+        save_gdf = buffered_edges.to_crs(epsg=frism_original_crs)
 
         # Make sure all columns are serializable
         for col in save_gdf.columns:
@@ -193,33 +191,6 @@ def generate_random_point_near_line(nearest_edge, point_geom, max_dist_meters):
     return new_x, new_y
 
 
-def process_single_point(args):
-    """
-    Process a single coordinate point that needs adjustment
-    """
-    point, edges_gdf, min_distance_from_edge, max_distance_from_edge = args
-    try:
-        x, y = point
-        point_geom = Point(point)
-
-        # Find nearest edge within search distance
-        distances = edges_gdf.geometry.distance(point_geom)
-        min_dist = distances.min()
-
-        if min_dist > max_distance_from_edge:
-            return x, y, True, False  # Original coords, is_far, is_adjusted
-
-        # Need to adjust - find random point near nearest edge
-        nearest_edge = edges_gdf.iloc[distances.idxmin()]
-        new_x, new_y = generate_random_point_near_line(nearest_edge, point_geom, min_distance_from_edge)
-
-        return new_x, new_y, False, True  # New coords, not far, is_adjusted
-
-    except Exception as e:
-        print(f"Warning: Error processing point {point}: {str(e)}")
-        return x, y, False, False  # Return original coordinates in case of error
-
-
 def read_csv_file(filename_):
     compression = None
     if filename_.endswith(".gz"):
@@ -255,6 +226,39 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
 
 
 # ******************************
+
+def process_single_point_utm(args):
+    """
+    Process a single coordinate point that needs adjustment
+    """
+    point_utm, edges_gdf, min_distance_from_edge, max_distance_from_edge = args
+    try:
+        # Find nearest edge within search distance
+        distances = edges_gdf.geometry.distance(point_utm)
+        min_dist = distances.min()
+
+        if min_dist > max_distance_from_edge:
+            # Return original coordinates for points too far from roads
+            return point_utm, True, False
+
+        if min_dist <= min_distance_from_edge:
+            # Return original coordinates if already within buffer
+            return point_utm, False, False
+
+        # Need to adjust - find random point near nearest edge
+        nearest_edge = edges_gdf.iloc[distances.idxmin()]
+        new_x, new_y = generate_random_point_near_line(nearest_edge, point_utm, min_distance_from_edge)
+
+        # Convert back to original CRS
+        point_utm = gpd.GeoDataFrame(geometry=[Point(new_x, new_y)], crs=city_utm_crs)
+
+        return point_utm, False, True
+
+    except Exception as e:
+        print(f"Warning: Error processing point {point_utm}: {str(e)}")
+        # Return original coordinates in case of error
+        return point_utm, False, False
+
 
 # payloadId,sequenceRank,tourId,payloadType,weightInKg,requestType,locationZone,estimatedTimeOfArrivalInSec,arrivalTimeWindowInSecLower,arrivalTimeWindowInSecUpper,operationDurationInSec,locationX,locationY
 def format_payload(_payload, osm_edges_utm, min_distance_from_edge, max_distance_from_edge):
@@ -319,23 +323,29 @@ def format_payload(_payload, osm_edges_utm, min_distance_from_edge, max_distance
                 end_idx = min((i + 1) * batch_size, len(coordinates))
                 batch_coords = coordinates[start_idx:end_idx]
 
-                args = [(coord, osm_edges_utm, min_distance_from_edge, max_distance_from_edge) for coord in
-                        batch_coords]
+                args = [
+                    (
+                        gpd.GeoDataFrame(geometry=[Point(coord[0], coord[1])], crs=city_utm_crs),  # point_utm
+                        osm_edges_utm,
+                        min_distance_from_edge,
+                        max_distance_from_edge
+                    )
+                    for coord in batch_coords
+                ]
 
                 batch_results = list(tqdm(
-                    pool.imap(process_single_point, args),
+                    pool.imap(process_single_point_utm, args),
                     total=len(batch_coords),
                     desc=f"Batch {i + 1}/{n_batches}"
                 ))
 
-                for x, y, is_far, is_adjusted in batch_results:
+                for point_utm, is_far, is_adjusted in batch_results:
                     if is_far:
                         far_points += 1
                     if is_adjusted:
                         total_adjusted += 1
                     # Convert UTM coordinates back to original CRS
-                    point_utm = gpd.GeoDataFrame(geometry=[Point(x, y)], crs=city_crs)
-                    point_original = point_utm.to_crs(frism_crs)
+                    point_original = point_utm.to_crs(frism_original_crs)
                     all_results.append((point_original.geometry.x[0], point_original.geometry.y[0]))
 
         if far_points > 0:
@@ -343,9 +353,10 @@ def format_payload(_payload, osm_edges_utm, min_distance_from_edge, max_distance
         if total_adjusted > 0:
             print(f"Adjusted {total_adjusted} points to be within 200m of nearest road")
 
-        # Update only the points that needed processing
-        _payload.loc[points_to_process_indices, 'locationX'] = [p[0] for p in all_results]
-        _payload.loc[points_to_process_indices, 'locationY'] = [p[1] for p in all_results]
+        # Update coordinates for all processed points
+        x_coords, y_coords = zip(*all_results)
+        _payload.loc[points_to_process_indices, 'locationX'] = x_coords
+        _payload.loc[points_to_process_indices, 'locationY'] = y_coords
 
     # Continue with the rest of payload processing
     payload_type_map = {
@@ -533,7 +544,7 @@ if __name__ == '__main__':
     tours.drop(['index'], axis=1, inplace=True, errors='ignore')
     tours.to_csv(f'{directory_output}/tours--{year}-{scenario_label}.csv', index=False)
 
-    _min_distance_from_edge = 200  # 200 meters
+    _min_distance_from_edge = 2000  # 200 meters
     _max_distance_from_edge = 50 * 1609.34  # 50 miles
 
     # Load OSM network and create buffer
