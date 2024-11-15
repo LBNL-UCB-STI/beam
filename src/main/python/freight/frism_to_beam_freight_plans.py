@@ -3,17 +3,21 @@ import os
 from pathlib import Path
 import numpy as np
 import geopandas as gpd
-from shapely.geometry import Point
+from shapely.geometry import Point, LineString, Polygon
 from shapely.ops import unary_union
 from pyrosm import OSM
 import multiprocessing as mp
 from tqdm import tqdm
 import random
+import osmium
+from datetime import datetime
+
 import warnings
 
 warnings.filterwarnings('ignore')
 
 frism_version = 1.0
+frism_crs = 4326
 city = "seattle"
 city_crs = 32048
 batch_name = "2024-04-20"
@@ -76,59 +80,86 @@ secondary_energy_profile_for_phev = {
 def load_osm_network(pbf_path, min_distance_from_edge):
     """
     Load OSM network and create/load buffered network with proper metric distances
+
     Args:
-        pbf_path: Path to original OSM PBF file
-        min_distance_from_edge: Buffer distance in meters
+        pbf_path (str): Path to original OSM PBF file
+        min_distance_from_edge (float): Buffer distance in meters
+        city_crs (int, optional): EPSG code for city-specific UTM zone.
+            If None, will auto-detect based on data extent
+
+    Returns:
+        gpd.GeoDataFrame: Network edges with original and buffered geometries
+
+    Raises:
+        ValueError: If the PBF file doesn't exist or if network extraction fails
     """
-    path_without_ext, ext = os.path.splitext(pbf_path)
-    buffer_path = f"{path_without_ext}_buffered.gpkg"
-    original_path = f"{path_without_ext}_original.gpkg"
-
-    if os.path.exists(buffer_path) and os.path.exists(original_path):
-        print(f"Loading pre-buffered network from {buffer_path}...")
-        try:
-            # Load both original and buffered networks
-            buffered_edges = gpd.read_file(buffer_path)
-            original_edges = gpd.read_file(original_path)
-
-            # Combine them into one GeoDataFrame
-            edges = original_edges.copy()
-            edges['buffered_geometry'] = buffered_edges.geometry
-
-            return edges
-
-        except Exception as e:
-            print(f"Error loading networks ({str(e)}), recreating...")
+    # Input validation
+    if not os.path.exists(pbf_path):
+        raise ValueError(f"PBF file not found: {pbf_path}")
 
     print(f"Loading OSM network from {pbf_path}...")
-    osm = OSM(pbf_path)
-    edges = osm.get_network(network_type="driving")
+    try:
+        osm = OSM(pbf_path)
+        edges = osm.get_network(network_type="driving")
+    except Exception as e:
+        raise ValueError(f"Failed to load OSM network: {str(e)}")
+
+    # Ensure we have a GeoDataFrame
     if not isinstance(edges, gpd.GeoDataFrame):
         edges = gpd.GeoDataFrame(edges)
 
+    if edges.empty:
+        raise ValueError("No network edges found in the PBF file")
+
     print("Creating road buffer...")
     # Convert to UTM for proper metric distances
-    edges_utm = edges.to_crs(epsg=city_crs)
+    try:
+        edges_utm = edges.to_crs(epsg=city_crs)
+    except Exception as e:
+        raise ValueError(f"Failed to convert to UTM (EPSG:{city_crs}): {str(e)}")
 
-    # Create buffer in UTM coordinates
+    # Create buffer in UTM coordinates (where distances are in meters)
     buffered_edges = edges_utm.copy()
-    buffered_edges['geometry'] = edges_utm.geometry.buffer(200)
+    buffered_edges['geometry'] = edges_utm['geometry'].buffer(
+        min_distance_from_edge,
+        cap_style=2,  # flat ends
+        join_style=2  # mitered joins
+    )
 
-    # Convert back to original CRS (typically WGS84)
-    buffered_edges = buffered_edges.to_crs(edges.crs)
+    # Add buffered geometry as a new column
+    edges_utm['buffered_geometry'] = buffered_edges.geometry
 
-    print(f"Saving networks...")
-    # Create directory if it doesn't exist
-    os.makedirs(os.path.dirname(buffer_path), exist_ok=True)
+    # Create buffered pbf if it doesn't exist
+    path_without_ext, ext = os.path.splitext(pbf_path)
+    buffer_path = f"{path_without_ext}_buffered.geojson"
 
-    # Save both versions
-    edges.to_file(original_path, driver='GPKG')
-    buffered_edges.to_file(buffer_path, driver='GPKG')
+    # Check if file exists and handle overwriting
+    if os.path.exists(buffer_path):
+        try:
+            os.remove(buffer_path)
+            print(f"Removed existing file: {buffer_path}")
+        except Exception as e:
+            print(f"Warning: Failed to remove existing file: {str(e)}")
 
-    # Combine them for return
-    edges['buffered_geometry'] = buffered_edges.geometry
+    # Save buffered network
+    try:
+        # Save the buffered edges as GeoJSON
+        # Convert to geographic coordinates (EPSG:4326) for better compatibility
+        save_gdf = buffered_edges.to_crs(epsg=frism_crs)
 
-    return edges
+        # Make sure all columns are serializable
+        for col in save_gdf.columns:
+            if save_gdf[col].dtype == 'object':
+                save_gdf[col] = save_gdf[col].astype(str)
+
+        # Save to GeoJSON
+        save_gdf.to_file(buffer_path, driver='GeoJSON')
+        print(f"Saved buffered network to: {buffer_path}")
+    except Exception as e:
+        print(f"Warning: Failed to save buffered network: {str(e)}")
+        raise e
+
+    return edges_utm
 
 
 def generate_random_point_near_line(nearest_edge, point_geom, max_dist_meters):
@@ -226,7 +257,7 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
 # ******************************
 
 # payloadId,sequenceRank,tourId,payloadType,weightInKg,requestType,locationZone,estimatedTimeOfArrivalInSec,arrivalTimeWindowInSecLower,arrivalTimeWindowInSecUpper,operationDurationInSec,locationX,locationY
-def format_payload(_payload, osm_edges, min_distance_from_edge, max_distance_from_edge):
+def format_payload(_payload, osm_edges_utm, min_distance_from_edge, max_distance_from_edge):
     """
     Format payload and adjust coordinates where needed using road buffer for efficiency
     """
@@ -254,24 +285,22 @@ def format_payload(_payload, osm_edges, min_distance_from_edge, max_distance_fro
     points_gdf = gpd.GeoDataFrame(
         _payload,
         geometry=[Point(xy) for xy in zip(_payload['locationX'], _payload['locationY'])],
-        crs=osm_edges.crs
+        crs=4326
     )
+    points_utm_gdf = points_gdf.to_crs(osm_edges_utm.crs)
 
     print("Checking points against road buffer...")
     # Use buffered_geometry for intersection check
-    buffer_union = unary_union(osm_edges['buffered_geometry'])
-    points_in_buffer = points_gdf.geometry.intersects(buffer_union)
+    buffer_union = unary_union(osm_edges_utm['buffered_geometry'])
+    points_in_buffer = points_utm_gdf.geometry.intersects(buffer_union)
 
     # Points that need processing are those outside the buffer
-    points_to_process = points_gdf[~points_in_buffer]
+    points_to_process = points_utm_gdf[~points_in_buffer]
     print(f"Found {len(points_to_process)} points (out of {len(_payload)}) that need adjustment")
 
     if len(points_to_process) > 0:
         # Convert to UTM for accurate distance calculations
-        edges_utm = osm_edges.to_crs(epsg=city_crs)
-        points_to_process_utm = points_to_process.to_crs(epsg=city_crs)
-
-        coordinates = list(zip(points_to_process_utm['locationX'], points_to_process_utm['locationY']))
+        coordinates = list(zip(points_to_process['locationX'], points_to_process['locationY']))
         points_to_process_indices = points_to_process.index
 
         # Process in batches
@@ -284,42 +313,30 @@ def format_payload(_payload, osm_edges, min_distance_from_edge, max_distance_fro
 
         print(f"Processing {len(coordinates)} points in {n_batches} batches...")
 
-        if __name__ == '__main__':
-            with mp.Pool(processes=max(1, mp.cpu_count() - 1)) as pool:
-                for i in range(n_batches):
-                    start_idx = i * batch_size
-                    end_idx = min((i + 1) * batch_size, len(coordinates))
-                    batch_coords = coordinates[start_idx:end_idx]
+        with mp.Pool(processes=max(1, mp.cpu_count() - 1)) as pool:
+            for i in range(n_batches):
+                start_idx = i * batch_size
+                end_idx = min((i + 1) * batch_size, len(coordinates))
+                batch_coords = coordinates[start_idx:end_idx]
 
-                    args = [(coord, edges_utm, min_distance_from_edge, max_distance_from_edge)
-                            for coord in batch_coords]
+                args = [(coord, osm_edges_utm, min_distance_from_edge, max_distance_from_edge) for coord in
+                        batch_coords]
 
-                    batch_results = list(tqdm(
-                        pool.imap(process_single_point, args),
-                        total=len(batch_coords),
-                        desc=f"Batch {i + 1}/{n_batches}"
-                    ))
+                batch_results = list(tqdm(
+                    pool.imap(process_single_point, args),
+                    total=len(batch_coords),
+                    desc=f"Batch {i + 1}/{n_batches}"
+                ))
 
-                    for x, y, is_far, is_adjusted in batch_results:
-                        if is_far:
-                            far_points += 1
-                        if is_adjusted:
-                            total_adjusted += 1
-                        # Convert UTM coordinates back to original CRS
-                        point_utm = gpd.GeoDataFrame(geometry=[Point(x, y)], crs=city_crs)
-                        point_original = point_utm.to_crs(osm_edges.crs)
-                        all_results.append((point_original.geometry.x[0], point_original.geometry.y[0]))
-
-        else:
-            print("Warning: Running in sequential mode")
-            for coord in tqdm(coordinates, desc="Processing coordinates"):
-                x, y, is_far, is_adjusted = process_single_point(
-                    (coord, osm_edges, min_distance_from_edge, max_distance_from_edge))
-                if is_far:
-                    far_points += 1
-                if is_adjusted:
-                    total_adjusted += 1
-                all_results.append((x, y))
+                for x, y, is_far, is_adjusted in batch_results:
+                    if is_far:
+                        far_points += 1
+                    if is_adjusted:
+                        total_adjusted += 1
+                    # Convert UTM coordinates back to original CRS
+                    point_utm = gpd.GeoDataFrame(geometry=[Point(x, y)], crs=city_crs)
+                    point_original = point_utm.to_crs(frism_crs)
+                    all_results.append((point_original.geometry.x[0], point_original.geometry.y[0]))
 
         if far_points > 0:
             print(f"Warning: {far_points} stops are farther than 50 miles from any road")
@@ -521,7 +538,7 @@ if __name__ == '__main__':
 
     # Load OSM network and create buffer
     print("Loading/creating network...")
-    osm_edges = load_osm_network(
+    osm_edges_utm = load_osm_network(
         network_osm_pbf,
         min_distance_from_edge=_min_distance_from_edge
     )
@@ -530,7 +547,7 @@ if __name__ == '__main__':
     print("Processing payload plans...")
     format_payload(
         payload_plans,
-        osm_edges,
+        osm_edges_utm,
         min_distance_from_edge=_min_distance_from_edge,
         max_distance_from_edge=_max_distance_from_edge
     ).to_csv(f'{directory_output}/payloads--{year}-{scenario_label}.csv', index=False)
@@ -539,7 +556,7 @@ if __name__ == '__main__':
         print("Processing ondemand plans...")
         format_payload(
             ondemand_plans,
-            osm_edges,
+            osm_edges_utm,
             min_distance_from_edge=_min_distance_from_edge,
             max_distance_from_edge=_max_distance_from_edge
         ).to_csv(f'{directory_output}/ondemand--{year}-{scenario_label}.csv', index=False)
