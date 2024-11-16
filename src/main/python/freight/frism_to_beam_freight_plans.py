@@ -2,6 +2,7 @@ import multiprocessing as mp
 import os
 import random
 import warnings
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Tuple, List
 
@@ -10,6 +11,7 @@ import numpy as np
 import pandas as pd
 import rtree
 from pyrosm import OSM
+from scipy.spatial import cKDTree
 from shapely.geometry import Point
 
 warnings.filterwarnings('ignore')
@@ -415,7 +417,7 @@ def process_points_chunk(
     return results
 
 
-def snap_coordinates_when_too_far_bis(
+def snap_coordinates_when_too_far(
         payload_plans: pd.DataFrame,
         osm_edges_utm: gpd.GeoDataFrame,
         min_distance_from_edge: float,
@@ -524,6 +526,183 @@ def snap_coordinates_when_too_far_bis(
     y_coords = [r[2] for r in all_results]
 
     # Update coordinates using numpy for efficiency
+    result_df['locationZone_x'] = pd.Series(x_coords, index=result_indices)
+    result_df['locationZone_y'] = pd.Series(y_coords, index=result_indices)
+
+    return result_df
+
+
+## More TEST
+
+def create_spatial_index_kdtree(edges_gdf: gpd.GeoDataFrame) -> Tuple[np.ndarray, cKDTree]:
+    """Create KD-tree spatial index for faster nearest neighbor queries"""
+    # Extract centroids of line segments for initial filtering
+    centroids = np.array([[geom.centroid.x, geom.centroid.y] for geom in edges_gdf.geometry])
+    return centroids, cKDTree(centroids)
+
+
+def find_nearest_edge_kdtree(
+        point: np.ndarray,
+        edges_gdf: gpd.GeoDataFrame,
+        centroids: np.ndarray,
+        kdtree: cKDTree,
+        k: int = 5
+) -> Tuple[float, gpd.GeoSeries]:
+    """
+    Find nearest edge using KD-tree with vectorized distance calculations
+
+    Args:
+        point: NumPy array of [x, y] coordinates
+        edges_gdf: GeoDataFrame containing network edges
+        centroids: NumPy array of edge centroids
+        kdtree: cKDTree spatial index
+        k: Number of nearest neighbors to check
+
+    Returns:
+        Tuple of (minimum distance, nearest edge)
+    """
+    # Find k nearest neighbors using KD-tree
+    distances, indices = kdtree.query(point, k=k)
+
+    # Calculate actual distances to the k nearest edges
+    candidate_edges = edges_gdf.iloc[indices]
+    point_geom = Point(point)
+    actual_distances = candidate_edges.geometry.distance(point_geom)
+
+    min_idx = actual_distances.idxmin()
+    return actual_distances.min(), edges_gdf.loc[min_idx]
+
+
+def process_points_chunk_vectorized(
+        points_chunk: np.ndarray,
+        edges_gdf: gpd.GeoDataFrame,
+        centroids: np.ndarray,
+        kdtree: cKDTree,
+        min_distance: float,
+        max_distance: float,
+        chunk_start_idx: int
+) -> List[Tuple[int, float, float, bool, bool]]:
+    """
+    Process a chunk of points using vectorized operations
+    """
+    results = []
+
+    # Pre-allocate arrays for vectorized operations
+    points_gdf = gpd.GeoDataFrame(
+        geometry=[Point(x, y) for x, y in points_chunk],
+        crs=SOURCE_CRS
+    ).to_crs(UTM_CRS)
+
+    for idx, (point_utm, orig_point) in enumerate(zip(points_gdf.geometry, points_chunk)):
+        try:
+            min_dist, nearest_edge = find_nearest_edge_kdtree(
+                np.array([orig_point[0], orig_point[1]]),
+                edges_gdf,
+                centroids,
+                kdtree
+            )
+
+            is_far = min_dist > max_distance
+            needs_adjustment = min_dist > min_distance and not is_far
+
+            if needs_adjustment:
+                # Generate new point in UTM
+                new_x_utm, new_y_utm = generate_random_point_near_line(
+                    nearest_edge,
+                    point_utm,
+                    min_distance
+                )
+                # Convert back to original CRS
+                point_updated = gpd.GeoDataFrame(
+                    geometry=[Point(new_x_utm, new_y_utm)],
+                    crs=UTM_CRS
+                ).to_crs(SOURCE_CRS).geometry[0]
+                results.append((chunk_start_idx + idx, point_updated.x, point_updated.y, is_far, True))
+            else:
+                results.append((chunk_start_idx + idx, orig_point[0], orig_point[1], is_far, False))
+
+        except Exception as e:
+            print(f"Warning: Error processing point {chunk_start_idx + idx}: {str(e)}")
+            results.append((chunk_start_idx + idx, orig_point[0], orig_point[1], False, False))
+
+    return results
+
+
+def snap_coordinates_when_too_far_optimized(
+        payload_plans: pd.DataFrame,
+        osm_edges_utm: gpd.GeoDataFrame,
+        min_distance_from_edge: float,
+        max_distance_from_edge: float
+) -> pd.DataFrame:
+    """
+    Optimized version of coordinate snapping using KD-tree spatial indexing and vectorized operations
+    """
+    print("Creating KD-tree spatial index...")
+    centroids, kdtree = create_spatial_index_kdtree(osm_edges_utm)
+
+    # Convert coordinates to numpy array
+    coords = np.column_stack((
+        payload_plans['locationZone_x'].values,
+        payload_plans['locationZone_y'].values
+    ))
+
+    # Calculate optimal chunk size based on available CPU cores
+    num_cores = max(1, mp.cpu_count() - 1)
+    chunk_size = min(CHUNK_SIZE, max(1000, len(coords) // (num_cores * 2)))
+    n_chunks = (len(coords) + chunk_size - 1) // chunk_size
+
+    print(f"Processing {len(coords)} points in {n_chunks} chunks using {num_cores} cores...")
+
+    all_results = []
+    far_points = 0
+    total_adjusted = 0
+
+    # Process chunks in parallel using ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=num_cores) as executor:
+        futures = []
+
+        for chunk_idx in range(n_chunks):
+            start_idx = chunk_idx * chunk_size
+            end_idx = min((chunk_idx + 1) * chunk_size, len(coords))
+            chunk_coords = coords[start_idx:end_idx]
+
+            future = executor.submit(
+                process_points_chunk_vectorized,
+                chunk_coords,
+                osm_edges_utm,
+                centroids,
+                kdtree,
+                min_distance_from_edge,
+                max_distance_from_edge,
+                start_idx
+            )
+            futures.append(future)
+
+        # Collect results as they complete
+        for future in as_completed(futures):
+            try:
+                results = future.result()
+                for _, x, y, is_far, is_adjusted in results:
+                    if is_far:
+                        far_points += 1
+                    if is_adjusted:
+                        total_adjusted += 1
+                all_results.extend(results)
+            except Exception as e:
+                print(f"Error processing chunk: {str(e)}")
+
+    if far_points > 0:
+        print(f"Warning: {far_points} stops are farther than {int(max_distance_from_edge / 1000)} km from any road")
+    if total_adjusted > 0:
+        print(f"Adjusted {total_adjusted} points to be within {int(min_distance_from_edge / 1000)} km of nearest road")
+
+    # Sort results and update DataFrame efficiently
+    all_results.sort(key=lambda r: r[0])
+    result_indices = [r[0] for r in all_results]
+    x_coords = [r[1] for r in all_results]
+    y_coords = [r[2] for r in all_results]
+
+    result_df = payload_plans.copy()
     result_df['locationZone_x'] = pd.Series(x_coords, index=result_indices)
     result_df['locationZone_y'] = pd.Series(y_coords, index=result_indices)
 
@@ -669,8 +848,8 @@ if __name__ == '__main__':
     # sampled_df = _payload_plans.sample(n=1000, random_state=42).copy().reset_index(drop=True)
     # sampled_df.to_csv(f'{DIRECTORY_OUTPUT}/payloads-sampled--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
     # First process coordinates
-    _payload_plans = snap_coordinates_when_too_far_bis(_payload_plans, _osm_edges_utm, BUFFER_DISTANCE_METERS,
-                                                       MAX_DISTANCE_METERS)
+    _payload_plans = snap_coordinates_when_too_far_optimized(_payload_plans, _osm_edges_utm, BUFFER_DISTANCE_METERS,
+                                                             MAX_DISTANCE_METERS)
     # Then format and save
     format_payload(_payload_plans).to_csv(f'{DIRECTORY_OUTPUT}/payloads-sampled-corrected--{YEAR}-{SCENARIO_LABEL}.csv',
                                           index=False)
@@ -678,8 +857,9 @@ if __name__ == '__main__':
     if _ondemand_plans is not None:
         print("Processing ondemand plans...")
         # First process coordinates
-        _ondemand_plans = snap_coordinates_when_too_far_bis(_ondemand_plans, _osm_edges_utm, BUFFER_DISTANCE_METERS,
-                                                            MAX_DISTANCE_METERS)
+        _ondemand_plans = snap_coordinates_when_too_far_optimized(_ondemand_plans, _osm_edges_utm,
+                                                                  BUFFER_DISTANCE_METERS,
+                                                                  MAX_DISTANCE_METERS)
         # Then format and save
         format_payload(_ondemand_plans).to_csv(f'{DIRECTORY_OUTPUT}/ondemand--{YEAR}-{SCENARIO_LABEL}.csv',
                                                index=False)
@@ -729,8 +909,8 @@ if __name__ == '__main__':
     # Update tours DataFrame with new coordinates
     _tours.set_index('tourId', inplace=True)
     # Update coordinates where matches exist
-    _tours.loc[coord_mapping.index, 'departureLocationX'] = coord_mapping['locationZone_x']
-    _tours.loc[coord_mapping.index, 'departureLocationY'] = coord_mapping['locationZone_y']
+    _tours.loc[coord_mapping.index, 'departureLocationX'] = coord_mapping['locationX']
+    _tours.loc[coord_mapping.index, 'departureLocationY'] = coord_mapping['locationY']
     # Reset index
     _tours.reset_index(inplace=True)
     print(f"Updated departure coordinates for {len(coord_mapping)} tours")
