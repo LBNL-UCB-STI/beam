@@ -676,38 +676,32 @@ def process_points_chunk_vectorized(
     return results
 
 
-def snap_coordinates_when_too_far_optimized(
-        payload_plans: pd.DataFrame,
-        osm_edges_utm: gpd.GeoDataFrame,
-        min_distance_from_edge: float,
-        max_distance_from_edge: float,
-        chunk_size: int = 1000
-) -> pd.DataFrame:
+def snap_coordinates_when_too_far_optimized(payload_plans: pd.DataFrame,
+                                            osm_edges_utm: gpd.GeoDataFrame) -> pd.DataFrame:
     """
     Optimized version of coordinate snapping using KD-tree spatial indexing and proper CRS handling
 
     Args:
         payload_plans: DataFrame with locationZone_x/y in WGS84
         osm_edges_utm: GeoDataFrame with network in UTM
-        min_distance_from_edge: Buffer distance in meters
-        max_distance_from_edge: Maximum allowed distance in meters
-        chunk_size: Size of chunks for parallel processing
 
     Returns:
         DataFrame with snapped coordinates in WGS84
     """
+    min_distance_from_edge = BUFFER_DISTANCE_METERS  # Buffer distance in meters
+    max_distance_from_edge = MAX_DISTANCE_METERS  # Maximum allowed distance in meters
     print("Creating KD-tree spatial index...")
     centroids, kdtree = create_spatial_index_kdtree(osm_edges_utm)
 
     # Extract coordinates in original CRS (WGS84)
     coords = np.column_stack((
-        payload_plans['locationZone_x'].values,
-        payload_plans['locationZone_y'].values
+        payload_plans['locationX'].values,
+        payload_plans['locationY'].values
     ))
 
     # Calculate optimal chunk size based on available CPU cores
     num_cores = max(1, mp.cpu_count() - 1)
-    chunk_size = min(chunk_size, max(1000, len(coords) // (num_cores * 2)))
+    chunk_size = min(CHUNK_SIZE, max(1000, len(coords) // (num_cores * 2)))
     n_chunks = (len(coords) + chunk_size - 1) // chunk_size
 
     print(f"Processing {len(coords)} points in {n_chunks} chunks using {num_cores} cores...")
@@ -762,8 +756,8 @@ def snap_coordinates_when_too_far_optimized(
     y_coords = [r[2] for r in all_results]  # These are now in WGS84
 
     result_df = payload_plans.copy()
-    result_df['locationZone_x'] = pd.Series(x_coords, index=result_indices)
-    result_df['locationZone_y'] = pd.Series(y_coords, index=result_indices)
+    result_df['locationX'] = pd.Series(x_coords, index=result_indices)
+    result_df['locationY'] = pd.Series(y_coords, index=result_indices)
 
     return result_df
 
@@ -906,22 +900,23 @@ if __name__ == '__main__':
     # Add random_state for reproducibility
     # sampled_df = _payload_plans.sample(n=1000, random_state=42).copy().reset_index(drop=True)
     # sampled_df.to_csv(f'{DIRECTORY_OUTPUT}/payloads-sampled--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
-    # First process coordinates
-    _payload_plans = snap_coordinates_when_too_far_optimized(_payload_plans, _osm_edges_utm, BUFFER_DISTANCE_METERS,
-                                                             MAX_DISTANCE_METERS)
     # Then format and save
-    format_payload(_payload_plans).to_csv(f'{DIRECTORY_OUTPUT}/payloads-sampled-corrected--{YEAR}-{SCENARIO_LABEL}.csv',
-                                          index=False)
+    _payload_plans_file = f'{DIRECTORY_OUTPUT}/payloads--{YEAR}-{SCENARIO_LABEL}.csv'
+    format_payload(_payload_plans).to_csv(_payload_plans_file, index=False)
+    # First process coordinates
+    _payload_plans = snap_coordinates_when_too_far_optimized(_payload_plans, _osm_edges_utm)
+    # Then format and save
+    _payload_plans.to_csv(_payload_plans_file.replace("payloads", "payloads--snapped-coord"), index=False)
 
     if _ondemand_plans is not None:
         print("Processing ondemand plans...")
-        # First process coordinates
-        _ondemand_plans = snap_coordinates_when_too_far_optimized(_ondemand_plans, _osm_edges_utm,
-                                                                  BUFFER_DISTANCE_METERS,
-                                                                  MAX_DISTANCE_METERS)
+        _ondemand_plans_file = f'{DIRECTORY_OUTPUT}/ondemand--{YEAR}-{SCENARIO_LABEL}.csv'
         # Then format and save
-        format_payload(_ondemand_plans).to_csv(f'{DIRECTORY_OUTPUT}/ondemand--{YEAR}-{SCENARIO_LABEL}.csv',
-                                               index=False)
+        format_payload(_ondemand_plans).to_csv(_ondemand_plans_file, index=False)
+        # First process coordinates
+        _ondemand_plans = snap_coordinates_when_too_far_optimized(_ondemand_plans, _osm_edges_utm)
+        # Then format and save
+        _ondemand_plans.to_csv(_ondemand_plans_file.replace("ondemand", "ondemand--snapped-coord"), index=False)
 
     first_payloads = _payload_plans[_payload_plans['sequenceRank'] == 0].copy()
 
