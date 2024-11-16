@@ -534,48 +534,74 @@ def snap_coordinates_when_too_far(
 
 ## More TEST
 
-def create_spatial_index_kdtree(edges_gdf: gpd.GeoDataFrame) -> Tuple[np.ndarray, cKDTree]:
-    """Create KD-tree spatial index for faster nearest neighbor queries"""
-    # Extract centroids of line segments for initial filtering
-    centroids = np.array([[geom.centroid.x, geom.centroid.y] for geom in edges_gdf.geometry])
+def create_spatial_index_kdtree(edges_gdf_utm: gpd.GeoDataFrame) -> Tuple[np.ndarray, cKDTree]:
+    """Create KD-tree spatial index from UTM coordinates for faster nearest neighbor queries"""
+    # Extract centroids of line segments in UTM coordinates
+    centroids = np.array([[geom.centroid.x, geom.centroid.y] for geom in edges_gdf_utm.geometry])
     return centroids, cKDTree(centroids)
 
 
 def find_nearest_edge_kdtree(
-        point: np.ndarray,
-        edges_gdf: gpd.GeoDataFrame,
+        point_utm: Point,
+        edges_gdf_utm: gpd.GeoDataFrame,
         centroids: np.ndarray,
         kdtree: cKDTree,
         k: int = 5
 ) -> Tuple[float, gpd.GeoSeries]:
     """
-    Find nearest edge using KD-tree with vectorized distance calculations
+    Find nearest edge using KD-tree with vectorized distance calculations in UTM coordinates
 
     Args:
-        point: NumPy array of [x, y] coordinates
-        edges_gdf: GeoDataFrame containing network edges
-        centroids: NumPy array of edge centroids
+        point_utm: Point geometry in UTM coordinates
+        edges_gdf_utm: GeoDataFrame containing network edges in UTM
+        centroids: NumPy array of edge centroids in UTM
         kdtree: cKDTree spatial index
         k: Number of nearest neighbors to check
 
     Returns:
-        Tuple of (minimum distance, nearest edge)
+        Tuple of (minimum distance in meters, nearest edge)
     """
     # Find k nearest neighbors using KD-tree
-    distances, indices = kdtree.query(point, k=k)
+    distances, indices = kdtree.query([point_utm.x, point_utm.y], k=k)
 
-    # Calculate actual distances to the k nearest edges
-    candidate_edges = edges_gdf.iloc[indices]
-    point_geom = Point(point)
-    actual_distances = candidate_edges.geometry.distance(point_geom)
+    # Calculate actual distances to the k nearest edges in meters (UTM)
+    candidate_edges = edges_gdf_utm.iloc[indices]
+    actual_distances = candidate_edges.geometry.distance(point_utm)
 
     min_idx = actual_distances.idxmin()
-    return actual_distances.min(), edges_gdf.loc[min_idx]
+    return actual_distances.min(), edges_gdf_utm.loc[min_idx]
+
+
+def generate_random_point_near_line_utm(
+        nearest_edge_utm: gpd.GeoSeries,
+        point_utm: Point,
+        max_dist_meters: float
+) -> Tuple[float, float]:
+    """
+    Generate a random point within max_dist_meters of the nearest point on the road in UTM coordinates
+    """
+    # Find nearest point on the road
+    proj_distance = nearest_edge_utm.geometry.project(point_utm)
+    nearest_point = nearest_edge_utm.geometry.interpolate(proj_distance)
+
+    # Generate random angle and distance
+    angle = np.random.uniform(0, 2 * np.pi)
+    distance = np.random.uniform(0, max_dist_meters)
+
+    # Convert to x,y offset (in meters since we're in UTM)
+    dx = distance * np.cos(angle)
+    dy = distance * np.sin(angle)
+
+    # Create new UTM coordinates
+    new_x_utm = nearest_point.x + dx
+    new_y_utm = nearest_point.y + dy
+
+    return new_x_utm, new_y_utm
 
 
 def process_points_chunk_vectorized(
         points_chunk: np.ndarray,
-        edges_gdf: gpd.GeoDataFrame,
+        edges_gdf_utm: gpd.GeoDataFrame,
         centroids: np.ndarray,
         kdtree: cKDTree,
         min_distance: float,
@@ -583,11 +609,11 @@ def process_points_chunk_vectorized(
         chunk_start_idx: int
 ) -> List[Tuple[int, float, float, bool, bool]]:
     """
-    Process a chunk of points using vectorized operations
+    Process a chunk of points using vectorized operations with proper CRS handling
     """
     results = []
 
-    # Pre-allocate arrays for vectorized operations
+    # Convert input points to UTM for distance calculations
     points_gdf = gpd.GeoDataFrame(
         geometry=[Point(x, y) for x, y in points_chunk],
         crs=SOURCE_CRS
@@ -595,9 +621,10 @@ def process_points_chunk_vectorized(
 
     for idx, (point_utm, orig_point) in enumerate(zip(points_gdf.geometry, points_chunk)):
         try:
-            min_dist, nearest_edge = find_nearest_edge_kdtree(
-                np.array([orig_point[0], orig_point[1]]),
-                edges_gdf,
+            # Find nearest edge using UTM coordinates
+            min_dist, nearest_edge_utm = find_nearest_edge_kdtree(
+                point_utm,
+                edges_gdf_utm,
                 centroids,
                 kdtree
             )
@@ -606,24 +633,45 @@ def process_points_chunk_vectorized(
             needs_adjustment = min_dist > min_distance and not is_far
 
             if needs_adjustment:
-                # Generate new point in UTM
-                new_x_utm, new_y_utm = generate_random_point_near_line(
-                    nearest_edge,
+                # Generate new point in UTM coordinates
+                new_x_utm, new_y_utm = generate_random_point_near_line_utm(
+                    nearest_edge_utm,
                     point_utm,
                     min_distance
                 )
-                # Convert back to original CRS
+
+                # Convert back to original CRS (WGS84)
                 point_updated = gpd.GeoDataFrame(
                     geometry=[Point(new_x_utm, new_y_utm)],
                     crs=UTM_CRS
                 ).to_crs(SOURCE_CRS).geometry[0]
-                results.append((chunk_start_idx + idx, point_updated.x, point_updated.y, is_far, True))
+
+                results.append((
+                    chunk_start_idx + idx,
+                    point_updated.x,
+                    point_updated.y,
+                    is_far,
+                    True
+                ))
             else:
-                results.append((chunk_start_idx + idx, orig_point[0], orig_point[1], is_far, False))
+                # Keep original WGS84 coordinates
+                results.append((
+                    chunk_start_idx + idx,
+                    orig_point[0],
+                    orig_point[1],
+                    is_far,
+                    False
+                ))
 
         except Exception as e:
             print(f"Warning: Error processing point {chunk_start_idx + idx}: {str(e)}")
-            results.append((chunk_start_idx + idx, orig_point[0], orig_point[1], False, False))
+            results.append((
+                chunk_start_idx + idx,
+                orig_point[0],
+                orig_point[1],
+                False,
+                False
+            ))
 
     return results
 
@@ -632,15 +680,26 @@ def snap_coordinates_when_too_far_optimized(
         payload_plans: pd.DataFrame,
         osm_edges_utm: gpd.GeoDataFrame,
         min_distance_from_edge: float,
-        max_distance_from_edge: float
+        max_distance_from_edge: float,
+        chunk_size: int = 1000
 ) -> pd.DataFrame:
     """
-    Optimized version of coordinate snapping using KD-tree spatial indexing and vectorized operations
+    Optimized version of coordinate snapping using KD-tree spatial indexing and proper CRS handling
+
+    Args:
+        payload_plans: DataFrame with locationZone_x/y in WGS84
+        osm_edges_utm: GeoDataFrame with network in UTM
+        min_distance_from_edge: Buffer distance in meters
+        max_distance_from_edge: Maximum allowed distance in meters
+        chunk_size: Size of chunks for parallel processing
+
+    Returns:
+        DataFrame with snapped coordinates in WGS84
     """
     print("Creating KD-tree spatial index...")
     centroids, kdtree = create_spatial_index_kdtree(osm_edges_utm)
 
-    # Convert coordinates to numpy array
+    # Extract coordinates in original CRS (WGS84)
     coords = np.column_stack((
         payload_plans['locationZone_x'].values,
         payload_plans['locationZone_y'].values
@@ -648,7 +707,7 @@ def snap_coordinates_when_too_far_optimized(
 
     # Calculate optimal chunk size based on available CPU cores
     num_cores = max(1, mp.cpu_count() - 1)
-    chunk_size = min(CHUNK_SIZE, max(1000, len(coords) // (num_cores * 2)))
+    chunk_size = min(chunk_size, max(1000, len(coords) // (num_cores * 2)))
     n_chunks = (len(coords) + chunk_size - 1) // chunk_size
 
     print(f"Processing {len(coords)} points in {n_chunks} chunks using {num_cores} cores...")
@@ -682,7 +741,7 @@ def snap_coordinates_when_too_far_optimized(
         for future in as_completed(futures):
             try:
                 results = future.result()
-                for _, x, y, is_far, is_adjusted in results:
+                for _, _, _, is_far, is_adjusted in results:
                     if is_far:
                         far_points += 1
                     if is_adjusted:
@@ -699,8 +758,8 @@ def snap_coordinates_when_too_far_optimized(
     # Sort results and update DataFrame efficiently
     all_results.sort(key=lambda r: r[0])
     result_indices = [r[0] for r in all_results]
-    x_coords = [r[1] for r in all_results]
-    y_coords = [r[2] for r in all_results]
+    x_coords = [r[1] for r in all_results]  # These are now in WGS84
+    y_coords = [r[2] for r in all_results]  # These are now in WGS84
 
     result_df = payload_plans.copy()
     result_df['locationZone_x'] = pd.Series(x_coords, index=result_indices)
