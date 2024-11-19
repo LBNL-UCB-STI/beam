@@ -4,11 +4,12 @@ import random
 import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Tuple, List
+from typing import Tuple, List, Any
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+from pandas import DataFrame
 from pyrosm import OSM
 from scipy.spatial import cKDTree
 from shapely.geometry import Point
@@ -382,12 +383,24 @@ def process_points_chunk_vectorized(
         kdtree: cKDTree,
         min_distance: float,
         max_distance: float,
-        chunk_start_idx: int
+        chunk_start_idx: int,
+        coordinate_lookup: dict
 ) -> List[Tuple[int, float, float, bool, bool]]:
     """
     Process a chunk of points using vectorized operations with proper CRS handling
+
+    Args:
+        points_chunk: Array of coordinate pairs to process
+        edges_gdf_utm: GeoDataFrame containing network edges in UTM
+        centroids: NumPy array of edge centroids
+        kdtree: Spatial index for quick nearest neighbor lookups
+        min_distance: Minimum allowed distance from road
+        max_distance: Maximum allowed distance from road
+        chunk_start_idx: Starting index of current chunk
+        coordinate_lookup: Dictionary storing previously processed coordinates
     """
     results = []
+    cache_hits = 0
 
     # Convert input points to UTM for distance calculations
     points_gdf = gpd.GeoDataFrame(
@@ -397,6 +410,20 @@ def process_points_chunk_vectorized(
 
     for idx, (point_utm, orig_point) in enumerate(zip(points_gdf.geometry, points_chunk)):
         try:
+            # Check lookup table first
+            coord_key = (orig_point[0], orig_point[1])
+            if coord_key in coordinate_lookup:
+                cached_result = coordinate_lookup[coord_key]
+                results.append((
+                    chunk_start_idx + idx,
+                    cached_result[0],
+                    cached_result[1],
+                    cached_result[2],
+                    cached_result[3]
+                ))
+                cache_hits += 1
+                continue
+
             # Find nearest edge using UTM coordinates
             min_dist, nearest_edge_utm = find_nearest_edge_kdtree(
                 point_utm,
@@ -422,22 +449,25 @@ def process_points_chunk_vectorized(
                     crs=UTM_CRS
                 ).to_crs(SOURCE_CRS).geometry[0]
 
-                results.append((
+                result = (
                     chunk_start_idx + idx,
                     point_updated.x,
                     point_updated.y,
                     is_far,
                     True
-                ))
+                )
             else:
-                # Keep original WGS84 coordinates
-                results.append((
+                result = (
                     chunk_start_idx + idx,
                     orig_point[0],
                     orig_point[1],
                     is_far,
                     False
-                ))
+                )
+
+            # Store in lookup table
+            coordinate_lookup[coord_key] = result[1:]
+            results.append(result)
 
         except Exception as e:
             print(f"Warning: Error processing point {chunk_start_idx + idx}: {str(e)}")
@@ -449,23 +479,34 @@ def process_points_chunk_vectorized(
                 False
             ))
 
+    if cache_hits > 0:
+        print(f"Cache hits in chunk: {cache_hits}/{len(points_chunk)}")
     return results
 
 
 def snap_coordinates_when_too_far(payload_plans: pd.DataFrame,
-                                  osm_edges_utm: gpd.GeoDataFrame) -> pd.DataFrame:
+                                  osm_edges_utm: gpd.GeoDataFrame,
+                                  coordinate_lookup: dict = None) -> tuple[DataFrame, dict[Any, Any] | dict]:
     """
-    Optimized version of coordinate snapping using KD-tree spatial indexing and proper CRS handling
+    Optimized version of coordinate snapping using KD-tree spatial indexing and lookup table
 
     Args:
         payload_plans: DataFrame with locationZone_x/y in WGS84
         osm_edges_utm: GeoDataFrame with network in UTM
+        coordinate_lookup: Optional existing lookup table to use
 
     Returns:
         DataFrame with snapped coordinates in WGS84
     """
-    min_distance_from_edge = BUFFER_DISTANCE_METERS  # Buffer distance in meters
-    max_distance_from_edge = MAX_DISTANCE_METERS  # Maximum allowed distance in meters
+    min_distance_from_edge = BUFFER_DISTANCE_METERS
+    max_distance_from_edge = MAX_DISTANCE_METERS
+
+    if coordinate_lookup is None:
+        coordinate_lookup = {}
+        print("Creating new coordinate lookup table...")
+    else:
+        print(f"Using existing lookup table with {len(coordinate_lookup)} entries...")
+
     print("Creating KD-tree spatial index...")
     centroids, kdtree = create_spatial_index_kdtree(osm_edges_utm)
 
@@ -503,7 +544,8 @@ def snap_coordinates_when_too_far(payload_plans: pd.DataFrame,
                 kdtree,
                 min_distance_from_edge,
                 max_distance_from_edge,
-                start_idx
+                start_idx,
+                coordinate_lookup
             )
             futures.append(future)
 
@@ -528,14 +570,14 @@ def snap_coordinates_when_too_far(payload_plans: pd.DataFrame,
     # Sort results and update DataFrame efficiently
     all_results.sort(key=lambda r: r[0])
     result_indices = [r[0] for r in all_results]
-    x_coords = [r[1] for r in all_results]  # These are now in WGS84
-    y_coords = [r[2] for r in all_results]  # These are now in WGS84
+    x_coords = [r[1] for r in all_results]
+    y_coords = [r[2] for r in all_results]
 
     result_df = payload_plans.copy()
     result_df['locationX'] = pd.Series(x_coords, index=result_indices)
     result_df['locationY'] = pd.Series(y_coords, index=result_indices)
 
-    return result_df
+    return result_df, coordinate_lookup
 
 
 #############################
@@ -673,23 +715,29 @@ if __name__ == '__main__':
 
     # Process payloads
     print("Processing payload plans...")
+    _coordinate_lookup = {}
     # Add random_state for reproducibility
     # sampled_df = _payload_plans.sample(n=1000, random_state=42).copy().reset_index(drop=True)
     # sampled_df.to_csv(f'{DIRECTORY_OUTPUT}/payloads-sampled--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
     # Then format and save
+    # Create shared coordinate lookup table
     _payload_plans_file = f'{DIRECTORY_OUTPUT}/payloads--{YEAR}-{SCENARIO_LABEL}.csv'
     _payload_plans_no_snap_file = _payload_plans_file.replace("payloads", "payloads--no-snap")
     format_payload(_payload_plans).to_csv(_payload_plans_no_snap_file, index=False)
     # Snap coordinates and save
-    snap_coordinates_when_too_far(_payload_plans, _osm_edges_utm).to_csv(_payload_plans_file, index=False)
+    _payload_plans, _coordinate_lookup = snap_coordinates_when_too_far(_payload_plans, _osm_edges_utm,
+                                                                       _coordinate_lookup)
+    _payload_plans.to_csv(_payload_plans_file, index=False)
 
     if _ondemand_plans is not None:
         print("Processing ondemand plans...")
         _ondemand_plans_file = f'{DIRECTORY_OUTPUT}/ondemand--{YEAR}-{SCENARIO_LABEL}.csv'
         _ondemand_plans_no_snap_file = _ondemand_plans_file.replace("ondemand", "ondemand--no-snap")
         format_payload(_ondemand_plans).to_csv(_ondemand_plans_no_snap_file, index=False)
-        # Snap coordinates and save
-        snap_coordinates_when_too_far(_ondemand_plans, _osm_edges_utm).to_csv(_ondemand_plans_file, index=False)
+        # Snap coordinates and save, reusing the lookup table
+        _ondemand_plans, _coordinate_lookup = snap_coordinates_when_too_far(_ondemand_plans, _osm_edges_utm,
+                                                                            _coordinate_lookup)
+        _ondemand_plans.to_csv(_ondemand_plans_file, index=False)
 
     # selecting initial locations
     first_payloads = _payload_plans[_payload_plans['sequenceRank'] == 0].copy()
