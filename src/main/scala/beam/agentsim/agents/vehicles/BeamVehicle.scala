@@ -799,7 +799,7 @@ object BeamVehicle {
   }
 
   /*
- To fix emissions calculations:
+ For emissions calculations:
  - for possible IDLE vehicle time between shift start event and PathTraversal event
  - for possible IDLE vehicle time between driver enters vehicle and PathTraversal event
    */
@@ -835,4 +835,40 @@ object BeamVehicle {
     }
   }
 
+  /*
+ For emissions calculations:
+ - for IDLE vehicle time before any other activity
+   */
+  def getInitialIDLEActivityForEmissions(
+    tick: Int,
+    linkId: Int,
+    beamVehicle: BeamVehicle,
+    beamServices: BeamServices
+  ): IndexedSeq[BeamVehicle.VehicleActivityData] = {
+    (beamVehicle.lastLinkVisited, beamVehicle.lastIDLEStartTime) match {
+      case (Some(_), _) => IndexedSeq.empty[BeamVehicle.VehicleActivityData]
+      case (_, Some(_)) => IndexedSeq.empty[BeamVehicle.VehicleActivityData]
+      case _ =>
+        val currentLink: Option[Link] = beamServices.networkHelper.getLink(linkId)
+        val totalDurationSeconds = tick.toDouble
+        val startTimeToDurationPairs = startTimeAndDurationToMultipleIntervals(0, totalDurationSeconds)
+        val vads = startTimeToDurationPairs.map { case (startTime, duration) =>
+          VehicleActivityData(
+            time = startTime,
+            linkId = linkId,
+            vehicleType = beamVehicle.beamVehicleType,
+            payloadInKg = None,
+            linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt),
+            linkLength = currentLink.map(_.getLength),
+            averageSpeed = None,
+            taz = currentLink.flatMap(link => beamServices.beamScenario.tazTreeMap.getTAZfromLink(link.getId)),
+            parkingDuration = Some(duration),
+            parkingType = Some(ParkingType.Public),
+            activityType = Some(ParkingActivityType.IDLE.toString),
+            linkTravelTime = None
+          )
+        }
+        vads.toIndexedSeq
+    }
+  }
 }

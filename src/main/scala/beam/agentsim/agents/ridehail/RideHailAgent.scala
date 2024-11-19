@@ -34,9 +34,10 @@ import beam.utils.NetworkHelper
 import beam.utils.logging.LogActorState
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.events.PersonEntersVehicleEvent
+import org.matsim.api.core.v01.events.{PersonEntersVehicleEvent, VehicleEntersTrafficEvent}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.network.NetworkUtils
 import org.matsim.core.utils.misc.Time
 import org.matsim.vehicles.Vehicle
 
@@ -496,12 +497,7 @@ class RideHailAgent(
           needsToEndShift = false
           isCurrentlyOnShift = false
         }
-        updateLatestObservedTick(tick)
-        currentBeamVehicle.setLastVehicleTime(Some(tick))
-        eventsManager.processEvent(new ShiftEvent(tick, StartShift, id.toString, vehicle))
-        log.debug("state(RideHailingAgent.Offline): starting shift {}", id)
-        holdTickAndTriggerId(tick, triggerId)
-        isStartingNewShift = true
+
         val newLocation = data.remainingShifts.headOption match {
           case Some(Shift(_, Some(startLocation))) =>
             //TODO this is teleportation and should be fixed in favor of new protocol to make vehicles move
@@ -509,6 +505,26 @@ class RideHailAgent(
           case _ =>
             vehicle.spaceTime.copy(time = tick)
         }
+        val linkId = NetworkUtils.getNearestLink(beamServices.beamScenario.network, newLocation.loc).getId
+        val initialIdleActivity = BeamVehicle.getInitialIDLEActivityForEmissions(
+          tick,
+          linkId.toString.toInt,
+          currentBeamVehicle,
+          beamServices
+        )
+        val maybeInitialIdleEmission = currentBeamVehicle.emitEmissions(
+          initialIdleActivity,
+          classOf[VehicleEntersTrafficEvent],
+          beamServices
+        )
+
+        updateLatestObservedTick(tick)
+        currentBeamVehicle.setLastVehicleTime(Some(tick))
+        eventsManager.processEvent(new ShiftEvent(tick, StartShift, id.toString, vehicle, maybeInitialIdleEmission))
+        log.debug("state(RideHailingAgent.Offline): starting shift {}", id)
+        holdTickAndTriggerId(tick, triggerId)
+        isStartingNewShift = true
+
         if (debugEnabled) outgoingMessages += ev
         if (debugEnabled)
           outgoingMessages += NotifyVehicleIdle(

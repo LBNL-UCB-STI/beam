@@ -134,7 +134,7 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
       }
 
       val outPath = runWithConfig(
-        "test/input/beamville/beam-urbansimv2-emissions.conf",
+        "test/input/beamville/beam-urbansimv2-emissions-rh.conf",
         {
           case sh: ShiftEvent if sh.shiftEventType == StartShift => lastVehicleShiftEvent(sh.vehicle.id.toString) = sh
           case e: PathTraversalEvent if e.vehicleType == "RH_Car" && e.emissionsProfile.isDefined =>

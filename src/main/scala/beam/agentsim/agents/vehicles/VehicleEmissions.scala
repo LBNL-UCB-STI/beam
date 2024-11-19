@@ -14,6 +14,7 @@ import com.typesafe.scalalogging.LazyLogging
 import com.univocity.parsers.common.record.Record
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
 import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.events.VehicleEntersTrafficEvent
 import org.matsim.core.utils.io.IOUtils
 import org.slf4j.LoggerFactory
 
@@ -267,8 +268,7 @@ object VehicleEmissions extends LazyLogging {
 
       val emissionProcesses = {
         EmissionsProfile.values.flatMap {
-          // IDLE activity should be the first element of VehicleActivity data sequence
-          // the type is PathTraversalEvent because there is no difference, IDLE activity happens between other events
+          // the type is PathTraversalEvent because the vehicle used to be moving, IDLE activity happens between other events
           case process @ IDLEX if vehicleActivity == classOf[PathTraversalEvent] && averageSpeed == 0 =>
             Some(process)
           case process @ (RUNEX | PMBW | PMTW | RUNLOSS)
@@ -283,6 +283,10 @@ object VehicleEmissions extends LazyLogging {
             Some(process)
           case process @ (STREX | DIURN | HOTSOAK | RUNLOSS) if vehicleActivity == classOf[LeavingParkingEvent] =>
             Some(process)
+          case process @ DIURN if vehicleActivity == classOf[VehicleEntersTrafficEvent] =>
+            Some(process)
+          // TODO add a case for DIURN to emit it for the rest of simulation time after last vehicle activity
+          // TODO add a case for HOTSOAK to emit it once after vehicle did its last activity
           case _ => None
         }
       }
@@ -358,8 +362,8 @@ object VehicleEmissions extends LazyLogging {
         * @return Total emissions in grams
         */
       RUNEX -> { (ratesBySpeedBin: Emissions, data: BeamVehicle.VehicleActivityData) =>
-        val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
-        ratesBySpeedBin * vehicleMilesTraveledInMiles
+        val vehicleTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
+        ratesBySpeedBin * vehicleTraveledInMiles
       },
       /**
         * Calculate Idle Exhaust Emissions (IDLEX)
@@ -368,6 +372,7 @@ object VehicleEmissions extends LazyLogging {
         * rates Emission rate (grams per vehicle-idle hour)
         * @return Total emissions in grams
         */
+      // FIXME not all vehicles are running engine while parked
       IDLEX -> { (rates: Emissions, data: BeamVehicle.VehicleActivityData) =>
         val vehicleIdleInHours = data.parkingDuration.map(_ / 3600.0).getOrElse(0.0)
         rates * vehicleIdleInHours
@@ -391,6 +396,7 @@ object VehicleEmissions extends LazyLogging {
         * rates Emission rate (grams per vehicle-hour)
         * @return Total emissions in grams
         */
+      // FIXME we need to emit this for all hours before vehicle activity and for the rest of simulation hours after vehicle stop being active
       // FIXME we might underestimate DIURN: Ridehail vehicles do not park, they idle or stop engine while waiting
       DIURN -> { (rates: Emissions, data: BeamVehicle.VehicleActivityData) =>
         val vehicleParkingInHours = data.parkingDuration.map(_ / 3600.0).getOrElse(0.0)
@@ -415,6 +421,7 @@ object VehicleEmissions extends LazyLogging {
         * rates Emission rate (grams per vehicle-hour)
         * @return Total emissions in grams
         */
+      // FIXME using parkingDuration here might be incorrect!
       RUNLOSS -> { (rates: Emissions, data: BeamVehicle.VehicleActivityData) =>
         val vehicleHoursTraveledInHours =
           data.linkTravelTime.map(_ / 3600.0).orElse(data.parkingDuration.map(_ / 3600.0)).getOrElse(0.0)
