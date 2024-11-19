@@ -452,8 +452,8 @@ def process_points_chunk_vectorized(
     return results
 
 
-def snap_coordinates_when_too_far_optimized(payload_plans: pd.DataFrame,
-                                            osm_edges_utm: gpd.GeoDataFrame) -> pd.DataFrame:
+def snap_coordinates_when_too_far(payload_plans: pd.DataFrame,
+                                  osm_edges_utm: gpd.GeoDataFrame) -> pd.DataFrame:
     """
     Optimized version of coordinate snapping using KD-tree spatial indexing and proper CRS handling
 
@@ -678,22 +678,20 @@ if __name__ == '__main__':
     # sampled_df.to_csv(f'{DIRECTORY_OUTPUT}/payloads-sampled--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
     # Then format and save
     _payload_plans_file = f'{DIRECTORY_OUTPUT}/payloads--{YEAR}-{SCENARIO_LABEL}.csv'
-    format_payload(_payload_plans).to_csv(_payload_plans_file, index=False)
-    # First process coordinates
-    _payload_plans = snap_coordinates_when_too_far_optimized(_payload_plans, _osm_edges_utm)
-    # Then format and save
-    _payload_plans.to_csv(_payload_plans_file.replace("payloads", "payloads--snapped-coord"), index=False)
+    _payload_plans_no_snap_file = _payload_plans_file.replace("payloads", "payloads--no-snap")
+    format_payload(_payload_plans).to_csv(_payload_plans_no_snap_file, index=False)
+    # Snap coordinates and save
+    snap_coordinates_when_too_far(_payload_plans, _osm_edges_utm).to_csv(_payload_plans_file, index=False)
 
     if _ondemand_plans is not None:
         print("Processing ondemand plans...")
         _ondemand_plans_file = f'{DIRECTORY_OUTPUT}/ondemand--{YEAR}-{SCENARIO_LABEL}.csv'
-        # Then format and save
-        format_payload(_ondemand_plans).to_csv(_ondemand_plans_file, index=False)
-        # First process coordinates
-        _ondemand_plans = snap_coordinates_when_too_far_optimized(_ondemand_plans, _osm_edges_utm)
-        # Then format and save
-        _ondemand_plans.to_csv(_ondemand_plans_file.replace("ondemand", "ondemand--snapped-coord"), index=False)
+        _ondemand_plans_no_snap_file = _ondemand_plans_file.replace("ondemand", "ondemand--no-snap")
+        format_payload(_ondemand_plans).to_csv(_ondemand_plans_no_snap_file, index=False)
+        # Snap coordinates and save
+        snap_coordinates_when_too_far(_ondemand_plans, _osm_edges_utm).to_csv(_ondemand_plans_file, index=False)
 
+    # selecting initial locations
     first_payloads = _payload_plans[_payload_plans['sequenceRank'] == 0].copy()
 
     # carrierId,tourId,vehicleId,vehicleTypeId,warehouseZone,warehouseX,warehouseY,MESOZONE,BoundaryZONE
