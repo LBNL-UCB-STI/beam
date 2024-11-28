@@ -31,7 +31,7 @@ import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.NetworkHelper
-import beam.utils.logging.ExponentialLazyLogging
+import beam.utils.logging.{ExponentialLazyLogging, LoggerWrapper}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{
@@ -43,6 +43,7 @@ import org.matsim.api.core.v01.events.{
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
+import org.slf4j.LoggerFactory
 
 import scala.collection.{immutable, mutable}
 import scala.language.postfixOps
@@ -352,13 +353,26 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         None,
         beamServices
       )
-      currentBeamVehicle.setLastVehicleLink(currentLeg.travelPath.linkIds.headOption)
-      val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivityForEmissions(
+      beamServices.beamScenario.vehicleEmissions
+        .rememberLastVehicleLink(currentBeamVehicle, currentLeg.travelPath.linkIds.headOption)
+
+      val initialIdleActivity = BeamVehicle.getIDLEActivitiesWithStoppedEngineForEmissions(
+        currentBeamVehicle,
+        beamServices
+      )
+      val maybeInitialIdleEmission = currentBeamVehicle.emitEmissions(
+        initialIdleActivity,
+        classOf[VehicleEntersTrafficEvent],
+        beamServices
+      )
+
+      val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivitiesWithRunningEngineForEmissions(
         currentLeg.startTime,
         currentBeamVehicle,
         beamServices
       )
-      currentBeamVehicle.setLastVehicleTimeLink(
+      beamServices.beamScenario.vehicleEmissions.rememberLastVehiclePosition(
+        currentBeamVehicle,
         Some(currentLeg.endTime),
         currentLeg.travelPath.linkIds.lastOption
       )
@@ -373,9 +387,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         classOf[PathTraversalEvent],
         beamServices
       )
-      val emissionsProfile = EmissionsProfile.join(emissionsProfilePTE, emissionsProfileIDLE)
+      val emissionsProfile = EmissionsProfile.join(
+        emissionsProfilePTE,
+        EmissionsProfile.join(emissionsProfileIDLE, maybeInitialIdleEmission)
+      )
+
       val numberOfPassengers: Int = calculateNumberOfPassengersBasedOnCurrentTripMode(data, currentLeg, riders)
-      val currentTourMode: Option[String] = getCurrentTripMode(data)
       val pte = PathTraversalEvent(
         tick,
         currentVehicleUnderControl,
@@ -602,12 +619,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           None,
           beamServices
         )
-        val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivityForEmissions(
+        val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivitiesWithRunningEngineForEmissions(
           currentLeg.startTime,
           currentBeamVehicle,
           beamServices
         )
-        currentBeamVehicle.setLastVehicleTimeLink(
+        beamServices.beamScenario.vehicleEmissions.rememberLastVehiclePosition(
+          currentBeamVehicle,
           Some(currentLeg.endTime),
           currentLeg.travelPath.linkIds.lastOption
         )
@@ -628,7 +646,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         tollsAccumulated += tollOnCurrentLeg
         val numberOfPassengers: Int =
           calculateNumberOfPassengersBasedOnCurrentTripMode(data, partiallyCompletedBeamLeg, riders)
-        val currentTourMode: Option[String] = getCurrentTripMode(data)
         val pte = PathTraversalEvent(
           updatedStopTick,
           currentVehicleUnderControl,
@@ -764,7 +781,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
             )
             currentBeamVehicle.stall.foreach { theStall =>
               parkingManager ! ReleaseParkingStall(theStall, tick)
-              currentBeamVehicle.setLastVehicleTimeLink(
+              beamServices.beamScenario.vehicleEmissions.rememberLastVehiclePosition(
+                currentBeamVehicle,
                 Some(tick),
                 theStall.link.map(_.getId.toString.toInt)
               )
