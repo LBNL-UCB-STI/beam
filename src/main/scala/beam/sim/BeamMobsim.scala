@@ -622,6 +622,9 @@ class BeamMobsimIteration(
       log.info("Processing Agentsim Events (Start)")
       stopMeasuring("agentsim-events:agentsim")
 
+      beamServices.beamScenario.vehicleEmissions.emitIDLEEmissionsAtIterationEndForAllVehicles(beamServices)
+      log.info("Processing end of the day IDLE emissions finished.")
+
       population ! Finish
       goodsDeliveryManager ! Finish
       rideHailManager ! Finish

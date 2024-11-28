@@ -113,15 +113,25 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
     }
   }
 
-  describe("When BEAM run with emissions generation only for RH") {
-    it(
-      "expected for emissions be generated for each PTE link and for eny IDLE time between Shift events and PT events"
-    ) {
+  describe("Various emissions expected to be generated based on events links, times and scenario configuration.") {
+    it("When BEAM run with emissions generation only for RH") {
       val rhWithEmissions = mutable.ListBuffer[PathTraversalEvent]()
 
       val lastVehicleShiftEvent = mutable.HashMap.empty[String, ShiftEvent]
       val lastVehiclePathTraversalEvent = mutable.HashMap.empty[String, PathTraversalEvent]
+      val lastVehicleEventTime = mutable.HashMap.empty[String, Int]
       val vehicleIdleLinkHour = mutable.HashMap.empty[String, Int]
+      var firstMentionedTimeInSeconds: Double = 0
+
+      def markVehicleEventTime(tick: Double, vehicleId: String): Unit = {
+        lastVehicleEventTime.get(vehicleId) match {
+          case Some(lastTick) if lastTick > tick =>
+          case _                                 => lastVehicleEventTime(vehicleId) = tick.toInt
+        }
+        if (firstMentionedTimeInSeconds > tick) {
+          firstMentionedTimeInSeconds = tick
+        }
+      }
 
       def putIDLERecords(fromTick: Int, toTick: Int, linkId: Option[Int]): Unit = {
         if (math.abs(toTick - fromTick) > 10) {
@@ -136,7 +146,10 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
       val outPath = runWithConfig(
         "test/input/beamville/beam-urbansimv2-emissions-rh.conf",
         {
-          case sh: ShiftEvent if sh.shiftEventType == StartShift => lastVehicleShiftEvent(sh.vehicle.id.toString) = sh
+          case sh: ShiftEvent if sh.shiftEventType == StartShift =>
+            lastVehicleShiftEvent(sh.vehicle.id.toString) = sh
+            markVehicleEventTime(sh.tick, sh.vehicle.id.toString)
+
           case e: PathTraversalEvent if e.vehicleType == "RH_Car" && e.emissionsProfile.isDefined =>
             rhWithEmissions.append(e)
             lastVehicleShiftEvent.remove(e.vehicleId.toString) match {
@@ -148,6 +161,7 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
               case None      =>
             }
             lastVehiclePathTraversalEvent(e.vehicleId.toString) = e
+            markVehicleEventTime(e.time, e.vehicleId.toString)
 
           case sh: ShiftEvent if sh.shiftEventType == EndShift && sh.emissionsProfile.isDefined =>
             lastVehiclePathTraversalEvent.remove(sh.vehicle.id.toString) match {
@@ -155,6 +169,7 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
               case None      =>
             }
             lastVehicleShiftEvent(sh.vehicle.id.toString) = sh
+            markVehicleEventTime(sh.tick, sh.vehicle.id.toString)
 
           case e: PathTraversalEvent if e.vehicleType == "RH_Car" =>
             throw new RuntimeException("There should NOT be any RH PT events without emissions.")
@@ -196,6 +211,139 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
       vehicleIdleLinkHour.foreach { case (linkId, hr) =>
         assert(skimsIDLEKeys.contains((linkId, hr)), "All IDLE time of RH vehicles should be in skims.")
       }
+
+      val skimsDIURNHours = skimsEmissions.keys
+        .filter(ek => ek.emissionsProcess == VehicleEmissions.EmissionsProfile.DIURN)
+        .map(ek => ek.hour)
+        .toSet
+
+      val firstActivityHour = math.ceil(firstMentionedTimeInSeconds / 3600).toInt
+      (0 until firstActivityHour).foreach { hr =>
+        assert(
+          skimsDIURNHours.contains(hr),
+          f"DIURN emissions hours from 0 up to first RH activity (hr $firstActivityHour) should be in skims."
+        )
+      }
+
+      val earliestOfLastVehicleTime = lastVehicleEventTime.values.min
+      val earliestOfLastHour = math.floor(earliestOfLastVehicleTime / 3600).toInt
+      (earliestOfLastHour until 24).foreach { hr =>
+        assert(
+          skimsDIURNHours.contains(hr),
+          f"DIURN emissions hours after latest RH activity (hr $earliestOfLastHour) up to the end of simulation should be in skims."
+        )
+      }
+    }
+
+    it("When BEAM run with emissions generation only for BUS") {
+      val firstMentionedTimeInSeconds = mutable.HashMap.empty[String, Double]
+      val lastMentionedTimeInSeconds = mutable.HashMap.empty[String, Double]
+
+      def markEventTime(tick: Double, vehicleId: String): Unit = {
+        firstMentionedTimeInSeconds.get(vehicleId) match {
+          case Some(lastTick) if lastTick < tick =>
+          case _                                 => firstMentionedTimeInSeconds(vehicleId) = tick
+        }
+        lastMentionedTimeInSeconds.get(vehicleId) match {
+          case Some(lastTick) if lastTick > tick =>
+          case _                                 => lastMentionedTimeInSeconds(vehicleId) = tick
+        }
+      }
+
+      val busVehicleType = "BUS-DEFAULT"
+      val outPath = runWithConfig(
+        "test/input/beamville/beam-urbansimv2-emissions-bus.conf",
+        {
+          case e: PathTraversalEvent if e.vehicleType == busVehicleType && e.emissionsProfile.isDefined =>
+            markEventTime(e.time, e.vehicleId.toString)
+
+          case e: PathTraversalEvent if e.vehicleType == busVehicleType =>
+            throw new RuntimeException("There should NOT be any BUS PT events without emissions.")
+          case _ =>
+        }
+      )
+
+      val skimsEmissions: Map[EmissionsSkimmerKey, EmissionsSkimmerInternal] = readSkims(outPath, 0)
+      skimsEmissions shouldNot be(empty) withClue "Emissions skims should be generated."
+
+      val skimsDIURNHours = skimsEmissions.keys
+        .filter(ek => ek.emissionsProcess == VehicleEmissions.EmissionsProfile.DIURN)
+        .map(ek => ek.hour)
+        .toSet
+
+      val firstActivityHour = math.ceil(firstMentionedTimeInSeconds.values.max / 3600).toInt
+      (0 until firstActivityHour).foreach { hr =>
+        assert(
+          skimsDIURNHours.contains(hr),
+          f"DIURN emissions hours from 0 up to latest first BUS activity (hr $firstActivityHour) should be in skims."
+        )
+      }
+
+      val earliestOfLastActivityHour = math.floor(lastMentionedTimeInSeconds.values.min / 3600).toInt
+      earliestOfLastActivityHour should be < 23 withClue "Earliest last BUS activity should be before the end of simulation."
+
+      (earliestOfLastActivityHour until 24).foreach { hr =>
+        assert(
+          skimsDIURNHours.contains(hr),
+          f"DIURN emissions hours after latest BUS activity (hr $earliestOfLastActivityHour) up to the end of simulation should be in skims."
+        )
+      }
+    }
+
+    it("When BEAM run with emissions generation only for regular CARs") {
+      val firstMentionedTimeInSeconds = mutable.HashMap.empty[String, Double]
+      val lastMentionedTimeInSeconds = mutable.HashMap.empty[String, Double]
+
+      def markEventTime(tick: Double, vehicleId: String): Unit = {
+        firstMentionedTimeInSeconds.get(vehicleId) match {
+          case Some(lastTick) if lastTick < tick =>
+          case _                                 => firstMentionedTimeInSeconds(vehicleId) = tick
+        }
+        lastMentionedTimeInSeconds.get(vehicleId) match {
+          case Some(lastTick) if lastTick > tick =>
+          case _                                 => lastMentionedTimeInSeconds(vehicleId) = tick
+        }
+      }
+
+      val carVehicleTypes = Set("beamVilleCar", "sharedVehicle-sharedCar", "slowCar")
+      val outPath = runWithConfig(
+        "test/input/beamville/beam-urbansimv2-emissions-car.conf",
+        {
+          case e: PathTraversalEvent if carVehicleTypes.contains(e.vehicleType) && e.emissionsProfile.isDefined =>
+            markEventTime(e.time, e.vehicleId.toString)
+
+          case e: PathTraversalEvent if carVehicleTypes.contains(e.vehicleType) =>
+            throw new RuntimeException("There should NOT be any BUS PT events without emissions.")
+          case _ =>
+        }
+      )
+
+      val skimsEmissions: Map[EmissionsSkimmerKey, EmissionsSkimmerInternal] = readSkims(outPath, 0)
+      skimsEmissions shouldNot be(empty) withClue "Emissions skims should be generated."
+
+      val skimsDIURNHours = skimsEmissions.keys
+        .filter(ek => ek.emissionsProcess == VehicleEmissions.EmissionsProfile.DIURN)
+        .map(ek => ek.hour)
+        .toSet
+
+      val firstActivityHour = math.ceil(firstMentionedTimeInSeconds.values.max / 3600).toInt
+      (0 until firstActivityHour).foreach { hr =>
+        assert(
+          skimsDIURNHours.contains(hr),
+          f"DIURN emissions hours from 0 up to latest first BUS activity (hr $firstActivityHour) should be in skims."
+        )
+      }
+
+      val earliestOfLastActivityHour = math.floor(lastMentionedTimeInSeconds.values.min / 3600).toInt
+      earliestOfLastActivityHour should be < 23 withClue "Earliest last CAR activity should be before the end of simulation."
+
+      (earliestOfLastActivityHour until 24).foreach { hr =>
+        assert(
+          skimsDIURNHours.contains(hr),
+          f"DIURN emissions hours after latest BUS activity (hr $earliestOfLastActivityHour) up to the end of simulation should be in skims."
+        )
+      }
     }
   }
+
 }

@@ -14,11 +14,13 @@ import com.typesafe.scalalogging.LazyLogging
 import com.univocity.parsers.common.record.Record
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.VehicleEntersTrafficEvent
+import org.matsim.api.core.v01.events.{VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
 import org.matsim.core.utils.io.IOUtils
+import org.matsim.core.utils.misc.Time
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
+import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -45,6 +47,91 @@ class VehicleEmissions(
   private lazy val linkIdToGradePercentMap =
     BeamVehicleUtils.loadLinkIdToGradeMapFromCSV(csvParser, linkToGradePercentFilePath)
 
+  // information required to calculate some emissions of a vehicle
+  private val vehicleToLinkTimeData: TrieMap[Id[BeamVehicle], VehicleLinkTimeData] = TrieMap.empty
+
+  def getVehiclesWithStoredData: IndexedSeq[Id[BeamVehicle]] = vehicleToLinkTimeData.keySet.toIndexedSeq
+
+  def getVehicleLinkTimeData(vehicleId: Id[BeamVehicle]): Option[VehicleLinkTimeData] =
+    vehicleToLinkTimeData.get(vehicleId)
+
+  def setInitialDIURNProcessed(vehicle: BeamVehicle): Unit = {
+    vehicleToLinkTimeData.get(vehicle.id) match {
+      case Some(value) => vehicleToLinkTimeData.put(vehicle.id, value.copy(DIURNInitialProcessed = true))
+      case None =>
+        vehicleToLinkTimeData.put(
+          vehicle.id,
+          VehicleLinkTimeData(vehicle.beamVehicleType, DIURNInitialProcessed = true)
+        )
+    }
+  }
+
+  def rememberLastVehicleLink(vehicle: BeamVehicle, link: Option[Int]): Unit = {
+    vehicleToLinkTimeData.get(vehicle.id) match {
+      case Some(value) => vehicleToLinkTimeData.put(vehicle.id, value.copy(lastKnownLink = link))
+      case None =>
+        vehicleToLinkTimeData.put(vehicle.id, VehicleLinkTimeData(vehicle.beamVehicleType, lastKnownLink = link))
+    }
+  }
+
+  def rememberLastVehicleTime(vehicle: BeamVehicle, time: Option[Int]): Unit = {
+    vehicleToLinkTimeData.get(vehicle.id) match {
+      case Some(value) if time.nonEmpty && value.lastIDLEStopTime.isEmpty =>
+        vehicleToLinkTimeData.put(vehicle.id, value.copy(lastKnownTime = time, lastIDLEStopTime = time))
+      case Some(value) =>
+        vehicleToLinkTimeData.put(vehicle.id, value.copy(lastKnownTime = time))
+      case None =>
+        vehicleToLinkTimeData.put(
+          vehicle.id,
+          VehicleLinkTimeData(vehicle.beamVehicleType, lastKnownTime = time, lastIDLEStopTime = time)
+        )
+    }
+  }
+
+  def rememberLastVehiclePosition(vehicle: BeamVehicle, time: Option[Int], link: Option[Int]): Unit = {
+    vehicleToLinkTimeData.get(vehicle.id) match {
+      case Some(value) if time.nonEmpty && value.lastIDLEStopTime.isEmpty =>
+        vehicleToLinkTimeData.put(
+          vehicle.id,
+          value.copy(lastKnownTime = time, lastKnownLink = link, lastIDLEStopTime = time)
+        )
+      case Some(value) =>
+        vehicleToLinkTimeData.put(vehicle.id, value.copy(lastKnownTime = time, lastKnownLink = link))
+      case None =>
+        vehicleToLinkTimeData.put(
+          vehicle.id,
+          VehicleLinkTimeData(
+            vehicle.beamVehicleType,
+            lastKnownTime = time,
+            lastKnownLink = link,
+            lastIDLEStopTime = time
+          )
+        )
+    }
+  }
+
+  def emitIDLEEmissionsAtIterationEndForAllVehicles(beamServices: BeamServices): Unit = {
+    val lastTickOfSimulation: Int = Time
+      .parseTime(beamServices.beamScenario.beamConfig.beam.agentsim.endTime)
+      .toInt - beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow
+
+    val idleActivitiesForEmissionsGeneration: IndexedSeq[IndexedSeq[BeamVehicle.VehicleActivityData]] =
+      BeamVehicle.getIDLEActivitiesForAllVehiclesUpToEndOfDay(lastTickOfSimulation, beamServices)
+
+    idleActivitiesForEmissionsGeneration.map { idleActivitySeq =>
+      idleActivitySeq.headOption.map(_.vehicleType) match {
+        case Some(vehicleType) =>
+          BeamVehicle.emitEmissions(
+            idleActivitySeq,
+            classOf[VehicleLeavesTrafficEvent],
+            vehicleType,
+            beamServices
+          )
+        case None =>
+      }
+    }
+  }
+
   Emissions.setFilter(pollutantsToFilterOut)
 
   def getEmissionsProfileInGram(
@@ -70,21 +157,19 @@ class VehicleEmissions(
 
       val emissions = calculationMap(process)(rates, data)
       if (beamServices.beamConfig.beam.exchange.output.emissions.skims) {
-        // Create and process EmissionsSkimmerEvent
-        beamServices.matsimServices.getEvents.processEvent(
-          EmissionsSkimmerEvent(
-            time = data.time,
-            linkId = data.linkId,
-            zone = data.taz.map(_.tazId.toString).getOrElse(""),
-            vehicleType = vehicleType.id.toString,
-            emissions = emissions,
-            emissionsProcess = process,
-            travelTime = data.linkTravelTime.getOrElse(0.0),
-            parkingDuration = data.parkingDuration.getOrElse(0.0),
-            energyConsumption = data.primaryEnergyConsumed + data.secondaryEnergyConsumed,
-            beamServices = beamServices
-          )
+        val emissionEvent = EmissionsSkimmerEvent(
+          time = data.time,
+          linkId = data.linkId,
+          zone = data.taz.map(_.tazId.toString).getOrElse(""),
+          vehicleType = vehicleType.id.toString,
+          emissions = emissions,
+          emissionsProcess = process,
+          travelTime = data.linkTravelTime.getOrElse(0.0),
+          parkingDuration = data.parkingDuration.getOrElse(0.0),
+          energyConsumption = data.primaryEnergyConsumed + data.secondaryEnergyConsumed,
+          beamServices = beamServices
         )
+        beamServices.matsimServices.getEvents.processEvent(emissionEvent)
       }
       process -> emissions
     }
@@ -284,6 +369,8 @@ object VehicleEmissions extends LazyLogging {
           case process @ (STREX | DIURN | HOTSOAK | RUNLOSS) if vehicleActivity == classOf[LeavingParkingEvent] =>
             Some(process)
           case process @ DIURN if vehicleActivity == classOf[VehicleEntersTrafficEvent] =>
+            Some(process)
+          case process @ DIURN if vehicleActivity == classOf[VehicleLeavesTrafficEvent] =>
             Some(process)
           // TODO add a case for DIURN to emit it for the rest of simulation time after last vehicle activity
           // TODO add a case for HOTSOAK to emit it once after vehicle did its last activity
@@ -685,4 +772,12 @@ object VehicleEmissions extends LazyLogging {
       }
     }
   }
+
+  case class VehicleLinkTimeData(
+    beamVehicleType: BeamVehicleType,
+    lastKnownTime: Option[Int] = None, // last time the vehicle started engine - for IDLE emission
+    lastKnownLink: Option[Int] = None, // last link visited in latest Leg/Parking, latest location of vehicle
+    lastIDLEStopTime: Option[Int] = None, // last time the vehicle stopped inactivity - for DIURN emission
+    DIURNInitialProcessed: Boolean = false // if lastIDLEStopTime was set and used for initial DIURN calculation
+  )
 }
