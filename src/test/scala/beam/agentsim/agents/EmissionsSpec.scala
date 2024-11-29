@@ -244,9 +244,8 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
       lastStopHourOfVehicle.foreach { hr =>
         skimsHOTSOAKHours should contain(
           hr
-        ) withClue "HOTSOAK emissions from skims should exist at each our of last vehicle activity."
+        ) withClue "HOTSOAK emissions from skims should exist at our of last vehicle activity."
       }
-
     }
 
     it("When BEAM run with emissions generation only for BUS") {
@@ -364,7 +363,7 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
       }
 
       val earliestOfLastActivityHour = math.floor(lastMentionedTimeInSeconds.values.min / 3600).toInt
-      earliestOfLastActivityHour should be < 23 withClue "Earliest last CAR activity should be before the end of simulation."
+      earliestOfLastActivityHour should be < 24 withClue "Earliest last BUS activity should be before the end of simulation."
 
       (earliestOfLastActivityHour until 24).foreach { hr =>
         assert(

@@ -78,7 +78,8 @@ object ParkingNetworkManager extends LazyLogging {
         beamServices.beamScenario.vehicleEmissions.rememberLastVehiclePosition(
           currentBeamVehicle,
           Some(tick),
-          currentBeamVehicle.stall.flatMap(_.link).map(_.getId.toString.toInt)
+          stall.link.map(_.getId.toString.toInt),
+          DIURNInitialProcessed = true // because the next collected vehicle activity will generate DIURN as well
         )
         currentBeamVehicle.unsetParkingStall()
         Some(stall)

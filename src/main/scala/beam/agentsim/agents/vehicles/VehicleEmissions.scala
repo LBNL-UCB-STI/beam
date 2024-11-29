@@ -25,6 +25,7 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
+import scala.tools.nsc.io.Path
 
 class VehicleEmissions(
   vehicleTypesBasePaths: IndexedSeq[String],
@@ -50,7 +51,9 @@ class VehicleEmissions(
   // information required to calculate some emissions of a vehicle
   private val vehicleToLinkTimeData: TrieMap[Id[BeamVehicle], VehicleLinkTimeData] = TrieMap.empty
 
-  def getVehiclesWithStoredData: IndexedSeq[Id[BeamVehicle]] = vehicleToLinkTimeData.keySet.toIndexedSeq
+  def getVehiclesWithStoredData: IndexedSeq[Id[BeamVehicle]] = {
+    vehicleToLinkTimeData.keySet.toIndexedSeq
+  }
 
   def getVehicleLinkTimeData(vehicleId: Id[BeamVehicle]): Option[VehicleLinkTimeData] =
     vehicleToLinkTimeData.get(vehicleId)
@@ -88,15 +91,28 @@ class VehicleEmissions(
     }
   }
 
-  def rememberLastVehiclePosition(vehicle: BeamVehicle, time: Option[Int], link: Option[Int]): Unit = {
+  def rememberLastVehiclePosition(
+    vehicle: BeamVehicle,
+    time: Option[Int],
+    link: Option[Int],
+    DIURNInitialProcessed: Boolean = false
+  ): Unit = {
     vehicleToLinkTimeData.get(vehicle.id) match {
       case Some(value) if time.nonEmpty && value.lastIDLEStopTime.isEmpty =>
         vehicleToLinkTimeData.put(
           vehicle.id,
-          value.copy(lastKnownTime = time, lastKnownLink = link, lastIDLEStopTime = time)
+          value.copy(
+            lastKnownTime = time,
+            lastKnownLink = link,
+            lastIDLEStopTime = time,
+            DIURNInitialProcessed = DIURNInitialProcessed
+          )
         )
       case Some(value) =>
-        vehicleToLinkTimeData.put(vehicle.id, value.copy(lastKnownTime = time, lastKnownLink = link))
+        vehicleToLinkTimeData.put(
+          vehicle.id,
+          value.copy(lastKnownTime = time, lastKnownLink = link, DIURNInitialProcessed = DIURNInitialProcessed)
+        )
       case None =>
         vehicleToLinkTimeData.put(
           vehicle.id,
@@ -104,7 +120,8 @@ class VehicleEmissions(
             vehicle.beamVehicleType,
             lastKnownTime = time,
             lastKnownLink = link,
-            lastIDLEStopTime = time
+            lastIDLEStopTime = time,
+            DIURNInitialProcessed = DIURNInitialProcessed
           )
         )
     }
@@ -127,7 +144,7 @@ class VehicleEmissions(
             vehicleType,
             beamServices
           )
-        case None =>
+        case _ => None
       }
     }
   }
@@ -150,7 +167,8 @@ class VehicleEmissions(
 
     val emissionsProfiles = for {
       process              <- identifyProcesses(vehicleActivityData, vehicleActivity)
-      data                 <- vehicleActivityData
+      dataOriginal         <- vehicleActivityData
+      data                 <- splitIntoIntervalsIfDurationMatterForProcess(dataOriginal, process)
       emissionsRatesFilter <- getEmissionsRatesFilter(data.vehicleType)
       rates                <- getRatesUsing(emissionsRatesFilter, data, process).orElse(fallBack.flatMap(_.values.get(process)))
     } yield {
@@ -170,11 +188,38 @@ class VehicleEmissions(
           beamServices = beamServices
         )
         beamServices.matsimServices.getEvents.processEvent(emissionEvent)
+
+        //        val path = Path(
+        //          beamServices.matsimServices.getControlerIO
+        //            .getIterationFilename(beamServices.matsimServices.getIterationNumber, "emissions_events.csv")
+        //        )
+        //        val lineToWrite =
+        //          f"${emissionEvent.time}, ${emissionEvent.parkingDuration}, ${emissionEvent.emissionsProcess}, ${emissionEvent.vehicleType}, ${emissionEvent.emissions}"
+        //        path.createFile(failIfExists = false).appendAll(lineToWrite + "\n")
+
       }
       process -> emissions
     }
 
     if (emissionsProfiles.isEmpty) None else Some(EmissionsProfile(emissionsProfiles.toMap))
+  }
+
+  private def splitIntoIntervalsIfDurationMatterForProcess(
+    data: BeamVehicle.VehicleActivityData,
+    process: VehicleEmissions.EmissionsProfile.Value
+  ): IndexedSeq[BeamVehicle.VehicleActivityData] = {
+    (process, data.parkingDuration) match {
+      // for these processes parking duration might be more than 1 hour, so we need to split into intervals
+      case (EmissionsProfile.IDLEX | EmissionsProfile.DIURN, Some(duration)) =>
+        BeamVehicle
+          .startTimeAndDurationToMultipleIntervals(data.time, duration)
+          .map { case (startTime, duration) =>
+            data.copy(time = startTime, parkingDuration = Some(duration))
+          }
+          .toIndexedSeq
+
+      case _ => IndexedSeq(data)
+    }
   }
 
   private def findInterval[T](

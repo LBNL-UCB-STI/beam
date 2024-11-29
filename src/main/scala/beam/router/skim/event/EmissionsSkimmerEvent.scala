@@ -20,7 +20,7 @@ case class EmissionsSkimmerEvent(
   override protected val skimName: String = beamServices.beamConfig.beam.router.skim.emissions_skimmer.name
 
   override def getKey: AbstractSkimmerKey =
-    EmissionsSkimmerKey(linkId.toString, vehicleType, (time / 3600).toInt % 24, zone, emissionsProcess)
+    EmissionsSkimmerKey(linkId.toString, vehicleType, (time / 3600).toInt, zone, emissionsProcess)
 
   override def getSkimmerInternal: AbstractSkimmerInternal =
     EmissionsSkimmerInternal(
