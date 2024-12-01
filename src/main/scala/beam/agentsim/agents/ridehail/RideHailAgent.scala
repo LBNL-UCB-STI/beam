@@ -462,6 +462,7 @@ class RideHailAgent(
           beamServices
         )
         eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle, emissionsProfileIDLE))
+        beamServices.beamScenario.vehicleEmissions.rememberLastVehicleTime(vehicle, Some(tick))
 
         isCurrentlyOnShift = false
         needsToEndShift = false
@@ -637,6 +638,8 @@ class RideHailAgent(
       )
 
       eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle, emissionsProfileIDLE))
+      beamServices.beamScenario.vehicleEmissions.rememberLastVehicleTime(vehicle, Some(tick))
+
       isCurrentlyOnShift = false
       val newShiftToSchedule = if (data.remainingShifts.size < 1) {
         Vector()
