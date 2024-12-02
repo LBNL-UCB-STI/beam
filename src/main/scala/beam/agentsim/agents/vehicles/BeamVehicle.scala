@@ -794,10 +794,10 @@ object BeamVehicle {
       val wholeHoursLeft = math.floor(durationLeft / 3600).toInt
       val durationSecondsLeft = durationLeft - wholeHoursLeft * 3600
       val middlePairs = (0 until wholeHoursLeft).map(hr => (closestHour * 3600.0 + hr * 3600.0, 3600.0))
-      (
+      ((
         startTimeSeconds,
         leftToNextHourSeconds
-      ) +: middlePairs :+ (closestHour * 3600.0 + wholeHoursLeft * 3600.0, durationSecondsLeft)
+      ) +: middlePairs :+ (closestHour * 3600.0 + wholeHoursLeft * 3600.0, durationSecondsLeft)).filter(_._2 > 0)
     }
   }
 
