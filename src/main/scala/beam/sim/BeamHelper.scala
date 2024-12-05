@@ -928,31 +928,6 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
         }
       }
 
-    def getMinMaxActivityTimeFromPlan(plan: Plan): Option[(Double, Double)] = {
-      val activities = plan.getPlanElements.asScala.filter(_.isInstanceOf[Activity]).map(_.asInstanceOf[Activity])
-      val startTimes = activities.filter(_.getStartTime.isDefined).map(_.getStartTime.seconds())
-      val endTimes = activities.filter(_.getEndTime.isDefined).map(_.getEndTime.seconds())
-      (startTimes.size, endTimes.size) match {
-        case (0, 0) => None
-        case (0, _) => Some(endTimes.min, endTimes.max)
-        case (_, 0) => Some(startTimes.min, startTimes.max)
-        case _      => Some(math.min(startTimes.min, endTimes.min), math.max(startTimes.max, endTimes.max))
-      }
-    }
-
-    val (firstActivityTime, lastActivityTime) = scenario.getPopulation.getPersons
-      .values()
-      .asScala
-      .par
-      .map(_.getSelectedPlan)
-      .map(getMinMaxActivityTimeFromPlan)
-      .filter(_.isDefined)
-      .flatten
-      .reduce((a, b) => (a._1.min(b._1), a._2.max(b._2)))
-
-    val endOfTheDay = lastActivityTime + firstActivityTime
-    logger.info(f"The end of the day is $endOfTheDay seconds (${endOfTheDay / 3600} hours)")
-
     (scenario, beamScenario, plansMerged)
   }
 
