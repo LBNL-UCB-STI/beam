@@ -777,10 +777,11 @@ object BeamVehicle {
     }
   }
 
-  def startTimeAndDurationToMultipleIntervals(
+  private def splitToIntervalsInternal(
     startTimeSeconds: Double,
     durationInSeconds: Double
   ): Iterable[(Double, Double)] = {
+    assert(durationInSeconds >= 0)
     val startInHours: Double = startTimeSeconds / 3600.0
     val closestHour: Double = math.ceil(startInHours)
     val leftToNextHourSeconds = closestHour * 3600 - startTimeSeconds
@@ -801,6 +802,29 @@ object BeamVehicle {
     }
   }
 
+  def startTimeAndDurationToMultipleIntervals(
+    startTimeSeconds: Double,
+    durationInSeconds: Double
+  ): Iterable[(Double, Double)] = {
+    if (durationInSeconds >= 0) {
+      // duration is positive
+      splitToIntervalsInternal(startTimeSeconds, durationInSeconds)
+    } else if (startTimeSeconds + durationInSeconds > 0) {
+      // duration is negative, but interval [start - end] is today
+      val realStartTime = math.round(startTimeSeconds + durationInSeconds)
+      splitToIntervalsInternal(realStartTime, durationInSeconds * -1)
+    } else if (startTimeSeconds + durationInSeconds < 0) {
+      // duration is negative and interval [start - end] goes through midnight
+      val beforeMidnightDuration = math.round(startTimeSeconds + durationInSeconds)
+      val startTimeBeforeMidnight = 24.0 * 3600 + beforeMidnightDuration
+      val intervalsBeforeMidnight = splitToIntervalsInternal(startTimeBeforeMidnight, beforeMidnightDuration * -1)
+      val intervalsAfterMidnight = splitToIntervalsInternal(0, startTimeSeconds)
+      intervalsBeforeMidnight ++ intervalsAfterMidnight
+    } else {
+      Iterable.empty[(Double, Double)]
+    }
+  }
+
   /*
  For emissions calculations:
  - for possible IDLE vehicle time between shift start event and PathTraversal event
@@ -809,9 +833,15 @@ object BeamVehicle {
   def getIDLEActivitiesWithRunningEngineForEmissions(
     tick: Int,
     beamVehicle: BeamVehicle,
-    beamServices: BeamServices
+    beamServices: BeamServices,
+    activityTypeSuffix: String = ""
   ): IndexedSeq[BeamVehicle.VehicleActivityData] = {
     val maybeVehicleLinkTimeData = beamServices.beamScenario.vehicleEmissions.getVehicleLinkTimeData(beamVehicle.id)
+    val activityTypeString = if (activityTypeSuffix.nonEmpty) {
+      ParkingActivityType.IDLE.toString + "-" + activityTypeSuffix + "-" + beamVehicle.id.toString
+    } else {
+      ParkingActivityType.IDLE.toString
+    }
 
     val idleWhenEngineRunning: IndexedSeq[BeamVehicle.VehicleActivityData] = maybeVehicleLinkTimeData
       .flatMap {
@@ -830,7 +860,7 @@ object BeamVehicle {
                 taz = currentLink.flatMap(link => beamServices.beamScenario.tazTreeMap.getTAZfromLink(link.getId)),
                 parkingDuration = Some((tick - idleStartTime).toDouble),
                 parkingType = Some(ParkingType.Public),
-                activityType = Some(ParkingActivityType.IDLE.toString),
+                activityType = Some(activityTypeString),
                 linkTravelTime = None
               )
             )
@@ -846,27 +876,27 @@ object BeamVehicle {
 
   def getIDLEActivitiesWithStoppedEngineForEmissions(
     beamVehicle: BeamVehicle,
-    beamServices: BeamServices
+    beamServices: BeamServices,
+    currentTime: Int
   ): IndexedSeq[BeamVehicle.VehicleActivityData] = {
     val maybeVehicleLinkTimeData = beamServices.beamScenario.vehicleEmissions.getVehicleLinkTimeData(beamVehicle.id)
 
     val idleWhenEngineStopped: IndexedSeq[BeamVehicle.VehicleActivityData] = maybeVehicleLinkTimeData
       .flatMap {
-        case VehicleLinkTimeData(_, _, Some(linkId), Some(idleStopTime), false) =>
-          beamServices.beamScenario.vehicleEmissions.setInitialDIURNProcessed(beamVehicle)
-          val currentLink: Option[Link] = beamServices.networkHelper.getLink(linkId)
+        case VehicleLinkTimeData(_, Some(lastTime), Some(lastLink), _, _) if currentTime > lastTime =>
+          val currentLink: Option[Link] = beamServices.networkHelper.getLink(lastLink)
           Some(
             IndexedSeq(
               VehicleActivityData(
                 time = 0,
-                linkId = linkId,
+                linkId = lastLink,
                 vehicleType = beamVehicle.beamVehicleType,
                 payloadInKg = None,
                 linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt),
                 linkLength = currentLink.map(_.getLength),
                 averageSpeed = None,
                 taz = currentLink.flatMap(link => beamServices.beamScenario.tazTreeMap.getTAZfromLink(link.getId)),
-                parkingDuration = Some(idleStopTime),
+                parkingDuration = Some(currentTime - lastTime),
                 parkingType = Some(ParkingType.Public),
                 activityType = Some(ParkingActivityType.IDLE.toString),
                 linkTravelTime = None
@@ -882,10 +912,10 @@ object BeamVehicle {
     idleWhenEngineStopped
   }
 
-  def getIDLEActivitiesForAllVehiclesUpToEndOfDay(
+  def getIDLEOvernightActivitiesForAllVehicles(
     simulationEndTimeTick: Int,
     beamServices: BeamServices
-  ): IndexedSeq[IndexedSeq[VehicleActivityData]] = {
+  ): IndexedSeq[(Id[BeamVehicle], IndexedSeq[VehicleActivityData])] = {
     val allVehicleIdsWithStoredDataForEmissionsCalculation =
       beamServices.beamScenario.vehicleEmissions.getVehiclesWithStoredData
 
@@ -893,24 +923,36 @@ object BeamVehicle {
       val maybeVehicleLinkTimeData = beamServices.beamScenario.vehicleEmissions.getVehicleLinkTimeData(vehicleId)
       val idleAfterEngineStopped: IndexedSeq[VehicleActivityData] = maybeVehicleLinkTimeData
         .flatMap {
-          case VehicleLinkTimeData(vehicleType, Some(lastKnownTime), Some(linkId), _, _) =>
-            val currentLink: Option[Link] = beamServices.networkHelper.getLink(linkId)
+          case VehicleLinkTimeData(vehicleType, Some(lastTime), _, Some(firstTime), Some(firstLinkId))
+              if firstTime + simulationEndTimeTick - lastTime > 0 =>
+            val firstLink: Option[Link] = beamServices.networkHelper.getLink(firstLinkId)
+            val taz = firstLink.flatMap(link => beamServices.beamScenario.tazTreeMap.getTAZfromLink(link.getId))
+            val totalDuration = firstTime + simulationEndTimeTick - lastTime
+
+            def createIdleParkingActivityData(startTime: Int, duration: Int): VehicleActivityData = VehicleActivityData(
+              time = startTime,
+              linkId = firstLinkId,
+              vehicleType = vehicleType,
+              payloadInKg = None,
+              linkNumberOfLanes = firstLink.map(_.getNumberOfLanes().toInt),
+              linkLength = firstLink.map(_.getLength),
+              averageSpeed = None,
+              taz = taz,
+              parkingDuration = Some(duration),
+              parkingType = Some(ParkingType.Public),
+              activityType = Some(ParkingActivityType.IDLE.toString),
+              linkTravelTime = None
+            )
+
             Some(
               IndexedSeq(
-                VehicleActivityData(
-                  time = lastKnownTime,
-                  linkId = linkId,
-                  vehicleType = vehicleType,
-                  payloadInKg = None,
-                  linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt),
-                  linkLength = currentLink.map(_.getLength),
-                  averageSpeed = None,
-                  taz = currentLink.flatMap(link => beamServices.beamScenario.tazTreeMap.getTAZfromLink(link.getId)),
-                  parkingDuration = Some(simulationEndTimeTick - lastKnownTime),
-                  parkingType = Some(ParkingType.Public),
-                  activityType = Some(ParkingActivityType.IDLE.toString),
-                  linkTravelTime = None
-                )
+                //createIdleParkingActivityData(0, firstTime),
+                //createIdleParkingActivityData(lastTime, simulationEndTimeTick - lastTime)
+
+                // this one for overnight parking
+                createIdleParkingActivityData(firstTime, -1 * totalDuration),
+                // this one for HOTSOAK emission calculation at last activity time
+                createIdleParkingActivityData(lastTime, 0)
               )
             )
           case _ => None
@@ -919,7 +961,7 @@ object BeamVehicle {
           IndexedSeq.empty[BeamVehicle.VehicleActivityData]
         }
 
-      idleAfterEngineStopped
+      (vehicleId, idleAfterEngineStopped)
     }
   }
 }

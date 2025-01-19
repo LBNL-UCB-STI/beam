@@ -37,7 +37,6 @@ import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.events.{PersonEntersVehicleEvent, VehicleEntersTrafficEvent}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.network.NetworkUtils
 import org.matsim.core.utils.misc.Time
 import org.matsim.vehicles.Vehicle
 
@@ -354,8 +353,17 @@ class RideHailAgent(
     val isTimeForShift =
       shifts.isEmpty || shifts.get.exists(shift => shift.range.lowerBound <= tick && shift.range.upperBound >= tick)
     if (isTimeForShift) {
-      beamServices.beamScenario.vehicleEmissions.rememberLastVehicleTime(vehicle, Some(tick))
-      eventsManager.processEvent(new ShiftEvent(tick, StartShift, id.toString, vehicle))
+
+      val vehicleLink: Int =
+        GeoUtils.GeoUtilsWgs.getNearestR5Edge(transportNetwork.streetLayer, geo.utm2Wgs(vehicle.spaceTime.loc))
+      beamServices.beamScenario.vehicleEmissions.rememberLastVehiclePosition(
+        vehicle,
+        Some(tick),
+        Some(vehicleLink)
+      )
+      eventsManager.processEvent(
+        new ShiftEvent(tick, StartShift, id.toString, vehicle)
+      )
       rideHailManager ! NotifyVehicleIdle(
         vehicle.id,
         this.id,
@@ -455,14 +463,14 @@ class RideHailAgent(
       }
       val newShiftToSchedule = if (needsToEndShift) {
         val maybeIDLEVehicleActivity =
-          BeamVehicle.getIDLEActivitiesWithRunningEngineForEmissions(tick, currentBeamVehicle, beamServices)
+          BeamVehicle.getIDLEActivitiesWithRunningEngineForEmissions(tick, currentBeamVehicle, beamServices, "RHA477")
         val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
           maybeIDLEVehicleActivity,
           classOf[PathTraversalEvent],
           beamServices
         )
         eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle, emissionsProfileIDLE))
-        beamServices.beamScenario.vehicleEmissions.rememberLastVehicleTime(vehicle, Some(tick))
+        beamServices.beamScenario.vehicleEmissions.rememberLastVehicleTime(vehicle, tick)
 
         isCurrentlyOnShift = false
         needsToEndShift = false
@@ -486,30 +494,56 @@ class RideHailAgent(
         stash()
         stay()
       } else {
-        if (needsToEndShift) {
-          val maybeIDLEVehicleActivity =
-            BeamVehicle.getIDLEActivitiesWithRunningEngineForEmissions(tick, currentBeamVehicle, beamServices)
-          val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
-            maybeIDLEVehicleActivity,
-            classOf[PathTraversalEvent],
-            beamServices
-          )
-          eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle, emissionsProfileIDLE))
-          needsToEndShift = false
-          isCurrentlyOnShift = false
-        }
-
-        val newLocation = data.remainingShifts.headOption match {
+        val newLocation: SpaceTime = data.remainingShifts.headOption match {
           case Some(Shift(_, Some(startLocation))) =>
             //TODO this is teleportation and should be fixed in favor of new protocol to make vehicles move
             SpaceTime(startLocation, time = tick)
           case _ =>
             vehicle.spaceTime.copy(time = tick)
         }
+        val vehicleLink: Int =
+          GeoUtils.GeoUtilsWgs.getNearestR5Edge(transportNetwork.streetLayer, geo.utm2Wgs(newLocation.loc))
+
+        val shiftWasEnded = if (needsToEndShift) {
+          val maybeIDLEVehicleActivityWithEngine =
+            BeamVehicle.getIDLEActivitiesWithRunningEngineForEmissions(tick, currentBeamVehicle, beamServices, "RHA510")
+          val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
+            maybeIDLEVehicleActivityWithEngine,
+            classOf[PathTraversalEvent],
+            beamServices
+          )
+          eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle, emissionsProfileIDLE))
+          needsToEndShift = false
+          isCurrentlyOnShift = false
+
+          true
+        } else { false }
 
         updateLatestObservedTick(tick)
-        beamServices.beamScenario.vehicleEmissions.rememberLastVehicleTime(currentBeamVehicle, Some(tick))
-        eventsManager.processEvent(new ShiftEvent(tick, StartShift, id.toString, vehicle))
+
+        val emissionsProfileIDLE = if (shiftWasEnded) {
+          val maybeIDLEVehicleActivityWithoutEngine = BeamVehicle.getIDLEActivitiesWithStoppedEngineForEmissions(
+            currentBeamVehicle,
+            beamServices,
+            tick
+          )
+          currentBeamVehicle.emitEmissions(
+            maybeIDLEVehicleActivityWithoutEngine,
+            classOf[VehicleEntersTrafficEvent],
+            beamServices
+          )
+        } else { None }
+
+        beamServices.beamScenario.vehicleEmissions.rememberLastVehiclePosition(
+          vehicle,
+          Some(tick),
+          Some(vehicleLink)
+        )
+
+        eventsManager.processEvent(
+          new ShiftEvent(tick, StartShift, id.toString, vehicle, emissionsProfile = emissionsProfileIDLE)
+        )
+
         log.debug("state(RideHailingAgent.Offline): starting shift {}", id)
         holdTickAndTriggerId(tick, triggerId)
         isStartingNewShift = true
@@ -629,7 +663,8 @@ class RideHailAgent(
       val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivitiesWithRunningEngineForEmissions(
         tick,
         currentBeamVehicle,
-        beamServices
+        beamServices,
+        "RHA673"
       )
       val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
         maybeIDLEVehicleActivity,
@@ -638,7 +673,7 @@ class RideHailAgent(
       )
 
       eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle, emissionsProfileIDLE))
-      beamServices.beamScenario.vehicleEmissions.rememberLastVehicleTime(vehicle, Some(tick))
+      beamServices.beamScenario.vehicleEmissions.rememberLastVehicleTime(vehicle, tick)
 
       isCurrentlyOnShift = false
       val newShiftToSchedule = if (data.remainingShifts.size < 1) {

@@ -92,7 +92,7 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
   }
 
   describe("BeamVehicle function startTimeAndDurationToMultipleIntervals") {
-    it("be able to convert start time and duration to multiple intervals") {
+    it("be able to convert start time and positive duration to multiple intervals") {
       def hr_to_secs(hours: Double): Int = (hours * 3600).toInt
 
       BeamVehicle.startTimeAndDurationToMultipleIntervals(hr_to_secs(1.1), hr_to_secs(0.7)) should be(
@@ -108,6 +108,26 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
           (hr_to_secs(13), hr_to_secs(1)),
           (hr_to_secs(14), hr_to_secs(1)),
           (hr_to_secs(15), hr_to_secs(0.1))
+        )
+      )
+    }
+
+    it("be able to convert start time and negative duration to multiple intervals") {
+      def hr_to_secs(hours: Double): Double = hours * 3600
+
+      BeamVehicle.startTimeAndDurationToMultipleIntervals(hr_to_secs(2.8), hr_to_secs(-0.7)) should be(
+        Seq((hr_to_secs(2.1), hr_to_secs(0.7)))
+      )
+      BeamVehicle.startTimeAndDurationToMultipleIntervals(hr_to_secs(4.1), hr_to_secs(-1.7)) should be(
+        Seq((hr_to_secs(2.4), hr_to_secs(0.6)), (hr_to_secs(3.0), hr_to_secs(1.0)), (hr_to_secs(4.0), hr_to_secs(0.1)))
+      )
+      BeamVehicle.startTimeAndDurationToMultipleIntervals(hr_to_secs(2.5), hr_to_secs(-4.4)) should be(
+        Seq(
+          (hr_to_secs(22.1), hr_to_secs(0.9)),
+          (hr_to_secs(23), hr_to_secs(1)),
+          (hr_to_secs(0), hr_to_secs(1)),
+          (hr_to_secs(1), hr_to_secs(1)),
+          (hr_to_secs(2), hr_to_secs(0.5))
         )
       )
     }

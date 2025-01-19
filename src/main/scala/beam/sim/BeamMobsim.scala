@@ -197,6 +197,10 @@ class BeamMobsim @Inject() (
 
     Await.result(iteration ? "Run!", timeout.duration)
 
+    beamServices.beamScenario.vehicleEmissions
+      .emitIDLEEmissionsAtIterationEndForAllVehicles(beamServices, eventsManager)
+    logger.info("Processing overnight emissions finished.")
+
     logger.info(s"Agentsim finished. Iteration = ${matsimServices.getIterationNumber}.")
     eventsManager.finishProcessing()
     logger.info("Events drained.")
@@ -621,9 +625,6 @@ class BeamMobsimIteration(
       log.info("Ending Agentsim")
       log.info("Processing Agentsim Events (Start)")
       stopMeasuring("agentsim-events:agentsim")
-
-      beamServices.beamScenario.vehicleEmissions.emitIDLEEmissionsAtIterationEndForAllVehicles(beamServices)
-      log.info("Processing end of the day IDLE emissions finished.")
 
       population ! Finish
       goodsDeliveryManager ! Finish

@@ -31,7 +31,7 @@ import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.NetworkHelper
-import beam.utils.logging.{ExponentialLazyLogging, LoggerWrapper}
+import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{
@@ -43,7 +43,6 @@ import org.matsim.api.core.v01.events.{
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
-import org.slf4j.LoggerFactory
 
 import scala.collection.{immutable, mutable}
 import scala.language.postfixOps
@@ -356,20 +355,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       beamServices.beamScenario.vehicleEmissions
         .rememberLastVehicleLink(currentBeamVehicle, currentLeg.travelPath.linkIds.headOption)
 
-      val initialIdleActivity = BeamVehicle.getIDLEActivitiesWithStoppedEngineForEmissions(
-        currentBeamVehicle,
-        beamServices
-      )
-      val maybeInitialIdleEmission = currentBeamVehicle.emitEmissions(
-        initialIdleActivity,
-        classOf[VehicleEntersTrafficEvent],
-        beamServices
-      )
-
       val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivitiesWithRunningEngineForEmissions(
         currentLeg.startTime,
         currentBeamVehicle,
-        beamServices
+        beamServices,
+        "DV373"
       )
       beamServices.beamScenario.vehicleEmissions.rememberLastVehiclePosition(
         currentBeamVehicle,
@@ -387,10 +377,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         classOf[PathTraversalEvent],
         beamServices
       )
-      val emissionsProfile = EmissionsProfile.join(
-        emissionsProfilePTE,
-        EmissionsProfile.join(emissionsProfileIDLE, maybeInitialIdleEmission)
-      )
+      val emissionsProfile = EmissionsProfile.join(emissionsProfilePTE, emissionsProfileIDLE)
 
       val numberOfPassengers: Int = calculateNumberOfPassengersBasedOnCurrentTripMode(data, currentLeg, riders)
       val pte = PathTraversalEvent(
@@ -622,7 +609,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivitiesWithRunningEngineForEmissions(
           currentLeg.startTime,
           currentBeamVehicle,
-          beamServices
+          beamServices,
+          "DV627"
         )
         beamServices.beamScenario.vehicleEmissions.rememberLastVehiclePosition(
           currentBeamVehicle,

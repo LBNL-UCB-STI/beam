@@ -4,7 +4,7 @@ import beam.agentsim.agents.freight.FreightRequestType
 import beam.agentsim.agents.vehicles.VehicleEmissions.Emissions.{formatName, EmissionType}
 import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsProfile.EmissionsProcess
 import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsRateFilterStore.EmissionsRateFilter
-import beam.agentsim.events.{LeavingParkingEvent, PathTraversalEvent}
+import beam.agentsim.events.{LeavingParkingEvent, OvernightParkingEvent, PathTraversalEvent}
 import beam.router.skim.event.EmissionsSkimmerEvent
 import beam.sim.BeamServices
 import beam.sim.common.DoubleTypedRange
@@ -15,6 +15,7 @@ import com.univocity.parsers.common.record.Record
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
+import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.utils.io.IOUtils
 import org.matsim.core.utils.misc.Time
 import org.slf4j.LoggerFactory
@@ -25,7 +26,6 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
-import scala.tools.nsc.io.Path
 
 class VehicleEmissions(
   vehicleTypesBasePaths: IndexedSeq[String],
@@ -58,35 +58,30 @@ class VehicleEmissions(
   def getVehicleLinkTimeData(vehicleId: Id[BeamVehicle]): Option[VehicleLinkTimeData] =
     vehicleToLinkTimeData.get(vehicleId)
 
-  def setInitialDIURNProcessed(vehicle: BeamVehicle): Unit = {
+  def rememberLastVehicleLink(vehicle: BeamVehicle, link: Option[Int]): Unit = {
     vehicleToLinkTimeData.get(vehicle.id) match {
-      case Some(value) => vehicleToLinkTimeData.put(vehicle.id, value.copy(DIURNInitialProcessed = true))
+      case Some(value) if value.lastIDLEStopLink.isEmpty =>
+        vehicleToLinkTimeData.put(vehicle.id, value.copy(lastKnownLink = link, lastIDLEStopLink = link))
+      case Some(value) =>
+        vehicleToLinkTimeData.put(vehicle.id, value.copy(lastKnownLink = link))
       case None =>
         vehicleToLinkTimeData.put(
           vehicle.id,
-          VehicleLinkTimeData(vehicle.beamVehicleType, DIURNInitialProcessed = true)
+          VehicleLinkTimeData(vehicle.beamVehicleType, lastKnownLink = link, lastIDLEStopLink = link)
         )
     }
   }
 
-  def rememberLastVehicleLink(vehicle: BeamVehicle, link: Option[Int]): Unit = {
+  def rememberLastVehicleTime(vehicle: BeamVehicle, time: Int): Unit = {
     vehicleToLinkTimeData.get(vehicle.id) match {
-      case Some(value) => vehicleToLinkTimeData.put(vehicle.id, value.copy(lastKnownLink = link))
-      case None =>
-        vehicleToLinkTimeData.put(vehicle.id, VehicleLinkTimeData(vehicle.beamVehicleType, lastKnownLink = link))
-    }
-  }
-
-  def rememberLastVehicleTime(vehicle: BeamVehicle, time: Option[Int]): Unit = {
-    vehicleToLinkTimeData.get(vehicle.id) match {
-      case Some(value) if time.nonEmpty && value.lastIDLEStopTime.isEmpty =>
-        vehicleToLinkTimeData.put(vehicle.id, value.copy(lastKnownTime = time, lastIDLEStopTime = time))
+      case Some(value) if value.lastIDLEStopTime.isEmpty =>
+        vehicleToLinkTimeData.put(vehicle.id, value.copy(lastKnownTime = Some(time), lastIDLEStopTime = Some(time)))
       case Some(value) =>
-        vehicleToLinkTimeData.put(vehicle.id, value.copy(lastKnownTime = time))
+        vehicleToLinkTimeData.put(vehicle.id, value.copy(lastKnownTime = Some(time)))
       case None =>
         vehicleToLinkTimeData.put(
           vehicle.id,
-          VehicleLinkTimeData(vehicle.beamVehicleType, lastKnownTime = time, lastIDLEStopTime = time)
+          VehicleLinkTimeData(vehicle.beamVehicleType, lastKnownTime = Some(time), lastIDLEStopTime = Some(time))
         )
     }
   }
@@ -94,24 +89,24 @@ class VehicleEmissions(
   def rememberLastVehiclePosition(
     vehicle: BeamVehicle,
     time: Option[Int],
-    link: Option[Int],
-    DIURNInitialProcessed: Boolean = false
+    link: Option[Int]
   ): Unit = {
+    def firstOrSecondOrNone(v1: Option[Int], v2: Option[Int]): Option[Int] = (v1, v2) match {
+      case (Some(v1), _) => Some(v1)
+      case (_, Some(v2)) => Some(v2)
+      case _             => None
+    }
+
     vehicleToLinkTimeData.get(vehicle.id) match {
-      case Some(value) if time.nonEmpty && value.lastIDLEStopTime.isEmpty =>
+      case Some(value) =>
         vehicleToLinkTimeData.put(
           vehicle.id,
           value.copy(
             lastKnownTime = time,
             lastKnownLink = link,
-            lastIDLEStopTime = time,
-            DIURNInitialProcessed = DIURNInitialProcessed
+            lastIDLEStopTime = firstOrSecondOrNone(value.lastIDLEStopTime, time),
+            lastIDLEStopLink = firstOrSecondOrNone(value.lastIDLEStopLink, link)
           )
-        )
-      case Some(value) =>
-        vehicleToLinkTimeData.put(
-          vehicle.id,
-          value.copy(lastKnownTime = time, lastKnownLink = link, DIURNInitialProcessed = DIURNInitialProcessed)
         )
       case None =>
         vehicleToLinkTimeData.put(
@@ -121,31 +116,43 @@ class VehicleEmissions(
             lastKnownTime = time,
             lastKnownLink = link,
             lastIDLEStopTime = time,
-            DIURNInitialProcessed = DIURNInitialProcessed
+            lastIDLEStopLink = link
           )
         )
     }
   }
 
-  def emitIDLEEmissionsAtIterationEndForAllVehicles(beamServices: BeamServices): Unit = {
+  def emitIDLEEmissionsAtIterationEndForAllVehicles(beamServices: BeamServices, eventsManager: EventsManager): Unit = {
+    val midnightSeconds: Int = 24 * 3600
+
+    val idleActivitiesForEmissionsGeneration
+      : IndexedSeq[(Id[BeamVehicle], IndexedSeq[BeamVehicle.VehicleActivityData])] =
+      BeamVehicle.getIDLEOvernightActivitiesForAllVehicles(midnightSeconds, beamServices)
+
+    val activityDataToEmission = {
+      idleActivitiesForEmissionsGeneration.flatMap { case (vehicleId, idleActivitySeq) =>
+        idleActivitySeq.headOption
+          .map(_.vehicleType)
+          .flatMap { vehicleType =>
+            BeamVehicle.emitEmissions(
+              idleActivitySeq,
+              classOf[VehicleLeavesTrafficEvent],
+              vehicleType,
+              beamServices
+            )
+          }
+          .map { emissionProfile => (vehicleId, idleActivitySeq, emissionProfile) }
+      }
+    }
+
     val lastTickOfSimulation: Int = Time
       .parseTime(beamServices.beamScenario.beamConfig.beam.agentsim.endTime)
       .toInt - beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow
 
-    val idleActivitiesForEmissionsGeneration: IndexedSeq[IndexedSeq[BeamVehicle.VehicleActivityData]] =
-      BeamVehicle.getIDLEActivitiesForAllVehiclesUpToEndOfDay(lastTickOfSimulation, beamServices)
-
-    idleActivitiesForEmissionsGeneration.map { idleActivitySeq =>
-      idleActivitySeq.headOption.map(_.vehicleType) match {
-        case Some(vehicleType) =>
-          BeamVehicle.emitEmissions(
-            idleActivitySeq,
-            classOf[VehicleLeavesTrafficEvent],
-            vehicleType,
-            beamServices
-          )
-        case _ => None
-      }
+    activityDataToEmission.foreach { case (vehicleId, activityData, emissionProfile) =>
+      val overnightParkingEvent =
+        OvernightParkingEvent.apply(lastTickOfSimulation, vehicleId, activityData, emissionProfile)
+      eventsManager.processEvent(overnightParkingEvent)
     }
   }
 
@@ -189,14 +196,15 @@ class VehicleEmissions(
         )
         beamServices.matsimServices.getEvents.processEvent(emissionEvent)
 
-        //        val path = Path(
-        //          beamServices.matsimServices.getControlerIO
-        //            .getIterationFilename(beamServices.matsimServices.getIterationNumber, "emissions_events.csv")
-        //        )
-        //        val lineToWrite =
-        //          f"${emissionEvent.time}, ${emissionEvent.parkingDuration}, ${emissionEvent.emissionsProcess}, ${emissionEvent.vehicleType}, ${emissionEvent.emissions}"
-        //        path.createFile(failIfExists = false).appendAll(lineToWrite + "\n")
-
+//        import scala.tools.nsc.io.Path
+//        val path = Path(
+//          beamServices.matsimServices.getControlerIO
+//            .getIterationFilename(beamServices.matsimServices.getIterationNumber, "emissions_events.csv")
+//        )
+//        val atStr = data.activityType.getOrElse("")
+//        val lineToWrite =
+//          f"${emissionEvent.time}, ${emissionEvent.parkingDuration}, ${emissionEvent.emissionsProcess}, $atStr, ${emissionEvent.vehicleType}, ${emissionEvent.emissions}"
+//        path.createFile(failIfExists = false).appendAll(lineToWrite + "\n")
       }
       process -> emissions
     }
@@ -822,7 +830,7 @@ object VehicleEmissions extends LazyLogging {
     beamVehicleType: BeamVehicleType,
     lastKnownTime: Option[Int] = None, // last time the vehicle started engine - for IDLE emission
     lastKnownLink: Option[Int] = None, // last link visited in latest Leg/Parking, latest location of vehicle
-    lastIDLEStopTime: Option[Int] = None, // last time the vehicle stopped inactivity - for DIURN emission
-    DIURNInitialProcessed: Boolean = false // if lastIDLEStopTime was set and used for initial DIURN calculation
+    lastIDLEStopTime: Option[Int] = None, // last time the vehicle stopped inactivity - for overnight emission
+    lastIDLEStopLink: Option[Int] = None // last link where the vehicle stopped inactivity - for overnight emission
   )
 }
