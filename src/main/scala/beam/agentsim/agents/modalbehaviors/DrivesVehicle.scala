@@ -358,8 +358,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivitiesWithRunningEngineForEmissions(
         currentLeg.startTime,
         currentBeamVehicle,
-        beamServices,
-        "DV373"
+        beamServices
       )
       beamServices.beamScenario.vehicleEmissions.rememberLastVehiclePosition(
         currentBeamVehicle,
@@ -609,8 +608,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivitiesWithRunningEngineForEmissions(
           currentLeg.startTime,
           currentBeamVehicle,
-          beamServices,
-          "DV627"
+          beamServices
         )
         beamServices.beamScenario.vehicleEmissions.rememberLastVehiclePosition(
           currentBeamVehicle,

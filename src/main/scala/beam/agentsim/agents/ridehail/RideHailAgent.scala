@@ -463,7 +463,7 @@ class RideHailAgent(
       }
       val newShiftToSchedule = if (needsToEndShift) {
         val maybeIDLEVehicleActivity =
-          BeamVehicle.getIDLEActivitiesWithRunningEngineForEmissions(tick, currentBeamVehicle, beamServices, "RHA477")
+          BeamVehicle.getIDLEActivitiesWithRunningEngineForEmissions(tick, currentBeamVehicle, beamServices)
         val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
           maybeIDLEVehicleActivity,
           classOf[PathTraversalEvent],
@@ -506,7 +506,7 @@ class RideHailAgent(
 
         val shiftWasEnded = if (needsToEndShift) {
           val maybeIDLEVehicleActivityWithEngine =
-            BeamVehicle.getIDLEActivitiesWithRunningEngineForEmissions(tick, currentBeamVehicle, beamServices, "RHA510")
+            BeamVehicle.getIDLEActivitiesWithRunningEngineForEmissions(tick, currentBeamVehicle, beamServices)
           val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
             maybeIDLEVehicleActivityWithEngine,
             classOf[PathTraversalEvent],
@@ -663,8 +663,7 @@ class RideHailAgent(
       val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivitiesWithRunningEngineForEmissions(
         tick,
         currentBeamVehicle,
-        beamServices,
-        "RHA673"
+        beamServices
       )
       val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
         maybeIDLEVehicleActivity,
