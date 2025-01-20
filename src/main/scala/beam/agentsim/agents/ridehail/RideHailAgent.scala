@@ -353,14 +353,20 @@ class RideHailAgent(
     val isTimeForShift =
       shifts.isEmpty || shifts.get.exists(shift => shift.range.lowerBound <= tick && shift.range.upperBound >= tick)
     if (isTimeForShift) {
-
-      val vehicleLink: Int =
-        GeoUtils.GeoUtilsWgs.getNearestR5Edge(transportNetwork.streetLayer, geo.utm2Wgs(vehicle.spaceTime.loc))
+      val maybeVehicleLink: Option[Int] =
+        try {
+          Some(GeoUtils.GeoUtilsWgs.getNearestR5Edge(transportNetwork.streetLayer, geo.utm2Wgs(vehicle.spaceTime.loc)))
+        } catch {
+          case exception: Exception =>
+            logger.error(s"Could not get nearest link for vehicle ${vehicle.id}:$exception")
+            None
+        }
       beamServices.beamScenario.vehicleEmissions.rememberLastVehiclePosition(
         vehicle,
         Some(tick),
-        Some(vehicleLink)
+        maybeVehicleLink
       )
+
       eventsManager.processEvent(
         new ShiftEvent(tick, StartShift, id.toString, vehicle)
       )
