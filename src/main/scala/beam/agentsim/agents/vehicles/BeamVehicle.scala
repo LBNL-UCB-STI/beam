@@ -98,40 +98,6 @@ class BeamVehicle(
 
   private var waitingToChargeInternal: Boolean = false
   private var waitingToChargeTick: Option[Int] = None
-
-//  // last time the vehicle started engine - for IDLE emission
-//  private var lastEngineStartTime: Option[Int] = None
-//  // last time the vehicle stopped inactivity - for DIURN emission
-//  private var lastIDLEStopTime: Option[Int] = None
-//  // last link visited in latest Leg/Parking, latest location of vehicle
-//  private var lastLinkVisited: Option[Int] = None
-//
-//  private var DIURNInitialProcessed: Boolean = false
-//
-//  def setLastVehicleLink(link: Option[Int]): Unit = {
-//    lastLinkVisited = link
-//  }
-//
-//  def setLastVehicleTime(time: Option[Int]): Unit = {
-//    lastEngineStartTime = time
-//
-//    if (lastIDLEStopTime.isEmpty && time.nonEmpty)
-//      lastIDLEStopTime = time
-//  }
-//
-//  def setLastVehicleTimeLink(time: Option[Int], link: Option[Int]): Unit = {
-//    lastEngineStartTime = time
-//    lastLinkVisited = link
-//
-//    if (lastIDLEStopTime.isEmpty && time.nonEmpty)
-//      lastIDLEStopTime = time
-//  }
-//
-//  def resetLastVehicleLinkTime(): Unit = {
-//    lastEngineStartTime = None
-//    lastLinkVisited = None
-//  }
-//
   /**
     * Called by the driver.
     */
@@ -946,9 +912,6 @@ object BeamVehicle {
 
             Some(
               IndexedSeq(
-                //createIdleParkingActivityData(0, firstTime),
-                //createIdleParkingActivityData(lastTime, simulationEndTimeTick - lastTime)
-
                 // this one for overnight parking
                 createIdleParkingActivityData(firstTime, -1 * totalDuration),
                 // this one for HOTSOAK emission calculation at last activity time

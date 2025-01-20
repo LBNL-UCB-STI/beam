@@ -406,7 +406,7 @@ object VehicleEmissions extends LazyLogging {
 
       val emissionProcesses = {
         EmissionsProfile.values.flatMap {
-          // the type is PathTraversalEvent because the vehicle used to be moving, IDLE activity happens between other events
+          // the type is PathTraversalEvent because the vehicle used to be moving, IDLE activity happens between events
           case process @ IDLEX if vehicleActivity == classOf[PathTraversalEvent] && averageSpeed == 0 =>
             Some(process)
           case process @ (RUNEX | PMBW | PMTW | RUNLOSS)
@@ -425,8 +425,6 @@ object VehicleEmissions extends LazyLogging {
             Some(process)
           case process @ (DIURN | HOTSOAK) if vehicleActivity == classOf[VehicleLeavesTrafficEvent] =>
             Some(process)
-          // TODO add a case for DIURN to emit it for the rest of simulation time after last vehicle activity
-          // TODO add a case for HOTSOAK to emit it once after vehicle did its last activity
           case _ => None
         }
       }
@@ -512,7 +510,6 @@ object VehicleEmissions extends LazyLogging {
         * rates Emission rate (grams per vehicle-idle hour)
         * @return Total emissions in grams
         */
-      // FIXME not all vehicles are running engine while parked
       IDLEX -> { (rates: Emissions, data: BeamVehicle.VehicleActivityData) =>
         val vehicleIdleInHours = data.parkingDuration.map(_ / 3600.0).getOrElse(0.0)
         rates * vehicleIdleInHours
@@ -536,7 +533,6 @@ object VehicleEmissions extends LazyLogging {
         * rates Emission rate (grams per vehicle-hour)
         * @return Total emissions in grams
         */
-      // FIXME we need to emit this for all hours before vehicle activity and for the rest of simulation hours after vehicle stop being active
       // FIXME we might underestimate DIURN: Ridehail vehicles do not park, they idle or stop engine while waiting
       DIURN -> { (rates: Emissions, data: BeamVehicle.VehicleActivityData) =>
         val vehicleParkingInHours = data.parkingDuration.map(_ / 3600.0).getOrElse(0.0)
