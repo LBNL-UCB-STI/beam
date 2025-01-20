@@ -98,6 +98,7 @@ class BeamVehicle(
 
   private var waitingToChargeInternal: Boolean = false
   private var waitingToChargeTick: Option[Int] = None
+
   /**
     * Called by the driver.
     */
