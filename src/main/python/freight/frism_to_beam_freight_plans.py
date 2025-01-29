@@ -27,14 +27,14 @@ MAX_DISTANCE_METERS = 200000  # 200km
 CHUNK_SIZE = 10000  # this affects speed and parallelization of the script
 
 # City and scenario settings
-FRISM_VERSION = 1.0
+FRISM_VERSION = 1.5
 SOURCE_CRS = 4326  # WGS84
-UTM_CRS = 32048  # Seattle UTM zone
-AREA = "seattle"
-BATCH_NAME = "2024-04-20"
+UTM_CRS = 26910  # Seattle UTM zone 32048 | SFBAY 26910
+AREA = "sfbay"
+BATCH_NAME = "2024-11-06"
 YEAR = "2018"
 SCENARIO_NAME = "Baseline"
-SCENARIO_SUFFIX = "_RPSFerry"
+SCENARIO_SUFFIX = ""
 SCENARIO_LABEL = SCENARIO_NAME.replace("_", "")
 
 # File paths and directories
@@ -42,7 +42,7 @@ WORK_DIR = os.path.expanduser('~/Workspace')
 DIRECTORY_INPUT = f'{WORK_DIR}/Simulation/{AREA}/frism/{BATCH_NAME}/{SCENARIO_NAME}'
 DIRECTORY_OUTPUT = f'{WORK_DIR}/Simulation/{AREA}/beam-freight/{BATCH_NAME}/{YEAR}_{SCENARIO_LABEL}{SCENARIO_SUFFIX}'
 DIRECTORY_VEHICLE_TECH = f'{DIRECTORY_OUTPUT}/vehicle-tech'
-NETWORK_OSM_PBF = f"{WORK_DIR}/Simulation/{AREA}/validation/{AREA}-residential-partiallysimplified-ferry-buffer.osm.pbf"
+NETWORK_OSM_PBF = f"{WORK_DIR}/Simulation/{AREA}/validation/beam/r5-simple-no-local/{AREA}-links-filtered-by-zoneids.osm.pbf"
 Path(DIRECTORY_OUTPUT).mkdir(parents=True, exist_ok=True)
 Path(DIRECTORY_VEHICLE_TECH).mkdir(parents=True, exist_ok=True)
 
