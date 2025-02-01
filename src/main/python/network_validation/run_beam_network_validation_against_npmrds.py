@@ -8,9 +8,20 @@ work_dir = os.path.expanduser("~/Workspace/Simulation")
 study_area = "sfbay"
 
 study_area_dir = work_dir + "/" + study_area
-
+study_area_beam_network_dir = f"{study_area}_simple_no_local"
 # beam_network_mapped_to_npmrds_geo = study_area_dir + '/validation/beam/' + study_area + '_unclassified_simplified_network_mapped_to_npmrds.geojson'
-beam_network_mapped_to_npmrds_geo = study_area_dir + '/validation/beam/' + study_area + '_residential_simpl_network_mapped_to_npmrds.geojson'
+beam_network_mapped_to_npmrds_geo = study_area_dir + f'/validation/beam/{study_area_beam_network_dir}/{study_area_beam_network_dir}_network_mapped_to_npmrds.geojson'
+
+# run_dir = os.path.expanduser("~/Workspace/Simulation/seattle/beam/runs/2024-04-20/Baseline")
+batch = "2024-11-06"
+scenario = "2018_Baseline"
+run_dir = study_area_dir + f"/beam-runs/{batch}/{scenario}/"
+link_stats = [
+    LinkStats(scenario=f"{batch}_{scenario.replace("_", "-")}", demand_fraction=0.1,
+              file_path=run_dir + f"0.linkstats.csv.gz")
+]
+run_link_speed_validation = False
+run_network_speed_validation = True
 
 # validation data
 # npmrds_station_geo = study_area_dir + '/validation/npmrds/seattle_npmrds_station.geojson'
@@ -27,20 +38,12 @@ setup = SpeedValidationSetup(npmrds_hourly_speed_csv=npmrds_hourly_speed_csv,
                              npmrds_hourly_speed_by_road_class_csv=npmrds_hourly_speed_by_road_class_csv,
                              beam_network_mapped_to_npmrds_geo=beam_network_mapped_to_npmrds_geo)
 
-run_link_speed_validation = False
-run_network_speed_validation = False
-
 if run_link_speed_validation or run_network_speed_validation:
     # The rest is automatically generated
-    # run_dir = os.path.expanduser("~/Workspace/Simulation/seattle/beam/runs/2024-04-20/Baseline")
-    run_dir = study_area_dir + "/beam-runs/calibration-jdeqsim/sfbay-calib--rs-101010-netset5__2024-07-09_04-48-50_tww"
     output_dir = run_dir + '/validation_output'
     plots_dir = output_dir + '/plots'
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     Path(plots_dir).mkdir(parents=True, exist_ok=True)
-    link_stats = [
-        LinkStats(scenario="BEAM_netset1", demand_fraction=0.1, file_path=run_dir + "/12.linkstats.csv.gz")
-    ]
     # link_stats = [LinkStats(scenario="BEAM", demand_fraction=0.3, file_path=run_dir + "/0.linkstats.csv.gz")]
     print("Run: " + str(link_stats))
     processed_link_stats = setup.process_these_link_stats(link_stats=link_stats, assume_daylight_saving=True)
@@ -52,6 +55,11 @@ else:
 # #########################################
 if run_network_speed_validation:
     hourly_speed = setup.get_hourly_average_speed(processed_link_stats)
+
+    # Calculate average speed for the whole network
+    average_network_speed = hourly_speed.groupby('scenario')['speed'].mean()
+    print("Average network speed:")
+    print(average_network_speed)
 
     # Plot hourly network speed
     plt.figure()
@@ -80,7 +88,6 @@ if run_network_speed_validation:
 
     hourly_speed_by_road_class.to_csv(
         output_dir + '/' + study_area + '_beam_npmrds_network_speed_road_class_validation.csv', index=False)
-
 # ######################################
 # ########## Link-level speed validation
 # ######################################

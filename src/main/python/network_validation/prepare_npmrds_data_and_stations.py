@@ -12,10 +12,11 @@ study_area_crs = 26910
 study_area_fips = ['001', '013', '041', '055', '075', '081', '085', '095', '097', '087', '113']
 
 "beam/runs/calibration-jdeqsim"
-study_area_dir = os.path.expanduser("~/Workspace/Data/Simulation") + "/" + study_area
+study_area_dir = os.path.expanduser("~/Workspace/Simulation") + "/" + study_area
 study_area_taz_geo = study_area_dir + "/geo/shp/sfbay-tazs-epsg-26910.shp"
 study_area_taz_id = "taz1454"
-study_area_beam_network_csv = study_area_dir + '/validation/beam/sfbay_residential_psimpl_network.csv.gz'
+study_area_beam_network_dir = f"{study_area}_simple_no_local"
+study_area_beam_network_csv = study_area_dir + f'/validation/beam/{study_area_beam_network_dir}/{study_area_beam_network_dir}_network.csv.gz'
 npmrds_data_label = "NPMRDS_2018"
 npmrds_raw_geo = study_area_dir + "/validation/npmrds/California.shp"
 npmrds_raw_data_csv = study_area_dir + '/validation/npmrds/al_ca_oct2018_1hr_trucks_pax.csv'
@@ -53,7 +54,8 @@ npmrds_hourly_speed_csv = study_area_dir + '/validation/npmrds/' + study_area + 
 npmrds_hourly_speed_by_road_class_csv = study_area_dir + '/validation/npmrds/' + study_area + "_npmrds_hourly_speed_by_road_class.csv"
 #
 first_dot_index = study_area_beam_network_csv.find('.')
-beam_network_prefix = study_area_beam_network_csv[:first_dot_index] if first_dot_index != -1 else study_area_beam_network_csv
+beam_network_prefix = study_area_beam_network_csv[
+                      :first_dot_index] if first_dot_index != -1 else study_area_beam_network_csv
 beam_network_car_links_geo = beam_network_prefix + '_car_only.geojson'
 beam_network_mapped_to_npmrds_geo = beam_network_prefix + '_mapped_to_npmrds.geojson'
 
@@ -64,7 +66,8 @@ if os.path.exists(study_area_county_geo):
     region_boundary_wgs84 = gpd.read_file(study_area_county_geo)
 else:
     print("Downloading county boundaries...")
-    region_boundary_wgs84 = collect_geographic_boundaries(state_fips, study_area_fips, census_year, study_area_county_geo,
+    region_boundary_wgs84 = collect_geographic_boundaries(state_fips, study_area_fips, census_year,
+                                                          study_area_county_geo,
                                                           study_area_crs, geo_level='county')
 
 # sf_cbg_geo = study_area_dir + "/zones/sf_cbgs.geojson"
@@ -96,7 +99,8 @@ else:
 
 if taz_boundary_wgs84 is not None:
     print("Mapping block groups to taz boundaries.")
-    map_cbg_to_taz(cbg_boundary_wgs84, study_area_cbg_id, taz_boundary_wgs84, study_area_taz_id, study_area_crs, study_area_cbg_taz_map_csv)
+    map_cbg_to_taz(cbg_boundary_wgs84, study_area_cbg_id, taz_boundary_wgs84, study_area_taz_id, study_area_crs,
+                   study_area_cbg_taz_map_csv)
 
 regional_npmrds_station, _, beam_npmrds_network_map, _ = prepare_npmrds_data(
     # input
@@ -135,4 +139,4 @@ plt.title("BEAM Network and NPMRDS Stations")
 fig.savefig(os.path.splitext(beam_network_mapped_to_npmrds_geo)[0] + ".png", dpi=300)  # Adjust dpi for resolution
 plt.show(block=False)
 
-print(f"Execution time of prepare_npmrds_data: {(time.time() - st) / 60.0}min")
+print(f"Execution time of prepare_npmrds_data: {((time.time() - st) / 60.0):.2f}min")
