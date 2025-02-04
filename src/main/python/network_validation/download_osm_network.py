@@ -1,469 +1,887 @@
-import osmnx as ox
-import networkx as nx
-import pandas as pd
+"""
+OSM Network Downloader and Processor
+Downloads and processes OpenStreetMap network data for transportation analysis.
+@author: cristian-poliziani, haitamlaarabi, zaneedell
+"""
+
+import json
+import logging
+import pickle
+import xml.etree.ElementTree as ET
+from dataclasses import dataclass, field
+from pathlib import Path
+from statistics import median
+from typing import List, Dict, Any, Union, Tuple
+
+import contextily as ctx
+import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import networkx as nx
+import numpy as np
 import osmnx as ox
-import matplotlib.colors as mcolors
-import pickle
-import contextily as ctx
-import subprocess
-import xml.etree.ElementTree as ET
-
-from IPython.core.display_functions import display
-
-print(ox.__version__)
-
-# in the settings specify a single date
-
-
-# INPUTS
-# Generate the graph in 6 different ways
-# Turn on the methods to be used, and insert the inputs
-# Use lists to combine multiple graphs, and single values for common filter parameters
-
-is_addresses = False
-is_bboxes = False
-is_places = True
-is_points = False
-is_polygons = False
-is_xmls = False
-
-# 0.00008983 = 10m
-simpl_intersections = 2
-splitLinksBy = ["highway", "lanes", "maxspeed"]
-
-# Define custom filters
-cf1 = '["highway"~"motorway|primary|trunk|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|unclassified"]'
-cf3 = '["highway"~"residential|motorway|primary|trunk|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|unclassified"]'
-cf2 = '["highway"~"residential"]'
-cf_main_highways = '["highway"="motorway"]'
-
-##############################  ADDRESS  ##############################
-addresses = ["San Francisco, CA, USA", "San Francisco, CA, USA"]
-# addresses = ["Milano, IT", "Milano, IT"]
-addresses_filters = {
-    "dist": 5000,
-    "dist_type": 'bbox',  # "network", "bbox" if “bbox”, retain only those nodes within a
-    # bounding box of the distance parameter. if “network”, retain
-    # only those nodes within some network distance from the center-most node.
-    "network_type": "drive",  # all", "all_public", "bike", "drive", "drive_service", "walk"
-    "simplify": False,
-    "retain_all": True,  # if True, return the entire graph even if it is not connected. otherwise,
-    # retain only the largest weakly connected component.
-    "truncate_by_edge": None,  # if True, retain nodes outside bounding box if at least one
-    # of node’s neighbors is within the bounding box
-    "custom_filter": [cf2, cf1]  # '["highway"~"motorway|trunk"]' ‘[“power”~”line”]’ or ‘[“highway”~”motorway|trunk”]’.
-}
-
-##############################  BBOX  ##############################
-
-# Input bounding boxes (list of tuples representing bounding box coordinates)
-bboxes = [(37.8, 37.7, -122.5, -122.4), (37.9, 37.8, -122.3, -122.2)]
-bboxes_filters = {
-    "network_typeTrue": ["drive", "bike"],
-    "simplify": [False, False],
-    "retain_all": True,
-    "truncate_by_edge": [True, True],
-    "custom_filter": [cf2, cf1]
-}
-
-##############################  PLACE  ##############################
-
-# Input places (list of place names)
-places = [
-    {"county": "San Francisco", "state": "California"},
-    {"county": "Alameda", "state": "California"},
-    {"county": "Contra Costa", "state": "California"},
-    {"county": "Marin", "state": "California"},
-    {"county": "Napa", "state": "California"},
-    {"county": "San Mateo", "state": "California"},
-    {"county": "Santa Clara", "state": "California"},
-    {"county": "Solano", "state": "California"},
-    {"county": "Sonoma", "state": "California"}, ]
-
-places_filters = {
-    "network_type": "drive",
-    "simplify": False,
-    "retain_all": True,
-    "truncate_by_edge": False,
-    "which_result": None,
-    "custom_filter": [
-        cf3, cf1, cf1, cf1, cf1, cf1, cf1, cf1, cf1
-    ]}
-
-##############################  POINT  ##############################
-
-# Input points (list of tuples, each containing (latitude, longitude))
-points = [(37.556036, -122.268709)]
-
-# San Francisco and Oakland
-points_filters = {
-    "dist": [1000],  # Retain only those nodes within this many meters of the center of the graph
-    "dist_type": 'bbox',
-    "network_type": ["drive", "bike"],
-    "simplify": [False, False],
-    "retain_all": True,
-    "truncate_by_edge": [False, True],
-    "custom_filter": cf1
-}
-
-# Input polygons (using geocode to get polygon boundaries)
-# (shapely.geometry.Polygon or shapely.geometry.MultiPolygon) – the shape to get network data within.
-# coordinates should be in unprojected latitude-longitude degrees (EPSG:4326).
-
-##############################  POLYGON  ##############################
-
-
-# polygons = [ox.geocode_to_gdf("Downtown San Francisco"), ox.geocode_to_gdf("Oakland")]
-polygons = []
-polygons_filters = {
-    "network_type": ["drive", "bike"],
-    "simplify": [False, False],
-    "retain_all": True,
-    "truncate_by_edge": [True, True],
-    "custom_filter": '["building"~"yes"]'
-}
-
-# Input XML files (paths to files that contain OSM data in XML format)
-xmls = ["/path/to/sf.osm", "/path/to/berkeley.osm"]
-xmls_filters = {
-    "bidirectional": False,  ####
-    "simplify": [False, False],
-    "retain_all": True,
-    "encoding": "utf-8",  ####
-    "custom_filter": '["highway"~"residential"]'
-}
-
-
-# FUNCTIONS
-
-# Helper function to get the appropriate value from the filter
-def get_filter_value(filter_param, index, total_count):
-    if isinstance(filter_param, list):
-        # If the parameter is a list, return the value for the current index
-        return filter_param[index % len(filter_param)]
-    else:
-        # If the parameter is a single value, return the same value for all
-        return filter_param
-
-
-# Helper function to apply filters dynamically
-def apply_filters(filters, index, total_count):
-    return {key: get_filter_value(value, index, total_count) for key, value in filters.items()}
-
-
-# Generic function to generate graphs based on a method and a list of inputs
-def generate_graphs(inputs, filters, graph_function):
-    graphs = []
-    for i, input_data in enumerate(inputs):
-        # Dynamically apply filters based on index
-        print(input_data)
-        dynamic_filters = apply_filters(filters, i, len(inputs))
-        print(dynamic_filters)
-        graph = graph_function(input_data, **dynamic_filters)
-        #         plot(graph, f'{input_data}_{str(simpl_intersections)}_original_graph')
-        graphs.append(graph)
-    return nx.compose_all(graphs) if graphs else None
-
-
-# Specific functions using the generate_graphs utility
-
-def get_graph_from_address(addresses, filters):
-    return generate_graphs(addresses, filters, ox.graph_from_address)
-
-
-def get_graph_from_bbox(bboxes, filters):
-    return generate_graphs(bboxes, filters, lambda bbox, **kwargs: ox.graph_from_bbox(*bbox, **kwargs))
-
-
-def get_graph_from_place(places, filters):
-    return generate_graphs(places, filters, ox.graph_from_place)
-
-
-def get_graph_from_point(points, filters):
-    return generate_graphs(points, filters, ox.graph_from_point)
-
-
-def get_graph_from_polygon(polygons, filters):
-    return generate_graphs(polygons, filters,
-                           lambda polygon, **kwargs: ox.graph_from_polygon(polygon.geometry[0], **kwargs))
-
-
-def get_graph_from_xml(xmls, filters):
-    return generate_graphs(xmls, filters, ox.graph_from_xml)
-
-
-# Function to generate and combine graphs
-def combine_graphs():
-    combined_graphs = []
-
-    if is_addresses:
-        address_graph = get_graph_from_address(addresses, addresses_filters)
-        if address_graph is not None:
-            combined_graphs.append(address_graph)
-
-    if is_bboxes:
-        bbox_graph = get_graph_from_bbox(bboxes, bboxes_filters)
-        if bbox_graph is not None:
-            combined_graphs.append(bbox_graph)
-
-    if is_places:
-        place_graph = get_graph_from_place(places, places_filters)
-        if place_graph is not None:
-            combined_graphs.append(place_graph)
-
-    if is_points:
-        point_graph = get_graph_from_point(points, points_filters)
-        if point_graph is not None:
-            combined_graphs.append(point_graph)
-
-    if is_polygons:
-        polygon_graph = get_graph_from_polygon(polygons, polygons_filters)
-        if polygon_graph is not None:
-            combined_graphs.append(polygon_graph)
-
-    if is_xmls:
-        xml_graph = get_graph_from_xml(xmls, xmls_filters)
-        if xml_graph is not None:
-            combined_graphs.append(xml_graph)
-
-    # Return the combined graph if there are any valid graphs, else return None
-    return nx.compose_all(combined_graphs) if combined_graphs else None
-
-
-def plot(G, name):
-    fig, ax = ox.plot.plot_graph(
-        G,
-        bgcolor="#FFFFFF",  # Light background
-        #         node_color="#00FFAA",      # Bright teal nodes
-        node_color="#333333",  # Bright teal nodes
-        node_size=0.02,
-        node_edgecolor='none',  # Node size  2.5
-        #         node_alpha=0.8,            # Node transparency
-        #         node_edgecolor="#333333",  # Dark edges around nodes
-        node_zorder=3,  # Nodes above edges
-        edge_color="#FF5A5F",  # Bright coral edges
-        edge_linewidth=0.2,  # Edge thickness 0.5
-        edge_alpha=0.8,  # Edge transparency
-        show=False,  # Do not display immediately
-        close=False  # Keep the plot open for saving
-    )
-
-    ctx.add_basemap(ax, source=ctx.providers.CartoDB.Positron)
-
-    # 3. Calculate statistics
-    num_nodes = len(G.nodes)
-    num_edges = len(G.edges)
-    # Total length in meters
-    total_length = sum(data.get('length', 0) for u, v, key, data in G.edges(keys=True, data=True))
-
-    # 4. Add title with statistics
-    title = (
-        f"Nodes: {num_nodes} | Edges: {num_edges} | Total Length: {total_length / 1000:.2f} km"
-    )
-    ax.set_title(title, fontsize=15, fontweight='bold', color='black', pad=20)
-
-    # 5. Save the figure with 600 DPI
-    fig.savefig(f'{name}.png', dpi=600, bbox_inches='tight')
-
-
-def analyze_specific_edge_attributes(df):
-    # Descriptive stats for numeric attributes
-    numeric_summary = df[['length', 'speed_kph']].describe().T.round(2)
-    print("\nDescriptive statistics for numeric attributes in edges:")
-    display(numeric_summary)
-
-    # Value counts for each categorical attribute in edges
-    categorical_attributes = ['oneway', 'maxspeed', 'lanes', 'sidewalk', 'cycleway',
-                              'access', 'maxweight', 'hgv', 'highway']
-    for attr in categorical_attributes:
-        print(f"\nValue counts for '{attr}' in edges:")
-        value_counts_df = df[attr].value_counts(dropna=False).to_frame(name="Count")
-        display(value_counts_df)
-
-
-def analyze_specific_node_attributes(df):
-    # Value counts for each categorical attribute in nodes
-    node_categorical_attributes = ['street_count', 'traffic_signals']
-    for attr in node_categorical_attributes:
-        print(f"\nValue counts for '{attr}' in nodes:")
-        value_counts_df = df[attr].value_counts(dropna=False).to_frame(name="Count")
-        display(value_counts_df)
-
-
-# MAIN
-
-##############################  PLACE  ##############################
-
-
-# Input places (list of place names)
-studyArea = 'SanFrancisco'
-
-G = combine_graphs()
-
-G = ox.project_graph(G, to_crs="epsg:3857")
-
-plot(G, f'{studyArea}_{str(simpl_intersections)}_original_graph')
-
-G_final = G.copy()
-
-############################## Add Attributes
-
-G_final = ox.add_edge_speeds(G_final)
-# G_final = ox.add_edge_lanes(G_final)
-# G_final = ox.add_edge_capacities(G_final)
-
-nodes, edges = ox.graph_to_gdfs(G_final)
-print(f'Nodes: {len(nodes)}, Edges: {len(edges)}')
-
-############################## Consolidate Nodes
-
-print('consolidate intersections')
-
-G_final = ox.consolidate_intersections(G_final, tolerance=simpl_intersections, rebuild_graph=True, dead_ends=True,
-                                       reconnect_edges=True
-                                       )
-
-# Update length
-nodes, edges = ox.graph_to_gdfs(G_final)
-edges['length'] = edges['geometry'].length
-G_final = ox.graph_from_gdfs(nodes, edges, graph_attrs=G_final.graph)
-
-# Plot
-
-plot(G_final, f'{studyArea}_{str(simpl_intersections)}_consolidated_graph')
-
-############################## Simplify Network
-print('simplify network')
-G_final = ox.simplification.simplify_graph(G_final,
-                                           edge_attrs_differ=splitLinksBy,
-                                           remove_rings=False,
-                                           track_merged=True,
-                                           )
-
-plot(G_final, f'{studyArea}_{str(simpl_intersections)}_simplified_graph')
-
-
-# Helper function to plot graph by attribute with legend
-def plot_graph_by_attribute(G, attribute, title, figsize=(12, 12)):
-    # Extract values of the specified attribute from the edges
-    attribute_values = [G.edges[edge].get(attribute, 'unknown') for edge in G.edges]
-
-    # Determine if the attribute is categorical or numerical
-    if isinstance(attribute_values[0], str) or isinstance(attribute_values[0], bool):  # Categorical
-        unique_values = list(set(attribute_values))
-        colors = plt.cm.get_cmap('tab20', len(unique_values))(range(len(unique_values)))
+import pandas as pd
+from osmnx import truncate
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class VehicleConfig:
+    """
+    Configuration for vehicle weight classifications based on Federal Highway Administration standards.
+    https://afdc.energy.gov/data/10380
+    Weights are stored in both US and metric units for OSM compatibility.
+
+    Weight Classes:
+    - Light Duty: < 10,000 lbs (< 4.536 metric tons)
+    - Medium Duty: 10,001 - 26,000 lbs (4.537 - 11.793 metric tons)
+    - Heavy Duty: > 26,001 lbs (> 11.794 metric tons)
+    """
+    """
+    Configuration for vehicle weight classifications based on Federal Highway Administration standards.
+    Weight units vary by country according to OSM standards:
+    - US: short tons (st) and pounds (lbs)
+    - EU/UK: metric tonnes (t)
+    - Other regions may vary
+    """
+    # Medium Duty Vehicle upper limit
+    mdv_max_lbs: float = 26000  # lbs
+    # Heavy Duty Vehicle limits
+    hdv_max_lbs: float = 80000  # lbs
+    # Country code for weight unit handling
+    country_code: str = "US"
+
+    @property
+    def weight_conversion_map(self):
+        """
+        Returns weight conversion mapping based on country.
+        Reference: https://wiki.openstreetmap.org/wiki/Key:maxweight
+        """
+        return {
+            "US": {
+                "default_unit": "lbs",
+                "conversions": {
+                    "lbs": 1.0,
+                    "lb": 1.0,
+                    "t": 2000.0,  # short tons to lbs
+                    "st": 2000.0,  # short tons to lbs
+                    "ton": 2000.0,
+                    "tons": 2000.0,
+                    "mt": 2204.62,  # metric tons to lbs
+                }
+            },
+            "GB": {  # United Kingdom
+                "default_unit": "kg",
+                "conversions": {
+                    "t": 1000.0,  # metric tonnes to kg
+                    "kg": 1.0,
+                    "lbs": 0.453592,  # pounds to kg
+                    "lb": 0.453592
+                }
+            },
+            "EU": {  # European Union
+                "default_unit": "kg",
+                "conversions": {
+                    "t": 1000.0,  # metric tonnes to kg
+                    "kg": 1.0,
+                    "q": 100.0,  # quintals to kg
+                }
+            }
+        }
+
+    def get_weight_in_standard_unit(self, weight_str: str) -> float:
+        """
+        Convert weight string to standard unit (lbs for US, kg for EU/UK)
+        """
+        if not weight_str or pd.isna(weight_str):
+            return 0
+
+        weight_str = str(weight_str).lower().strip()
+        if not weight_str:
+            return 0
+
+        try:
+            # Extract numeric value and unit
+            import re
+            match = re.match(r'^([\d.]+)\s*([\w\s]*)$', weight_str)
+            if not match:
+                logger.warning(f"Could not parse weight format: {weight_str}")
+                return 0
+
+            value = float(match.group(1))
+            unit = match.group(2).strip()
+
+            # Get country-specific conversion map
+            country = self.country_code.upper()
+            if country not in self.weight_conversion_map:
+                country = "EU"  # Default to EU if country not found
+
+            conv_map = self.weight_conversion_map[country]
+
+            # If no unit specified, use country's default unit
+            if not unit:
+                unit = conv_map["default_unit"]
+
+            # Convert to standard unit for the country
+            if unit in conv_map["conversions"]:
+                return value * conv_map["conversions"][unit]
+            else:
+                logger.warning(f"Unknown weight unit '{unit}' for country {country}")
+                return value  # Assume it's already in the standard unit
+
+        except ValueError:
+            logger.warning(f"Could not parse weight value: {weight_str}")
+            return 0
+
+    def get_weight_limits_in_standard_unit(self) -> Tuple[float, float]:
+        """
+        Get MDV and HDV weight limits in country's standard unit
+        """
+        if self.country_code.upper() == "US":
+            return self.mdv_max_lbs, self.hdv_max_lbs
+        else:
+            # Convert lbs to kg for non-US countries
+            return (
+                self.mdv_max_lbs * 0.453592,  # lbs to kg
+                self.hdv_max_lbs * 0.453592
+            )
+
+
+@dataclass
+class StudyAreaConfig:
+    """Configuration for the study area."""
+    name: str
+    country: str
+    state: str
+    dense_counties: List[str]
+    moderate_counties: List[str]
+    area_crs: str  # Area-specific CRS
+    vehicle_config: VehicleConfig
+
+    @property
+    def subdivisions(self) -> List[Dict[str, str]]:
+        """Generate subdivisions list from dense and moderate counties."""
+        all_counties = self.dense_counties + self.moderate_counties
+        return [{"county": county, "state": self.state} for county in all_counties]
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'StudyAreaConfig':
+        """Create StudyArea from dictionary configuration."""
+        # Check if the data is nested under a 'study_area' key
+        study_area_data = data.get('study_area', data)
+        vehicle_config = VehicleConfig(
+            mdv_max_lbs=data.get('mdv_max_lbs', 26000),
+            hdv_max_lbs=data.get('hdv_max_lbs', 80000),
+            country_code=data.get('country_code', 'US')
+        )
+
+        return cls(
+            name=study_area_data['name'],
+            country=study_area_data['country'],
+            state=study_area_data['state'],
+            dense_counties=study_area_data['dense_counties'],
+            moderate_counties=study_area_data['moderate_counties'],
+            area_crs=study_area_data['area_crs'],
+            vehicle_config=vehicle_config
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert StudyArea to dictionary."""
+        return {
+            'name': self.name,
+            'country': self.country,
+            'state': self.state,
+            'dense_counties': self.dense_counties,
+            'moderate_counties': self.moderate_counties,
+            'area_crs': self.area_crs,
+            'subdivisions': self.subdivisions  # Include generated subdivisions
+        }
+
+    @classmethod
+    def create_by_area(cls, area_name: str) -> 'StudyAreaConfig':
+        """Create StudyArea configuration based on area name."""
+        area_configs = {
+            "sfbay": {
+                "name": "SF Bay Area",
+                "country": "US",
+                "state": "California",
+                "dense_counties": ["San Francisco", "Alameda", "San Mateo", "Santa Clara"],
+                "moderate_counties": ["Marin", "Contra Costa", "Solano", "Sonoma", "Napa"],
+                "mdv_max_lbs": 26000,
+                "hdv_max_lbs": 80000,
+                "area_crs": "epsg:26910"  # NAD83 / UTM zone 10N - appropriate for Bay Area
+            },
+            "seattle": {
+                "name": "Greater Seattle",
+                "country": "US",
+                "state": "Washington",
+                "dense_counties": [],
+                "moderate_counties": [],
+                "mdv_max_lbs": 26000,
+                "hdv_max_lbs": 80000,
+                "area_crs": "epsg:32148"  # NAD83 / UTM zone 10N - appropriate for Seattle
+            },
+            "austin": {
+                "name": "Greater Austin",
+                "country": "US",
+                "state": "Texas",
+                "dense_counties": [],
+                "moderate_counties": [],
+                "mdv_max_lbs": 26000,
+                "hdv_max_lbs": 80000,
+                "area_crs": "epsg:32614"  # WGS 84 / UTM zone 14N - appropriate for Austin
+            },
+            "nyc": {
+                "name": "New York City Metro",
+                "country": "United States",
+                "state": "New York",
+                "dense_counties": [],
+                "moderate_counties": [],
+                "mdv_max_lbs": 26000,
+                "hdv_max_lbs": 80000,
+                "area_crs": "epsg:32618"  # WGS 84 / UTM zone 18N - appropriate for NYC
+            }
+        }
+
+        if area_name not in area_configs:
+            raise ValueError(f"Study area '{area_name}' not supported. Available areas: {list(area_configs.keys())}")
+
+        return cls.from_dict(area_configs[area_name])
+
+
+@dataclass
+class NetworkConfig:
+    """Configuration settings for network download and processing."""
+    study_area: StudyAreaConfig
+    simplification_tolerance: float = 2  # meters
+    split_edges_by: List[str] = field(default_factory=lambda: ["highway", "lanes", "maxspeed"])
+    network_type: str = "drive"
+    retain_all: bool = True
+    custom_filters: Dict[str, str] = field(default_factory=lambda: {
+        "default": '["highway"~"motorway|trunk|primary|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|unclassified"]',
+    })
+    vehicle_config: VehicleConfig = field(default_factory=VehicleConfig)
+
+    def to_dict(self) -> dict:
+        """Convert the config to a dictionary."""
+
+        def _convert_to_dict(obj):
+            if hasattr(obj, '__dict__'):
+                return {k: _convert_to_dict(v) for k, v in obj.__dict__.items()}
+            elif isinstance(obj, (list, tuple)):
+                return [_convert_to_dict(x) for x in obj]
+            elif isinstance(obj, dict):
+                return {k: _convert_to_dict(v) for k, v in obj.items()}
+            elif isinstance(obj, Path):
+                return str(obj)
+            else:
+                return obj
+
+        return _convert_to_dict(self)
+
+    def to_json(self, filepath: Union[str, Path]):
+        """Save network configuration to JSON file."""
+        with open(filepath, 'w') as f:
+            json.dump(self.to_dict(), f, indent=2)
+
+
+class NetworkDownloader:
+    """Handles downloading OSM network data using different methods."""
+
+    def __init__(self, config: NetworkConfig):
+        self.config = config
+
+    def download_network(self) -> nx.MultiDiGraph:
+        """Download network based on study area configuration."""
+        logger.info(f"Downloading network data for {self.config.study_area.name}")
+
+        # Enable console logging
+        ox.settings.log_console = True
+
+        # Enable caching
+        ox.settings.use_cache = True
+
+        # Treat all edges as one-way
+        ox.settings.all_oneway = True
+
+        useful_tags_way = [
+            "highway",
+            "highway=motorway",
+            "highway=trunk",
+            "highway=primary",
+            "highway=secondary",
+            "highway=tertiary",
+            "highway=motorway_link",
+            "highway=trunk_link",
+            "highway=primary_link",
+            "highway=secondary_link",
+            "highway=tertiary_link",
+            "highway=unclassified",
+            "highway=residential",
+            "maxweight",
+            "maxweight:hgv",
+            "hgv",
+            "maxheight",
+            "maxspeed",
+            "oneway=*",
+            "lanes"
+        ]
+
+        useful_tags_node = []
+
+        # Set the useful tags in OSMnx settings
+        # ox.settings.useful_tags_node = useful_tags_node
+        ox.settings.useful_tags_way = useful_tags_way
+
+        graphs = []
+        for subdivision in self.config.study_area.subdivisions:
+            try:
+                # Get county-specific filter or default if not found
+                county = subdivision['county'].lower().replace(" ", "_")
+                custom_filter = self.config.custom_filters.get(
+                    county,
+                    self.config.custom_filters.get('default')  # Use default filter if county not found
+                )
+
+                G = ox.graph_from_place(
+                    subdivision,
+                    network_type=self.config.network_type,
+                    simplify=False,
+                    retain_all=self.config.retain_all,
+                    custom_filter=custom_filter
+                )
+                graphs.append(G)
+                logger.info(
+                    f"Successfully downloaded network for {subdivision['county']} using {'custom' if county in self.config.custom_filters else 'default'} filter")
+            except Exception as e:
+                logger.error(f"Failed to download network for {subdivision}: {str(e)}")
+
+        return nx.compose_all(graphs) if graphs else None
+
+
+class NetworkProcessor:
+    """Processes downloaded network data."""
+
+    def __init__(self, config: NetworkConfig):
+        self.config = config
+
+    def process_network(self, G: nx.MultiDiGraph) -> nx.MultiDiGraph:
+        """Apply all processing steps to the network."""
+        if G is None:
+            logger.error("No network to process")
+            return None
+
+        logger.info("Processing network...")
+
+        # Project to configured CRS
+        G = ox.project_graph(G, to_crs=self.config.study_area.area_crs)
+        logger.info(f"Projected network to {self.config.study_area.area_crs}")
+
+        # Get largest connected component
+        G = ox.truncate.largest_component(G)  # Using it directly from ox
+        logger.info("Extracted largest connected component")
+
+        # Add edge attributes
+        G = self._add_edge_attributes(G)
+
+        # Process vehicle classifications
+        G = self._process_vehicle_classifications(G)
+
+        # Consolidate intersections
+        G = self._consolidate_intersections(G)
+
+        # Simplify network
+        G = self._simplify_network(G)
+
+        return G
+
+    def _add_edge_attributes(self, G: nx.MultiDiGraph) -> nx.MultiDiGraph:
+        """Add speed and other attributes to edges."""
+        logger.info("Adding edge attributes...")
+        G = ox.add_edge_speeds(G)
+        return G
+
+    def _consolidate_intersections(self, G: nx.MultiDiGraph) -> nx.MultiDiGraph:
+        """Consolidate nearby intersections."""
+        logger.info("Consolidating intersections...")
+        G = ox.consolidate_intersections(
+            G,
+            tolerance=self.config.simplification_tolerance,
+            rebuild_graph=True,
+            dead_ends=True,
+            reconnect_edges=True
+        )
+
+        # Update edge lengths
+        nodes, edges = ox.graph_to_gdfs(G)
+        edges['length'] = edges['geometry'].length
+        G = ox.graph_from_gdfs(nodes, edges, graph_attrs=G.graph)
+
+        return G
+
+    def _simplify_network(self, G: nx.MultiDiGraph) -> nx.MultiDiGraph:
+        """Simplify network topology."""
+        logger.info("Simplifying network...")
+
+        def str_median(values):
+            """Calculate median after converting string values to numbers."""
+            # Convert strings to integers, filtering out non-numeric values
+            numeric_values = []
+            for v in values:
+                try:
+                    if isinstance(v, str):
+                        numeric_values.append(int(v))
+                    elif isinstance(v, (int, float)):
+                        numeric_values.append(int(v))
+                except (ValueError, TypeError):
+                    continue
+
+            if not numeric_values:
+                return None
+            return int(median(numeric_values))
+
+        return ox.simplification.simplify_graph(
+            G,
+            edge_attrs_differ=self.config.split_edges_by,
+            remove_rings=False,
+            track_merged=True,
+            edge_attr_aggs={
+                "length": sum,
+                "travel_time": sum,
+                "lanes": str_median,
+                "hgv": min,
+                "mdv": min
+            }
+        )
+
+    def _process_vehicle_classifications(self, G: nx.MultiDiGraph) -> nx.MultiDiGraph:
+        """Process vehicle classifications based on FHWA weight classes."""
+        # https://afdc.energy.gov/data/10380
+        # https://wiki.openstreetmap.org/wiki/Key:maxweight#:~:text=In%20most%20of%20the%20United,but%20never%20as%20metric%20tons.
+        logger.info("Processing vehicle classifications...")
+
+        # Convert graph to GeoDataFrames while preserving MultiIndex
+        nodes, edges = ox.graph_to_gdfs(G)
+        original_index = edges.index
+        edges = edges.reset_index()
+
+        # Copy HGV weight restrictions if present
+        if "maxweight:hgv" in edges.columns:
+            hgv_mask = ~edges["maxweight:hgv"].isna()
+            if hgv_mask.any():
+                edges.loc[hgv_mask, "maxweight"] = edges.loc[hgv_mask, "maxweight:hgv"].copy()
+
+        if "maxweight" in edges.columns:
+            # Convert weights to standard unit for the country
+            numericWeight = edges["maxweight"].apply(
+                self.config.vehicle_config.get_weight_in_standard_unit
+            )
+
+            # Get weight limits in the appropriate unit
+            mdv_max, hdv_max = self.config.vehicle_config.get_weight_limits_in_standard_unit()
+
+            # Check weight restrictions
+            mdvBannedByWeight = numericWeight <= mdv_max
+            hdvBannedByWeight = numericWeight <= hdv_max
+        else:
+            mdvBannedByWeight = pd.Series([False] * len(edges))
+            hdvBannedByWeight = pd.Series([False] * len(edges))
+
+        # Process vehicle access flags
+        hgvAllowedByDefault = edges.hgv.str.lower() != "no" if "hgv" in edges.columns else pd.Series(
+            [True] * len(edges))
+        longVehiclesBanned = ~edges.maxlength.isna() if "maxlength" in edges.columns else pd.Series(
+            [False] * len(edges))
+
+        # Set final vehicle access flags
+        hgv = hgvAllowedByDefault & ~hdvBannedByWeight & ~longVehiclesBanned
+        mdv = hgvAllowedByDefault & ~mdvBannedByWeight
+
+        edges["hgv"] = hgv
+        edges["mdv"] = mdv
+
+        # Restore the original MultiIndex
+        edges = edges.set_index(original_index.names)
+
+        # Convert back to graph
+        G = ox.graph_from_gdfs(nodes, edges, graph_attrs=G.graph)
+
+        return G
+
+
+class NetworkVisualizer:
+    """Handles network visualization and plotting."""
+
+    def __init__(self, config: NetworkConfig, output_dir: Path):
+        self.config = config
+        self.output_dir = output_dir
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
+    def plot_network(self, G: nx.MultiDiGraph, name: str, dpi: int = 600):
+        """Plot basic network visualization."""
+        if G is None:
+            logger.error("No network to plot")
+            return
+
+        # Reproject the graph
+        G = ox.project_graph(G, to_crs=self.config.study_area.area_crs)
+
+        fig, ax = ox.plot.plot_graph(
+            G,
+            bgcolor="#FFFFFF",
+            node_color="#333333",
+            node_size=0.02,
+            node_edgecolor='none',
+            node_zorder=3,
+            edge_color="#FF5A5F",
+            edge_linewidth=0.2,
+            edge_alpha=0.8,
+            show=False,
+            close=False
+        )
+
+        # Add basemap
+        ctx.add_basemap(ax, source=ctx.providers.CartoDB.Positron)
+
+        # Add statistics
+        self._add_network_stats(G, ax)
+
+        # Save figure
+        output_path = self.output_dir / f"{name}.png"
+        fig.savefig(output_path, dpi=dpi, bbox_inches='tight')
+        plt.close(fig)
+
+    def plot_attribute(self, G: nx.MultiDiGraph, attribute: str, name: str):
+        """Plot network colored by attribute."""
+        if G is None:
+            logger.error("No network to plot")
+            return
+
+        attribute_values = [G.edges[edge].get(attribute, 'unknown') for edge in G.edges]
+
+        # Create color scheme
+        if isinstance(attribute_values[0], (str, bool)):
+            colors = self._create_categorical_colors(attribute_values)
+        else:
+            colors = self._create_numerical_colors(attribute_values)
+
+        self._plot_colored_network(G, colors, attribute_values, attribute, name)
+
+    def _create_categorical_colors(self, values: List[Union[str, bool]]) -> Dict:
+        """Create color mapping for categorical values."""
+        unique_values = list(set(values))
+        # Use the new recommended way to get colormaps
+        colors = plt.colormaps['tab20'](np.linspace(0, 1, len(unique_values)))
         color_map = dict(zip(unique_values, colors))
-        edge_colors = [color_map[val] for val in attribute_values]
-    else:  # Numerical
-        norm = mcolors.Normalize(vmin=min(attribute_values), vmax=max(attribute_values))
+        return {
+            'edge_colors': [color_map[val] for val in values],
+            'is_categorical': True,
+            'color_map': color_map,
+            'unique_values': unique_values
+        }
+
+    def _create_numerical_colors(self, values: List[Union[int, float]]) -> Dict:
+        """Create color mapping for numerical values."""
+        norm = mcolors.Normalize(vmin=min(values), vmax=max(values))
         color_map = plt.cm.ScalarMappable(norm=norm, cmap='plasma')
-        edge_colors = [color_map.to_rgba(val) for val in attribute_values]
+        return {
+            'edge_colors': [color_map.to_rgba(val) for val in values],
+            'is_categorical': False,
+            'color_map': color_map
+        }
 
-    # Plot the graph with edges colored by the specified attribute
-    fig, ax = plt.subplots(figsize=figsize)
-    ox.plot_graph(
-        G,
-        ax=ax,
-        bgcolor="#222222",
-        node_color="#00FFAA",
-        node_size=0.2,
-        node_alpha=0.9,
-        node_edgecolor="#333333",
-        edge_color=edge_colors,
-        edge_linewidth=0.7,
-        edge_alpha=1,
-        show=False,
-        close=False
-    )
-    ctx.add_basemap(ax, source=ctx.providers.CartoDB.Positron)
+    def _plot_colored_network(self, G: nx.MultiDiGraph, colors: Dict, values: List, attribute: str, name: str):
+        """Plot the network with the specified colors and save it."""
+        # Reproject the graph
+        G = ox.project_graph(G, to_crs=self.config.study_area.area_crs)
 
-    # Set title
-    ax.set_title(title, color="white")
+        fig, ax = plt.subplots(figsize=(12, 12))
 
-    # Add legend for categorical attributes
-    if isinstance(attribute_values[0], str) or isinstance(attribute_values[0], bool):
-        handles = [plt.Line2D([0], [0], color=color_map[val], lw=4) for val in unique_values]
-        ax.legend(handles, unique_values, title=attribute, loc="lower right", frameon=False, fontsize=10)
-    elif isinstance(attribute_values[0], (int, float)):
-        # Add a color bar for numerical attributes
-        cbar = plt.colorbar(color_map, ax=ax)
-        cbar.set_label(attribute)
+        # Plot the graph
+        ox.plot_graph(
+            G,
+            ax=ax,
+            bgcolor="#FFFFFF",
+            node_color="#333333",
+            node_size=0.02,
+            node_edgecolor='none',
+            node_zorder=3,
+            edge_color=colors['edge_colors'],
+            edge_linewidth=0.2,
+            edge_alpha=0.8,
+            show=False,
+            close=False
+        )
 
-    fig.savefig(f'{studyArea}_{attribute}.png', dpi=600, bbox_inches='tight')
-    plt.show()
+        # Add basemap
+        ctx.add_basemap(ax, source=ctx.providers.CartoDB.Positron)
+
+        # Add statistics
+        self._add_network_stats(G, ax)
+
+        # Add legend or colorbar
+        if colors['is_categorical']:
+            handles = [plt.Line2D([0], [0], color=colors['color_map'][val], lw=4)
+                       for val in colors['unique_values']]
+            ax.legend(handles, colors['unique_values'],
+                      title=attribute,
+                      loc="lower right",
+                      frameon=False,
+                      fontsize=10)
+        else:
+            cbar = plt.colorbar(colors['color_map'], ax=ax)
+            cbar.set_label(attribute)
+
+        # Save figure
+        output_path = self.output_dir / f"{name}_{attribute}.png"
+        fig.savefig(output_path, dpi=600, bbox_inches='tight')
+        plt.close(fig)
+        logger.info(f"Saved plot to {output_path}")
+
+    def _add_network_stats(self, G: nx.MultiDiGraph, ax: plt.Axes):
+        """Add network statistics to plot."""
+        num_nodes = len(G.nodes)
+        num_edges = len(G.edges)
+        total_length = sum(data.get('length', 0) for _, _, _, data in G.edges(keys=True, data=True))
+
+        title = f"Nodes: {num_nodes} | Edges: {num_edges} | Total Length: {total_length / 1000:.2f} km"
+        ax.set_title(title, fontsize=15, fontweight='bold', color='black', pad=20)
 
 
-# Plot by `highway` type with discrete legend
-plot_graph_by_attribute(G_final, attribute='highway', title="Network Colored by Highway Type")
+class NetworkExporter:
+    """Handles exporting network to various formats."""
 
-# Plot by `lanes` with discrete legend if categorical, or colorbar if numerical
-plot_graph_by_attribute(G_final, attribute='lanes', title="Network Colored by Number of Lanes")
+    def __init__(self, output_dir: Path):
+        self.output_dir = output_dir
+        self.output_dir.mkdir(parents=True, exist_ok=True)
 
-# Define the file path where you want to save the pickle file
-save_path = f'{studyArea}_{simpl_intersections}_graph.pkl'
+    def save_pickle(self, G: nx.MultiDiGraph, name: str):
+        """Save network as pickle file."""
+        if G is None:
+            logger.error("No network to save")
+            return
 
-# Save the graph using pickle
-with open(save_path, 'wb') as f:
-    pickle.dump(G_final, f)
-print(f"Graph successfully saved to '{save_path}'.")
+        output_path = self.output_dir / f"{name}.pkl"
+        with open(output_path, 'wb') as f:
+            pickle.dump(G, f)
+        logger.info(f"Saved network to {output_path}")
 
-# Save Network for the Simulation
+    def save_geopackage(self, G: nx.MultiDiGraph, name: str):
+        """Save network as GeoPackage."""
+        if G is None:
+            logger.error("No network to save")
+            return
 
-# Save GPKG
+        output_path = self.output_dir / f"{name}.gpkg"
+        ox.save_graph_geopackage(G, filepath=str(output_path))
+        logger.info(f"Saved network to {output_path}")
 
-ox.save_graph_geopackage(G_final, filepath="SFBayArea.gpkg")
+    def save_osm(self, G: nx.MultiDiGraph, name: str):
+        """Save network as OSM XML file."""
+        if G is None:
+            logger.error("No network to save")
+            return
+
+        output_path = self.output_dir / f"{name}.osm"
+
+        # Create OSM XML structure
+        root = self._create_osm_root(G)
+
+        # Write nodes
+        node_map = self._write_osm_nodes(G, root)
+
+        # Write ways
+        self._write_osm_ways(G, root, node_map)
+
+        # Save file
+        ET.ElementTree(root).write(output_path, encoding="utf-8", xml_declaration=True)
+        logger.info(f"Saved network to {output_path}")
+
+    def _create_osm_root(self, G: nx.MultiDiGraph) -> ET.Element:
+        """Create OSM XML root element with bounds."""
+        xs = [d['x'] for _, d in G.nodes(data=True) if 'x' in d]
+        ys = [d['y'] for _, d in G.nodes(data=True) if 'y' in d]
+
+        root = ET.Element("osm", version="0.6", generator="OSMnx2OSM")
+        ET.SubElement(root, "bounds",
+                      minlat=str(min(ys)), minlon=str(min(xs)),
+                      maxlat=str(max(ys)), maxlon=str(max(xs)))
+        return root
+
+    def _write_osm_nodes(self, G: nx.MultiDiGraph, root: ET.Element) -> Dict[Any, int]:
+        """Write nodes to OSM XML and return node ID mapping."""
+        node_map = {}
+        node_id = 1
+
+        for n, d in G.nodes(data=True):
+            lat, lon = d.get('y'), d.get('x')
+            if lat is None or lon is None:
+                continue
+
+            node = ET.SubElement(root, "node",
+                                 id=str(node_id),
+                                 lat=str(lat),
+                                 lon=str(lon),
+                                 version="1",
+                                 changeset="1",
+                                 user="osmnx",
+                                 uid="1",
+                                 timestamp="2020-01-01T00:00:00Z")
+
+            node_map[n] = node_id
+
+            # Add node tags
+            for k, v in d.items():
+                if k not in ("x", "y") and v is not None:
+                    ET.SubElement(node, "tag", k=str(k), v=str(v))
+
+            node_id += 1
+
+        return node_map
+
+    def _write_osm_ways(self, G: nx.MultiDiGraph, root: ET.Element, node_map: Dict[Any, int]):
+        """Write ways (edges) to OSM XML."""
+        way_id = -1
+
+        for u, v, edata in G.edges(data=True):
+            if u not in node_map or v not in node_map:
+                continue
+
+            way = ET.SubElement(root, "way",
+                                id=str(way_id),
+                                version="1",
+                                changeset="1",
+                                user="osmnx",
+                                uid="1",
+                                timestamp="2020-01-01T00:00:00Z")
+
+            ET.SubElement(way, "nd", ref=str(node_map[u]))
+            ET.SubElement(way, "nd", ref=str(node_map[v]))
+
+            # Add required highway tag
+            ET.SubElement(way, "tag", k="highway", v="road")
+
+            # Add edge tags
+            for k, v_ in edata.items():
+                if v_ is not None:
+                    ET.SubElement(way, "tag", k=str(k), v=str(v_))
+
+            way_id -= 1
 
 
-# Save OSM
+def create_config_by_area(study_area: str) -> Dict[str, Any]:
+    """Creates configuration based on study area name."""
 
-def save_graph_to_osm(G, filename="output.osm"):
-    # Bounding box
-    xs = [d['x'] for _, d in G.nodes(data=True) if 'x' in d]
-    ys = [d['y'] for _, d in G.nodes(data=True) if 'y' in d]
-    minlon, maxlon = min(xs), max(xs)
-    minlat, maxlat = min(ys), max(ys)
+    # Base highway types for all areas
+    sparse_network_filter = ["motorway", "trunk", "motorway_link", "trunk_link",
+                             "primary", "secondary", "primary_link", "secondary_link",
+                             "tertiary", "tertiary_link"]
+    moderate_network_filter = sparse_network_filter + ["unclassified"]
+    dense_network_filter = moderate_network_filter + ["residential"]
 
-    root = ET.Element("osm", version="0.6", generator="OSMnx2OSM")
-    ET.SubElement(root, "bounds",
-                  minlat=str(minlat), minlon=str(minlon),
-                  maxlat=str(maxlat), maxlon=str(maxlon))
+    # Create StudyArea configuration
+    study_area_config = StudyAreaConfig.create_by_area(study_area)
 
-    node_map = {}
-    node_id = 1
+    # Create county filters
+    county_filters = {}
 
-    # Write nodes + attributes as tags
-    for n, d in G.nodes(data=True):
-        lat, lon = d.get('y'), d.get('x')
-        if lat is None or lon is None: continue
-        node = ET.SubElement(root, "node",
-                             id=str(node_id), lat=str(lat), lon=str(lon),
-                             version="1", changeset="1", user="osmnx", uid="1",
-                             timestamp="2020-01-01T00:00:00Z"
-                             )
-        node_map[n] = node_id
-        for k, v in d.items():
-            if k not in ("x", "y") and v is not None:
-                ET.SubElement(node, "tag", k=str(k), v=str(v))
-        node_id += 1
+    # Set default filter
+    default_filter = '["highway"~"' + '|'.join(sparse_network_filter) + '"]'
+    county_filters['default'] = default_filter
 
-    # Write ways (edges) + attributes as tags
-    way_id = -1
-    for u, v, edata in G.edges(data=True):
-        if u not in node_map or v not in node_map:
-            continue
-        way = ET.SubElement(root, "way",
-                            id=str(way_id), version="1", changeset="1",
-                            user="osmnx", uid="1", timestamp="2020-01-01T00:00:00Z")
-        ET.SubElement(way, "nd", ref=str(node_map[u]))
-        ET.SubElement(way, "nd", ref=str(node_map[v]))
-        # At least one standard OSM tag
-        ET.SubElement(way, "tag", k="highway", v="road")
-        # Dump all other attributes
-        for k, v_ in edata.items():
-            if v_ is not None:
-                ET.SubElement(way, "tag", k=str(k), v=str(v_))
-        way_id -= 1
+    # Add dense county filters
+    for county in study_area_config.dense_counties:
+        filter_str = '["highway"~"' + '|'.join(dense_network_filter) + '"]'
+        county_filters[county.lower().replace(" ", "_")] = filter_str
 
-    ET.ElementTree(root).write(filename, encoding="utf-8", xml_declaration=True)
+    # Add moderate county filters
+    for county in study_area_config.moderate_counties:
+        filter_str = '["highway"~"' + '|'.join(moderate_network_filter) + '"]'
+        county_filters[county.lower().replace(" ", "_")] = filter_str
+
+    # Create final configuration
+    return {
+        "study_area": study_area_config,
+        "simplification_tolerance": 2,
+        "split_edges_by": ["highway", "lanes", "maxspeed"],
+        "network_type": "drive",
+        "retain_all": True,
+        "custom_filters": county_filters,
+        "vehicle_config": VehicleConfig(mdv_max_lbs=26000, hdv_max_lbs=80000)
+    }
+
+
+def process_study_area(study_area: str) -> None:
+    """Process a specific study area."""
+    logger.info(f"Starting processing for study area: {study_area}")
+
+    try:
+        # Setup
+        network_config = NetworkConfig(**create_config_by_area(study_area))
+        output_dir = Path("output") / study_area
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Initialize components
+        downloader = NetworkDownloader(network_config)
+        processor = NetworkProcessor(network_config)
+        visualizer = NetworkVisualizer(network_config, output_dir)
+        exporter = NetworkExporter(output_dir)
+
+        # Main processing steps
+        G = downloader.download_network()
+        if G is None:
+            raise ValueError("Failed to download network")
+
+        G = processor.process_network(G)
+        if G is None:
+            raise ValueError("Failed to process network")
+
+        # Visualize and export
+        for task in [
+            lambda: visualizer.plot_network(G, "network"),
+            lambda: visualizer.plot_attribute(G, "highway", "highway_types"),
+            lambda: visualizer.plot_attribute(G, "lanes", "lanes"),
+            lambda: exporter.save_pickle(G, "network"),
+            lambda: exporter.save_geopackage(G, "network"),
+            lambda: exporter.save_osm(G, "network"),
+            lambda: network_config.to_json(output_dir / "config_used.json")
+        ]:
+            try:
+                task()
+            except Exception as e:
+                logger.error(f"Task failed: {str(e)}")
+
+        logger.info(f"Completed processing for {study_area}")
+
+    except Exception as e:
+        logger.error(f"Failed to process {study_area}: {str(e)}")
+
+
+def main():
+    """Main execution function."""
+    # Create config directory
+    config_dir = Path("config")
+    config_dir.mkdir(exist_ok=True)
+
+    # List of available study areas
+    study_areas = ["sfbay", "seattle", "austin", "nyc"]
+
+    # Process specific area or all areas
+    selected_area = "sfbay"  # Change this to process different areas
+    # selected_area = None  # Set to None to process all areas
+
+    if selected_area is not None:
+        if selected_area not in study_areas:
+            raise ValueError(f"Invalid study area. Choose from: {study_areas}")
+        process_study_area(selected_area)
+    else:
+        # Process all areas
+        for area in study_areas:
+            logger.info(f"Processing {area}...")
+            process_study_area(area)
+
+
+if __name__ == "__main__":
+    main()
