@@ -107,7 +107,6 @@ class CRSConfig:
 
 
 @dataclass
-@dataclass
 class NetworkConfig:
     """Configuration settings for network download and processing."""
     study_area: StudyArea
@@ -120,7 +119,6 @@ class NetworkConfig:
         "default": '["highway"~"motorway|trunk|primary|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|unclassified"]',
     })
     vehicle_config: VehicleConfig = field(default_factory=VehicleConfig)
-    crs: str = "epsg:3857"  # Default to Web Mercator
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'NetworkConfig':
@@ -132,15 +130,20 @@ class NetworkConfig:
             mdv_max_lbs=data.get('vehicle_config', {}).get('mdv_max_lbs', 26000),
             hdv_max_lbs=data.get('vehicle_config', {}).get('hdv_max_lbs', 80000)
         )
+        crs_config = CRSConfig(
+            input_crs=data.get('crs_config', {}).get('input_crs', "epsg:4326"),
+            working_crs=data.get('crs_config', {}).get('working_crs', data.get('crs', "epsg:3857"))
+            # Fallback for backward compatibility
+        )
         return cls(
             study_area=study_area,
+            crs_config=crs_config,
             simplification_tolerance=data.get('simplification_tolerance', 2),
             split_links_by=data.get('split_links_by', ["highway", "lanes", "maxspeed"]),
             network_type=data.get('network_type', "drive"),
             retain_all=data.get('retain_all', True),
             custom_filters=data.get('custom_filters', cls.custom_filters.default_factory()),
-            vehicle_config=vehicle_config,
-            crs=data.get('crs', "epsg:3857")
+            vehicle_config=vehicle_config
         )
 
     def to_json(self, filepath: Union[str, Path]):
@@ -150,6 +153,10 @@ class NetworkConfig:
                 'name': self.study_area.name,
                 'country': self.study_area.country,
                 'subdivisions': self.study_area.subdivisions
+            },
+            'crs_config': {
+                'input_crs': self.crs_config.input_crs,
+                'working_crs': self.crs_config.working_crs
             },
             'simplification_tolerance': self.simplification_tolerance,
             'split_links_by': self.split_links_by,
@@ -161,8 +168,7 @@ class NetworkConfig:
                 'hdv_max_metric_tons': self.vehicle_config.hdv_max_metric_tons,
                 'mdv_max_lbs': self.vehicle_config.mdv_max_lbs,
                 'hdv_max_lbs': self.vehicle_config.hdv_max_lbs
-            },
-            'crs': self.crs
+            }
         }
         with open(filepath, 'w') as f:
             json.dump(data, f, indent=2)
@@ -219,8 +225,9 @@ class NetworkProcessor:
         logger.info("Processing network...")
 
         # Project to configured CRS
-        G = ox.project_graph(G, to_crs=self.config.crs)
-        logger.info(f"Projected network to {self.config.crs}")
+        G = ox.project_graph(G, to_crs=self.config.crs_config.working_crs)
+        logger.info(
+            f"Projected network from {self.config.crs_config.input_crs} to {self.config.crs_config.working_crs}")
 
         # Add edge attributes
         G = self._add_edge_attributes(G)
@@ -555,6 +562,10 @@ def create_config_by_area(study_area: str) -> Dict[str, Any]:
                 for county in (area_config["dense_counties"] + area_config["moderate_counties"])
             ]
         },
+        "crs_config": {
+            "input_crs": "epsg:4326",  # OSM data is always in WGS84
+            "working_crs": area_config["crs"]  # Area-specific UTM zone
+        },
         "simplification_tolerance": 2,
         "split_links_by": ["highway", "lanes", "maxspeed"],
         "network_type": "drive",
@@ -565,8 +576,7 @@ def create_config_by_area(study_area: str) -> Dict[str, Any]:
             "hdv_max_metric_tons": 36.287,
             "mdv_max_lbs": 26000,
             "hdv_max_lbs": 80000
-        },
-        "crs": area_config["crs"]
+        }
     }
 
 
