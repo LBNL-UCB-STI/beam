@@ -11,6 +11,7 @@ import logging
 from pathlib import Path
 import json
 import pandas as pd
+from statistics import median
 
 import osmnx as ox
 import networkx as nx
@@ -168,13 +169,30 @@ class NetworkConfig:
     study_area: StudyAreaConfig
     crs_config: CRSConfig = field(default_factory=CRSConfig)
     simplification_tolerance: float = 2  # meters
-    split_links_by: List[str] = field(default_factory=lambda: ["highway", "lanes", "maxspeed"])
+    split_edges_by: List[str] = field(default_factory=lambda: ["highway", "lanes", "maxspeed"])
     network_type: str = "drive"
     retain_all: bool = True
     custom_filters: Dict[str, str] = field(default_factory=lambda: {
         "default": '["highway"~"motorway|trunk|primary|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|unclassified"]',
     })
     vehicle_config: VehicleConfig = field(default_factory=VehicleConfig)
+
+    def to_dict(self) -> dict:
+        """Convert the config to a dictionary."""
+
+        def _convert_to_dict(obj):
+            if hasattr(obj, '__dict__'):
+                return {k: _convert_to_dict(v) for k, v in obj.__dict__.items()}
+            elif isinstance(obj, (list, tuple)):
+                return [_convert_to_dict(x) for x in obj]
+            elif isinstance(obj, dict):
+                return {k: _convert_to_dict(v) for k, v in obj.items()}
+            elif isinstance(obj, Path):
+                return str(obj)
+            else:
+                return obj
+
+        return _convert_to_dict(self)
 
     def to_json(self, filepath: Union[str, Path]):
         """Save network configuration to JSON file."""
@@ -316,15 +334,33 @@ class NetworkProcessor:
     def _simplify_network(self, G: nx.MultiDiGraph) -> nx.MultiDiGraph:
         """Simplify network topology."""
         logger.info("Simplifying network...")
+
+        def str_median(values):
+            """Calculate median after converting string values to numbers."""
+            # Convert strings to integers, filtering out non-numeric values
+            numeric_values = []
+            for v in values:
+                try:
+                    if isinstance(v, str):
+                        numeric_values.append(int(v))
+                    elif isinstance(v, (int, float)):
+                        numeric_values.append(int(v))
+                except (ValueError, TypeError):
+                    continue
+
+            if not numeric_values:
+                return None
+            return int(median(numeric_values))
+
         return ox.simplification.simplify_graph(
             G,
-            edge_attrs_differ=self.config.split_links_by,
+            edge_attrs_differ=self.config.split_edges_by,
             remove_rings=False,
             track_merged=True,
             edge_attr_aggs={
                 "length": sum,
                 "travel_time": sum,
-                "lanes": "strmedian",
+                "lanes": str_median,
                 "hgv": min,
                 "mdv": min
             }
@@ -334,23 +370,34 @@ class NetworkProcessor:
         """Process vehicle classifications based on FHWA weight classes, handling metric tons from OSM."""
         logger.info("Processing vehicle classifications...")
 
+        # Convert graph to GeoDataFrames while preserving MultiIndex
         nodes, edges = ox.graph_to_gdfs(G)
+
+        # Store the original index for later reconstruction
+        original_index = edges.index
+
+        # Reset index to work with the data more easily
+        edges = edges.reset_index()
 
         # Copy HGV weight restrictions if present
         if "maxweight:hgv" in edges.columns:
-            edges.loc[~edges["maxweight:hgv"].isna(), "maxweight"] = edges.loc[
-                ~edges["maxweight:hgv"].isna(), "maxweight:hgv"].copy()
+            hgv_mask = ~edges["maxweight:hgv"].isna()
+            if hgv_mask.any():
+                edges.loc[hgv_mask, "maxweight"] = edges.loc[hgv_mask, "maxweight:hgv"].copy()
 
         if "maxweight" in edges.columns:
             # Identify weight formats
-            weightInMetricTons = edges["maxweight"].str.contains(" st").fillna(value=False)  # st means metric tons
-            weightInLbs = edges["maxweight"].str.contains(" lbs").fillna(value=False)
+            weightInMetricTons = edges["maxweight"].str.contains(r"\s*st", regex=True).fillna(value=False)
+            weightInLbs = edges["maxweight"].str.contains(r"\s*lbs", regex=True).fillna(value=False)
 
             # Convert weights to numeric values
             numericWeight = (edges["maxweight"]
                              .str.replace(r"\s*st", "", regex=True)
-                             .str.replace(r"\s*lbs", "", regex=True).astype(float)
-                             )
+                             .str.replace(r"\s*lbs", "", regex=True)
+                             .astype(float))
+
+            # Ensure numericWeight is calculated correctly even if some entries are NaN
+            numericWeight = numericWeight.fillna(0)
 
             # Check weight restrictions using metric tons for OSM values
             mdvBannedByWeight = (
@@ -368,6 +415,7 @@ class NetworkProcessor:
         # Process vehicle access flags
         hgvAllowedByDefault = edges.hgv.str.lower() != "no" if "hgv" in edges.columns else pd.Series(
             [True] * len(edges))
+
         longVehiclesBanned = ~edges.maxlength.isna() if "maxlength" in edges.columns else pd.Series(
             [False] * len(edges))
 
@@ -375,8 +423,11 @@ class NetworkProcessor:
         hgv = hgvAllowedByDefault & ~hdvBannedByWeight & ~longVehiclesBanned
         mdv = hgvAllowedByDefault & ~mdvBannedByWeight
 
-        edges["hgv"] = hgv.copy()
-        edges["mdv"] = mdv.copy()
+        edges["hgv"] = hgv
+        edges["mdv"] = mdv
+
+        # Restore the original MultiIndex
+        edges = edges.set_index(original_index.names)
 
         # Convert back to graph
         G = ox.graph_from_gdfs(nodes, edges, graph_attrs=G.graph)
@@ -436,18 +487,75 @@ class NetworkVisualizer:
         else:
             colors = self._create_numerical_colors(attribute_values)
 
-        self._plot_colored_network(G, colors, attribute, name)
+        self._plot_colored_network(G, colors, attribute_values, attribute, name)
 
-    def _create_categorical_colors(self, values):
+    def _create_categorical_colors(self, values: List[Union[str, bool]]) -> Dict:
+        """Create color mapping for categorical values."""
         unique_values = list(set(values))
         colors = plt.cm.get_cmap('tab20', len(unique_values))(range(len(unique_values)))
         color_map = dict(zip(unique_values, colors))
-        return [color_map[val] for val in values]
+        return {
+            'edge_colors': [color_map[val] for val in values],
+            'is_categorical': True,
+            'color_map': color_map,
+            'unique_values': unique_values
+        }
 
-    def _create_numerical_colors(self, values):
+    def _create_numerical_colors(self, values: List[Union[int, float]]) -> Dict:
+        """Create color mapping for numerical values."""
         norm = mcolors.Normalize(vmin=min(values), vmax=max(values))
         color_map = plt.cm.ScalarMappable(norm=norm, cmap='plasma')
-        return [color_map.to_rgba(val) for val in values]
+        return {
+            'edge_colors': [color_map.to_rgba(val) for val in values],
+            'is_categorical': False,
+            'color_map': color_map
+        }
+
+    def _plot_colored_network(self, G: nx.MultiDiGraph, colors: Dict, values: List,
+                              attribute: str, name: str):
+        """Plot the network with the specified colors and save it."""
+        fig, ax = plt.subplots(figsize=(12, 12))
+
+        # Plot the graph
+        ox.plot_graph(
+            G,
+            ax=ax,
+            bgcolor="#FFFFFF",
+            node_color="#333333",
+            node_size=0.02,
+            node_edgecolor='none',
+            node_zorder=3,
+            edge_color=colors['edge_colors'],
+            edge_linewidth=0.2,
+            edge_alpha=0.8,
+            show=False,
+            close=False
+        )
+
+        # Add basemap
+        ctx.add_basemap(ax, source=ctx.providers.CartoDB.Positron)
+
+        # Add statistics
+        self._add_network_stats(G, ax)
+
+        # Add legend or colorbar
+        if colors['is_categorical']:
+            handles = [plt.Line2D([0], [0], color=colors['color_map'][val], lw=4)
+                       for val in colors['unique_values']]
+            ax.legend(handles, colors['unique_values'],
+                      title=attribute,
+                      loc="lower right",
+                      frameon=False,
+                      fontsize=10)
+        else:
+            cbar = plt.colorbar(colors['color_map'], ax=ax)
+            cbar.set_label(attribute)
+
+        # Save figure
+        output_path = self.output_dir / f"{name}_{attribute}.png"
+        fig.savefig(output_path, dpi=600, bbox_inches='tight')
+        plt.close(fig)
+        logger.info(f"Saved plot to {output_path}")
 
     def _add_network_stats(self, G: nx.MultiDiGraph, ax: plt.Axes):
         """Add network statistics to plot."""
@@ -618,7 +726,7 @@ def create_config_by_area(study_area: str) -> Dict[str, Any]:
             working_crs=study_area_config.area_crs
         ),
         "simplification_tolerance": 2,
-        "split_links_by": ["highway", "lanes", "maxspeed"],
+        "split_edges_by": ["highway", "lanes", "maxspeed"],
         "network_type": "drive",
         "retain_all": True,
         "custom_filters": county_filters,
