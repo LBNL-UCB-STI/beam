@@ -100,10 +100,18 @@ class VehicleConfig:
 
 
 @dataclass
+class CRSConfig:
+    """Configuration for coordinate reference systems."""
+    input_crs: str = "epsg:4326"  # WGS84 - OSM's native CRS
+    working_crs: str = "epsg:3857"  # Web Mercator for analysis
+
+
+@dataclass
 @dataclass
 class NetworkConfig:
     """Configuration settings for network download and processing."""
     study_area: StudyArea
+    crs_config: CRSConfig = field(default_factory=CRSConfig)
     simplification_tolerance: float = 2  # meters
     split_links_by: List[str] = field(default_factory=lambda: ["highway", "lanes", "maxspeed"])
     network_type: str = "drive"
