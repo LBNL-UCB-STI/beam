@@ -100,6 +100,7 @@ class VehicleConfig:
 
 
 @dataclass
+@dataclass
 class NetworkConfig:
     """Configuration settings for network download and processing."""
     study_area: StudyArea
@@ -111,16 +112,17 @@ class NetworkConfig:
         "default": '["highway"~"motorway|trunk|primary|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|unclassified"]',
     })
     vehicle_config: VehicleConfig = field(default_factory=VehicleConfig)
+    crs: str = "epsg:3857"  # Default to Web Mercator
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'NetworkConfig':
         """Create NetworkConfig from dictionary configuration."""
         study_area = StudyArea.from_dict(data['study_area'])
         vehicle_config = VehicleConfig(
-            mdv_max_tons=data.get('vehicle_config', {}).get('mdv_max_tons', 13.0),
-            hdv_max_tons=data.get('vehicle_config', {}).get('hdv_max_tons', 7.0),
+            mdv_max_metric_tons=data.get('vehicle_config', {}).get('mdv_max_metric_tons', 11.793),
+            hdv_max_metric_tons=data.get('vehicle_config', {}).get('hdv_max_metric_tons', 36.287),
             mdv_max_lbs=data.get('vehicle_config', {}).get('mdv_max_lbs', 26000),
-            hdv_max_lbs=data.get('vehicle_config', {}).get('hdv_max_lbs', 14000)
+            hdv_max_lbs=data.get('vehicle_config', {}).get('hdv_max_lbs', 80000)
         )
         return cls(
             study_area=study_area,
@@ -129,7 +131,8 @@ class NetworkConfig:
             network_type=data.get('network_type', "drive"),
             retain_all=data.get('retain_all', True),
             custom_filters=data.get('custom_filters', cls.custom_filters.default_factory()),
-            vehicle_config=vehicle_config
+            vehicle_config=vehicle_config,
+            crs=data.get('crs', "epsg:3857")
         )
 
     def to_json(self, filepath: Union[str, Path]):
@@ -146,11 +149,12 @@ class NetworkConfig:
             'retain_all': self.retain_all,
             'custom_filters': self.custom_filters,
             'vehicle_config': {
-                'mdv_max_tons': self.vehicle_config.mdv_max_tons,
-                'hdv_max_tons': self.vehicle_config.hdv_max_tons,
+                'mdv_max_metric_tons': self.vehicle_config.mdv_max_metric_tons,
+                'hdv_max_metric_tons': self.vehicle_config.hdv_max_metric_tons,
                 'mdv_max_lbs': self.vehicle_config.mdv_max_lbs,
                 'hdv_max_lbs': self.vehicle_config.hdv_max_lbs
-            }
+            },
+            'crs': self.crs
         }
         with open(filepath, 'w') as f:
             json.dump(data, f, indent=2)
@@ -206,8 +210,9 @@ class NetworkProcessor:
 
         logger.info("Processing network...")
 
-        # Project to Web Mercator
-        G = ox.project_graph(G, to_crs="epsg:3857")
+        # Project to configured CRS
+        G = ox.project_graph(G, to_crs=self.config.crs)
+        logger.info(f"Projected network to {self.config.crs}")
 
         # Add edge attributes
         G = self._add_edge_attributes(G)
@@ -476,34 +481,39 @@ def create_config_by_area(study_area: str) -> Dict[str, Any]:
     moderate_network_filter = sparse_network_filter + ["unclassified"]
     dense_network_filter = moderate_network_filter + ["residential"]
 
+    # Study area configurations including appropriate CRS
     configs = {
         "sfbay": {
             "name": "SF Bay Area",
             "country": "United States",
             "dense_counties": ["San Francisco", "Alameda", "San Mateo", "Santa Clara"],
             "moderate_counties": ["Marin", "Contra Costa", "Solano", "Sonoma", "Napa"],
-            "state": "California"
+            "state": "California",
+            "crs": "epsg:26910"  # NAD83 / UTM zone 10N - appropriate for Bay Area
         },
         "seattle": {
             "name": "Greater Seattle",
             "country": "United States",
-            "dense_counties": [],  # Seattle and surroundings
-            "moderate_counties": [],  # Neighboring counties
-            "state": "Washington"
+            "dense_counties": [],
+            "moderate_counties": [],
+            "state": "Washington",
+            "crs": "epsg:32148"  # NAD83 / UTM zone 10N - appropriate for Seattle
         },
         "austin": {
             "name": "Greater Austin",
             "country": "United States",
-            "dense_counties": [],  # Austin
+            "dense_counties": [],
             "moderate_counties": [],
-            "state": "Texas"
+            "state": "Texas",
+            "crs": "epsg:32614"  # WGS 84 / UTM zone 14N - appropriate for Austin
         },
         "nyc": {
             "name": "New York City Metro",
             "country": "United States",
-            "dense_counties": [],  # Five boroughs
+            "dense_counties": [],
             "moderate_counties": [],
-            "state": "New York"  # Note: Some counties might be in NJ
+            "state": "New York",
+            "crs": "epsg:32618"  # WGS 84 / UTM zone 18N - appropriate for NYC
         }
     }
 
@@ -543,11 +553,12 @@ def create_config_by_area(study_area: str) -> Dict[str, Any]:
         "retain_all": True,
         "custom_filters": county_filters,
         "vehicle_config": {
-            "mdv_max_tons": 3.0,
-            "hdv_max_tons": 7.0,
-            "mdv_max_lbs": 6000,
-            "hdv_max_lbs": 14000
-        }
+            "mdv_max_metric_tons": 11.793,
+            "hdv_max_metric_tons": 36.287,
+            "mdv_max_lbs": 26000,
+            "hdv_max_lbs": 80000
+        },
+        "crs": area_config["crs"]
     }
 
 
