@@ -1,14 +1,15 @@
 """
 OSM Network Downloader and Processor
 Downloads and processes OpenStreetMap network data for transportation analysis.
-@author: zaneedell, cristian-poliziani, haitamlaarabi
+@author: cristian-poliziani, haitamlaarabi, zaneedell
 """
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Union, Tuple
 import logging
 from pathlib import Path
+import json
 
 import osmnx as ox
 import networkx as nx
@@ -25,17 +26,89 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
+class StudyArea:
+    """Configuration for the study area."""
+    name: str
+    country: str
+    subdivisions: List[Dict[str, str]]
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'StudyArea':
+        """Create StudyArea from dictionary configuration."""
+        return cls(
+            name=data['name'],
+            country=data['country'],
+            subdivisions=data['subdivisions']
+        )
+
+    @classmethod
+    def load_from_json(cls, filepath: Union[str, Path]) -> 'StudyArea':
+        """Load study area configuration from JSON file."""
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+        return cls.from_dict(data)
+
+    def to_json(self, filepath: Union[str, Path]):
+        """Save study area configuration to JSON file."""
+        data = {
+            'name': self.name,
+            'country': self.country,
+            'subdivisions': self.subdivisions
+        }
+        with open(filepath, 'w') as f:
+            json.dump(data, f, indent=2)
+
+
+@dataclass
 class NetworkConfig:
     """Configuration settings for network download and processing."""
+    study_area: StudyArea
     simplification_tolerance: float = 2  # meters
-    split_links_by: List[str] = None
-    custom_filter_residential: str = '["highway"~"residential"]'
-    custom_filter_main: str = '["highway"~"motorway|primary|trunk|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|unclassified"]'
-    custom_filter_all: str = '["highway"~"residential|motorway|primary|trunk|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|unclassified"]'
+    split_links_by: List[str] = field(default_factory=lambda: ["highway", "lanes", "maxspeed"])
+    network_type: str = "drive"
+    retain_all: bool = True
+    custom_filters: Dict[str, str] = field(default_factory=lambda: {
+        "residential": '["highway"~"residential"]',
+        "main": '["highway"~"motorway|primary|trunk|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|unclassified"]',
+        "all": '["highway"~"residential|motorway|primary|trunk|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|unclassified"]'
+    })
 
-    def __post_init__(self):
-        if self.split_links_by is None:
-            self.split_links_by = ["highway", "lanes", "maxspeed"]
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'NetworkConfig':
+        """Create NetworkConfig from dictionary configuration."""
+        study_area = StudyArea.from_dict(data['study_area'])
+        return cls(
+            study_area=study_area,
+            simplification_tolerance=data.get('simplification_tolerance', 2),
+            split_links_by=data.get('split_links_by', ["highway", "lanes", "maxspeed"]),
+            network_type=data.get('network_type', "drive"),
+            retain_all=data.get('retain_all', True),
+            custom_filters=data.get('custom_filters', cls.custom_filters.default_factory())
+        )
+
+    @classmethod
+    def load_from_json(cls, filepath: Union[str, Path]) -> 'NetworkConfig':
+        """Load network configuration from JSON file."""
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+        return cls.from_dict(data)
+
+    def to_json(self, filepath: Union[str, Path]):
+        """Save network configuration to JSON file."""
+        data = {
+            'study_area': {
+                'name': self.study_area.name,
+                'country': self.study_area.country,
+                'subdivisions': self.study_area.subdivisions
+            },
+            'simplification_tolerance': self.simplification_tolerance,
+            'split_links_by': self.split_links_by,
+            'network_type': self.network_type,
+            'retain_all': self.retain_all,
+            'custom_filters': self.custom_filters
+        }
+        with open(filepath, 'w') as f:
+            json.dump(data, f, indent=2)
 
 
 class NetworkDownloader:
@@ -44,23 +117,24 @@ class NetworkDownloader:
     def __init__(self, config: NetworkConfig):
         self.config = config
 
-    def from_place(self, places: List[Dict[str, str]], network_type: str = "drive") -> nx.MultiDiGraph:
-        """Download network from place names."""
-        logger.info(f"Downloading network data for {len(places)} places")
+    def download_network(self) -> nx.MultiDiGraph:
+        """Download network based on study area configuration."""
+        logger.info(f"Downloading network data for {self.config.study_area.name}")
 
         graphs = []
-        for place in places:
+        for subdivision in self.config.study_area.subdivisions:
             try:
                 G = ox.graph_from_place(
-                    place,
-                    network_type=network_type,
+                    subdivision,
+                    network_type=self.config.network_type,
                     simplify=False,
-                    retain_all=True,
-                    custom_filter=self.config.custom_filter_all
+                    retain_all=self.config.retain_all,
+                    custom_filter=self.config.custom_filters['all']
                 )
                 graphs.append(G)
+                logger.info(f"Successfully downloaded network for {subdivision}")
             except Exception as e:
-                logger.error(f"Failed to download network for {place}: {str(e)}")
+                logger.error(f"Failed to download network for {subdivision}: {str(e)}")
 
         return nx.compose_all(graphs) if graphs else None
 
@@ -324,25 +398,52 @@ class NetworkExporter:
             way_id -= 1
 
 
+def create_sfbay_config() -> Dict[str, Any]:
+    """Create an example configuration dictionary."""
+    return {
+        "study_area": {
+            "name": "SF Bay Area",
+            "country": "United States",
+            "subdivisions": [
+                {"county": county, "state": "California"}
+                for county in [
+                    "San Francisco", "Alameda", "Contra Costa", "Marin",
+                    "Napa", "San Mateo", "Santa Clara", "Solano", "Sonoma"
+                ]
+            ]
+        },
+        "simplification_tolerance": 2,
+        "split_links_by": ["highway", "lanes", "maxspeed"],
+        "network_type": "drive",
+        "retain_all": True,
+        "custom_filters": {
+            "residential": '["highway"~"residential"]',
+            "main": '["highway"~"motorway|primary|trunk|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|unclassified"]',
+            "all": '["highway"~"residential|motorway|primary|trunk|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|unclassified"]'
+        }
+    }
+
+
 def main():
     """Main execution function."""
-    # Configuration
-    config = NetworkConfig(
-        simplification_tolerance=2,
-        split_links_by=["highway", "lanes", "maxspeed"]
-    )
+    # Create example configuration
+    config_dir = Path("config")
+    config_dir.mkdir(exist_ok=True)
 
-    # Define study area
-    places = [
-        {"county": county, "state": "California"}
-        for county in [
-            "San Francisco", "Alameda", "Contra Costa", "Marin",
-            "Napa", "San Mateo", "Santa Clara", "Solano", "Sonoma"
-        ]
-    ]
+    example_config_path = config_dir / "example_config.json"
+    if not example_config_path.exists():
+        example_config = create_sfbay_config()
+        with open(example_config_path, 'w') as f:
+            json.dump(example_config, f, indent=2)
+        logger.info(f"Created example configuration at {example_config_path}")
+
+    # Load configuration
+    config = NetworkConfig.load_from_json(example_config_path)
 
     # Initialize components
-    output_dir = Path("output")
+    output_dir = Path("output") / config.study_area.name.lower().replace(" ", "_")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     downloader = NetworkDownloader(config)
     processor = NetworkProcessor(config)
     visualizer = NetworkVisualizer(output_dir)
@@ -350,21 +451,24 @@ def main():
 
     try:
         # Download network
-        G = downloader.from_place(places)
+        G = downloader.download_network()
 
         # Process network
         G = processor.process_network(G)
 
         if G is not None:
-            # Visualize network
-            visualizer.plot_network(G, "bay_area_network")
-            visualizer.plot_attribute(G, "highway", "bay_area_highway_types")
-            visualizer.plot_attribute(G, "lanes", "bay_area_lanes")
+            # Create visualizations
+            visualizer.plot_network(G, "network")
+            visualizer.plot_attribute(G, "highway", "highway_types")
+            visualizer.plot_attribute(G, "lanes", "lanes")
 
             # Export network
-            exporter.save_pickle(G, "bay_area_network")
-            exporter.save_geopackage(G, "bay_area_network")
-            exporter.save_osm(G, "bay_area_network")
+            exporter.save_pickle(G, "network")
+            exporter.save_geopackage(G, "network")
+            exporter.save_osm(G, "network")
+
+            # Save configuration used
+            config.to_json(output_dir / "config_used.json")
 
     except Exception as e:
         logger.error(f"Error processing network: {str(e)}")
