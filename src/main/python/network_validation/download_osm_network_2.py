@@ -10,6 +10,7 @@ from typing import List, Dict, Any, Optional, Union, Tuple
 import logging
 from pathlib import Path
 import json
+import pandas as pd
 
 import osmnx as ox
 import networkx as nx
@@ -26,37 +27,92 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class StudyArea:
+class StudyAreaConfig:
     """Configuration for the study area."""
     name: str
     country: str
-    subdivisions: List[Dict[str, str]]
+    state: str
+    dense_counties: List[str]
+    moderate_counties: List[str]
+    area_crs: str  # Area-specific CRS
+
+    @property
+    def subdivisions(self) -> List[Dict[str, str]]:
+        """Generate subdivisions list from dense and moderate counties."""
+        all_counties = self.dense_counties + self.moderate_counties
+        return [{"county": county, "state": self.state} for county in all_counties]
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'StudyArea':
+    def from_dict(cls, data: Dict[str, Any]) -> 'StudyAreaConfig':
         """Create StudyArea from dictionary configuration."""
+        # Check if the data is nested under a 'study_area' key
+        study_area_data = data.get('study_area', data)
+
         return cls(
-            name=data['name'],
-            country=data['country'],
-            subdivisions=data['subdivisions']
+            name=study_area_data['name'],
+            country=study_area_data['country'],
+            state=study_area_data['state'],
+            dense_counties=study_area_data['dense_counties'],
+            moderate_counties=study_area_data['moderate_counties'],
+            area_crs=study_area_data['area_crs']
         )
 
-    @classmethod
-    def load_from_json(cls, filepath: Union[str, Path]) -> 'StudyArea':
-        """Load study area configuration from JSON file."""
-        with open(filepath, 'r') as f:
-            data = json.load(f)
-        return cls.from_dict(data)
-
-    def to_json(self, filepath: Union[str, Path]):
-        """Save study area configuration to JSON file."""
-        data = {
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert StudyArea to dictionary."""
+        return {
             'name': self.name,
             'country': self.country,
-            'subdivisions': self.subdivisions
+            'state': self.state,
+            'dense_counties': self.dense_counties,
+            'moderate_counties': self.moderate_counties,
+            'area_crs': self.area_crs,
+            'subdivisions': self.subdivisions  # Include generated subdivisions
         }
-        with open(filepath, 'w') as f:
-            json.dump(data, f, indent=2)
+
+    @classmethod
+    def create_by_area(cls, area_name: str) -> 'StudyAreaConfig':
+        """Create StudyArea configuration based on area name."""
+        area_configs = {
+            "sfbay": {
+                "name": "SF Bay Area",
+                "country": "United States",
+                "state": "California",
+                # "dense_counties": ["San Francisco", "Alameda", "San Mateo", "Santa Clara"],
+                # "moderate_counties": ["Marin", "Contra Costa", "Solano", "Sonoma", "Napa"],
+                "dense_counties": [],
+                "moderate_counties": ["Napa"],
+                "area_crs": "epsg:26910"  # NAD83 / UTM zone 10N - appropriate for Bay Area
+            },
+            "seattle": {
+                "name": "Greater Seattle",
+                "country": "United States",
+                "state": "Washington",
+                "dense_counties": ["King"],
+                "moderate_counties": ["Snohomish", "Pierce"],
+                "area_crs": "epsg:32148"  # NAD83 / UTM zone 10N - appropriate for Seattle
+            },
+            "austin": {
+                "name": "Greater Austin",
+                "country": "United States",
+                "state": "Texas",
+                "dense_counties": ["Travis"],
+                "moderate_counties": ["Williamson", "Hays", "Bastrop", "Caldwell"],
+                "area_crs": "epsg:32614"  # WGS 84 / UTM zone 14N - appropriate for Austin
+            },
+            "nyc": {
+                "name": "New York City Metro",
+                "country": "United States",
+                "state": "New York",
+                "dense_counties": ["New York", "Kings", "Queens", "Bronx", "Richmond"],
+                "moderate_counties": ["Nassau", "Westchester", "Suffolk", "Bergen", "Hudson"],
+                "area_crs": "epsg:32618"  # WGS 84 / UTM zone 18N - appropriate for NYC
+            }
+        }
+
+        if area_name not in area_configs:
+            raise ValueError(f"Study area '{area_name}' not supported. Available areas: {list(area_configs.keys())}")
+
+        return cls.from_dict(area_configs[area_name])
 
 
 @dataclass
@@ -109,7 +165,7 @@ class CRSConfig:
 @dataclass
 class NetworkConfig:
     """Configuration settings for network download and processing."""
-    study_area: StudyArea
+    study_area: StudyAreaConfig
     crs_config: CRSConfig = field(default_factory=CRSConfig)
     simplification_tolerance: float = 2  # meters
     split_links_by: List[str] = field(default_factory=lambda: ["highway", "lanes", "maxspeed"])
@@ -120,58 +176,10 @@ class NetworkConfig:
     })
     vehicle_config: VehicleConfig = field(default_factory=VehicleConfig)
 
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'NetworkConfig':
-        """Create NetworkConfig from dictionary configuration."""
-        study_area = StudyArea.from_dict(data['study_area'])
-        vehicle_config = VehicleConfig(
-            mdv_max_metric_tons=data.get('vehicle_config', {}).get('mdv_max_metric_tons', 11.793),
-            hdv_max_metric_tons=data.get('vehicle_config', {}).get('hdv_max_metric_tons', 36.287),
-            mdv_max_lbs=data.get('vehicle_config', {}).get('mdv_max_lbs', 26000),
-            hdv_max_lbs=data.get('vehicle_config', {}).get('hdv_max_lbs', 80000)
-        )
-        crs_config = CRSConfig(
-            input_crs=data.get('crs_config', {}).get('input_crs', "epsg:4326"),
-            working_crs=data.get('crs_config', {}).get('working_crs', data.get('crs', "epsg:3857"))
-            # Fallback for backward compatibility
-        )
-        return cls(
-            study_area=study_area,
-            crs_config=crs_config,
-            simplification_tolerance=data.get('simplification_tolerance', 2),
-            split_links_by=data.get('split_links_by', ["highway", "lanes", "maxspeed"]),
-            network_type=data.get('network_type', "drive"),
-            retain_all=data.get('retain_all', True),
-            custom_filters=data.get('custom_filters', cls.custom_filters.default_factory()),
-            vehicle_config=vehicle_config
-        )
-
     def to_json(self, filepath: Union[str, Path]):
         """Save network configuration to JSON file."""
-        data = {
-            'study_area': {
-                'name': self.study_area.name,
-                'country': self.study_area.country,
-                'subdivisions': self.study_area.subdivisions
-            },
-            'crs_config': {
-                'input_crs': self.crs_config.input_crs,
-                'working_crs': self.crs_config.working_crs
-            },
-            'simplification_tolerance': self.simplification_tolerance,
-            'split_links_by': self.split_links_by,
-            'network_type': self.network_type,
-            'retain_all': self.retain_all,
-            'custom_filters': self.custom_filters,
-            'vehicle_config': {
-                'mdv_max_metric_tons': self.vehicle_config.mdv_max_metric_tons,
-                'hdv_max_metric_tons': self.vehicle_config.hdv_max_metric_tons,
-                'mdv_max_lbs': self.vehicle_config.mdv_max_lbs,
-                'hdv_max_lbs': self.vehicle_config.hdv_max_lbs
-            }
-        }
         with open(filepath, 'w') as f:
-            json.dump(data, f, indent=2)
+            json.dump(self.to_dict(), f, indent=2)
 
 
 class NetworkDownloader:
@@ -183,6 +191,44 @@ class NetworkDownloader:
     def download_network(self) -> nx.MultiDiGraph:
         """Download network based on study area configuration."""
         logger.info(f"Downloading network data for {self.config.study_area.name}")
+
+        # Enable console logging
+        ox.settings.log_console = True
+
+        # Enable caching
+        ox.settings.use_cache = True
+
+        # Treat all edges as one-way
+        ox.settings.all_oneway = True
+
+        useful_tags_way = [
+            "highway",
+            "highway=motorway",
+            "highway=trunk",
+            "highway=primary",
+            "highway=secondary",
+            "highway=tertiary",
+            "highway=motorway_link",
+            "highway=trunk_link",
+            "highway=primary_link",
+            "highway=secondary_link",
+            "highway=tertiary_link",
+            "highway=unclassified",
+            "highway=residential",
+            "maxweight",
+            "maxweight:hgv",
+            "hgv",
+            "maxheight",
+            "maxspeed",
+            "oneway=*",
+            "lanes"
+        ]
+
+        useful_tags_node = []
+
+        # Set the useful tags in OSMnx settings
+        # ox.settings.useful_tags_node = useful_tags_node
+        ox.settings.useful_tags_way = useful_tags_way
 
         graphs = []
         for subdivision in self.config.study_area.subdivisions:
@@ -243,6 +289,47 @@ class NetworkProcessor:
 
         return G
 
+    def _add_edge_attributes(self, G: nx.MultiDiGraph) -> nx.MultiDiGraph:
+        """Add speed and other attributes to edges."""
+        logger.info("Adding edge attributes...")
+        G = ox.add_edge_speeds(G)
+        return G
+
+    def _consolidate_intersections(self, G: nx.MultiDiGraph) -> nx.MultiDiGraph:
+        """Consolidate nearby intersections."""
+        logger.info("Consolidating intersections...")
+        G = ox.consolidate_intersections(
+            G,
+            tolerance=self.config.simplification_tolerance,
+            rebuild_graph=True,
+            dead_ends=True,
+            reconnect_edges=True
+        )
+
+        # Update edge lengths
+        nodes, edges = ox.graph_to_gdfs(G)
+        edges['length'] = edges['geometry'].length
+        G = ox.graph_from_gdfs(nodes, edges, graph_attrs=G.graph)
+
+        return G
+
+    def _simplify_network(self, G: nx.MultiDiGraph) -> nx.MultiDiGraph:
+        """Simplify network topology."""
+        logger.info("Simplifying network...")
+        return ox.simplification.simplify_graph(
+            G,
+            edge_attrs_differ=self.config.split_links_by,
+            remove_rings=False,
+            track_merged=True,
+            edge_attr_aggs={
+                "length": sum,
+                "travel_time": sum,
+                "lanes": "strmedian",
+                "hgv": min,
+                "mdv": min
+            }
+        )
+
     def _process_vehicle_classifications(self, G: nx.MultiDiGraph) -> nx.MultiDiGraph:
         """Process vehicle classifications based on FHWA weight classes, handling metric tons from OSM."""
         logger.info("Processing vehicle classifications...")
@@ -250,32 +337,39 @@ class NetworkProcessor:
         nodes, edges = ox.graph_to_gdfs(G)
 
         # Copy HGV weight restrictions if present
-        edges.loc[~edges["maxweight:hgv"].isna(), "maxweight"] = edges.loc[
-            ~edges["maxweight:hgv"].isna(), "maxweight:hgv"].copy()
+        if "maxweight:hgv" in edges.columns:
+            edges.loc[~edges["maxweight:hgv"].isna(), "maxweight"] = edges.loc[
+                ~edges["maxweight:hgv"].isna(), "maxweight:hgv"].copy()
 
-        # Identify weight formats
-        # weightInRawNumber = edges["maxweight"].str.isnumeric().fillna(value=False)
-        weightInMetricTons = edges["maxweight"].str.contains(" st").fillna(value=False)  # st in OSM means metric tons
-        weightInLbs = edges["maxweight"].str.contains(" lbs").fillna(value=False)
+        if "maxweight" in edges.columns:
+            # Identify weight formats
+            weightInMetricTons = edges["maxweight"].str.contains(" st").fillna(value=False)  # st means metric tons
+            weightInLbs = edges["maxweight"].str.contains(" lbs").fillna(value=False)
 
-        # Convert weights to numeric values
-        numericWeight = edges["maxweight"].str.replace(r"\s*st", "", regex=True).str.replace(r"\s*lbs", "",
-                                                                                             regex=True).astype(float)
+            # Convert weights to numeric values
+            numericWeight = (edges["maxweight"]
+                             .str.replace(r"\s*st", "", regex=True)
+                             .str.replace(r"\s*lbs", "", regex=True).astype(float)
+                             )
 
-        # Check weight restrictions using metric tons for OSM values
-        mdvBannedByWeight = (
-                (weightInMetricTons & (numericWeight <= self.config.vehicle_config.mdv_max_metric_tons)) |
-                (weightInLbs & (numericWeight <= self.config.vehicle_config.mdv_max_lbs))
-        )
-
-        hdvBannedByWeight = (
-                (weightInMetricTons & (numericWeight <= self.config.vehicle_config.hdv_max_metric_tons)) |
-                (weightInLbs & (numericWeight <= self.config.vehicle_config.hdv_max_lbs))
-        )
+            # Check weight restrictions using metric tons for OSM values
+            mdvBannedByWeight = (
+                    (weightInMetricTons & (numericWeight <= self.config.vehicle_config.mdv_max_metric_tons)) |
+                    (weightInLbs & (numericWeight <= self.config.vehicle_config.mdv_max_lbs))
+            )
+            hdvBannedByWeight = (
+                    (weightInMetricTons & (numericWeight <= self.config.vehicle_config.hdv_max_metric_tons)) |
+                    (weightInLbs & (numericWeight <= self.config.vehicle_config.hdv_max_lbs))
+            )
+        else:
+            mdvBannedByWeight = pd.Series([False] * len(edges))
+            hdvBannedByWeight = pd.Series([False] * len(edges))
 
         # Process vehicle access flags
-        hgvAllowedByDefault = edges.hgv.str.lower() != "no"
-        longVehiclesBanned = ~edges.maxlength.isna()
+        hgvAllowedByDefault = edges.hgv.str.lower() != "no" if "hgv" in edges.columns else pd.Series(
+            [True] * len(edges))
+        longVehiclesBanned = ~edges.maxlength.isna() if "maxlength" in edges.columns else pd.Series(
+            [False] * len(edges))
 
         # Set final vehicle access flags
         hgv = hgvAllowedByDefault & ~hdvBannedByWeight & ~longVehiclesBanned
@@ -496,46 +590,10 @@ def create_config_by_area(study_area: str) -> Dict[str, Any]:
     moderate_network_filter = sparse_network_filter + ["unclassified"]
     dense_network_filter = moderate_network_filter + ["residential"]
 
-    # Study area configurations including appropriate CRS
-    configs = {
-        "sfbay": {
-            "name": "SF Bay Area",
-            "country": "United States",
-            "dense_counties": ["San Francisco", "Alameda", "San Mateo", "Santa Clara"],
-            "moderate_counties": ["Marin", "Contra Costa", "Solano", "Sonoma", "Napa"],
-            "state": "California",
-            "crs": "epsg:26910"  # NAD83 / UTM zone 10N - appropriate for Bay Area
-        },
-        "seattle": {
-            "name": "Greater Seattle",
-            "country": "United States",
-            "dense_counties": [],
-            "moderate_counties": [],
-            "state": "Washington",
-            "crs": "epsg:32148"  # NAD83 / UTM zone 10N - appropriate for Seattle
-        },
-        "austin": {
-            "name": "Greater Austin",
-            "country": "United States",
-            "dense_counties": [],
-            "moderate_counties": [],
-            "state": "Texas",
-            "crs": "epsg:32614"  # WGS 84 / UTM zone 14N - appropriate for Austin
-        },
-        "nyc": {
-            "name": "New York City Metro",
-            "country": "United States",
-            "dense_counties": [],
-            "moderate_counties": [],
-            "state": "New York",
-            "crs": "epsg:32618"  # WGS 84 / UTM zone 18N - appropriate for NYC
-        }
-    }
+    # Create StudyArea configuration
+    study_area_config = StudyAreaConfig.create_by_area(study_area)
 
-    if study_area not in configs:
-        raise ValueError(f"Study area '{study_area}' not supported. Available areas: {list(configs.keys())}")
-
-    area_config = configs[study_area]
+    # Create county filters
     county_filters = {}
 
     # Set default filter
@@ -543,29 +601,22 @@ def create_config_by_area(study_area: str) -> Dict[str, Any]:
     county_filters['default'] = default_filter
 
     # Add dense county filters
-    for county in area_config["dense_counties"]:
+    for county in study_area_config.dense_counties:
         filter_str = '["highway"~"' + '|'.join(dense_network_filter) + '"]'
         county_filters[county.lower().replace(" ", "_")] = filter_str
 
     # Add moderate county filters
-    for county in area_config["moderate_counties"]:
+    for county in study_area_config.moderate_counties:
         filter_str = '["highway"~"' + '|'.join(moderate_network_filter) + '"]'
         county_filters[county.lower().replace(" ", "_")] = filter_str
 
     # Create final configuration
     return {
-        "study_area": {
-            "name": area_config["name"],
-            "country": area_config["country"],
-            "subdivisions": [
-                {"county": county, "state": area_config["state"]}
-                for county in (area_config["dense_counties"] + area_config["moderate_counties"])
-            ]
-        },
-        "crs_config": {
-            "input_crs": "epsg:4326",  # OSM data is always in WGS84
-            "working_crs": area_config["crs"]  # Area-specific UTM zone
-        },
+        "study_area": study_area_config,
+        "crs_config": CRSConfig(
+            input_crs="epsg:4326",  # OSM data is always in WGS84
+            working_crs=study_area_config.area_crs
+        ),
         "simplification_tolerance": 2,
         "split_links_by": ["highway", "lanes", "maxspeed"],
         "network_type": "drive",
@@ -580,27 +631,17 @@ def create_config_by_area(study_area: str) -> Dict[str, Any]:
     }
 
 
-def process_study_area(study_area: str, config_dir: Path, force_rebuild: bool = False) -> None:
+def process_study_area(study_area: str) -> None:
     """Process a specific study area."""
-    # Create config filename
-    config_path = config_dir / f"{study_area}_config.json"
-
-    # Create or load configuration
-    if not config_path.exists() or force_rebuild:
-        config_data = create_config_by_area(study_area)
-        with open(config_path, 'w') as f:
-            json.dump(config_data, f, indent=2)
-        logger.info(f"Created configuration for {study_area} at {config_path}")
-
-    # Load configuration
-    config = NetworkConfig.load_from_json(config_path)
+    # Generate configuration directly
+    network_config = NetworkConfig(**create_config_by_area(study_area))
 
     # Initialize components
     output_dir = Path("output") / study_area
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    downloader = NetworkDownloader(config)
-    processor = NetworkProcessor(config)
+    downloader = NetworkDownloader(network_config)
+    processor = NetworkProcessor(network_config)
     visualizer = NetworkVisualizer(output_dir)
     exporter = NetworkExporter(output_dir)
 
@@ -623,7 +664,7 @@ def process_study_area(study_area: str, config_dir: Path, force_rebuild: bool = 
             exporter.save_osm(G, "network")
 
             # Save configuration used
-            config.to_json(output_dir / "config_used.json")
+            network_config.to_json(output_dir / "config_used.json")
 
     except Exception as e:
         logger.error(f"Error processing {study_area}: {str(e)}")
@@ -645,12 +686,12 @@ def main():
     if selected_area is not None:
         if selected_area not in study_areas:
             raise ValueError(f"Invalid study area. Choose from: {study_areas}")
-        process_study_area(selected_area, config_dir)
+        process_study_area(selected_area)
     else:
         # Process all areas
         for area in study_areas:
             logger.info(f"Processing {area}...")
-            process_study_area(area, config_dir)
+            process_study_area(area)
 
 
 if __name__ == "__main__":
