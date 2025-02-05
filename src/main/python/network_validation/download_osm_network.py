@@ -150,14 +150,13 @@ class VehicleConfig:
 
 
 @dataclass
-class StudyAreaConfig:
+class AreaConfig:
     """Configuration for the study area."""
     name: str
     country: str
     state: str
     dense_counties: List[str]
     moderate_counties: List[str]
-    area_crs: str  # Area-specific CRS
     vehicle_config: VehicleConfig
 
     @property
@@ -167,7 +166,7 @@ class StudyAreaConfig:
         return [{"county": county, "state": self.state} for county in all_counties]
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'StudyAreaConfig':
+    def from_dict(cls, data: Dict[str, Any]) -> 'AreaConfig':
         """Create StudyArea from dictionary configuration."""
         # Check if the data is nested under a 'study_area' key
         study_area_data = data.get('study_area', data)
@@ -183,7 +182,6 @@ class StudyAreaConfig:
             state=study_area_data['state'],
             dense_counties=study_area_data['dense_counties'],
             moderate_counties=study_area_data['moderate_counties'],
-            area_crs=study_area_data['area_crs'],
             vehicle_config=vehicle_config
         )
 
@@ -195,23 +193,23 @@ class StudyAreaConfig:
             'state': self.state,
             'dense_counties': self.dense_counties,
             'moderate_counties': self.moderate_counties,
-            'area_crs': self.area_crs,
             'subdivisions': self.subdivisions  # Include generated subdivisions
         }
 
     @classmethod
-    def create_by_area(cls, area_name: str) -> 'StudyAreaConfig':
+    def create_by_area(cls, area_name: str) -> 'AreaConfig':
         """Create StudyArea configuration based on area name."""
         area_configs = {
             "sfbay": {
                 "name": "SF Bay Area",
                 "country": "US",
                 "state": "California",
-                "dense_counties": ["San Francisco", "Alameda", "San Mateo", "Santa Clara"],
-                "moderate_counties": ["Marin", "Contra Costa", "Solano", "Sonoma", "Napa"],
+                # "dense_counties": ["San Francisco", "Alameda", "San Mateo", "Santa Clara"],
+                # "moderate_counties": ["Marin", "Contra Costa", "Solano", "Sonoma", "Napa"],
+                "dense_counties": ["San Francisco"],
+                "moderate_counties": ["Marin"],
                 "mdv_max_lbs": 26000,
-                "hdv_max_lbs": 80000,
-                "area_crs": "epsg:26910"  # NAD83 / UTM zone 10N - appropriate for Bay Area
+                "hdv_max_lbs": 80000
             },
             "seattle": {
                 "name": "Greater Seattle",
@@ -220,8 +218,7 @@ class StudyAreaConfig:
                 "dense_counties": [],
                 "moderate_counties": [],
                 "mdv_max_lbs": 26000,
-                "hdv_max_lbs": 80000,
-                "area_crs": "epsg:32148"  # NAD83 / UTM zone 10N - appropriate for Seattle
+                "hdv_max_lbs": 80000
             },
             "austin": {
                 "name": "Greater Austin",
@@ -230,8 +227,7 @@ class StudyAreaConfig:
                 "dense_counties": [],
                 "moderate_counties": [],
                 "mdv_max_lbs": 26000,
-                "hdv_max_lbs": 80000,
-                "area_crs": "epsg:32614"  # WGS 84 / UTM zone 14N - appropriate for Austin
+                "hdv_max_lbs": 80000
             },
             "nyc": {
                 "name": "New York City Metro",
@@ -240,8 +236,7 @@ class StudyAreaConfig:
                 "dense_counties": [],
                 "moderate_counties": [],
                 "mdv_max_lbs": 26000,
-                "hdv_max_lbs": 80000,
-                "area_crs": "epsg:32618"  # WGS 84 / UTM zone 18N - appropriate for NYC
+                "hdv_max_lbs": 80000
             }
         }
 
@@ -254,11 +249,12 @@ class StudyAreaConfig:
 @dataclass
 class NetworkConfig:
     """Configuration settings for network download and processing."""
-    study_area: StudyAreaConfig
+    study_area: AreaConfig
     simplification_tolerance: float = 2  # meters
     split_edges_by: List[str] = field(default_factory=lambda: ["highway", "lanes", "maxspeed"])
     network_type: str = "drive"
     retain_all: bool = True
+    mercator_crs: str = "EPSG:3857"
     custom_filters: Dict[str, str] = field(default_factory=lambda: {
         "default": '["highway"~"motorway|trunk|primary|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|unclassified"]',
     })
@@ -301,35 +297,13 @@ class NetworkDownloader:
         ox.settings.log_console = True
 
         # Enable caching
-        ox.settings.use_cache = True
+        # ox.settings.use_cache = True
 
         # Treat all edges as one-way
-        ox.settings.all_oneway = True
+        # ox.settings.all_oneway = True
 
-        useful_tags_way = [
-            "highway",
-            "highway=motorway",
-            "highway=trunk",
-            "highway=primary",
-            "highway=secondary",
-            "highway=tertiary",
-            "highway=motorway_link",
-            "highway=trunk_link",
-            "highway=primary_link",
-            "highway=secondary_link",
-            "highway=tertiary_link",
-            "highway=unclassified",
-            "highway=residential",
-            "maxweight",
-            "maxweight:hgv",
-            "hgv",
-            "maxheight",
-            "maxspeed",
-            "oneway=*",
-            "lanes"
-        ]
-
-        useful_tags_node = []
+        useful_tags_way = ["name", "highway", "maxweight", "maxheight", "maxspeed", "oneway", "lanes", "hgv"]
+        # useful_tags_node = []
 
         # Set the useful tags in OSMnx settings
         # ox.settings.useful_tags_node = useful_tags_node
@@ -350,6 +324,7 @@ class NetworkDownloader:
                     network_type=self.config.network_type,
                     simplify=False,
                     retain_all=self.config.retain_all,
+                    truncate_by_edge=False,
                     custom_filter=custom_filter
                 )
                 graphs.append(G)
@@ -376,12 +351,8 @@ class NetworkProcessor:
         logger.info("Processing network...")
 
         # Project to configured CRS
-        G = ox.project_graph(G, to_crs=self.config.study_area.area_crs)
-        logger.info(f"Projected network to {self.config.study_area.area_crs}")
-
-        # Get largest connected component
-        G = ox.truncate.largest_component(G)  # Using it directly from ox
-        logger.info("Extracted largest connected component")
+        G = ox.project_graph(G, to_crs=self.config.mercator_crs)
+        logger.info(f"Projected network to {self.config.mercator_crs}")
 
         # Add edge attributes
         G = self._add_edge_attributes(G)
@@ -394,6 +365,10 @@ class NetworkProcessor:
 
         # Simplify network
         G = self._simplify_network(G)
+
+        # Get largest connected component
+        G = ox.truncate.largest_component(G)  # Using it directly from ox
+        logger.info("Extracted largest connected component")
 
         return G
 
@@ -525,9 +500,6 @@ class NetworkVisualizer:
             logger.error("No network to plot")
             return
 
-        # Reproject the graph
-        G = ox.project_graph(G, to_crs=self.config.study_area.area_crs)
-
         fig, ax = ox.plot.plot_graph(
             G,
             bgcolor="#FFFFFF",
@@ -594,9 +566,6 @@ class NetworkVisualizer:
 
     def _plot_colored_network(self, G: nx.MultiDiGraph, colors: Dict, values: List, attribute: str, name: str):
         """Plot the network with the specified colors and save it."""
-        # Reproject the graph
-        G = ox.project_graph(G, to_crs=self.config.study_area.area_crs)
-
         fig, ax = plt.subplots(figsize=(12, 12))
 
         # Plot the graph
@@ -782,7 +751,7 @@ def create_config_by_area(study_area: str) -> Dict[str, Any]:
     dense_network_filter = moderate_network_filter + ["residential"]
 
     # Create StudyArea configuration
-    study_area_config = StudyAreaConfig.create_by_area(study_area)
+    study_area_config = AreaConfig.create_by_area(study_area)
 
     # Create county filters
     county_filters = {}
