@@ -390,10 +390,10 @@ def collect_dense_county_boundaries(
         year,
         densely_populated_counties_geo_path,
         projected_coordinate_system,
-        min_population
+        min_density_per_km2
 ):
     """
-    Collect county boundaries for counties with population above specified threshold
+    Collect county boundaries for counties with population density above specified threshold
     and analyze population distribution.
 
     Parameters
@@ -408,8 +408,13 @@ def collect_dense_county_boundaries(
         Output path for geographic boundaries
     projected_coordinate_system : int
         EPSG code for desired projection
-    min_population : int
-        Minimum population threshold for inclusion
+    min_density_per_km2 : float
+        Minimum population density threshold (people per square kilometer)
+        Typical thresholds:
+        - Rural: < 50 people/km²
+        - Mixed Rural/Suburban: 50-200 people/km²
+        - Suburban/Urban Mix: 200-500 people/km²
+        - Urban: > 500 people/km²
 
     Returns
     -------
@@ -476,48 +481,55 @@ def collect_dense_county_boundaries(
         print(f"Failed to retrieve geographic boundaries: {e}")
         raise
 
+    # Calculate area and density (with proper projection)
+    counties_with_pop['area_sqkm'] = (
+            counties_with_pop.to_crs(epsg=projected_coordinate_system)
+            .geometry.area / 1000000  # Convert m² to km²
+    )
+    counties_with_pop['density_per_km2'] = counties_with_pop['P1_001N'] / counties_with_pop['area_sqkm']
+
     # Calculate percentile ranks for context
-    counties_with_pop['population_percentile'] = (
-            counties_with_pop['P1_001N'].rank(pct=True) * 100
+    counties_with_pop['density_percentile'] = (
+            counties_with_pop['density_per_km2'].rank(pct=True) * 100
     ).round(1)
 
-    # Print detailed population analysis
-    print("\nPopulation Distribution Analysis:")
-    print("================================")
+    # Print detailed density analysis
+    print("\nPopulation Density Analysis:")
+    print("==========================")
 
-    # County-level details
-    print("\nCounty Population Details:")
-    print("------------------------")
-    for _, row in counties_with_pop.sort_values("P1_001N", ascending=False).iterrows():
+    # County-level density details
+    print("\nCounty Density Details:")
+    print("---------------------")
+    for _, row in counties_with_pop.sort_values("density_per_km2", ascending=False).iterrows():
         print(
             f"County: {row['NAME']:<30} "
-            f"Population: {row['P1_001N']:,} "
-            f"(Percentile: {row['population_percentile']}%)"
+            f"Density: {row['density_per_km2']:,.1f} people/km² "
+            f"(Percentile: {row['density_percentile']}%)"
         )
 
     # Statistical summary
-    print("\nPopulation Summary Statistics:")
-    print("--------------------------")
-    stats = counties_with_pop['P1_001N'].describe()
-    print(f"Mean population:     {stats['mean']:,.0f}")
-    print(f"Median population:   {stats['50%']:,.0f}")
-    print(f"Standard deviation:  {stats['std']:,.0f}")
-    print(f"Minimum population:  {stats['min']:,.0f}")
-    print(f"Maximum population:  {stats['max']:,.0f}")
+    print("\nDensity Summary Statistics (people/km²):")
+    print("------------------------------------")
+    stats = counties_with_pop['density_per_km2'].describe()
+    print(f"Mean density:     {stats['mean']:,.1f}")
+    print(f"Median density:   {stats['50%']:,.1f}")
+    print(f"Standard deviation:  {stats['std']:,.1f}")
+    print(f"Minimum density:  {stats['min']:,.1f}")
+    print(f"Maximum density:  {stats['max']:,.1f}")
 
-    # Population distribution
-    print("\nPopulation Distribution Quartiles:")
-    print("-------------------------------")
+    # Density distribution
+    print("\nDensity Distribution Quartiles:")
+    print("----------------------------")
     for q in [0.25, 0.5, 0.75]:
-        print(f"{int(q * 100)}th percentile: {counties_with_pop['P1_001N'].quantile(q):,.0f}")
+        print(f"{int(q * 100)}th percentile: {counties_with_pop['density_per_km2'].quantile(q):,.1f}")
 
-    # Filter by population threshold
-    selected_geo = counties_with_pop[counties_with_pop["P1_001N"] >= min_population]
+    # Filter by density threshold
+    selected_geo = counties_with_pop[counties_with_pop["density_per_km2"] >= min_density_per_km2]
 
     print(f"\nSelection Results:")
     print("----------------")
     print(f"Selected {len(selected_geo)} out of {len(counties_with_pop)} counties")
-    print(f"Population threshold: >= {min_population:,}")
+    print(f"Density threshold: >= {min_density_per_km2:,.1f} people/km²")
     print(f"Total population in selected counties: {selected_geo['P1_001N'].sum():,}")
     print(
         f"Percentage of total population: {(selected_geo['P1_001N'].sum() / counties_with_pop['P1_001N'].sum() * 100):.1f}%")
@@ -526,9 +538,9 @@ def collect_dense_county_boundaries(
     base_name, extension = os.path.splitext(densely_populated_counties_geo_path)
 
     # Save projected version
-    study_area_geo_projected_path = f"{base_name}_epsg{projected_coordinate_system}{extension}"
+    counties_geo_projected_path = f"{base_name}_epsg{projected_coordinate_system}{extension}"
     selected_geo.to_crs(epsg=projected_coordinate_system).to_file(
-        study_area_geo_projected_path,
+        counties_geo_projected_path,
         driver="GeoJSON"
     )
 
