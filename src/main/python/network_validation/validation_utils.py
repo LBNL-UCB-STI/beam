@@ -1240,40 +1240,28 @@ def save_graph_to_osm(G, filename="output.osm"):
     ET.ElementTree(root).write(filename, encoding="utf-8", xml_declaration=True)
 
 
-def save_graph_to_pbf(G, filename):
+def convert_to_pbf(input_osm, output_pbf):
     """
-    Save network graph to OSM PBF format using a two-step process:
-    1. First save as .osm (XML format)
-    2. Then convert to .osm.pbf using osmium
+    Convert OSM XML file to PBF format using osmium
 
     Parameters:
     -----------
-    G : networkx.MultiDiGraph
-        Input graph
-    filename : str
+    input_osm : str
+        Path to input .osm file
+    output_pbf : str
         Path to output .osm.pbf file
     """
-    import os
     import subprocess
-    from os.path import splitext
 
-    # First save as temporary OSM XML file
-    temp_osm = splitext(filename)[0] + '.osm'
-    ox.save_graph_xml(G, filepath=temp_osm)
-
-    # Convert OSM XML to PBF using osmium
     try:
-        subprocess.run(['osmium', 'cat', temp_osm, '-o', filename],
-                       check=True)
-        print(f"PBF Network saved to '{filename}'")
-
-        # Remove temporary OSM XML file
-        os.remove(temp_osm)
+        # Basic conversion
+        cmd = ['osmium', 'cat', input_osm, '-o', output_pbf]
+        subprocess.run(cmd, check=True)
+        print(f"Successfully converted {input_osm} to {output_pbf}")
 
     except subprocess.CalledProcessError as e:
-        print(f"Error converting to PBF: {e}")
-        print("Make sure osmium-tool is installed.")
+        print(f"Error during conversion: {e}")
     except FileNotFoundError:
-        print("Error: osmium-tool not found. Please install it first.")
-        print("On Ubuntu/Debian: sudo apt-get install osmium-tool")
-        print("On MacOS: brew install osmium-tool")
+        print("Error: osmium not found. Install it with:")
+        print("Ubuntu/Debian: sudo apt-get install osmium-tool")
+        print("MacOS: brew install osmium-tool")

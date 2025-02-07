@@ -2,6 +2,8 @@ from validation_utils import *
 from osmnx import settings
 from osmnx import truncate
 import pickle
+from pyrosm import OSM
+import pyrosm
 
 
 #########################
@@ -124,7 +126,8 @@ study_area_config = {
     # Geographic settings
     "study_area": "sfbay",
     "state_fips": "06",
-    "county_fips": ['001', '013', '041', '055', '075', '081', '085', '095', '097', '087', '113'],  # ["041", "075"]
+    "county_fips": ["041", "075"],
+    # ['001', '013', '041', '055', '075', '081', '085', '095', '097', '087', '113'],  # ["041", "075"]
     "census_year": 2018,
     "study_area_crs": 26910,  # NAD83 / UTM zone 10N
     "country_code": "US",
@@ -189,7 +192,14 @@ osm_network = f'{file_prefix}_network.osm'
 save_graph_to_osm(G_network, filename=osm_network)
 print(f"OSM Network saved to '{osm_network}'.")
 
-# Save PBF Network
-pbf_network = f'{file_prefix}_network.osm.pbf'
-save_graph_to_pbf(G_network, filename=pbf_network)
-print(f"PBF Network saved to '{osm_network}'.")
+# Convert to PBF file
+# Basic conversion
+# osmium cat input.osm -o output.osm.pbf
+# With compression (smaller file size)
+# osmium cat input.osm -o output.osm.pbf --overwrite --output-format pbf,compression=zlib
+# With additional options
+# osmium cat input.osm -o output.osm.pbf --overwrite --progress
+
+# osmium cat sfbay_unclassified-0POPxKM2_residential-200POPxKM2_network.osm -o sfbay_unclassified-0POPxKM2_residential-200POPxKM2_network.osm.pbf --overwrite --output-format pbf,compression=zlib
+
+#
