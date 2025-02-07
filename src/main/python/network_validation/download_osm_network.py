@@ -1,9 +1,11 @@
+#!/usr/bin/env python3
+"""
+@author: haitamlaarabi
+"""
 from validation_utils import *
 from osmnx import settings
 from osmnx import truncate
 import pickle
-from pyrosm import OSM
-import pyrosm
 
 
 #########################
