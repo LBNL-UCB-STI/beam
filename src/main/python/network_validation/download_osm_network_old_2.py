@@ -9,8 +9,10 @@ import pickle
 import contextily as ctx
 import subprocess
 import xml.etree.ElementTree as ET
+from typing import List, Dict, Any, Union, Tuple
 
 from IPython.core.display_functions import display
+from osmnx import truncate
 
 print(ox.__version__)
 
@@ -21,10 +23,8 @@ simpl_intersections = 2
 splitLinksBy = ["highway", "lanes", "maxspeed"]
 
 # Define custom filters
-cf1 = '["highway"~"motorway|primary|trunk|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|unclassified"]'
-cf3 = '["highway"~"residential|motorway|primary|trunk|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|unclassified"]'
-cf2 = '["highway"~"residential"]'
-cf_main_highways = '["highway"="motorway"]'
+dense = '["highway"~"motorway|trunk|motorway_link|trunk_link|primary|secondary|primary_link|secondary_link|tertiary|tertiary_link|unclassified|residential"]'
+moderate = '["highway"~"motorway|trunk|motorway_link|trunk_link|primary|secondary|primary_link|secondary_link|tertiary|tertiary_link|unclassified"]'
 
 ##############################  PLACE  ##############################
 
@@ -44,6 +44,7 @@ places = [
     {"county": "San Francisco", "state": "California"},
     {"county": "Marin", "state": "California"},
 ]
+print(places)
 
 places_filters = {
     "network_type": "drive",
@@ -52,12 +53,20 @@ places_filters = {
     "truncate_by_edge": False,
     "which_result": None,
     "custom_filter": [
-        cf3, cf1
+        dense, moderate
     ]}
+print(places_filters)
+
+# Medium Duty Vehicle upper limit
+mdv_max_lbs: float = 26000  # lbs
+# Heavy Duty Vehicle limits
+hdv_max_lbs: float = 80000  # lbs
+# Country code for weight unit handling
+country_code: str = "US"
 
 
 # Helper function to get the appropriate value from the filter
-def get_filter_value(filter_param, index, total_count):
+def get_filter_value(filter_param, index):
     if isinstance(filter_param, list):
         # If the parameter is a list, return the value for the current index
         return filter_param[index % len(filter_param)]
@@ -72,12 +81,164 @@ def combine_graphs():
     graphs = []
     for i, input_data in enumerate(places):
         dynamic_filters = {
-            key: get_filter_value(value, i, len(places)) for key, value in places_filters.items()
+            key: get_filter_value(value, i) for key, value in places_filters.items()
         }
         graph = ox.graph_from_place(input_data, **dynamic_filters)
         graphs.append(graph)
 
     return nx.compose_all(graphs) if graphs else None
+
+
+def weight_conversion_map(self):
+    """
+    Returns weight conversion mapping based on country.
+    Reference: https://wiki.openstreetmap.org/wiki/Key:maxweight
+    """
+    return {
+        "US": {
+            "default_unit": "lbs",
+            "conversions": {
+                "lbs": 1.0,
+                "lb": 1.0,
+                "t": 2000.0,  # short tons to lbs
+                "st": 2000.0,  # short tons to lbs
+                "ton": 2000.0,
+                "tons": 2000.0,
+                "mt": 2204.62,  # metric tons to lbs
+            }
+        },
+        "GB": {  # United Kingdom
+            "default_unit": "kg",
+            "conversions": {
+                "t": 1000.0,  # metric tonnes to kg
+                "kg": 1.0,
+                "lbs": 0.453592,  # pounds to kg
+                "lb": 0.453592
+            }
+        },
+        "EU": {  # European Union
+            "default_unit": "kg",
+            "conversions": {
+                "t": 1000.0,  # metric tonnes to kg
+                "kg": 1.0,
+                "q": 100.0,  # quintals to kg
+            }
+        }
+    }
+
+
+def get_weight_in_standard_unit(weight_str: str) -> float:
+    """
+    Convert weight string to standard unit (lbs for US, kg for EU/UK)
+    """
+    if not weight_str or pd.isna(weight_str):
+        return 0
+
+    weight_str = str(weight_str).lower().strip()
+    if not weight_str:
+        return 0
+
+    try:
+        # Extract numeric value and unit
+        import re
+        match = re.match(r'^([\d.]+)\s*([\w\s]*)$', weight_str)
+        if not match:
+            print(f"Could not parse weight format: {weight_str}")
+            return 0
+
+        value = float(match.group(1))
+        unit = match.group(2).strip()
+
+        # Get country-specific conversion map
+        country = country_code.upper()
+        if country not in weight_conversion_map:
+            country = "EU"  # Default to EU if country not found
+
+        conv_map = weight_conversion_map[country]
+
+        # If no unit specified, use country's default unit
+        if not unit:
+            unit = conv_map["default_unit"]
+
+        # Convert to standard unit for the country
+        if unit in conv_map["conversions"]:
+            return value * conv_map["conversions"][unit]
+        else:
+            print(f"Unknown weight unit '{unit}' for country {country}")
+            return value  # Assume it's already in the standard unit
+
+    except ValueError:
+        print(f"Could not parse weight value: {weight_str}")
+        return 0
+
+
+def get_weight_limits_in_standard_unit(self) -> Tuple[float, float]:
+    """
+    Get MDV and HDV weight limits in country's standard unit
+    """
+    if self.country_code.upper() == "US":
+        return self.mdv_max_lbs, self.hdv_max_lbs
+    else:
+        # Convert lbs to kg for non-US countries
+        return (
+            self.mdv_max_lbs * 0.453592,  # lbs to kg
+            self.hdv_max_lbs * 0.453592
+        )
+
+
+def process_vehicle_classifications(G: nx.MultiDiGraph) -> nx.MultiDiGraph:
+    """Process vehicle classifications based on FHWA weight classes."""
+    # https://afdc.energy.gov/data/10380
+    # https://wiki.openstreetmap.org/wiki/Key:maxweight#:~:text=In%20most%20of%20the%20United,but%20never%20as%20metric%20tons.
+    print("Processing vehicle classifications...")
+
+    # Convert graph to GeoDataFrames while preserving MultiIndex
+    nodes, edges = ox.graph_to_gdfs(G)
+    original_index = edges.index
+    edges = edges.reset_index()
+
+    # Copy HGV weight restrictions if present
+    if "maxweight:hgv" in edges.columns:
+        hgv_mask = ~edges["maxweight:hgv"].isna()
+        if hgv_mask.any():
+            edges.loc[hgv_mask, "maxweight"] = edges.loc[hgv_mask, "maxweight:hgv"].copy()
+
+    if "maxweight" in edges.columns:
+        # Convert weights to standard unit for the country
+        numericWeight = edges["maxweight"].apply(
+            get_weight_in_standard_unit
+        )
+
+        # Get weight limits in the appropriate unit
+        mdv_max, hdv_max = get_weight_limits_in_standard_unit()
+
+        # Check weight restrictions
+        mdvBannedByWeight = numericWeight <= mdv_max
+        hdvBannedByWeight = numericWeight <= hdv_max
+    else:
+        mdvBannedByWeight = pd.Series([False] * len(edges))
+        hdvBannedByWeight = pd.Series([False] * len(edges))
+
+    # Process vehicle access flags
+    hgvAllowedByDefault = edges.hgv.str.lower() != "no" if "hgv" in edges.columns else pd.Series(
+        [True] * len(edges))
+    longVehiclesBanned = ~edges.maxlength.isna() if "maxlength" in edges.columns else pd.Series(
+        [False] * len(edges))
+
+    # Set final vehicle access flags
+    hgv = hgvAllowedByDefault & ~hdvBannedByWeight & ~longVehiclesBanned
+    mdv = hgvAllowedByDefault & ~mdvBannedByWeight
+
+    edges["hgv"] = hgv
+    edges["mdv"] = mdv
+
+    # Restore the original MultiIndex
+    edges = edges.set_index(original_index.names)
+
+    # Convert back to graph
+    G = ox.graph_from_gdfs(nodes, edges, graph_attrs=G.graph)
+
+    return G
 
 
 def plot(G, name):
@@ -158,6 +319,10 @@ G_final = ox.add_edge_speeds(G_final)
 nodes, edges = ox.graph_to_gdfs(G_final)
 print(f'Nodes: {len(nodes)}, Edges: {len(edges)}')
 
+####
+
+G_final = process_vehicle_classifications(G_final)
+
 ############################## Consolidate Nodes
 
 print('consolidate intersections')
@@ -184,3 +349,7 @@ G_final = ox.simplification.simplify_graph(G_final,
                                            )
 
 plot(G_final, f'{studyArea}_{str(simpl_intersections)}_simplified_graph')
+
+G_connected = ox.truncate.largest_component(G_final)
+
+plot(G_connected, f'{studyArea}_{str(simpl_intersections)}_connected_graph')

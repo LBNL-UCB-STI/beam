@@ -252,8 +252,6 @@ class NetworkConfig:
     study_area: AreaConfig
     simplification_tolerance: float = 2  # meters
     split_edges_by: List[str] = field(default_factory=lambda: ["highway", "lanes", "maxspeed"])
-    network_type: str = "drive"
-    retain_all: bool = True
     mercator_crs: str = "EPSG:3857"
     custom_filters: Dict[str, str] = field(default_factory=lambda: {
         "default": '["highway"~"motorway|trunk|primary|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|unclassified"]',
@@ -289,49 +287,66 @@ class NetworkDownloader:
     def __init__(self, config: NetworkConfig):
         self.config = config
 
+    def get_filter_value(self, filter_param: Any, index: int, total_count: int) -> Any:
+        """Helper function to get appropriate value from the filter."""
+        if isinstance(filter_param, list):
+            # If the parameter is a list, return the value for the current index
+            return filter_param[index % len(filter_param)]
+        else:
+            # If the parameter is a single value, return the same value for all
+            return filter_param
+
     def download_network(self) -> nx.MultiDiGraph:
         """Download network based on study area configuration."""
         logger.info(f"Downloading network data for {self.config.study_area.name}")
 
-        # Enable console logging
-        ox.settings.log_console = True
+        # Enable console logging and set useful tags
+        # ox.settings.log_console = True
+        # ox.settings.useful_tags_way = [
+        #     "name", "highway", "maxweight", "maxheight",
+        #     "maxspeed", "oneway", "lanes", "hgv"
+        # ]
 
-        # Enable caching
-        # ox.settings.use_cache = True
+        # Create places list from subdivisions
+        places = self.config.study_area.subdivisions
+        print(places)
 
-        # Treat all edges as one-way
-        # ox.settings.all_oneway = True
+        # Create base filters dictionary
+        places_filters = {
+            "network_type": "drive",
+            "simplify": False,
+            "retain_all": True,
+            "truncate_by_edge": False,
+            "which_result": None,
+            "custom_filter": [
+                self.config.custom_filters.get(
+                    subdivision['county'].lower().replace(" ", "_"),
+                    self.config.custom_filters['default']
+                )
+                for subdivision in places
+            ]
+        }
+        print(places_filters)
 
-        useful_tags_way = ["name", "highway", "maxweight", "maxheight", "maxspeed", "oneway", "lanes", "hgv"]
-        # useful_tags_node = []
-
-        # Set the useful tags in OSMnx settings
-        # ox.settings.useful_tags_node = useful_tags_node
-        ox.settings.useful_tags_way = useful_tags_way
-
+        # Download and combine graphs
         graphs = []
-        for subdivision in self.config.study_area.subdivisions:
+        for i, place in enumerate(places):
             try:
-                # Get county-specific filter or default if not found
-                county = subdivision['county'].lower().replace(" ", "_")
-                custom_filter = self.config.custom_filters.get(
-                    county,
-                    self.config.custom_filters.get('default')  # Use default filter if county not found
-                )
+                # Generate dynamic filters for current place
+                dynamic_filters = {
+                    key: self.get_filter_value(value, i, len(places))
+                    for key, value in places_filters.items()
+                }
 
-                G = ox.graph_from_place(
-                    subdivision,
-                    network_type=self.config.network_type,
-                    simplify=False,
-                    retain_all=self.config.retain_all,
-                    truncate_by_edge=False,
-                    custom_filter=custom_filter
-                )
+                # Download graph for current place
+                G = ox.graph_from_place(place, **dynamic_filters)
                 graphs.append(G)
                 logger.info(
-                    f"Successfully downloaded network for {subdivision['county']} using {'custom' if county in self.config.custom_filters else 'default'} filter")
+                    f"Successfully downloaded network for {place['county']} using "
+                    f"{'custom' if place['county'].lower().replace(' ', '_') in self.config.custom_filters else 'default'} filter"
+                )
             except Exception as e:
-                logger.error(f"Failed to download network for {subdivision}: {str(e)}")
+                logger.error(f"Failed to download network for {place}: {str(e)}")
 
         return nx.compose_all(graphs) if graphs else None
 
@@ -342,6 +357,41 @@ class NetworkProcessor:
     def __init__(self, config: NetworkConfig):
         self.config = config
 
+    def plot(self, G, name):
+        fig, ax = ox.plot.plot_graph(
+            G,
+            bgcolor="#FFFFFF",  # Light background
+            #         node_color="#00FFAA",      # Bright teal nodes
+            node_color="#333333",  # Bright teal nodes
+            node_size=0.02,
+            node_edgecolor='none',  # Node size  2.5
+            #         node_alpha=0.8,            # Node transparency
+            #         node_edgecolor="#333333",  # Dark edges around nodes
+            node_zorder=3,  # Nodes above edges
+            edge_color="#FF5A5F",  # Bright coral edges
+            edge_linewidth=0.2,  # Edge thickness 0.5
+            edge_alpha=0.8,  # Edge transparency
+            show=False,  # Do not display immediately
+            close=False  # Keep the plot open for saving
+        )
+
+        ctx.add_basemap(ax, source=ctx.providers.CartoDB.Positron)
+
+        # 3. Calculate statistics
+        num_nodes = len(G.nodes)
+        num_edges = len(G.edges)
+        # Total length in meters
+        total_length = sum(data.get('length', 0) for u, v, key, data in G.edges(keys=True, data=True))
+
+        # 4. Add title with statistics
+        title = (
+            f"Nodes: {num_nodes} | Edges: {num_edges} | Total Length: {total_length / 1000:.2f} km"
+        )
+        ax.set_title(title, fontsize=15, fontweight='bold', color='black', pad=20)
+
+        # 5. Save the figure with 600 DPI
+        fig.savefig(f'{name}.png', dpi=600, bbox_inches='tight')
+
     def process_network(self, G: nx.MultiDiGraph) -> nx.MultiDiGraph:
         """Apply all processing steps to the network."""
         if G is None:
@@ -350,33 +400,26 @@ class NetworkProcessor:
 
         logger.info("Processing network...")
 
-        # Project to configured CRS
-        G = ox.project_graph(G, to_crs=self.config.mercator_crs)
-        logger.info(f"Projected network to {self.config.mercator_crs}")
-
-        # Add edge attributes
-        G = self._add_edge_attributes(G)
-
-        # Process vehicle classifications
-        G = self._process_vehicle_classifications(G)
-
-        # Consolidate intersections
-        G = self._consolidate_intersections(G)
-
-        # Simplify network
-        G = self._simplify_network(G)
-
-        # Get largest connected component
-        G = ox.truncate.largest_component(G)  # Using it directly from ox
-        logger.info("Extracted largest connected component")
-
-        return G
-
-    def _add_edge_attributes(self, G: nx.MultiDiGraph) -> nx.MultiDiGraph:
-        """Add speed and other attributes to edges."""
-        logger.info("Adding edge attributes...")
-        G = ox.add_edge_speeds(G)
-        return G
+        G = ox.project_graph(G, to_crs="epsg:3857")
+        G_final = G.copy()
+        G_final = ox.add_edge_speeds(G_final)
+        G_final = ox.consolidate_intersections(G_final,
+                                               tolerance=2,
+                                               rebuild_graph=True,
+                                               dead_ends=True,
+                                               reconnect_edges=True
+                                               )
+        nodes, edges = ox.graph_to_gdfs(G_final)
+        edges['length'] = edges['geometry'].length
+        G_final = ox.graph_from_gdfs(nodes, edges, graph_attrs=G_final.graph)
+        G_final = ox.simplification.simplify_graph(G_final,
+                                                   edge_attrs_differ=["highway", "lanes", "maxspeed"],
+                                                   remove_rings=False,
+                                                   track_merged=True,
+                                                   )
+        G_connected = ox.truncate.largest_component(G_final)
+        self.plot(G_connected, f'toto_connected_graph')
+        return G_connected
 
     def _consolidate_intersections(self, G: nx.MultiDiGraph) -> nx.MultiDiGraph:
         """Consolidate nearby intersections."""
@@ -421,14 +464,15 @@ class NetworkProcessor:
             G,
             edge_attrs_differ=self.config.split_edges_by,
             remove_rings=False,
-            track_merged=True,
-            edge_attr_aggs={
-                "length": sum,
-                "travel_time": sum,
-                "lanes": str_median,
-                "hgv": min,
-                "mdv": min
-            }
+            track_merged=True
+            # ,
+            # edge_attr_aggs={
+            #     "length": sum,
+            #     "travel_time": sum,
+            #     "lanes": str_median,
+            #     "hgv": min,
+            #     "mdv": min
+            # }
         )
 
     def _process_vehicle_classifications(self, G: nx.MultiDiGraph) -> nx.MultiDiGraph:
@@ -775,8 +819,6 @@ def create_config_by_area(study_area: str) -> Dict[str, Any]:
         "study_area": study_area_config,
         "simplification_tolerance": 2,
         "split_edges_by": ["highway", "lanes", "maxspeed"],
-        "network_type": "drive",
-        "retain_all": True,
         "custom_filters": county_filters,
         "vehicle_config": VehicleConfig(mdv_max_lbs=26000, hdv_max_lbs=80000)
     }
@@ -799,10 +841,50 @@ def process_study_area(study_area: str) -> None:
         exporter = NetworkExporter(output_dir)
 
         # Main processing steps
-        G = downloader.download_network()
-        if G is None:
-            raise ValueError("Failed to download network")
+        # G = downloader.download_network()
+        # if G is None:
+        #     raise ValueError("Failed to download network")
 
+        dense = '["highway"~"motorway|trunk|motorway_link|trunk_link|primary|secondary|primary_link|secondary_link|tertiary|tertiary_link|unclassified|residential"]'
+        moderate = '["highway"~"motorway|trunk|motorway_link|trunk_link|primary|secondary|primary_link|secondary_link|tertiary|tertiary_link|unclassified"]'
+
+        places = [
+            {"county": "San Francisco", "state": "California"},
+            {"county": "Marin", "state": "California"},
+        ]
+
+        places_filters = {
+            "network_type": "drive",
+            "simplify": False,
+            "retain_all": True,
+            "truncate_by_edge": False,
+            "which_result": None,
+            "custom_filter": [
+                dense, moderate
+            ]}
+
+        def get_filter_value(filter_param, index, total_count):
+            if isinstance(filter_param, list):
+                # If the parameter is a list, return the value for the current index
+                return filter_param[index % len(filter_param)]
+            else:
+                # If the parameter is a single value, return the same value for all
+                return filter_param
+
+        # Function to generate and combine graphs
+        def combine_graphs():
+            graphs = []
+            for i, input_data in enumerate(places):
+                dynamic_filters = {
+                    key: get_filter_value(value, i, len(places)) for key, value in places_filters.items()
+                }
+                graph = ox.graph_from_place(input_data, **dynamic_filters)
+                graphs.append(graph)
+
+            return nx.compose_all(graphs) if graphs else None
+
+        # Download and process network
+        G = combine_graphs()
         G = processor.process_network(G)
         if G is None:
             raise ValueError("Failed to process network")

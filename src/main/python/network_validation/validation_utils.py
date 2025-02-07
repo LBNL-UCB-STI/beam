@@ -384,6 +384,315 @@ def collect_geographic_boundaries(state_fips_code, county_fips_codes, year, stud
     return selected_geo_wgs84
 
 
+def collect_dense_county_boundaries(
+        state_fips_code,
+        county_fips_codes,
+        year,
+        densely_populated_counties_geo_path,
+        projected_coordinate_system,
+        min_population
+):
+    """
+    Collect county boundaries for counties with population above specified threshold
+    and analyze population distribution.
+
+    Parameters
+    ----------
+    state_fips_code : str
+        FIPS code for the state
+    county_fips_codes : list
+        List of county FIPS codes
+    year : int
+        Reference year for population estimates (July 1st reference date)
+    densely_populated_counties_geo_path : str
+        Output path for geographic boundaries
+    projected_coordinate_system : int
+        EPSG code for desired projection
+    min_population : int
+        Minimum population threshold for inclusion
+
+    Returns
+    -------
+    geopandas.GeoDataFrame
+        Selected county boundaries in WGS84 projection
+
+    Notes
+    -----
+    Population estimates are from the Census Bureau's ACS 5-year estimates.
+    """
+    import censusdata
+    import geopandas as gpd
+    import os
+    import pandas as pd
+
+    # Get county population data using censusdata
+    try:
+        # Create a list of census geography objects for specific counties
+        geo_units = [
+            censusdata.censusgeo([('state', state_fips_code), ('county', county_fips)])
+            for county_fips in county_fips_codes
+        ]
+
+        # Get population data for specific counties
+        pop_data = pd.DataFrame()
+        for geo_unit in geo_units:
+            county_data = censusdata.download(
+                'acs5',
+                year,
+                geo_unit,
+                ['B01003_001E']  # Total population estimate
+            )
+            pop_data = pd.concat([pop_data, county_data])
+
+        # Reset index to get FIPS codes as columns
+        pop_data = pop_data.reset_index()
+
+        # Create GEOID by combining state and county FIPS from the index
+        pop_data['GEOID'] = pop_data['index'].apply(lambda x: x.geo[0][1] + x.geo[1][1])
+
+        # Rename population column
+        pop_data = pop_data.rename(columns={'B01003_001E': 'P1_001N'})
+
+    except Exception as e:
+        print(f"Failed to retrieve population data: {e}")
+        raise
+
+    # Get county boundaries using TIGER/Line shapefiles
+    try:
+        # Download geographic boundaries
+        geo_url = f"https://www2.census.gov/geo/tiger/TIGER{year}/COUNTY/tl_{year}_us_county.zip"
+        geo_data = gpd.read_file(geo_url)
+
+        # Filter for state and counties of interest
+        geo_data = geo_data[
+            (geo_data['STATEFP'] == state_fips_code) &
+            (geo_data['COUNTYFP'].isin(county_fips_codes))
+            ]
+
+        # Merge boundaries with population data
+        counties_with_pop = geo_data.merge(pop_data, on='GEOID')
+
+    except Exception as e:
+        print(f"Failed to retrieve geographic boundaries: {e}")
+        raise
+
+    # Calculate percentile ranks for context
+    counties_with_pop['population_percentile'] = (
+            counties_with_pop['P1_001N'].rank(pct=True) * 100
+    ).round(1)
+
+    # Print detailed population analysis
+    print("\nPopulation Distribution Analysis:")
+    print("================================")
+
+    # County-level details
+    print("\nCounty Population Details:")
+    print("------------------------")
+    for _, row in counties_with_pop.sort_values("P1_001N", ascending=False).iterrows():
+        print(
+            f"County: {row['NAME']:<30} "
+            f"Population: {row['P1_001N']:,} "
+            f"(Percentile: {row['population_percentile']}%)"
+        )
+
+    # Statistical summary
+    print("\nPopulation Summary Statistics:")
+    print("--------------------------")
+    stats = counties_with_pop['P1_001N'].describe()
+    print(f"Mean population:     {stats['mean']:,.0f}")
+    print(f"Median population:   {stats['50%']:,.0f}")
+    print(f"Standard deviation:  {stats['std']:,.0f}")
+    print(f"Minimum population:  {stats['min']:,.0f}")
+    print(f"Maximum population:  {stats['max']:,.0f}")
+
+    # Population distribution
+    print("\nPopulation Distribution Quartiles:")
+    print("-------------------------------")
+    for q in [0.25, 0.5, 0.75]:
+        print(f"{int(q * 100)}th percentile: {counties_with_pop['P1_001N'].quantile(q):,.0f}")
+
+    # Filter by population threshold
+    selected_geo = counties_with_pop[counties_with_pop["P1_001N"] >= min_population]
+
+    print(f"\nSelection Results:")
+    print("----------------")
+    print(f"Selected {len(selected_geo)} out of {len(counties_with_pop)} counties")
+    print(f"Population threshold: >= {min_population:,}")
+    print(f"Total population in selected counties: {selected_geo['P1_001N'].sum():,}")
+    print(
+        f"Percentage of total population: {(selected_geo['P1_001N'].sum() / counties_with_pop['P1_001N'].sum() * 100):.1f}%")
+
+    # Save in projected coordinate system
+    base_name, extension = os.path.splitext(densely_populated_counties_geo_path)
+
+    # Save projected version
+    study_area_geo_projected_path = f"{base_name}_epsg{projected_coordinate_system}{extension}"
+    selected_geo.to_crs(epsg=projected_coordinate_system).to_file(
+        study_area_geo_projected_path,
+        driver="GeoJSON"
+    )
+
+    # Save WGS84 version
+    selected_geo_wgs84 = selected_geo.to_crs(epsg=4326)
+    selected_geo_wgs84.to_file(f"{base_name}_wgs84{extension}", driver="GeoJSON")
+
+    return selected_geo_wgs84
+
+
+def collect_dense_tract_boundaries(
+        state_fips_code,
+        county_fips_codes,
+        year,
+        densely_populated_tracts_geo_path,
+        projected_coordinate_system,
+        min_density_per_km2
+):
+    """
+    Collect census tract boundaries for tracts with population density above specified threshold
+    and analyze population distribution.
+
+    Parameters
+    ----------
+    state_fips_code : str
+        FIPS code for the state
+    county_fips_codes : list
+        List of county FIPS codes
+    year : int
+        Reference year for population estimates (July 1st reference date)
+    densely_populated_tracts_geo_path : str
+        Output path for geographic boundaries
+    projected_coordinate_system : int
+        EPSG code for desired projection
+    min_density_per_km2 : float
+        Minimum population density threshold (people per square kilometer)
+        Typical thresholds:
+        - Rural: < 100 people/km²
+        - Suburban: 100-1,000 people/km²
+        - Urban: 1,000-5,000 people/km²
+        - Dense Urban: > 5,000 people/km²
+
+    Returns
+    -------
+    geopandas.GeoDataFrame
+        Selected tract boundaries in WGS84 projection
+
+    Notes
+    -----
+    Population estimates are from the Census Bureau's ACS 5-year estimates.
+    """
+    import cenpy as cen
+    from cenpy import products
+    import geopandas as gpd
+    import pandas as pd
+    import os
+
+    # Connect to Census API
+    try:
+        conn = products.APIConnection(f"ACSDT5Y{year}")
+
+        # Get population data for tracts
+        pop_data = None
+        for county_fips in county_fips_codes:
+            tract_data = conn.query(
+                ['B01003_001E'],  # Total population estimate
+                geo_unit='tract',
+                geo_filter={
+                    "state": state_fips_code,
+                    "county": county_fips
+                }
+            )
+            pop_data = pd.concat([pop_data, tract_data]) if pop_data is not None else tract_data
+
+        # Rename columns
+        pop_data = pop_data.rename(columns={'B01003_001E': 'population'})
+
+        # Create GEOID by combining state, county, and tract
+        pop_data['GEOID'] = pop_data['state'] + pop_data['county'] + pop_data['tract']
+
+        # Convert population to numeric
+        pop_data['population'] = pd.to_numeric(pop_data['population'], errors='coerce')
+
+    except Exception as e:
+        print(f"Failed to retrieve population data: {e}")
+        raise
+
+    # Get tract boundaries using TIGER/Line shapefiles
+    try:
+        # Download geographic boundaries
+        geo_url = f"https://www2.census.gov/geo/tiger/TIGER{year}/TRACT/tl_{year}_{state_fips_code}_tract.zip"
+        geo_data = gpd.read_file(geo_url)
+
+        # Filter for counties of interest
+        geo_data = geo_data[geo_data['COUNTYFP'].isin(county_fips_codes)]
+
+        # Merge boundaries with population data
+        tracts_with_pop = geo_data.merge(pop_data, on='GEOID')
+
+    except Exception as e:
+        print(f"Failed to retrieve geographic boundaries: {e}")
+        raise
+
+    # Calculate area and density (with proper projection)
+    # Project to Web Mercator for accurate area calculation
+    tracts_with_pop['area_sqkm'] = (
+            tracts_with_pop.to_crs(epsg=projected_coordinate_system)  # Project to Web Mercator
+            .geometry.area / 1000000  # Convert m² to km²
+    )
+    tracts_with_pop['density_per_km2'] = tracts_with_pop['population'] / tracts_with_pop['area_sqkm']
+
+    # Calculate percentile ranks for context
+    tracts_with_pop['density_percentile'] = (
+            tracts_with_pop['density_per_km2'].rank(pct=True) * 100
+    ).round(1)
+
+    # Print detailed density analysis
+    print("\nPopulation Density Analysis:")
+    print("==========================")
+
+    # Tract-level density summary
+    print("\nTract Density Summary (people/km²):")
+    print("--------------------------------")
+    stats = tracts_with_pop['density_per_km2'].describe()
+    print(f"Mean density:     {stats['mean']:,.1f}")
+    print(f"Median density:   {stats['50%']:,.1f}")
+    print(f"Standard deviation:  {stats['std']:,.1f}")
+    print(f"Minimum density:  {stats['min']:,.1f}")
+    print(f"Maximum density:  {stats['max']:,.1f}")
+
+    # Density distribution
+    print("\nDensity Distribution Quartiles:")
+    print("----------------------------")
+    for q in [0.25, 0.5, 0.75]:
+        print(f"{int(q * 100)}th percentile: {tracts_with_pop['density_per_km2'].quantile(q):,.1f}")
+
+    # Filter by density
+    selected_geo = tracts_with_pop[tracts_with_pop["density_per_km2"] >= min_density_per_km2]
+
+    print(f"\nSelection Results:")
+    print("----------------")
+    print(f"Selected {len(selected_geo)} out of {len(tracts_with_pop)} tracts")
+    print(f"Density threshold: >= {min_density_per_km2:,.1f} people/km²")
+    print(f"Total population in selected tracts: {selected_geo['population'].sum():,}")
+    print(
+        f"Percentage of total population: {(selected_geo['population'].sum() / tracts_with_pop['population'].sum() * 100):.1f}%")
+
+    # Save in projected coordinate system
+    base_name, extension = os.path.splitext(densely_populated_tracts_geo_path)
+
+    # Save projected version
+    tracts_geo_projected_path = f"{base_name}_epsg{projected_coordinate_system}{extension}"
+    selected_geo.to_crs(epsg=projected_coordinate_system).to_file(
+        tracts_geo_projected_path,
+        driver="GeoJSON"
+    )
+
+    # Save WGS84 version
+    selected_geo_wgs84 = selected_geo.to_crs(epsg=4326)
+    selected_geo_wgs84.to_file(f"{base_name}_wgs84{extension}", driver="GeoJSON")
+
+    return selected_geo_wgs84
+
+
 def map_cbg_to_taz(cbg_gdf, cbg_id_col, taz_gdf, taz_id_col, projected_coordinate_system, cbg_taz_map_csv):
     print(f"Mapping CBG to TAZ geometries")
     # Ensure that both GeoDataFrames are using the same coordinate reference system
