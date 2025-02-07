@@ -6,6 +6,12 @@ import numpy as np
 import pandas as pd
 import pyarrow.csv as pv
 import os
+import osmnx as ox
+from typing import Tuple
+import contextily as ctx
+import networkx as nx
+from statistics import median
+import xml.etree.ElementTree as ET
 
 plt.style.use('ggplot')
 meter_to_mile = 0.000621371
@@ -975,3 +981,299 @@ class SpeedValidationSetup:
         min_free_speed = speed_param['free_speed'].min()
         speed_param['free_speed'] = min_free_speed
         save_filtered_data(speed_param, "min_speed_all_roads")
+
+
+def plot(G, name):
+    fig, ax = ox.plot.plot_graph(
+        G,
+        bgcolor="#FFFFFF",  # Light background
+        #         node_color="#00FFAA",      # Bright teal nodes
+        node_color="#333333",  # Bright teal nodes
+        node_size=0.02,
+        node_edgecolor='none',  # Node size  2.5
+        #         node_alpha=0.8,            # Node transparency
+        #         node_edgecolor="#333333",  # Dark edges around nodes
+        node_zorder=3,  # Nodes above edges
+        edge_color="#FF5A5F",  # Bright coral edges
+        edge_linewidth=0.2,  # Edge thickness 0.5
+        edge_alpha=0.8,  # Edge transparency
+        show=False,  # Do not display immediately
+        close=False  # Keep the plot open for saving
+    )
+
+    ctx.add_basemap(ax, source=ctx.providers.CartoDB.Positron, zoom=20)
+
+    # 3. Calculate statistics
+    num_nodes = len(G.nodes)
+    num_edges = len(G.edges)
+    # Total length in meters
+    total_length = sum(data.get('length', 0) for u, v, key, data in G.edges(keys=True, data=True))
+
+    # 4. Add title with statistics
+    title = (
+        f"Nodes: {num_nodes} | Edges: {num_edges} | Total Length: {total_length / 1000:.2f} km"
+    )
+    ax.set_title(title, fontsize=15, fontweight='bold', color='black', pad=20)
+
+    # 5. Save the figure with 600 DPI
+    fig.savefig(f'{name}', dpi=600, bbox_inches='tight')
+
+
+def str_median(values):
+    """Calculate median after converting string values to numbers."""
+    # Convert strings to integers, filtering out non-numeric values
+    numeric_values = []
+    for v in values:
+        try:
+            if isinstance(v, str):
+                numeric_values.append(int(v))
+            elif isinstance(v, (int, float)):
+                numeric_values.append(int(v))
+        except (ValueError, TypeError):
+            continue
+
+    if not numeric_values:
+        return None
+    return int(median(numeric_values))
+
+
+def weight_conversion_map(self):
+    """
+    Returns weight conversion mapping based on country.
+    Reference: https://wiki.openstreetmap.org/wiki/Key:maxweight
+    """
+    return {
+        "US": {
+            "default_unit": "lbs",
+            "conversions": {
+                "lbs": 1.0,
+                "lb": 1.0,
+                "t": 2000.0,  # short tons to lbs
+                "st": 2000.0,  # short tons to lbs
+                "ton": 2000.0,
+                "tons": 2000.0,
+                "mt": 2204.62,  # metric tons to lbs
+            }
+        },
+        "GB": {  # United Kingdom
+            "default_unit": "kg",
+            "conversions": {
+                "t": 1000.0,  # metric tonnes to kg
+                "kg": 1.0,
+                "lbs": 0.453592,  # pounds to kg
+                "lb": 0.453592
+            }
+        },
+        "EU": {  # European Union
+            "default_unit": "kg",
+            "conversions": {
+                "t": 1000.0,  # metric tonnes to kg
+                "kg": 1.0,
+                "q": 100.0,  # quintals to kg
+            }
+        }
+    }
+
+
+def get_weight_in_standard_unit(weight_str: str, country_code: str) -> float:
+    """
+    Convert weight string to standard unit (lbs for US, kg for EU/UK)
+    """
+    if not weight_str or pd.isna(weight_str):
+        return 0
+
+    weight_str = str(weight_str).lower().strip()
+    if not weight_str:
+        return 0
+
+    try:
+        # Extract numeric value and unit
+        import re
+        match = re.match(r'^([\d.]+)\s*([\w\s]*)$', weight_str)
+        if not match:
+            print(f"Could not parse weight format: {weight_str}")
+            return 0
+
+        value = float(match.group(1))
+        unit = match.group(2).strip()
+
+        # Get country-specific conversion map
+        country = country_code.upper()
+        if country not in weight_conversion_map:
+            country = "EU"  # Default to EU if country not found
+
+        conv_map = weight_conversion_map[country]
+
+        # If no unit specified, use country's default unit
+        if not unit:
+            unit = conv_map["default_unit"]
+
+        # Convert to standard unit for the country
+        if unit in conv_map["conversions"]:
+            return value * conv_map["conversions"][unit]
+        else:
+            print(f"Unknown weight unit '{unit}' for country {country}")
+            return value  # Assume it's already in the standard unit
+
+    except ValueError:
+        print(f"Could not parse weight value: {weight_str}")
+        return 0
+
+
+def get_weight_limits_in_standard_unit(self) -> Tuple[float, float]:
+    """
+    Get MDV and HDV weight limits in country's standard unit
+    """
+    if self.country_code.upper() == "US":
+        return self.mdv_max_lbs, self.hdv_max_lbs
+    else:
+        # Convert lbs to kg for non-US countries
+        return (
+            self.mdv_max_lbs * 0.453592,  # lbs to kg
+            self.hdv_max_lbs * 0.453592
+        )
+
+
+def process_vehicle_classifications(G: nx.MultiDiGraph, country_code="US") -> nx.MultiDiGraph:
+    """Process vehicle classifications based on FHWA weight classes."""
+    # https://afdc.energy.gov/data/10380
+    # https://wiki.openstreetmap.org/wiki/Key:maxweight#:~:text=In%20most%20of%20the%20United,but%20never%20as%20metric%20tons.
+    print("Processing vehicle classifications...")
+
+    # Convert graph to GeoDataFrames while preserving MultiIndex
+    nodes, edges = ox.graph_to_gdfs(G)
+    original_index = edges.index
+    edges = edges.reset_index()
+
+    # Copy HGV weight restrictions if present
+    if "maxweight:hgv" in edges.columns:
+        hgv_mask = ~edges["maxweight:hgv"].isna()
+        if hgv_mask.any():
+            edges.loc[hgv_mask, "maxweight"] = edges.loc[hgv_mask, "maxweight:hgv"].copy()
+
+    if "maxweight" in edges.columns:
+        # Convert weights to standard unit for the country
+        numericWeight = edges["maxweight"].apply(
+            lambda x: get_weight_in_standard_unit(x, country_code)
+        )
+
+        # Get weight limits in the appropriate unit
+        mdv_max, hdv_max = get_weight_limits_in_standard_unit()
+
+        # Check weight restrictions
+        mdvBannedByWeight = numericWeight <= mdv_max
+        hdvBannedByWeight = numericWeight <= hdv_max
+    else:
+        mdvBannedByWeight = pd.Series([False] * len(edges))
+        hdvBannedByWeight = pd.Series([False] * len(edges))
+
+    # Process vehicle access flags
+    hgvAllowedByDefault = edges.hgv.str.lower() != "no" if "hgv" in edges.columns else pd.Series(
+        [True] * len(edges))
+    longVehiclesBanned = ~edges.maxlength.isna() if "maxlength" in edges.columns else pd.Series(
+        [False] * len(edges))
+
+    # Set final vehicle access flags
+    hgv = hgvAllowedByDefault & ~hdvBannedByWeight & ~longVehiclesBanned
+    mdv = hgvAllowedByDefault & ~mdvBannedByWeight
+
+    edges["hgv"] = hgv
+    edges["mdv"] = mdv
+
+    # Restore the original MultiIndex
+    edges = edges.set_index(original_index.names)
+
+    # Convert back to graph
+    G = ox.graph_from_gdfs(nodes, edges, graph_attrs=G.graph)
+
+    return G
+
+
+def save_graph_to_osm(G, filename="output.osm"):
+    # Bounding box
+    xs = [d['x'] for _, d in G.nodes(data=True) if 'x' in d]
+    ys = [d['y'] for _, d in G.nodes(data=True) if 'y' in d]
+    minlon, maxlon = min(xs), max(xs)
+    minlat, maxlat = min(ys), max(ys)
+
+    root = ET.Element("osm", version="0.6", generator="OSMnx2OSM")
+    ET.SubElement(root, "bounds",
+                  minlat=str(minlat), minlon=str(minlon),
+                  maxlat=str(maxlat), maxlon=str(maxlon))
+
+    node_map = {}
+    node_id = 1
+
+    # Write nodes + attributes as tags
+    for n, d in G.nodes(data=True):
+        lat, lon = d.get('y'), d.get('x')
+        if lat is None or lon is None: continue
+        node = ET.SubElement(root, "node",
+                             id=str(node_id), lat=str(lat), lon=str(lon),
+                             version="1", changeset="1", user="osmnx", uid="1",
+                             timestamp="2020-01-01T00:00:00Z"
+                             )
+        node_map[n] = node_id
+        for k, v in d.items():
+            if k not in ("x", "y") and v is not None:
+                ET.SubElement(node, "tag", k=str(k), v=str(v))
+        node_id += 1
+
+    # Write ways (edges) + attributes as tags
+    way_id = -1
+    for u, v, edata in G.edges(data=True):
+        if u not in node_map or v not in node_map:
+            continue
+        way = ET.SubElement(root, "way",
+                            id=str(way_id), version="1", changeset="1",
+                            user="osmnx", uid="1", timestamp="2020-01-01T00:00:00Z")
+        ET.SubElement(way, "nd", ref=str(node_map[u]))
+        ET.SubElement(way, "nd", ref=str(node_map[v]))
+        # At least one standard OSM tag
+        ET.SubElement(way, "tag", k="highway", v="road")
+        # Dump all other attributes
+        for k, v_ in edata.items():
+            if v_ is not None:
+                ET.SubElement(way, "tag", k=str(k), v=str(v_))
+        way_id -= 1
+
+    ET.ElementTree(root).write(filename, encoding="utf-8", xml_declaration=True)
+
+
+def save_graph_to_pbf(G, filename):
+    """
+    Save network graph to OSM PBF format using a two-step process:
+    1. First save as .osm (XML format)
+    2. Then convert to .osm.pbf using osmium
+
+    Parameters:
+    -----------
+    G : networkx.MultiDiGraph
+        Input graph
+    filename : str
+        Path to output .osm.pbf file
+    """
+    import os
+    import subprocess
+    from os.path import splitext
+
+    # First save as temporary OSM XML file
+    temp_osm = splitext(filename)[0] + '.osm'
+    ox.save_graph_xml(G, filepath=temp_osm)
+
+    # Convert OSM XML to PBF using osmium
+    try:
+        subprocess.run(['osmium', 'cat', temp_osm, '-o', filename],
+                       check=True)
+        print(f"PBF Network saved to '{filename}'")
+
+        # Remove temporary OSM XML file
+        os.remove(temp_osm)
+
+    except subprocess.CalledProcessError as e:
+        print(f"Error converting to PBF: {e}")
+        print("Make sure osmium-tool is installed.")
+    except FileNotFoundError:
+        print("Error: osmium-tool not found. Please install it first.")
+        print("On Ubuntu/Debian: sudo apt-get install osmium-tool")
+        print("On MacOS: brew install osmium-tool")
