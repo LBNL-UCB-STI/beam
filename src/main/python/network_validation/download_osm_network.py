@@ -58,10 +58,31 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
         graphs.append(G)
 
     g_combined = nx.compose_all(graphs)
+    g_with_ft_restrictions = process_freight_restrictions(g_combined, _study_area_config["country_code"])
 
-    nodes_1, edges_1 = ox.graph_to_gdfs(g_combined)
+    if _study_area_config["connect_islands"]:
+        region_counties_geo = (
+            f"{_study_area_config['work_dir']}/{_study_area_config['study_area']}_counties_wgs84.geojson"
+        )
+        if os.path.exists(region_counties_geo):
+            region_boundary_wgs84 = gpd.read_file(region_counties_geo)
+        else:
+            region_boundary_wgs84 = collect_geographic_boundaries(
+                state_fips_code=_study_area_config["state_fips"],
+                county_fips_codes=_study_area_config["county_fips"],
+                year=_study_area_config["census_year"],
+                study_area_geo_path=region_counties_geo,
+                projected_coordinate_system=_study_area_config["study_area_crs"],
+                geo_level="county")
+
+        g_completed_network = process_ferry_into_car_edges(g_with_ft_restrictions,
+                                                           region_boundary_wgs84.geometry.union_all())
+    else:
+        g_completed_network = g_with_ft_restrictions
+
+    nodes_1, edges_1 = ox.graph_to_gdfs(g_completed_network)
     g_simplified = ox.simplification.simplify_graph(
-        g_combined,
+        g_completed_network,
         edge_attrs_differ=["highway", "lanes", "maxspeed"],
         remove_rings=False,
         track_merged=True,
@@ -78,10 +99,8 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
     print(f'Edges: #{len(edges_2)} — deleted #{len(edges_1) - len(edges_2)} edges')
 
     g_with_speeds = ox.add_edge_speeds(g_simplified)
-    g_with_restrictions = process_vehicle_classifications(g_with_speeds, _study_area_config["country_code"])
-    g_wgs84 = ox.project_graph(g_with_restrictions, to_crs="epsg:4326")
+    g_wgs84 = ox.project_graph(g_with_speeds, to_crs="epsg:4326")
     g_connected = ox.truncate.largest_component(g_wgs84.copy())
-
     return g_connected
 
 
@@ -112,9 +131,8 @@ def generate_config_name(config: dict) -> str:
         density_parts.append(level_str)
 
     # Combine all parts
-    config_name = f"{study_area}_{'_'.join(density_parts)}"
-
-    return config_name
+    ferry_suffix = "_ferry" if (config["connect_islands"]) else ""
+    return f"{study_area}_{'_'.join(density_parts)}{ferry_suffix}"
 
 
 #############################
@@ -128,18 +146,13 @@ study_area_config = {
     # Geographic settings
     "study_area": "sfbay",
     "state_fips": "06",
-    "county_fips": ["041", "075"],
-    # ['001', '013', '041', '055', '075', '081', '085', '095', '097', '087', '113'],  # ["041", "075"]
+    "county_fips": ['001', '013', '041', '055', '075', '081', '085', '095', '097', '087', '113'],  # ["041", "075"]
     "census_year": 2018,
     "study_area_crs": 26910,  # NAD83 / UTM zone 10N
+    "connect_islands": True,  # Links disconnected islands relying on motor vehicle ferry using a virtual car link
     "country_code": "US",
 
     # Density thresholds and corresponding network filters
-    # Typical thresholds:
-    #    - Rural: < 50 people/km²
-    #    - Mixed Rural/Suburban: 50-200 people/km²
-    #    - Suburban/Urban Mix: 200-500 people/km²
-    #    - Urban: > 500 people/km²
     "density_levels": {
         # "sparse": {
         #     "min_density_per_km2": 0,
@@ -147,10 +160,11 @@ study_area_config = {
         # },
         "moderate": {
             "min_density_per_km2": 0,
+            # 193.05 people/sq km = 500 people/sq mi is threshod for rural areas https://www.ers.usda.gov/topics/rural-economy-population/rural-classifications/what-is-rural
             "custom_filter": '["highway"~"motorway|trunk|motorway_link|trunk_link|primary|secondary|primary_link|secondary_link|tertiary|tertiary_link|unclassified"]'
         },
         "dense": {
-            "min_density_per_km2": 200,
+            "min_density_per_km2": 193,
             "custom_filter": '["highway"~"motorway|trunk|motorway_link|trunk_link|primary|secondary|primary_link|secondary_link|tertiary|tertiary_link|unclassified|residential"]'
         }
     },
@@ -159,9 +173,27 @@ study_area_config = {
     "osmnx_settings": {
         "log_console": True,
         "use_cache": True,
-        "all_oneway": True
+        "cache_only_mode": False,
+        "all_oneway": True,
+        "requests_timeout": 180,
+        "overpass_memory": None,
+        "max_query_area_size": 50 * 1000 * 50 * 1000,  # 50km × 50km
+        "overpass_rate_limit": False,
+        "overpass_max_attempts": 3,
+        "overpass_url": "https://overpass-api.de/api"
+        # https://wiki.openstreetmap.org/wiki/Overpass_API#Public_Overpass_API_instances
     }
 }
+
+# Configure OSMNX settings for version 2.0.1
+ox.settings.log_console = True
+ox.settings.use_cache = True
+ox.settings.cache_only = False
+ox.settings.timeout = 180
+ox.settings.memory = None
+ox.settings.max_query_area_size = 50 * 1000 * 50 * 1000  # 50km × 50km
+ox.settings.overpass_rate_limit = True
+ox.settings.overpass_max_attempts = 3
 
 #############################
 ############ Main ###########

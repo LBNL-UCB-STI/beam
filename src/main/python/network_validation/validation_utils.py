@@ -1134,7 +1134,29 @@ def get_weight_limits_in_standard_unit(self) -> Tuple[float, float]:
         )
 
 
-def process_vehicle_classifications(G: nx.MultiDiGraph, country_code="US") -> nx.MultiDiGraph:
+def process_ferry_into_car_edges(car_graph, region_polygon) -> nx.MultiDiGraph:
+    g_ferry = ox.graph_from_polygon(region_polygon, network_type="all", simplify=True,
+                                    custom_filter='["route"="ferry"]["motor_vehicle"="yes"]', retain_all=True)
+    g_all_ferry = ox.graph_from_polygon(region_polygon, network_type="all", simplify=True,
+                                        custom_filter='["route"="ferry"]["motorcar"="yes"]', retain_all=True)
+    g_ferry = nx.compose_all([g_ferry, g_all_ferry])
+    ferry_nodes, ferry_edges = ox.graph_to_gdfs(g_ferry)
+    ferry_edges['reversed'] = False
+    ferry_edges['maxspeed'] = "10 mph"
+    ferry_edges['highway'] = "unclassified"
+    ferry_edges['oneway'] = "no"
+    ferry_edges['lanes'] = "2"
+    ferry_edges["hgv"] = False
+    ferry_edges["mdv"] = True
+    nodes, edges = ox.graph_to_gdfs(car_graph)
+    for col in edges.columns:
+        if col not in ferry_edges.columns:
+            ferry_edges[col] = "nan"
+    g_ferry_reconstructed = ox.graph_from_gdfs(ferry_nodes, ferry_edges)
+    return nx.compose_all([car_graph, g_ferry_reconstructed])
+
+
+def process_freight_restrictions(G: nx.MultiDiGraph, country_code="US") -> nx.MultiDiGraph:
     """Process vehicle classifications based on FHWA weight classes."""
     # https://afdc.energy.gov/data/10380
     # https://wiki.openstreetmap.org/wiki/Key:maxweight#:~:text=In%20most%20of%20the%20United,but%20never%20as%20metric%20tons.
