@@ -12,6 +12,8 @@ import contextily as ctx
 import networkx as nx
 from statistics import median
 import xml.etree.ElementTree as ET
+from pathlib import Path
+from xml.etree.ElementTree import Element, SubElement, ElementTree
 
 plt.style.use('ggplot')
 meter_to_mile = 0.000621371
@@ -1333,3 +1335,150 @@ def convert_osm_to_pbf(input_file, output_file):
     except Exception as e:
         print(f"An error occurred: {str(e)}")
         return False
+
+
+from warnings import warn
+
+
+def save_simplified_graph_xml(
+        G: nx.MultiDiGraph,
+        filepath: str | Path | None = None,
+        way_tag_aggs: dict | None = None,
+        encoding: str = "utf-8",
+) -> None:
+    """
+    Save simplified graph to disk as an OSM XML file while preserving original OSM mappings.
+
+    Parameters
+    ----------
+    G : networkx.MultiDiGraph
+        Simplified graph to save as OSM XML file. Must have original OSM IDs preserved.
+    filepath : str or Path, optional
+        Path to save the file. If None, uses default settings path.
+    way_tag_aggs : dict, optional
+        Keys are OSM way tag keys and values are aggregation functions.
+    encoding : str, default 'utf-8'
+        Character encoding for the saved file.
+
+    Returns
+    -------
+    None
+    """
+    # Default settings
+    ONEWAY = False
+    PRECISION = 7  # round lat/lon to ~1cm precision
+
+    # Set default filepath if None was provided
+    filepath = Path("graph.osm") if filepath is None else Path(filepath)
+    filepath.parent.mkdir(parents=True, exist_ok=True)
+
+    # Convert graph to GeoDataFrames
+    nodes, edges = _prepare_graph_data(G)
+
+    # Create bounds dictionary from node coordinates
+    bounds = _create_bounds(nodes, PRECISION)
+
+    # Create XML structure
+    root = _create_root_element()
+    bounds_elem = SubElement(root, "bounds", attrib=bounds)
+
+    # Add nodes and ways to XML
+    _add_nodes_to_xml(root, nodes, PRECISION)
+    _add_ways_to_xml(root, edges, way_tag_aggs, ONEWAY)
+
+    # Write to disk
+    ElementTree(root).write(filepath, encoding=encoding, xml_declaration=True)
+
+
+def _prepare_graph_data(G):
+    """Prepare graph data for XML conversion."""
+    # Extract node and edge data into dataframes
+    nodes = pd.DataFrame.from_dict(dict(G.nodes(data=True)), orient='index')
+    nodes.index.name = 'osmid'
+
+    edges = []
+    for u, v, k, data in G.edges(data=True, keys=True):
+        edge_data = data.copy()
+        edge_data['u'] = u
+        edge_data['v'] = v
+        edge_data['key'] = k
+        edges.append(edge_data)
+    edges = pd.DataFrame(edges)
+
+    return nodes, edges
+
+
+def _create_bounds(nodes, precision):
+    """Create bounds dictionary from node coordinates."""
+    minx = str(round(nodes['x'].min(), precision))
+    maxx = str(round(nodes['x'].max(), precision))
+    miny = str(round(nodes['y'].min(), precision))
+    maxy = str(round(nodes['y'].max(), precision))
+
+    return {
+        "minlon": minx,
+        "maxlon": maxx,
+        "minlat": miny,
+        "maxlat": maxy
+    }
+
+
+def _create_root_element():
+    """Create root XML element with OSM attributes."""
+    return Element(
+        "osm",
+        attrib={
+            "version": "0.6",
+            "generator": "OSMnx-modified",
+            "upload": "false"
+        }
+    )
+
+
+def _add_nodes_to_xml(root, nodes, precision):
+    """Add nodes to XML structure."""
+    for osmid, node in nodes.iterrows():
+        node_attr = {
+            "id": str(osmid),
+            "lat": str(round(node['y'], precision)),
+            "lon": str(round(node['x'], precision)),
+            "version": "1",
+            "timestamp": "2024-01-01T00:00:00Z",
+            "uid": "1",
+            "user": "osmnx"
+        }
+        node_elem = SubElement(root, "node", attrib=node_attr)
+
+        # Add node tags
+        for key, value in node.items():
+            if key not in ['x', 'y'] and pd.notna(value):
+                SubElement(node_elem, "tag", attrib={"k": str(key), "v": str(value)})
+
+
+def _add_ways_to_xml(root, edges, way_tag_aggs, default_oneway):
+    """Add ways to XML structure."""
+    for _, edge in edges.iterrows():
+        way_attr = {
+            "id": str(edge.get('osmid', edge.get('uniqueid', -abs(hash((edge['u'], edge['v'])))))),
+            "version": "1",
+            "timestamp": "2024-01-01T00:00:00Z",
+            "uid": "1",
+            "user": "osmnx"
+        }
+        way_elem = SubElement(root, "node", attrib=way_attr)
+
+        # Add references to nodes
+        SubElement(way_elem, "nd", attrib={"ref": str(edge['u'])})
+        SubElement(way_elem, "nd", attrib={"ref": str(edge['v'])})
+
+        # Handle oneway tag
+        oneway = edge.get('oneway', default_oneway)
+        SubElement(way_elem, "tag", attrib={"k": "oneway", "v": "yes" if oneway else "no"})
+
+        # Add other edge tags
+        for key, value in edge.items():
+            if key not in ['u', 'v', 'key', 'osmid', 'uniqueid', 'oneway'] and pd.notna(value):
+                # Apply aggregation if specified
+                if way_tag_aggs and key in way_tag_aggs:
+                    value = way_tag_aggs[key](value)
+                SubElement(way_elem, "tag", attrib={"k": str(key), "v": str(value)})

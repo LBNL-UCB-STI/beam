@@ -277,19 +277,19 @@ else:
 
 # Save OSM Network
 osm_network = f'{file_prefix}_network.osm'
-ox.save_graph_xml(
+save_simplified_graph_xml(
     G=G_network,
     filepath=osm_network,
     way_tag_aggs={
         'length': 'sum',  # sum the lengths
-        'highway': lambda x: x.iloc[0],  # take the first value
-        'lanes': lambda x: x.iloc[0],
-        'maxspeed': lambda x: x.iloc[0],
-        'name': lambda x: x.iloc[0],
-        'oneway': lambda x: x.iloc[0],
-        'tunnel': lambda x: x.iloc[0],
-        'bridge': lambda x: x.iloc[0],
-        'osmid': lambda x: x.iloc[0]
+        'highway': 'first',  # take the first value
+        'lanes': 'first',
+        'maxspeed': 'first',
+        'name': 'first',
+        'oneway': 'first',
+        'tunnel': 'first',
+        'bridge': 'first',
+        'osmid': 'first'
     },
     encoding='utf-8'
 )
