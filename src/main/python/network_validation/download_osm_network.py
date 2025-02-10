@@ -3,6 +3,7 @@
 @author: haitamlaarabi
 """
 from validation_utils import *
+from _osm_xml_2_0_1_bis import _save_graph_xml
 from osmnx import settings
 from osmnx import truncate
 import pickle
@@ -277,7 +278,7 @@ else:
 
 # Save OSM Network
 osm_network = f'{file_prefix}_network.osm'
-save_simplified_graph_xml(
+_save_graph_xml(
     G=G_network,
     filepath=osm_network,
     way_tag_aggs={
