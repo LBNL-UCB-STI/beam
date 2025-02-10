@@ -6,6 +6,7 @@ from validation_utils import *
 from osmnx import settings
 from osmnx import truncate
 import pickle
+import subprocess
 
 
 #########################
@@ -80,27 +81,28 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
     else:
         g_completed_network = g_with_ft_restrictions
 
-    nodes_1, edges_1 = ox.graph_to_gdfs(g_completed_network)
-    g_simplified = ox.simplification.simplify_graph(
-        g_completed_network,
-        edge_attrs_differ=["highway", "lanes", "maxspeed"],
-        remove_rings=False,
-        track_merged=True,
-        edge_attr_aggs={
-            "length": sum,
-            "travel_time": sum,
-            "lanes": str_median,
-            "hgv": min,
-            "mdv": min
-        }
-    )
-    nodes_2, edges_2 = ox.graph_to_gdfs(g_simplified)
-    print(f'Nodes: #{len(nodes_2)} — deleted #{len(nodes_1) - len(nodes_2)} nodes')
-    print(f'Edges: #{len(edges_2)} — deleted #{len(edges_1) - len(edges_2)} edges')
-
-    g_with_speeds = ox.add_edge_speeds(g_simplified)
+    g_with_speeds = ox.add_edge_speeds(g_completed_network)
     g_wgs84 = ox.project_graph(g_with_speeds, to_crs="epsg:4326")
     g_connected = ox.truncate.largest_component(g_wgs84.copy())
+
+    # nodes_1, edges_1 = ox.graph_to_gdfs(g_completed_network)
+    # g_simplified = ox.simplification.simplify_graph(
+    #     g_completed_network,
+    #     edge_attrs_differ=["highway", "lanes", "maxspeed"],
+    #     remove_rings=False,
+    #     track_merged=True,
+    #     edge_attr_aggs={
+    #         "length": sum,
+    #         "travel_time": sum,
+    #         "lanes": str_median,
+    #         "hgv": min,
+    #         "mdv": min
+    #     }
+    # )
+    # nodes_2, edges_2 = ox.graph_to_gdfs(g_simplified)
+    # print(f'Nodes: #{len(nodes_2)} — deleted #{len(nodes_1) - len(nodes_2)} nodes')
+    # print(f'Edges: #{len(edges_2)} — deleted #{len(edges_1) - len(edges_2)} edges')
+
     return g_connected
 
 
@@ -146,10 +148,11 @@ study_area_config = {
     # Geographic settings
     "study_area": "sfbay",
     "state_fips": "06",
-    "county_fips": ['001', '013', '041', '055', '075', '081', '085', '095', '097', '087', '113'],  # ["041", "075"]
+    "county_fips": ["041"],
+    # ['001', '013', '041', '055', '075', '081', '085', '095', '097', '087', '113'],  # ["041", "075"]
     "census_year": 2018,
     "study_area_crs": 26910,  # NAD83 / UTM zone 10N
-    "connect_islands": True,  # Links disconnected islands relying on motor vehicle ferry using a virtual car link
+    "connect_islands": False,  # Links disconnected islands relying on motor vehicle ferry using a virtual car link
     "country_code": "US",
 
     # Density thresholds and corresponding network filters
@@ -178,53 +181,124 @@ study_area_config = {
         "requests_timeout": 180,
         "overpass_memory": None,
         "max_query_area_size": 50 * 1000 * 50 * 1000,  # 50km × 50km
-        "overpass_rate_limit": False,
+        "overpass_rate_limit": True,
         "overpass_max_attempts": 3,
-        "overpass_url": "https://overpass-api.de/api"
+        "useful_tags_way": list(ox.settings.useful_tags_way) + ["maxweight", "hgv", "maxweight:hgv", "maxlength"],
+        "overpass_url": "https://overpass-api.de/api",
         # https://wiki.openstreetmap.org/wiki/Overpass_API#Public_Overpass_API_instances
     }
 }
-
-# Configure OSMNX settings for version 2.0.1
-ox.settings.log_console = True
-ox.settings.use_cache = True
-ox.settings.cache_only = False
-ox.settings.timeout = 180
-ox.settings.memory = None
-ox.settings.max_query_area_size = 50 * 1000 * 50 * 1000  # 50km × 50km
-ox.settings.overpass_rate_limit = True
-ox.settings.overpass_max_attempts = 3
 
 #############################
 ############ Main ###########
 #############################
 
 config_name = generate_config_name(study_area_config)
-print(f'Downloading and preparing OSM-based {config_name} network...')
-
 file_prefix = f'{study_area_config["work_dir"]}/{config_name}'
-G_network = download_and_prepare_osm_network(study_area_config)
+graphml_network = f'{file_prefix}_network.graphml'
 
-# Save PNG Network
-png_network = f'{file_prefix}_network.png'
-plot(G_network, png_network)
-print(f"PNG Network saved to '{png_network}'.")
+if not os.path.exists(graphml_network):
+    print(f'Downloading and preparing OSM-based {config_name} network...')
+    G_network = download_and_prepare_osm_network(study_area_config)
 
-# Save PKL Network
-pkl_network = f'{file_prefix}_network.pkl'
-with open(pkl_network, 'wb') as f:
-    pickle.dump(G_network, f)
-print(f"PKL Network saved to '{pkl_network}'.")
+    ox.save_graphml(G_network, filepath=graphml_network)
+    print(f"GRAPHML Network saved to '{graphml_network}'.")
 
-# Save GPKG Network
-gpkg_network = f'{file_prefix}_network.gpkg'
-ox.save_graph_geopackage(G_network, filepath=gpkg_network)
-print(f"GPKG Network saved to '{gpkg_network}'.")
+    # Save PKL Network
+    pkl_network = f'{file_prefix}_network.pkl'
+    with open(pkl_network, 'wb') as f:
+        pickle.dump(G_network, f)
+    print(f"PKL Network saved to '{pkl_network}'.")
+
+    # Save PNG Network
+    png_network = f'{file_prefix}_network.png'
+    plot(G_network, png_network)
+    print(f"PNG Network saved to '{png_network}'.")
+
+    # Save GPKG Network
+    gpkg_network = f'{file_prefix}_network.gpkg'
+    ox.save_graph_geopackage(G_network, filepath=gpkg_network)
+    print(f"GPKG Network saved to '{gpkg_network}'.")
+else:
+    def convert_yes_no(value):
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            if value.lower() == 'yes':
+                return True
+            if value.lower() == 'no':
+                return False
+        return value
+
+
+    # Specify data types for all relevant attributes
+    edge_dtypes = {
+        'oneway': convert_yes_no,
+        'bridge': convert_yes_no,
+        'tunnel': convert_yes_no,
+        'length': float,
+        'lanes': int,
+        'maxspeed': str,
+        'osmid': str
+    }
+
+    node_dtypes = {
+        'osmid': str,
+        'x': float,
+        'y': float
+    }
+
+    # Load the graph with custom data types
+    G_network = ox.load_graphml(
+        graphml_network,
+        edge_dtypes=edge_dtypes,
+        node_dtypes=node_dtypes
+    )
+
+# def clean_and_save_graph(G, output_file):
+#     """
+#     Clean the graph by removing problematic attributes and save to OSM/PBF
+#
+#     Args:
+#         G: NetworkX graph from OSMnx
+#         output_file: Path to save the output file
+#     """
+#     # Create a copy of the graph to avoid modifying the original
+#     G_clean = G.copy()
+#
+#     # Remove merged_edges attribute from all edges
+#     for u, v, k, data in G_clean.edges(keys=True, data=True):
+#         if 'merged_edges' in data:
+#             del data['merged_edges']
+#
+#     # Save to OSM
+#     ox.save_graph_xml(G_clean, filepath=output_file)
+
 
 # Save OSM Network
 osm_network = f'{file_prefix}_network.osm'
-save_graph_to_osm(G_network, filename=osm_network)
+ox.save_graph_xml(
+    G=G_network,
+    filepath=osm_network,
+    way_tag_aggs={
+        'length': 'sum',  # sum the lengths
+        'highway': lambda x: x.iloc[0],  # take the first value
+        'lanes': lambda x: x.iloc[0],
+        'maxspeed': lambda x: x.iloc[0],
+        'name': lambda x: x.iloc[0],
+        'oneway': lambda x: x.iloc[0],
+        'tunnel': lambda x: x.iloc[0],
+        'bridge': lambda x: x.iloc[0],
+        'osmid': lambda x: x.iloc[0]
+    },
+    encoding='utf-8'
+)
 print(f"OSM Network saved to '{osm_network}'.")
+
+# Convert to PBF using osmium
+pbf_path = f"{osm_network}.pbf"
+cmd = f"osmium cat {osm_network} -o {pbf_path} --overwrite --output-format pbf,compression=zlib"
+subprocess.run(cmd, shell=True)
 
 # Convert to PBF file
 # Basic conversion
@@ -236,4 +310,8 @@ print(f"OSM Network saved to '{osm_network}'.")
 
 # osmium cat sfbay_unclassified-0POPxKM2_residential-200POPxKM2_network.osm -o sfbay_unclassified-0POPxKM2_residential-200POPxKM2_network.osm.pbf --overwrite --output-format pbf,compression=zlib
 
-#
+# success = convert_osm_to_pbf(osm_network, f'{osm_network}.pbf')
+# if success:
+#     print(f"Conversion completed successfully and saved to {osm_network}.pbf")
+# else:
+#     print("Conversion failed")

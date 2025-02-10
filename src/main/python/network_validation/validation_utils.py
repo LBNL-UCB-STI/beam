@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pyarrow.csv as pv
-import os
 import osmnx as ox
+import os
 from typing import Tuple
 import contextily as ctx
 import networkx as nx
@@ -1287,3 +1287,49 @@ def convert_to_pbf(input_osm, output_pbf):
         print("Error: osmium not found. Install it with:")
         print("Ubuntu/Debian: sudo apt-get install osmium-tool")
         print("MacOS: brew install osmium-tool")
+
+
+import subprocess
+
+
+def convert_osm_to_pbf(input_file, output_file):
+    """
+    Converts an OSM file to PBF format using osmium.
+
+    Args:
+        input_file (str): Path to the input OSM file
+        output_file (str): Path to the output PBF file
+
+    Returns:
+        bool: True if successful, False if an error occurred
+    """
+    try:
+        command = [
+            'osmium',
+            'cat',
+            input_file,
+            '-o',
+            output_file,
+            '--overwrite',
+            '--output-format',
+            'pbf,compression=zlib',
+            '-x',  # Remove tags
+            'w/merged_edges',  # Remove merged_edges tag from ways
+            'n/merged_edges',  # Remove merged_edges tag from nodes
+            'r/merged_edges'  # Remove merged_edges tag from relations
+        ]
+
+        # Run the command and capture output
+        result = subprocess.run(command,
+                                capture_output=True,
+                                text=True,
+                                check=True)
+
+        return True
+
+    except subprocess.CalledProcessError as e:
+        print(f"Error running osmium command: {e.stderr}")
+        return False
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+        return False
