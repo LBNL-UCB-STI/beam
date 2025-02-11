@@ -1128,10 +1128,8 @@ def process_freight_restrictions(G: nx.MultiDiGraph, config: dict) -> nx.MultiDi
     mdv_max = weight_config["mdv_max"]
     hdv_max = weight_config["hdv_max"]
 
-    # Convert graph to GeoDataFrames while preserving MultiIndex
+    # Get graph data while preserving MultiIndex
     nodes, edges = ox.graph_to_gdfs(G)
-    original_index = edges.index
-    edges = edges.reset_index()
 
     # Copy HGV weight restrictions if present
     if "maxweight:hgv" in edges.columns:
@@ -1161,7 +1159,6 @@ def process_freight_restrictions(G: nx.MultiDiGraph, config: dict) -> nx.MultiDi
         edges.loc[no_restriction_mask, "vehicle_class"] = "ALL"
 
     # Convert back to MultiDiGraph
-    edges = edges.set_index(original_index)
     G_updated = ox.graph_from_gdfs(nodes, edges)
 
     return G_updated

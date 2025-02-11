@@ -210,7 +210,6 @@ def _add_ways_xml(
             try:
                 return agg_func(series)
             except Exception:
-                # If the function fails, fall back to first value
                 return series.iloc[0]
         elif isinstance(agg_func, str):
             if agg_func == 'first':
@@ -224,12 +223,25 @@ def _add_ways_xml(
                     return series.iloc[0]
         return series.iloc[0]
 
+    def create_way_attributes(edge_data):
+        """Safely create way attributes dictionary from edge data."""
+        attrs = {}
+        for k in way_attrs:
+            if k in edge_data:
+                val = edge_data[k]
+                if isinstance(val, (str, int, float)) and pd.notna(val):
+                    attrs[k] = str(val)
+                elif isinstance(val, pd.Series):
+                    if not val.isna().all():  # Check if all values are not NA
+                        attrs[k] = str(val.iloc[0])
+        return attrs
+
     # Handle different edge grouping for simplified vs unsimplified graphs
     if is_simplified:
         # For simplified graphs, each edge might represent multiple original ways
         for _, edge in gdf_edges.iterrows():
-            # Create way element
-            attrs = {k: str(edge[k]) for k in way_attrs if pd.notna(edge[k])}
+            # Create way element with safely created attributes
+            attrs = create_way_attributes(edge)
             way_element = SubElement(parent, "way", attrib=attrs)
 
             # Add nodes (including intermediate nodes from geometry)
@@ -248,12 +260,16 @@ def _add_ways_xml(
 
             # Add tags
             for tag in way_tags.intersection(edge.index):
-                if pd.notna(edge[tag]):
-                    _ = SubElement(way_element, "tag", attrib={"k": tag, "v": str(edge[tag])})
+                if isinstance(edge[tag], (str, int, float)):
+                    if pd.notna(edge[tag]):
+                        _ = SubElement(way_element, "tag", attrib={"k": tag, "v": str(edge[tag])})
+                elif isinstance(edge[tag], pd.Series):
+                    if not edge[tag].isna().all():
+                        _ = SubElement(way_element, "tag", attrib={"k": tag, "v": str(edge[tag].iloc[0])})
     else:
         # Original way handling for unsimplified graphs
         for osmid, way in gdf_edges.groupby("id"):
-            attrs = way[way_attrs].iloc[0].astype(str).to_dict()
+            attrs = create_way_attributes(way.iloc[0])
             way_element = SubElement(parent, "way", attrib=attrs)
 
             # Add nodes
