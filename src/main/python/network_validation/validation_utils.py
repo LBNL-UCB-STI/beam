@@ -1039,103 +1039,6 @@ def str_median(values):
     return int(median(numeric_values))
 
 
-def weight_conversion_map(self):
-    """
-    Returns weight conversion mapping based on country.
-    Reference: https://wiki.openstreetmap.org/wiki/Key:maxweight
-    """
-    return {
-        "US": {
-            "default_unit": "lbs",
-            "conversions": {
-                "lbs": 1.0,
-                "lb": 1.0,
-                "t": 2000.0,  # short tons to lbs
-                "st": 2000.0,  # short tons to lbs
-                "ton": 2000.0,
-                "tons": 2000.0,
-                "mt": 2204.62,  # metric tons to lbs
-            }
-        },
-        "GB": {  # United Kingdom
-            "default_unit": "kg",
-            "conversions": {
-                "t": 1000.0,  # metric tonnes to kg
-                "kg": 1.0,
-                "lbs": 0.453592,  # pounds to kg
-                "lb": 0.453592
-            }
-        },
-        "EU": {  # European Union
-            "default_unit": "kg",
-            "conversions": {
-                "t": 1000.0,  # metric tonnes to kg
-                "kg": 1.0,
-                "q": 100.0,  # quintals to kg
-            }
-        }
-    }
-
-
-def get_weight_in_standard_unit(weight_str: str, country_code: str) -> float:
-    """
-    Convert weight string to standard unit (lbs for US, kg for EU/UK)
-    """
-    if not weight_str or pd.isna(weight_str):
-        return 0
-
-    weight_str = str(weight_str).lower().strip()
-    if not weight_str:
-        return 0
-
-    try:
-        # Extract numeric value and unit
-        import re
-        match = re.match(r'^([\d.]+)\s*([\w\s]*)$', weight_str)
-        if not match:
-            print(f"Could not parse weight format: {weight_str}")
-            return 0
-
-        value = float(match.group(1))
-        unit = match.group(2).strip()
-
-        # Get country-specific conversion map
-        country = country_code.upper()
-        if country not in weight_conversion_map:
-            country = "EU"  # Default to EU if country not found
-
-        conv_map = weight_conversion_map[country]
-
-        # If no unit specified, use country's default unit
-        if not unit:
-            unit = conv_map["default_unit"]
-
-        # Convert to standard unit for the country
-        if unit in conv_map["conversions"]:
-            return value * conv_map["conversions"][unit]
-        else:
-            print(f"Unknown weight unit '{unit}' for country {country}")
-            return value  # Assume it's already in the standard unit
-
-    except ValueError:
-        print(f"Could not parse weight value: {weight_str}")
-        return 0
-
-
-def get_weight_limits_in_standard_unit(self) -> Tuple[float, float]:
-    """
-    Get MDV and HDV weight limits in country's standard unit
-    """
-    if self.country_code.upper() == "US":
-        return self.mdv_max_lbs, self.hdv_max_lbs
-    else:
-        # Convert lbs to kg for non-US countries
-        return (
-            self.mdv_max_lbs * 0.453592,  # lbs to kg
-            self.hdv_max_lbs * 0.453592
-        )
-
-
 def process_ferry_into_car_edges(car_graph, region_polygon) -> nx.MultiDiGraph:
     g_ferry = ox.graph_from_polygon(region_polygon, network_type="all", simplify=True,
                                     custom_filter='["route"="ferry"]["motor_vehicle"="yes"]', retain_all=True)
@@ -1158,11 +1061,72 @@ def process_ferry_into_car_edges(car_graph, region_polygon) -> nx.MultiDiGraph:
     return nx.compose_all([car_graph, g_ferry_reconstructed])
 
 
-def process_freight_restrictions(G: nx.MultiDiGraph, country_code="US") -> nx.MultiDiGraph:
+def convert_weight(value: float, from_unit: str, to_unit: str) -> float:
+    """Convert weight between different units."""
+    # Conversion factors
+    conversions = {
+        "lbs_to_kg": 0.453592,
+        "kg_to_lbs": 2.20462,
+        "tons_to_kg": 1000,
+        "kg_to_tons": 0.001
+    }
+
+    if from_unit == to_unit:
+        return value
+
+    conversion_key = f"{from_unit}_to_{to_unit}"
+    if conversion_key in conversions:
+        return value * conversions[conversion_key]
+
+    # Handle two-step conversions if needed
+    if from_unit == "lbs" and to_unit == "tons":
+        return value * conversions["lbs_to_kg"] * conversions["kg_to_tons"]
+    if from_unit == "tons" and to_unit == "lbs":
+        return value * conversions["tons_to_kg"] * conversions["kg_to_lbs"]
+
+    raise ValueError(f"Unsupported conversion from {from_unit} to {to_unit}")
+
+
+def get_weight_in_standard_unit(weight_str: str, target_unit: str) -> float:
+    """Convert weight string to numeric value in target unit."""
+    if pd.isna(weight_str):
+        return None
+
+    # Handle numeric-only strings (assume they're in target unit)
+    if str(weight_str).replace('.', '').isdigit():
+        return float(weight_str)
+
+    # Extract number and unit from string
+    import re
+    match = re.match(r'(\d+\.?\d*)\s*(tons?|t|kg|lbs?)', str(weight_str).lower())
+    if not match:
+        return None
+
+    value, unit = match.groups()
+    value = float(value)
+
+    # Standardize unit names
+    unit_mapping = {
+        't': 'tons',
+        'ton': 'tons',
+        'lb': 'lbs',
+        'kg': 'kg'
+    }
+    unit = unit_mapping.get(unit, unit)
+
+    # Convert to target unit
+    return convert_weight(value, unit, target_unit)
+
+
+def process_freight_restrictions(G: nx.MultiDiGraph, config: dict) -> nx.MultiDiGraph:
     """Process vehicle classifications based on FHWA weight classes."""
-    # https://afdc.energy.gov/data/10380
-    # https://wiki.openstreetmap.org/wiki/Key:maxweight#:~:text=In%20most%20of%20the%20United,but%20never%20as%20metric%20tons.
     print("Processing vehicle classifications...")
+
+    # Get weight limits and unit from config
+    weight_config = config["weight_limits"]
+    target_unit = weight_config["unit"]
+    mdv_max = weight_config["mdv_max"]
+    hdv_max = weight_config["hdv_max"]
 
     # Convert graph to GeoDataFrames while preserving MultiIndex
     nodes, edges = ox.graph_to_gdfs(G)
@@ -1176,41 +1140,31 @@ def process_freight_restrictions(G: nx.MultiDiGraph, country_code="US") -> nx.Mu
             edges.loc[hgv_mask, "maxweight"] = edges.loc[hgv_mask, "maxweight:hgv"].copy()
 
     if "maxweight" in edges.columns:
-        # Convert weights to standard unit for the country
-        numericWeight = edges["maxweight"].apply(
-            lambda x: get_weight_in_standard_unit(x, country_code)
+        # Convert weights to standard unit specified in config
+        edges["weight_numeric"] = edges["maxweight"].apply(
+            lambda x: get_weight_in_standard_unit(x, target_unit)
         )
 
-        # Get weight limits in the appropriate unit
-        mdv_max, hdv_max = get_weight_limits_in_standard_unit()
+        # Classify roads based on weight limits
+        edges["vehicle_class"] = None
 
-        # Check weight restrictions
-        mdvBannedByWeight = numericWeight <= mdv_max
-        hdvBannedByWeight = numericWeight <= hdv_max
-    else:
-        mdvBannedByWeight = pd.Series([False] * len(edges))
-        hdvBannedByWeight = pd.Series([False] * len(edges))
+        # Create weight classification masks
+        mdv_mask = edges["weight_numeric"].notna() & (edges["weight_numeric"] <= mdv_max)
+        hdv_mask = edges["weight_numeric"].notna() & (edges["weight_numeric"] <= hdv_max)
 
-    # Process vehicle access flags
-    hgvAllowedByDefault = edges.hgv.str.lower() != "no" if "hgv" in edges.columns else pd.Series(
-        [True] * len(edges))
-    longVehiclesBanned = ~edges.maxlength.isna() if "maxlength" in edges.columns else pd.Series(
-        [False] * len(edges))
+        # Apply classifications
+        edges.loc[mdv_mask, "vehicle_class"] = "MDV"
+        edges.loc[hdv_mask, "vehicle_class"] = "HDV"
 
-    # Set final vehicle access flags
-    hgv = hgvAllowedByDefault & ~hdvBannedByWeight & ~longVehiclesBanned
-    mdv = hgvAllowedByDefault & ~mdvBannedByWeight
+        # Roads with no weight restrictions are assumed to be accessible to all vehicles
+        no_restriction_mask = edges["weight_numeric"].isna()
+        edges.loc[no_restriction_mask, "vehicle_class"] = "ALL"
 
-    edges["hgv"] = hgv
-    edges["mdv"] = mdv
+    # Convert back to MultiDiGraph
+    edges = edges.set_index(original_index)
+    G_updated = ox.graph_from_gdfs(nodes, edges)
 
-    # Restore the original MultiIndex
-    edges = edges.set_index(original_index.names)
-
-    # Convert back to graph
-    G = ox.graph_from_gdfs(nodes, edges, graph_attrs=G.graph)
-
-    return G
+    return G_updated
 
 
 def save_graph_to_osm(G, filename="output.osm"):

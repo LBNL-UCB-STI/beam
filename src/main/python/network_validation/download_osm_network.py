@@ -60,7 +60,7 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
         graphs.append(G)
 
     g_combined = nx.compose_all(graphs)
-    g_with_ft_restrictions = process_freight_restrictions(g_combined, _study_area_config["country_code"])
+    g_with_ft_restrictions = process_freight_restrictions(g_combined, _study_area_config)
 
     if _study_area_config["connect_islands"]:
         region_counties_geo = (
@@ -86,25 +86,25 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
     g_wgs84 = ox.project_graph(g_with_speeds, to_crs="epsg:4326")
     g_connected = ox.truncate.largest_component(g_wgs84.copy())
 
-    # nodes_1, edges_1 = ox.graph_to_gdfs(g_completed_network)
-    # g_simplified = ox.simplification.simplify_graph(
-    #     g_completed_network,
-    #     edge_attrs_differ=["highway", "lanes", "maxspeed"],
-    #     remove_rings=False,
-    #     track_merged=True,
-    #     edge_attr_aggs={
-    #         "length": sum,
-    #         "travel_time": sum,
-    #         "lanes": str_median,
-    #         "hgv": min,
-    #         "mdv": min
-    #     }
-    # )
-    # nodes_2, edges_2 = ox.graph_to_gdfs(g_simplified)
-    # print(f'Nodes: #{len(nodes_2)} — deleted #{len(nodes_1) - len(nodes_2)} nodes')
-    # print(f'Edges: #{len(edges_2)} — deleted #{len(edges_1) - len(edges_2)} edges')
+    nodes_1, edges_1 = ox.graph_to_gdfs(g_connected)
+    g_simplified = ox.simplification.simplify_graph(
+        g_connected,
+        edge_attrs_differ=["highway", "lanes", "maxspeed"],
+        remove_rings=False,
+        track_merged=True,
+        edge_attr_aggs={
+            "length": sum,
+            "travel_time": sum,
+            "lanes": str_median,
+            "hgv": min,
+            "mdv": min
+        }
+    )
+    nodes_2, edges_2 = ox.graph_to_gdfs(g_simplified)
+    print(f'Nodes: #{len(nodes_2)} — deleted #{len(nodes_1) - len(nodes_2)} nodes')
+    print(f'Edges: #{len(edges_2)} — deleted #{len(edges_1) - len(edges_2)} edges')
 
-    return g_connected
+    return g_simplified
 
 
 def generate_config_name(config: dict) -> str:
@@ -154,7 +154,13 @@ study_area_config = {
     "census_year": 2018,
     "study_area_crs": 26910,  # NAD83 / UTM zone 10N
     "connect_islands": False,  # Links disconnected islands relying on motor vehicle ferry using a virtual car link
-    "country_code": "US",
+
+    # Vehicle weight classifications (FHWA)
+    "weight_limits": {
+        "unit": "lbs",
+        "mdv_max": 26000,  # Upper limit for Medium Duty Vehicles (Class 3-6) in pounds
+        "hdv_max": 80000,  # Upper limit for Heavy Duty Vehicles (Class 7-8) in pounds
+    },
 
     # Density thresholds and corresponding network filters
     "density_levels": {

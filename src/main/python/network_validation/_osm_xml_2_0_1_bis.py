@@ -204,6 +204,26 @@ def _add_ways_xml(
     way_tags = set(settings.useful_tags_way)
     way_attrs = list({"id"}.union(_osm_xml.ATTR_DEFAULTS))
 
+    def safe_aggregate(series, agg_func):
+        """Safely aggregate a series using the specified function."""
+        if callable(agg_func):
+            try:
+                return agg_func(series)
+            except Exception:
+                # If the function fails, fall back to first value
+                return series.iloc[0]
+        elif isinstance(agg_func, str):
+            if agg_func == 'first':
+                return series.iloc[0]
+            elif agg_func == 'last':
+                return series.iloc[-1]
+            else:
+                try:
+                    return series.agg(agg_func)
+                except Exception:
+                    return series.iloc[0]
+        return series.iloc[0]
+
     # Handle different edge grouping for simplified vs unsimplified graphs
     if is_simplified:
         # For simplified graphs, each edge might represent multiple original ways
@@ -247,9 +267,11 @@ def _add_ways_xml(
 
             # Add tags
             for tag in way_tags.intersection(way.columns):
+                # Handle tag aggregation with safe_aggregate function
                 if way_tag_aggs is not None and tag in way_tag_aggs:
-                    value = way[tag].agg(way_tag_aggs[tag])
+                    value = safe_aggregate(way[tag], way_tag_aggs[tag])
                 else:
                     value = way[tag].iloc[0]
+
                 if pd.notna(value):
                     _ = SubElement(way_element, "tag", attrib={"k": tag, "v": str(value)})
