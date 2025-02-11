@@ -2,12 +2,13 @@
 """
 @author: haitamlaarabi
 """
-from validation_utils import *
-from _osm_xml_2_0_1_bis import _save_graph_xml
-from osmnx import settings
-from osmnx import truncate
 import pickle
 import subprocess
+
+from osmnx import settings
+from osmnx import truncate
+
+from validation_utils import *
 
 
 #########################
@@ -60,7 +61,9 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
         graphs.append(G)
 
     g_combined = nx.compose_all(graphs)
-    g_with_ft_restrictions = process_freight_restrictions(g_combined, _study_area_config)
+    g_projected = ox.project_graph(g_combined, to_crs=_study_area_config["study_area_crs"]).copy()
+    g_with_speeds = ox.add_edge_speeds(g_projected)
+    g_with_ft_restrictions = process_freight_restrictions(g_with_speeds, _study_area_config)
 
     if _study_area_config["connect_islands"]:
         region_counties_geo = (
@@ -82,29 +85,34 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
     else:
         g_completed_network = g_with_ft_restrictions
 
-    g_with_speeds = ox.add_edge_speeds(g_completed_network)
-    g_wgs84 = ox.project_graph(g_with_speeds, to_crs="epsg:4326")
-    g_connected = ox.truncate.largest_component(g_wgs84.copy())
+    g_consolidated = ox.consolidate_intersections(
+        g_completed_network,
+        tolerance=2,
+        rebuild_graph=True,
+        dead_ends=True,
+        reconnect_edges=True
+    )
+    # Update length
+    nodes, edges = ox.graph_to_gdfs(g_consolidated)
+    edges['length'] = edges['geometry'].length
+    g_length_updated = ox.graph_from_gdfs(nodes, edges, graph_attrs=g_consolidated.graph)
 
-    nodes_1, edges_1 = ox.graph_to_gdfs(g_connected)
+    # Simplify
+    nodes_1, edges_1 = ox.graph_to_gdfs(g_length_updated)
     g_simplified = ox.simplification.simplify_graph(
-        g_connected,
+        g_length_updated,
         edge_attrs_differ=["highway", "lanes", "maxspeed"],
         remove_rings=False,
-        track_merged=True,
-        edge_attr_aggs={
-            "length": sum,
-            "travel_time": sum,
-            "lanes": str_median,
-            "hgv": min,
-            "mdv": min
-        }
+        track_merged=True
     )
     nodes_2, edges_2 = ox.graph_to_gdfs(g_simplified)
     print(f'Nodes: #{len(nodes_2)} — deleted #{len(nodes_1) - len(nodes_2)} nodes')
     print(f'Edges: #{len(edges_2)} — deleted #{len(edges_1) - len(edges_2)} edges')
 
-    return g_simplified
+    g_wgs84 = ox.project_graph(g_simplified, to_crs="epsg:4326")
+    g_connected = ox.truncate.largest_component(g_wgs84.copy())
+
+    return g_connected
 
 
 def generate_config_name(config: dict) -> str:
@@ -206,25 +214,25 @@ graphml_network = f'{file_prefix}_network.graphml'
 
 if not os.path.exists(graphml_network):
     print(f'Downloading and preparing OSM-based {config_name} network...')
-    G_network = download_and_prepare_osm_network(study_area_config)
+    g_network = download_and_prepare_osm_network(study_area_config)
 
-    ox.save_graphml(G_network, filepath=graphml_network)
+    ox.save_graphml(g_network, filepath=graphml_network)
     print(f"GRAPHML Network saved to '{graphml_network}'.")
 
     # Save PKL Network
     pkl_network = f'{file_prefix}_network.pkl'
     with open(pkl_network, 'wb') as f:
-        pickle.dump(G_network, f)
+        pickle.dump(g_network, f)
     print(f"PKL Network saved to '{pkl_network}'.")
 
     # Save PNG Network
     png_network = f'{file_prefix}_network.png'
-    plot(G_network, png_network)
+    plot(g_network, png_network)
     print(f"PNG Network saved to '{png_network}'.")
 
     # Save GPKG Network
     gpkg_network = f'{file_prefix}_network.gpkg'
-    ox.save_graph_geopackage(G_network, filepath=gpkg_network)
+    ox.save_graph_geopackage(g_network, filepath=gpkg_network)
     print(f"GPKG Network saved to '{gpkg_network}'.")
 else:
     def convert_yes_no(value):
@@ -256,69 +264,22 @@ else:
     }
 
     # Load the graph with custom data types
-    G_network = ox.load_graphml(
+    g_network = ox.load_graphml(
         graphml_network,
         edge_dtypes=edge_dtypes,
         node_dtypes=node_dtypes
     )
 
-# def clean_and_save_graph(G, output_file):
-#     """
-#     Clean the graph by removing problematic attributes and save to OSM/PBF
-#
-#     Args:
-#         G: NetworkX graph from OSMnx
-#         output_file: Path to save the output file
-#     """
-#     # Create a copy of the graph to avoid modifying the original
-#     G_clean = G.copy()
-#
-#     # Remove merged_edges attribute from all edges
-#     for u, v, k, data in G_clean.edges(keys=True, data=True):
-#         if 'merged_edges' in data:
-#             del data['merged_edges']
-#
-#     # Save to OSM
-#     ox.save_graph_xml(G_clean, filepath=output_file)
-
-
 # Save OSM Network
 osm_network = f'{file_prefix}_network.osm'
-_save_graph_xml(
-    G=G_network,
-    filepath=osm_network,
-    way_tag_aggs={
-        'length': 'sum',  # sum the lengths
-        'highway': 'first',  # take the first value
-        'lanes': 'first',
-        'maxspeed': 'first',
-        'name': 'first',
-        'oneway': 'first',
-        'tunnel': 'first',
-        'bridge': 'first',
-        'osmid': 'first'
-    },
-    encoding='utf-8'
-)
+nodes, edges = ox.graph_to_gdfs(g_network)
+edges = edges.drop(['name', 'ref', 'reversed', 'geometry', 'u_original', 'v_original', 'bridge', 'merged_edges'],
+                   axis=1, errors='ignore')
+G_final = ox.graph_from_gdfs(nodes, edges, graph_attrs=g_network.graph)
+save_graph_to_osm(G_final, filename=osm_network)
 print(f"OSM Network saved to '{osm_network}'.")
 
 # Convert to PBF using osmium
 pbf_path = f"{osm_network}.pbf"
 cmd = f"osmium cat {osm_network} -o {pbf_path} --overwrite --output-format pbf,compression=zlib"
 subprocess.run(cmd, shell=True)
-
-# Convert to PBF file
-# Basic conversion
-# osmium cat input.osm -o output.osm.pbf
-# With compression (smaller file size)
-# osmium cat input.osm -o output.osm.pbf --overwrite --output-format pbf,compression=zlib
-# With additional options
-# osmium cat input.osm -o output.osm.pbf --overwrite --progress
-
-# osmium cat sfbay_unclassified-0POPxKM2_residential-200POPxKM2_network.osm -o sfbay_unclassified-0POPxKM2_residential-200POPxKM2_network.osm.pbf --overwrite --output-format pbf,compression=zlib
-
-# success = convert_osm_to_pbf(osm_network, f'{osm_network}.pbf')
-# if success:
-#     print(f"Conversion completed successfully and saved to {osm_network}.pbf")
-# else:
-#     print("Conversion failed")
