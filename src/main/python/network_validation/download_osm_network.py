@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-@author: haitamlaarabi
+@author: haitamlaarabi, cristian.poliziani, zaneedell
 """
 import pickle
 import subprocess
+import hashlib
 
 from osmnx import settings
 from osmnx import truncate
@@ -14,6 +15,98 @@ from validation_utils import *
 #########################
 ######## METHODS ########
 #########################
+
+def shorten_osmid(osmid):
+    # Convert osmid to string if it isn't already
+    osmid_str = str(osmid)
+    # Create a hash of the osmid
+    hash_object = hashlib.md5(osmid_str.encode())
+    # Get first 8 characters of the hash
+    short_id = hash_object.hexdigest()[:8]
+    return short_id
+
+
+def find_long_tags_in_gdf(gdf, element_type="elements"):
+    """
+    Find columns and combinations of attributes that exceed 250 characters in a GeoDataFrame.
+
+    Parameters:
+    -----------
+    gdf : GeoDataFrame
+        The input GeoDataFrame (can be either nodes or edges)
+    element_type : str, optional
+        The type of elements being analyzed ("nodes" or "edges") for output messages
+
+    Returns:
+    --------
+    tuple
+        (long_tags, long_comb_tags) where:
+        - long_tags: dict of individual columns with values >= 250 characters
+        - long_comb_tags: dict of rows with combined attribute length >= 250 characters
+    """
+    print(f"\nAnalyzing {element_type}...")
+
+    # Find individual columns with values longer than 250 characters
+    long_tags = {}
+    for column in gdf.columns:
+        # Convert all values to strings and check their lengths
+        max_length = gdf[column].astype(str).str.len().max()
+        if max_length >= 250:
+            long_tags[column] = max_length
+
+    # Print results for individual columns
+    if long_tags:
+        print(f"\nIndividual {element_type} columns with values >= 250 characters:")
+        for column, length in long_tags.items():
+            print(f"Column '{column}': max length = {length} characters")
+            # Print an example of a long value
+            long_value_idx = gdf[column].astype(str).str.len().idxmax()
+            print(f"Example long value: {gdf[column].iloc[long_value_idx]}\n")
+    else:
+        print(f"No individual {element_type} columns found with values >= 250 characters")
+
+    # Find combinations of attributes that exceed 250 characters
+    print(f"\nChecking {element_type} attribute combinations...")
+    # Get all rows where any combination of attributes might be long
+    long_comb_tags = {}
+    for idx, row in gdf.iterrows():
+        comb_length = 0
+        contributing_cols = []
+
+        for col in gdf.columns:
+            value = str(row[col])
+            if len(value) > 0 and value.lower() != 'nan':  # Skip empty or NaN values
+                value_length = len(value)
+                comb_length += value_length
+                if value_length > 0:  # Only add if the value has length
+                    contributing_cols.append({
+                        'column': col,
+                        'length': value_length,
+                        'value': value
+                    })
+
+        if comb_length >= 250:
+            long_comb_tags[idx] = {
+                'total_length': comb_length,
+                'contributing_columns': contributing_cols
+            }
+
+    # Print results for combinations
+    if long_comb_tags:
+        print(f"\n{element_type.capitalize()} rows with combined attribute length >= 250 characters:")
+        for idx, info in long_comb_tags.items():
+            print(f"\nRow {idx}:")
+            print(f"Total combined length: {info['total_length']} characters")
+            print("Contributing columns:")
+            for col_info in info['contributing_columns']:
+                print(f"- {col_info['column']}: length={col_info['length']} chars")
+                if col_info['length'] > 50:  # Show value only if it's significantly long
+                    print(f"  Value: {col_info['value'][:50]}...")  # Show first 50 chars
+    else:
+        print(f"No combinations of {element_type} attributes found exceeding 250 characters")
+
+    return long_tags, long_comb_tags
+
 
 def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGraph:
     # Apply OSMNX settings
@@ -157,7 +250,7 @@ study_area_config = {
     # Geographic settings
     "study_area": "sfbay",
     "state_fips": "06",
-    "county_fips": ["041"],
+    "county_fips": ['001', '013', '041', '055', '075', '081', '085', '095', '097', '087', '113'],
     # ['001', '013', '041', '055', '075', '081', '085', '095', '097', '087', '113'],  # ["041", "075"]
     "census_year": 2018,
     "study_area_crs": 26910,  # NAD83 / UTM zone 10N
@@ -229,11 +322,6 @@ if not os.path.exists(graphml_network):
     png_network = f'{file_prefix}_network.png'
     plot(g_network, png_network)
     print(f"PNG Network saved to '{png_network}'.")
-
-    # Save GPKG Network
-    gpkg_network = f'{file_prefix}_network.gpkg'
-    ox.save_graph_geopackage(g_network, filepath=gpkg_network)
-    print(f"GPKG Network saved to '{gpkg_network}'.")
 else:
     def convert_yes_no(value):
         if isinstance(value, bool):
@@ -248,9 +336,9 @@ else:
 
     # Specify data types for all relevant attributes
     edge_dtypes = {
-        'oneway': convert_yes_no,
-        'bridge': convert_yes_no,
-        'tunnel': convert_yes_no,
+        'oneway': str,
+        'bridge': str,
+        'tunnel': str,
         'length': float,
         'lanes': int,
         'maxspeed': str,
@@ -270,16 +358,31 @@ else:
         node_dtypes=node_dtypes
     )
 
+# Cleaning edges
+nodes, edges = ox.graph_to_gdfs(g_network)
+# Create a mapping of original to shortened IDs (if you need to reference back)
+osmid_mapping = {}
+edges['osmid_hash'] = edges['osmid'].apply(lambda x: shorten_osmid(x))
+nodes['osmid_hash'] = nodes['osmid_original'].apply(lambda x: shorten_osmid(x))
+g_hashed = ox.graph_from_gdfs(nodes, edges)
+
+# Save GPKG Network with OSM IDs hashed
+gpkg_network = f'{file_prefix}_network.gpkg'
+ox.save_graph_geopackage(g_hashed, filepath=gpkg_network)
+print(f"GPKG Network saved to '{gpkg_network}'.")
+
 # Save OSM Network
 osm_network = f'{file_prefix}_network.osm'
-nodes, edges = ox.graph_to_gdfs(g_network)
-edges = edges.drop(['name', 'ref', 'reversed', 'geometry', 'u_original', 'v_original', 'bridge', 'merged_edges'],
-                   axis=1, errors='ignore')
-G_final = ox.graph_from_gdfs(nodes, edges, graph_attrs=g_network.graph)
-save_graph_to_osm(G_final, filename=osm_network)
+nodes, edges = ox.graph_to_gdfs(g_hashed)
+edges = edges.drop(['geometry', 'u_original', 'v_original', 'merged_edges', 'osmid'], axis=1, errors='ignore')
+nodes = nodes.drop(['osmid_original'], axis=1, errors='ignore')
+g_osm = ox.graph_from_gdfs(nodes, edges, graph_attrs=g_hashed.graph)
+save_graph_to_osm(g_osm, filename=osm_network)
 print(f"OSM Network saved to '{osm_network}'.")
 
 # Convert to PBF using osmium
 pbf_path = f"{osm_network}.pbf"
+# cmd = f"osmium cat {osm_network} -o {pbf_path} --overwrite --output-format pbf,compression=zlib"
 cmd = f"osmium cat {osm_network} -o {pbf_path} --overwrite --output-format pbf,compression=zlib"
 subprocess.run(cmd, shell=True)
+# osmium cat sfbay-unclassified-partiallysimplified-unprojected-sfres.osm -o sfbay-unclassified-partiallysimplified-unprojected-sfres.osm.pbf

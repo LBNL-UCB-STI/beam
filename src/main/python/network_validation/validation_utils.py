@@ -1159,9 +1159,9 @@ def process_freight_restrictions(G: nx.MultiDiGraph, config: dict) -> nx.MultiDi
         edges.loc[no_restriction_mask, "vehicle_class"] = "ALL"
 
     # Convert back to MultiDiGraph
-    G_updated = ox.graph_from_gdfs(nodes, edges)
+    g_updated = ox.graph_from_gdfs(nodes, edges)
 
-    return G_updated
+    return g_updated
 
 
 def save_graph_to_osm(G, filename="output.osm"):
