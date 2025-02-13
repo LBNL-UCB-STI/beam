@@ -7,13 +7,11 @@ import pandas as pd
 import pyarrow.csv as pv
 import osmnx as ox
 import os
-from typing import Tuple
 import contextily as ctx
 import networkx as nx
 from statistics import median
 import xml.etree.ElementTree as ET
-from pathlib import Path
-from xml.etree.ElementTree import Element, SubElement, ElementTree
+import seaborn as sns
 
 plt.style.use('ggplot')
 meter_to_mile = 0.000621371
@@ -1213,3 +1211,205 @@ def save_graph_to_osm(G, filename="output.osm"):
         way_id -= 1
 
     ET.ElementTree(root).write(filename, encoding="utf-8", xml_declaration=True)
+
+
+def read_events(event_file, veh_types_file, batch, scenario):
+    events = pd.read_csv(event_file)
+    events['batch'] = batch
+    events['scenario'] = scenario
+    # Merge with vehicle types
+    veh_types = pd.read_csv(veh_types_file)
+    events_veh_types = events.merge(
+        veh_types[['vehicleTypeId', 'vehicleCategory', 'primaryFuelType', 'secondaryFuelType']],
+        left_on='vehicleType',
+        right_on='vehicleTypeId'
+    )
+    return events_veh_types
+
+
+def get_ft_path_traversals(_events):
+    columns = ['time', 'type', 'vehicleType', 'vehicle', 'secondaryFuelLevel',
+               'primaryFuelLevel', 'driver', 'mode', 'seatingCapacity', 'startX',
+               'startY', 'endX', 'endY', 'capacity', 'arrivalTime', 'departureTime',
+               'secondaryFuel', 'secondaryFuelType', 'primaryFuelType',
+               'numPassengers', 'length', 'primaryFuel', 'runName', 'runLabel']
+
+    # Filter path traversals
+    pt = _events[_events['type'] == 'PathTraversal'].copy()
+    pt = pt[pt['vehicle'].str.startswith('freight', na=False)]
+    pt = pt[columns]
+
+    if pt[pt['vehicle'].str.contains('-emergency-', na=False)].shape[0] > 0:
+        print("This is a bug")
+
+    # Set energy type and codes
+    pt.loc[pt['vehicleType'].str.contains('E-PHEV', case=False, na=False), 'energyType'] = 'Electric'
+    pt.loc[pt['vehicleType'].str.contains('E-PHEV', case=False, na=False), 'energyTypeCode'] = 'PHEV'
+    pt.loc[pt['vehicleType'].str.contains('H2FC', case=False, na=False), 'energyType'] = 'Hydrogen'
+    pt.loc[pt['vehicleType'].str.contains('H2FC', case=False, na=False), 'energyTypeCode'] = 'H2FC'
+
+    # Set vehicle categories
+    pt['vehicleCategory'] = 'Class 4-6 Vocational'
+    pt.loc[pt['vehicleType'].str.contains('-hdt-', na=False), 'vehicleCategory'] = 'Class 7&8 Tractor'
+    pt.loc[pt['vehicleType'].str.contains('-hdv-', na=False), 'vehicleCategory'] = 'Class 7&8 Vocational'
+
+    # Set business type
+    pt['business'] = 'B2B'
+    pt.loc[pt['vehicle'].str.startswith('freightVehicle-b2c-', na=False), 'business'] = 'B2C'
+
+    print("PT formatted")
+    return pt
+
+
+def average_speed_vector(distances, speeds):
+    """Calculate average speed for vectors of distances and speeds"""
+    if any(speed == 0 for speed in speeds):
+        raise ValueError("Speeds must be non-zero.")
+
+    total_distance = sum(distances)
+    total_time = sum(d / s for d, s in zip(distances, speeds))
+
+    return total_distance / total_time
+
+
+def process_ft_path_traversals(_runs, _batch, _output_dir, _expansion_factor):
+    # Calculate summary statistics
+    runs_summary = _runs[_runs["batch"] == _batch].groupby(
+        ['energyTypeCode', 'vehicleClass', 'business', 'batch', 'scenario']
+    ).agg({
+        'length': lambda x: _expansion_factor * sum(x / 1609.344) / 1e6,  # MVMT
+        'primaryFuel': lambda x: _expansion_factor * sum(x / 3.6e12)  # GWH
+    }).reset_index()
+
+    runs_summary.columns = ['energyTypeCode', 'vehicleClass', 'business', 'runLabel', 'MVMT', 'GWH']
+
+    # Create energy and vehicles types column
+    runs_summary['energyAndVehiclesTypes'] = runs_summary['energyTypeCode'] + ' ' + runs_summary['vehicleClass']
+
+    # Convert to categorical with specified order
+    runs_summary['energyAndVehiclesTypes'] = pd.Categorical(
+        runs_summary['energyAndVehiclesTypes'],
+        categories=[
+            "Diesel Class 4-6 Vocational",
+            "Diesel Class 7&8 Vocational",
+            "Diesel Class 7&8 Tractor",
+            "BEV Class 7&8 Vocational"
+        ]
+    )
+
+    # Save summary to CSV
+    runs_summary.to_csv(
+        os.path.join(_output_dir, f"{_batch}_VMT-and-GWH-by-powertrain-class.csv"),
+        index=False
+    )
+
+    plot_results(runs_summary,
+                 validation,
+                 ["azure3", "darkgray", "azure4", "deepskyblue2"],
+                 _output_dir,
+                 _batch)
+
+    return runs_summary
+
+
+def read_vmt_frm_hpms(hpms_geo_file, study_area_geoid):
+    # Read and process HPMS data
+    link_aadt = gpd.read_file(hpms_geo_file)
+    link_aadt = link_aadt[link_aadt['GEOID'].str.startswith(study_area_geoid)]
+    """Calculate HPMS AADT statistics"""
+    link_aadt = link_aadt.copy()
+    link_aadt['Volume_hpms'] = link_aadt['AADT_Combi'] + link_aadt['AADT_Singl']
+    link_aadt['VMT_hpms'] = link_aadt['Volume_hpms'] * link_aadt.geometry.length / 1609.0
+
+    vmt_hpms = link_aadt['VMT_hpms'].sum()
+
+    # Calculate HPMS components
+    vmt_hpms_international = (vmt_hpms * 0.22) / 1e6
+    vmt_hpms_through_traffic = (vmt_hpms * 0.1) / 1e6
+    vmt_hpms_national = (vmt_hpms * 0.68) / 1e6
+
+    # Create validation DataFrame
+    validation = pd.DataFrame({
+        'label': ['HPMS'] * 3,
+        'source': ['National', 'International', 'Through Traffic'],
+        'MVMT': [vmt_hpms_national, vmt_hpms_international, vmt_hpms_through_traffic]
+    })
+
+    validation['source'] = pd.Categorical(
+        validation['source'],
+        categories=['Through Traffic', 'International', 'National']
+    )
+
+    return validation
+
+
+def validate_vmt(baseline_summary, work_dir):
+    # Read and process HPMS data
+    link_aadt = gpd.read_file(os.path.join(work_dir, "validation_data/HPMS/WA_HPMS_with_GEOID_LANEMILE.geojson"))
+    link_aadt = link_aadt[link_aadt['GEOID'].str.startswith(('53061', '53033', '53035', '53053'))]
+    link_aadt_dt = get_hpms_aadt(link_aadt)
+
+    vmt_hpms = link_aadt_dt['VMT_hpms'].sum()
+    beam_baseline = baseline_summary[baseline_summary['runLabel'] == "Baseline"]['MVMT'].sum()
+
+    # Calculate HPMS components
+    vmt_hpms_international = (vmt_hpms * 0.22) / 1e6
+    vmt_hpms_through_traffic = (vmt_hpms * 0.1) / 1e6
+    vmt_hpms_national = (vmt_hpms * 0.68) / 1e6
+
+    # Create validation DataFrame
+    validation = pd.DataFrame({
+        'label': ['FAMOS'] * 3 + ['HPMS'] * 3,
+        'source': ['National', 'International', 'Through Traffic'] * 2,
+        'MVMT': [beam_baseline, 0.0, 0.0, vmt_hpms_national, vmt_hpms_international, vmt_hpms_through_traffic]
+    })
+
+    validation['source'] = pd.Categorical(
+        validation['source'],
+        categories=['Through Traffic', 'International', 'National']
+    )
+
+    return validation
+
+
+def plot_results(baseline_summary, validation, baseline_summary_colors, baseline_output_dir, baseline_runs_name):
+    # Plot VMT validation
+    plt.figure(figsize=(7, 4))
+    sns.barplot(data=validation, x='label', y='MVMT', hue='source')
+    plt.title('Total VMT')
+    plt.xlabel('Source')
+    plt.ylabel('Million VMT')
+    plt.savefig(os.path.join(baseline_output_dir, f"{baseline_runs_name}_vmt_validation.png"))
+    plt.close()
+
+    # Plot VMT by powertrain class
+    plt.figure(figsize=(7, 4))
+    g = sns.barplot(
+        data=baseline_summary,
+        x='runLabel',
+        y='MVMT',
+        hue='energyAndVehiclesTypes',
+        palette=baseline_summary_colors
+    )
+    plt.title('Total Truck Travel - Baseline')
+    plt.xlabel('Scenario')
+    plt.ylabel('VMT')
+    plt.xticks(rotation=0)
+    plt.savefig(os.path.join(baseline_output_dir, f"{baseline_runs_name}_VMT-by-powertrain-class.png"))
+    plt.close()
+
+    # Plot Energy consumption
+    plt.figure(figsize=(7, 4))
+    g = sns.barplot(
+        data=baseline_summary,
+        x='runLabel',
+        y='GWH',
+        hue='energyAndVehiclesTypes',
+        palette=baseline_summary_colors
+    )
+    plt.title('Energy Consumption - Baseline')
+    plt.xlabel('Scenario')
+    plt.ylabel('GWh')
+    plt.xticks(rotation=0)
+    plt.savefig(os.path.join(baseline_output_dir, f"{baseline_runs_name}_GWH-by-powertrain-class.png"))
+    plt.close()
