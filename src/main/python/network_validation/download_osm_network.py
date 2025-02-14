@@ -109,15 +109,23 @@ def find_long_tags_in_gdf(gdf, element_type="elements"):
 
 
 def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGraph:
+    print("\n=== Starting OSM Network Download and Preparation ===")
+
     # Apply OSMNX settings
+    print("\nApplying OSMNX settings...")
     for setting, value in _study_area_config["osmnx_settings"].items():
         setattr(ox.settings, setting, value)
+    print("✓ OSMNX settings applied")
 
     # List to store the graphs
     graphs = []
+    print(f"\nProcessing {len(_study_area_config['density_levels'])} density levels...")
 
     # For each density level
     for level, params in _study_area_config["density_levels"].items():
+        print(f"\n--- Processing {level} density level ---")
+        print(f"Minimum density: {params['min_density_per_km2']} pop/km²")
+
         # Create density-specific paths
         densely_populated_tracts_geo = (
             f"{_study_area_config['work_dir']}/{_study_area_config['study_area']}"
@@ -125,9 +133,12 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
         )
 
         # Get boundaries for this density level
+        print("Loading tract boundaries...")
         if os.path.exists(densely_populated_tracts_geo):
             densely_populated_tracts = gpd.read_file(densely_populated_tracts_geo)
+            print("✓ Loaded existing tract boundaries")
         else:
+            print("Collecting dense tract boundaries...")
             densely_populated_tracts = collect_dense_tract_boundaries(
                 state_fips_code=_study_area_config["state_fips"],
                 county_fips_codes=_study_area_config["county_fips"],
@@ -136,11 +147,15 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
                 projected_coordinate_system=_study_area_config["study_area_crs"],
                 min_density_per_km2=params["min_density_per_km2"]
             )
+            print("✓ Created new tract boundaries")
 
         # Create polygon for network extraction
+        print("Creating unified polygon...")
         densely_populated_polygon = densely_populated_tracts.geometry.union_all()
+        print("✓ Created unified polygon")
 
         # Download OSM Network for this density level
+        print(f"Downloading OSM network with filter: {params['custom_filter']}")
         G = ox.graph_from_polygon(
             densely_populated_polygon,
             network_type="drive",
@@ -149,22 +164,39 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
             truncate_by_edge=True,
             custom_filter=params["custom_filter"]
         )
+        print(f"✓ Downloaded network with {G.number_of_nodes()} nodes and {G.number_of_edges()} edges")
 
         # Add the graph to the list
         graphs.append(G)
 
+    print("\n=== Processing Combined Network ===")
+
+    print("Combining all density level networks...")
     g_combined = nx.compose_all(graphs)
+    print(f"✓ Combined network has {g_combined.number_of_nodes()} nodes and {g_combined.number_of_edges()} edges")
+
+    print("\nProjecting network...")
     g_projected = ox.project_graph(g_combined, to_crs=_study_area_config["study_area_crs"]).copy()
+    print("✓ Network projected")
+
+    print("\nAdding edge speeds...")
     g_with_speeds = ox.add_edge_speeds(g_projected)
+    print("✓ Edge speeds added")
+
+    print("\nProcessing freight restrictions...")
     g_with_ft_restrictions = process_freight_restrictions(g_with_speeds, _study_area_config)
+    print("✓ Freight restrictions processed")
 
     if _study_area_config["connect_islands"]:
+        print("\nProcessing island connections...")
         region_counties_geo = (
             f"{_study_area_config['work_dir']}/{_study_area_config['study_area']}_counties_wgs84.geojson"
         )
         if os.path.exists(region_counties_geo):
             region_boundary_wgs84 = gpd.read_file(region_counties_geo)
+            print("✓ Loaded existing county boundaries")
         else:
+            print("Collecting geographic boundaries...")
             region_boundary_wgs84 = collect_geographic_boundaries(
                 state_fips_code=_study_area_config["state_fips"],
                 county_fips_codes=_study_area_config["county_fips"],
@@ -172,12 +204,15 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
                 study_area_geo_path=region_counties_geo,
                 projected_coordinate_system=_study_area_config["study_area_crs"],
                 geo_level="county")
+            print("✓ Created new county boundaries")
 
         g_completed_network = process_ferry_into_car_edges(g_with_ft_restrictions,
                                                            region_boundary_wgs84.geometry.union_all())
+        print("✓ Ferry connections processed")
     else:
         g_completed_network = g_with_ft_restrictions
 
+    print("\nConsolidating intersections...")
     g_consolidated = ox.consolidate_intersections(
         g_completed_network,
         tolerance=2,
@@ -185,31 +220,39 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
         dead_ends=True,
         reconnect_edges=True
     )
+    print("✓ Intersections consolidated")
 
-    # Update length
+    print("\nUpdating edge lengths...")
     nodes, edges = ox.graph_to_gdfs(g_consolidated)
     edges['length'] = edges['geometry'].length
     g_length_updated = ox.graph_from_gdfs(nodes, edges, graph_attrs=g_consolidated.graph)
+    print("✓ Edge lengths updated")
 
-    # Simplify
+    print("\nSimplifying network...")
     g_simplified = ox.simplification.simplify_graph(
         g_length_updated,
         edge_attrs_differ=["highway", "lanes", "maxspeed"],
         remove_rings=False,
         track_merged=True
     )
+    print("✓ Network simplified")
 
-    # Shorten OSM IDs
+    print("\nShortening OSM IDs...")
     nodes, edges = ox.graph_to_gdfs(g_simplified)
-    # Create a mapping of original to shortened IDs (if you need to reference back)
     edges['osmid_hash'] = edges['osmid'].apply(lambda x: shorten_osmid(x))
     nodes['osmid_hash'] = nodes['osmid_original'].apply(lambda x: shorten_osmid(x))
     g_hashed = ox.graph_from_gdfs(nodes, edges)
+    print("✓ OSM IDs shortened")
 
-    # Project to WGS84
+    print("\nProjecting to WGS84...")
     g_wgs84 = ox.project_graph(g_hashed, to_crs="epsg:4326")
-    g_connected = ox.truncate.largest_component(g_wgs84.copy())
+    print("✓ Projected to WGS84")
 
+    print("\nExtracting largest connected component...")
+    g_connected = ox.truncate.largest_component(g_wgs84.copy())
+    print(f"✓ Final network has {g_connected.number_of_nodes()} nodes and {g_connected.number_of_edges()} edges")
+
+    print("\n=== Network Download and Preparation Complete ===\n")
     return g_connected
 
 
