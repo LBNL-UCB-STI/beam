@@ -121,6 +121,20 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
     graphs = []
     print(f"\nProcessing {len(_study_area_config['density_levels'])} density levels...")
 
+    print("Collecting dense tract boundaries...")
+    # Create density-specific paths
+    base_name = f"{_study_area_config['work_dir']}/{_study_area_config['study_area']}"
+    census_year = _study_area_config["census_year"]
+    tracts_ppsk = collect_tract_boundaries_ppsk(
+        _study_area_config["state_fips"],
+        _study_area_config["county_fips"],
+        census_year,
+        _study_area_config["study_area_crs"],
+        f"{base_name}_acs_census_{census_year}.csv",
+        f"{base_name}_tracts_{census_year}_wgs84.geojson"
+    )
+
+    # Download and prepare networks for each density level
     # For each density level
     for level, params in _study_area_config["density_levels"].items():
         print(f"\n--- Processing {level} density level ---")
@@ -138,15 +152,23 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
             densely_populated_tracts = gpd.read_file(densely_populated_tracts_geo)
             print("✓ Loaded existing tract boundaries")
         else:
-            print("Collecting dense tract boundaries...")
-            densely_populated_tracts = collect_dense_tract_boundaries(
-                state_fips_code=_study_area_config["state_fips"],
-                county_fips_codes=_study_area_config["county_fips"],
-                year=_study_area_config["census_year"],
-                densely_populated_tracts_geo_path=densely_populated_tracts_geo,
-                projected_coordinate_system=_study_area_config["study_area_crs"],
-                min_density_per_km2=params["min_density_per_km2"]
-            )
+            print("Extracting dense tract boundaries...")
+            # Filter by density
+            densely_populated_tracts = tracts_ppsk[tracts_ppsk["density_per_km2"] >= params["min_density_per_km2"]]
+
+            print(f"\nSelection Results:")
+            print("----------------")
+            print(f"Selected {len(densely_populated_tracts)} out of {len(tracts_ppsk)} tracts")
+            print(f"Density threshold: >= {params["min_density_per_km2"]:,.1f} people/km²")
+            print(f"Total population in selected tracts: {densely_populated_tracts['population'].sum():,}")
+            print(
+                f"Percentage of total population: {(densely_populated_tracts['population'].sum() / tracts_ppsk['population'].sum() * 100):.1f}%")
+            # Save in projected coordinate system
+            base_name, extension = os.path.splitext(densely_populated_tracts_geo)
+
+            # Save WGS84 version
+            tracts_with_pop_wgs84 = densely_populated_tracts.to_crs(epsg=4326)
+            tracts_with_pop_wgs84.to_file(f"{base_name}_wgs84{extension}", driver="GeoJSON")
             print("✓ Created new tract boundaries")
 
         # Create polygon for network extraction
@@ -156,7 +178,7 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
 
         # Download OSM Network for this density level
         print(f"Downloading OSM network with filter: {params['custom_filter']}")
-        G = ox.graph_from_polygon(
+        g = ox.graph_from_polygon(
             densely_populated_polygon,
             network_type="drive",
             simplify=False,
@@ -164,10 +186,10 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
             truncate_by_edge=True,
             custom_filter=params["custom_filter"]
         )
-        print(f"✓ Downloaded network with {G.number_of_nodes()} nodes and {G.number_of_edges()} edges")
+        print(f"✓ Downloaded network with {g.number_of_nodes()} nodes and {g.number_of_edges()} edges")
 
         # Add the graph to the list
-        graphs.append(G)
+        graphs.append(g)
 
     print("\n=== Processing Combined Network ===")
 
@@ -340,11 +362,11 @@ study_area_config = {
             "custom_filter": '["highway"~"motorway|trunk|motorway_link|trunk_link|primary|secondary|primary_link|secondary_link|tertiary|tertiary_link"]'
         },
         "moderate": {
-            "min_density_per_km2": 224,
+            "min_density_per_km2": 475,
             "custom_filter": '["highway"~"motorway|trunk|motorway_link|trunk_link|primary|secondary|primary_link|secondary_link|tertiary|tertiary_link|unclassified"]'
         },
         "dense": {
-            "min_density_per_km2": 475,
+            "min_density_per_km2": 1429,
             "custom_filter": '["highway"~"motorway|trunk|motorway_link|trunk_link|primary|secondary|primary_link|secondary_link|tertiary|tertiary_link|unclassified|residential"]'
         }
     },
@@ -395,9 +417,9 @@ if not os.path.exists(graphml_network) and study_area_config["download_enabled"]
     print(f"GPKG Network saved to '{gpkg_network}'.")
 
     # Save PNG Network
-    png_network = f'{file_prefix}_network.png'
-    plot(g_network, png_network)
-    print(f"PNG Network saved to '{png_network}'.")
+    # png_network = f'{file_prefix}_network.png'
+    # plot(g_network, png_network)
+    # print(f"PNG Network saved to '{png_network}'.")
 elif os.path.exists(graphml_network):
     # Load the graph with custom data types
     g_network = ox.load_graphml(
@@ -415,6 +437,9 @@ else:
 
 if g_network and not os.path.exists(osm_network):
     # Save OSM Network
+    print(f"Converting GraphML Network to OSM Network...")
+    # Extract nodes and edges from the graph to create a new graph in OSM format
+    # Note: This will lose some information (e.g., edge attributes) and may not be 100% accurate
     nodes, edges = ox.graph_to_gdfs(g_network)
     edges = edges.drop(['geometry', 'u_original', 'v_original', 'merged_edges', 'osmid'], axis=1, errors='ignore')
     nodes = nodes.drop(['osmid_original'], axis=1, errors='ignore')
@@ -427,6 +452,7 @@ if g_network and not os.path.exists(osm_network):
     cmd = f"osmium cat {osm_network} -o {pbf_path} --overwrite --output-format pbf,compression=zlib"
     subprocess.run(cmd, shell=True)
     # osmium fileinfo -e {pbf_path}
+    print(f"PBF File saved to '{pbf_path}'")
 elif g_network:
     # If the OSM network file doesn't exist, attempt to load it
     if os.path.exists(osm_network):
