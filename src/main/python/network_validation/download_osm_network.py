@@ -185,24 +185,29 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
         dead_ends=True,
         reconnect_edges=True
     )
+
     # Update length
     nodes, edges = ox.graph_to_gdfs(g_consolidated)
     edges['length'] = edges['geometry'].length
     g_length_updated = ox.graph_from_gdfs(nodes, edges, graph_attrs=g_consolidated.graph)
 
     # Simplify
-    nodes_1, edges_1 = ox.graph_to_gdfs(g_length_updated)
     g_simplified = ox.simplification.simplify_graph(
         g_length_updated,
         edge_attrs_differ=["highway", "lanes", "maxspeed"],
         remove_rings=False,
         track_merged=True
     )
-    nodes_2, edges_2 = ox.graph_to_gdfs(g_simplified)
-    print(f'Nodes: #{len(nodes_2)} — deleted #{len(nodes_1) - len(nodes_2)} nodes')
-    print(f'Edges: #{len(edges_2)} — deleted #{len(edges_1) - len(edges_2)} edges')
 
-    g_wgs84 = ox.project_graph(g_simplified, to_crs="epsg:4326")
+    # Shorten OSM IDs
+    nodes, edges = ox.graph_to_gdfs(g_simplified)
+    # Create a mapping of original to shortened IDs (if you need to reference back)
+    edges['osmid_hash'] = edges['osmid'].apply(lambda x: shorten_osmid(x))
+    nodes['osmid_hash'] = nodes['osmid_original'].apply(lambda x: shorten_osmid(x))
+    g_hashed = ox.graph_from_gdfs(nodes, edges)
+
+    # Project to WGS84
+    g_wgs84 = ox.project_graph(g_hashed, to_crs="epsg:4326")
     g_connected = ox.truncate.largest_component(g_wgs84.copy())
 
     return g_connected
@@ -247,6 +252,9 @@ study_area_config = {
     # Base paths
     "work_dir": os.path.expanduser("~/Workspace/Simulation/sfbay/geo"),
 
+    # if download isn't enabled, we read network from disk
+    "download_enabled": True,
+
     # Geographic settings
     "study_area": "sfbay",
     "state_fips": "06",
@@ -265,17 +273,35 @@ study_area_config = {
 
     # Density thresholds and corresponding network filters
     "density_levels": {
-        # "sparse": {
-        #     "min_density_per_km2": 0,
-        #     "custom_filter": '["highway"~"motorway|trunk|motorway_link|trunk_link|primary|secondary|primary_link|secondary_link|tertiary|tertiary_link"]'
-        # },
-        "moderate": {
+        # // California has a higher urbanization rate (94.8% urban vs 80.7% national average)
+        # // https://dof.ca.gov/wp-content/uploads/sites/352/Forecasting/Demographics/Documents/Urban-Rural_Classification_and_2020_Urban_Area_Criteria_CA_SDC.pdf
+        # const avgPersonsPerHousehold = 2.9; // CA average household size (higher than national 2.5)
+        #
+        # // Core density calculation (using similar proportions as national but adjusted for CA household size)
+        # const coreHUDensity = 1275; // National high-density nucleus requirement
+        # const caDensityAdjustment = 2.9 / 2.5; // CA vs national household size ratio
+        # // Calculate CA-adjusted thresholds
+        # const caHighDensityPPSM = coreHUDensity * 2.9;
+        # const caInitialCorePPSM = 425 * 2.9;
+        # const caUrbanExtensionPPSM = 200 * 2.9;
+
+        # // Result
+        # // California-adjusted density thresholds (persons per square mile):
+        # // High-density nucleus requirement: 3698 ppsm = 1429 ppsk
+        # // Initial core requirement: 1233 ppsm = 475 ppsk
+        # // Urban extension requirement: 580 ppsm = 224 ppsk
+        # // Rural Areas less than 580 people per square mile
+
+        "sparse": {
             "min_density_per_km2": 0,
-            # 193.05 people/sq km = 500 people/sq mi is threshod for rural areas https://www.ers.usda.gov/topics/rural-economy-population/rural-classifications/what-is-rural
+            "custom_filter": '["highway"~"motorway|trunk|motorway_link|trunk_link|primary|secondary|primary_link|secondary_link|tertiary|tertiary_link"]'
+        },
+        "moderate": {
+            "min_density_per_km2": 224,
             "custom_filter": '["highway"~"motorway|trunk|motorway_link|trunk_link|primary|secondary|primary_link|secondary_link|tertiary|tertiary_link|unclassified"]'
         },
         "dense": {
-            "min_density_per_km2": 193,
+            "min_density_per_km2": 475,
             "custom_filter": '["highway"~"motorway|trunk|motorway_link|trunk_link|primary|secondary|primary_link|secondary_link|tertiary|tertiary_link|unclassified|residential"]'
         }
     },
@@ -304,11 +330,13 @@ study_area_config = {
 config_name = generate_config_name(study_area_config)
 file_prefix = f'{study_area_config["work_dir"]}/{config_name}'
 graphml_network = f'{file_prefix}_network.graphml'
+osm_network = f'{file_prefix}_network.osm'
 
-if not os.path.exists(graphml_network):
+if not os.path.exists(graphml_network) and study_area_config["download_enabled"]:
     print(f'Downloading and preparing OSM-based {config_name} network...')
     g_network = download_and_prepare_osm_network(study_area_config)
 
+    # Save GraphML
     ox.save_graphml(g_network, filepath=graphml_network)
     print(f"GRAPHML Network saved to '{graphml_network}'.")
 
@@ -318,71 +346,53 @@ if not os.path.exists(graphml_network):
         pickle.dump(g_network, f)
     print(f"PKL Network saved to '{pkl_network}'.")
 
+    # Save GPKG Network with OSM IDs hashed
+    gpkg_network = f'{file_prefix}_network.gpkg'
+    ox.save_graph_geopackage(g_network, filepath=gpkg_network)
+    print(f"GPKG Network saved to '{gpkg_network}'.")
+
     # Save PNG Network
     png_network = f'{file_prefix}_network.png'
     plot(g_network, png_network)
     print(f"PNG Network saved to '{png_network}'.")
-else:
-    def convert_yes_no(value):
-        if isinstance(value, bool):
-            return value
-        if isinstance(value, str):
-            if value.lower() == 'yes':
-                return True
-            if value.lower() == 'no':
-                return False
-        return value
-
-
-    # Specify data types for all relevant attributes
-    edge_dtypes = {
-        'oneway': str,
-        'bridge': str,
-        'tunnel': str,
-        'length': float,
-        'lanes': int,
-        'maxspeed': str,
-        'osmid': str
-    }
-
-    node_dtypes = {
-        'osmid': str,
-        'x': float,
-        'y': float
-    }
-
+elif os.path.exists(graphml_network):
     # Load the graph with custom data types
     g_network = ox.load_graphml(
         graphml_network,
-        edge_dtypes=edge_dtypes,
-        node_dtypes=node_dtypes
+        edge_dtypes={
+            'oneway': str, 'bridge': str, 'tunnel': str, 'length': float, 'lanes': int, 'maxspeed': str, 'osmid': str
+        },
+        node_dtypes={
+            'osmid': str, 'x': float, 'y': float
+        }
     )
+else:
+    print(f"GraphML Network not found & download isn't enabled. Please download and prepare the network first.")
+    g_network = None
 
-# Cleaning edges
-nodes, edges = ox.graph_to_gdfs(g_network)
-# Create a mapping of original to shortened IDs (if you need to reference back)
-osmid_mapping = {}
-edges['osmid_hash'] = edges['osmid'].apply(lambda x: shorten_osmid(x))
-nodes['osmid_hash'] = nodes['osmid_original'].apply(lambda x: shorten_osmid(x))
-g_hashed = ox.graph_from_gdfs(nodes, edges)
+if g_network and not os.path.exists(osm_network):
+    # Save OSM Network
+    nodes, edges = ox.graph_to_gdfs(g_network)
+    edges = edges.drop(['geometry', 'u_original', 'v_original', 'merged_edges', 'osmid'], axis=1, errors='ignore')
+    nodes = nodes.drop(['osmid_original'], axis=1, errors='ignore')
+    g_osm = ox.graph_from_gdfs(nodes, edges, graph_attrs=g_network.graph)
+    save_graph_to_osm(g_osm, filename=osm_network)
+    print(f"OSM Network saved to '{osm_network}'.")
 
-# Save GPKG Network with OSM IDs hashed
-gpkg_network = f'{file_prefix}_network.gpkg'
-ox.save_graph_geopackage(g_hashed, filepath=gpkg_network)
-print(f"GPKG Network saved to '{gpkg_network}'.")
+    # Convert to PBF using osmium
+    pbf_path = f"{osm_network}.pbf"
+    cmd = f"osmium cat {osm_network} -o {pbf_path} --overwrite --output-format pbf,compression=zlib"
+    subprocess.run(cmd, shell=True)
+    # osmium fileinfo -e {pbf_path}
+elif g_network:
+    # If the OSM network file doesn't exist, attempt to load it
+    if os.path.exists(osm_network):
+        print(f"Loading OSM Network from '{osm_network}'...")
+        g_osm = load_graph_from_osm(osm_network)  # Implement this function to load the graph
+        print("OSM Network loaded successfully.")
 
-# Save OSM Network
-osm_network = f'{file_prefix}_network.osm'
-nodes, edges = ox.graph_to_gdfs(g_hashed)
-edges = edges.drop(['geometry', 'u_original', 'v_original', 'merged_edges', 'osmid'], axis=1, errors='ignore')
-nodes = nodes.drop(['osmid_original'], axis=1, errors='ignore')
-g_osm = ox.graph_from_gdfs(nodes, edges, graph_attrs=g_hashed.graph)
-save_graph_to_osm(g_osm, filename=osm_network)
-print(f"OSM Network saved to '{osm_network}'.")
-
-# Convert to PBF using osmium
-pbf_path = f"{osm_network}.pbf"
-# cmd = f"osmium cat {osm_network} -o {pbf_path} --overwrite --output-format pbf,compression=zlib"
-cmd = f"osmium cat {osm_network} -o {pbf_path} --overwrite --output-format pbf,compression=zlib"
-subprocess.run(cmd, shell=True)
-# osmium cat sfbay-unclassified-partiallysimplified-unprojected-sfres.osm -o sfbay-unclassified-partiallysimplified-unprojected-sfres.osm.pbf
+        # Count the number of links
+        num_links = g_osm.number_of_edges()
+        print(f"Number of links in the OSM Network: {num_links}")
+    else:
+        print(f"OSM Network file '{osm_network}' not found. Please ensure the network is downloaded and prepared.")

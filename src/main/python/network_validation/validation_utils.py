@@ -1213,6 +1213,50 @@ def save_graph_to_osm(G, filename="output.osm"):
     ET.ElementTree(root).write(filename, encoding="utf-8", xml_declaration=True)
 
 
+def load_graph_from_osm(filename: str) -> nx.MultiDiGraph:
+    """
+    Load a graph from an OSM file.
+
+    Parameters:
+    -----------
+    filename : str
+        The path to the OSM file.
+
+    Returns:
+    --------
+    nx.MultiDiGraph
+        The loaded graph.
+    """
+    G = nx.MultiDiGraph()
+
+    tree = ET.parse(filename)
+    root = tree.getroot()
+
+    node_map = {}
+
+    # Read nodes
+    for node in root.findall('node'):
+        node_id = int(node.get('id'))
+        lat = float(node.get('lat'))
+        lon = float(node.get('lon'))
+        G.add_node(node_id, y=lat, x=lon)
+        node_map[node_id] = (lat, lon)
+
+        for tag in node.findall('tag'):
+            G.nodes[node_id][tag.get('k')] = tag.get('v')
+
+    # Read ways (edges)
+    for way in root.findall('way'):
+        nd_refs = [int(nd.get('ref')) for nd in way.findall('nd')]
+        for u, v in zip(nd_refs[:-1], nd_refs[1:]):
+            # Add edge and get the key for the new edge
+            key = G.add_edge(u, v)
+            for tag in way.findall('tag'):
+                G.edges[u, v, key][tag.get('k')] = tag.get('v')
+
+    return G
+
+
 def read_events(event_file, veh_types_file, batch, scenario):
     events = pd.read_csv(event_file)
     events['batch'] = batch
