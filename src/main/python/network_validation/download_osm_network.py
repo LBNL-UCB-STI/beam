@@ -161,9 +161,16 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
             print(f"Selected {len(densely_populated_tracts)} out of {len(tracts_ppsk)} tracts")
             print(f"Density threshold: >= {params["min_density_per_km2"]:,.1f} people/km²")
             print(f"Total population in selected tracts: {densely_populated_tracts['population'].sum():,}")
-            print(
-                f"Percentage of total population: {(densely_populated_tracts['population'].sum() / tracts_ppsk['population'].sum() * 100):.1f}%")
-            # Save in projected coordinate system
+            # Get total population
+            total_population = tracts_ppsk['population'].sum()
+
+            # Calculate percentage with error handling
+            if total_population > 0:
+                population_percentage = (densely_populated_tracts['population'].sum() / total_population * 100)
+                print(f"Percentage of total population: {population_percentage:.1f}%")
+            else:
+                print(
+                    "Warning: Total population is zero, cannot calculate percentage")  # Save in projected coordinate system
             base_name, extension = os.path.splitext(densely_populated_tracts_geo)
 
             # Save WGS84 version
@@ -206,7 +213,7 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
     print("✓ Edge speeds added")
 
     print("\nProcessing freight restrictions...")
-    g_with_ft_restrictions = process_freight_restrictions(g_with_speeds, _study_area_config)
+    g_with_ft_restrictions = process_tags(g_with_speeds, _study_area_config)
     print("✓ Freight restrictions processed")
 
     if _study_area_config["connect_islands"]:
@@ -352,6 +359,7 @@ study_area_config = {
 
         # // Result
         # // California-adjusted density thresholds (persons per square mile):
+        # //  densest urban cores, typical of downtown areas in major California cities:  7,395 ppsm = 2,855 ppsk
         # // High-density nucleus requirement: 3698 ppsm = 1429 ppsk
         # // Initial core requirement: 1233 ppsm = 475 ppsk
         # // Urban extension requirement: 580 ppsm = 224 ppsk
@@ -362,11 +370,11 @@ study_area_config = {
             "custom_filter": '["highway"~"motorway|trunk|motorway_link|trunk_link|primary|secondary|primary_link|secondary_link|tertiary|tertiary_link"]'
         },
         "moderate": {
-            "min_density_per_km2": 475,
+            "min_density_per_km2": 1429,
             "custom_filter": '["highway"~"motorway|trunk|motorway_link|trunk_link|primary|secondary|primary_link|secondary_link|tertiary|tertiary_link|unclassified"]'
         },
         "dense": {
-            "min_density_per_km2": 1429,
+            "min_density_per_km2": 2855,
             "custom_filter": '["highway"~"motorway|trunk|motorway_link|trunk_link|primary|secondary|primary_link|secondary_link|tertiary|tertiary_link|unclassified|residential"]'
         }
     },
@@ -380,7 +388,7 @@ study_area_config = {
         "requests_timeout": 180,
         "overpass_memory": None,
         "max_query_area_size": 50 * 1000 * 50 * 1000,  # 50km × 50km
-        "overpass_rate_limit": True,
+        "overpass_rate_limit": False,
         "overpass_max_attempts": 3,
         "useful_tags_way": list(ox.settings.useful_tags_way) + ["maxweight", "hgv", "maxweight:hgv", "maxlength"],
         "overpass_url": "https://overpass-api.de/api",
@@ -411,11 +419,6 @@ if not os.path.exists(graphml_network) and study_area_config["download_enabled"]
         pickle.dump(g_network, f)
     print(f"PKL Network saved to '{pkl_network}'.")
 
-    # Save GPKG Network with OSM IDs hashed
-    gpkg_network = f'{file_prefix}_network.gpkg'
-    ox.save_graph_geopackage(g_network, filepath=gpkg_network)
-    print(f"GPKG Network saved to '{gpkg_network}'.")
-
     # Save PNG Network
     # png_network = f'{file_prefix}_network.png'
     # plot(g_network, png_network)
@@ -425,7 +428,8 @@ elif os.path.exists(graphml_network):
     g_network = ox.load_graphml(
         graphml_network,
         edge_dtypes={
-            'oneway': str, 'bridge': str, 'tunnel': str, 'length': float, 'lanes': int, 'maxspeed': str, 'osmid': str
+            'oneway': standardize_oneway, 'bridge': str, 'tunnel': str, 'length': float, 'lanes': int, 'maxspeed': str,
+            'osmid': str
         },
         node_dtypes={
             'osmid': str, 'x': float, 'y': float
@@ -436,8 +440,13 @@ else:
     g_network = None
 
 if g_network and not os.path.exists(osm_network):
+    print(f"Converting GraphML Network to GPKG Network...")
+    # Save GPKG Network with OSM IDs hashed
+    gpkg_network = f'{file_prefix}_network.gpkg'
+    ox.save_graph_geopackage(g_network, filepath=gpkg_network)
+    print(f"GPKG Network saved to '{gpkg_network}'.")
     # Save OSM Network
-    print(f"Converting GraphML Network to OSM Network...")
+    print(f"Creating OSM Network...")
     # Extract nodes and edges from the graph to create a new graph in OSM format
     # Note: This will lose some information (e.g., edge attributes) and may not be 100% accurate
     nodes, edges = ox.graph_to_gdfs(g_network)
@@ -453,6 +462,13 @@ if g_network and not os.path.exists(osm_network):
     subprocess.run(cmd, shell=True)
     # osmium fileinfo -e {pbf_path}
     print(f"PBF File saved to '{pbf_path}'")
+
+    # Check file info using osmium
+    print("Checking PBF file info...")
+    fileinfo_cmd = f"osmium fileinfo -e {pbf_path}"
+    result = subprocess.run(fileinfo_cmd, shell=True, check=True, capture_output=True, text=True)
+    print("File information:")
+    print(result.stdout)
 elif g_network:
     # If the OSM network file doesn't exist, attempt to load it
     if os.path.exists(osm_network):

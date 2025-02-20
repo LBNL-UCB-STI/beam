@@ -449,18 +449,17 @@ def collect_tract_boundaries_ppsk(
             pop_data = pop_data.rename(columns={'B01003_001E': 'population'})
 
             # Create GEOID by combining state, county, and tract
-            pop_data['GEOID'] = pop_data['state'] + pop_data['county'] + pop_data['tract']
+            pop_data['GEOID'] = (pop_data['state'] + pop_data['county'] + pop_data['tract']).astype(str)
 
             # Convert population to numeric
             pop_data['population'] = pd.to_numeric(pop_data['population'], errors='coerce')
-
-            pop_data.to_csv(census_data_file)
+            pop_data.to_csv(census_data_file, index=False)
 
         except Exception as e:
             print(f"Failed to retrieve population data: {e}")
             raise
     else:
-        pop_data = pd.read_csv(census_data_file)
+        pop_data = pd.read_csv(census_data_file, dtype={'GEOID': str})
 
     if not os.path.exists(tract_boundaries_geo_file):
         # Get tract boundaries using TIGER/Line shapefiles
@@ -481,6 +480,9 @@ def collect_tract_boundaries_ppsk(
 
     # Calculate area and density (with proper projection)
     # Merge boundaries with population data
+    geo_data['GEOID'] = geo_data['GEOID'].astype(str)
+
+    # Now merge with consistent string types
     tracts_with_pop = geo_data.merge(pop_data, on='GEOID')
 
     # Project to Web Mercator for accurate area calculation
@@ -923,7 +925,15 @@ def get_weight_in_standard_unit(weight_str: str, target_unit: str) -> float:
     return convert_weight(value, unit, target_unit)
 
 
-def process_freight_restrictions(G: nx.MultiDiGraph, config: dict) -> nx.MultiDiGraph:
+def standardize_oneway(value):
+    """Return 'yes' only for 'yes'/'true'/'1', otherwise 'no'"""
+    valid_yes = {'yes', 'true', '1'}
+    if isinstance(value, list):
+        return 'yes' if value and all(str(v).lower().strip() in valid_yes for v in value) else 'no'
+    return 'yes' if value and str(value).lower().strip() in valid_yes else 'no'
+
+
+def process_tags(_g: nx.MultiDiGraph, config: dict) -> nx.MultiDiGraph:
     """Process vehicle classifications based on FHWA weight classes."""
     print("Processing vehicle classifications...")
 
@@ -934,7 +944,7 @@ def process_freight_restrictions(G: nx.MultiDiGraph, config: dict) -> nx.MultiDi
     hdv_max = weight_config["hdv_max"]
 
     # Get graph data while preserving MultiIndex
-    nodes, edges = ox.graph_to_gdfs(G)
+    nodes, edges = ox.graph_to_gdfs(_g)
 
     # Copy HGV weight restrictions if present
     if "maxweight:hgv" in edges.columns:
@@ -963,6 +973,7 @@ def process_freight_restrictions(G: nx.MultiDiGraph, config: dict) -> nx.MultiDi
         no_restriction_mask = edges["weight_numeric"].isna()
         edges.loc[no_restriction_mask, "vehicle_class"] = "ALL"
 
+    edges['oneway'] = edges['oneway'].apply(standardize_oneway)
     # Convert back to MultiDiGraph
     g_updated = ox.graph_from_gdfs(nodes, edges)
 
