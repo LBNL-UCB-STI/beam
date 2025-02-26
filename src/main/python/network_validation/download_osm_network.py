@@ -287,33 +287,37 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
 
 def generate_config_name(config: dict) -> str:
     """
-    Generate a configuration name based on study area and density levels.
-    Format: study_area_lastRoadType-densityPOPxKM2_lastRoadType-densityPOPxKM2
+    Generate a configuration name based on study area and the highest available density level.
+    Format: [study area]_[density]_[densityValuePOP]_network
 
-    Example output: sfbay_unclassified-0POPxKM2_residential-2500POPxKM2
+    Example output: sfbay_residential_2855pop_network
     """
     # Get study area
     study_area = config["study_area"]
 
-    # Process density levels
-    density_parts = []
+    # Initialize variables for the highest density level
+    highest_label = ""
+    highest_value = ""
 
-    for level, params in config["density_levels"].items():
-        # Get density value
+    # Check for dense, moderate, and sparse levels in that order
+    for level in ["dense", "moderate", "sparse"]:
+        params = config["density_levels"][level]
         density = params["min_density_per_km2"]
 
-        # Extract last road type from custom filter
-        filter_str = params["custom_filter"]
-        road_types = filter_str.split('~')[1].strip('"[]').split('|')
-        last_road_type = road_types[-1]
+        if density > 0:
+            if level == "dense":
+                highest_label = "residential"
+            elif level == "moderate":
+                highest_label = "moderate"
+            elif level == "sparse":
+                highest_label = "sparse"
 
-        # Combine level info
-        level_str = f"{last_road_type}-{density}POPxKM2"
-        density_parts.append(level_str)
+            highest_value = f"{density}pop"
+            break  # Exit loop once the highest level is found
 
     # Combine all parts
-    ferry_suffix = "_ferry" if (config["connect_islands"]) else ""
-    return f"{study_area}_{'_'.join(density_parts)}{ferry_suffix}"
+    ferry_suffix = "_ferry" if config["connect_islands"] else ""
+    return f"{study_area}_{highest_label}_{highest_value}{ferry_suffix}"
 
 
 #############################
@@ -365,12 +369,12 @@ study_area_config = {
         # // Urban extension requirement: 580 ppsm = 224 ppsk
         # // Rural Areas less than 580 people per square mile
 
-        "sparse": {
-            "min_density_per_km2": 0,
-            "custom_filter": '["highway"~"motorway|trunk|motorway_link|trunk_link|primary|secondary|primary_link|secondary_link|tertiary|tertiary_link"]'
-        },
+        # "sparse": {
+        #     "min_density_per_km2": 0,
+        #     "custom_filter": '["highway"~"motorway|trunk|motorway_link|trunk_link|primary|secondary|primary_link|secondary_link|tertiary|tertiary_link"]'
+        # },
         "moderate": {
-            "min_density_per_km2": 1429,
+            "min_density_per_km2": 0,
             "custom_filter": '["highway"~"motorway|trunk|motorway_link|trunk_link|primary|secondary|primary_link|secondary_link|tertiary|tertiary_link|unclassified"]'
         },
         "dense": {

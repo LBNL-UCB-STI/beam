@@ -23,6 +23,10 @@ object RunBeam extends BeamHelper {
     println(s"Heap size: ${MathUtils.formatBytes(Runtime.getRuntime.totalMemory())}")
     println(s"Heap max memory: ${MathUtils.formatBytes(Runtime.getRuntime.maxMemory())}")
     println(s"Heap free memory: ${MathUtils.formatBytes(Runtime.getRuntime.freeMemory())}")
+    // Print the current working directory (PWD)
+    println(s"PWD: ${System.getProperty("user.dir")}")
+    // Demonstrate resolution of relative paths
+    println(s"Resolved current directory: ${new java.io.File(".").getCanonicalPath}")
     // this try-catch is needed in case an exception is thrown and the application hangs with some threads locked
     // e.g. we've noticed, that this method LoggingEventsManager#handleBlocking() is likely to have some code
     // that hangs a process and the application cannot be killed, see https://github.com/LBNL-UCB-STI/beam/issues/3524

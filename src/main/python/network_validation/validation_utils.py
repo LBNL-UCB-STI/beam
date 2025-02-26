@@ -12,6 +12,7 @@ import osmnx as ox
 import pandas as pd
 import pyarrow.csv as pv
 import seaborn as sns
+from urllib.request import urlretrieve
 
 plt.style.use('ggplot')
 meter_to_mile = 0.000621371
@@ -1074,6 +1075,74 @@ def load_graph_from_osm(filename: str) -> nx.MultiDiGraph:
 
     return G
 
+
+def download_h5_data(url: str, output_path: str) -> str:
+    """
+    Download H5 data file if it doesn't exist locally and explore its structure.
+
+    Parameters:
+    -----------
+    url : str
+        URL to download the H5 file from
+    output_path : str
+        Local path to save the downloaded file
+
+    Returns:
+    --------
+    str
+        Path to the H5 file
+    """
+    import h5py
+    # Check if file exists locally first
+    if not os.path.exists(output_path):
+        print(f"\nDownloading H5 data from {url}...")
+        urlretrieve(url, output_path)
+        print("✓ H5 data downloaded")
+    else:
+        print("\nUsing existing H5 data file")
+
+    # Explore H5 file structure
+    print("\nExploring H5 file structure...")
+
+    def print_structure(name, obj):
+        """Helper function to print H5 structure"""
+        if isinstance(obj, h5py.Dataset):
+            try:
+                shape = obj.shape
+                dtype = obj.dtype
+                print(f"Dataset: {name}")
+                print(f"  Shape: {shape}")
+                print(f"  Type: {dtype}")
+
+                # Print first few items for small datasets or sample for large ones
+                if len(obj.shape) > 0:
+                    if obj.shape[0] > 0:
+                        sample_size = min(3, obj.shape[0])
+                        print("  Sample data:")
+                        print(obj[:sample_size])
+            except Exception as e:
+                print(f"  Error reading dataset: {e}")
+        else:
+            print(f"Group: {name}")
+
+    with h5py.File(output_path, 'r') as f:
+        print("\nFile structure:")
+        print("==============")
+        f.visititems(print_structure)
+
+        # List all root level groups/datasets
+        print("\nRoot level items:")
+        for key in f.keys():
+            print(f"- {key}")
+
+    return output_path
+
+
+####################################################################################################
+####################################################################################################
+########################################## VMT Validation ##########################################
+####################################################################################################
+####################################################################################################
 
 def read_events(event_file, veh_types_file, batch, scenario):
     events = pd.read_csv(event_file)
