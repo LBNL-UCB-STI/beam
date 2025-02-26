@@ -23,31 +23,6 @@ object RunBeam extends BeamHelper {
     println(s"Heap size: ${MathUtils.formatBytes(Runtime.getRuntime.totalMemory())}")
     println(s"Heap max memory: ${MathUtils.formatBytes(Runtime.getRuntime.maxMemory())}")
     println(s"Heap free memory: ${MathUtils.formatBytes(Runtime.getRuntime.freeMemory())}")
-    // Print the current working directory (PWD)
-    println(s"PWD: ${System.getProperty("user.dir")}")
-    // Demonstrate resolution of relative paths
-    println(s"Resolved current directory: ${new java.io.File(".").getCanonicalPath}")
-
-    // List files under current directory (/app)
-    println("\nListing files under current directory (/app):")
-    val currentDirFiles = new java.io.File(".").listFiles()
-    if (currentDirFiles != null) {
-      currentDirFiles.foreach(file => println(s"  - ${file.getName}${if (file.isDirectory) "/" else ""}"))
-    } else {
-      println("  No files found or directory cannot be accessed")
-    }
-
-    // List files under parent directory (/app/..)
-    println("\nListing files under parent directory (/app/../):")
-    val parentDir = new java.io.File("..").getCanonicalPath
-    val parentDirFiles = new java.io.File("..").listFiles()
-    println(s"Parent directory resolved to: $parentDir")
-    if (parentDirFiles != null) {
-      parentDirFiles.foreach(file => println(s"  - ${file.getName}${if (file.isDirectory) "/" else ""}"))
-    } else {
-      println("  No files found or directory cannot be accessed")
-    }
-
     // this try-catch is needed in case an exception is thrown and the application hangs with some threads locked
     // e.g. we've noticed, that this method LoggingEventsManager#handleBlocking() is likely to have some code
     // that hangs a process and the application cannot be killed, see https://github.com/LBNL-UCB-STI/beam/issues/3524
