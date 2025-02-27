@@ -432,7 +432,12 @@ elif os.path.exists(graphml_network):
     g_network = ox.load_graphml(
         graphml_network,
         edge_dtypes={
-            'oneway': standardize_oneway, 'bridge': str, 'tunnel': str, 'length': float, 'lanes': int, 'maxspeed': str,
+            'oneway': standardize_oneway,
+            'bridge': str,
+            'tunnel': str,
+            'length': float,
+            'lanes': int,
+            'maxspeed': standardize_maxspeed,
             'osmid': str
         },
         node_dtypes={
@@ -444,6 +449,19 @@ else:
     g_network = None
 
 if g_network and not os.path.exists(osm_network):
+    print(f"Checking for invalid coordinates...")
+    has_invalid, invalid_nodes = check_invalid_coordinates(g_network)
+
+    if has_invalid:
+        print(
+            f"WARNING: Found {len(invalid_nodes)} nodes with invalid coordinates. These should be fixed before proceeding.")
+        # Optionally: Fix or remove invalid nodes
+        # g_network.remove_nodes_from(invalid_nodes)
+        # print(f"Removed {len(invalid_nodes)} invalid nodes from the network.")
+    else:
+        print("✓ All node coordinates are valid.")
+
+    print(f"Converting GraphML Network to GPKG Network...")
     print(f"Converting GraphML Network to GPKG Network...")
     # Save GPKG Network with OSM IDs hashed
     gpkg_network = f'{file_prefix}_network.gpkg'

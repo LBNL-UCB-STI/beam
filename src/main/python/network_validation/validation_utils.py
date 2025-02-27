@@ -927,12 +927,39 @@ def get_weight_in_standard_unit(weight_str: str, target_unit: str) -> float:
 
 
 def standardize_oneway(value):
-    """Return 'yes' only for 'yes'/'true'/'1', otherwise 'no'"""
+    """Return 'yes' only if all values are 'yes'/'true'/'1', otherwise 'no'"""
     valid_yes = {'yes', 'true', '1'}
+
+    # Handle list case
     if isinstance(value, list):
-        return 'yes' if value and all(str(v).lower().strip() in valid_yes for v in value) else 'no'
+        # Empty list or any value not in valid_yes should return 'no'
+        return 'no' if not value or any(not v or str(v).lower().strip() not in valid_yes for v in value) else 'yes'
+
+    # Handle single value case
     return 'yes' if value and str(value).lower().strip() in valid_yes else 'no'
 
+
+def standardize_maxspeed(value):
+    """Parse maxspeed values that might contain multiple values, returning the lowest speed"""
+    if not value:
+        return None
+
+    # Convert to a consistent string format regardless of input type
+    value_str = ';'.join(str(v) for v in value) if isinstance(value, list) else str(value)
+
+    # Extract all numeric values using a single pass
+    speeds = []
+    for part in value_str.split(';'):
+        # Extract digits and decimal points
+        numeric_part = ''.join(c for c in part if c.isdigit() or c == '.')
+        if numeric_part:
+            try:
+                speeds.append(float(numeric_part))
+            except (ValueError, TypeError):
+                pass
+
+    # Return the lowest speed or None
+    return min(speeds) if speeds else None
 
 def process_tags(_g: nx.MultiDiGraph, config: dict) -> nx.MultiDiGraph:
     """Process vehicle classifications based on FHWA weight classes."""
@@ -975,6 +1002,7 @@ def process_tags(_g: nx.MultiDiGraph, config: dict) -> nx.MultiDiGraph:
         edges.loc[no_restriction_mask, "vehicle_class"] = "ALL"
 
     edges['oneway'] = edges['oneway'].apply(standardize_oneway)
+    edges["maxspeed"] = edges['maxspeed'].apply(standardize_maxspeed)
     # Convert back to MultiDiGraph
     g_updated = ox.graph_from_gdfs(nodes, edges)
 
@@ -1137,6 +1165,39 @@ def download_h5_data(url: str, output_path: str) -> str:
 
     return output_path
 
+
+def check_invalid_coordinates(graph):
+    """
+    Check for invalid coordinates in the graph nodes.
+
+    Parameters:
+    -----------
+    graph : networkx.MultiDiGraph
+        The graph to check
+
+    Returns:
+    --------
+    tuple
+        (has_invalid, invalid_nodes) where:
+        - has_invalid: boolean indicating if any invalid coordinates were found
+        - invalid_nodes: list of node IDs with invalid coordinates
+    """
+    nodes, _ = ox.graph_to_gdfs(graph)
+
+    # Check for NaN, infinite, or out-of-range coordinates
+    invalid_x = ~nodes['x'].between(-180, 180) | nodes['x'].isna() | nodes['x'].abs().eq(float('inf'))
+    invalid_y = ~nodes['y'].between(-90, 90) | nodes['y'].isna() | nodes['y'].abs().eq(float('inf'))
+
+    # Combine invalid x or y
+    invalid_nodes = nodes[invalid_x | invalid_y]
+
+    if len(invalid_nodes) > 0:
+        print(f"\nWARNING: Found {len(invalid_nodes)} nodes with invalid coordinates:")
+        for idx, node in invalid_nodes.iterrows():
+            print(f"  Node ID: {idx}, x: {node['x']}, y: {node['y']}")
+        return True, invalid_nodes.index.tolist()
+
+    return False, []
 
 ####################################################################################################
 ####################################################################################################
