@@ -288,7 +288,7 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
 def generate_config_name(config: dict) -> str:
     """
     Generate a configuration name based on study area and the highest available density level.
-    Format: [study area]_[density]_[densityValuePOP]_network
+    Format: [study-area]_[density]_[densityValuePOP]_network
 
     Example output: sfbay_residential_2855pop_network
     """
