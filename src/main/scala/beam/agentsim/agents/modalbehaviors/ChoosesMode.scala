@@ -406,12 +406,13 @@ trait ChoosesMode {
           Vector()
         case _ =>
           personData.currentTourPersonalVehicle
-            .map(vehId => {
+            .flatMap(vehId => {
               beamVehicles.get(vehId) match {
-                case Some(vehicle) => vehicle
+                case Some(vehicle) => Some(vehicle)
                 case None =>
                   logger.error(s"Vehicle with ID $vehId from currentTourPersonalVehicle not found in beamVehicles map")
-                //throw new NoSuchElementException(s"Vehicle ID $vehId not found")
+                  //throw new NoSuchElementException(s"Vehicle ID $vehId not found")
+                  None
               }
             })
             .toVector
