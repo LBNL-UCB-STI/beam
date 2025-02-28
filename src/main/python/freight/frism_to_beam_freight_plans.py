@@ -36,14 +36,14 @@ YEAR = "2018"
 SCENARIO_NAME = "Baseline"
 SCENARIO_SUFFIX = ""
 SCENARIO_LABEL = SCENARIO_NAME.replace("_", "")
-NETWORK_OSM_LABEL = "r5-simple-no-local"
+NETWORK_OSM_PBF_NAME = "r5-simple-no-local/bay_area_simplified_tertiary_strongly_2_way_network.osm.pbf"
 
 # File paths and directories
 WORK_DIR = os.path.expanduser('~/Workspace')
 DIRECTORY_INPUT = f'{WORK_DIR}/Simulation/{AREA}/frism/{BATCH_NAME}/{SCENARIO_NAME}'
 DIRECTORY_OUTPUT = f'{WORK_DIR}/Simulation/{AREA}/beam-freight/{BATCH_NAME}/{YEAR}_{SCENARIO_LABEL}{SCENARIO_SUFFIX}'
 DIRECTORY_VEHICLE_TECH = f'{DIRECTORY_OUTPUT}/vehicle-tech'
-NETWORK_OSM_PBF = f"{WORK_DIR}/Simulation/{AREA}/validation/beam/{NETWORK_OSM_LABEL}/{AREA}-{NETWORK_OSM_LABEL}.osm.pbf"
+NETWORK_OSM_PBF = f"{WORK_DIR}/Simulation/{AREA}/network/{NETWORK_OSM_PBF_NAME}"
 Path(DIRECTORY_OUTPUT).mkdir(parents=True, exist_ok=True)
 Path(DIRECTORY_VEHICLE_TECH).mkdir(parents=True, exist_ok=True)
 
@@ -739,6 +739,16 @@ if __name__ == '__main__':
         _ondemand_plans, _coordinate_lookup = snap_coordinates_when_too_far(_ondemand_plans, _osm_edges_utm,
                                                                             _coordinate_lookup)
         _ondemand_plans.to_csv(_ondemand_plans_file, index=False)
+
+    # Create combined plans file with both regular plans and ondemand plans
+    if _payload_plans is not None and _ondemand_plans is not None:
+        print("Creating combined plans file...")
+        # Create a combined dataframe with both payload and ondemand plans
+        combined_plans = pd.concat([_payload_plans, _ondemand_plans], ignore_index=True)
+        # Save the combined file
+        combined_plans_file = f'{DIRECTORY_OUTPUT}/payloads+crowdshipments--{YEAR}-{SCENARIO_LABEL}.csv'
+        combined_plans.to_csv(combined_plans_file, index=False)
+        print(f"Combined plans file saved to {combined_plans_file}")
 
     # selecting initial locations
     first_payloads = _payload_plans[_payload_plans['sequenceRank'] == 0].copy()
