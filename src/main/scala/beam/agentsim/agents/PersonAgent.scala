@@ -788,17 +788,18 @@ class PersonAgent(
         serviceName = response.rideHailManagerName
       )
     )
-    val currentCoord = beamServices.geo.wgs2Utm(data.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc
 
     eventsManager.processEvent(
       new ReplanningEvent(
         tick,
         Id.createPersonId(id),
         replanningReason,
-        currentCoord.getX,
-        currentCoord.getY
+        data.restOfCurrentTrip.head.beamLeg.travelPath.startPoint.loc.getX,
+        data.restOfCurrentTrip.head.beamLeg.travelPath.startPoint.loc.getY
       )
     )
+
+    val currentCoord = beamServices.geo.wgs2Utm(data.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc
     val nextCoord = nextActivity(data).get.getCoord
     goto(ChoosingMode) using ChoosesModeData(
       data.copy(currentTripMode = None, numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
@@ -826,16 +827,17 @@ class PersonAgent(
 
       val currentCoord = beamServices.geo.wgs2Utm(data.nextLeg.beamLeg.travelPath.startPoint).loc
       val nextCoord = nextActivity(data).get.getCoord
+      val nextCoordWgs = beamServices.geo.utm2Wgs(nextCoord)
       val replanningReason = getReplanningReasonFrom(data, firstErrorResponse.errorCode.entryName)
       eventsManager.processEvent(
         new ReplanningEvent(
           _currentTick.get,
           Id.createPersonId(id),
           replanningReason,
-          currentCoord.getX,
-          currentCoord.getY,
-          nextCoord.getX,
-          nextCoord.getY
+          data.nextLeg.beamLeg.travelPath.startPoint.loc.getX,
+          data.nextLeg.beamLeg.travelPath.startPoint.loc.getY,
+          nextCoordWgs.getX,
+          nextCoordWgs.getY
         )
       )
       goto(ChoosingMode) using ChoosesModeData(
@@ -1084,8 +1086,8 @@ class PersonAgent(
           _currentTick.get,
           Id.createPersonId(id),
           replanningReason,
-          currentCoord.getX,
-          currentCoord.getY
+          basePersonData.restOfCurrentTrip.head.beamLeg.travelPath.startPoint.loc.getX,
+          basePersonData.restOfCurrentTrip.head.beamLeg.travelPath.startPoint.loc.getY
         )
       )
 
@@ -1278,8 +1280,8 @@ class PersonAgent(
           _currentTick.get,
           Id.createPersonId(id),
           replanningReason,
-          currentCoord.getX,
-          currentCoord.getY
+          data.nextLeg.beamLeg.travelPath.startPoint.loc.getX,
+          data.nextLeg.beamLeg.travelPath.startPoint.loc.getY
         )
       )
 
@@ -1325,8 +1327,8 @@ class PersonAgent(
           _currentTick.get,
           Id.createPersonId(id),
           replanningReason,
-          currentCoord.getX,
-          currentCoord.getY
+          data.nextLeg.beamLeg.travelPath.startPoint.loc.getX,
+          data.nextLeg.beamLeg.travelPath.startPoint.loc.getY
         )
       )
 

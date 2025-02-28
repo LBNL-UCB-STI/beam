@@ -1491,6 +1491,8 @@ trait ChoosesMode {
                     eventsManager.processEvent(ev)
                   )
                 }
+                val currentCoordWgs = beamServices.geo.utm2Wgs(choosesModeData.currentLocation.loc)
+                val nextCoordWgs = beamServices.geo.utm2Wgs(nextActLoc)
                 eventsManager.processEvent(
                   new ReplanningEvent(
                     _currentTick.get,
@@ -1499,10 +1501,10 @@ trait ChoosesMode {
                       choosesModeData.personData,
                       ReservationErrorCode.RouteNotAvailableForChosenMode.entryName
                     ),
-                    choosesModeData.currentLocation.loc.getX,
-                    choosesModeData.currentLocation.loc.getY,
-                    nextActLoc.getX,
-                    nextActLoc.getY
+                    currentCoordWgs.getX,
+                    currentCoordWgs.getY,
+                    nextCoordWgs.getX,
+                    nextCoordWgs.getY
                   )
                 ) //give another chance to make a choice without predefined mode
                 //TODO: Do we need to do anything with tour mode here?
@@ -2300,6 +2302,7 @@ trait ChoosesMode {
             if (
               beamScenario.beamConfig.beam.agentsim.agents.vehicles.replanOnTheFlyWhenHouseholdVehiclesAreNotAvailable && vehicles.isEmpty
             ) {
+              val currentCoordWgs = beamServices.geo.utm2Wgs(currentPersonLocation.loc)
               eventsManager.processEvent(
                 new ReplanningEvent(
                   departTime,
@@ -2308,8 +2311,8 @@ trait ChoosesMode {
                     choosesModeData.personData,
                     ReservationErrorCode.HouseholdVehicleNotAvailable.entryName
                   ),
-                  currentPersonLocation.loc.getX,
-                  currentPersonLocation.loc.getY
+                  currentCoordWgs.getX,
+                  currentCoordWgs.getY
                 )
               )
               householdVehiclesWereNotAvailable = true
