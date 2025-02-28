@@ -611,7 +611,7 @@ class BeamSim @Inject() (
               logger.warn(s"Expected file not found during initial data dump: ${ex.getCause.getMessage}")
               logger.warn("This is normal during the first iteration as some files haven't been created yet")
             case ex: Throwable =>
-              logger.warn(s"Unexpected error during initial data dump: ${ex.getMessage}", ex)
+              logger.error(s"Unexpected error during initial data dump: ${ex.getMessage}", ex)
           }
 
         case _ => logger.warn(s"dumper is not `ShutdownListener` - $dumper")
