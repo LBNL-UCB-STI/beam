@@ -21,7 +21,7 @@ def get_sf_census_data():
     print("Downloading general census data for San Francisco...")
 
     # Connect to the 2019 5-year ACS data
-    acs = ACS(2019, 5)
+    acs = ACS(2019)
 
     # Get variables related to population, housing, income
     variables = [
@@ -36,7 +36,7 @@ def get_sf_census_data():
 
     # Get data for San Francisco County (FIPS code 06075)
     # San Francisco County is the same as San Francisco City
-    sf_data = acs.from_county(variables=variables, county_fips='06075')
+    sf_data = acs.from_county(variables=variables, county='San Francisco, CA')
 
     # Rename columns for clarity
     sf_data = sf_data.rename(columns={
@@ -59,7 +59,7 @@ def get_sf_travel_data():
     print("Downloading travel and commuting data for San Francisco...")
 
     # Connect to the 2019 5-year ACS data
-    acs = ACS(2019, 5)
+    acs = ACS(2019)
 
     # Get variables related to commuting and transportation
     # B08301 - MEANS OF TRANSPORTATION TO WORK
@@ -80,7 +80,7 @@ def get_sf_travel_data():
     ]
 
     # Get data for San Francisco County
-    sf_travel = acs.from_county(variables=variables, county_fips='06075')
+    sf_travel = acs.from_county(variables=variables, county='San Francisco, CA')
 
     # Rename columns for clarity
     sf_travel = sf_travel.rename(columns={
@@ -122,7 +122,7 @@ def get_sf_travel_by_tract():
     ]
 
     # Get data for all census tracts in San Francisco County
-    sf_tracts = acs.from_county(variables=variables, county_fips='06075', level='tract')
+    sf_tracts = acs.from_county(variables=variables, county='San Francisco, CA')
 
     # Rename columns for clarity
     sf_tracts = sf_tracts.rename(columns={
@@ -136,7 +136,11 @@ def get_sf_travel_by_tract():
 
     # Calculate percentages
     for col in ['drive_alone', 'public_transit', 'bicycle', 'walked', 'worked_from_home']:
-        sf_tracts[f'{col}_pct'] = (sf_tracts[col] / sf_tracts['total_commuters']) * 100
+        # Handle division by zero
+        sf_tracts[f'{col}_pct'] = sf_tracts.apply(
+            lambda row: (row[col] / row['total_commuters']) * 100 if row['total_commuters'] > 0 else 0,
+            axis=1
+        )
 
     return sf_tracts
 
@@ -206,8 +210,7 @@ def main():
         print(f"Total Commuters: {sf_travel['total_commuters'].iloc[0]:,}")
 
         # Calculate average commute time
-        avg_commute = sf_travel['aggregate_travel_time_minutes'].iloc[0] / sf_travel['total_commuters_traveltime'].iloc[
-            0]
+        avg_commute = sf_travel['aggregate_travel_time_minutes'].iloc[0] / sf_travel['total_commuters_traveltime'].iloc[0]
         print(f"Average Commute Time: {avg_commute:.1f} minutes")
 
         print("\nCommute Mode Percentages:")
@@ -224,6 +227,10 @@ def main():
             print("Please make sure to set your Census API key correctly")
         elif "API key required" in str(e):
             print("You need a Census API key to use cenpy. Get one at https://api.census.gov/data/key_signup.html")
+        # Add more specific error handling for sjoin issues
+        elif "sjoin" in str(e):
+            print("There appears to be a version compatibility issue with geopandas spatial join.")
+            print("Try updating geopandas with: pip install -U geopandas")
 
 
 if __name__ == "__main__":
