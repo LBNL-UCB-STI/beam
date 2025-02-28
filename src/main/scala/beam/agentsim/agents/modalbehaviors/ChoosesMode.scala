@@ -179,14 +179,15 @@ trait ChoosesMode {
       // If we're on a walk based tour but using a vehicle for access/egress
       case (data: ChoosesModeData, Some(BIKE_TRANSIT | DRIVE_TRANSIT), Some(WALK_BASED))
           if data.personData.currentTourPersonalVehicle.isDefined =>
-        if (beamVehicles.contains(data.personData.currentTourPersonalVehicle.get)) {
+        val currentTourPersonalVehicleId = data.personData.currentTourPersonalVehicle.get
+        if (beamVehicles.contains(currentTourPersonalVehicleId)) {
           self ! MobilityStatusResponse(
-            Vector(beamVehicles(data.personData.currentTourPersonalVehicle.get)),
+            Vector(beamVehicles(currentTourPersonalVehicleId)),
             getCurrentTriggerIdOrGenerate
           )
         } else {
           logger.error(
-            s"Person ${this.id} could not find vehicle ${data.personData.currentTourPersonalVehicle.get}." +
+            s"Person ${this.id} could not find vehicle $currentTourPersonalVehicleId. " +
             s"The cause is unknown. We will request an available vehicle from the vehicle manager."
           )
           implicit val executionContext: ExecutionContext = context.system.dispatcher
@@ -1600,7 +1601,7 @@ trait ChoosesMode {
     val newTourVehicle = choosesModeData.personData.currentTourPersonalVehicle match {
       case Some(id) if beamVehicles.contains(id) =>
         if (
-          (choosesModeData.personData.currentTourMode.contains(WALK_BASED) & !onFirstTrip) |
+          (choosesModeData.personData.currentTourMode.contains(WALK_BASED) && !onFirstTrip) ||
           choosesModeData.isWithinTripReplanning
         ) {
           /*
