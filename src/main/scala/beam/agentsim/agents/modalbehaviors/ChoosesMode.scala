@@ -405,7 +405,16 @@ trait ChoosesMode {
         case (None, Some(ps)) if ps.tourMode.contains(WALK_BASED) =>
           Vector()
         case _ =>
-          personData.currentTourPersonalVehicle.map(vehId => beamVehicles(vehId)).toVector
+          personData.currentTourPersonalVehicle
+            .map(vehId => {
+              beamVehicles.get(vehId) match {
+                case Some(vehicle) => vehicle
+                case None =>
+                  logger.error(s"Vehicle with ID $vehId from currentTourPersonalVehicle not found in beamVehicles map")
+                //throw new NoSuchElementException(s"Vehicle ID $vehId not found")
+              }
+            })
+            .toVector
       }
       availablePersonalStreetVehicles ++= availableVehicleFromParentTour
 
