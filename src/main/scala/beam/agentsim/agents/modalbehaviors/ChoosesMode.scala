@@ -179,10 +179,25 @@ trait ChoosesMode {
       // If we're on a walk based tour but using a vehicle for access/egress
       case (data: ChoosesModeData, Some(BIKE_TRANSIT | DRIVE_TRANSIT), Some(WALK_BASED))
           if data.personData.currentTourPersonalVehicle.isDefined =>
-        self ! MobilityStatusResponse(
-          Vector(beamVehicles(data.personData.currentTourPersonalVehicle.get)),
-          getCurrentTriggerIdOrGenerate
-        )
+        val currentTourPersonalVehicleId = data.personData.currentTourPersonalVehicle.get
+        if (beamVehicles.contains(currentTourPersonalVehicleId)) {
+          self ! MobilityStatusResponse(
+            Vector(beamVehicles(currentTourPersonalVehicleId)),
+            getCurrentTriggerIdOrGenerate
+          )
+        } else {
+          logger.error(
+            s"Person ${this.id} could not find vehicle $currentTourPersonalVehicleId. " +
+            s"The cause is unknown. We will request an available vehicle from the vehicle manager."
+          )
+          implicit val executionContext: ExecutionContext = context.system.dispatcher
+          requestAvailableVehicles(
+            vehicleFleets,
+            data.currentLocation,
+            currentActivity(data.personData),
+            Some(VehicleCategory.Car)
+          ) pipeTo self
+        }
       // Create teleportation vehicle if we are told to use teleportation
       case (data: ChoosesModeData, Some(HOV2_TELEPORTATION | HOV3_TELEPORTATION), _) =>
         val teleportationVehicle = createSharedTeleportationVehicle(data.currentLocation)
@@ -1580,12 +1595,34 @@ trait ChoosesMode {
 
   private def gotoChoosingModeWithoutPredefinedMode(choosesModeData: ChoosesModeData) = {
     // TODO: Check modes for subsequent trips here
-    val onFirstTrip = isFirstTripWithinTour(currentActivity(choosesModeData.personData))
+    val onFirstTrip =
+      isFirstTripWithinTour(currentActivity(choosesModeData.personData)) && !choosesModeData.personData.hasDeparted
     val outcomeTourMode = if (onFirstTrip) { None }
     else { Some(WALK_BASED) }
     val newTourVehicle = choosesModeData.personData.currentTourPersonalVehicle match {
       case Some(id) if beamVehicles.contains(id) =>
-        if (choosesModeData.personData.currentTourMode.contains(WALK_BASED) & !onFirstTrip) {
+        if (
+          (choosesModeData.personData.currentTourMode.contains(WALK_BASED) && !onFirstTrip) ||
+          choosesModeData.personData.hasDeparted
+        ) {
+          /*
+           * This code block only runs when someone needs to re-plan and re-do mode choice.
+           * If for instance they were going to take a bike trip but no bike route was available
+           * they need to release the bike so others can use it.
+           * But if they're in the middle of a tour and just can't find a transit route,
+           * for instance, but they took drive_transit on their first leg and need to take it home,
+           * we keep the original vehicle in beamVehicles so we can use it later
+           *
+           * The problem is that when someone gets a resourceCapacityExhausted error on the first leg of a drive_transit tour,
+           * the existing logic thinks that we're in the first scenario (didn't use a vehicle so we can release it)
+           * rather than the second one (have already used a vehicle and need to return to it at the end of our tour).
+           *
+           * For that matter, we are adding "choosesModeData.isWithinTripReplanning". As long as we are still replanning
+           * we don't release the vehicle until their last tour trip of their tour.
+           *
+           * e.g., they'll just get on the next train, go about their drive_transit tour, and
+           * then take drive_transit as the mode for the last leg of their tour and pick up their car on the way home
+           * */
           Some(id)
         } else {
           val vehicle = beamVehicles(id).vehicle
