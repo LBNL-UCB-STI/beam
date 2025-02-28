@@ -598,9 +598,21 @@ class BeamSim @Inject() (
       dumper match {
         case listener: ShutdownListener =>
           val event = new ShutdownEvent(beamServices.matsimServices, false)
-          // Create files
-          listener.notifyShutdown(event)
-          dumpHouseholdAttributes
+          try {
+            // Create files
+            listener.notifyShutdown(event)
+            dumpHouseholdAttributes()
+          } catch {
+            case ex: java.nio.file.NoSuchFileException =>
+              logger.warn(s"Expected file not found during initial data dump: ${ex.getMessage}")
+              logger.warn("This is normal during the first iteration as some files haven't been created yet")
+            case ex: org.matsim.core.utils.io.UncheckedIOException
+                if ex.getCause.isInstanceOf[java.nio.file.NoSuchFileException] =>
+              logger.warn(s"Expected file not found during initial data dump: ${ex.getCause.getMessage}")
+              logger.warn("This is normal during the first iteration as some files haven't been created yet")
+            case ex: Throwable =>
+              logger.warn(s"Unexpected error during initial data dump: ${ex.getMessage}", ex)
+          }
 
         case _ => logger.warn(s"dumper is not `ShutdownListener` - $dumper")
       }
