@@ -726,9 +726,9 @@ if __name__ == '__main__':
     _payload_plans_no_snap_file = _payload_plans_file.replace("payloads", "payloads--no-snap")
     format_payload(_payload_plans).to_csv(_payload_plans_no_snap_file, index=False)
     # Snap coordinates and save
-    _payload_plans, _coordinate_lookup = snap_coordinates_when_too_far(_payload_plans, _osm_edges_utm,
+    _payload_plans_snapped, _coordinate_lookup = snap_coordinates_when_too_far(_payload_plans, _osm_edges_utm,
                                                                        _coordinate_lookup)
-    _payload_plans.to_csv(_payload_plans_file, index=False)
+    _payload_plans_snapped.to_csv(_payload_plans_file, index=False)
 
     if _ondemand_plans is not None:
         print("Processing ondemand plans...")
@@ -736,19 +736,20 @@ if __name__ == '__main__':
         _ondemand_plans_no_snap_file = _ondemand_plans_file.replace("ondemand", "ondemand--no-snap")
         format_payload(_ondemand_plans).to_csv(_ondemand_plans_no_snap_file, index=False)
         # Snap coordinates and save, reusing the lookup table
-        _ondemand_plans, _coordinate_lookup = snap_coordinates_when_too_far(_ondemand_plans, _osm_edges_utm,
+        _ondemand_plans_snapped, _coordinate_lookup = snap_coordinates_when_too_far(_ondemand_plans, _osm_edges_utm,
                                                                             _coordinate_lookup)
-        _ondemand_plans.to_csv(_ondemand_plans_file, index=False)
+        _ondemand_plans_snapped.to_csv(_ondemand_plans_file, index=False)
 
-    # Create combined plans file with both regular plans and ondemand plans
-    if _payload_plans is not None and _ondemand_plans is not None:
-        print("Creating combined plans file...")
-        # Create a combined dataframe with both payload and ondemand plans
-        combined_plans = pd.concat([_payload_plans, _ondemand_plans], ignore_index=True)
-        # Save the combined file
-        combined_plans_file = f'{DIRECTORY_OUTPUT}/payloads+crowdshipments--{YEAR}-{SCENARIO_LABEL}.csv'
-        combined_plans.to_csv(combined_plans_file, index=False)
-        print(f"Combined plans file saved to {combined_plans_file}")
+        # Create combined plans file with both regular plans and ondemand plans
+        if _payload_plans is not None:
+            print("Creating combined plans file of payloads and crowdshipments...")
+            combined_file_label = "payloads+crowdshipments"
+            # Save the combined file
+            combined_plans_file = f'{DIRECTORY_OUTPUT}/{combined_file_label}--{YEAR}-{SCENARIO_LABEL}.csv'
+            pd.concat([_payload_plans_snapped, _ondemand_plans_snapped], ignore_index=True).to_csv(combined_plans_file, index=False)
+            combined_plans_no_snap_file = combined_plans_file.replace(combined_file_label, f"{combined_file_label}--no-snap")
+            pd.concat([_payload_plans, _ondemand_plans], ignore_index=True).to_csv(combined_plans_no_snap_file, index=False)
+            print(f"Combined plans file saved to {combined_plans_file} and {combined_plans_no_snap_file}")
 
     # selecting initial locations
     first_payloads = _payload_plans[_payload_plans['sequenceRank'] == 0].copy()
