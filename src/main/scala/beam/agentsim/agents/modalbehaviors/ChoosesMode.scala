@@ -465,6 +465,10 @@ trait ChoosesMode {
         rideHail2TransitEgressResult = responsePlaceholders.rideHail2TransitEgressResult,
         availablePersonalStreetVehicles = otherNewAndTourVehicles,
         allAvailableStreetVehicles = remainingAvailableVehicles,
+        // Note that remainingAvailableVehicles includes all vehicles that were available,
+        // and any unused vehicles will be released.
+        // That's why we remove any drive_transit vehicles after
+        // replanning -- so they don't get released.
         cavTripLegs = responsePlaceholders.cavTripLegs,
         routingFinished = choosesModeData.routingFinished
           || responsePlaceholders.routingResponse == RoutingResponse.dummyRoutingResponse
@@ -2347,7 +2351,11 @@ trait ChoosesMode {
             } else {
               // Reset available vehicles so we don't release our car that we've left during this replanning
               resetVehicles = true
-              makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
+              makeRequestWith(
+                withTransit = true,
+                Vector(bodyStreetVehicle),
+                departureBuffer = choosesModeData.personData.numberOfReplanningAttempts * 5
+              )
               responsePlaceholders = makeResponsePlaceholders(withRouting = true)
             }
           case (`lastTripIndex`, Some(currentTourPersonalVehicle)) =>
