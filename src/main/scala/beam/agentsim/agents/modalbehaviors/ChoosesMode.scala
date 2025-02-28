@@ -1600,14 +1600,14 @@ trait ChoosesMode {
   private def gotoChoosingModeWithoutPredefinedMode(choosesModeData: ChoosesModeData) = {
     // TODO: Check modes for subsequent trips here
     val onFirstTrip =
-      isFirstTripWithinTour(currentActivity(choosesModeData.personData)) && !choosesModeData.personData.hasDeparted
+      isFirstTripWithinTour(currentActivity(choosesModeData.personData)) && !choosesModeData.isWithinTripReplanning
     val outcomeTourMode = if (onFirstTrip) { None }
     else { Some(WALK_BASED) }
     val newTourVehicle = choosesModeData.personData.currentTourPersonalVehicle match {
       case Some(id) if beamVehicles.contains(id) =>
         if (
           (choosesModeData.personData.currentTourMode.contains(WALK_BASED) && !onFirstTrip) ||
-          choosesModeData.personData.hasDeparted
+          choosesModeData.isWithinTripReplanning
         ) {
           /*
            * This code block only runs when someone needs to re-plan and re-do mode choice.
