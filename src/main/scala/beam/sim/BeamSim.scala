@@ -592,29 +592,31 @@ class BeamSim @Inject() (
       "dumpMatsimStuffAtTheBeginningOfSimulation in the beginning of simulation",
       x => logger.info(x)
     ) {
-      // `DumpDataAtEnd` during `notifyShutdown` dumps network, plans, person attributes and other things.
-      // Reusing it to get `outputPersonAttributes.xml.gz` which is needed for warmstart
-      val dumper = beamServices.injector.getInstance(classOf[DumpDataAtEnd])
-      dumper match {
-        case listener: ShutdownListener =>
-          val event = new ShutdownEvent(beamServices.matsimServices, false)
-          try {
-            // Create files
-            listener.notifyShutdown(event)
-            dumpHouseholdAttributes()
-          } catch {
-            case ex: java.nio.file.NoSuchFileException =>
-              logger.warn(s"Expected file not found during initial data dump: ${ex.getMessage}")
-              logger.warn("This is normal during the first iteration as some files haven't been created yet")
-            case ex: org.matsim.core.utils.io.UncheckedIOException
-                if ex.getCause.isInstanceOf[java.nio.file.NoSuchFileException] =>
-              logger.warn(s"Expected file not found during initial data dump: ${ex.getCause.getMessage}")
-              logger.warn("This is normal during the first iteration as some files haven't been created yet")
-            case ex: Throwable =>
-              logger.error(s"Unexpected error during initial data dump: ${ex.getMessage}", ex)
-          }
+      // Get the specific logger and save its original level
+      val dumpLogger = org.apache.log4j.Logger.getLogger("org.matsim.core.controler.corelisteners.DumpDataAtEndImpl")
+      val originalLevel = dumpLogger.getLevel
 
-        case _ => logger.warn(s"dumper is not `ShutdownListener` - $dumper")
+      // Temporarily set log level to WARN to suppress ERROR messages
+      dumpLogger.setLevel(org.apache.log4j.Level.WARN)
+
+      try {
+        val dumper = beamServices.injector.getInstance(classOf[DumpDataAtEnd])
+        dumper match {
+          case listener: ShutdownListener =>
+            val event = new ShutdownEvent(beamServices.matsimServices, false)
+            try {
+              // Create files
+              listener.notifyShutdown(event)
+              dumpHouseholdAttributes()
+            } catch {
+              case ex: Throwable =>
+                logger.error(s"Exception during initial data dump: ${ex.getMessage}")
+            }
+          case _ => logger.warn(s"dumper is not `ShutdownListener` - $dumper")
+        }
+      } finally {
+        // Restore original logging configuration
+        dumpLogger.setLevel(originalLevel)
       }
     }
   }
