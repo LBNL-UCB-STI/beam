@@ -13,6 +13,7 @@ import pandas as pd
 import pyarrow.csv as pv
 import seaborn as sns
 from urllib.request import urlretrieve
+from cenpy import products
 
 plt.style.use('ggplot')
 meter_to_mile = 0.000621371
@@ -391,45 +392,27 @@ def collect_geographic_boundaries(state_fips_code, county_fips_codes, year, stud
     return selected_geo_wgs84
 
 
-def collect_tract_boundaries_ppsk(
-        state_fips_code,
-        county_fips_codes,
-        year,
-        projected_coordinate_system,
-        census_data_file,
-        tract_boundaries_geo_file
-):
+def download_census_data(state_fips_code, county_fips_codes, year, census_data_file):
     """
-     Collect census tract boundaries for tracts with population density above specified threshold
-     and analyze population distribution.
+    Download census tract population data from the Census Bureau's ACS 5-year estimates.
 
-     Parameters
-     ----------
-     state_fips_code : str
-         FIPS code for the state
-     county_fips_codes : list
-         List of county FIPS codes
-     year : int
-         Reference year for population estimates (July 1st reference date)
-     projected_coordinate_system: str
-        Proj4 string for the projected coordinate system
-     tract_boundaries_geo_file: GeoJSON
-         Path to the GeoJSON file containing tract boundaries in WGS84 projection
-     census_data_file: CSV
-         Path to the CSV file containing population density data
+    Parameters
+    ----------
+    state_fips_code : str
+        FIPS code for the state
+    county_fips_codes : list
+        List of county FIPS codes
+    year : int
+        Reference year for population estimates (July 1st reference date)
+    census_data_file: str
+        Path to the CSV file where population data will be saved
 
-     Returns
-     -------
-     geopandas.GeoDataFrame
-         Selected tract boundaries in WGS84 projection
-
-     Notes
-     -----
-     Population estimates are from the Census Bureau's ACS 5-year estimates.
-     """
-
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame containing population data for census tracts
+    """
     if not os.path.exists(census_data_file):
-        from cenpy import products
         # Connect to Census API
         try:
             conn = products.APIConnection(f"ACSDT5Y{year}")
@@ -462,6 +445,29 @@ def collect_tract_boundaries_ppsk(
     else:
         pop_data = pd.read_csv(census_data_file, dtype={'GEOID': str})
 
+    return pop_data
+
+
+def download_tract_boundaries(state_fips_code, county_fips_codes, year, tract_boundaries_geo_file):
+    """
+    Download census tract boundaries from TIGER/Line shapefiles.
+
+    Parameters
+    ----------
+    state_fips_code : str
+        FIPS code for the state
+    county_fips_codes : list
+        List of county FIPS codes
+    year : int
+        Reference year for boundaries
+    tract_boundaries_geo_file: str
+        Path to the GeoJSON file where boundary data will be saved
+
+    Returns
+    -------
+    geopandas.GeoDataFrame
+        GeoDataFrame containing tract boundaries
+    """
     if not os.path.exists(tract_boundaries_geo_file):
         # Get tract boundaries using TIGER/Line shapefiles
         try:
@@ -479,6 +485,52 @@ def collect_tract_boundaries_ppsk(
     else:
         geo_data = gpd.read_file(tract_boundaries_geo_file)
 
+    return geo_data
+
+
+def collect_tract_boundaries_ppsk(
+        state_fips_code,
+        county_fips_codes,
+        year,
+        projected_coordinate_system,
+        census_data_file,
+        tract_boundaries_geo_file
+):
+    """
+    Collect census tract boundaries for tracts with population density above specified threshold
+    and analyze population distribution.
+
+    Parameters
+    ----------
+    state_fips_code : str
+        FIPS code for the state
+    county_fips_codes : list
+        List of county FIPS codes
+    year : int
+        Reference year for population estimates (July 1st reference date)
+    projected_coordinate_system: str
+       Proj4 string for the projected coordinate system
+    tract_boundaries_geo_file: str
+        Path to the GeoJSON file containing tract boundaries in WGS84 projection
+    census_data_file: str
+        Path to the CSV file containing population density data
+
+    Returns
+    -------
+    geopandas.GeoDataFrame
+        Selected tract boundaries in WGS84 projection with population density information
+
+    Notes
+    -----
+    Population estimates are from the Census Bureau's ACS 5-year estimates.
+    """
+    # Download census data
+    pop_data = download_census_data(state_fips_code, county_fips_codes, year, census_data_file)
+
+    # Download tract boundaries
+    geo_data = download_tract_boundaries(state_fips_code, county_fips_codes, year, tract_boundaries_geo_file)
+
+    # Process the data (this was previously in process_tract_boundaries_ppsk)
     # Calculate area and density (with proper projection)
     # Merge boundaries with population data
     geo_data['GEOID'] = geo_data['GEOID'].astype(str)

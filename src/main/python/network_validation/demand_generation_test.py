@@ -1,237 +1,292 @@
-import cenpy
-import pandas as pd
-import matplotlib.pyplot as plt
+from validation_utils import download_census_data
+from validation_utils import download_tract_boundaries
+from validation_utils import collect_tract_boundaries_ppsk
 import os
-from cenpy.products import ACS
+import requests
+import pandas as pd
+import zipfile
+import time
+import json
+
+# San Francisco County information
+state_fips_code = "06"  # California
+county_fips_codes = ["075"]  # San Francisco County FIPS code
+year = 2018  # Or whatever year you need
+projected_coordinate_system = "26910"  #
+
+# File paths for saving data
+data_dir = "sf_data"
+os.makedirs(data_dir, exist_ok=True)
+census_data_file = os.path.join(data_dir, "sf_census_data.csv")
+tract_boundaries_geo_file = os.path.join(data_dir, "sf_tract_boundaries.geojson")
+nhts_data = "nhts_data"
+os.makedirs(nhts_data, exist_ok=True)
+nhts_file = os.path.join(nhts_data, f"nhts_data_{year}.zip")
 
 
-# Set up your Census API key (you'll need to register for one at https://api.census.gov/data/key_signup.html)
-# Comment out the line below and replace with your actual API key
-# os.environ['CENSUS_API_KEY'] = 'YOUR_API_KEY_HERE'
-
-# If you already have an API key in your environment, you can skip this step
-# If using a Jupyter notebook, you can use:
-# import getpass
-# os.environ['CENSUS_API_KEY'] = getpass.getpass("Enter your Census API key: ")
-
-def get_sf_census_data():
+def download_nhts_data(nhts_output_file, area_name, state_fips_code=None, county_fips_codes=None, year=2017, download=True, extract=True,
+                     process=True):
     """
-    Download general census data for San Francisco County
+    Download, extract, and process NHTS data with filtering by state FIPS code and county FIPS codes.
+
+    Parameters:
+    - state_fips_code: String representing the state FIPS code (e.g., '06' for California)
+    - county_fips_codes: List of county FIPS codes without state prefix (e.g., ['037', '075'] for LA and SF counties)
+    - year: NHTS survey year (default: 2017)
+    - download: Boolean to control if download should occur
+    - extract: Boolean to control if extraction should occur
+    - process: Boolean to control if processing should occur
+
+    Returns:
+    - Dictionary of filtered DataFrames
     """
-    print("Downloading general census data for San Francisco...")
-
-    # Connect to the 2019 5-year ACS data
-    acs = ACS(2019)
-
-    # Get variables related to population, housing, income
-    variables = [
-        'B01001_001E',  # Total population
-        'B01002_001E',  # Median age
-        'B19013_001E',  # Median household income
-        'B25077_001E',  # Median house value
-        'B25064_001E',  # Median gross rent
-        'B25003_001E',  # Total housing units
-        'B25002_003E',  # Vacant housing units
-    ]
-
-    # Get data for San Francisco County (FIPS code 06075)
-    # San Francisco County is the same as San Francisco City
-    sf_data = acs.from_county(variables=variables, county='San Francisco, CA')
-
-    # Rename columns for clarity
-    sf_data = sf_data.rename(columns={
-        'B01001_001E': 'total_population',
-        'B01002_001E': 'median_age',
-        'B19013_001E': 'median_household_income',
-        'B25077_001E': 'median_house_value',
-        'B25064_001E': 'median_gross_rent',
-        'B25003_001E': 'total_housing_units',
-        'B25002_003E': 'vacant_housing_units'
-    })
-
-    return sf_data
 
 
-def get_sf_travel_data():
-    """
-    Download travel and commuting data for San Francisco
-    """
-    print("Downloading travel and commuting data for San Francisco...")
+    # Set URL based on year
+    if year >= 2016:
+        url = "https://nhts.ornl.gov/assets/2016/download/csv.zip"
+    else:
+        print(f"Error: NHTS data for year {year} is not supported.")
+        return None
 
-    # Connect to the 2019 5-year ACS data
-    acs = ACS(2019)
+    data_nhts_dir = os.path.dirname(nhts_output_file)
 
-    # Get variables related to commuting and transportation
-    # B08301 - MEANS OF TRANSPORTATION TO WORK
-    variables = [
-        'B08301_001E',  # Total commuters
-        'B08301_002E',  # Car, truck, or van - drove alone
-        'B08301_003E',  # Car, truck, or van - carpooled
-        'B08301_004E',  # Car, truck, or van - carpooled - in 2-person carpool
-        'B08301_010E',  # Public transportation (excluding taxicab)
-        'B08301_011E',  # Public transportation - bus
-        'B08301_013E',  # Public transportation - subway or elevated rail
-        'B08301_018E',  # Bicycle
-        'B08301_019E',  # Walked
-        'B08301_021E',  # Worked from home
-        'B08303_001E',  # Total commuters (travel time)
-        'B08303_013E',  # 30-34 min commute time
-        'B08012_001E',  # Aggregate travel time to work (minutes)
-    ]
+    # Format full FIPS codes (state + county)
+    full_fips_codes = []
+    if state_fips_code and county_fips_codes:
+        full_fips_codes = [f"{state_fips_code}{county}" for county in county_fips_codes]
 
-    # Get data for San Francisco County
-    sf_travel = acs.from_county(variables=variables, county='San Francisco, CA')
+    # Create a filter description for file naming
+    filter_desc = f"fips_{state_fips_code}"
+    if county_fips_codes:
+        filter_desc += f"_counties_{'_'.join(county_fips_codes)}"
 
-    # Rename columns for clarity
-    sf_travel = sf_travel.rename(columns={
-        'B08301_001E': 'total_commuters',
-        'B08301_002E': 'drive_alone',
-        'B08301_003E': 'carpooled',
-        'B08301_004E': 'carpooled_2person',
-        'B08301_010E': 'public_transit',
-        'B08301_011E': 'bus',
-        'B08301_013E': 'subway_rail',
-        'B08301_018E': 'bicycle',
-        'B08301_019E': 'walked',
-        'B08301_021E': 'worked_from_home',
-        'B08303_001E': 'total_commuters_traveltime',
-        'B08303_013E': 'commute_30_34_min',
-        'B08012_001E': 'aggregate_travel_time_minutes'
-    })
-
-    return sf_travel
-
-
-def get_sf_travel_by_tract():
-    """
-    Download census tract level commuting data for San Francisco
-    """
-    print("Downloading tract-level travel data for San Francisco...")
-
-    # Connect to ACS
-    acs = ACS(2019, 5)
-
-    # Travel variables by census tract
-    variables = [
-        'B08301_001E',  # Total commuters
-        'B08301_002E',  # Car, truck, or van - drove alone
-        'B08301_010E',  # Public transportation
-        'B08301_018E',  # Bicycle
-        'B08301_019E',  # Walked
-        'B08301_021E',  # Worked from home
-    ]
-
-    # Get data for all census tracts in San Francisco County
-    sf_tracts = acs.from_county(variables=variables, county='San Francisco, CA')
-
-    # Rename columns for clarity
-    sf_tracts = sf_tracts.rename(columns={
-        'B08301_001E': 'total_commuters',
-        'B08301_002E': 'drive_alone',
-        'B08301_010E': 'public_transit',
-        'B08301_018E': 'bicycle',
-        'B08301_019E': 'walked',
-        'B08301_021E': 'worked_from_home'
-    })
-
-    # Calculate percentages
-    for col in ['drive_alone', 'public_transit', 'bicycle', 'walked', 'worked_from_home']:
-        # Handle division by zero
-        sf_tracts[f'{col}_pct'] = sf_tracts.apply(
-            lambda row: (row[col] / row['total_commuters']) * 100 if row['total_commuters'] > 0 else 0,
-            axis=1
-        )
-
-    return sf_tracts
-
-
-def visualize_commute_modes(sf_travel):
-    """
-    Create a pie chart of commute modes
-    """
-    # Extract commute mode data
-    commute_data = {
-        'Drive Alone': sf_travel['drive_alone'].iloc[0],
-        'Carpool': sf_travel['carpooled'].iloc[0] - sf_travel['carpooled_2person'].iloc[0],
-        'Public Transit': sf_travel['public_transit'].iloc[0],
-        'Bicycle': sf_travel['bicycle'].iloc[0],
-        'Walk': sf_travel['walked'].iloc[0],
-        'Work from Home': sf_travel['worked_from_home'].iloc[0],
-        'Other': (sf_travel['total_commuters'].iloc[0] -
-                  sf_travel['drive_alone'].iloc[0] -
-                  sf_travel['carpooled'].iloc[0] -
-                  sf_travel['public_transit'].iloc[0] -
-                  sf_travel['bicycle'].iloc[0] -
-                  sf_travel['walked'].iloc[0] -
-                  sf_travel['worked_from_home'].iloc[0])
+    # Save filter information to a JSON file for reference
+    filter_info = {
+        "state_fips_code": state_fips_code,
+        "county_fips_codes": county_fips_codes,
+        "full_fips_codes": full_fips_codes,
+        "year": year,
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
     }
 
-    # Create pie chart
-    plt.figure(figsize=(10, 8))
-    plt.pie(commute_data.values(), labels=commute_data.keys(), autopct='%1.1f%%')
-    plt.title('Commute Modes in San Francisco (2019 ACS)')
-    plt.axis('equal')
-    plt.tight_layout()
-    plt.savefig('sf_commute_modes.png')
-    print("Visualization saved as 'sf_commute_modes.png'")
+    with open(os.path.join(data_nhts_dir, f"filter_info_{filter_desc}.json"), "w") as f:
+        json.dump(filter_info, f, indent=2)
 
-    return commute_data
+    # Check if the file already exists
+    if os.path.exists(nhts_output_file):
+        file_size = os.path.getsize(nhts_output_file) / (1024 * 1024)  # Size in MB
+        print(f"File {nhts_output_file} already exists ({file_size:.1f} MB)")
+        if not download:
+            print("Skipping download.")
+        else:
+            download = input("Do you want to download it again? (y/n): ").lower() == 'y'
+
+    if download:
+        print(f"Downloading NHTS {year} data...")
+        # Download the file with progress reporting
+        response = requests.get(url, stream=True)
+        if response.status_code == 200:
+            total_size = int(response.headers.get('content-length', 0))
+            downloaded = 0
+            start_time = time.time()
+
+            with open(nhts_output_file, "wb") as file:
+                for chunk in response.iter_content(chunk_size=1024 * 1024):  # 1MB chunks
+                    if chunk:
+                        file.write(chunk)
+                        downloaded += len(chunk)
+
+                        # Calculate and display progress
+                        percent = int(100 * downloaded / total_size) if total_size > 0 else 0
+                        elapsed = time.time() - start_time
+                        rate = downloaded / (1024 * 1024 * elapsed) if elapsed > 0 else 0
+
+                        print(
+                            f"\rDownloading: {percent}% ({downloaded / (1024 * 1024):.1f}MB of {total_size / (1024 * 1024):.1f}MB) at {rate:.1f} MB/s",
+                            end="")
+
+            print(f"\nDownloaded {nhts_output_file}")
+        else:
+            print(f"Failed to download. Status code: {response.status_code}")
+            print(f"Response: {response.text[:500]}...")
+            return None
+
+    # Check if data has already been extracted
+    extracted_files_exist = os.path.exists(f"{data_nhts_dir}/hhpub.csv") or os.path.exists(f"{data_nhts_dir}/trippub.csv")
+
+    if not extracted_files_exist and extract:
+        # Extract the downloaded ZIP file
+        print("\nExtracting files...")
+        try:
+            with zipfile.ZipFile(nhts_output_file, "r") as zip_ref:
+                zip_ref.extractall(data_nhts_dir)
+            print("Files extracted successfully")
+        except zipfile.BadZipFile:
+            print("Error: The downloaded file is not a valid ZIP file.")
+            print("The file may be corrupted. Please try downloading again.")
+            return None
+        except Exception as e:
+            print(f"Error extracting files: {str(e)}")
+            return None
+    elif extract:
+        extract_again = input("Data files already exist. Extract again? (y/n): ").lower() == 'y'
+        if extract_again:
+            print("\nExtracting files...")
+            try:
+                with zipfile.ZipFile(nhts_output_file, "r") as zip_ref:
+                    zip_ref.extractall(data_nhts_dir)
+                print("Files extracted successfully")
+            except Exception as e:
+                print(f"Error extracting files: {str(e)}")
+                return None
+        else:
+            print("Skipping extraction.")
+    else:
+        print("Skipping extraction.")
+
+    # List the extracted files
+    files = os.listdir(data_nhts_dir)
+    print(f"\nFiles in {data_nhts_dir} directory: {len(files)} files")
+
+    # Process key datasets with focus on filtered areas
+    datasets = {
+        "Households": "hhpub.csv",
+        "Persons": "perpub.csv",
+        "Trips": "trippub.csv",
+        "Vehicles": "vehpub.csv"
+    }
+
+    filtered_dfs = {}
+
+    if not process:
+        print("Skipping data processing as requested.")
+        return None
+
+    for dataset_name, filename in datasets.items():
+        filtered_file_path = os.path.join(data_nhts_dir, f"{filter_desc}_{filename}")
+
+        # Check if filtered file already exists
+        if os.path.exists(filtered_file_path):
+            process_this = input(f"Filtered {dataset_name} data already exists. Process again? (y/n): ").lower() == 'y'
+            if not process_this:
+                filtered_dfs[dataset_name] = pd.read_csv(filtered_file_path)
+                print(f"Loaded existing filtered {dataset_name} data.")
+                continue
+
+        if filename in files:
+            print(f"\nProcessing {dataset_name} dataset...")
+            file_path = os.path.join(data_nhts_dir, filename)
+
+            # Load the CSV file
+            df = pd.read_csv(file_path)
+            print(f"Total records: {len(df)}")
+
+            # Apply filters
+            filtered_df = df.copy()
+
+            # Check for different possible FIPS column names
+            fips_column = None
+            for col in ['HHCOUNTY', 'COUNTY', 'FIPS']:
+                if col in df.columns:
+                    fips_column = col
+                    break
+
+            # Filter by FIPS code
+            if fips_column and full_fips_codes:
+                # Ensure FIPS codes are strings with leading zeros preserved
+                filtered_df[fips_column] = filtered_df[fips_column].astype(str).str.zfill(5)
+                filtered_df = filtered_df[filtered_df[fips_column].isin(full_fips_codes)]
+                print(f"Records after FIPS filter: {len(filtered_df)}")
+            elif state_fips_code:
+                # If only state FIPS is provided, filter by first two digits of FIPS code
+                if fips_column:
+                    filtered_df[fips_column] = filtered_df[fips_column].astype(str).str.zfill(5)
+                    filtered_df = filtered_df[filtered_df[fips_column].str[:2] == state_fips_code]
+                    print(f"Records after state FIPS filter: {len(filtered_df)}")
+                else:
+                    print("Warning: No FIPS code column found for filtering")
+
+            # Save filtered data
+            filtered_df.to_csv(filtered_file_path, index=False)
+            print(f"Filtered data saved to {filtered_file_path}")
+
+            # Store in dictionary
+            filtered_dfs[dataset_name] = filtered_df
+
+            # Display sample data
+            print("\nSample data (first 3 rows):")
+            print(filtered_df.head(3))
+
+            # Display column information
+            print(f"\nNumber of columns: {len(filtered_df.columns)}")
+            print(f"Sample columns: {filtered_df.columns[:5].tolist()}")
+        else:
+            print(f"\nWarning: {filename} not found in extracted files")
+
+    return filtered_dfs
 
 
-def main():
-    print("Starting San Francisco Census and Travel Data Collection")
-
-    try:
-        # Get general census data
-        sf_census = get_sf_census_data()
-        print("General census data downloaded successfully")
-
-        # Get travel/commuting data
-        sf_travel = get_sf_travel_data()
-        print("Travel data downloaded successfully")
-
-        # Get tract-level data
-        sf_tracts = get_sf_travel_by_tract()
-        print("Tract-level data downloaded successfully")
-
-        # Save data to CSV files
-        sf_census.to_csv('sf_census_data.csv', index=False)
-        sf_travel.to_csv('sf_travel_data.csv', index=False)
-        sf_tracts.to_csv('sf_tract_travel_data.csv', index=False)
-        print("Data saved to CSV files")
-
-        # Create visualization
-        commute_modes = visualize_commute_modes(sf_travel)
-
-        # Print summary statistics
-        print("\nSan Francisco Summary Statistics:")
-        print(f"Total Population: {sf_census['total_population'].iloc[0]:,}")
-        print(f"Median Household Income: ${sf_census['median_household_income'].iloc[0]:,}")
-        print(f"Total Commuters: {sf_travel['total_commuters'].iloc[0]:,}")
-
-        # Calculate average commute time
-        avg_commute = sf_travel['aggregate_travel_time_minutes'].iloc[0] / sf_travel['total_commuters_traveltime'].iloc[0]
-        print(f"Average Commute Time: {avg_commute:.1f} minutes")
-
-        print("\nCommute Mode Percentages:")
-        total = sf_travel['total_commuters'].iloc[0]
-        print(f"Drive Alone: {sf_travel['drive_alone'].iloc[0] / total * 100:.1f}%")
-        print(f"Public Transit: {sf_travel['public_transit'].iloc[0] / total * 100:.1f}%")
-        print(f"Bicycle: {sf_travel['bicycle'].iloc[0] / total * 100:.1f}%")
-        print(f"Walk: {sf_travel['walked'].iloc[0] / total * 100:.1f}%")
-        print(f"Work from Home: {sf_travel['worked_from_home'].iloc[0] / total * 100:.1f}%")
-
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        if "Invalid API key" in str(e):
-            print("Please make sure to set your Census API key correctly")
-        elif "API key required" in str(e):
-            print("You need a Census API key to use cenpy. Get one at https://api.census.gov/data/key_signup.html")
-        # Add more specific error handling for sjoin issues
-        elif "sjoin" in str(e):
-            print("There appears to be a version compatibility issue with geopandas spatial join.")
-            print("Try updating geopandas with: pip install -U geopandas")
-
-
+# Example usage:
 if __name__ == "__main__":
-    main()
+    # # Download census data for San Francisco
+    # sf_pop_data = download_census_data(
+    #     state_fips_code,
+    #     county_fips_codes,
+    #     year,
+    #     census_data_file
+    # )
+    # print(f"Downloaded census data for {len(sf_pop_data)} tracts in San Francisco County")
+    #
+    # # Download tract boundaries for San Francisco
+    # sf_geo_data = download_tract_boundaries(
+    #     state_fips_code,
+    #     county_fips_codes,
+    #     year,
+    #     tract_boundaries_geo_file
+    # )
+    # print(f"Downloaded boundary data for {len(sf_geo_data)} tracts in San Francisco County")
+    #
+    # # If you want to process the data as well, you can use the full function:
+    # sf_tracts_with_pop = collect_tract_boundaries_ppsk(
+    #     state_fips_code,
+    #     county_fips_codes,
+    #     year,
+    #     projected_coordinate_system,
+    #     census_data_file,
+    #     tract_boundaries_geo_file
+    # )
+    #
+    # # You can now work with the data
+    # print("\nSample of census data:")
+    # print(sf_pop_data.head())
+    #
+    # print("\nSample of boundary data:")
+    # print(sf_geo_data.head())
+    #
+    # # If you processed the data, you can also examine the combined dataset
+    # if 'sf_tracts_with_pop' in locals():
+    #     print("\nSample of processed data with population density:")
+    #     print(sf_tracts_with_pop[['GEOID', 'population', 'area_sqkm', 'density_per_km2']].head())
+    #
+    #     # You can also save the processed data to a file if needed
+    #     processed_file = os.path.join(data_dir, "sf_processed_tracts.geojson")
+    #     sf_tracts_with_pop.to_file(processed_file, driver='GeoJSON')
+    #     print(f"\nSaved processed data to {processed_file}")
+
+    # Download 2017 NHTS data for California (FIPS code 06)
+    nhts_data = download_nhts_data(
+        nhts_output_file=nhts_file,
+        area_name="sf",
+        state_fips_code='06',  # California
+        county_fips_codes=['075'],  # Los Angeles County
+        year=year
+    )
+
+    # Print summary of downloaded data
+    for dataset_name, dataset in nhts_data.items():
+        print(f"\n{dataset_name.upper()} Dataset Summary:")
+        print(f"Number of records: {len(dataset)}")
+        print("Sample columns:", list(dataset.columns)[:5])
+        print("Sample data:")
+        print(dataset.head(3))
