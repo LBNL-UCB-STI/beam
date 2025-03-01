@@ -24,12 +24,15 @@ os.makedirs(nhts_data, exist_ok=True)
 nhts_file = os.path.join(nhts_data, f"nhts_data_{year}.zip")
 
 
-def download_nhts_data(nhts_output_file, area_name, state_fips_code=None, county_fips_codes=None, year=2017, download=True, extract=True,
-                     process=True):
+def download_nhts_data(nhts_output_file, area_name, state_fips_code=None, county_fips_codes=None, year=2017,
+                       download=True, extract=True, process=True):
     """
     Download, extract, and process NHTS data with filtering by state FIPS code and county FIPS codes.
+    Stores filtered data under directory with area name: data_nhts_dir/area_name/
 
     Parameters:
+    - nhts_output_file: Path to save the downloaded NHTS zip file
+    - area_name: Name of the area for organizing filtered data
     - state_fips_code: String representing the state FIPS code (e.g., '06' for California)
     - county_fips_codes: List of county FIPS codes without state prefix (e.g., ['037', '075'] for LA and SF counties)
     - year: NHTS survey year (default: 2017)
@@ -40,8 +43,6 @@ def download_nhts_data(nhts_output_file, area_name, state_fips_code=None, county
     Returns:
     - Dictionary of filtered DataFrames
     """
-
-
     # Set URL based on year
     if year >= 2016:
         url = "https://nhts.ornl.gov/assets/2016/download/csv.zip"
@@ -50,6 +51,11 @@ def download_nhts_data(nhts_output_file, area_name, state_fips_code=None, county
         return None
 
     data_nhts_dir = os.path.dirname(nhts_output_file)
+
+    # Create area-specific directory
+    area_dir = os.path.join(data_nhts_dir, area_name)
+    os.makedirs(area_dir, exist_ok=True)
+    print(f"Created directory for area: {area_dir}")
 
     # Format full FIPS codes (state + county)
     full_fips_codes = []
@@ -63,6 +69,7 @@ def download_nhts_data(nhts_output_file, area_name, state_fips_code=None, county
 
     # Save filter information to a JSON file for reference
     filter_info = {
+        "area_name": area_name,
         "state_fips_code": state_fips_code,
         "county_fips_codes": county_fips_codes,
         "full_fips_codes": full_fips_codes,
@@ -70,7 +77,7 @@ def download_nhts_data(nhts_output_file, area_name, state_fips_code=None, county
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
     }
 
-    with open(os.path.join(data_nhts_dir, f"filter_info_{filter_desc}.json"), "w") as f:
+    with open(os.path.join(area_dir, "filter_info.json"), "w") as f:
         json.dump(filter_info, f, indent=2)
 
     # Check if the file already exists
@@ -112,15 +119,20 @@ def download_nhts_data(nhts_output_file, area_name, state_fips_code=None, county
             print(f"Response: {response.text[:500]}...")
             return None
 
-    # Check if data has already been extracted
-    extracted_files_exist = os.path.exists(f"{data_nhts_dir}/hhpub.csv") or os.path.exists(f"{data_nhts_dir}/trippub.csv")
+    # Create a temporary directory for extraction
+    temp_extract_dir = os.path.join(data_nhts_dir, "temp_extract")
+    os.makedirs(temp_extract_dir, exist_ok=True)
+
+    # Check if data has already been extracted to temp directory
+    extracted_files_exist = os.path.exists(f"{temp_extract_dir}/hhpub.csv") or os.path.exists(
+        f"{temp_extract_dir}/trippub.csv")
 
     if not extracted_files_exist and extract:
-        # Extract the downloaded ZIP file
-        print("\nExtracting files...")
+        # Extract the downloaded ZIP file to temp directory
+        print("\nExtracting files to temporary directory...")
         try:
             with zipfile.ZipFile(nhts_output_file, "r") as zip_ref:
-                zip_ref.extractall(data_nhts_dir)
+                zip_ref.extractall(temp_extract_dir)
             print("Files extracted successfully")
         except zipfile.BadZipFile:
             print("Error: The downloaded file is not a valid ZIP file.")
@@ -130,12 +142,12 @@ def download_nhts_data(nhts_output_file, area_name, state_fips_code=None, county
             print(f"Error extracting files: {str(e)}")
             return None
     elif extract:
-        extract_again = input("Data files already exist. Extract again? (y/n): ").lower() == 'y'
+        extract_again = input("Data files already exist in temp directory. Extract again? (y/n): ").lower() == 'y'
         if extract_again:
-            print("\nExtracting files...")
+            print("\nExtracting files to temporary directory...")
             try:
                 with zipfile.ZipFile(nhts_output_file, "r") as zip_ref:
-                    zip_ref.extractall(data_nhts_dir)
+                    zip_ref.extractall(temp_extract_dir)
                 print("Files extracted successfully")
             except Exception as e:
                 print(f"Error extracting files: {str(e)}")
@@ -146,8 +158,8 @@ def download_nhts_data(nhts_output_file, area_name, state_fips_code=None, county
         print("Skipping extraction.")
 
     # List the extracted files
-    files = os.listdir(data_nhts_dir)
-    print(f"\nFiles in {data_nhts_dir} directory: {len(files)} files")
+    files = os.listdir(temp_extract_dir)
+    print(f"\nFiles in temporary extraction directory: {len(files)} files")
 
     # Process key datasets with focus on filtered areas
     datasets = {
@@ -164,19 +176,21 @@ def download_nhts_data(nhts_output_file, area_name, state_fips_code=None, county
         return None
 
     for dataset_name, filename in datasets.items():
-        filtered_file_path = os.path.join(data_nhts_dir, f"{filter_desc}_{filename}")
+        # Define output path in the area-specific directory
+        area_output_file = os.path.join(area_dir, filename)
 
-        # Check if filtered file already exists
-        if os.path.exists(filtered_file_path):
-            process_this = input(f"Filtered {dataset_name} data already exists. Process again? (y/n): ").lower() == 'y'
+        # Check if filtered file already exists in area directory
+        if os.path.exists(area_output_file):
+            process_this = input(
+                f"Filtered {dataset_name} data already exists in {area_name} directory. Process again? (y/n): ").lower() == 'y'
             if not process_this:
-                filtered_dfs[dataset_name] = pd.read_csv(filtered_file_path)
-                print(f"Loaded existing filtered {dataset_name} data.")
+                filtered_dfs[dataset_name] = pd.read_csv(area_output_file)
+                print(f"Loaded existing filtered {dataset_name} data from {area_name} directory.")
                 continue
 
         if filename in files:
             print(f"\nProcessing {dataset_name} dataset...")
-            file_path = os.path.join(data_nhts_dir, filename)
+            file_path = os.path.join(temp_extract_dir, filename)
 
             # Load the CSV file
             df = pd.read_csv(file_path)
@@ -185,12 +199,20 @@ def download_nhts_data(nhts_output_file, area_name, state_fips_code=None, county
             # Apply filters
             filtered_df = df.copy()
 
-            # Check for different possible FIPS column names
+            # Find any column containing the word "FIPS"
             fips_column = None
-            for col in ['HHCOUNTY', 'COUNTY', 'FIPS']:
-                if col in df.columns:
-                    fips_column = col
-                    break
+            fips_columns = [col for col in df.columns if 'FIPS' in col]
+
+            if fips_columns:
+                fips_column = fips_columns[0]  # Use the first column containing "FIPS"
+                print(f"Found FIPS column: {fips_column}")
+            else:
+                # Fallback to other common county identifiers if no FIPS column found
+                for col in ['HHCOUNTY', 'COUNTY']:
+                    if col in df.columns:
+                        fips_column = col
+                        print(f"No FIPS column found, using {fips_column} instead")
+                        break
 
             # Filter by FIPS code
             if fips_column and full_fips_codes:
@@ -205,11 +227,12 @@ def download_nhts_data(nhts_output_file, area_name, state_fips_code=None, county
                     filtered_df = filtered_df[filtered_df[fips_column].str[:2] == state_fips_code]
                     print(f"Records after state FIPS filter: {len(filtered_df)}")
                 else:
-                    print("Warning: No FIPS code column found for filtering")
+                    print("Warning: No FIPS or county code column found for filtering")
+                    print(f"Available columns: {', '.join(df.columns[:10])}...")
 
-            # Save filtered data
-            filtered_df.to_csv(filtered_file_path, index=False)
-            print(f"Filtered data saved to {filtered_file_path}")
+            # Save filtered data to area-specific directory
+            filtered_df.to_csv(area_output_file, index=False)
+            print(f"Filtered data saved to {area_output_file}")
 
             # Store in dictionary
             filtered_dfs[dataset_name] = filtered_df
@@ -223,6 +246,13 @@ def download_nhts_data(nhts_output_file, area_name, state_fips_code=None, county
             print(f"Sample columns: {filtered_df.columns[:5].tolist()}")
         else:
             print(f"\nWarning: {filename} not found in extracted files")
+
+    # Optionally clean up temporary extraction directory
+    cleanup = input("Clean up temporary extraction directory? (y/n): ").lower() == 'y'
+    if cleanup:
+        import shutil
+        shutil.rmtree(temp_extract_dir)
+        print(f"Removed temporary directory: {temp_extract_dir}")
 
     return filtered_dfs
 
