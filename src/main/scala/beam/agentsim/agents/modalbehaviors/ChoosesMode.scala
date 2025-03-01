@@ -51,6 +51,8 @@ import scala.concurrent.{ExecutionContext, Future}
 trait ChoosesMode {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
+  private val BUFFER_PER_REPLANNING_ATTEMPT_IN_SEC: Int = 5
+
   private val dummyRHVehicle: StreetVehicle = createDummyVehicle(
     "dummyRH",
     beamServices.beamConfig.beam.agentsim.agents.rideHail.managers.head.initialization.procedural.vehicleTypeId,
@@ -451,6 +453,10 @@ trait ChoosesMode {
         triggerId
       )
 
+      // Note that remainingAvailableVehicles includes all vehicles that were available,
+      // and any unused vehicles will be released.
+      // That's why we remove any drive_transit vehicles after
+      // replanning -- so they don't get released.
       val newPersonData = choosesModeData.copy(
         personData = personData
           .copy(
@@ -465,10 +471,6 @@ trait ChoosesMode {
         rideHail2TransitEgressResult = responsePlaceholders.rideHail2TransitEgressResult,
         availablePersonalStreetVehicles = otherNewAndTourVehicles,
         allAvailableStreetVehicles = remainingAvailableVehicles,
-        // Note that remainingAvailableVehicles includes all vehicles that were available,
-        // and any unused vehicles will be released.
-        // That's why we remove any drive_transit vehicles after
-        // replanning -- so they don't get released.
         cavTripLegs = responsePlaceholders.cavTripLegs,
         routingFinished = choosesModeData.routingFinished
           || responsePlaceholders.routingResponse == RoutingResponse.dummyRoutingResponse
@@ -1611,16 +1613,15 @@ trait ChoosesMode {
 
   private def gotoChoosingModeWithoutPredefinedMode(choosesModeData: ChoosesModeData) = {
     // TODO: Check modes for subsequent trips here
-    val onFirstTrip =
-      isFirstTripWithinTour(currentActivity(choosesModeData.personData)) && !choosesModeData.isWithinTripReplanning
-    val outcomeTourMode = if (onFirstTrip) { None }
+    val onFirstTripWithinTour: Boolean = isFirstTripWithinTour(currentActivity(choosesModeData.personData))
+    val withinReplanning: Boolean = choosesModeData.isWithinTripReplanning
+    val agentStillAtTourOrigin: Boolean = onFirstTripWithinTour && !withinReplanning
+    val outcomeTourMode = if (agentStillAtTourOrigin) { None }
     else { Some(WALK_BASED) }
+    val isAccessEgressInTour: Boolean = choosesModeData.personData.currentTourMode.contains(WALK_BASED)
     val newTourVehicle = choosesModeData.personData.currentTourPersonalVehicle match {
       case Some(id) if beamVehicles.contains(id) =>
-        if (
-          (choosesModeData.personData.currentTourMode.contains(WALK_BASED) && !onFirstTrip) ||
-          choosesModeData.isWithinTripReplanning
-        ) {
+        if (isAccessEgressInTour && !agentStillAtTourOrigin) {
           /*
            * This code block only runs when someone needs to re-plan and re-do mode choice.
            * If for instance they were going to take a bike trip but no bike route was available
@@ -1645,7 +1646,7 @@ trait ChoosesMode {
           vehicle.setMustBeDrivenHome(false)
           beamVehicles.remove(vehicle.id)
           vehicle.getManager.get ! ReleaseVehicle(vehicle, getCurrentTriggerId.get)
-          if (!onFirstTrip) {
+          if (!agentStillAtTourOrigin) {
             logger.warn(
               s"Abandoning vehicle $id because no return ${choosesModeData.personData.currentTripMode} " +
               s"itinerary is available"
@@ -2354,7 +2355,8 @@ trait ChoosesMode {
               makeRequestWith(
                 withTransit = true,
                 Vector(bodyStreetVehicle),
-                departureBuffer = choosesModeData.personData.numberOfReplanningAttempts * 5
+                departureBuffer =
+                  choosesModeData.personData.numberOfReplanningAttempts * BUFFER_PER_REPLANNING_ATTEMPT_IN_SEC
               )
               responsePlaceholders = makeResponsePlaceholders(withRouting = true)
             }
