@@ -86,7 +86,7 @@ if __name__ == "__main__":
 
     # Loading an events file
     # Replace with your CSV file path
-    file_path = os.path.expanduser("~/Downloads/0.events.csv.gz")
+    file_path = os.path.expanduser("~/Workspace/Models/pilates/0.events.csv.gz")
     out_path = os.path.expanduser("~/Downloads/0.events.p3048964.csv")
     #300181
     df = load_heavy_csv(file_path)

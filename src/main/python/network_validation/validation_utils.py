@@ -14,6 +14,9 @@ import pyarrow.csv as pv
 import seaborn as sns
 from urllib.request import urlretrieve
 from cenpy import products
+import requests
+import zipfile
+import json
 
 plt.style.use('ggplot')
 meter_to_mile = 0.000621371
@@ -572,6 +575,239 @@ def collect_tract_boundaries_ppsk(
 
     return tracts_with_pop
 
+
+def download_nhts_data(nhts_output_file, area_name, state_fips_code=None,
+                       cbsa_codes=None, year=2017, download=True, extract=True, process=True):
+    """
+    Download, extract, and process NHTS data with filtering by state FIPS code
+    and/or CBSA codes.
+    Stores filtered data under directory with area name: data_nhts_dir/area_name/
+
+    Parameters:
+    - nhts_output_file: Path to save the downloaded NHTS zip file
+    - area_name: Name of the area for organizing filtered data
+    - state_fips_code: String representing the state FIPS code (e.g., '06' for California)
+    - cbsa_codes: List of CBSA codes (e.g., [41860] for San Francisco-Oakland-Hayward, CA)
+    - year: NHTS survey year (default: 2017)
+    - download: Boolean to control if download should occur
+    - extract: Boolean to control if extraction should occur
+    - process: Boolean to control if processing should occur
+
+    Returns:
+    - Dictionary of filtered DataFrames
+    """
+    # Set URL based on year
+    if year >= 2016:
+        url = "https://nhts.ornl.gov/assets/2016/download/csv.zip"
+    else:
+        print(f"Error: NHTS data for year {year} is not supported.")
+        return None
+
+    data_nhts_dir = os.path.dirname(nhts_output_file)
+
+    # Create area-specific directory
+    area_dir = os.path.join(data_nhts_dir, area_name)
+    os.makedirs(area_dir, exist_ok=True)
+    print(f"Created directory for area: {area_dir}")
+
+    # Create a filter description for file naming
+    filter_desc = ""
+    if state_fips_code:
+        filter_desc += f"fips_{state_fips_code}"
+    if cbsa_codes:
+        filter_desc += f"_cbsa_{'_'.join(map(str, cbsa_codes))}"
+
+    # Save filter information to a JSON file for reference
+    filter_info = {
+        "area_name": area_name,
+        "state_fips_code": state_fips_code,
+        "cbsa_codes": cbsa_codes,
+        "year": year,
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+    with open(os.path.join(area_dir, "filter_info.json"), "w") as f:
+        json.dump(filter_info, f, indent=2)
+
+    # Check if the file already exists
+    if os.path.exists(nhts_output_file):
+        file_size = os.path.getsize(nhts_output_file) / (1024 * 1024)  # Size in MB
+        print(f"File {nhts_output_file} already exists ({file_size:.1f} MB). Skipping download.")
+    else:
+        print(f"Downloading NHTS {year} data...")
+        # Download the file with progress reporting
+        response = requests.get(url, stream=True)
+        if response.status_code == 200:
+            total_size = int(response.headers.get('content-length', 0))
+            downloaded = 0
+            start_time = time.time()
+
+            with open(nhts_output_file, "wb") as file:
+                for chunk in response.iter_content(chunk_size=1024 * 1024):  # 1MB chunks
+                    if chunk:
+                        file.write(chunk)
+                        downloaded += len(chunk)
+
+                        # Calculate and display progress
+                        percent = int(100 * downloaded / total_size) if total_size > 0 else 0
+                        elapsed = time.time() - start_time
+                        rate = downloaded / (1024 * 1024 * elapsed) if elapsed > 0 else 0
+
+                        print(
+                            f"\rDownloading: {percent}% ({downloaded / (1024 * 1024):.1f}MB of {total_size / (1024 * 1024):.1f}MB) at {rate:.1f} MB/s",
+                            end="")
+
+            print(f"\nDownloaded {nhts_output_file}")
+        else:
+            print(f"Failed to download. Status code: {response.status_code}")
+            print(f"Response: {response.text[:500]}...")
+            return None
+
+    # Create a temporary directory for extraction
+    temp_extract_dir = os.path.join(data_nhts_dir, "temp_extract")
+    os.makedirs(temp_extract_dir, exist_ok=True)
+
+    # Check if data has already been extracted to temp directory
+    extracted_files_exist = os.path.exists(f"{temp_extract_dir}/hhpub.csv") or os.path.exists(
+        f"{temp_extract_dir}/trippub.csv")
+
+    if not extracted_files_exist and extract:
+        # Extract the downloaded ZIP file to temp directory
+        print("\nExtracting files to temporary directory...")
+        try:
+            with zipfile.ZipFile(nhts_output_file, "r") as zip_ref:
+                zip_ref.extractall(temp_extract_dir)
+            print("Files extracted successfully")
+        except zipfile.BadZipFile:
+            print("Error: The downloaded file is not a valid ZIP file.")
+            print("The file may be corrupted. Please try downloading again.")
+            return None
+        except Exception as e:
+            print(f"Error extracting files: {str(e)}")
+            return None
+    elif extract:
+        extract_again = input("Data files already exist in temp directory. Extract again? (y/n): ").lower() == 'y'
+        if extract_again:
+            print("\nExtracting files to temporary directory...")
+            try:
+                with zipfile.ZipFile(nhts_output_file, "r") as zip_ref:
+                    zip_ref.extractall(temp_extract_dir)
+                print("Files extracted successfully")
+            except Exception as e:
+                print(f"Error extracting files: {str(e)}")
+                return None
+        else:
+            print("Skipping extraction.")
+    else:
+        print("Skipping extraction.")
+
+    # List the extracted files
+    files = os.listdir(temp_extract_dir)
+    print(f"\nFiles in temporary extraction directory: {len(files)} files")
+
+    # Process key datasets with focus on filtered areas
+    datasets = {
+        "Households": "hhpub.csv",
+        "Persons": "perpub.csv",
+        "Trips": "trippub.csv",
+        "Vehicles": "vehpub.csv"
+    }
+
+    filtered_dfs = {}
+
+    if not process:
+        print("Skipping data processing as requested.")
+        return None
+
+    for dataset_name, filename in datasets.items():
+        # Define output path in the area-specific directory
+        area_output_file = os.path.join(area_dir, filename)
+
+        # Check if filtered file already exists in area directory
+        if os.path.exists(area_output_file):
+            process_this = input(
+                f"Filtered {dataset_name} data already exists in {area_name} directory. Process again? (y/n): ").lower() == 'y'
+            if not process_this:
+                filtered_dfs[dataset_name] = pd.read_csv(area_output_file)
+                print(f"Loaded existing filtered {dataset_name} data from {area_name} directory.")
+                continue
+
+        if filename in files:
+            print(f"\nProcessing {dataset_name} dataset...")
+            file_path = os.path.join(temp_extract_dir, filename)
+
+            # Load the CSV file
+            df = pd.read_csv(file_path)
+            print(f"Total records: {len(df)}")
+
+            # Apply filters
+            filtered_df = df.copy()
+
+            # Find columns for filtering
+            # 1. Find any column containing the word "FIPS" for state FIPS
+            state_fips_column = None
+            state_fips_columns = [col for col in df.columns if 'STFIPS' in col or ('FIPS' in col and 'ST' in col)]
+
+            if state_fips_columns:
+                state_fips_column = state_fips_columns[0]
+                print(f"Found state FIPS column: {state_fips_column}")
+
+            # 2. Find any column containing CBSA
+            cbsa_column = None
+            cbsa_columns = [col for col in df.columns if 'CBSA' in col]
+
+            if cbsa_columns:
+                cbsa_column = cbsa_columns[0]
+                print(f"Found CBSA column: {cbsa_column}")
+
+            # Apply filtering based on available columns and parameters
+            filter_applied = False
+
+            # 1. Filter by CBSA if provided and column exists
+            if cbsa_codes and cbsa_column and cbsa_column in df.columns:
+                filtered_df = filtered_df[filtered_df[cbsa_column].isin(cbsa_codes)]
+                print(f"Records after CBSA filter: {len(filtered_df)}")
+                filter_applied = True
+
+            # 2. Filter by state FIPS if provided and column exists
+            if state_fips_code and state_fips_column and state_fips_column in df.columns:
+                # Convert to integer for comparison if the column is numeric
+                if pd.api.types.is_numeric_dtype(filtered_df[state_fips_column]):
+                    filtered_df = filtered_df[filtered_df[state_fips_column] == int(state_fips_code)]
+                else:
+                    # Otherwise treat as string
+                    filtered_df[state_fips_column] = filtered_df[state_fips_column].astype(str)
+                    filtered_df = filtered_df[filtered_df[state_fips_column] == state_fips_code]
+                print(f"Records after state FIPS filter: {len(filtered_df)}")
+                filter_applied = True
+
+            if not filter_applied:
+                print("Warning: No filters applied. No matching columns found for the provided filter criteria.")
+                print(f"Available columns: {', '.join(df.columns[:10])}...")
+
+            # Save filtered data to area-specific directory
+            filtered_df.to_csv(area_output_file, index=False)
+            print(f"Filtered data saved to {area_output_file}")
+
+            # Store in dictionary
+            filtered_dfs[dataset_name] = filtered_df
+
+            # Display sample data
+            print("\nSample data (first 3 rows):")
+            print(filtered_df.head(3))
+
+            # Display column information
+            print(f"\nNumber of columns: {len(filtered_df.columns)}")
+            print(f"Sample columns: {filtered_df.columns[:5].tolist()}")
+        else:
+            print(f"\nWarning: {filename} not found in extracted files")
+
+    # Optionally clean up temporary extraction directory
+    print("Cleaning up temporary extraction directory")
+    import shutil
+    shutil.rmtree(temp_extract_dir)
+    print(f"Removed temporary directory: {temp_extract_dir}")
+    return filtered_dfs
 
 def map_cbg_to_taz(cbg_gdf, cbg_id_col, taz_gdf, taz_id_col, projected_coordinate_system, cbg_taz_map_csv):
     print(f"Mapping CBG to TAZ geometries")
