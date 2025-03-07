@@ -190,7 +190,7 @@ object XmlPlanElementReader extends PlanElementReader {
       activityLocationX = None,
       activityLocationY = None,
       activityEndTime = None,
-      legMode = Option(leg.getMode),
+      legMode = Option(leg).map(_.getMode),
       legDepartureTime = leg.getDepartureTime.toOption.map(_.toString),
       legTravelTime = leg.getTravelTime.toOption.map(_.toString),
       legRouteType = Option(leg.getRoute).map(_.getRouteType),
