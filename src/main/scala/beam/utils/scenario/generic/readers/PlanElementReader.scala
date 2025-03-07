@@ -95,8 +95,10 @@ object XmlPlanElementReader extends PlanElementReader {
         }
       }
       .collect {
-        case (person, plan, planIdx, act: Activity, planElIdx) => toPlanElement(act, plan, planIdx, person, planElIdx)
-        case (person, plan, planIdx, leg: Leg, planElIdx)      => toPlanElement(leg, plan, planIdx, person, planElIdx)
+        case (person, plan, planIdx, act: Activity, planElIdx) if act != null =>
+          toPlanElement(act, plan, planIdx, person, planElIdx)
+        case (person, plan, planIdx, leg: Leg, planElIdx) if leg != null =>
+          toPlanElement(leg, plan, planIdx, person, planElIdx)
       }
       .toArray
   }
