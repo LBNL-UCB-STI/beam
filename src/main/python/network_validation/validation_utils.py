@@ -2,7 +2,6 @@ import os
 import time
 import xml.etree.ElementTree as ET
 from statistics import median
-
 import contextily as ctx
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -17,8 +16,11 @@ from cenpy import products
 import requests
 import zipfile
 import json
-
-from census import Census
+import hashlib
+from osmnx import settings
+from osmnx import truncate
+import shapely.geometry
+from shapely.ops import unary_union
 
 plt.style.use('ggplot')
 meter_to_mile = 0.000621371
@@ -1405,6 +1407,328 @@ def process_tags(_g: nx.MultiDiGraph, config: dict) -> nx.MultiDiGraph:
     g_updated = ox.graph_from_gdfs(nodes, edges)
 
     return g_updated
+
+
+def shorten_osmid(osmid):
+    # Convert osmid to string if it isn't already
+    osmid_str = str(osmid)
+    # Create a hash of the osmid
+    hash_object = hashlib.md5(osmid_str.encode())
+    # Get first 8 characters of the hash
+    short_id = hash_object.hexdigest()[:8]
+    return short_id
+
+
+def find_long_tags_in_gdf(gdf, element_type="elements"):
+    """
+    Find columns and combinations of attributes that exceed 250 characters in a GeoDataFrame.
+
+    Parameters:
+    -----------
+    gdf : GeoDataFrame
+        The input GeoDataFrame (can be either nodes or edges)
+    element_type : str, optional
+        The type of elements being analyzed ("nodes" or "edges") for output messages
+
+    Returns:
+    --------
+    tuple
+        (long_tags, long_comb_tags) where:
+        - long_tags: dict of individual columns with values >= 250 characters
+        - long_comb_tags: dict of rows with combined attribute length >= 250 characters
+    """
+    print(f"\nAnalyzing {element_type}...")
+
+    # Find individual columns with values longer than 250 characters
+    long_tags = {}
+    for column in gdf.columns:
+        # Convert all values to strings and check their lengths
+        max_length = gdf[column].astype(str).str.len().max()
+        if max_length >= 250:
+            long_tags[column] = max_length
+
+    # Print results for individual columns
+    if long_tags:
+        print(f"\nIndividual {element_type} columns with values >= 250 characters:")
+        for column, length in long_tags.items():
+            print(f"Column '{column}': max length = {length} characters")
+            # Print an example of a long value
+            long_value_idx = gdf[column].astype(str).str.len().idxmax()
+            print(f"Example long value: {gdf[column].iloc[long_value_idx]}\n")
+    else:
+        print(f"No individual {element_type} columns found with values >= 250 characters")
+
+    # Find combinations of attributes that exceed 250 characters
+    print(f"\nChecking {element_type} attribute combinations...")
+    # Get all rows where any combination of attributes might be long
+    long_comb_tags = {}
+    for idx, row in gdf.iterrows():
+        comb_length = 0
+        contributing_cols = []
+
+        for col in gdf.columns:
+            value = str(row[col])
+            if len(value) > 0 and value.lower() != 'nan':  # Skip empty or NaN values
+                value_length = len(value)
+                comb_length += value_length
+                if value_length > 0:  # Only add if the value has length
+                    contributing_cols.append({
+                        'column': col,
+                        'length': value_length,
+                        'value': value
+                    })
+
+        if comb_length >= 250:
+            long_comb_tags[idx] = {
+                'total_length': comb_length,
+                'contributing_columns': contributing_cols
+            }
+
+    # Print results for combinations
+    if long_comb_tags:
+        print(f"\n{element_type.capitalize()} rows with combined attribute length >= 250 characters:")
+        for idx, info in long_comb_tags.items():
+            print(f"\nRow {idx}:")
+            print(f"Total combined length: {info['total_length']} characters")
+            print("Contributing columns:")
+            for col_info in info['contributing_columns']:
+                print(f"- {col_info['column']}: length={col_info['length']} chars")
+                if col_info['length'] > 50:  # Show value only if it's significantly long
+                    print(f"  Value: {col_info['value'][:50]}...")  # Show first 50 chars
+    else:
+        print(f"No combinations of {element_type} attributes found exceeding 250 characters")
+
+    return long_tags, long_comb_tags
+
+
+def filtering_network_layer(_boundaries_person_per_km2, _geo_level, _min_density_per_km2, _geo_file_prefix):
+    # Create density-specific paths
+    if _min_density_per_km2 == 0:
+        densely_populated_tracts_geo_file = f"{_geo_file_prefix}_{_geo_level}_wgs84.geojson"
+    else:
+        densely_populated_tracts_geo_file = f"{_geo_file_prefix}_{_geo_level}_{_min_density_per_km2}ppsk_wgs84.geojson"
+
+    # Get boundaries for this density level
+    print("Loading tract boundaries...")
+    if os.path.exists(densely_populated_tracts_geo_file):
+        densely_populated_geo = gpd.read_file(densely_populated_tracts_geo_file)
+        print("✓ Loaded existing tract boundaries")
+    else:
+        print("Extracting dense tract boundaries...")
+
+        # Filter by density
+        densely_populated = _boundaries_person_per_km2[
+            _boundaries_person_per_km2["density_per_km2"] >= _min_density_per_km2
+        ]
+
+        print(f"\nSelection Results:")
+        print("----------------")
+        print(f"Selected {len(densely_populated)} out of {len(_boundaries_person_per_km2)} tracts")
+        print(f"Density threshold: >= {_min_density_per_km2:,.1f} people/km²")
+        print(f"Total population in selected tracts: {densely_populated['population'].sum():,}")
+
+        # Get total population
+        total_population = _boundaries_person_per_km2['population'].sum()
+
+        # Calculate percentage with error handling
+        if total_population > 0:
+            population_percentage = (densely_populated['population'].sum() / total_population * 100)
+            print(f"Percentage of total population: {population_percentage:.1f}%")
+        else:
+            print("Warning: Total population is zero, cannot calculate percentage")  # Save in projected crs
+
+        # Save WGS84 version
+        densely_populated_geo = densely_populated.to_crs(epsg=4326)
+        densely_populated_geo.to_file(f"{densely_populated_tracts_geo_file}", driver="GeoJSON")
+
+    return densely_populated_geo
+
+
+def create_osm_highway_filter(highway_types):
+    """
+    Convert a list of highway types to an OSM custom filter string.
+
+    Args:
+        highway_types (list): List of highway type strings
+
+    Returns:
+        str: OSM custom filter string in the format '["highway"~"type1|type2|..."]'
+    """
+    # Join the highway types with the pipe character
+    highway_regex = "|".join(highway_types)
+
+    # Create the full filter string
+    filter_string = f'["highway"~"{highway_regex}"]'
+
+    return filter_string
+
+def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGraph:
+    print("\n=== Starting OSM Network Download and Preparation ===")
+
+    # Apply OSMNX settings
+    print("\nApplying OSMNX settings...")
+    for setting, value in _study_area_config["osmnx_settings"].items():
+        setattr(ox.settings, setting, value)
+    print("✓ OSMNX settings applied")
+
+    # List to store the graphs
+    graphs = []
+
+    print("Collecting dense tract boundaries...")
+    # Create density-specific paths
+    base_name = f"{_study_area_config['work_dir']}/geo/{_study_area_config['study_area']}"
+    census_year = _study_area_config["census_year"]
+
+    for layer_name, layer_config in _study_area_config["graph_layers"].items():
+        print(f"\nProcessing {layer_name} layer")
+
+        # Get the geographic level for this layer
+        geo_level = layer_config["geo_level"]
+
+        # Get the minimum density if specified (for residential layers)
+        min_density = layer_config.get("min_density_per_km2", 0)
+
+        # Get the custom filter for this layer
+        custom_filter = layer_config["custom_filter"]
+
+        if layer_name == "main":
+            region_boundary_wgs84 = collect_geographic_boundaries(
+                state_fips_code=_study_area_config["state_fips"],
+                county_fips_codes=_study_area_config["county_fips"],
+                year=_study_area_config["census_year"],
+                study_area_boundary_geo_path=f"{base_name}_{geo_level}_{census_year}_wgs84.geojson",
+                geo_level=geo_level)
+            # Combine all your county polygons
+            combined_polygon = shapely.unary_union(region_boundary_wgs84)
+            convex_hull = combined_polygon.convex_hull
+            # Or create a buffer around the combined area
+            buffered_area = convex_hull.buffer(0.1)  # Buffer distance in degrees
+        else:
+            boundaries_person_per_km2 = collect_boundaries_person_per_km2(
+                _study_area_config["state_fips"],
+                _study_area_config["county_fips"],
+                census_year,
+                _study_area_config["study_area_crs"],
+                f"{base_name}_acs_census_{geo_level}_{census_year}.csv",
+                f"{base_name}_{geo_level}_{census_year}_wgs84.geojson",
+                geo_level
+            )
+            buffered_polygons = []
+            for polygon in boundaries_person_per_km2:
+                buffered_polygon = polygon.buffer(0.01)  # 0.02 degrees buffer
+                buffered_polygons.append(buffered_polygon)
+            buffered_area = unary_union(buffered_polygons)
+
+        print("✓ Boundaries collected")
+        print(f"\n--- Processing {geo_level} density level ---")
+        print(f"Minimum density: {min_density} pop/km²")
+        graph_layer = filtering_network_layer(buffered_area, geo_level, min_density, base_name)
+        print("✓ Created new boundaries")
+
+        # Create polygon for network extraction
+        print("Creating unified polygon...")
+        graph_layer_polygon = graph_layer.geometry.union_all()
+        print("✓ Created unified polygon")
+
+        # Download OSM Network for this density level
+        print(f"Downloading OSM network with filter: {custom_filter}")
+        g = ox.graph_from_polygon(
+            graph_layer_polygon,
+            network_type="drive",
+            simplify=False,
+            retain_all=True,
+            truncate_by_edge=True,
+            custom_filter=custom_filter
+        )
+        print(f"✓ Downloaded network with {g.number_of_nodes()} nodes and {g.number_of_edges()} edges")
+
+        # Add the graph to the list
+        graphs.append(g)
+
+    print("\n=== Processing Combined Network ===")
+
+    print("Combining all density level networks...")
+    g_combined = nx.compose_all(graphs)
+    print(f"✓ Combined network has {g_combined.number_of_nodes()} nodes and {g_combined.number_of_edges()} edges")
+
+    print("\nProjecting network...")
+    g_projected = ox.project_graph(g_combined, to_crs=_study_area_config["study_area_crs"]).copy()
+    print("✓ Network projected")
+
+    print("\nAdding edge speeds...")
+    g_with_speeds = ox.add_edge_speeds(g_projected)
+    print("✓ Edge speeds added")
+
+    print("\nProcessing freight restrictions...")
+    g_with_ft_restrictions = process_tags(g_with_speeds, _study_area_config)
+    print("✓ Freight restrictions processed")
+
+    if _study_area_config["connect_islands"]:
+        print("\nProcessing island connections...")
+        region_counties_geo = f"{base_name}_counties_wgs84.geojson"
+        if os.path.exists(region_counties_geo):
+            region_boundary_wgs84 = gpd.read_file(region_counties_geo)
+            print("✓ Loaded existing county boundaries")
+        else:
+            print("Collecting geographic boundaries...")
+            region_boundary_wgs84 = collect_geographic_boundaries(
+                state_fips_code=_study_area_config["state_fips"],
+                county_fips_codes=_study_area_config["county_fips"],
+                year=_study_area_config["census_year"],
+                study_area_boundary_geo_path=region_counties_geo,
+                geo_level="county")
+            print("✓ Created new county boundaries")
+
+        g_completed_network = process_ferry_into_car_edges(
+            g_with_ft_restrictions,
+            region_boundary_wgs84.geometry.union_all()
+        )
+        print("✓ Ferry connections processed")
+    else:
+        g_completed_network = g_with_ft_restrictions
+
+    print("\nConsolidating intersections...")
+    g_consolidated = ox.consolidate_intersections(
+        g_completed_network,
+        tolerance=_study_area_config["tolerance"],
+        rebuild_graph=True,
+        dead_ends=True,
+        reconnect_edges=True
+    )
+    print("✓ Intersections consolidated")
+
+    print("\nUpdating edge lengths...")
+    nodes, edges = ox.graph_to_gdfs(g_consolidated)
+    edges['length'] = edges['geometry'].length
+    g_length_updated = ox.graph_from_gdfs(nodes, edges, graph_attrs=g_consolidated.graph)
+    print("✓ Edge lengths updated")
+
+    print("\nSimplifying network...")
+    g_simplified = ox.simplification.simplify_graph(
+        g_length_updated,
+        edge_attrs_differ=["highway", "lanes", "maxspeed"],
+        remove_rings=False,
+        track_merged=True
+    )
+    print("✓ Network simplified")
+
+    print("\nShortening OSM IDs...")
+    nodes, edges = ox.graph_to_gdfs(g_simplified)
+    edges['osmid_hash'] = edges['osmid'].apply(lambda x: shorten_osmid(x))
+    nodes['osmid_hash'] = nodes['osmid_original'].apply(lambda x: shorten_osmid(x))
+    g_hashed = ox.graph_from_gdfs(nodes, edges)
+    print("✓ OSM IDs shortened")
+
+    print("\nProjecting to WGS84...")
+    g_wgs84 = ox.project_graph(g_hashed, to_crs="epsg:4326")
+    print("✓ Projected to WGS84")
+
+    print("\nExtracting largest connected component...")
+    g_connected = ox.truncate.largest_component(g_wgs84.copy())
+    print(f"✓ Final network has {g_connected.number_of_nodes()} nodes and {g_connected.number_of_edges()} edges")
+
+    print("\n=== Network Download and Preparation Complete ===\n")
+    return g_connected
 
 
 def save_graph_to_osm(G, filename="output.osm"):
