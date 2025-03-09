@@ -18,6 +18,8 @@ import requests
 import zipfile
 import json
 
+from census import Census
+
 plt.style.use('ggplot')
 meter_to_mile = 0.000621371
 mps_to_mph = 2.23694
@@ -349,53 +351,168 @@ def collect_taz_boundaries(state_fips_code, year, output_dir):
         return gdf
 
 
-def collect_geographic_boundaries(state_fips_code, county_fips_codes, year, study_area_geo_path,
-                                  projected_coordinate_system, geo_level):
-    from pygris import counties, block_groups
-
-    if geo_level == 'county':
-        # Define fips code for selected counties
-        geo_data = counties(state=state_fips_code, year=year, cb=True, cache=True)
-    elif geo_level == 'cbg':
-        # Define fips code for selected counties
-        geo_data = block_groups(state=state_fips_code, year=year, cb=True, cache=True)
-    elif geo_level == 'taz':
-        geo_data = collect_taz_boundaries(state_fips_code, year, os.path.dirname(study_area_geo_path))
+def collect_geographic_boundaries(state_fips_code, county_fips_codes, year, study_area_boundary_geo_path, geo_level):
+    if os.path.exists(study_area_boundary_geo_path):
+        return gpd.read_file(study_area_boundary_geo_path)
     else:
-        raise ValueError("Unsupported geographic level. Choose 'counties' or 'cbgs'.")
+        from pygris import counties, block_groups
 
-    countyfp_columns = [col for col in geo_data.columns if col.startswith('COUNTYFP')]
-    mask = geo_data[countyfp_columns].apply(lambda x: x.isin(county_fips_codes)).any(axis=1)
-    selected_geo = geo_data[mask]
+        if geo_level == 'county':
+            # Define fips code for selected counties
+            geo_data = counties(state=state_fips_code, year=year, cb=True, cache=True)
+        elif geo_level == 'cbg':
+            # Define fips code for selected counties
+            geo_data = block_groups(state=state_fips_code, year=year, cb=True, cache=True)
+        elif geo_level == 'taz':
+            geo_data = collect_taz_boundaries(state_fips_code, year, os.path.dirname(study_area_boundary_geo_path))
+        elif geo_level == "tract":
+            geo_data = collect_tract_boundaries(state_fips_code, county_fips_codes, year)
+        else:
+            raise ValueError("Unsupported geographic level. Choose 'counties' or 'cbgs'.")
 
-    # def string_to_double(s):
-    #     return float(s if s != "" else "0")
-    #
-    # # Prepare columns and mask
-    # aland_columns = [col for col in selected_geo.columns if col.startswith('ALAND')]
-    # awater_columns = [col for col in selected_geo.columns if col.startswith('AWATER')]
-    # for col in aland_columns + awater_columns:
-    #     selected_geo.loc[:, col] = selected_geo[col].apply(string_to_double)
-    # mask = pd.Series([False] * len(selected_geo), index=selected_geo.index)
-    #
-    # for aland_col, awater_col in zip(aland_columns, awater_columns):
-    #     # AWATER should not be more than three times ALAND
-    #     mask |= (selected_geo[aland_col] > 0) & (selected_geo[awater_col] < 3 * selected_geo[aland_col])
-    #
-    # # Apply the mask to filter selected_geo
-    # selected_geo = selected_geo[mask]
+        countyfp_columns = [col for col in geo_data.columns if col.startswith('COUNTYFP')]
+        mask = geo_data[countyfp_columns].apply(lambda x: x.isin(county_fips_codes)).any(axis=1)
+        selected_geo = geo_data[mask]
 
-    base_name, extension = os.path.splitext(study_area_geo_path)
+        # def string_to_double(s):
+        #     return float(s if s != "" else "0")
+        #
+        # # Prepare columns and mask
+        # aland_columns = [col for col in selected_geo.columns if col.startswith('ALAND')]
+        # awater_columns = [col for col in selected_geo.columns if col.startswith('AWATER')]
+        # for col in aland_columns + awater_columns:
+        #     selected_geo.loc[:, col] = selected_geo[col].apply(string_to_double)
+        # mask = pd.Series([False] * len(selected_geo), index=selected_geo.index)
+        #
+        # for aland_col, awater_col in zip(aland_columns, awater_columns):
+        #     # AWATER should not be more than three times ALAND
+        #     mask |= (selected_geo[aland_col] > 0) & (selected_geo[awater_col] < 3 * selected_geo[aland_col])
+        #
+        # # Apply the mask to filter selected_geo
+        # selected_geo = selected_geo[mask]
+        # study_area_geo_projected_path = base_name + "_epsg" + str(projected_coordinate_system) + extension
+        # selected_geo.to_crs(epsg=projected_coordinate_system).to_file(study_area_geo_projected_path, driver="GeoJSON")
 
-    study_area_geo_projected_path = base_name + "_epsg" + str(projected_coordinate_system) + extension
-    selected_geo.to_crs(epsg=projected_coordinate_system).to_file(study_area_geo_projected_path, driver="GeoJSON")
-
-    selected_geo_wgs84 = selected_geo.to_crs(epsg=4326)
-    selected_geo_wgs84.to_file(base_name + "_wgs84" + extension, driver="GeoJSON")
-    return selected_geo_wgs84
+        selected_geo_wgs84 = selected_geo.to_crs(epsg=4326)
+        selected_geo_wgs84.to_file(study_area_boundary_geo_path, driver="GeoJSON")
+        return selected_geo_wgs84
 
 
-def download_census_data(state_fips_code, county_fips_codes, year, census_data_file):
+def collect_census_data(state_fips_code, county_fips_codes, year, census_data_file, geo_level='county'):
+    """
+    Collect census data at specified geographic level (county, tract, or CBG).
+
+    Parameters
+    ----------
+    state_fips_code : str
+        FIPS code for the state
+    county_fips_codes : list or str
+        List of county FIPS codes or comma-separated string
+    year : int
+        Census year
+    census_data_file : str
+        Path to save the CSV output
+    geo_level : str
+        Geographic level for data collection: 'county', 'tract', or 'cbg'
+        Default is 'county'
+
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame containing population data for the specified geographic level
+    """
+    # Validate geo_level parameter
+    valid_levels = ['county', 'tract', 'cbg']
+    if geo_level.lower() not in valid_levels:
+        raise ValueError(f"Invalid geo_level '{geo_level}'. Must be one of: {', '.join(valid_levels)}")
+
+    geo_level = geo_level.lower()
+
+    # Check if the output file already exists
+    if os.path.exists(census_data_file):
+        print(f"Loading existing {geo_level} data from {census_data_file}")
+        return pd.read_csv(census_data_file, dtype={'GEOID': str})
+
+    # Get Census API key from file
+    api_key_path = os.path.expanduser("~/.census_api_key")
+    try:
+        with open(api_key_path, 'r') as f:
+            census_api_key = f.read().strip()
+            print(f"Your Census API key is [{census_api_key}]")
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            f"Census API key file not found at {api_key_path}. Please create this file with your API key.")
+
+    if not census_api_key:
+        raise ValueError("Census API key is empty. Please check your API key file.")
+
+    print(f"Collecting {geo_level.upper()} data for year {year}...")
+
+    # Initialize the Census API
+    from census import Census
+    c = Census(census_api_key, year=year)
+
+    # Convert list of county FIPS to comma-separated string if it's a list
+    if isinstance(county_fips_codes, list):
+        county_fips_string = ','.join(county_fips_codes)
+    else:
+        county_fips_string = county_fips_codes
+
+    print(f"Downloading population data for {geo_level}s...")
+
+    try:
+        # Different API calls based on geographic level
+        if geo_level == 'county':
+            census_data = c.acs5.state_county(
+                fields=('NAME', 'B01003_001E'),  # B01003_001E is total population
+                state_fips=state_fips_code,
+                county_fips=county_fips_string
+            )
+        elif geo_level == 'tract':
+            census_data = c.acs5.state_county_tract(
+                fields=('NAME', 'B01003_001E'),
+                state_fips=state_fips_code,
+                county_fips=county_fips_string,
+                tract='*'  # Request all tracts
+            )
+        elif geo_level == 'cbg':
+            census_data = c.acs5.state_county_blockgroup(
+                fields=('NAME', 'B01003_001E'),
+                state_fips=state_fips_code,
+                county_fips=county_fips_string,
+                blockgroup='*'  # Request all block groups
+            )
+
+        # Create a DataFrame from the census data
+        df = pd.DataFrame(census_data)
+
+        # Rename columns for clarity
+        df = df.rename(columns={'B01003_001E': 'population', 'NAME': 'name'})
+
+        # Create GEOID based on geographic level
+        if geo_level == 'county':
+            df['GEOID'] = df['state'] + df['county']
+        elif geo_level == 'tract':
+            df['GEOID'] = df['state'] + df['county'] + df['tract']
+        elif geo_level == 'cbg':
+            df['GEOID'] = df['state'] + df['county'] + df['tract'] + df['block group']
+
+        # Convert population to numeric
+        df['population'] = pd.to_numeric(df['population'], errors='coerce')
+
+        # Save the raw census data
+        if census_data_file:
+            df.to_csv(census_data_file, index=False)
+            print(f"{geo_level.capitalize()} population data saved to {census_data_file}")
+
+        return df
+
+    except Exception as e:
+        print(f"Error downloading Census data: {e}")
+        raise
+
+
+def download_tract_census_data(state_fips_code, county_fips_codes, year, census_data_file):
     """
     Download census tract population data from the Census Bureau's ACS 5-year estimates.
 
@@ -451,7 +568,7 @@ def download_census_data(state_fips_code, county_fips_codes, year, census_data_f
     return pop_data
 
 
-def download_tract_boundaries(state_fips_code, county_fips_codes, year, tract_boundaries_geo_file):
+def collect_tract_boundaries(state_fips_code, county_fips_codes, year):
     """
     Download census tract boundaries from TIGER/Line shapefiles.
 
@@ -463,41 +580,33 @@ def download_tract_boundaries(state_fips_code, county_fips_codes, year, tract_bo
         List of county FIPS codes
     year : int
         Reference year for boundaries
-    tract_boundaries_geo_file: str
-        Path to the GeoJSON file where boundary data will be saved
 
     Returns
     -------
     geopandas.GeoDataFrame
         GeoDataFrame containing tract boundaries
     """
-    if not os.path.exists(tract_boundaries_geo_file):
-        # Get tract boundaries using TIGER/Line shapefiles
-        try:
-            # Download geographic boundaries
-            geo_url = f"https://www2.census.gov/geo/tiger/TIGER{year}/TRACT/tl_{year}_{state_fips_code}_tract.zip"
-            geo_data = gpd.read_file(geo_url)
+    try:
+        # Download geographic boundaries
+        geo_url = f"https://www2.census.gov/geo/tiger/TIGER{year}/TRACT/tl_{year}_{state_fips_code}_tract.zip"
+        geo_data = gpd.read_file(geo_url)
 
-            # Filter for counties of interest
-            geo_data = geo_data[geo_data['COUNTYFP'].isin(county_fips_codes)]
-
-            geo_data.to_file(tract_boundaries_geo_file, driver='GeoJSON')
-        except Exception as e:
-            print(f"Failed to retrieve geographic boundaries: {e}")
-            raise
-    else:
-        geo_data = gpd.read_file(tract_boundaries_geo_file)
-
+        # Filter for counties of interest
+        geo_data = geo_data[geo_data['COUNTYFP'].isin(county_fips_codes)]
+    except Exception as e:
+        print(f"Failed to retrieve geographic boundaries: {e}")
+        raise
     return geo_data
 
 
-def collect_tract_boundaries_ppsk(
+def collect_boundaries_person_per_km2(
         state_fips_code,
         county_fips_codes,
         year,
         projected_coordinate_system,
         census_data_file,
-        tract_boundaries_geo_file
+        boundaries_geo_file,
+        geo_level
 ):
     """
     Collect census tract boundaries for tracts with population density above specified threshold
@@ -513,10 +622,12 @@ def collect_tract_boundaries_ppsk(
         Reference year for population estimates (July 1st reference date)
     projected_coordinate_system: str
        Proj4 string for the projected coordinate system
-    tract_boundaries_geo_file: str
-        Path to the GeoJSON file containing tract boundaries in WGS84 projection
     census_data_file: str
         Path to the CSV file containing population density data
+    boundaries_geo_file: str
+        Path to the GeoJSON file containing boundaries in WGS84 projection
+    geo_level: str
+        tract or cbg
 
     Returns
     -------
@@ -527,11 +638,10 @@ def collect_tract_boundaries_ppsk(
     -----
     Population estimates are from the Census Bureau's ACS 5-year estimates.
     """
-    # Download census data
-    pop_data = download_census_data(state_fips_code, county_fips_codes, year, census_data_file)
+    pop_data = collect_census_data(state_fips_code, county_fips_codes, year, census_data_file, geo_level=geo_level)
 
-    # Download tract boundaries
-    geo_data = download_tract_boundaries(state_fips_code, county_fips_codes, year, tract_boundaries_geo_file)
+    # Load boundaries in WGS84 projection
+    geo_data = collect_geographic_boundaries(state_fips_code, county_fips_codes, year, boundaries_geo_file, geo_level)
 
     # Process the data (this was previously in process_tract_boundaries_ppsk)
     # Calculate area and density (with proper projection)

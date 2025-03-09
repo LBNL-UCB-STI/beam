@@ -108,6 +108,47 @@ def find_long_tags_in_gdf(gdf, element_type="elements"):
     return long_tags, long_comb_tags
 
 
+def download_network_layer(_params, _boundaries_person_per_km2, _geo_file_prefix):
+    # Create density-specific paths
+    densely_populated_tracts_geo_file = \
+        f"{_geo_file_prefix}_{_params["geo_level"]}_geq_to_{_params['min_density_per_km2']}_pop_per_km2_wgs84.geojson"
+
+    # Get boundaries for this density level
+    print("Loading tract boundaries...")
+    if os.path.exists(densely_populated_tracts_geo_file):
+        densely_populated_tracts_geo = gpd.read_file(densely_populated_tracts_geo_file)
+        print("✓ Loaded existing tract boundaries")
+    else:
+        print("Extracting dense tract boundaries...")
+
+        # Filter by density
+        densely_populated_tracts = _boundaries_person_per_km2[
+            _boundaries_person_per_km2["density_per_km2"] >= _params["min_density_per_km2"]
+            ]
+
+        print(f"\nSelection Results:")
+        print("----------------")
+        print(f"Selected {len(densely_populated_tracts)} out of {len(_boundaries_person_per_km2)} tracts")
+        print(f"Density threshold: >= {_params["min_density_per_km2"]:,.1f} people/km²")
+        print(f"Total population in selected tracts: {densely_populated_tracts['population'].sum():,}")
+
+        # Get total population
+        total_population = _boundaries_person_per_km2['population'].sum()
+
+        # Calculate percentage with error handling
+        if total_population > 0:
+            population_percentage = (densely_populated_tracts['population'].sum() / total_population * 100)
+            print(f"Percentage of total population: {population_percentage:.1f}%")
+        else:
+            print("Warning: Total population is zero, cannot calculate percentage")  # Save in projected crs
+
+        # Save WGS84 version
+        densely_populated_tracts_geo = densely_populated_tracts.to_crs(epsg=4326)
+        base_name, extension = os.path.splitext(densely_populated_tracts_geo_file)
+        densely_populated_tracts_geo.to_file(f"{base_name}_wgs84{extension}", driver="GeoJSON")
+
+    return densely_populated_tracts_geo
+
 def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGraph:
     print("\n=== Starting OSM Network Download and Preparation ===")
 
@@ -119,74 +160,48 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
 
     # List to store the graphs
     graphs = []
-    print(f"\nProcessing {len(_study_area_config['density_levels'])} density levels...")
 
     print("Collecting dense tract boundaries...")
     # Create density-specific paths
-    base_name = f"{_study_area_config['work_dir']}/{_study_area_config['study_area']}"
+    base_name = f"{_study_area_config['work_dir']}/geo/{_study_area_config['study_area']}"
     census_year = _study_area_config["census_year"]
-    tracts_ppsk = collect_tract_boundaries_ppsk(
-        _study_area_config["state_fips"],
-        _study_area_config["county_fips"],
-        census_year,
-        _study_area_config["study_area_crs"],
-        f"{base_name}_acs_census_{census_year}.csv",
-        f"{base_name}_tracts_{census_year}_wgs84.geojson"
-    )
 
-    # Download and prepare networks for each density level
-    # For each density level
-    for level, params in _study_area_config["density_levels"].items():
-        print(f"\n--- Processing {level} density level ---")
-        print(f"Minimum density: {params['min_density_per_km2']} pop/km²")
+    main_network_params = {
+        "min_density_per_km2": 0,
+        "geo_level": "county",
+        "custom_filter": _study_area_config["main_network_structure"]
+    }
 
-        # Create density-specific paths
-        densely_populated_tracts_geo = (
-            f"{_study_area_config['work_dir']}/{_study_area_config['study_area']}"
-            f"_tracts_geq_to_{params['min_density_per_km2']}_pop_per_km2_wgs84.geojson"
+    residential_network_params = _study_area_config["residential_network_structure"]
+
+    for params in [residential_network_params, main_network_params]:
+        print(f"\nProcessing {params}")
+
+        boundaries_person_per_km2 = collect_boundaries_person_per_km2(
+            _study_area_config["state_fips"],
+            _study_area_config["county_fips"],
+            census_year,
+            _study_area_config["study_area_crs"],
+            f"{base_name}_acs_census_{params["geo_level"]}_{census_year}.csv",
+            f"{base_name}_{params["geo_level"]}_{census_year}_wgs84.geojson",
+            params["geo_level"]
         )
+        print("✓ Boundaries collected")
 
-        # Get boundaries for this density level
-        print("Loading tract boundaries...")
-        if os.path.exists(densely_populated_tracts_geo):
-            densely_populated_tracts = gpd.read_file(densely_populated_tracts_geo)
-            print("✓ Loaded existing tract boundaries")
-        else:
-            print("Extracting dense tract boundaries...")
-            # Filter by density
-            densely_populated_tracts = tracts_ppsk[tracts_ppsk["density_per_km2"] >= params["min_density_per_km2"]]
-
-            print(f"\nSelection Results:")
-            print("----------------")
-            print(f"Selected {len(densely_populated_tracts)} out of {len(tracts_ppsk)} tracts")
-            print(f"Density threshold: >= {params["min_density_per_km2"]:,.1f} people/km²")
-            print(f"Total population in selected tracts: {densely_populated_tracts['population'].sum():,}")
-            # Get total population
-            total_population = tracts_ppsk['population'].sum()
-
-            # Calculate percentage with error handling
-            if total_population > 0:
-                population_percentage = (densely_populated_tracts['population'].sum() / total_population * 100)
-                print(f"Percentage of total population: {population_percentage:.1f}%")
-            else:
-                print(
-                    "Warning: Total population is zero, cannot calculate percentage")  # Save in projected coordinate system
-            base_name, extension = os.path.splitext(densely_populated_tracts_geo)
-
-            # Save WGS84 version
-            tracts_with_pop_wgs84 = densely_populated_tracts.to_crs(epsg=4326)
-            tracts_with_pop_wgs84.to_file(f"{base_name}_wgs84{extension}", driver="GeoJSON")
-            print("✓ Created new tract boundaries")
+        print(f"\n--- Processing {params["geo_level"]} density level ---")
+        print(f"Minimum density: {params['min_density_per_km2']} pop/km²")
+        graph_layer = download_network_layer(params, boundaries_person_per_km2, base_name)
+        print("✓ Created new tract boundaries")
 
         # Create polygon for network extraction
         print("Creating unified polygon...")
-        densely_populated_polygon = densely_populated_tracts.geometry.union_all()
+        graph_layer_polygon = graph_layer.geometry.union_all()
         print("✓ Created unified polygon")
 
         # Download OSM Network for this density level
         print(f"Downloading OSM network with filter: {params['custom_filter']}")
         g = ox.graph_from_polygon(
-            densely_populated_polygon,
+            graph_layer_polygon,
             network_type="drive",
             simplify=False,
             retain_all=True,
@@ -219,7 +234,7 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
     if _study_area_config["connect_islands"]:
         print("\nProcessing island connections...")
         region_counties_geo = (
-            f"{_study_area_config['work_dir']}/{_study_area_config['study_area']}_counties_wgs84.geojson"
+            f"{_study_area_config['work_dir']}/geo/{_study_area_config['study_area']}_counties_wgs84.geojson"
         )
         if os.path.exists(region_counties_geo):
             region_boundary_wgs84 = gpd.read_file(region_counties_geo)
@@ -230,13 +245,14 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
                 state_fips_code=_study_area_config["state_fips"],
                 county_fips_codes=_study_area_config["county_fips"],
                 year=_study_area_config["census_year"],
-                study_area_geo_path=region_counties_geo,
-                projected_coordinate_system=_study_area_config["study_area_crs"],
+                study_area_boundary_geo_path=region_counties_geo,
                 geo_level="county")
             print("✓ Created new county boundaries")
 
-        g_completed_network = process_ferry_into_car_edges(g_with_ft_restrictions,
-                                                           region_boundary_wgs84.geometry.union_all())
+        g_completed_network = process_ferry_into_car_edges(
+            g_with_ft_restrictions,
+            region_boundary_wgs84.geometry.union_all()
+        )
         print("✓ Ferry connections processed")
     else:
         g_completed_network = g_with_ft_restrictions
@@ -244,7 +260,7 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
     print("\nConsolidating intersections...")
     g_consolidated = ox.consolidate_intersections(
         g_completed_network,
-        tolerance=2,
+        tolerance=_study_area_config["tolerance"],
         rebuild_graph=True,
         dead_ends=True,
         reconnect_edges=True
@@ -287,37 +303,28 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
 
 def generate_config_name(config: dict) -> str:
     """
-    Generate a configuration name based on study area and the highest available density level.
-    Format: [study-area]_[density]_[densityValuePOP]_network
+    Generate a configuration name based on study area, geographic level, and density threshold.
+    Format: [study area]-[geo_level][density]-t[tolerance][-ferry]-network
 
-    Example output: sfbay_residential_2855pop_network
+    Example output: sfbay-cbg0-t2-network or sfbay-cbg0-t2-ferry-network
     """
     # Get study area
     study_area = config["study_area"]
 
-    # Initialize variables for the highest density level
-    highest_label = ""
-    highest_value = ""
+    # Get density value from residential_network_structure
+    density_value = str(config["residential_network_structure"]["min_density_per_km2"])
 
-    # Check for dense, moderate, and sparse levels in that order
-    for level in ["dense", "moderate", "sparse"]:
-        params = config["density_levels"][level]
-        density = params["min_density_per_km2"]
+    # Geographic level (block group, census tract, etc.)
+    geo_level = config["residential_network_structure"]["geo_level"]
 
-        if density > 0:
-            if level == "dense":
-                highest_label = "residential"
-            elif level == "moderate":
-                highest_label = "moderate"
-            elif level == "sparse":
-                highest_label = "sparse"
+    # Tolerance in meters
+    tolerance_suffix = str(config["tolerance"])
 
-            highest_value = f"{density}pop"
-            break  # Exit loop once the highest level is found
+    # Ferry suffix
+    ferry_suffix = "-ferry" if config["connect_islands"] else ""
 
     # Combine all parts
-    ferry_suffix = "_ferry" if config["connect_islands"] else ""
-    return f"{study_area}_{highest_label}_{highest_value}{ferry_suffix}"
+    return f"{study_area}-{geo_level}{density_value}-t{tolerance_suffix}{ferry_suffix}-network"
 
 
 #############################
@@ -326,7 +333,7 @@ def generate_config_name(config: dict) -> str:
 
 study_area_config = {
     # Base paths
-    "work_dir": os.path.expanduser("~/Workspace/Simulation/sfbay/geo"),
+    "work_dir": os.path.expanduser("~/Workspace/Simulation/sfbay"),
 
     # if download isn't enabled, we read network from disk
     "download_enabled": True,
@@ -339,6 +346,7 @@ study_area_config = {
     "census_year": 2018,
     "study_area_crs": 26910,  # NAD83 / UTM zone 10N
     "connect_islands": False,  # Links disconnected islands relying on motor vehicle ferry using a virtual car link
+    "tolerance": 2,
 
     # Vehicle weight classifications (FHWA)
     "weight_limits": {
@@ -348,7 +356,14 @@ study_area_config = {
     },
 
     # Density thresholds and corresponding network filters
-    "density_levels": {
+    "main_network_structure": '["highway"~"motorway|trunk|motorway_link|trunk_link|primary|secondary|primary_link|secondary_link|tertiary|tertiary_link|unclassified"]',
+
+    "residential_network_structure": {
+
+        "min_density_per_km2": 0,
+        "geo_level": "cbg",
+        "custom_filter": '["highway"~"motorway|trunk|motorway_link|trunk_link|primary|secondary|primary_link|secondary_link|tertiary|tertiary_link|unclassified|residential"]'
+
         # // California has a higher urbanization rate (94.8% urban vs 80.7% national average)
         # // https://dof.ca.gov/wp-content/uploads/sites/352/Forecasting/Demographics/Documents/Urban-Rural_Classification_and_2020_Urban_Area_Criteria_CA_SDC.pdf
         # const avgPersonsPerHousehold = 2.9; // CA average household size (higher than national 2.5)
@@ -368,19 +383,6 @@ study_area_config = {
         # // Initial core requirement: 1233 ppsm = 475 ppsk
         # // Urban extension requirement: 580 ppsm = 224 ppsk
         # // Rural Areas less than 580 people per square mile
-
-        # "sparse": {
-        #     "min_density_per_km2": 0,
-        #     "custom_filter": '["highway"~"motorway|trunk|motorway_link|trunk_link|primary|secondary|primary_link|secondary_link|tertiary|tertiary_link"]'
-        # },
-        "moderate": {
-            "min_density_per_km2": 0,
-            "custom_filter": '["highway"~"motorway|trunk|motorway_link|trunk_link|primary|secondary|primary_link|secondary_link|tertiary|tertiary_link|unclassified"]'
-        },
-        "dense": {
-            "min_density_per_km2": 2855,
-            "custom_filter": '["highway"~"motorway|trunk|motorway_link|trunk_link|primary|secondary|primary_link|secondary_link|tertiary|tertiary_link|unclassified|residential"]'
-        }
     },
 
     # OSMNX settings
@@ -405,9 +407,16 @@ study_area_config = {
 #############################
 
 config_name = generate_config_name(study_area_config)
-file_prefix = f'{study_area_config["work_dir"]}/{config_name}'
-graphml_network = f'{file_prefix}_network.graphml'
-osm_network = f'{file_prefix}_network.osm'
+network_dir = f'{study_area_config["work_dir"]}/network/{config_name}'
+
+# Create the directory if it doesn't exist
+os.makedirs(network_dir, exist_ok=True)
+
+graphml_network = f'{network_dir}/{config_name}.graphml'
+pkl_network = f'{network_dir}/{config_name}.pkl'
+gpkg_network = f'{network_dir}/{config_name}.gpkg'
+osm_network = f'{network_dir}/{config_name}.osm'
+pbf_network = f'{network_dir}/{config_name}.osm.pbf'
 
 if not os.path.exists(graphml_network) and study_area_config["download_enabled"]:
     print(f'Downloading and preparing OSM-based {config_name} network...')
@@ -418,13 +427,12 @@ if not os.path.exists(graphml_network) and study_area_config["download_enabled"]
     print(f"GRAPHML Network saved to '{graphml_network}'.")
 
     # Save PKL Network
-    pkl_network = f'{file_prefix}_network.pkl'
     with open(pkl_network, 'wb') as f:
         pickle.dump(g_network, f)
     print(f"PKL Network saved to '{pkl_network}'.")
 
     # Save PNG Network
-    # png_network = f'{file_prefix}_network.png'
+    # png_network = f'{network_dir}/{config_name}.png'
     # plot(g_network, png_network)
     # print(f"PNG Network saved to '{png_network}'.")
 elif os.path.exists(graphml_network):
@@ -464,7 +472,6 @@ if g_network and not os.path.exists(osm_network):
     print(f"Converting GraphML Network to GPKG Network...")
     print(f"Converting GraphML Network to GPKG Network...")
     # Save GPKG Network with OSM IDs hashed
-    gpkg_network = f'{file_prefix}_network.gpkg'
     ox.save_graph_geopackage(g_network, filepath=gpkg_network)
     print(f"GPKG Network saved to '{gpkg_network}'.")
     # Save OSM Network
@@ -479,15 +486,14 @@ if g_network and not os.path.exists(osm_network):
     print(f"OSM Network saved to '{osm_network}'.")
 
     # Convert to PBF using osmium
-    pbf_path = f"{osm_network}.pbf"
-    cmd = f"osmium cat {osm_network} -o {pbf_path} --overwrite --output-format pbf,compression=zlib"
+    cmd = f"osmium cat {osm_network} -o {pbf_network} --overwrite --output-format pbf,compression=zlib"
     subprocess.run(cmd, shell=True)
     # osmium fileinfo -e {pbf_path}
-    print(f"PBF File saved to '{pbf_path}'")
+    print(f"PBF File saved to '{pbf_network}'")
 
     # Check file info using osmium
     print("Checking PBF file info...")
-    fileinfo_cmd = f"osmium fileinfo -e {pbf_path}"
+    fileinfo_cmd = f"osmium fileinfo -e {pbf_network}"
     result = subprocess.run(fileinfo_cmd, shell=True, check=True, capture_output=True, text=True)
     print("File information:")
     print(result.stdout)

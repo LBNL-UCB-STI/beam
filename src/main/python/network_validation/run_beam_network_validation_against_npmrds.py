@@ -1,4 +1,6 @@
 from validation_utils import *
+from pathlib import Path
+
 
 work_dir = os.path.expanduser("~/Workspace/Simulation")
 # beam run i.e. link stats and events file
