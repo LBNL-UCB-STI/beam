@@ -96,8 +96,10 @@ object XmlPlanElementReader extends PlanElementReader {
         }
       }
       .collect {
-        case (person, plan, planIdx, act: Activity, planElIdx) => toPlanElement(act, plan, planIdx, person, planElIdx)
-        case (person, plan, planIdx, leg: Leg, planElIdx)      => toPlanElement(leg, plan, planIdx, person, planElIdx)
+        case (person, plan, planIdx, act: Activity, planElIdx) if act != null =>
+          toPlanElement(act, plan, planIdx, person, planElIdx)
+        case (person, plan, planIdx, leg: Leg, planElIdx) if leg != null =>
+          toPlanElement(leg, plan, planIdx, person, planElIdx)
       }
       .toArray
   }
@@ -190,7 +192,7 @@ object XmlPlanElementReader extends PlanElementReader {
       activityLocationX = None,
       activityLocationY = None,
       activityEndTime = None,
-      legMode = Option(leg.getMode),
+      legMode = Option(leg).map(_.getMode),
       legDepartureTime = leg.getDepartureTime.toOption.map(_.toString),
       legTravelTime = leg.getTravelTime.toOption.map(_.toString),
       legRouteType = Option(leg.getRoute).map(_.getRouteType),
