@@ -1533,9 +1533,9 @@ def filtering_network_layer(_boundaries_person_per_km2, _geo_level, _min_density
         # Calculate percentage with error handling
         if total_population > 0:
             population_percentage = (densely_populated['population'].sum() / total_population * 100)
-            print(f"Percentage of total population: {population_percentage:.1f}%")
+            print(f"Percentage of total population: {population_percentage:.1f}%\n")
         else:
-            print("Warning: Total population is zero, cannot calculate percentage")  # Save in projected crs
+            print("Warning: Total population is zero, cannot calculate percentage\n")  # Save in projected crs
 
         # Save WGS84 version
         densely_populated_geo = densely_populated.to_crs(epsg=4326)
@@ -1562,11 +1562,11 @@ def create_osm_highway_filter(highway_types):
 
     return filter_string
 
+
 def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGraph:
     print("\n=== Starting OSM Network Download and Preparation ===")
 
     # Apply OSMNX settings
-    print("\nApplying OSMNX settings...")
     for setting, value in _study_area_config["osmnx_settings"].items():
         setattr(ox.settings, setting, value)
     print("✓ OSMNX settings applied")
@@ -1574,7 +1574,7 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
     # List to store the graphs
     graphs = []
 
-    print("Collecting dense tract boundaries...")
+    print(f"Collecting {_study_area_config['study_area']} boundaries!")
     # Create density-specific paths
     base_name = f"{_study_area_config['work_dir']}/geo/{_study_area_config['study_area']}"
     census_year = _study_area_config["census_year"]
@@ -1592,18 +1592,21 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
         custom_filter = layer_config["custom_filter"]
 
         if layer_name == "main":
-            region_boundary_wgs84 = collect_geographic_boundaries(
+            # This returns a GeoDataFrame
+            region_boundary_gdf = collect_geographic_boundaries(
                 state_fips_code=_study_area_config["state_fips"],
                 county_fips_codes=_study_area_config["county_fips"],
                 year=_study_area_config["census_year"],
                 study_area_boundary_geo_path=f"{base_name}_{geo_level}_{census_year}_wgs84.geojson",
                 geo_level=geo_level)
-            # Combine all your county polygons
-            combined_polygon = shapely.unary_union(region_boundary_wgs84)
-            convex_hull = combined_polygon.convex_hull
-            # Or create a buffer around the combined area
-            buffered_area = convex_hull.buffer(0.1)  # Buffer distance in degrees
+
+            # Use unary_union on the geometry column
+            print("Creating unified polygon...")
+            combined_polygon = region_boundary_gdf.geometry.unary_union
+            print("Creating buffered convex hull around main layer...")
+            graph_layer = combined_polygon.convex_hull.buffer(0.1) # Buffer distance in degrees
         else:
+            print(f"Collecting and filtering boundaries with minimum density: {min_density} pop/km²")
             boundaries_person_per_km2 = collect_boundaries_person_per_km2(
                 _study_area_config["state_fips"],
                 _study_area_config["county_fips"],
@@ -1613,27 +1616,16 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
                 f"{base_name}_{geo_level}_{census_year}_wgs84.geojson",
                 geo_level
             )
-            buffered_polygons = []
-            for polygon in boundaries_person_per_km2:
-                buffered_polygon = polygon.buffer(0.01)  # 0.02 degrees buffer
-                buffered_polygons.append(buffered_polygon)
-            buffered_area = unary_union(buffered_polygons)
+            filtered_boundaries = filtering_network_layer(boundaries_person_per_km2, geo_level, min_density, base_name)
+            buffered_boundaries = [polygon.buffer(0.01) for polygon in filtered_boundaries.geometry]
+            graph_layer = shapely.ops.unary_union(buffered_boundaries)
 
-        print("✓ Boundaries collected")
-        print(f"\n--- Processing {geo_level} density level ---")
-        print(f"Minimum density: {min_density} pop/km²")
-        graph_layer = filtering_network_layer(buffered_area, geo_level, min_density, base_name)
-        print("✓ Created new boundaries")
-
-        # Create polygon for network extraction
-        print("Creating unified polygon...")
-        graph_layer_polygon = graph_layer.geometry.union_all()
-        print("✓ Created unified polygon")
+        print("✓ Boundaries collected and unified")
 
         # Download OSM Network for this density level
         print(f"Downloading OSM network with filter: {custom_filter}")
         g = ox.graph_from_polygon(
-            graph_layer_polygon,
+            graph_layer,
             network_type="drive",
             simplify=False,
             retain_all=True,
@@ -1649,6 +1641,8 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
 
     print("Combining all density level networks...")
     g_combined = nx.compose_all(graphs)
+
+    # Rest of the function remains the same...
     print(f"✓ Combined network has {g_combined.number_of_nodes()} nodes and {g_combined.number_of_edges()} edges")
 
     print("\nProjecting network...")

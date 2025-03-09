@@ -64,7 +64,6 @@ study_area_config = {
             # const caHighDensityPPSM = coreHUDensity * 2.9;
             # const caInitialCorePPSM = 425 * 2.9;
             # const caUrbanExtensionPPSM = 200 * 2.9;
-
             # // Result
             # // California-adjusted density thresholds (persons per square mile):
             # //  densest urban cores, typical of downtown areas in major California cities:  7,395 ppsm = 2,855 ppsk
@@ -72,8 +71,8 @@ study_area_config = {
             # // Initial core requirement: 1233 ppsm = 475 ppsk
             # // Urban extension requirement: 580 ppsm = 224 ppsk
             # // Rural Areas less than 580 people per square mile
-            "min_density_per_km2": 7000,
-            "geo_level": "cbg",
+            "min_density_per_km2": 2855,
+            "geo_level": "tract",
             "custom_filter": create_osm_highway_filter(osm_default_highways + ["residential"])
         }
     },
