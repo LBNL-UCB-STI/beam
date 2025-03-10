@@ -21,6 +21,8 @@ from osmnx import settings
 from osmnx import truncate
 import shapely.geometry
 from shapely.ops import unary_union
+import pyproj
+
 
 plt.style.use('ggplot')
 meter_to_mile = 0.000621371
@@ -1563,6 +1565,54 @@ def create_osm_highway_filter(highway_types):
     return filter_string
 
 
+def meters_to_degrees(lon, lat, utm_epsg, buffer_meters):
+    """
+    Calculate the equivalent buffer distance in degrees for a given buffer in meters,
+    using a specified UTM projection for better precision.
+
+    Parameters:
+    -----------
+    lon : float
+        Longitude coordinate (x) in WGS84
+    lat : float
+        Latitude coordinate (y) in WGS84
+    utm_epsg : int
+        The EPSG code for the UTM coordinate reference system (e.g., 26910 for UTM Zone 10N)
+    buffer_meters : float
+        Buffer distance in meters
+
+    Returns:
+    --------
+    float
+        Equivalent buffer distance in degrees
+    """
+    # Create UTM CRS from EPSG code
+    utm_crs = f"EPSG:{utm_epsg}"
+
+    # Create transformers
+    wgs84_to_utm = pyproj.Transformer.from_crs("EPSG:4326", utm_crs, always_xy=True)
+    utm_to_wgs84 = pyproj.Transformer.from_crs(utm_crs, "EPSG:4326", always_xy=True)
+
+    # Convert coordinates to UTM
+    x_utm, y_utm = wgs84_to_utm.transform(lon, lat)
+
+    # Calculate points at buffer distance in cardinal directions
+    east_utm = (x_utm + buffer_meters, y_utm)
+    north_utm = (x_utm, y_utm + buffer_meters)
+
+    # Convert buffered points back to WGS84
+    east_lon, east_lat = utm_to_wgs84.transform(*east_utm)
+    north_lon, north_lat = utm_to_wgs84.transform(*north_utm)
+
+    # Calculate degree differences
+    lon_diff = abs(east_lon - lon)  # East-West difference (longitude)
+    lat_diff = abs(north_lat - lat)  # North-South difference (latitude)
+
+    # Return the average as an approximation
+    # You could also return both separately if you need different buffers for lat/lon
+    return (lon_diff + lat_diff) / 2
+
+
 def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGraph:
     print("\n=== Starting OSM Network Download and Preparation ===")
 
@@ -1578,6 +1628,7 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
     # Create density-specific paths
     base_name = f"{_study_area_config['work_dir']}/geo/{_study_area_config['study_area']}"
     census_year = _study_area_config["census_year"]
+    utm_epsg = _study_area_config["study_area_crs"]
 
     for layer_name, layer_config in _study_area_config["graph_layers"].items():
         print(f"\nProcessing {layer_name} layer")
@@ -1590,6 +1641,9 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
 
         # Get the custom filter for this layer
         custom_filter = layer_config["custom_filter"]
+
+        # Get the buffer zone size in meters if specified (for residential layers)
+        buffer_zone_in_meters = layer_config["buffer_zone_in_meters"]
 
         if layer_name == "main":
             # This returns a GeoDataFrame
@@ -1604,7 +1658,10 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
             print("Creating unified polygon...")
             combined_polygon = region_boundary_gdf.geometry.unary_union
             print("Creating buffered convex hull around main layer...")
-            graph_layer = combined_polygon.convex_hull.buffer(0.1) # Buffer distance in degrees
+            lon = combined_polygon.centroid.x
+            lat = combined_polygon.centroid.y
+            buffer_in_degrees = meters_to_degrees(lon, lat, utm_epsg, buffer_zone_in_meters)
+            graph_layer = combined_polygon.convex_hull.buffer(buffer_in_degrees)
         else:
             print(f"Collecting and filtering boundaries with minimum density: {min_density} pop/km²")
             boundaries_person_per_km2 = collect_boundaries_person_per_km2(
@@ -1617,7 +1674,13 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
                 geo_level
             )
             filtered_boundaries = filtering_network_layer(boundaries_person_per_km2, geo_level, min_density, base_name)
-            buffered_boundaries = [polygon.buffer(0.01) for polygon in filtered_boundaries.geometry]
+            # Calculate a single centroid for all polygons by combining them first
+            combined_geometry = unary_union(filtered_boundaries.geometry)
+            combined_centroid = combined_geometry.centroid
+            lon = combined_centroid.x
+            lat = combined_centroid.y
+            buffer_in_degrees = meters_to_degrees(lon, lat, utm_epsg, buffer_zone_in_meters)
+            buffered_boundaries = [polygon.buffer(buffer_in_degrees) for polygon in filtered_boundaries.geometry]
             graph_layer = shapely.ops.unary_union(buffered_boundaries)
 
         print("✓ Boundaries collected and unified")

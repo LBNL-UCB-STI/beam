@@ -50,7 +50,8 @@ study_area_config = {
     "graph_layers": {
         "main": {
             "geo_level": "county",
-            "custom_filter": create_osm_highway_filter(osm_default_highways)
+            "custom_filter": create_osm_highway_filter(osm_default_highways),
+            "buffer_zone_in_meters": 1000
         },
         "residential": {
             # // California has a higher urbanization rate (94.8% urban vs 80.7% national average)
@@ -71,9 +72,10 @@ study_area_config = {
             # // Initial core requirement: 1233 ppsm = 475 ppsk
             # // Urban extension requirement: 580 ppsm = 224 ppsk
             # // Rural Areas less than 580 people per square mile
-            "min_density_per_km2": 2855,
-            "geo_level": "tract",
-            "custom_filter": create_osm_highway_filter(osm_default_highways + ["residential"])
+            "min_density_per_km2": 8000,
+            "geo_level": "cbg",
+            "custom_filter": create_osm_highway_filter(osm_default_highways + ["residential"]),
+            "buffer_zone_in_meters": 100
         }
     },
 
