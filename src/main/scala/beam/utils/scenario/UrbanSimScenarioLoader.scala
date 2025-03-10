@@ -19,6 +19,7 @@ import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.households._
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
+import beam.utils.OptionalUtils.OptionalTimeExtension
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
@@ -54,7 +55,7 @@ class UrbanSimScenarioLoader(
   private def buildAndAddLegToPlan(currentPlan: Plan, planElement: PlanElement): Leg = {
     val leg = PopulationUtils.createAndAddLeg(currentPlan, planElement.legMode.getOrElse(""))
     planElement.legDepartureTime.foreach(v => leg.setDepartureTime(v.toDouble))
-    planElement.legTravelTime.foreach(v => leg.setTravelTime(v.toDouble))
+    leg.setTravelTime(planElement.legTravelTime.fold(0.0)(_.toDouble))
     planElement.legMode.foreach(v => leg.setMode(v))
     leg.getAttributes.putAttribute("trip_id", planElement.tripId)
 
