@@ -1249,7 +1249,7 @@ def str_median(values):
     return int(median(numeric_values))
 
 
-def process_ferry_into_car_edges(car_graph, region_polygon) -> nx.MultiDiGraph:
+def process_ferry_into_car_edges(car_graph, region_polygon, utm_epsg) -> nx.MultiDiGraph:
     g_ferry = ox.graph_from_polygon(region_polygon, network_type="all", simplify=True,
                                     custom_filter='["route"="ferry"]["motor_vehicle"="yes"]', retain_all=True)
     g_all_ferry = ox.graph_from_polygon(region_polygon, network_type="all", simplify=True,
@@ -1268,7 +1268,8 @@ def process_ferry_into_car_edges(car_graph, region_polygon) -> nx.MultiDiGraph:
         if col not in ferry_edges.columns:
             ferry_edges[col] = "nan"
     g_ferry_reconstructed = ox.graph_from_gdfs(ferry_nodes, ferry_edges)
-    return nx.compose_all([car_graph, g_ferry_reconstructed])
+    g_ferry_projected = ox.project_graph(g_ferry_reconstructed, to_crs=utm_epsg).copy()
+    return nx.compose_all([car_graph, g_ferry_projected])
 
 
 def convert_weight(value: float, from_unit: str, to_unit: str) -> float:
@@ -1503,12 +1504,12 @@ def find_long_tags_in_gdf(gdf, element_type="elements"):
     return long_tags, long_comb_tags
 
 
-def filtering_network_layer(_boundaries_person_per_km2, _geo_level, _min_density_per_km2, _geo_file_prefix):
+def filtering_network_layer(_boundaries_person_per_km2, _min_density_per_km2, _geo_file_prefix):
     # Create density-specific paths
     if _min_density_per_km2 == 0:
-        densely_populated_tracts_geo_file = f"{_geo_file_prefix}_{_geo_level}_wgs84.geojson"
+        densely_populated_tracts_geo_file = f"{_geo_file_prefix}_wgs84.geojson"
     else:
-        densely_populated_tracts_geo_file = f"{_geo_file_prefix}_{_geo_level}_{_min_density_per_km2}ppsk_wgs84.geojson"
+        densely_populated_tracts_geo_file = f"{_geo_file_prefix}_{_min_density_per_km2}ppsk_wgs84.geojson"
 
     # Get boundaries for this density level
     print("Loading tract boundaries...")
@@ -1657,7 +1658,11 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
                 f"{base_name}_{geo_level}_{census_year}_wgs84.geojson",
                 geo_level
             )
-            filtered_boundaries = filtering_network_layer(boundaries_person_per_km2, geo_level, min_density, base_name)
+            filtered_boundaries = filtering_network_layer(
+                boundaries_person_per_km2,
+                min_density,
+                f"{base_name}_{geo_level}_{census_year}"
+            )
             # Calculate a single centroid for all polygons by combining them first
             combined_geometry = unary_union(filtered_boundaries.geometry)
             combined_centroid = combined_geometry.centroid
@@ -1720,11 +1725,12 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
                 geo_level="county")
             print("✓ Created new county boundaries")
 
-        # Transform to EPSG:32048 (NAD27 / Washington South)
-        region_boundary_projected = region_boundary_wgs84.to_crs(f"EPSG:{utm_epsg}")
+        buffer_zone_in_meters = _study_area_config["graph_layers"]["main"]["buffer_zone_in_meters"]
+        convex_hull = region_boundary_wgs84.dissolve().to_crs(f"epsg:{utm_epsg}").buffer(buffer_zone_in_meters)
         g_completed_network = process_ferry_into_car_edges(
             g_with_ft_restrictions,
-            region_boundary_projected.geometry.union_all()
+            convex_hull.to_crs("epsg:4326").geometry.union_all(),
+            utm_epsg
         )
         print("✓ Ferry connections processed")
     else:
@@ -1911,7 +1917,7 @@ def scan_network_directories_for_ways(directory):
         # Create the output file and write the header
         with open(output_file, 'w', newline='') as f:
             writer = csv.writer(f)
-            writer.writerow(['Network Name', 'Number of Ways', 'Path'])
+            writer.writerow(['name', 'ways', 'path'])
             print(f"Created output file: {output_file}")
 
     print(f"Scanning directory: {directory}")  # Log current directory being scanned

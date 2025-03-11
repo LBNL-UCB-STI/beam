@@ -164,7 +164,7 @@ seattle_area_config = {
         "main": {
             "geo_level": "county",
             "custom_filter": create_osm_highway_filter(osm_default_highways),
-            "buffer_zone_in_meters": 200
+            "buffer_zone_in_meters": 10000
         },
         "residential": {
             # // Washington has a moderate urbanization rate (84.1% urban vs 80.7% national average)
@@ -181,7 +181,7 @@ seattle_area_config = {
             # const waUrbanExtensionPPSM = 200 * 2.51;
 
             # // Washington-adjusted density thresholds (persons per square mile):
-            # //  densest urban cores, typical of downtown areas in major Washington cities: 3200 ppsm = 1236 ppsk
+            # // densest urban cores, typical of downtown areas in major Washington cities: 3200 ppsm = 1236 ppsk
             # // High-density nucleus requirement: 3200 ppsm = 1236 ppsk
             # // Initial core requirement: 1067 ppsm = 412 ppsk
             # // Urban extension requirement: 502 ppsm = 194 ppsk

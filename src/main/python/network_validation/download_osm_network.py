@@ -76,16 +76,16 @@ else:
 
 if g_network and not os.path.exists(osm_network):
     print(f"Checking for invalid coordinates...")
-    # has_invalid, invalid_nodes = check_invalid_coordinates(g_network)
-    #
-    # if has_invalid:
-    #     print(
-    #         f"WARNING: Found {len(invalid_nodes)} nodes with invalid coordinates. These should be fixed before proceeding.")
-    #     # Optionally: Fix or remove invalid nodes
-    #     # g_network.remove_nodes_from(invalid_nodes)
-    #     # print(f"Removed {len(invalid_nodes)} invalid nodes from the network.")
-    # else:
-    #     print("✓ All node coordinates are valid.")
+    has_invalid, invalid_nodes = check_invalid_coordinates(g_network)
+
+    if has_invalid:
+        print(
+            f"WARNING: Found {len(invalid_nodes)} nodes with invalid coordinates. These should be fixed before proceeding.")
+        # Optionally: Fix or remove invalid nodes
+        # g_network.remove_nodes_from(invalid_nodes)
+        # print(f"Removed {len(invalid_nodes)} invalid nodes from the network.")
+    else:
+        print("✓ All node coordinates are valid.")
 
     print(f"Converting GraphML Network to GPKG Network...")
     print(f"Converting GraphML Network to GPKG Network...")
@@ -129,4 +129,4 @@ elif g_network:
         print(f"OSM Network file '{osm_network}' not found. Please ensure the network is downloaded and prepared.")
 
 
-scan_network_directories_for_ways(os.path.expanduser("~/Workspace/Simulation/sfbay/network"))
+scan_network_directories_for_ways(os.path.expanduser(f'{study_area_config["work_dir"]}/network'))
