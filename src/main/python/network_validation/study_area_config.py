@@ -19,16 +19,21 @@ def generate_config_name(config: dict) -> str:
     """
     # Get study area
     study_area = config["study_area"]
+    layers = config["graph_layers"]
 
     # Get residential geographic level and density
-    residential_geo_level = config["graph_layers"]["residential"]["geo_level"]
-    density_value = str(config["graph_layers"]["residential"]["min_density_per_km2"])
+    if "residential" in layers:
+        density_value = str(layers["residential"]["min_density_per_km2"])
+        residential_geo_level = f"-{layers["residential"]["geo_level"]}{density_value}"
+    else:
+        density_value = ""
+        residential_geo_level = ""
 
     # Ferry suffix
-    ferry_suffix = "-ferry" if config["connect_islands"] else ""
+    ferry_suffix = "-ferry" if "ferry" in layers else ""
 
     # Combine all parts
-    return f"{study_area}-area-{residential_geo_level}{density_value}{ferry_suffix}-network"
+    return f"{study_area}-area{residential_geo_level}{density_value}{ferry_suffix}-network"
 
 
 def create_osm_highway_filter(highway_types):
@@ -66,7 +71,9 @@ osmnx_settings = {
         "max_query_area_size": 50 * 1000 * 50 * 1000,  # 50km × 50km
         "overpass_rate_limit": False,
         "overpass_max_attempts": 3,
-        "useful_tags_way": list(ox.settings.useful_tags_way) + ["maxweight", "hgv", "maxweight:hgv", "maxlength"],
+        "useful_tags_way": list(ox.settings.useful_tags_way) + [
+            "maxweight", "hgv", "maxweight:hgv", "maxlength", "motorcar", "motor_vehicle", "goods", "truck"
+        ],
         "overpass_url": "https://overpass-api.de/api",
         # https://wiki.openstreetmap.org/wiki/Overpass_API#Public_Overpass_API_instances
     }
@@ -98,7 +105,6 @@ sfbay_area_config = {
     "county_fips": ['001', '013', '041', '055', '075', '081', '085', '095', '097', '087', '113'],
     "census_year": 2018,
     "utm_epsg": 26910,  # NAD83 / UTM zone 10N
-    "connect_islands": False,  # Links disconnected islands relying on motor vehicle ferry using a virtual car link
     "tolerance": 2,
 
     # Density thresholds and corresponding network filters
@@ -156,7 +162,6 @@ seattle_area_config = {
     "county_fips": ["061", "033", "035", "053"],
     "census_year": 2018,
     "utm_epsg": 32048,  #
-    "connect_islands": True,  # Links disconnected islands relying on motor vehicle ferry using a virtual car link
     "tolerance": 2,
 
     # Density thresholds and corresponding network filters
@@ -186,10 +191,15 @@ seattle_area_config = {
             # // Initial core requirement: 1067 ppsm = 412 ppsk
             # // Urban extension requirement: 502 ppsm = 194 ppsk
             # // Rural Areas less than 502 people per square mile
-            "min_density_per_km2": 1236,
+            "min_density_per_km2": 412,
             "geo_level": "cbg",
             "custom_filter": create_osm_highway_filter(osm_default_highways + ["residential"]),
-            "buffer_zone_in_meters": 20
+            "buffer_zone_in_meters": 100
+        },
+        "ferry": {
+            "geo_level": "county",
+            "custom_filter": '["route"="ferry"]',
+            "buffer_zone_in_meters": 100000
         }
     }
 }

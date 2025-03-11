@@ -29,8 +29,10 @@ CHUNK_SIZE = 10000  # this affects speed and parallelization of the script
 # City and scenario settings
 FRISM_VERSION = 1.5
 SOURCE_CRS = 4326  # WGS84
-UTM_CRS = 26910  # Seattle UTM zone 32048 | SFBAY 26910
-AREA = "sfbay"
+# UTM_CRS = 26910  # Seattle UTM zone 32048 | SFBAY 26910
+UTM_CRS = 32048
+# AREA = "sfbay"
+AREA = "seattle"
 BATCH_NAME = "2024-11-06"
 YEAR = "2018"
 SCENARIO_NAME = "Baseline"

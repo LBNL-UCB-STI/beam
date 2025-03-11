@@ -2,6 +2,8 @@ import os
 import time
 import xml.etree.ElementTree as ET
 from statistics import median
+from typing import Any
+
 import contextily as ctx
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -17,6 +19,8 @@ import requests
 import zipfile
 import json
 import hashlib
+
+from networkx import DiGraph
 from osmnx import settings
 from osmnx import truncate
 import shapely.geometry
@@ -1249,27 +1253,70 @@ def str_median(values):
     return int(median(numeric_values))
 
 
-def process_ferry_into_car_edges(car_graph, region_polygon, utm_epsg) -> nx.MultiDiGraph:
-    g_ferry = ox.graph_from_polygon(region_polygon, network_type="all", simplify=True,
-                                    custom_filter='["route"="ferry"]["motor_vehicle"="yes"]', retain_all=True)
-    g_all_ferry = ox.graph_from_polygon(region_polygon, network_type="all", simplify=True,
-                                        custom_filter='["route"="ferry"]["motorcar"="yes"]', retain_all=True)
-    g_ferry = nx.compose_all([g_ferry, g_all_ferry])
-    ferry_nodes, ferry_edges = ox.graph_to_gdfs(g_ferry)
-    ferry_edges['reversed'] = False
-    ferry_edges['maxspeed'] = "10 mph"
-    ferry_edges['highway'] = "unclassified"
-    ferry_edges['oneway'] = "no"
-    ferry_edges['lanes'] = "2"
-    ferry_edges["hgv"] = False
-    ferry_edges["mdv"] = True
-    nodes, edges = ox.graph_to_gdfs(car_graph)
-    for col in edges.columns:
-        if col not in ferry_edges.columns:
-            ferry_edges[col] = "nan"
-    g_ferry_reconstructed = ox.graph_from_gdfs(ferry_nodes, ferry_edges)
-    g_ferry_projected = ox.project_graph(g_ferry_reconstructed, to_crs=utm_epsg).copy()
-    return nx.compose_all([car_graph, g_ferry_projected])
+def process_ferry_edges(ferry_graph, utm_epsg) -> nx.MultiDiGraph:
+    """Process ferry edges to make them compatible with car network"""
+    if ferry_graph.number_of_edges() == 0:
+        # No ferries found, return empty graph
+        return nx.MultiDiGraph()
+
+    # Extract nodes and edges
+    ferry_nodes, ferry_edges = ox.graph_to_gdfs(ferry_graph)
+
+    # Define values that indicate access is allowed
+    access_allowed_values = ['yes', 'designated', 'permissive', 'destination', 'delivery', 'limited']
+
+    # Create empty masks with the right index
+    passenger_car_mask = pd.Series(False, index=ferry_edges.index)
+    truck_mask = pd.Series(False, index=ferry_edges.index)
+
+    # Check for passenger cars access
+    if 'motorcar' in ferry_edges.columns:
+        passenger_car_mask |= ferry_edges['motorcar'].isin(access_allowed_values)
+
+    # Check for general motor vehicle access (applies to both cars and trucks if specific tags aren't present)
+    if 'motor_vehicle' in ferry_edges.columns:
+        motor_vehicle_allowed = ferry_edges['motor_vehicle'].isin(access_allowed_values)
+        passenger_car_mask |= motor_vehicle_allowed
+        truck_mask |= motor_vehicle_allowed
+
+    # Check for specific truck access tags
+    for truck_tag in ['hgv', 'goods', 'truck']:
+        if truck_tag in ferry_edges.columns:
+            truck_mask |= ferry_edges[truck_tag].isin(access_allowed_values)
+
+    # For combined network (both passenger cars and trucks)
+    combined_mask = passenger_car_mask & truck_mask
+    combined_edges = ferry_edges[combined_mask].copy() if combined_mask.any() else None
+
+    # Choose which edges to use based on your requirements
+    # For this example, we'll use the combined edges (ferries that allow both cars and trucks)
+    selected_edges = combined_edges if combined_edges is not None and not combined_edges.empty else None
+
+    if selected_edges is None or selected_edges.empty:
+        # No suitable ferry routes found
+        print("No ferry routes found that allow both passenger cars and trucks")
+        return nx.MultiDiGraph()
+
+    # Set ferry attributes
+    selected_edges['reversed'] = False
+    selected_edges['maxspeed'] = "10 mph"
+    selected_edges['highway'] = "unclassified"
+    selected_edges['oneway'] = "no"
+    selected_edges['lanes'] = "2"
+    selected_edges["hgv"] = False  # Mark as not accessible to heavy-duty
+    selected_edges["mdv"] = True  # Mark as accessible to medium-duty
+
+    # Keep only nodes that are used by the filtered edges
+    used_nodes = set(selected_edges.index.get_level_values(0)).union(
+        set(selected_edges.index.get_level_values(1))
+    )
+    selected_nodes = ferry_nodes.loc[list(used_nodes)]
+
+    # Reconstruct graph and project
+    g_ferry_reconstructed = ox.graph_from_gdfs(selected_nodes, selected_edges)
+    g_ferry_projected = ox.project_graph(g_ferry_reconstructed, to_crs=utm_epsg)
+
+    return g_ferry_projected
 
 
 def convert_weight(value: float, from_unit: str, to_unit: str) -> float:
@@ -1595,6 +1642,59 @@ def meters_to_degrees(lon, lat, utm_epsg, buffer_meters):
     return (lon_diff + lat_diff) / 2
 
 
+def to_convex_hull(input_data, utm_epsg, buffer_in_meters):
+    """
+    Create a buffered convex hull from input data.
+
+    Parameters:
+    -----------
+    input_data : GeoDataFrame, GeoSeries, or Shapely geometry
+        The input geographic data
+    utm_epsg : int
+        EPSG code for the UTM projection to use for accurate distance calculations
+    buffer_in_meters : float
+        Buffer distance in meters
+
+    Returns:
+    --------
+    Shapely geometry
+        The buffered convex hull
+    """
+    # Handle different input types
+    if isinstance(input_data, gpd.GeoDataFrame):
+        # GeoDataFrame: get the convex hull of all geometries
+        convex_hull = input_data.geometry.unary_union.convex_hull
+    elif isinstance(input_data, gpd.GeoSeries):
+        # GeoSeries: get the convex hull of all geometries
+        convex_hull = input_data.unary_union.convex_hull
+    elif hasattr(input_data, 'geom_type'):
+        # Shapely geometry: get its convex hull
+        convex_hull = input_data.convex_hull
+    else:
+        raise TypeError("Input must be a GeoDataFrame, GeoSeries, or Shapely geometry")
+
+    # Get centroid
+    lon = convex_hull.centroid.x
+    lat = convex_hull.centroid.y
+
+    # Convert buffer distance
+    buffer_in_degrees = meters_to_degrees(lon, lat, utm_epsg, buffer_in_meters)
+
+    # Buffer in degrees
+    buffered_convex_hull = convex_hull.buffer(buffer_in_degrees)
+
+    # Create a GeoDataFrame from the geometry
+    hull_gdf = gpd.GeoDataFrame(
+        {'geometry': [buffered_convex_hull]},
+        crs="EPSG:4326"  # Assuming WGS84
+    )
+
+    # Save as GeoJSON
+    hull_gdf.to_file(f"convex_hull_{str(buffer_in_meters)}", driver='GeoJSON')
+
+    return buffered_convex_hull
+
+
 def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGraph:
     print("\n=== Starting OSM Network Download and Preparation ===")
 
@@ -1606,9 +1706,10 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
     # List to store the graphs
     graphs = []
 
-    print(f"Collecting {_study_area_config['study_area']} boundaries!")
+    study_area = _study_area_config['study_area']
+    print(f"Collecting {study_area} boundaries!")
     # Create density-specific paths
-    base_name = f"{_study_area_config['work_dir']}/geo/{_study_area_config['study_area']}"
+    base_name = f"{_study_area_config['work_dir']}/geo/{study_area}"
     census_year = _study_area_config["census_year"]
     utm_epsg = _study_area_config["utm_epsg"]
     state_fips_code = _study_area_config["state_fips"]
@@ -1616,8 +1717,6 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
     tolerance = _study_area_config["tolerance"]
 
     for layer_name, layer_config in _study_area_config["graph_layers"].items():
-        print(f"\nProcessing {layer_name} layer")
-
         # Get the geographic level for this layer
         geo_level = layer_config["geo_level"]
 
@@ -1628,34 +1727,37 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
         custom_filter = layer_config["custom_filter"]
 
         # Get the buffer zone size in meters if specified (for residential layers)
-        buffer_zone_in_meters = layer_config["buffer_zone_in_meters"]
+        buffer_in_meters = layer_config["buffer_zone_in_meters"]
+
+        # Create the region boundary GeoDataFrame
+        region_counties_geo_file = f"{base_name}_{geo_level}_{census_year}_wgs84.geojson"
+
+        # Census data file
+        census_data_file = f"{base_name}_acs_census_{geo_level}_{census_year}.csv"
 
         if layer_name == "main":
+            print(f"\nProcessing {layer_name} layer")
             # This returns a GeoDataFrame
             region_boundary_gdf = collect_geographic_boundaries(
                 state_fips_code=state_fips_code,
                 county_fips_codes=county_fips_codes,
                 year=census_year,
-                study_area_boundary_geo_path=f"{base_name}_{geo_level}_{census_year}_wgs84.geojson",
-                geo_level=geo_level)
+                study_area_boundary_geo_path=region_counties_geo_file,
+                geo_level=geo_level
+            )
+            graph_layer = to_convex_hull(region_boundary_gdf, utm_epsg, buffer_in_meters)
+            network_type = "drive"
+            simplify = False
 
-            # Use unary_union on the geometry column
-            print("Creating unified polygon...")
-            combined_polygon = region_boundary_gdf.geometry.unary_union
-            print("Creating buffered convex hull around main layer...")
-            lon = combined_polygon.centroid.x
-            lat = combined_polygon.centroid.y
-            buffer_in_degrees = meters_to_degrees(lon, lat, utm_epsg, buffer_zone_in_meters)
-            graph_layer = combined_polygon.convex_hull.buffer(buffer_in_degrees)
-        else:
-            print(f"Collecting and filtering boundaries with minimum density: {min_density} pop/km²")
+        elif layer_name == "residential":
+            print(f"\nProcessing {layer_name} layer with minimum density: {min_density} pop/km²")
             boundaries_person_per_km2 = collect_boundaries_person_per_km2(
                 state_fips_code,
                 county_fips_codes,
                 census_year,
                 utm_epsg,
-                f"{base_name}_acs_census_{geo_level}_{census_year}.csv",
-                f"{base_name}_{geo_level}_{census_year}_wgs84.geojson",
+                census_data_file,
+                region_counties_geo_file,
                 geo_level
             )
             filtered_boundaries = filtering_network_layer(
@@ -1663,14 +1765,27 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
                 min_density,
                 f"{base_name}_{geo_level}_{census_year}"
             )
-            # Calculate a single centroid for all polygons by combining them first
-            combined_geometry = unary_union(filtered_boundaries.geometry)
-            combined_centroid = combined_geometry.centroid
-            lon = combined_centroid.x
-            lat = combined_centroid.y
-            buffer_in_degrees = meters_to_degrees(lon, lat, utm_epsg, buffer_zone_in_meters)
-            buffered_boundaries = [polygon.buffer(buffer_in_degrees) for polygon in filtered_boundaries.geometry]
-            graph_layer = shapely.ops.unary_union(buffered_boundaries)
+            graph_layer = shapely.ops.unary_union([
+                to_convex_hull(geom, utm_epsg, buffer_in_meters) for geom in filtered_boundaries.geometry
+            ])
+            network_type = "drive"
+            simplify = False
+
+        elif layer_name == "ferry":
+            print(f"\nProcessing {layer_name} layer to connect island through motor ferries...")
+            region_boundary_wgs84 = collect_geographic_boundaries(
+                state_fips_code=state_fips_code,
+                county_fips_codes=county_fips_codes,
+                year=census_year,
+                study_area_boundary_geo_path=region_counties_geo_file,
+                geo_level=geo_level
+            )
+            graph_layer = to_convex_hull(region_boundary_wgs84, utm_epsg, buffer_in_meters)
+            network_type = "all"
+            simplify = True
+
+        else:
+            raise ValueError(f"Invalid layer name: {layer_name}")
 
         print("✓ Boundaries collected and unified")
 
@@ -1678,67 +1793,79 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
         print(f"Downloading OSM network with filter: {custom_filter}")
         g = ox.graph_from_polygon(
             graph_layer,
-            network_type="drive",
-            simplify=False,
+            network_type=network_type,
+            simplify=simplify,
             retain_all=True,
             truncate_by_edge=True,
             custom_filter=custom_filter
         )
         print(f"✓ Downloaded network with {g.number_of_nodes()} nodes and {g.number_of_edges()} edges")
 
-        # Add the graph to the list
-        graphs.append(g)
+        # Special processing for ferry network
+        if layer_name == "ferry":
+            g = process_ferry_edges(g, utm_epsg)
+            if g.number_of_edges() > 0:
+                print(f"✓ Processed {g.number_of_edges()} ferry connections")
+            else:
+                print("✗ No suitable ferry connections found")
+                # Skip adding this empty graph
+                continue
+
+        # Ensure column compatibility with existing graphs
+        if graphs and g.number_of_edges() > 0:
+            # Get nodes and edges of current graph
+            current_nodes, current_edges = ox.graph_to_gdfs(g)
+
+            # Collect all unique columns from existing graphs
+            existing_columns = set()
+            for existing_graph in graphs:
+                _, existing_edges = ox.graph_to_gdfs(existing_graph)
+                existing_columns.update(existing_edges.columns)
+
+            # Add missing columns to current graph's edges
+            for col in existing_columns:
+                if col not in current_edges.columns:
+                    current_edges[col] = None
+
+            # Also ensure existing graphs have columns from current graph
+            current_columns = set(current_edges.columns)
+            for i, existing_graph in enumerate(graphs):
+                existing_nodes, existing_edges = ox.graph_to_gdfs(existing_graph)
+
+                columns_added = False
+                for col in current_columns:
+                    if col not in existing_edges.columns:
+                        existing_edges[col] = None
+                        columns_added = True
+
+                # Only rebuild the graph if columns were added
+                if columns_added:
+                    graphs[i] = ox.graph_from_gdfs(existing_nodes, existing_edges)
+
+            # Rebuild current graph with updated columns
+            g = ox.graph_from_gdfs(current_nodes, current_edges)
+
+        # Add the graph to the list if it has edges
+        if g.number_of_edges() > 0:
+            graphs.append(g)
 
     print("\n=== Processing Combined Network ===")
-
-    print("Combining all density level networks...")
     g_combined = nx.compose_all(graphs)
 
     # Rest of the function remains the same...
     print(f"✓ Combined network has {g_combined.number_of_nodes()} nodes and {g_combined.number_of_edges()} edges")
 
-    print("\nProjecting network...")
     g_projected = ox.project_graph(g_combined, to_crs=utm_epsg).copy()
     print("✓ Network projected")
 
-    print("\nAdding edge speeds...")
     g_with_speeds = ox.add_edge_speeds(g_projected)
     print("✓ Edge speeds added")
 
-    print("\nProcessing freight restrictions...")
-    g_with_ft_restrictions = process_tags(g_with_speeds, _study_area_config)
+    g_processed_tags = process_tags(g_with_speeds, _study_area_config)
     print("✓ Freight restrictions processed")
 
-    if _study_area_config["connect_islands"]:
-        print("\nProcessing island connections...")
-        region_counties_geo = f"{base_name}_counties_wgs84.geojson"
-        if os.path.exists(region_counties_geo):
-            region_boundary_wgs84 = gpd.read_file(region_counties_geo)
-            print("✓ Loaded existing county boundaries")
-        else:
-            print("Collecting geographic boundaries...")
-            region_boundary_wgs84 = collect_geographic_boundaries(
-                state_fips_code=state_fips_code,
-                county_fips_codes=county_fips_codes,
-                year=census_year,
-                study_area_boundary_geo_path=region_counties_geo,
-                geo_level="county")
-            print("✓ Created new county boundaries")
-
-        buffer_zone_in_meters = _study_area_config["graph_layers"]["main"]["buffer_zone_in_meters"]
-        convex_hull = region_boundary_wgs84.dissolve().to_crs(f"epsg:{utm_epsg}").buffer(buffer_zone_in_meters)
-        g_completed_network = process_ferry_into_car_edges(
-            g_with_ft_restrictions,
-            convex_hull.to_crs("epsg:4326").geometry.union_all(),
-            utm_epsg
-        )
-        print("✓ Ferry connections processed")
-    else:
-        g_completed_network = g_with_ft_restrictions
-
-    print("\nConsolidating intersections...")
     g_consolidated = ox.consolidate_intersections(
-        g_completed_network,
+        g_processed_tags,
         tolerance=tolerance,
         rebuild_graph=True,
         dead_ends=True,
@@ -1746,13 +1873,11 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
     )
     print("✓ Intersections consolidated")
 
-    print("\nUpdating edge lengths...")
     nodes, edges = ox.graph_to_gdfs(g_consolidated)
     edges['length'] = edges['geometry'].length
     g_length_updated = ox.graph_from_gdfs(nodes, edges, graph_attrs=g_consolidated.graph)
     print("✓ Edge lengths updated")
 
-    print("\nSimplifying network...")
     g_simplified = ox.simplification.simplify_graph(
         g_length_updated,
         edge_attrs_differ=["highway", "lanes", "maxspeed"],
@@ -1761,18 +1886,15 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
     )
     print("✓ Network simplified")
 
-    print("\nShortening OSM IDs...")
     nodes, edges = ox.graph_to_gdfs(g_simplified)
     edges['osmid_hash'] = edges['osmid'].apply(lambda x: shorten_osmid(x))
     nodes['osmid_hash'] = nodes['osmid_original'].apply(lambda x: shorten_osmid(x))
     g_hashed = ox.graph_from_gdfs(nodes, edges)
     print("✓ OSM IDs shortened")
 
-    print("\nProjecting to WGS84...")
     g_wgs84 = ox.project_graph(g_hashed, to_crs="epsg:4326")
     print("✓ Projected to WGS84")
 
-    print("\nExtracting largest connected component...")
     g_connected = ox.truncate.largest_component(g_wgs84.copy())
     print(f"✓ Final network has {g_connected.number_of_nodes()} nodes and {g_connected.number_of_edges()} edges")
 
