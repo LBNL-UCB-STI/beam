@@ -9,6 +9,7 @@ from validation_utils import check_invalid_coordinates
 from validation_utils import create_osm_highway_filter
 from validation_utils import save_graph_to_osm
 from validation_utils import load_graph_from_osm
+from validation_utils import scan_network_directories_for_ways
 import osmnx as ox
 from osmnx import settings
 import os
@@ -51,7 +52,7 @@ study_area_config = {
         "main": {
             "geo_level": "county",
             "custom_filter": create_osm_highway_filter(osm_default_highways),
-            "buffer_zone_in_meters": 1000
+            "buffer_zone_in_meters": 200
         },
         "residential": {
             # // California has a higher urbanization rate (94.8% urban vs 80.7% national average)
@@ -72,10 +73,10 @@ study_area_config = {
             # // Initial core requirement: 1233 ppsm = 475 ppsk
             # // Urban extension requirement: 580 ppsm = 224 ppsk
             # // Rural Areas less than 580 people per square mile
-            "min_density_per_km2": 8000,
+            "min_density_per_km2": 5000,
             "geo_level": "cbg",
             "custom_filter": create_osm_highway_filter(osm_default_highways + ["residential"]),
-            "buffer_zone_in_meters": 100
+            "buffer_zone_in_meters": 20
         }
     },
 
@@ -222,3 +223,6 @@ elif g_network:
         print(f"Number of links in the OSM Network: {num_links}")
     else:
         print(f"OSM Network file '{osm_network}' not found. Please ensure the network is downloaded and prepared.")
+
+
+scan_network_directories_for_ways(os.path.expanduser("~/Workspace/Simulation/sfbay/network"))

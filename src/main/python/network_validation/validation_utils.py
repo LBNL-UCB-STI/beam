@@ -1883,6 +1883,90 @@ def load_graph_from_osm(filename: str) -> nx.MultiDiGraph:
     return G
 
 
+def scan_network_directories_for_ways(directory):
+    import csv
+    import subprocess
+    import os
+
+    def calculate_ways(osm_file):
+        try:
+            # Use osmium to get file info with summary
+            result = subprocess.run(['osmium', 'fileinfo', '-e', osm_file],
+                                    capture_output=True, text=True)
+            # Initialize ways_count variable
+            ways_count = 0
+
+            # Extract the number of ways from the output
+            for line in result.stdout.splitlines():
+                if "Number of ways" in line:
+                    ways_count = line.split(":")[1].strip()  # Get the number of ways
+                    break  # Stop after finding the count
+
+            return ways_count  # Return the number of ways
+        except Exception as e:
+            print(f"Error processing {osm_file}: {e}")
+        return 0
+
+    output_file = os.path.join(directory, 'ways_count.csv')
+    scanned_files = set()
+
+    # Check if output file exists and load already processed files
+    if os.path.exists(output_file):
+        try:
+            with open(output_file, 'r', newline='') as f:
+                reader = csv.reader(f)
+                next(reader, None)  # Skip header, safely
+                for row in reader:
+                    if len(row) >= 3:  # Ensure the row has enough columns
+                        scanned_files.add(row[2])  # Add scanned file path to the set
+        except Exception as e:
+            print(f"Error reading existing CSV: {e}")
+    else:
+        # Create the output file and write the header
+        with open(output_file, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['Network Name', 'Number of Ways', 'Path'])
+            print(f"Created output file: {output_file}")
+
+    print(f"Scanning directory: {directory}")  # Log current directory being scanned
+    for root, dirs, files in os.walk(directory):
+        # Skip archive directories
+        if 'archive' in root.lower():
+            print(f"Ignoring archive directory: {root}")
+            continue
+
+        # Look for the first osm.pbf file using next() with a generator expression
+        osm_file_path = next((os.path.join(root, file) for file in files if file.endswith('.osm.pbf')), None)
+
+        if osm_file_path is not None:
+            if osm_file_path in scanned_files:
+                print(f"PBF file already processed: {osm_file_path}")  # Log already processed directory
+                continue
+            else:
+                # Extract network name from the file name or directory name
+                network_name = os.path.basename(root)  # Use the directory name as the network name
+                number_of_ways = calculate_ways(osm_file_path)
+
+                # Ensure file ends with newline before appending
+                """Ensure the file ends with a newline character."""
+                if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
+                    with open(output_file, 'rb+') as f:
+                        f.seek(-1, os.SEEK_END)  # Go to the last byte
+                        last_char = f.read(1)
+                        if last_char != b'\n':
+                            f.seek(0, os.SEEK_END)  # Go to the end of the file
+                            f.write(b'\n')  # Add a newline if it doesn't end with one
+
+                # Append result to the output CSV file
+                with open(output_file, 'a', newline='') as f:
+                    writer = csv.writer(f)
+                    writer.writerow([network_name, number_of_ways, osm_file_path])  # Write network name, number of ways, and path
+                    print(f"Appended to CSV: {network_name}, {number_of_ways}, {osm_file_path}")  # Log appended data
+        else:
+            print(f"No OSM file found in this directory: {root}.")  # Log message if no file found
+            continue  # Skip to the next directory if no file is found
+
+
 def download_h5_data(url: str, output_path: str) -> str:
     """
     Download H5 data file if it doesn't exist locally and explore its structure.
