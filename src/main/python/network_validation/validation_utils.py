@@ -1546,25 +1546,6 @@ def filtering_network_layer(_boundaries_person_per_km2, _geo_level, _min_density
     return densely_populated_geo
 
 
-def create_osm_highway_filter(highway_types):
-    """
-    Convert a list of highway types to an OSM custom filter string.
-
-    Args:
-        highway_types (list): List of highway type strings
-
-    Returns:
-        str: OSM custom filter string in the format '["highway"~"type1|type2|..."]'
-    """
-    # Join the highway types with the pipe character
-    highway_regex = "|".join(highway_types)
-
-    # Create the full filter string
-    filter_string = f'["highway"~"{highway_regex}"]'
-
-    return filter_string
-
-
 def meters_to_degrees(lon, lat, utm_epsg, buffer_meters):
     """
     Calculate the equivalent buffer distance in degrees for a given buffer in meters,
