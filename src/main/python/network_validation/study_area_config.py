@@ -177,7 +177,7 @@ seattle_area_config = {
             "buffer_zone_in_meters": 10000
         },
         "residential": {
-            "min_density_per_km2": 1236,
+            "min_density_per_km2": 0,
             "geo_level": "cbg",
             "custom_filter": create_osm_highway_filter(osm_default_highways + ["residential"]),
             "buffer_zone_in_meters": 20
