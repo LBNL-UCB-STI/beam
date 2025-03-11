@@ -607,78 +607,66 @@ def collect_tract_boundaries(state_fips_code, county_fips_codes, year):
     return geo_data
 
 
-def collect_boundaries_person_per_km2(
-        state_fips_code,
-        county_fips_codes,
-        year,
-        projected_coordinate_system,
-        census_data_file,
-        boundaries_geo_file,
-        geo_level
-):
+def filter_boundaries_by_density(geo_data, pop_data, utm_epsg, geo_level, min_density_per_km2, density_geo_file):
     """
-    Collect census tract boundaries for tracts with population density above specified threshold
-    and analyze population distribution.
+    Collect census boundaries, calculate population density, and filter by density threshold.
 
     Parameters
     ----------
-    state_fips_code : str
-        FIPS code for the state
-    county_fips_codes : list
-        List of county FIPS codes
-    year : int
-        Reference year for population estimates (July 1st reference date)
-    projected_coordinate_system: str
-       Proj4 string for the projected coordinate system
-    census_data_file: str
-        Path to the CSV file containing population density data
-    boundaries_geo_file: str
-        Path to the GeoJSON file containing boundaries in WGS84 projection
+    geo_data: GeoDataFrame
+        Boundaries
+    pop_data: Dataframe
+        census
+    utm_epsg: int
+        EPSG code for the projected coordinate system
     geo_level: str
-        tract or cbg
+        Geographic level ('tract', 'cbg', etc.)
+    min_density_per_km2: float, optional
+        Minimum population density threshold (people per km²)
+    density_geo_file: str
+        Path to the CSV file containing density based geometry
 
     Returns
     -------
     geopandas.GeoDataFrame
-        Selected tract boundaries in WGS84 projection with population density information
-
-    Notes
-    -----
-    Population estimates are from the Census Bureau's ACS 5-year estimates.
+        Filtered geographic boundaries based on density threshold
     """
-    pop_data = collect_census_data(state_fips_code, county_fips_codes, year, census_data_file, geo_level=geo_level)
+    # Check if filtered boundaries already exist
+    if os.path.exists(density_geo_file):
+        print(f"Loading existing {geo_level} boundaries...")
+        filtered_geo = gpd.read_file(density_geo_file)
+        print(f"✓ Loaded {len(filtered_geo)} {geo_level}s from existing file")
+        return filtered_geo
 
-    # Load boundaries in WGS84 projection
-    geo_data = collect_geographic_boundaries(state_fips_code, county_fips_codes, year, boundaries_geo_file, geo_level)
+    # If not, we need to collect and process the data
+    print(f"Processing {geo_level} boundaries for density analysis...")
 
-    # Process the data (this was previously in process_tract_boundaries_ppsk)
-    # Calculate area and density (with proper projection)
-    # Merge boundaries with population data
+    # Ensure GEOID column has consistent type for merging
     geo_data['GEOID'] = geo_data['GEOID'].astype(str)
 
-    # Now merge with consistent string types
-    tracts_with_pop = geo_data.merge(pop_data, on='GEOID')
+    # Merge boundaries with population data
+    geo_with_pop = geo_data.merge(pop_data, on='GEOID')
 
-    # Project to Web Mercator for accurate area calculation
-    tracts_with_pop['area_sqkm'] = (
-            tracts_with_pop.to_crs(epsg=projected_coordinate_system)  # Project to Web Mercator
+    # Calculate area and density
+    geo_with_pop['area_sqkm'] = (
+            geo_with_pop.to_crs(epsg=utm_epsg)
             .geometry.area / 1000000  # Convert m² to km²
     )
-    tracts_with_pop['density_per_km2'] = tracts_with_pop['population'] / tracts_with_pop['area_sqkm']
+    geo_with_pop['density_per_km2'] = geo_with_pop['population'] / geo_with_pop['area_sqkm']
 
-    # Calculate percentile ranks for context
-    tracts_with_pop['density_percentile'] = (
-            tracts_with_pop['density_per_km2'].rank(pct=True) * 100
+    # Calculate percentile ranks
+    geo_with_pop['density_percentile'] = (
+            geo_with_pop['density_per_km2'].rank(pct=True) * 100
     ).round(1)
 
-    # Print detailed density analysis
+    # Print density analysis summary
     print("\nPopulation Density Analysis:")
     print("==========================")
 
-    # Tract-level density summary
-    print("\nTract Density Summary (people/km²):")
+    # Density summary
+    print(f"\n{geo_level.capitalize()} Density Summary (people/km²):")
     print("--------------------------------")
-    stats = tracts_with_pop['density_per_km2'].describe()
+    stats = geo_with_pop['density_per_km2'].describe()
     print(f"Mean density:     {stats['mean']:,.1f}")
     print(f"Median density:   {stats['50%']:,.1f}")
     print(f"Standard deviation:  {stats['std']:,.1f}")
@@ -689,9 +677,41 @@ def collect_boundaries_person_per_km2(
     print("\nDensity Distribution Quartiles:")
     print("----------------------------")
     for q in [0.25, 0.5, 0.75]:
-        print(f"{int(q * 100)}th percentile: {tracts_with_pop['density_per_km2'].quantile(q):,.1f}")
+        print(f"{int(q * 100)}th percentile: {geo_with_pop['density_per_km2'].quantile(q):,.1f}")
 
-    return tracts_with_pop
+    # Filter by minimum density if specified
+    if min_density_per_km2 > 0:
+        print(f"\nFiltering {geo_level}s by minimum density: {min_density_per_km2:,.1f} people/km²")
+
+        # Apply density filter
+        filtered_geo = geo_with_pop[geo_with_pop["density_per_km2"] >= min_density_per_km2]
+
+        # Print selection results
+        print(f"\nSelection Results:")
+        print("----------------")
+        print(f"Selected {len(filtered_geo)} out of {len(geo_with_pop)} {geo_level}s")
+        print(f"Total population in selected {geo_level}s: {filtered_geo['population'].sum():,}")
+
+        # Calculate percentage of total population
+        total_population = geo_with_pop['population'].sum()
+        if total_population > 0:
+            population_percentage = (filtered_geo['population'].sum() / total_population * 100)
+            print(f"Percentage of total population: {population_percentage:.1f}%\n")
+        else:
+            print(f"Warning: Total population is zero, cannot calculate percentage\n")
+    else:
+        # If no density filter, use all areas
+        filtered_geo = geo_with_pop
+        print(f"\nUsing all {len(filtered_geo)} {geo_level}s (no density filter applied)")
+
+    # Ensure output is in WGS84 for consistency
+    filtered_geo = filtered_geo.to_crs(epsg=4326)
+
+    # Save to file for future use
+    filtered_geo.to_file(density_geo_file, driver="GeoJSON")
+    print(f"✓ Saved filtered {geo_level} boundaries to {density_geo_file}")
+
+    return filtered_geo
 
 
 def download_nhts_data(nhts_output_file, area_name, state_fips_code=None,
@@ -1253,7 +1273,7 @@ def str_median(values):
     return int(median(numeric_values))
 
 
-def process_ferry_edges(ferry_graph, utm_epsg) -> nx.MultiDiGraph:
+def process_ferry_edges(ferry_graph) -> nx.MultiDiGraph:
     """Process ferry edges to make them compatible with car network"""
     if ferry_graph.number_of_edges() == 0:
         print("No ferry edges found in the graph.")
@@ -1268,30 +1288,20 @@ def process_ferry_edges(ferry_graph, utm_epsg) -> nx.MultiDiGraph:
 
     # Create default masks - assume access is allowed unless explicitly denied
     # This is more lenient and works better with OSM data which often lacks explicit tags
-    passenger_car_mask = pd.Series(True, index=ferry_edges.index)
-    truck_mask = pd.Series(True, index=ferry_edges.index)
+    car_mask = pd.Series(True, index=ferry_edges.index)
 
     # Check for explicit denials first
     if 'motorcar' in ferry_edges.columns:
-        passenger_car_mask &= ~(ferry_edges['motorcar'] == 'no')
-        print(f"After motorcar check: {passenger_car_mask.sum()} car-accessible edges")
+        car_mask &= ~(ferry_edges['motorcar'] == 'no')
+        print(f"After motorcar check: {car_mask.sum()} car-accessible edges")
 
     if 'motor_vehicle' in ferry_edges.columns:
         motor_vehicle_denied = ferry_edges['motor_vehicle'] == 'no'
-        passenger_car_mask &= ~motor_vehicle_denied
-        truck_mask &= ~motor_vehicle_denied
-        print(
-            f"After motor_vehicle check: {passenger_car_mask.sum()} car-accessible, {truck_mask.sum()} truck-accessible edges")
+        car_mask &= ~motor_vehicle_denied
+        print(f"After motor_vehicle check: {car_mask.sum()} car-accessible edges")
 
-    # Check for explicit truck denials
-    for truck_tag in ['hgv', 'goods', 'truck']:
-        if truck_tag in ferry_edges.columns:
-            truck_mask &= ~(ferry_edges[truck_tag] == 'no')
-            print(f"After {truck_tag} check: {truck_mask.sum()} truck-accessible edges")
-
-    # For ferries, if there's no explicit tag, assume it's accessible (common for OSM ferry data)
-    # This is the key change - we're now assuming access by default
-    selected_edges = ferry_edges[(passenger_car_mask | truck_mask)].copy()
+    # Select ferry edges that allow passenger cars
+    selected_edges = ferry_edges[car_mask].copy()
 
     if selected_edges.empty:
         print("No ferry routes found that allow passenger cars")
@@ -1316,9 +1326,8 @@ def process_ferry_edges(ferry_graph, utm_epsg) -> nx.MultiDiGraph:
 
     # Reconstruct graph and project
     g_ferry_reconstructed = ox.graph_from_gdfs(selected_nodes, selected_edges)
-    g_ferry_projected = ox.project_graph(g_ferry_reconstructed, to_crs=utm_epsg)
 
-    return g_ferry_projected
+    return g_ferry_reconstructed
 
 
 def convert_weight(value: float, from_unit: str, to_unit: str) -> float:
@@ -1553,49 +1562,6 @@ def find_long_tags_in_gdf(gdf, element_type="elements"):
     return long_tags, long_comb_tags
 
 
-def filtering_network_layer(_boundaries_person_per_km2, _min_density_per_km2, _geo_file_prefix):
-    # Create density-specific paths
-    if _min_density_per_km2 == 0:
-        densely_populated_tracts_geo_file = f"{_geo_file_prefix}_wgs84.geojson"
-    else:
-        densely_populated_tracts_geo_file = f"{_geo_file_prefix}_{_min_density_per_km2}ppsk_wgs84.geojson"
-
-    # Get boundaries for this density level
-    print("Loading tract boundaries...")
-    if os.path.exists(densely_populated_tracts_geo_file):
-        densely_populated_geo = gpd.read_file(densely_populated_tracts_geo_file)
-        print("✓ Loaded existing tract boundaries")
-    else:
-        print("Extracting dense tract boundaries...")
-
-        # Filter by density
-        densely_populated = _boundaries_person_per_km2[
-            _boundaries_person_per_km2["density_per_km2"] >= _min_density_per_km2
-        ]
-
-        print(f"\nSelection Results:")
-        print("----------------")
-        print(f"Selected {len(densely_populated)} out of {len(_boundaries_person_per_km2)} tracts")
-        print(f"Density threshold: >= {_min_density_per_km2:,.1f} people/km²")
-        print(f"Total population in selected tracts: {densely_populated['population'].sum():,}")
-
-        # Get total population
-        total_population = _boundaries_person_per_km2['population'].sum()
-
-        # Calculate percentage with error handling
-        if total_population > 0:
-            population_percentage = (densely_populated['population'].sum() / total_population * 100)
-            print(f"Percentage of total population: {population_percentage:.1f}%\n")
-        else:
-            print("Warning: Total population is zero, cannot calculate percentage\n")  # Save in projected crs
-
-        # Save WGS84 version
-        densely_populated_geo = densely_populated.to_crs(epsg=4326)
-        densely_populated_geo.to_file(f"{densely_populated_tracts_geo_file}", driver="GeoJSON")
-
-    return densely_populated_geo
-
-
 def meters_to_degrees(lon, lat, utm_epsg, buffer_meters):
     """
     Calculate the equivalent buffer distance in degrees for a given buffer in meters,
@@ -1685,16 +1651,41 @@ def to_convex_hull(input_data, utm_epsg, buffer_in_meters):
     # Buffer in degrees
     buffered_convex_hull = convex_hull.buffer(buffer_in_degrees)
 
-    # Create a GeoDataFrame from the geometry
-    hull_gdf = gpd.GeoDataFrame(
-        {'geometry': [buffered_convex_hull]},
-        crs="EPSG:4326"  # Assuming WGS84
-    )
-
-    # Save as GeoJSON
-    hull_gdf.to_file(f"convex_hull_{str(buffer_in_meters)}", driver='GeoJSON')
-
     return buffered_convex_hull
+
+
+def adjust_and_add_graph(graphs, current_graph):
+    # Get nodes and edges of current graph
+    current_nodes, current_edges = ox.graph_to_gdfs(current_graph)
+
+    # Collect all unique columns from existing graphs
+    existing_columns = set()
+    for existing_graph in graphs:
+        _, existing_edges = ox.graph_to_gdfs(existing_graph)
+        existing_columns.update(existing_edges.columns)
+
+    # Add missing columns to current graph's edges
+    for col in existing_columns:
+        if col not in current_edges.columns:
+            current_edges[col] = "nan"
+
+    # Also ensure existing graphs have columns from current graph
+    current_columns = set(current_edges.columns)
+    for i, existing_graph in enumerate(graphs):
+        existing_nodes, existing_edges = ox.graph_to_gdfs(existing_graph)
+
+        columns_added = False
+        for col in current_columns:
+            if col not in existing_edges.columns:
+                existing_edges[col] = "nan"
+                columns_added = True
+
+        # Only rebuild the graph if columns were added
+        if columns_added:
+            graphs[i] = ox.graph_from_gdfs(existing_nodes, existing_edges)
+
+    # Add the graph to the list if it has edges
+    graphs.append(ox.graph_from_gdfs(current_nodes, current_edges))
 
 
 def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGraph:
@@ -1732,22 +1723,17 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
         buffer_in_meters = layer_config["buffer_zone_in_meters"]
 
         # Create the region boundary GeoDataFrame
-        region_counties_geo_file = f"{base_name}_{geo_level}_{census_year}_wgs84.geojson"
-
-        # Census data file
-        census_data_file = f"{base_name}_acs_census_{geo_level}_{census_year}.csv"
+        region_boundary_wgs84 = collect_geographic_boundaries(
+            state_fips_code=state_fips_code,
+            county_fips_codes=county_fips_codes,
+            year=census_year,
+            study_area_boundary_geo_path=f"{base_name}_{geo_level}_{census_year}_wgs84.geojson",
+            geo_level=geo_level
+        )
 
         if layer_name == "main":
             print(f"\nProcessing {layer_name} layer")
-            # This returns a GeoDataFrame
-            region_boundary_gdf = collect_geographic_boundaries(
-                state_fips_code=state_fips_code,
-                county_fips_codes=county_fips_codes,
-                year=census_year,
-                study_area_boundary_geo_path=region_counties_geo_file,
-                geo_level=geo_level
-            )
-            graph_layer = to_convex_hull(region_boundary_gdf, utm_epsg, buffer_in_meters)
+            graph_layer = to_convex_hull(region_boundary_wgs84, utm_epsg, buffer_in_meters)
             network_type = "drive"
             simplify = False
             retain_all = True
@@ -1755,19 +1741,21 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
 
         elif layer_name == "residential":
             print(f"\nProcessing {layer_name} layer with minimum density: {min_density} pop/km²")
-            boundaries_person_per_km2 = collect_boundaries_person_per_km2(
+            # Get population data
+            pop_data = collect_census_data(
                 state_fips_code,
                 county_fips_codes,
                 census_year,
-                utm_epsg,
-                census_data_file,
-                region_counties_geo_file,
-                geo_level
+                census_data_file=f"{base_name}_acs_census_{geo_level}_{census_year}.csv",
+                geo_level=geo_level
             )
-            filtered_boundaries = filtering_network_layer(
-                boundaries_person_per_km2,
+            filtered_boundaries = filter_boundaries_by_density(
+                region_boundary_wgs84,
+                pop_data,
+                utm_epsg,
+                geo_level,
                 min_density,
-                f"{base_name}_{geo_level}_{census_year}"
+                density_geo_file=f"{base_name}_{geo_level}_{census_year}_{min_density}ppsk_wgs84.geojson",
             )
             graph_layer = shapely.ops.unary_union([
                 to_convex_hull(geom, utm_epsg, buffer_in_meters) for geom in filtered_boundaries.geometry
@@ -1779,13 +1767,6 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
 
         elif layer_name == "ferry":
             print(f"\nProcessing {layer_name} layer to connect island through motor ferries...")
-            region_boundary_wgs84 = collect_geographic_boundaries(
-                state_fips_code=state_fips_code,
-                county_fips_codes=county_fips_codes,
-                year=census_year,
-                study_area_boundary_geo_path=region_counties_geo_file,
-                geo_level=geo_level
-            )
             graph_layer = to_convex_hull(region_boundary_wgs84, utm_epsg, buffer_in_meters)
             network_type = "all"
             simplify = True
@@ -1811,7 +1792,7 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
 
         # Special processing for ferry network
         if layer_name == "ferry":
-            g = process_ferry_edges(g, utm_epsg)
+            g = process_ferry_edges(g)
             if g.number_of_edges() > 0:
                 print(f"✓ Processed {g.number_of_edges()} ferry connections")
             else:
@@ -1819,43 +1800,8 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
                 # Skip adding this empty graph
                 continue
 
-        # Ensure column compatibility with existing graphs
-        if graphs and g.number_of_edges() > 0:
-            # Get nodes and edges of current graph
-            current_nodes, current_edges = ox.graph_to_gdfs(g)
-
-            # Collect all unique columns from existing graphs
-            existing_columns = set()
-            for existing_graph in graphs:
-                _, existing_edges = ox.graph_to_gdfs(existing_graph)
-                existing_columns.update(existing_edges.columns)
-
-            # Add missing columns to current graph's edges
-            for col in existing_columns:
-                if col not in current_edges.columns:
-                    current_edges[col] = None
-
-            # Also ensure existing graphs have columns from current graph
-            current_columns = set(current_edges.columns)
-            for i, existing_graph in enumerate(graphs):
-                existing_nodes, existing_edges = ox.graph_to_gdfs(existing_graph)
-
-                columns_added = False
-                for col in current_columns:
-                    if col not in existing_edges.columns:
-                        existing_edges[col] = None
-                        columns_added = True
-
-                # Only rebuild the graph if columns were added
-                if columns_added:
-                    graphs[i] = ox.graph_from_gdfs(existing_nodes, existing_edges)
-
-            # Rebuild current graph with updated columns
-            g = ox.graph_from_gdfs(current_nodes, current_edges)
-
         # Add the graph to the list if it has edges
-        if g.number_of_edges() > 0:
-            graphs.append(g)
+        adjust_and_add_graph(graphs, g)
 
     print("\n=== Processing Combined Network ===")
     g_combined = nx.compose_all(graphs)

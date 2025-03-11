@@ -191,7 +191,7 @@ seattle_area_config = {
             # // Initial core requirement: 1067 ppsm = 412 ppsk
             # // Urban extension requirement: 502 ppsm = 194 ppsk
             # // Rural Areas less than 502 people per square mile
-            "min_density_per_km2": 412,
+            "min_density_per_km2": 1236,
             "geo_level": "cbg",
             "custom_filter": create_osm_highway_filter(osm_default_highways + ["residential"]),
             "buffer_zone_in_meters": 100
