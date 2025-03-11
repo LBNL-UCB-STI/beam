@@ -115,29 +115,29 @@ sfbay_area_config = {
             "buffer_zone_in_meters": 200
         },
         "residential": {
-            # // California has a higher urbanization rate (94.8% urban vs 80.7% national average)
-            # // https://dof.ca.gov/wp-content/uploads/sites/352/Forecasting/Demographics/Documents/Urban-Rural_Classification_and_2020_Urban_Area_Criteria_CA_SDC.pdf
-            # const avgPersonsPerHousehold = 2.9; // CA average household size (higher than national 2.5)
-            #
-            # // Core density calculation (using similar proportions as national but adjusted for CA household size)
-            # const coreHUDensity = 1275; // National high-density nucleus requirement
-            # const caDensityAdjustment = 2.9 / 2.5; // CA vs national household size ratio
-            # // Calculate CA-adjusted thresholds
-            # const caHighDensityPPSM = coreHUDensity * 2.9;
-            # const caInitialCorePPSM = 425 * 2.9;
-            # const caUrbanExtensionPPSM = 200 * 2.9;
-            # // Result
-            # // California-adjusted density thresholds (persons per square mile):
-            # //  densest urban cores, typical of downtown areas in major California cities:  7,395 ppsm = 2,855 ppsk
-            # // High-density nucleus requirement: 3698 ppsm = 1429 ppsk
-            # // Initial core requirement: 1233 ppsm = 475 ppsk
-            # // Urban extension requirement: 580 ppsm = 224 ppsk
-            # // Rural Areas less than 580 people per square mile
             "min_density_per_km2": 4500,
             "geo_level": "cbg",
             "custom_filter": create_osm_highway_filter(osm_default_highways + ["residential"]),
             "buffer_zone_in_meters": 20
         }
+        # // California has a higher urbanization rate (94.8% urban vs 80.7% national average)
+        # // https://dof.ca.gov/wp-content/uploads/sites/352/Forecasting/Demographics/Documents/Urban-Rural_Classification_and_2020_Urban_Area_Criteria_CA_SDC.pdf
+        # const avgPersonsPerHousehold = 2.9; // CA average household size (higher than national 2.5)
+        #
+        # // Core density calculation (using similar proportions as national but adjusted for CA household size)
+        # const coreHUDensity = 1275; // National high-density nucleus requirement
+        # const caDensityAdjustment = 2.9 / 2.5; // CA vs national household size ratio
+        # // Calculate CA-adjusted thresholds
+        # const caHighDensityPPSM = coreHUDensity * 2.9;
+        # const caInitialCorePPSM = 425 * 2.9;
+        # const caUrbanExtensionPPSM = 200 * 2.9;
+        # // Result
+        # // California-adjusted density thresholds (persons per square mile):
+        # //  densest urban cores, typical of downtown areas in major California cities:  7,395 ppsm = 2,855 ppsk
+        # // High-density nucleus requirement: 3698 ppsm = 1429 ppsk
+        # // Initial core requirement: 1233 ppsm = 475 ppsk
+        # // Urban extension requirement: 580 ppsm = 224 ppsk
+        # // Rural Areas less than 580 people per square mile
     }
 }
 
@@ -169,37 +169,37 @@ seattle_area_config = {
         "main": {
             "geo_level": "county",
             "custom_filter": create_osm_highway_filter(osm_default_highways),
-            "buffer_zone_in_meters": 10000
-        },
-        "residential": {
-            # // Washington has a moderate urbanization rate (84.1% urban vs 80.7% national average)
-            # // https://www.census.gov/quickfacts/fact/table/WA/INC110223
-            # // Washington's urbanization rate is higher than the national average but lower than California's 94.8%
-            # const avgPersonsPerHousehold = 2.51; // WA average household size (slightly higher than national 2.5)
-
-            # // Core density calculation (using similar proportions as national but adjusted for WA household size)
-            # const coreHUDensity = 1275; // National high-density nucleus requirement
-            # const waDensityAdjustment = 2.51 / 2.5; // WA vs national household size ratio
-            # // Calculate WA-adjusted thresholds
-            # const waHighDensityPPSM = coreHUDensity * 2.51;
-            # const waInitialCorePPSM = 425 * 2.51;
-            # const waUrbanExtensionPPSM = 200 * 2.51;
-
-            # // Washington-adjusted density thresholds (persons per square mile):
-            # // densest urban cores, typical of downtown areas in major Washington cities: 3200 ppsm = 1236 ppsk
-            # // High-density nucleus requirement: 3200 ppsm = 1236 ppsk
-            # // Initial core requirement: 1067 ppsm = 412 ppsk
-            # // Urban extension requirement: 502 ppsm = 194 ppsk
-            # // Rural Areas less than 502 people per square mile
-            "min_density_per_km2": 1236,
-            "geo_level": "cbg",
-            "custom_filter": create_osm_highway_filter(osm_default_highways + ["residential"]),
-            "buffer_zone_in_meters": 100
+            "buffer_zone_in_meters": 200
         },
         "ferry": {
             "geo_level": "county",
             "custom_filter": '["route"="ferry"]',
-            "buffer_zone_in_meters": 100000
+            "buffer_zone_in_meters": 10000
+        },
+        "residential": {
+            "min_density_per_km2": 1236,
+            "geo_level": "cbg",
+            "custom_filter": create_osm_highway_filter(osm_default_highways + ["residential"]),
+            "buffer_zone_in_meters": 20
         }
+        # // Washington has a moderate urbanization rate (84.1% urban vs 80.7% national average)
+        # // https://www.census.gov/quickfacts/fact/table/WA/INC110223
+        # // Washington's urbanization rate is higher than the national average but lower than California's 94.8%
+        # const avgPersonsPerHousehold = 2.51; // WA average household size (slightly higher than national 2.5)
+
+        # // Core density calculation (using similar proportions as national but adjusted for WA household size)
+        # const coreHUDensity = 1275; // National high-density nucleus requirement
+        # const waDensityAdjustment = 2.51 / 2.5; // WA vs national household size ratio
+        # // Calculate WA-adjusted thresholds
+        # const waHighDensityPPSM = coreHUDensity * 2.51;
+        # const waInitialCorePPSM = 425 * 2.51;
+        # const waUrbanExtensionPPSM = 200 * 2.51;
+
+        # // Washington-adjusted density thresholds (persons per square mile):
+        # // densest urban cores, typical of downtown areas in major Washington cities: 3200 ppsm = 1236 ppsk
+        # // High-density nucleus requirement: 3200 ppsm = 1236 ppsk
+        # // Initial core requirement: 1067 ppsm = 412 ppsk
+        # // Urban extension requirement: 502 ppsm = 194 ppsk
+        # // Rural Areas less than 502 people per square mile
     }
 }
