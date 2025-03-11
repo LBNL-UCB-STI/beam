@@ -73,7 +73,7 @@ study_area_config = {
             # // Initial core requirement: 1233 ppsm = 475 ppsk
             # // Urban extension requirement: 580 ppsm = 224 ppsk
             # // Rural Areas less than 580 people per square mile
-            "min_density_per_km2": 5000,
+            "min_density_per_km2": 4500,
             "geo_level": "cbg",
             "custom_filter": create_osm_highway_filter(osm_default_highways + ["residential"]),
             "buffer_zone_in_meters": 20
