@@ -1750,6 +1750,8 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
             graph_layer = to_convex_hull(region_boundary_gdf, utm_epsg, buffer_in_meters)
             network_type = "drive"
             simplify = False
+            retain_all = True
+            truncate_by_edge = True
 
         elif layer_name == "residential":
             print(f"\nProcessing {layer_name} layer with minimum density: {min_density} pop/km²")
@@ -1772,6 +1774,8 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
             ])
             network_type = "drive"
             simplify = False
+            retain_all = True
+            truncate_by_edge = True
 
         elif layer_name == "ferry":
             print(f"\nProcessing {layer_name} layer to connect island through motor ferries...")
@@ -1785,6 +1789,8 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
             graph_layer = to_convex_hull(region_boundary_wgs84, utm_epsg, buffer_in_meters)
             network_type = "all"
             simplify = True
+            retain_all = True
+            truncate_by_edge = False
 
         else:
             raise ValueError(f"Invalid layer name: {layer_name}")
@@ -1797,8 +1803,8 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
             graph_layer,
             network_type=network_type,
             simplify=simplify,
-            retain_all=True,
-            truncate_by_edge=True,
+            retain_all=retain_all,
+            truncate_by_edge=truncate_by_edge,
             custom_filter=custom_filter
         )
         print(f"✓ Downloaded network with {g.number_of_nodes()} nodes and {g.number_of_edges()} edges")
