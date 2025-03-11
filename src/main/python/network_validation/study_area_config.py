@@ -97,7 +97,7 @@ sfbay_area_config = {
     "state_fips": "06",
     "county_fips": ['001', '013', '041', '055', '075', '081', '085', '095', '097', '087', '113'],
     "census_year": 2018,
-    "study_area_crs": 26910,  # NAD83 / UTM zone 10N
+    "utm_epsg": 26910,  # NAD83 / UTM zone 10N
     "connect_islands": False,  # Links disconnected islands relying on motor vehicle ferry using a virtual car link
     "tolerance": 2,
 
@@ -155,7 +155,7 @@ seattle_area_config = {
     "state_fips": "53",
     "county_fips": ["061", "033", "035", "053"],
     "census_year": 2018,
-    "study_area_crs": 32048,  #
+    "utm_epsg": 32048,  #
     "connect_islands": True,  # Links disconnected islands relying on motor vehicle ferry using a virtual car link
     "tolerance": 2,
 

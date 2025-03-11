@@ -6,116 +6,20 @@ from validation_utils import download_and_prepare_osm_network
 from validation_utils import standardize_oneway
 from validation_utils import standardize_maxspeed
 from validation_utils import check_invalid_coordinates
-from validation_utils import create_osm_highway_filter
 from validation_utils import save_graph_to_osm
 from validation_utils import load_graph_from_osm
 from validation_utils import scan_network_directories_for_ways
+from study_area_config import generate_config_name
+from study_area_config import sfbay_area_config
+from study_area_config import seattle_area_config
 import osmnx as ox
-from osmnx import settings
 import os
 import pickle
 import subprocess
 
+# study_area_config = sfbay_area_config
+study_area_config = seattle_area_config
 
-#############################
-########## Settings #########
-#############################
-
-osm_default_highways = ["motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link",
-                        "secondary", "secondary_link", "tertiary", "tertiary_link", "unclassified"]
-
-study_area_config = {
-    # Base paths
-    "work_dir": os.path.expanduser("~/Workspace/Simulation/sfbay"),
-
-    # if download isn't enabled, we read network from disk
-    "download_enabled": True,
-
-    # Geographic settings
-    "study_area": "sfbay",
-    "state_fips": "06",
-    "county_fips": ['001', '013', '041', '055', '075', '081', '085', '095', '097', '087', '113'],
-    "census_year": 2018,
-    "study_area_crs": 26910,  # NAD83 / UTM zone 10N
-    "connect_islands": False,  # Links disconnected islands relying on motor vehicle ferry using a virtual car link
-    "tolerance": 2,
-
-    # Vehicle weight classifications (FHWA)
-    "weight_limits": {
-        "unit": "lbs",
-        "mdv_max": 26000,  # Upper limit for Medium Duty Vehicles (Class 3-6) in pounds
-        "hdv_max": 80000,  # Upper limit for Heavy Duty Vehicles (Class 7-8) in pounds
-    },
-
-    # Density thresholds and corresponding network filters
-    "graph_layers": {
-        "main": {
-            "geo_level": "county",
-            "custom_filter": create_osm_highway_filter(osm_default_highways),
-            "buffer_zone_in_meters": 200
-        },
-        "residential": {
-            # // California has a higher urbanization rate (94.8% urban vs 80.7% national average)
-            # // https://dof.ca.gov/wp-content/uploads/sites/352/Forecasting/Demographics/Documents/Urban-Rural_Classification_and_2020_Urban_Area_Criteria_CA_SDC.pdf
-            # const avgPersonsPerHousehold = 2.9; // CA average household size (higher than national 2.5)
-            #
-            # // Core density calculation (using similar proportions as national but adjusted for CA household size)
-            # const coreHUDensity = 1275; // National high-density nucleus requirement
-            # const caDensityAdjustment = 2.9 / 2.5; // CA vs national household size ratio
-            # // Calculate CA-adjusted thresholds
-            # const caHighDensityPPSM = coreHUDensity * 2.9;
-            # const caInitialCorePPSM = 425 * 2.9;
-            # const caUrbanExtensionPPSM = 200 * 2.9;
-            # // Result
-            # // California-adjusted density thresholds (persons per square mile):
-            # //  densest urban cores, typical of downtown areas in major California cities:  7,395 ppsm = 2,855 ppsk
-            # // High-density nucleus requirement: 3698 ppsm = 1429 ppsk
-            # // Initial core requirement: 1233 ppsm = 475 ppsk
-            # // Urban extension requirement: 580 ppsm = 224 ppsk
-            # // Rural Areas less than 580 people per square mile
-            "min_density_per_km2": 4500,
-            "geo_level": "cbg",
-            "custom_filter": create_osm_highway_filter(osm_default_highways + ["residential"]),
-            "buffer_zone_in_meters": 20
-        }
-    },
-
-    # OSMNX settings
-    "osmnx_settings": {
-        "log_console": True,
-        "use_cache": True,
-        "cache_only_mode": False,
-        "all_oneway": True,
-        "requests_timeout": 180,
-        "overpass_memory": None,
-        "max_query_area_size": 50 * 1000 * 50 * 1000,  # 50km × 50km
-        "overpass_rate_limit": False,
-        "overpass_max_attempts": 3,
-        "useful_tags_way": list(ox.settings.useful_tags_way) + ["maxweight", "hgv", "maxweight:hgv", "maxlength"],
-        "overpass_url": "https://overpass-api.de/api",
-        # https://wiki.openstreetmap.org/wiki/Overpass_API#Public_Overpass_API_instances
-    }
-}
-
-def generate_config_name(config: dict) -> str:
-    """
-    Generate a configuration name based on study area, graph layers, and tolerance.
-    Format: [study_area]-[main_geo_level]-[residential_geo_level][density]-t[tolerance][-ferry]-network
-
-    Example output: sfbay-area-cbg7000-network or sfbay-area-cbg7000-ferry-network
-    """
-    # Get study area
-    study_area = config["study_area"]
-
-    # Get residential geographic level and density
-    residential_geo_level = config["graph_layers"]["residential"]["geo_level"]
-    density_value = str(config["graph_layers"]["residential"]["min_density_per_km2"])
-
-    # Ferry suffix
-    ferry_suffix = "-ferry" if config["connect_islands"] else ""
-
-    # Combine all parts
-    return f"{study_area}-area-{residential_geo_level}{density_value}{ferry_suffix}-network"
 #############################
 ############ Main ###########
 #############################
@@ -172,16 +76,16 @@ else:
 
 if g_network and not os.path.exists(osm_network):
     print(f"Checking for invalid coordinates...")
-    has_invalid, invalid_nodes = check_invalid_coordinates(g_network)
-
-    if has_invalid:
-        print(
-            f"WARNING: Found {len(invalid_nodes)} nodes with invalid coordinates. These should be fixed before proceeding.")
-        # Optionally: Fix or remove invalid nodes
-        # g_network.remove_nodes_from(invalid_nodes)
-        # print(f"Removed {len(invalid_nodes)} invalid nodes from the network.")
-    else:
-        print("✓ All node coordinates are valid.")
+    # has_invalid, invalid_nodes = check_invalid_coordinates(g_network)
+    #
+    # if has_invalid:
+    #     print(
+    #         f"WARNING: Found {len(invalid_nodes)} nodes with invalid coordinates. These should be fixed before proceeding.")
+    #     # Optionally: Fix or remove invalid nodes
+    #     # g_network.remove_nodes_from(invalid_nodes)
+    #     # print(f"Removed {len(invalid_nodes)} invalid nodes from the network.")
+    # else:
+    #     print("✓ All node coordinates are valid.")
 
     print(f"Converting GraphML Network to GPKG Network...")
     print(f"Converting GraphML Network to GPKG Network...")

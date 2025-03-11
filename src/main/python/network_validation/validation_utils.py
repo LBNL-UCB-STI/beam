@@ -1609,7 +1609,10 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
     # Create density-specific paths
     base_name = f"{_study_area_config['work_dir']}/geo/{_study_area_config['study_area']}"
     census_year = _study_area_config["census_year"]
-    utm_epsg = _study_area_config["study_area_crs"]
+    utm_epsg = _study_area_config["utm_epsg"]
+    state_fips_code = _study_area_config["state_fips"]
+    county_fips_codes = _study_area_config["county_fips"]
+    tolerance = _study_area_config["tolerance"]
 
     for layer_name, layer_config in _study_area_config["graph_layers"].items():
         print(f"\nProcessing {layer_name} layer")
@@ -1629,9 +1632,9 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
         if layer_name == "main":
             # This returns a GeoDataFrame
             region_boundary_gdf = collect_geographic_boundaries(
-                state_fips_code=_study_area_config["state_fips"],
-                county_fips_codes=_study_area_config["county_fips"],
-                year=_study_area_config["census_year"],
+                state_fips_code=state_fips_code,
+                county_fips_codes=county_fips_codes,
+                year=census_year,
                 study_area_boundary_geo_path=f"{base_name}_{geo_level}_{census_year}_wgs84.geojson",
                 geo_level=geo_level)
 
@@ -1646,10 +1649,10 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
         else:
             print(f"Collecting and filtering boundaries with minimum density: {min_density} pop/km²")
             boundaries_person_per_km2 = collect_boundaries_person_per_km2(
-                _study_area_config["state_fips"],
-                _study_area_config["county_fips"],
+                state_fips_code,
+                county_fips_codes,
                 census_year,
-                _study_area_config["study_area_crs"],
+                utm_epsg,
                 f"{base_name}_acs_census_{geo_level}_{census_year}.csv",
                 f"{base_name}_{geo_level}_{census_year}_wgs84.geojson",
                 geo_level
@@ -1690,7 +1693,7 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
     print(f"✓ Combined network has {g_combined.number_of_nodes()} nodes and {g_combined.number_of_edges()} edges")
 
     print("\nProjecting network...")
-    g_projected = ox.project_graph(g_combined, to_crs=_study_area_config["study_area_crs"]).copy()
+    g_projected = ox.project_graph(g_combined, to_crs=utm_epsg).copy()
     print("✓ Network projected")
 
     print("\nAdding edge speeds...")
@@ -1710,16 +1713,18 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
         else:
             print("Collecting geographic boundaries...")
             region_boundary_wgs84 = collect_geographic_boundaries(
-                state_fips_code=_study_area_config["state_fips"],
-                county_fips_codes=_study_area_config["county_fips"],
-                year=_study_area_config["census_year"],
+                state_fips_code=state_fips_code,
+                county_fips_codes=county_fips_codes,
+                year=census_year,
                 study_area_boundary_geo_path=region_counties_geo,
                 geo_level="county")
             print("✓ Created new county boundaries")
 
+        # Transform to EPSG:32048 (NAD27 / Washington South)
+        region_boundary_projected = region_boundary_wgs84.to_crs(f"EPSG:{utm_epsg}")
         g_completed_network = process_ferry_into_car_edges(
             g_with_ft_restrictions,
-            region_boundary_wgs84.geometry.union_all()
+            region_boundary_projected.geometry.union_all()
         )
         print("✓ Ferry connections processed")
     else:
@@ -1728,7 +1733,7 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
     print("\nConsolidating intersections...")
     g_consolidated = ox.consolidate_intersections(
         g_completed_network,
-        tolerance=_study_area_config["tolerance"],
+        tolerance=tolerance,
         rebuild_graph=True,
         dead_ends=True,
         reconnect_edges=True
