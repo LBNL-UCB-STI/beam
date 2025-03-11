@@ -54,9 +54,42 @@ def create_osm_highway_filter(highway_types):
 
     return filter_string
 
+
+def get_area_config(area_name):
+
+    """
+    Retrieve a deep copy of the configuration for the specified area.
+
+    Args:
+        area_name (str): The name of the area ('sfbay' or 'seattle')
+
+    Returns:
+        dict: A deep copy of the area's configuration
+
+    Raises:
+        ValueError: If an invalid area name is provided
+    """
+    import copy
+    area_configs = {
+        "sfbay": sfbay_area_config,
+        "seattle": seattle_area_config
+    }
+
+    if area_name not in area_configs:
+        valid_areas = ", ".join(f"'{area}'" for area in area_configs.keys())
+        raise ValueError(f"Invalid area name '{area_name}'. Choose from: {valid_areas}")
+
+    return copy.deepcopy(area_configs[area_name])
+
 #############################
 ########## Settings #########
 #############################
+
+constants = {
+    "joule_per_meter_base_rate": 1.213e8, # Energy consumption base rate in joules per meter
+    "max_fuel_capacity_in_joule": 1.2e16, # Maximum fuel capacity in joules (represents physical tank limits)
+    "meters_per_mile": 1609.34 # Conversion factor from miles to meters
+} 
 
 osm_default_highways = ["motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link",
                         "secondary", "secondary_link", "tertiary", "tertiary_link", "unclassified"]
@@ -84,6 +117,46 @@ weight_limits = {
         "hdv_max": 80000,  # Upper limit for Heavy Duty Vehicles (Class 7-8) in pounds
     }
 
+fastsim_routee_files = {
+    "primary_powertrain": {
+        "freight-md-D-Diesel-Baseline": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(Diesel,_2020,_no_program).csv",
+        "freight-md-E-BE-Baseline": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(BEV,_2025,_no_program).csv",
+        # "freight-md-E-H2FC-Baseline": np.nan,
+        "freight-md-E-PHEV-Baseline": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(BEV,_2025,_no_program).csv",
+        "freight-hdt-D-Diesel-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(Diesel,_2020,_no_program).csv",
+        "freight-hdt-E-BE-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(BEV,_2025,_no_program).csv",
+        # "freight-hdt-E-H2FC-Baseline": np.nan,
+        "freight-hdt-E-PHEV-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(BEV,_2025,_no_program).csv",
+        "freight-hdv-D-Diesel-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(Diesel,_2020,_no_program).csv",
+        "freight-hdv-E-BE-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(BEV,_2025,_no_program).csv",
+        # "freight-hdv-E-H2FC-Baseline": np.nan,
+        "freight-hdv-E-PHEV-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(BEV,_2025,_no_program).csv"
+    },
+    "secondary_powertrain": {
+        # "freight-md-D-Diesel-Baseline": np.nan,
+        # "freight-md-E-BE-Baseline": np.nan,
+        # "freight-md-E-H2FC-Baseline": np.nan,
+        "freight-md-E-PHEV-Baseline": ("Diesel",
+                                       9595.796035186175,
+                                       constants["max_fuel_capacity_in_joule"],
+                                       "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(HEV,_2025,_no_program).csv"),
+        # "freight-hdt-D-Diesel-Baseline": np.nan,
+        # "freight-hdt-E-BE-Baseline": np.nan,
+        # "freight-hdt-E-H2FC-Baseline": np.nan,
+        "freight-hdt-E-PHEV-Baseline": ("Diesel",
+                                        13817.086117829229,
+                                        constants["max_fuel_capacity_in_joule"],
+                                        "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(HEV,_2025,_no_program).csv"),
+        # "freight-hdv-D-Diesel-Baseline": np.nan,
+        # "freight-hdv-E-BE-Baseline": np.nan,
+        # "freight-hdv-E-H2FC-Baseline": np.nan,
+        "freight-hdv-E-PHEV-Baseline": ("Diesel",
+                                        14026.761465378302,
+                                        constants["max_fuel_capacity_in_joule"],
+                                        "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(HEV,_2025,_no_program).csv")
+    }
+}
+
 ########## SF Bay Area #########
 
 sfbay_area_config = {
@@ -92,6 +165,11 @@ sfbay_area_config = {
 
     # Vehicle weight classifications (FHWA)
     "weight_limits": weight_limits,
+
+    # FastSim routee files
+    "fastsim_routee_files": fastsim_routee_files,
+
+    # Transit stop data
 
     # if download isn't enabled, we read network from disk
     "download_enabled": True,
@@ -149,6 +227,9 @@ seattle_area_config = {
 
     # Vehicle weight classifications (FHWA)
     "weight_limits": weight_limits,
+
+    # FastSim routee files
+    "fastsim_routee_files": fastsim_routee_files,
 
     # if download isn't enabled, we read network from disk
     "download_enabled": True,

@@ -1,11 +1,11 @@
 import multiprocessing as mp
 import os
+import sys
 import random
 import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Tuple, List, Any
-
+from typing import Tuple, List
 import geopandas as gpd
 import numpy as np
 import pandas as pd
@@ -14,39 +14,65 @@ from pyrosm import OSM
 from scipy.spatial import cKDTree
 from shapely.geometry import Point
 
+# Get the absolute path to the directory containing this script
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Go up to the parent directory that contains the 'python' directory
+# If your file is in /path/to/python/freight/frism_to_beam_freight_plans.py
+# This will add /path/to to sys.path
+parent_dir = os.path.dirname(os.path.dirname(current_dir))
+sys.path.insert(0, parent_dir)
+
+# Now use absolute import
+from python.utils.study_area_config import get_area_config
+from python.utils.study_area_config import generate_config_name
+from python.utils.study_area_config import constants
+
 warnings.filterwarnings('ignore')
 
-# System and general constants
-JOULES_PER_METER_BASE = 121300000  # Base value for energy consumption calculation
-MAX_FUEL_CAPACITY = 12000000000000000  # Maximum fuel capacity in Joules
+# ************************************************************************************************
 
-# Coordinate snapping constants
-METERS_PER_MILE = 1609.34
-BUFFER_DISTANCE_METERS = 2000  # 2km
-MAX_DISTANCE_METERS = 200000  # 200km
-CHUNK_SIZE = 10000  # this affects speed and parallelization of the script
-
-# City and scenario settings
-FRISM_VERSION = 1.5
-SOURCE_CRS = 4326  # WGS84
-# UTM_CRS = 26910  # Seattle UTM zone 32048 | SFBAY 26910
-UTM_CRS = 32048
-# AREA = "sfbay"
-AREA = "seattle"
+AREA = "seattle" # sfbay
 BATCH_NAME = "2024-11-06"
-YEAR = "2018"
 SCENARIO_NAME = "Baseline"
 SCENARIO_SUFFIX = ""
+FRISM_VERSION = 1.5
+# Coordinate snapping constants
+BUFFER_DISTANCE_METERS = 2000  # 2km
+MAX_DISTANCE_METERS = 200000  # 200km
+STUDY_AREA_CONFIG = get_area_config(AREA)
+STUDY_AREA_CONFIG["graph_layers"]["residential"]["min_density_per_km2"] = 412
+SNAP_COORDINATES = True
+
+# ************************************************************************************************
+
+
+
+
+# System and general constants
+CHUNK_SIZE = 10000  # this affects speed and parallelization of the script
+CONFIG_NAME = generate_config_name(STUDY_AREA_CONFIG)
+NETWORK_DIR = f'{STUDY_AREA_CONFIG["work_dir"]}/network/{CONFIG_NAME}'
+NETWORK_OSM_PBF = f'{NETWORK_DIR}/{CONFIG_NAME}.osm.pbf'
+UTM_CRS = STUDY_AREA_CONFIG["utm_epsg"]
+YEAR = STUDY_AREA_CONFIG["census_year"]
 SCENARIO_LABEL = SCENARIO_NAME.replace("_", "")
-NETWORK_OSM_PBF_NAME = "r5-simple-no-local/bay_area_simplified_tertiary_strongly_2_way_network.osm.pbf"
+PRIMARY_ENERGY_PROFILE = STUDY_AREA_CONFIG["fastsim_routee_files"]["primary_powertrain"]
+SECONDARY_ENERGY_PROFILE = STUDY_AREA_CONFIG["fastsim_routee_files"]["secondary_powertrain"]
 
 # File paths and directories
-WORK_DIR = os.path.expanduser('~/Workspace')
-DIRECTORY_INPUT = f'{WORK_DIR}/Simulation/{AREA}/frism/{BATCH_NAME}/{SCENARIO_NAME}'
-DIRECTORY_OUTPUT = f'{WORK_DIR}/Simulation/{AREA}/beam-freight/{BATCH_NAME}/{YEAR}_{SCENARIO_LABEL}{SCENARIO_SUFFIX}'
-DIRECTORY_VEHICLE_TECH = f'{DIRECTORY_OUTPUT}/vehicle-tech'
-NETWORK_OSM_PBF = f"{WORK_DIR}/Simulation/{AREA}/network/{NETWORK_OSM_PBF_NAME}"
-Path(DIRECTORY_OUTPUT).mkdir(parents=True, exist_ok=True)
+DIRECTORY_INPUT = f'{STUDY_AREA_CONFIG["work_dir"]}/frism/{BATCH_NAME}/{SCENARIO_NAME}'
+DIRECTORY_BATCH = f'{STUDY_AREA_CONFIG["work_dir"]}/beam-freight/{BATCH_NAME}'
+DIRECTORY_OUTPUT = f'{DIRECTORY_BATCH}/{YEAR}_{SCENARIO_LABEL}{SCENARIO_SUFFIX}'
+DIRECTORY_VEHICLE_TECH = f'{DIRECTORY_BATCH}/vehicle-tech'
+if SNAP_COORDINATES:
+    # Define the snapped directory path
+    DIRECTORY_SCENARIO = f'{DIRECTORY_OUTPUT}--snapped-to-{CONFIG_NAME}'
+else:
+    DIRECTORY_SCENARIO = f'{DIRECTORY_OUTPUT}'
+
+# Create necessary directories if they don't exist
+Path(DIRECTORY_SCENARIO).mkdir(parents=True, exist_ok=True)
 Path(DIRECTORY_VEHICLE_TECH).mkdir(parents=True, exist_ok=True)
 
 # Variables
@@ -58,40 +84,6 @@ _vehicle_types = None
 _tourId_with_prefix = {}
 
 # ******************************
-
-primary_energy_files = {
-    "freight-md-D-Diesel-Baseline": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(Diesel,_2020,_no_program).csv",
-    "freight-md-E-BE-Baseline": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(BEV,_2025,_no_program).csv",
-    # "freight-md-E-H2FC-Baseline": np.nan,
-    "freight-md-E-PHEV-Baseline": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(BEV,_2025,_no_program).csv",
-    "freight-hdt-D-Diesel-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(Diesel,_2020,_no_program).csv",
-    "freight-hdt-E-BE-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(BEV,_2025,_no_program).csv",
-    # "freight-hdt-E-H2FC-Baseline": np.nan,
-    "freight-hdt-E-PHEV-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(BEV,_2025,_no_program).csv",
-    "freight-hdv-D-Diesel-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(Diesel,_2020,_no_program).csv",
-    "freight-hdv-E-BE-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(BEV,_2025,_no_program).csv",
-    # "freight-hdv-E-H2FC-Baseline": np.nan,
-    "freight-hdv-E-PHEV-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(BEV,_2025,_no_program).csv"
-}
-
-secondary_energy_profile_for_phev = {
-    # "freight-md-D-Diesel-Baseline": np.nan,
-    # "freight-md-E-BE-Baseline": np.nan,
-    # "freight-md-E-H2FC-Baseline": np.nan,
-    "freight-md-E-PHEV-Baseline": ("Diesel", 9595.796035186175, MAX_FUEL_CAPACITY,
-                                   "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(HEV,_2025,_no_program).csv"),
-    # "freight-hdt-D-Diesel-Baseline": np.nan,
-    # "freight-hdt-E-BE-Baseline": np.nan,
-    # "freight-hdt-E-H2FC-Baseline": np.nan,
-    "freight-hdt-E-PHEV-Baseline": ("Diesel", 13817.086117829229, MAX_FUEL_CAPACITY,
-                                    "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(HEV,_2025,_no_program).csv"),
-    # "freight-hdv-D-Diesel-Baseline": np.nan,
-    # "freight-hdv-E-BE-Baseline": np.nan,
-    # "freight-hdv-E-H2FC-Baseline": np.nan,
-    "freight-hdv-E-PHEV-Baseline": ("Diesel", 14026.761465378302, MAX_FUEL_CAPACITY,
-                                    "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(HEV,_2025,_no_program).csv")
-}
-
 
 def load_osm_network(pbf_path, min_distance_from_edge):
     """
@@ -159,7 +151,7 @@ def load_osm_network(pbf_path, min_distance_from_edge):
     try:
         # Save the buffered edges as GeoJSON
         # Convert to geographic coordinates (EPSG:4326) for better compatibility
-        save_gdf = buffered_edges.to_crs(epsg=SOURCE_CRS)
+        save_gdf = buffered_edges.to_crs(epsg=4326)
 
         # Make sure all columns are serializable
         for col in save_gdf.columns:
@@ -324,7 +316,6 @@ def create_spatial_index_kdtree(edges_gdf_utm: gpd.GeoDataFrame) -> Tuple[np.nda
 def find_nearest_edge_kdtree(
         point_utm: Point,
         edges_gdf_utm: gpd.GeoDataFrame,
-        centroids: np.ndarray,
         kdtree: cKDTree,
         k: int = 5
 ) -> Tuple[float, gpd.GeoSeries]:
@@ -334,7 +325,6 @@ def find_nearest_edge_kdtree(
     Args:
         point_utm: Point geometry in UTM coordinates
         edges_gdf_utm: GeoDataFrame containing network edges in UTM
-        centroids: NumPy array of edge centroids in UTM
         kdtree: cKDTree spatial index
         k: Number of nearest neighbors to check
 
@@ -382,7 +372,6 @@ def generate_random_point_near_line_utm(
 def process_points_chunk_vectorized(
         points_chunk: np.ndarray,
         edges_gdf_utm: gpd.GeoDataFrame,
-        centroids: np.ndarray,
         kdtree: cKDTree,
         min_distance: float,
         max_distance: float,
@@ -395,7 +384,6 @@ def process_points_chunk_vectorized(
     Args:
         points_chunk: Array of coordinate pairs to process
         edges_gdf_utm: GeoDataFrame containing network edges in UTM
-        centroids: NumPy array of edge centroids
         kdtree: Spatial index for quick nearest neighbor lookups
         min_distance: Minimum allowed distance from road
         max_distance: Maximum allowed distance from road
@@ -408,7 +396,7 @@ def process_points_chunk_vectorized(
     # Convert input points to UTM for distance calculations
     points_gdf = gpd.GeoDataFrame(
         geometry=[Point(x, y) for x, y in points_chunk],
-        crs=SOURCE_CRS
+        crs=4326
     ).to_crs(UTM_CRS)
 
     for idx, (point_utm, orig_point) in enumerate(zip(points_gdf.geometry, points_chunk)):
@@ -428,12 +416,7 @@ def process_points_chunk_vectorized(
                 continue
 
             # Find nearest edge using UTM coordinates
-            min_dist, nearest_edge_utm = find_nearest_edge_kdtree(
-                point_utm,
-                edges_gdf_utm,
-                centroids,
-                kdtree
-            )
+            min_dist, nearest_edge_utm = find_nearest_edge_kdtree(point_utm, edges_gdf_utm, kdtree)
 
             is_far = min_dist > max_distance
             needs_adjustment = min_dist > min_distance and not is_far
@@ -450,7 +433,7 @@ def process_points_chunk_vectorized(
                 point_updated = gpd.GeoDataFrame(
                     geometry=[Point(new_x_utm, new_y_utm)],
                     crs=UTM_CRS
-                ).to_crs(SOURCE_CRS).geometry[0]
+                ).to_crs(4326).geometry[0]
 
                 result = (
                     chunk_start_idx + idx,
@@ -487,19 +470,23 @@ def process_points_chunk_vectorized(
     return results
 
 
-def snap_coordinates_when_too_far(payload_plans: pd.DataFrame,
+def snap_coordinates_when_too_far(_df: pd.DataFrame,
                                   osm_edges_utm: gpd.GeoDataFrame,
-                                  coordinate_lookup: dict = None) -> tuple[DataFrame, dict[Any, Any] | dict]:
+                                  x_column: str,
+                                  y_column: str,
+                                  coordinate_lookup: dict = None) -> tuple[pd.DataFrame, dict]:
     """
     Optimized version of coordinate snapping using KD-tree spatial indexing and lookup table
 
     Args:
-        payload_plans: DataFrame with locationZone_x/y in WGS84
+        _df: DataFrame with coordinate columns in WGS84
         osm_edges_utm: GeoDataFrame with network in UTM
+        x_column: Name of the column containing X coordinates (longitude)
+        y_column: Name of the column containing Y coordinates (latitude)
         coordinate_lookup: Optional existing lookup table to use
 
     Returns:
-        DataFrame with snapped coordinates in WGS84
+        Tuple of (DataFrame with snapped coordinates in WGS84, coordinate lookup dictionary)
     """
     min_distance_from_edge = BUFFER_DISTANCE_METERS
     max_distance_from_edge = MAX_DISTANCE_METERS
@@ -515,8 +502,8 @@ def snap_coordinates_when_too_far(payload_plans: pd.DataFrame,
 
     # Extract coordinates in original CRS (WGS84)
     coords = np.column_stack((
-        payload_plans['locationX'].values,
-        payload_plans['locationY'].values
+        _df[x_column].values,
+        _df[y_column].values
     ))
 
     # Calculate optimal chunk size based on available CPU cores
@@ -543,7 +530,6 @@ def snap_coordinates_when_too_far(payload_plans: pd.DataFrame,
                 process_points_chunk_vectorized,
                 chunk_coords,
                 osm_edges_utm,
-                centroids,
                 kdtree,
                 min_distance_from_edge,
                 max_distance_from_edge,
@@ -566,7 +552,7 @@ def snap_coordinates_when_too_far(payload_plans: pd.DataFrame,
                 print(f"Error processing chunk: {str(e)}")
 
     if far_points > 0:
-        print(f"Warning: {far_points} stops are farther than {int(max_distance_from_edge / 1000)} km from any road")
+        print(f"Warning: {far_points} points are farther than {int(max_distance_from_edge / 1000)} km from any road")
     if total_adjusted > 0:
         print(f"Adjusted {total_adjusted} points to be within {int(min_distance_from_edge / 1000)} km of nearest road")
 
@@ -576,9 +562,9 @@ def snap_coordinates_when_too_far(payload_plans: pd.DataFrame,
     x_coords = [r[1] for r in all_results]
     y_coords = [r[2] for r in all_results]
 
-    result_df = payload_plans.copy()
-    result_df['locationX'] = pd.Series(x_coords, index=result_indices)
-    result_df['locationY'] = pd.Series(y_coords, index=result_indices)
+    result_df = _df.copy()
+    result_df[x_column] = pd.Series(x_coords, index=result_indices)
+    result_df[y_column] = pd.Series(y_coords, index=result_indices)
 
     return result_df, coordinate_lookup
 
@@ -644,7 +630,6 @@ if __name__ == '__main__':
         elif "vehicle_types" in filename:
             df = pd.read_csv(filepath)
             empty_vectors = list(np.repeat("", len(df.index)))
-            # JoulePerMeter = JOULES_PER_METER_BASE/(mpgge*1609.34)
             vehicle_types_ids = df.apply(
                 lambda row: add_prefix('', 'veh_type_id', row, to_num=True, store_dict=None, veh_type=True,
                                        suffix=f"-{YEAR}-{SCENARIO_LABEL}"), axis=1).tolist()
@@ -654,31 +639,31 @@ if __name__ == '__main__':
                 "standingRoomCapacity": list(np.repeat(0, len(df.index))),
                 "lengthInMeter": list(np.repeat(12, len(df.index))),
                 "primaryFuelType": df["primary_fuel_type"],
-                "primaryFuelConsumptionInJoulePerMeter": np.divide(JOULES_PER_METER_BASE,
+                "primaryFuelConsumptionInJoulePerMeter": np.divide(constants["joule_per_meter_base_rate"],
                                                                    np.float64(df["primary_fuel_rate"]) * 1609.34),
                 "primaryFuelCapacityInJoule": list(np.repeat(12000000000000000, len(df.index))),
-                "primaryVehicleEnergyFile": [primary_energy_files[index] if index in primary_energy_files else np.nan
+                "primaryVehicleEnergyFile": [PRIMARY_ENERGY_PROFILE[index] if index in PRIMARY_ENERGY_PROFILE else np.nan
                                              for index
                                              in
                                              vehicle_types_ids],
                 "secondaryFuelType": [
-                    secondary_energy_profile_for_phev[index][
-                        0] if index in secondary_energy_profile_for_phev else np.nan for
+                    SECONDARY_ENERGY_PROFILE[index][
+                        0] if index in SECONDARY_ENERGY_PROFILE else np.nan for
                     index
                     in vehicle_types_ids],
                 "secondaryFuelConsumptionInJoulePerMeter": [
-                    secondary_energy_profile_for_phev[index][
-                        1] if index in secondary_energy_profile_for_phev else np.nan for
+                    SECONDARY_ENERGY_PROFILE[index][
+                        1] if index in SECONDARY_ENERGY_PROFILE else np.nan for
                     index
                     in vehicle_types_ids],
                 "secondaryVehicleEnergyFile": [
-                    secondary_energy_profile_for_phev[index][
-                        3] if index in secondary_energy_profile_for_phev else np.nan for
+                    SECONDARY_ENERGY_PROFILE[index][
+                        3] if index in SECONDARY_ENERGY_PROFILE else np.nan for
                     index
                     in vehicle_types_ids],
                 "secondaryFuelCapacityInJoule": [
-                    secondary_energy_profile_for_phev[index][
-                        2] if index in secondary_energy_profile_for_phev else np.nan for
+                    SECONDARY_ENERGY_PROFILE[index][
+                        2] if index in SECONDARY_ENERGY_PROFILE else np.nan for
                     index
                     in vehicle_types_ids],
                 "automationLevel": list(np.repeat(1, len(df.index))),
@@ -706,6 +691,7 @@ if __name__ == '__main__':
         else:
             print(f'SKIPPING {filename}')
 
+
     _vehicle_types.to_csv(
         f'{DIRECTORY_VEHICLE_TECH}/ft-vehicletypes--{BATCH_NAME.replace("-", "")}--{YEAR}-{SCENARIO_LABEL}.csv',
         index=False)
@@ -724,34 +710,39 @@ if __name__ == '__main__':
     # sampled_df.to_csv(f'{DIRECTORY_OUTPUT}/payloads-sampled--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
     # Then format and save
     # Create shared coordinate lookup table
-    _payload_plans_file = f'{DIRECTORY_OUTPUT}/payloads--{YEAR}-{SCENARIO_LABEL}.csv'
-    _payload_plans_no_snap_file = _payload_plans_file.replace("payloads", "payloads--no-snap")
-    format_payload(_payload_plans).to_csv(_payload_plans_no_snap_file, index=False)
-    # Snap coordinates and save
-    _payload_plans_snapped, _coordinate_lookup = snap_coordinates_when_too_far(_payload_plans, _osm_edges_utm,
-                                                                       _coordinate_lookup)
-    _payload_plans_snapped.to_csv(_payload_plans_file, index=False)
+    _payload_plans = format_payload(_payload_plans)
+    if SNAP_COORDINATES:
+        # Snap coordinates and save
+        _payload_plans, _coordinate_lookup = snap_coordinates_when_too_far(
+            _payload_plans,
+            _osm_edges_utm,
+            "locationX",
+            "locationY",
+            _coordinate_lookup
+        )
+    _payload_plans.to_csv(f'{DIRECTORY_SCENARIO}/payloads--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
 
     if _ondemand_plans is not None:
         print("Processing ondemand plans...")
-        _ondemand_plans_file = f'{DIRECTORY_OUTPUT}/ondemand--{YEAR}-{SCENARIO_LABEL}.csv'
-        _ondemand_plans_no_snap_file = _ondemand_plans_file.replace("ondemand", "ondemand--no-snap")
-        format_payload(_ondemand_plans).to_csv(_ondemand_plans_no_snap_file, index=False)
-        # Snap coordinates and save, reusing the lookup table
-        _ondemand_plans_snapped, _coordinate_lookup = snap_coordinates_when_too_far(_ondemand_plans, _osm_edges_utm,
-                                                                            _coordinate_lookup)
-        _ondemand_plans_snapped.to_csv(_ondemand_plans_file, index=False)
+        _ondemand_plans = format_payload(_ondemand_plans)
+        if SNAP_COORDINATES:
+            # Snap coordinates and save, reusing the lookup table
+            _ondemand_plans, _coordinate_lookup = snap_coordinates_when_too_far(
+                _ondemand_plans,
+                _osm_edges_utm,
+                "locationX",
+                "locationY",
+                _coordinate_lookup
+            )
+        _ondemand_plans.to_csv(f'{DIRECTORY_SCENARIO}/ondemand--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
 
         # Create combined plans file with both regular plans and ondemand plans
         if _payload_plans is not None:
             print("Creating combined plans file of payloads and crowdshipments...")
-            combined_file_label = "payloads+crowdshipments"
             # Save the combined file
-            combined_plans_file = f'{DIRECTORY_OUTPUT}/{combined_file_label}--{YEAR}-{SCENARIO_LABEL}.csv'
-            pd.concat([_payload_plans_snapped, _ondemand_plans_snapped], ignore_index=True).to_csv(combined_plans_file, index=False)
-            combined_plans_no_snap_file = combined_plans_file.replace(combined_file_label, f"{combined_file_label}--no-snap")
-            pd.concat([_payload_plans, _ondemand_plans], ignore_index=True).to_csv(combined_plans_no_snap_file, index=False)
-            print(f"Combined plans file saved to {combined_plans_file} and {combined_plans_no_snap_file}")
+            pd.concat([_payload_plans, _ondemand_plans], ignore_index=True).to_csv(
+                f'{DIRECTORY_SCENARIO}/payloads+crowdshipments--{YEAR}-{SCENARIO_LABEL}.csv', index=False
+            )
 
     # selecting initial locations
     first_payloads = _payload_plans[_payload_plans['sequenceRank'] == 0].copy()
@@ -778,7 +769,15 @@ if __name__ == '__main__':
     # Reset index
     _carriers.reset_index(inplace=True)
     # Write
-    _carriers.to_csv(f'{DIRECTORY_OUTPUT}/carriers--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
+    if SNAP_COORDINATES:
+        _carriers, _coordinate_lookup = snap_coordinates_when_too_far(
+            _carriers,
+            _osm_edges_utm,
+            "warehouseX",
+            "warehouseY",
+            _coordinate_lookup
+        )
+    _carriers.to_csv(f'{DIRECTORY_SCENARIO}/carriers--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
 
     # tourId,departureTimeInSec,departureLocationZone,maxTourDurationInSec,departureLocationX,departureLocationY
     tours_renames = {
@@ -805,4 +804,4 @@ if __name__ == '__main__':
     _tours.reset_index(inplace=True)
     print(f"Updated departure coordinates for {len(coord_mapping)} tours")
     # Write
-    _tours.to_csv(f'{DIRECTORY_OUTPUT}/tours--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
+    _tours.to_csv(f'{DIRECTORY_SCENARIO}/tours--{YEAR}-{SCENARIO_LABEL}.csv', index=False)

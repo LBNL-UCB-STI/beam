@@ -9,9 +9,9 @@ from validation_utils import check_invalid_coordinates
 from validation_utils import save_graph_to_osm
 from validation_utils import load_graph_from_osm
 from validation_utils import scan_network_directories_for_ways
-from study_area_config import generate_config_name
-from study_area_config import sfbay_area_config
-from study_area_config import seattle_area_config
+from ..utils.study_area_config import generate_config_name
+from ..utils.study_area_config import sfbay_area_config
+from ..utils.study_area_config import seattle_area_config
 import osmnx as ox
 import os
 import pickle
