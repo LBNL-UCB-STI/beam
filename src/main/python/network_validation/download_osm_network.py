@@ -97,8 +97,8 @@ if g_network and not os.path.exists(osm_network):
     # Extract nodes and edges from the graph to create a new graph in OSM format
     # Note: This will lose some information (e.g., edge attributes) and may not be 100% accurate
     nodes, edges = ox.graph_to_gdfs(g_network)
-    edges = edges.drop(['geometry', 'u_original', 'v_original', 'merged_edges', 'osmid'], axis=1, errors='ignore')
-    nodes = nodes.drop(['osmid_original'], axis=1, errors='ignore')
+    edges = edges.drop(['geometry', 'u_original', 'v_original', 'merged_edges', 'osmid', 'junction'], axis=1, errors='ignore')
+    nodes = nodes.drop(['osmid_original', 'cluster'], axis=1, errors='ignore')
     g_osm = ox.graph_from_gdfs(nodes, edges, graph_attrs=g_network.graph)
     save_graph_to_osm(g_osm, filename=osm_network)
     print(f"OSM Network saved to '{osm_network}'.")

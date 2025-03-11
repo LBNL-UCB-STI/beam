@@ -33,7 +33,7 @@ def generate_config_name(config: dict) -> str:
     ferry_suffix = "-ferry" if "ferry" in layers else ""
 
     # Combine all parts
-    return f"{study_area}-area{residential_geo_level}{density_value}{ferry_suffix}-network"
+    return f"{study_area}-area{residential_geo_level}{ferry_suffix}-network"
 
 
 def create_osm_highway_filter(highway_types):

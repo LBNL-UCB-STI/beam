@@ -1256,46 +1256,48 @@ def str_median(values):
 def process_ferry_edges(ferry_graph, utm_epsg) -> nx.MultiDiGraph:
     """Process ferry edges to make them compatible with car network"""
     if ferry_graph.number_of_edges() == 0:
-        # No ferries found, return empty graph
+        print("No ferry edges found in the graph.")
         return nx.MultiDiGraph()
 
     # Extract nodes and edges
     ferry_nodes, ferry_edges = ox.graph_to_gdfs(ferry_graph)
+    print(f"Total ferry edges: {len(ferry_edges)}")
 
-    # Define values that indicate access is allowed
-    access_allowed_values = ['yes', 'designated', 'permissive', 'destination', 'delivery', 'limited']
+    # Print available columns to debug
+    print(f"Available columns: {ferry_edges.columns.tolist()}")
 
-    # Create empty masks with the right index
-    passenger_car_mask = pd.Series(False, index=ferry_edges.index)
-    truck_mask = pd.Series(False, index=ferry_edges.index)
+    # Create default masks - assume access is allowed unless explicitly denied
+    # This is more lenient and works better with OSM data which often lacks explicit tags
+    passenger_car_mask = pd.Series(True, index=ferry_edges.index)
+    truck_mask = pd.Series(True, index=ferry_edges.index)
 
-    # Check for passenger cars access
+    # Check for explicit denials first
     if 'motorcar' in ferry_edges.columns:
-        passenger_car_mask |= ferry_edges['motorcar'].isin(access_allowed_values)
+        passenger_car_mask &= ~(ferry_edges['motorcar'] == 'no')
+        print(f"After motorcar check: {passenger_car_mask.sum()} car-accessible edges")
 
-    # Check for general motor vehicle access (applies to both cars and trucks if specific tags aren't present)
     if 'motor_vehicle' in ferry_edges.columns:
-        motor_vehicle_allowed = ferry_edges['motor_vehicle'].isin(access_allowed_values)
-        passenger_car_mask |= motor_vehicle_allowed
-        truck_mask |= motor_vehicle_allowed
+        motor_vehicle_denied = ferry_edges['motor_vehicle'] == 'no'
+        passenger_car_mask &= ~motor_vehicle_denied
+        truck_mask &= ~motor_vehicle_denied
+        print(
+            f"After motor_vehicle check: {passenger_car_mask.sum()} car-accessible, {truck_mask.sum()} truck-accessible edges")
 
-    # Check for specific truck access tags
+    # Check for explicit truck denials
     for truck_tag in ['hgv', 'goods', 'truck']:
         if truck_tag in ferry_edges.columns:
-            truck_mask |= ferry_edges[truck_tag].isin(access_allowed_values)
+            truck_mask &= ~(ferry_edges[truck_tag] == 'no')
+            print(f"After {truck_tag} check: {truck_mask.sum()} truck-accessible edges")
 
-    # For combined network (both passenger cars and trucks)
-    combined_mask = passenger_car_mask & truck_mask
-    combined_edges = ferry_edges[combined_mask].copy() if combined_mask.any() else None
+    # For ferries, if there's no explicit tag, assume it's accessible (common for OSM ferry data)
+    # This is the key change - we're now assuming access by default
+    selected_edges = ferry_edges[(passenger_car_mask | truck_mask)].copy()
 
-    # Choose which edges to use based on your requirements
-    # For this example, we'll use the combined edges (ferries that allow both cars and trucks)
-    selected_edges = combined_edges if combined_edges is not None and not combined_edges.empty else None
-
-    if selected_edges is None or selected_edges.empty:
-        # No suitable ferry routes found
-        print("No ferry routes found that allow both passenger cars and trucks")
+    if selected_edges.empty:
+        print("No ferry routes found that allow passenger cars")
         return nx.MultiDiGraph()
+
+    print(f"Found {len(selected_edges)} suitable ferry edges")
 
     # Set ferry attributes
     selected_edges['reversed'] = False
