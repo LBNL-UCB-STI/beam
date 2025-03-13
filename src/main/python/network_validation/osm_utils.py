@@ -670,60 +670,117 @@ def save_graph_to_osm(G, filename="output.osm"):
                   maxlat=str(maxlat), maxlon=str(maxlon))
 
     node_map = {}
-    node_id = 1
+    next_node_id = -1  # Start negative for generated IDs
+
+    # OSM metadata fields to preserve
+    metadata_fields = ["version", "changeset", "timestamp", "user", "uid"]
 
     # Write nodes + attributes as tags
     for n, d in G.nodes(data=True):
         lat, lon = d.get('y'), d.get('x')
         if lat is None or lon is None: continue
-        node = ET.SubElement(root, "node",
-                             id=str(node_id), lat=str(lat), lon=str(lon),
-                             version="1", changeset="1", user="osmnx", uid="1",
-                             timestamp="2020-01-01T00:00:00Z"
-                             )
-        node_map[n] = node_id
+
+        # Use original OSM ID if available
+        if 'osmid' in d:
+            # Handle possible list of IDs
+            if isinstance(d['osmid'], list) and d['osmid']:
+                current_node_id = str(d['osmid'][0])
+            else:
+                current_node_id = str(d['osmid'])
+        elif 'osmid_original' in d:
+            # Sometimes OSMnx stores original IDs here
+            if isinstance(d['osmid_original'], list) and d['osmid_original']:
+                current_node_id = str(d['osmid_original'][0])
+            else:
+                current_node_id = str(d['osmid_original'])
+        else:
+            # Generate a negative ID if no original exists
+            current_node_id = str(next_node_id)
+            next_node_id -= 1
+
+        # Prepare node attributes with default values
+        node_attrs = {
+            "id": current_node_id,
+            "lat": str(lat),
+            "lon": str(lon),
+            "version": "1",
+            "changeset": "1",
+            "user": "osmnx",
+            "uid": "1",
+            "timestamp": "2020-01-01T00:00:00Z"
+        }
+
+        # Override with original metadata if available
+        for field in metadata_fields:
+            if field in d:
+                node_attrs[field] = str(d[field])
+
+        # Create node with all attributes
+        node = ET.SubElement(root, "node", **node_attrs)
+
+        node_map[n] = current_node_id
         for k, v in d.items():
-            if k not in ("x", "y") and v is not None:
+            # Skip coordinates, IDs, and metadata fields that are already included as attributes
+            if k not in ("x", "y", "osmid", "osmid_original") and k not in metadata_fields and v is not None:
                 # Handle different value types appropriately
                 if isinstance(v, list):
                     v_str = ";".join(str(item) for item in v)
                 else:
                     v_str = str(v)
                 ET.SubElement(node, "tag", k=str(k), v=v_str)
-        node_id += 1
 
     # Write ways (edges) + attributes as tags
-    way_id = -1
+    next_way_id = -1  # Start negative for generated IDs
     for u, v, edata in G.edges(data=True):
         if u not in node_map or v not in node_map:
             continue
-        way = ET.SubElement(root, "way",
-                            id=str(way_id), version="1", changeset="1",
-                            user="osmnx", uid="1", timestamp="2020-01-01T00:00:00Z")
+
+        # Use original way ID if available
+        if 'osmid' in edata:
+            if isinstance(edata['osmid'], list) and edata['osmid']:
+                current_way_id = str(edata['osmid'][0])
+            else:
+                current_way_id = str(edata['osmid'])
+        else:
+            # Generate a negative ID if no original exists
+            current_way_id = str(next_way_id)
+            next_way_id -= 1
+
+        # Prepare way attributes with default values
+        way_attrs = {
+            "id": current_way_id,
+            "version": "1",
+            "changeset": "1",
+            "user": "osmnx",
+            "uid": "1",
+            "timestamp": "2020-01-01T00:00:00Z"
+        }
+
+        # Override with original metadata if available
+        for field in metadata_fields:
+            if field in edata:
+                way_attrs[field] = str(edata[field])
+
+        # Create way with all attributes
+        way = ET.SubElement(root, "way", **way_attrs)
+
         ET.SubElement(way, "nd", ref=str(node_map[u]))
         ET.SubElement(way, "nd", ref=str(node_map[v]))
 
         # Dump all attributes, with proper handling for different data types
         for k, v_ in edata.items():
-            if v_ is not None:
-                # Special handling for highway tag - ensure it's in the allowed list or use fallback
-                if k == 'highway':
-                    if isinstance(v_, list):
-                        # For lists, join with semicolons as per OSM conventions
-                        v_str = ";".join(str(item) for item in v_)
-                    else:
-                        v_str = str(v_)
-                # Handle other list-type values
-                elif isinstance(v_, list):
+            # Skip metadata fields and osmid that are already included as attributes
+            if k not in metadata_fields and k != 'osmid' and v_ is not None:
+                # Handle list-type values
+                if isinstance(v_, list):
                     v_str = ";".join(str(item) for item in v_)
                 else:
                     v_str = str(v_)
 
                 ET.SubElement(way, "tag", k=str(k), v=v_str)
 
-        way_id -= 1
-
     ET.ElementTree(root).write(filename, encoding="utf-8", xml_declaration=True)
+
 
 def load_graph_from_osm(filename: str) -> nx.MultiDiGraph:
     """
