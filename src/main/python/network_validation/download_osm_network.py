@@ -2,13 +2,13 @@
 """
 @author: haitamlaarabi, cristian.poliziani, zaneedell
 """
-from validation_utils import download_and_prepare_osm_network
-from validation_utils import standardize_oneway
-from validation_utils import standardize_maxspeed
-from validation_utils import check_invalid_coordinates
-from validation_utils import save_graph_to_osm
-from validation_utils import load_graph_from_osm
-from validation_utils import scan_network_directories_for_ways
+from osm_utils import download_and_prepare_osm_network
+from osm_utils import standardize_oneway
+from osm_utils import standardize_maxspeed
+from osm_utils import check_invalid_coordinates
+from osm_utils import save_graph_to_osm
+from osm_utils import load_graph_from_osm
+from osm_utils import scan_network_directories_for_ways
 from ..utils.study_area_config import generate_config_name
 from ..utils.study_area_config import sfbay_area_config
 from ..utils.study_area_config import seattle_area_config
