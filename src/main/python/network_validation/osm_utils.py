@@ -684,7 +684,12 @@ def save_graph_to_osm(G, filename="output.osm"):
         node_map[n] = node_id
         for k, v in d.items():
             if k not in ("x", "y") and v is not None:
-                ET.SubElement(node, "tag", k=str(k), v=str(v))
+                # Handle different value types appropriately
+                if isinstance(v, list):
+                    v_str = ";".join(str(item) for item in v)
+                else:
+                    v_str = str(v)
+                ET.SubElement(node, "tag", k=str(k), v=v_str)
         node_id += 1
 
     # Write ways (edges) + attributes as tags
@@ -697,16 +702,28 @@ def save_graph_to_osm(G, filename="output.osm"):
                             user="osmnx", uid="1", timestamp="2020-01-01T00:00:00Z")
         ET.SubElement(way, "nd", ref=str(node_map[u]))
         ET.SubElement(way, "nd", ref=str(node_map[v]))
-        # At least one standard OSM tag
-        ET.SubElement(way, "tag", k="highway", v="road")
-        # Dump all other attributes
+
+        # Dump all attributes, with proper handling for different data types
         for k, v_ in edata.items():
             if v_ is not None:
-                ET.SubElement(way, "tag", k=str(k), v=str(v_))
+                # Special handling for highway tag - ensure it's in the allowed list or use fallback
+                if k == 'highway':
+                    if isinstance(v_, list):
+                        # For lists, join with semicolons as per OSM conventions
+                        v_str = ";".join(str(item) for item in v_)
+                    else:
+                        v_str = str(v_)
+                # Handle other list-type values
+                elif isinstance(v_, list):
+                    v_str = ";".join(str(item) for item in v_)
+                else:
+                    v_str = str(v_)
+
+                ET.SubElement(way, "tag", k=str(k), v=v_str)
+
         way_id -= 1
 
     ET.ElementTree(root).write(filename, encoding="utf-8", xml_declaration=True)
-
 
 def load_graph_from_osm(filename: str) -> nx.MultiDiGraph:
     """
