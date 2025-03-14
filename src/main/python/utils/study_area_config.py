@@ -242,7 +242,7 @@ seattle_area_config = {
     # Geographic settings
     "study_area": "seattle",
     "state_fips": "53",
-    "county_fips": ["061"], # ["061", "033", "035", "053"]
+    "county_fips": ["061", "033", "035", "053"], # ["061", "033", "035", "053"]
     "census_year": 2018,
     "utm_epsg": 32048,  #
     "tolerance": 2,
