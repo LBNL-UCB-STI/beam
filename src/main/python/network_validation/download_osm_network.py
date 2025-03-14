@@ -26,7 +26,7 @@ sys.path.insert(0, parent_dir)
 # Now use absolute import
 from python.utils.study_area_config import get_area_config
 from python.utils.study_area_config import generate_config_name
-
+ox.save_graph_xml()
 area = "sfbay" # sfbay
 study_area_config = get_area_config(area)
 study_area_config["graph_layers"]["residential"]["min_density_per_km2"] = 2855 # 412

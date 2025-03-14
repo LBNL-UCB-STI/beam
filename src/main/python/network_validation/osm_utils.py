@@ -178,7 +178,7 @@ def standardize_weight(weight_str: str, target_unit: str) -> float:
 
 def standardize_oneway(value):
     """
-    Return True only if all values are 'yes'/'true'/'1', otherwise False.
+    Return "yes" only if all values are 'yes'/'true'/'1', otherwise "no".
 
     Parameters:
     -----------
@@ -188,33 +188,33 @@ def standardize_oneway(value):
 
     Returns:
     --------
-    bool
-        True if all values indicate "yes", False otherwise
+    str
+        "yes" if all values indicate "yes", "no" otherwise
     """
     valid_yes = {'yes', 'true', '1', True, 1}
 
     # Handle semicolon-separated string values
     if isinstance(value, str) and ';' in value:
         parts = [part.strip() for part in value.split(';')]
-        return False if not parts or any(not p or p.lower() not in valid_yes for p in parts) else True
+        return "no" if not parts or any(not p or p.lower() not in valid_yes for p in parts) else "yes"
 
     # Handle list case
     if isinstance(value, list):
-        # Empty list or any value not in valid_yes should return False
-        return False if not value or any(
+        # Empty list or any value not in valid_yes should return "no"
+        return "no" if not value or any(
             not v or (str(v).lower().strip() not in valid_yes if isinstance(v, (str, int)) else v is not True) for v in
-            value) else True
+            value) else "yes"
 
     # Handle single value case
     if isinstance(value, (str, int)):
-        return True if value and str(value).lower().strip() in valid_yes else False
+        return "yes" if value and str(value).lower().strip() in valid_yes else "no"
     else:
-        return bool(value) if value is not None else False
+        return "yes" if value is not None and bool(value) else "no"
 
 
 def standardize_motorcar(value):
     """
-    Standardize motorcar tag to boolean.
+    Standardize motorcar tag to "yes" or "no" strings.
 
     Parameters:
     -----------
@@ -223,16 +223,16 @@ def standardize_motorcar(value):
 
     Returns:
     --------
-    bool
-        False if motorcars are explicitly prohibited
-        True otherwise (including empty values, which default to allowed)
+    str
+        "no" if motorcars are explicitly prohibited
+        "yes" otherwise (including empty values, which default to allowed)
     """
     # Define restrictive values
     restrictive_values = {"no", "false", "0"}
 
     # If value is None, NaN, or empty, assume motorcars are allowed
     if value is None or pd.isna(value) or (isinstance(value, str) and not value.strip()):
-        return True
+        return "yes"
 
     # Convert to string and lowercase for consistent processing
     if not isinstance(value, str):
@@ -247,21 +247,21 @@ def standardize_motorcar(value):
         parts = [p.strip() for p in parts if p.strip()]
 
         if any(p in restrictive_values for p in parts):
-            return False
+            return "no"
         else:
-            return True
+            return "yes"
 
     # Check if the value is in the restrictive set
     if value in restrictive_values:
-        return False
+        return "no"
 
     # All other values (yes, empty, etc.) indicate access is allowed
-    return True
+    return "yes"
 
 
 def standardize_motor_vehicle(value):
     """
-    Standardize motor_vehicle tag to boolean, focusing on a defined set of restrictive values.
+    Standardize motor_vehicle tag to "yes" or "no" strings, focusing on a defined set of restrictive values.
 
     Parameters:
     -----------
@@ -270,16 +270,16 @@ def standardize_motor_vehicle(value):
 
     Returns:
     --------
-    bool
-        False if motor vehicles are restricted (no, false, 0, private)
-        True otherwise
+    str
+        "no" if motor vehicles are restricted (no, false, 0, private)
+        "yes" otherwise
     """
     # Define restrictive values
     restrictive_values = {"no", "false", "0"}
 
     # If value is None, NaN, or empty, assume motor vehicles are allowed
     if value is None or pd.isna(value) or (isinstance(value, str) and not value.strip()):
-        return True
+        return "yes"
 
     # Convert to string and lowercase for consistent processing
     if not isinstance(value, str):
@@ -294,18 +294,18 @@ def standardize_motor_vehicle(value):
         parts = re.split(r'[;|]+', value)
         parts = [p.strip() for p in parts if p.strip()]
 
-        # If any part is in the restrictive values, the overall value is False
+        # If any part is in the restrictive values, the overall value is "no"
         if any(p in restrictive_values for p in parts):
-            return False
+            return "no"
         else:
-            return True
+            return "yes"
 
     # Check if the value is in the restrictive set
     if value in restrictive_values:
-        return False
+        return "no"
 
     # All other values indicate some form of access
-    return True
+    return "yes"
 
 
 def standardize_maxspeed(value, default_kph=None):
@@ -357,7 +357,7 @@ def standardize_maxspeed(value, default_kph=None):
 
 def standardize_access(value):
     """
-    Standardize access tag to boolean, focusing on a defined set of restrictive values.
+    Standardize access tag to "yes" or "no" strings, focusing on a defined set of restrictive values.
 
     Parameters:
     -----------
@@ -366,16 +366,16 @@ def standardize_access(value):
 
     Returns:
     --------
-    bool
-        False if access is restricted (no, private, forestry, permit, etc.)
-        True otherwise
+    str
+        "no" if access is restricted (no, private, forestry, permit, etc.)
+        "yes" otherwise
     """
     # Define restrictive values - values that indicate restricted access
     restrictive_values = {"no", "false", "0"}
 
     # If value is None, NaN, or empty, assume access is allowed
     if value is None or pd.isna(value) or (isinstance(value, str) and not value.strip()):
-        return True
+        return "yes"
 
     # Convert to string and lowercase for consistent processing
     if not isinstance(value, str):
@@ -390,18 +390,18 @@ def standardize_access(value):
         parts = re.split(r'[;|]+', value)
         parts = [p.strip() for p in parts if p.strip()]
 
-        # If any part is in the restrictive values, the overall value is False
+        # If any part is in the restrictive values, the overall value is "no"
         if any(p in restrictive_values for p in parts):
-            return False
+            return "no"
         else:
-            return True
+            return "yes"
 
     # Check if the value is in the restrictive set
     if value in restrictive_values:
-        return False
+        return "no"
 
     # All other values (yes, permissive, etc.) indicate general access
-    return True
+    return "yes"
 
 
 def standardize_hgv(value):
@@ -856,6 +856,29 @@ def bool_all(values):
     # If any value is False, return False
     return all(values)
 
+
+def yes_no_all(values):
+    """
+    Returns "no" if any value is "no", otherwise returns "yes".
+    Expects string values ("yes" or "no").
+
+    Parameters:
+    -----------
+    values : list
+        List of string values ("yes" or "no")
+
+    Returns:
+    --------
+    str
+        "no" if any value is "no", "yes" otherwise
+    """
+    if not values:
+        return None
+
+    # If any value is "no", return "no"
+    return "no" if "no" in values else "yes"
+
+
 def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGraph:
     print("\n=== Starting OSM Network Download and Preparation ===")
 
@@ -1013,10 +1036,10 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
             "lanes": str_median,
             "speed_kph": min,
             "maxspeed": min,
-            "oneway": bool_all,
-            "access": bool_all,
-            "motor_vehicle": bool_all,
-            "motorcar": bool_all,
+            "oneway": yes_no_all,
+            "access": yes_no_all,
+            "motor_vehicle": yes_no_all,
+            "motorcar": yes_no_all,
             "reversed": bool_all,
             "maxweight": min
 
