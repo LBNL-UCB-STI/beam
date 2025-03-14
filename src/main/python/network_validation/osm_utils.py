@@ -327,57 +327,44 @@ def standardize_maxspeed(value):
 
 
 def standardize_hgv(value):
-    """Standardize HGV access values to a consistent format"""
+    """
+    Standardize HGV access values to boolean (True/False)
+    Returns True if HGVs are allowed, False if they are not
+    """
     if not value:
-        return ""  # Empty string for no value
+        return True  # Default to allowed if no value
 
-    # Define a priority order for HGV access (from most to least restrictive)
-    priority = {
-        "no": 1,  # No HGV access
-        "discouraged": 2,  # HGVs discouraged
-        "delivery": 3,  # Only for deliveries
-        "destination": 4,  # Only for reaching destinations
-        "yes": 5,  # HGVs allowed
-        "designated": 6  # Specifically designated for HGVs
-    }
+    # Values that indicate HGV prohibition
+    restrictive_values = {"no", "false", "0"}
 
-    # Normalize boolean values
-    if isinstance(value, bool) or str(value).lower() == 'false':
-        return "no"  # False means no HGV access
-    if str(value).lower() == 'true':
-        return "yes"  # True means HGV access allowed
+    # Handle boolean inputs
+    if isinstance(value, bool):
+        return value
 
     # Handle semicolon-separated string values
     if isinstance(value, str) and ';' in value:
-        # Split and normalize values
-        hgv_types = [part.strip().lower() for part in value.split(';')]
-
-        # Find the most restrictive value (lowest priority number)
-        most_restrictive = min(
-            hgv_types,
-            key=lambda x: priority.get(x, 3)  # Default to middle priority if unknown
-        )
-
-        return most_restrictive
+        # If any part is "no", the whole is restricted
+        for part in value.split(';'):
+            if part.strip().lower() in restrictive_values:
+                return False
+        return True
 
     # Handle list case
     if isinstance(value, list):
         if not value:
-            return ""
+            return True
+        # If any value is "no", the whole is restricted
+        for v in value:
+            if str(v).strip().lower() in restrictive_values:
+                return False
+        return True
 
-        # Normalize values
-        hgv_types = [str(v).strip().lower() for v in value if v]
+    # Handle single string value
+    if isinstance(value, str):
+        return str(value).strip().lower() not in restrictive_values
 
-        # Find the most restrictive value
-        most_restrictive = min(
-            hgv_types,
-            key=lambda x: priority.get(x, 3)  # Default to middle priority if unknown
-        )
-
-        return most_restrictive
-
-    # Normalize single value
-    return str(value).strip().lower()
+    # For any other case, convert to string and check
+    return str(value).strip().lower() not in restrictive_values
 
 
 def process_tags(_g: nx.MultiDiGraph, config: dict) -> nx.MultiDiGraph:
@@ -393,23 +380,16 @@ def process_tags(_g: nx.MultiDiGraph, config: dict) -> nx.MultiDiGraph:
     # Get graph data while preserving MultiIndex
     nodes, edges = ox.graph_to_gdfs(_g)
 
-    # Standardize hgv tag if present
+    # Initialize hgv and mdv as True by default if they don't exist
+    if "hgv" not in edges.columns:
+        edges["hgv"] = True
+    if "mdv" not in edges.columns:
+        edges["mdv"] = True
+
+    # Standardize hgv tag if present (will now return boolean values)
     if "hgv" in edges.columns:
         print("Standardizing HGV access values...")
         edges["hgv"] = edges["hgv"].apply(standardize_hgv)
-
-        # Use HGV tag to update vehicle_class
-        # "no" HGV access means the road isn't accessible to HDVs
-        hgv_no_mask = edges["hgv"] == "no"
-        if "vehicle_class" in edges.columns:
-            # If vehicle_class exists, update it where hgv=no
-            edges.loc[hgv_no_mask, "vehicle_class"] = "MDV"
-        else:
-            # If vehicle_class doesn't exist yet, create it
-            edges["vehicle_class"] = ""
-            edges.loc[hgv_no_mask, "vehicle_class"] = "MDV"
-            # For designated HGV routes, mark as HDV
-            edges.loc[edges["hgv"] == "designated", "vehicle_class"] = "HDV"
 
     # Copy HGV weight restrictions if present
     if "maxweight:hgv" in edges.columns:
@@ -424,22 +404,23 @@ def process_tags(_g: nx.MultiDiGraph, config: dict) -> nx.MultiDiGraph:
             lambda x: get_weight_in_standard_unit(x, target_unit)
         )
 
-        # Classify roads based on weight limits
-        if "vehicle_class" not in edges.columns:
-            edges["vehicle_class"] = ""
+        # Update hgv and mdv based on weight restrictions
+        # Heavy-duty vehicles are restricted when weight is below HDV limit
+        hdv_restricted_mask = edges["weight_numeric"].notna() & (edges["weight_numeric"] <= hdv_max)
+        edges.loc[hdv_restricted_mask, "hgv"] = False
 
-        # Create weight classification masks
-        mdv_mask = edges["weight_numeric"].notna() & (edges["weight_numeric"] <= mdv_max)
-        hdv_mask = edges["weight_numeric"].notna() & (edges["weight_numeric"] <= hdv_max)
+        # Medium-duty vehicles are restricted when weight is below MDV limit
+        mdv_restricted_mask = edges["weight_numeric"].notna() & (edges["weight_numeric"] <= mdv_max)
+        edges.loc[mdv_restricted_mask, "mdv"] = False
 
-        # Apply classifications (only if not already set by hgv tag)
-        empty_class_mask = (edges["vehicle_class"] == "")
-        edges.loc[mdv_mask & empty_class_mask, "vehicle_class"] = "MDV"
-        edges.loc[hdv_mask & empty_class_mask, "vehicle_class"] = "HDV"
+        # Clean up - remove the temporary numeric column
+        edges = edges.drop(columns=["weight_numeric"])
 
-        # Roads with no weight restrictions are assumed to be accessible to all vehicles
-        no_restriction_mask = edges["weight_numeric"].isna() & empty_class_mask
-        edges.loc[no_restriction_mask, "vehicle_class"] = "ALL"
+    # Process other restrictions like maxlength
+    if "maxlength" in edges.columns:
+        # If maxlength is set, assume heavy vehicles are restricted
+        length_restricted_mask = ~edges["maxlength"].isna()
+        edges.loc[length_restricted_mask, "hgv"] = False
 
     # Standardize other tags
     edges['oneway'] = edges['oneway'].apply(standardize_oneway)
@@ -455,15 +436,14 @@ def process_tags(_g: nx.MultiDiGraph, config: dict) -> nx.MultiDiGraph:
         print("Standardizing access values...")
         edges["access"] = edges["access"].apply(standardize_access)
 
-    # Final standardization of vehicle_class to handle composite values
-    if "vehicle_class" in edges.columns:
-        edges["vehicle_class"] = edges["vehicle_class"].apply(standardize_vehicle_class)
+    # Ensure hgv and mdv are strictly boolean
+    edges["hgv"] = edges["hgv"].astype(bool)
+    edges["mdv"] = edges["mdv"].astype(bool)
 
     # Convert back to MultiDiGraph
     g_updated = ox.graph_from_gdfs(nodes, edges)
 
     return g_updated
-
 
 def shorten_osmid(osmid):
     # Convert osmid to string if it isn't already

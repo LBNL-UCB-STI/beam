@@ -111,11 +111,11 @@ if g_network and not os.path.exists(osm_network):
     # Note: This will lose some information (e.g., edge attributes) and may not be 100% accurate
     nodes, edges = ox.graph_to_gdfs(g_network)
     edges = edges.drop([
-        'geometry', 'u_original', 'v_original', 'merged_edges', 'osmid', 'junction', 'service', 'tunnel',
+        'geometry', 'u_original', 'v_original', 'merged_edges', 'osmid', 'service', 'tunnel',
         'bridge', 'motorcar', 'motor_vehicle', 'width', 'area', 'ref', 'maxlength'
     ], axis=1, errors='ignore')
     nodes = nodes.drop([
-        'osmid_original', 'cluster', 'railway', 'highway', 'ref', 'junction'
+        'osmid_original', 'cluster', 'railway', 'highway', 'ref'
     ], axis=1, errors='ignore')
     g_osm = ox.graph_from_gdfs(nodes, edges, graph_attrs=g_network.graph)
     save_graph_to_osm(g_osm, filename=osm_network)
