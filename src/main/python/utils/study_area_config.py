@@ -182,7 +182,7 @@ sfbay_area_config = {
     "state_fips": "06",
     # 087 Santa Cruz
     # 113 Yolo
-    "county_fips": ['001', '013', '041', '055', '075', '081', '085', '095', '097', '087', '113'],
+    "county_fips": ['001', '013', '041', '055', '075', '081', '085', '095', '097'],
     "census_year": 2018,
     "utm_epsg": 26910,  # NAD83 / UTM zone 10N
     "tolerance": 2,

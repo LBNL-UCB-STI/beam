@@ -13,6 +13,7 @@ import shapely.geometry
 from osmnx import settings
 from osmnx import truncate
 from shapely.ops import unary_union
+from statistics import median
 
 from data_collection_utils import collect_geographic_boundaries
 from data_collection_utils import collect_census_data
@@ -112,7 +113,7 @@ def convert_weight(value: float, from_unit: str, to_unit: str) -> float:
     raise ValueError(f"Unsupported conversion from {from_unit} to {to_unit}")
 
 
-def get_weight_in_standard_unit(weight_str: str, target_unit: str) -> float:
+def standardize_weight(weight_str: str, target_unit: str) -> float:
     """Convert weight string to numeric value in target unit."""
     if pd.isna(weight_str):
         return None
@@ -175,155 +176,232 @@ def get_weight_in_standard_unit(weight_str: str, target_unit: str) -> float:
     return weight_in_kg * conversion_factor
 
 
-def standardize_vehicle_class(value):
-    """Standardize vehicle class values, prioritizing more restrictive classifications"""
-    if not value:
-        return "ALL"  # Default to all accessible
-
-    # Handle semicolon-separated string values
-    if isinstance(value, str) and ';' in value:
-        classes = set(part.strip() for part in value.split(';'))
-        # Priority: MDV (most restrictive) > HDV > ALL (least restrictive)
-        if "MDV" in classes:
-            return "MDV"
-        elif "HDV" in classes:
-            return "HDV"
-        else:
-            return "ALL"
-
-    # Handle list case
-    if isinstance(value, list):
-        classes = set(str(v).strip() for v in value if v)
-        if "MDV" in classes:
-            return "MDV"
-        elif "HDV" in classes:
-            return "HDV"
-        else:
-            return "ALL"
-
-    # Return the value as is for single values
-    return str(value).strip()
-
 def standardize_oneway(value):
-    """Return 'yes' only if all values are 'yes'/'true'/'1', otherwise 'no'"""
-    valid_yes = {'yes', 'true', '1'}
+    """
+    Return True only if all values are 'yes'/'true'/'1', otherwise False.
+
+    Parameters:
+    -----------
+    value : str, list, or scalar
+        Input value(s) to standardize. Can be a single value, a semicolon-separated string,
+        or a list of values.
+
+    Returns:
+    --------
+    bool
+        True if all values indicate "yes", False otherwise
+    """
+    valid_yes = {'yes', 'true', '1', True, 1}
 
     # Handle semicolon-separated string values
     if isinstance(value, str) and ';' in value:
         parts = [part.strip() for part in value.split(';')]
-        return 'no' if not parts or any(not p or p.lower() not in valid_yes for p in parts) else 'yes'
+        return False if not parts or any(not p or p.lower() not in valid_yes for p in parts) else True
 
     # Handle list case
     if isinstance(value, list):
-        # Empty list or any value not in valid_yes should return 'no'
-        return 'no' if not value or any(not v or str(v).lower().strip() not in valid_yes for v in value) else 'yes'
+        # Empty list or any value not in valid_yes should return False
+        return False if not value or any(
+            not v or (str(v).lower().strip() not in valid_yes if isinstance(v, (str, int)) else v is not True) for v in
+            value) else True
 
     # Handle single value case
-    return 'yes' if value and str(value).lower().strip() in valid_yes else 'no'
+    if isinstance(value, (str, int)):
+        return True if value and str(value).lower().strip() in valid_yes else False
+    else:
+        return bool(value) if value is not None else False
+
+
+def standardize_motorcar(value):
+    """
+    Standardize motorcar tag to boolean.
+
+    Parameters:
+    -----------
+    value : any
+        The motorcar tag value
+
+    Returns:
+    --------
+    bool
+        False if motorcars are explicitly prohibited
+        True otherwise (including empty values, which default to allowed)
+    """
+    # Define restrictive values
+    restrictive_values = {"no", "false", "0"}
+
+    # If value is None, NaN, or empty, assume motorcars are allowed
+    if value is None or pd.isna(value) or (isinstance(value, str) and not value.strip()):
+        return True
+
+    # Convert to string and lowercase for consistent processing
+    if not isinstance(value, str):
+        value = str(value)
+
+    value = value.lower().strip()
+
+    import re
+    # Handle special cases with multiple values
+    if ';' in value or '|' in value:
+        parts = re.split(r'[;|]+', value)
+        parts = [p.strip() for p in parts if p.strip()]
+
+        if any(p in restrictive_values for p in parts):
+            return False
+        else:
+            return True
+
+    # Check if the value is in the restrictive set
+    if value in restrictive_values:
+        return False
+
+    # All other values (yes, empty, etc.) indicate access is allowed
+    return True
+
+
+def standardize_motor_vehicle(value):
+    """
+    Standardize motor_vehicle tag to boolean, focusing on a defined set of restrictive values.
+
+    Parameters:
+    -----------
+    value : any
+        The motor_vehicle tag value
+
+    Returns:
+    --------
+    bool
+        False if motor vehicles are restricted (no, false, 0, private)
+        True otherwise
+    """
+    # Define restrictive values
+    restrictive_values = {"no", "false", "0"}
+
+    # If value is None, NaN, or empty, assume motor vehicles are allowed
+    if value is None or pd.isna(value) or (isinstance(value, str) and not value.strip()):
+        return True
+
+    # Convert to string and lowercase for consistent processing
+    if not isinstance(value, str):
+        value = str(value)
+
+    value = value.lower().strip()
+
+    import re
+    # Handle special cases with multiple values (separated by semicolons or vertical bars)
+    if ';' in value or '|' in value:
+        # Split by either semicolon or vertical bar
+        parts = re.split(r'[;|]+', value)
+        parts = [p.strip() for p in parts if p.strip()]
+
+        # If any part is in the restrictive values, the overall value is False
+        if any(p in restrictive_values for p in parts):
+            return False
+        else:
+            return True
+
+    # Check if the value is in the restrictive set
+    if value in restrictive_values:
+        return False
+
+    # All other values indicate some form of access
+    return True
+
+
+def standardize_maxspeed(value, default_kph=None):
+    """
+    Standardize maxspeed values to kilometers per hour (kph).
+
+    Parameters:
+    -----------
+    value : any
+        The maxspeed tag value
+    default_kph : int, optional
+        Default speed in kph to use if the value can't be parsed
+
+    Returns:
+    --------
+    float or None
+        Speed in kilometers per hour, or None if the value can't be parsed and no default is provided
+    """
+    if value is None or pd.isna(value) or (isinstance(value, str) and not value.strip()):
+        return default_kph
+
+    # Convert to string for processing
+    if not isinstance(value, str):
+        value = str(value)
+
+    value = value.lower().strip()
+
+    # Handle special cases
+    if value == "signals" or value == "none" or value == "variable":
+        return default_kph
+
+    import re
+    # Try to extract numeric value and unit
+    match = re.match(r'^(\d+(?:\.\d+)?)\s*(mph|kmh|km/h|kph)?$', value)
+    if match:
+        speed_val = float(match.group(1))
+        unit = match.group(2)
+
+        # Convert to kph if necessary
+        if unit in ["mph"]:
+            return round(speed_val * 1.60934, 1)  # Convert mph to kph
+        else:
+            # If no unit or unit is already kph/kmh/km/h
+            return float(speed_val)
+
+    # If we can't parse the value
+    return default_kph
 
 
 def standardize_access(value):
-    """Standardize access values, prioritizing more restrictive access levels"""
-    if not value:
-        return ""  # Empty string for no value
+    """
+    Standardize access tag to boolean, focusing on a defined set of restrictive values.
 
-    # Define a priority order for access restrictions (from most to least restrictive)
-    priority = {
-        "no": 1,  # Most restrictive
-        "private": 2,
-        "permit": 3,
-        "destination": 4,
-        "delivery": 5,
-        "customers": 6,
-        "forestry": 7,
-        "agricultural": 8,
-        "discouraged": 9,
-        "permissive": 10,
-        "yes": 11  # Least restrictive
-    }
+    Parameters:
+    -----------
+    value : any
+        The access tag value
 
-    # Default priority for unknown values - place between "discouraged" and "permissive"
-    default_priority = 9.5
+    Returns:
+    --------
+    bool
+        False if access is restricted (no, private, forestry, permit, etc.)
+        True otherwise
+    """
+    # Define restrictive values - values that indicate restricted access
+    restrictive_values = {"no", "false", "0"}
 
-    # Function to get priority with handling for unknown values
-    def get_priority(access_type):
-        # Normalize to lowercase
-        access_type = str(access_type).strip().lower()
+    # If value is None, NaN, or empty, assume access is allowed
+    if value is None or pd.isna(value) or (isinstance(value, str) and not value.strip()):
+        return True
 
-        # Return priority if known, otherwise use default
-        if access_type in priority:
-            return priority[access_type]
+    # Convert to string and lowercase for consistent processing
+    if not isinstance(value, str):
+        value = str(value)
+
+    value = value.lower().strip()
+
+    import re
+    # Handle special cases with multiple values (separated by semicolons or vertical bars)
+    if ';' in value or '|' in value:
+        # Split by either semicolon or vertical bar
+        parts = re.split(r'[;|]+', value)
+        parts = [p.strip() for p in parts if p.strip()]
+
+        # If any part is in the restrictive values, the overall value is False
+        if any(p in restrictive_values for p in parts):
+            return False
         else:
-            # Keep the actual value but assign it a priority between restricted and permissive
-            return default_priority
+            return True
 
-    # Handle semicolon-separated string values
-    if isinstance(value, str) and ';' in value:
-        # Split and get all values
-        access_types = [part.strip() for part in value.split(';') if part.strip()]
+    # Check if the value is in the restrictive set
+    if value in restrictive_values:
+        return False
 
-        # Find the value with the lowest priority number (most restrictive)
-        most_restrictive_priority = min(get_priority(a) for a in access_types)
-
-        # If it's an unknown value, return the first one (preserve original value)
-        if most_restrictive_priority == default_priority:
-            # Find all unknown values (they have default priority)
-            unknown_values = [a for a in access_types if get_priority(a) == default_priority]
-            return unknown_values[0].lower()  # Return the first unknown value
-
-        # Return the known most restrictive value
-        for a in access_types:
-            if get_priority(a) == most_restrictive_priority:
-                return a.lower()
-
-    # Handle list case
-    if isinstance(value, list):
-        if not value:
-            return ""
-
-        # Convert all values to strings and normalize
-        access_types = [str(v).strip() for v in value if v]
-
-        # Use the same logic as for semicolon-separated strings
-        most_restrictive_priority = min(get_priority(a) for a in access_types)
-
-        if most_restrictive_priority == default_priority:
-            unknown_values = [a for a in access_types if get_priority(a) == default_priority]
-            return unknown_values[0].lower()
-
-        for a in access_types:
-            if get_priority(a) == most_restrictive_priority:
-                return a.lower()
-
-    # Handle single value - just normalize to lowercase
-    return str(value).strip().lower()
-
-
-def standardize_maxspeed(value):
-    """Parse maxspeed values that might contain multiple values, returning the lowest speed"""
-    if not value:
-        return None
-
-    # Convert to a consistent string format regardless of input type
-    value_str = ';'.join(str(v) for v in value) if isinstance(value, list) else str(value)
-
-    # Extract all numeric values using a robust approach
-    speeds = []
-    for part in value_str.split(';'):
-        try:
-            # Try to convert directly to float first
-            speeds.append(float(part.strip()))
-        except (ValueError, TypeError):
-            # If direct conversion fails, extract numeric part
-            numeric_part = ''.join(c for c in part if c.isdigit() or c == '.')
-            if numeric_part:
-                try:
-                    speeds.append(float(numeric_part))
-                except (ValueError, TypeError):
-                    pass
-
-    # Return the lowest speed or None
-    return min(speeds) if speeds else None
+    # All other values (yes, permissive, etc.) indicate general access
+    return True
 
 
 def standardize_hgv(value):
@@ -380,16 +458,17 @@ def process_tags(_g: nx.MultiDiGraph, config: dict) -> nx.MultiDiGraph:
     # Get graph data while preserving MultiIndex
     nodes, edges = ox.graph_to_gdfs(_g)
 
+    # Standardize tags
+    edges['oneway'] = edges['oneway'].apply(standardize_oneway)
+    edges['motor_vehicle'] = edges['motor_vehicle'].apply(standardize_motor_vehicle)
+    edges['motorcar'] = edges['motorcar'].apply(standardize_motorcar)
+    edges['maxspeed'] = edges['maxspeed'].apply(standardize_maxspeed)
+    edges['access'] = edges['access'].apply(standardize_access)
     # Initialize hgv and mdv as True by default if they don't exist
+    edges["mdv"] = True
     if "hgv" not in edges.columns:
         edges["hgv"] = True
-    if "mdv" not in edges.columns:
-        edges["mdv"] = True
-
-    # Standardize hgv tag if present (will now return boolean values)
-    if "hgv" in edges.columns:
-        print("Standardizing HGV access values...")
-        edges["hgv"] = edges["hgv"].apply(standardize_hgv)
+    edges["hgv"] = edges["hgv"].apply(standardize_hgv)
 
     # Copy HGV weight restrictions if present
     if "maxweight:hgv" in edges.columns:
@@ -400,21 +479,19 @@ def process_tags(_g: nx.MultiDiGraph, config: dict) -> nx.MultiDiGraph:
     if "maxweight" in edges.columns:
         print("Processing weight restrictions...")
         # Convert weights to standard unit specified in config
-        edges["weight_numeric"] = edges["maxweight"].apply(
-            lambda x: get_weight_in_standard_unit(x, target_unit)
-        )
+        edges["maxweight"] = edges["maxweight"].apply(lambda x: standardize_weight(x, target_unit))
 
         # Update hgv and mdv based on weight restrictions
-        # Heavy-duty vehicles are restricted when weight is below HDV limit
-        hdv_restricted_mask = edges["weight_numeric"].notna() & (edges["weight_numeric"] <= hdv_max)
-        edges.loc[hdv_restricted_mask, "hgv"] = False
-
         # Medium-duty vehicles are restricted when weight is below MDV limit
-        mdv_restricted_mask = edges["weight_numeric"].notna() & (edges["weight_numeric"] <= mdv_max)
+        mdv_restricted_mask = edges["maxweight"].notna() & (edges["maxweight"] <= mdv_max)
         edges.loc[mdv_restricted_mask, "mdv"] = False
 
-        # Clean up - remove the temporary numeric column
-        edges = edges.drop(columns=["weight_numeric"])
+        # Heavy-duty vehicles are restricted when weight is below HDV limit
+        # Create a mask for MDVs being restricted
+        mdv_is_restricted = edges["mdv"] == False
+        # Combine masks properly
+        hdv_restricted_mask = mdv_is_restricted | (edges["maxweight"].notna() & (edges["maxweight"] <= hdv_max))
+        edges.loc[hdv_restricted_mask, "hgv"] = False
 
     # Process other restrictions like maxlength
     if "maxlength" in edges.columns:
@@ -422,23 +499,13 @@ def process_tags(_g: nx.MultiDiGraph, config: dict) -> nx.MultiDiGraph:
         length_restricted_mask = ~edges["maxlength"].isna()
         edges.loc[length_restricted_mask, "hgv"] = False
 
-    # Standardize other tags
-    edges['oneway'] = edges['oneway'].apply(standardize_oneway)
-    edges["maxspeed"] = edges['maxspeed'].apply(standardize_maxspeed)
-
-    # Standardize speed_kph if present
-    if "speed_kph" in edges.columns:
-        print("Standardizing speed_kph values...")
-        edges["speed_kph"] = edges['speed_kph'].apply(standardize_maxspeed)
-
-    # Standardize access tag if present
-    if "access" in edges.columns:
-        print("Standardizing access values...")
-        edges["access"] = edges["access"].apply(standardize_access)
-
-    # Ensure hgv and mdv are strictly boolean
+    # Ensure hgv, mdv and oneway are strictly boolean
     edges["hgv"] = edges["hgv"].astype(bool)
     edges["mdv"] = edges["mdv"].astype(bool)
+    edges['oneway'] = edges['oneway'].astype(bool)
+    edges['access'] = edges['access'].astype(bool)
+    edges['motor_vehicle'] = edges['motor_vehicle'].astype(bool)
+    edges['motorcar'] = edges['motorcar'].astype(bool)
 
     # Convert back to MultiDiGraph
     g_updated = ox.graph_from_gdfs(nodes, edges)
@@ -663,6 +730,132 @@ def adjust_and_add_graph(graphs, current_graph):
     graphs.append(ox.graph_from_gdfs(current_nodes, current_edges))
 
 
+def str_median(values):
+    """
+    Calculate median after converting string values to numbers.
+    Handles:
+    - Lists of values
+    - Semicolon-separated values
+    - Mixed numeric types
+    """
+    # Initialize empty list for numeric values
+    numeric_values = []
+
+    # Handle case where values is already a single value, not an iterable
+    if isinstance(values, (int, float)):
+        return int(values)
+    elif isinstance(values, str):
+        values = [values]
+
+    # Process each value in the iterable
+    for v in values:
+        # Skip None values
+        if v is None:
+            continue
+
+        # Handle different types
+        if isinstance(v, (int, float)):
+            numeric_values.append(int(v))
+            continue
+
+        if not isinstance(v, str):
+            v = str(v)
+
+        # Split by semicolon to handle multiple values
+        parts = v.split(';')
+        for part in parts:
+            part = part.strip()
+            try:
+                numeric_values.append(int(part))
+            except (ValueError, TypeError):
+                # Skip non-numeric parts
+                continue
+
+    if not numeric_values:
+        return None
+    return int(median(numeric_values))
+
+
+def most_restrictive_access(values):
+    """
+    Returns the most restrictive access value from a list based on a predefined priority order.
+
+    Parameters:
+    -----------
+    values : list
+        List of access values
+
+    Returns:
+    --------
+    str
+        The most restrictive access value, or None if no valid values
+    """
+    # Define a priority order for access restrictions (from most to least restrictive)
+    priority = {
+        "no": 1,  # Most restrictive
+        "private": 2,
+        "permit": 3,
+        "destination": 4,
+        "delivery": 5,
+        "customers": 6,
+        "forestry": 7,
+        "agricultural": 8,
+        "discouraged": 9,
+        "permissive": 10,
+        "yes": 11  # Least restrictive
+    }
+
+    # Default priority for unknown values - place between "discouraged" and "permissive"
+    default_priority = 9.5
+
+    if not values:
+        return None
+
+    # Process each value and find the most restrictive
+    most_restrictive = None
+    highest_priority = float('inf')  # Lower number = higher priority
+
+    for value in values:
+        if value is None or value == "nan" or pd.isna(value):
+            continue
+
+        if isinstance(value, str):
+            value = value.strip().lower()
+            if not value or value == "nan":
+                continue
+
+        # Get priority for this value
+        value_priority = priority.get(value, default_priority)
+
+        # Update most restrictive if this has higher priority (lower number)
+        if value_priority < highest_priority:
+            most_restrictive = value
+            highest_priority = value_priority
+
+    return most_restrictive
+
+
+def bool_all(values):
+    """
+    Returns False if any value is False, otherwise returns True.
+    Expects only boolean values (True or False).
+
+    Parameters:
+    -----------
+    values : list
+        List of boolean values
+
+    Returns:
+    --------
+    bool
+        False if any value is False, True otherwise
+    """
+    if not values:
+        return None
+
+    # If any value is False, return False
+    return all(values)
+
 def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGraph:
     print("\n=== Starting OSM Network Download and Preparation ===")
 
@@ -791,7 +984,7 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
     print("✓ Edge speeds added")
 
     g_processed_tags = process_tags(g_with_speeds, _study_area_config)
-    print("✓ Freight restrictions processed")
+    print("✓ Edge tags processed")
 
     g_consolidated = ox.consolidate_intersections(
         g_processed_tags,
@@ -811,37 +1004,32 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
         g_length_updated,
         edge_attrs_differ=["highway", "lanes", "maxspeed"],
         remove_rings=False,
-        track_merged=True
+        track_merged=True,
+        edge_attr_aggs={
+            "length": sum,
+            "travel_time": sum,
+            "hgv": bool_all,
+            "mdv": bool_all,
+            "lanes": str_median,
+            "speed_kph": min,
+            "maxspeed": min,
+            "oneway": bool_all,
+            "access": bool_all,
+            "motor_vehicle": bool_all,
+            "motorcar": bool_all,
+            "reversed": bool_all,
+            "maxweight": min
+
+        }
     )
     print("✓ Network simplified")
 
+    # Hash OSMID
     nodes, edges = ox.graph_to_gdfs(g_simplified)
     edges['osmid_hash'] = edges['osmid'].apply(lambda x: shorten_osmid(x))
     nodes['osmid_hash'] = nodes['osmid_original'].apply(lambda x: shorten_osmid(x))
-
-    if 'highway' in edges.columns:
-        # Create a mask for edges with allowed highway values
-        valid_highway_mask = edges['highway'].apply(
-            lambda x: any(hw in osm_highways for hw in x) if isinstance(x, list)
-            else x in osm_highways
-        )
-
-        # Apply the filter
-        edges_filtered = edges[valid_highway_mask]
-
-        # Get nodes connected to valid edges
-        used_nodes = set()
-        # Iterate through the MultiIndex correctly
-        for u, v, _ in edges_filtered.index:
-            used_nodes.add(u)
-            used_nodes.add(v)
-
-        nodes_filtered = nodes.loc[list(used_nodes)]
-        g_hashed = ox.graph_from_gdfs(nodes_filtered, edges_filtered)
-        print(f"✓ Removed unwanted highway types: {g_hashed.number_of_edges() - g_simplified.number_of_edges()} edges removed")
-    else:
-        g_hashed = ox.graph_from_gdfs(nodes, edges)
-    print("✓ OSM IDs shortened")
+    g_hashed = ox.graph_from_gdfs(nodes, edges)
+    print("✓ OSMID Hashed")
 
     g_wgs84 = ox.project_graph(g_hashed, to_crs="epsg:4326")
     print("✓ Projected to WGS84")

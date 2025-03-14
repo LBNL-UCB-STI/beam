@@ -2,7 +2,6 @@ import json
 import os
 import time
 import zipfile
-from statistics import median
 from urllib.request import urlretrieve
 
 import contextily as ctx
@@ -808,24 +807,6 @@ def plot(G, name):
 
     # 5. Save the figure with 600 DPI
     fig.savefig(f'{name}', dpi=600, bbox_inches='tight')
-
-
-def str_median(values):
-    """Calculate median after converting string values to numbers."""
-    # Convert strings to integers, filtering out non-numeric values
-    numeric_values = []
-    for v in values:
-        try:
-            if isinstance(v, str):
-                numeric_values.append(int(v))
-            elif isinstance(v, (int, float)):
-                numeric_values.append(int(v))
-        except (ValueError, TypeError):
-            continue
-
-    if not numeric_values:
-        return None
-    return int(median(numeric_values))
 
 
 def download_h5_data(url: str, output_path: str) -> str:

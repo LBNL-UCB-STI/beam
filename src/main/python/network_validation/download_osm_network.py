@@ -3,8 +3,6 @@
 @author: haitamlaarabi, cristian.poliziani, zaneedell
 """
 from osm_utils import download_and_prepare_osm_network
-from osm_utils import standardize_oneway
-from osm_utils import standardize_maxspeed
 from osm_utils import check_invalid_coordinates
 from osm_utils import save_graph_to_osm
 from osm_utils import load_graph_from_osm
@@ -29,9 +27,9 @@ sys.path.insert(0, parent_dir)
 from python.utils.study_area_config import get_area_config
 from python.utils.study_area_config import generate_config_name
 
-area = "seattle" # sfbay
+area = "sfbay" # sfbay
 study_area_config = get_area_config(area)
-study_area_config["graph_layers"]["residential"]["min_density_per_km2"] = 412
+study_area_config["graph_layers"]["residential"]["min_density_per_km2"] = 2855 # 412
 
 #############################
 ############ Main ###########
@@ -71,12 +69,12 @@ elif os.path.exists(graphml_network):
     g_network = ox.load_graphml(
         graphml_network,
         edge_dtypes={
-            'oneway': standardize_oneway,
+            'oneway': str,
             'bridge': str,
             'tunnel': str,
             'length': float,
             'lanes': int,
-            'maxspeed': standardize_maxspeed,
+            'maxspeed': str,
             'osmid': str
         },
         node_dtypes={
@@ -112,10 +110,10 @@ if g_network and not os.path.exists(osm_network):
     nodes, edges = ox.graph_to_gdfs(g_network)
     edges = edges.drop([
         'geometry', 'u_original', 'v_original', 'merged_edges', 'osmid', 'service', 'tunnel',
-        'bridge', 'motorcar', 'motor_vehicle', 'width', 'area', 'ref', 'maxlength'
+        'bridge', 'width', 'area', 'ref', 'maxlength'
     ], axis=1, errors='ignore')
     nodes = nodes.drop([
-        'osmid_original', 'cluster', 'railway', 'highway', 'ref'
+        'osmid_original', 'cluster', 'railway', 'highway', 'ref', 'street_count'
     ], axis=1, errors='ignore')
     g_osm = ox.graph_from_gdfs(nodes, edges, graph_attrs=g_network.graph)
     save_graph_to_osm(g_osm, filename=osm_network)
