@@ -7,6 +7,7 @@ from osm_utils import check_invalid_coordinates
 from osm_utils import save_graph_to_osm
 from osm_utils import load_graph_from_osm
 from osm_utils import scan_network_directories_for_ways
+from osm_xml import save_graph_xml
 import osmnx as ox
 import os
 import sys
@@ -26,10 +27,10 @@ sys.path.insert(0, parent_dir)
 # Now use absolute import
 from python.utils.study_area_config import get_area_config
 from python.utils.study_area_config import generate_config_name
-ox.save_graph_xml()
-area = "sfbay" # sfbay
+
+area = "seattle" # sfbay - seattle
 study_area_config = get_area_config(area)
-study_area_config["graph_layers"]["residential"]["min_density_per_km2"] = 2855 # 412
+study_area_config["graph_layers"]["residential"]["min_density_per_km2"] = 412  # 2855 - 412
 
 #############################
 ############ Main ###########
@@ -116,7 +117,13 @@ if g_network and not os.path.exists(osm_network):
         'osmid_original', 'cluster', 'railway', 'highway', 'ref', 'street_count'
     ], axis=1, errors='ignore')
     g_osm = ox.graph_from_gdfs(nodes, edges, graph_attrs=g_network.graph)
-    save_graph_to_osm(g_osm, filename=osm_network)
+    save_graph_xml(
+        g_osm,
+        filepath=osm_network,
+        edge_tags=['highway', 'lanes', 'maxspeed', 'name', 'oneway', 'length', 'tunnel', 'bridge', 'osmid'],
+        edge_tag_aggs=[('length', 'sum')]
+    )
+    # save_graph_to_osm(g_osm, filename=osm_network)
     print(f"OSM Network saved to '{osm_network}'.")
 
     # Convert to PBF using osmium

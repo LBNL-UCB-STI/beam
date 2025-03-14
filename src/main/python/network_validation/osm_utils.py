@@ -19,6 +19,7 @@ from data_collection_utils import collect_geographic_boundaries
 from data_collection_utils import collect_census_data
 from data_collection_utils import filter_boundaries_by_density
 
+
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -1453,6 +1454,9 @@ class OSMTagHandler(osmium.SimpleHandler):
             self.relation_tag_counters[tag.k][tag.v] += 1
 
 
+
+
+
 def analyze_osm_pbf(file_path, num_top_values=10):
     """
     Analyze an OSM PBF file and return statistics about all tags,
@@ -1619,8 +1623,12 @@ def main(file_path=None):
 
     return stats, records_df
 
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         main()
     else:
         main(sys.argv[1])
+
+
+
