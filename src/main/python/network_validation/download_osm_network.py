@@ -9,16 +9,29 @@ from osm_utils import check_invalid_coordinates
 from osm_utils import save_graph_to_osm
 from osm_utils import load_graph_from_osm
 from osm_utils import scan_network_directories_for_ways
-from ..utils.study_area_config import generate_config_name
-from ..utils.study_area_config import sfbay_area_config
-from ..utils.study_area_config import seattle_area_config
 import osmnx as ox
 import os
+import sys
 import pickle
 import subprocess
 
-# study_area_config = sfbay_area_config
-study_area_config = seattle_area_config
+
+# Get the absolute path to the directory containing this script
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Go up to the parent directory that contains the 'python' directory
+# If your file is in /path/to/python/freight/frism_to_beam_freight_plans.py
+# This will add /path/to to sys.path
+parent_dir = os.path.dirname(os.path.dirname(current_dir))
+sys.path.insert(0, parent_dir)
+
+# Now use absolute import
+from python.utils.study_area_config import get_area_config
+from python.utils.study_area_config import generate_config_name
+
+area = "seattle" # sfbay
+study_area_config = get_area_config(area)
+study_area_config["graph_layers"]["residential"]["min_density_per_km2"] = 412
 
 #############################
 ############ Main ###########
@@ -99,10 +112,10 @@ if g_network and not os.path.exists(osm_network):
     nodes, edges = ox.graph_to_gdfs(g_network)
     edges = edges.drop([
         'geometry', 'u_original', 'v_original', 'merged_edges', 'osmid', 'junction', 'service', 'tunnel',
-        'bridge', 'motorcar', 'motor_vehicle', 'width', 'area', 'ref'
+        'bridge', 'motorcar', 'motor_vehicle', 'width', 'area', 'ref', 'maxlength'
     ], axis=1, errors='ignore')
     nodes = nodes.drop([
-        'osmid_original', 'cluster', 'railway'
+        'osmid_original', 'cluster', 'railway', 'highway', 'ref', 'junction'
     ], axis=1, errors='ignore')
     g_osm = ox.graph_from_gdfs(nodes, edges, graph_attrs=g_network.graph)
     save_graph_to_osm(g_osm, filename=osm_network)

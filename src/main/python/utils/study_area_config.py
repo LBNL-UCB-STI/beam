@@ -89,10 +89,10 @@ constants = {
     "joule_per_meter_base_rate": 1.213e8, # Energy consumption base rate in joules per meter
     "max_fuel_capacity_in_joule": 1.2e16, # Maximum fuel capacity in joules (represents physical tank limits)
     "meters_per_mile": 1609.34 # Conversion factor from miles to meters
-} 
+}
 
-osm_default_highways = ["motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link",
-                        "secondary", "secondary_link", "tertiary", "tertiary_link", "unclassified"]
+osm_highways = ["motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary",
+                "secondary_link", "tertiary", "tertiary_link", "unclassified", "residential"]
 
 osmnx_settings = {
         "log_console": True,
@@ -191,13 +191,13 @@ sfbay_area_config = {
     "graph_layers": {
         "main": {
             "geo_level": "county",
-            "custom_filter": create_osm_highway_filter(osm_default_highways),
+            "custom_filter": create_osm_highway_filter(list(set(osm_highways) - {"residential"})),
             "buffer_zone_in_meters": 200
         },
         "residential": {
             "min_density_per_km2": 4500,
             "geo_level": "cbg",
-            "custom_filter": create_osm_highway_filter(osm_default_highways + ["residential"]),
+            "custom_filter": create_osm_highway_filter(osm_highways),
             "buffer_zone_in_meters": 20
         }
         # // California has a higher urbanization rate (94.8% urban vs 80.7% national average)
@@ -251,7 +251,7 @@ seattle_area_config = {
     "graph_layers": {
         "main": {
             "geo_level": "county",
-            "custom_filter": create_osm_highway_filter(osm_default_highways),
+            "custom_filter": create_osm_highway_filter(list(set(osm_highways) - {"residential"})),
             "buffer_zone_in_meters": 200
         },
         "ferry": {
@@ -262,7 +262,7 @@ seattle_area_config = {
         "residential": {
             "min_density_per_km2": 0,
             "geo_level": "cbg",
-            "custom_filter": create_osm_highway_filter(osm_default_highways + ["residential"]),
+            "custom_filter": create_osm_highway_filter(osm_highways),
             "buffer_zone_in_meters": 20
         }
         # // Washington has a moderate urbanization rate (84.1% urban vs 80.7% national average)
