@@ -758,17 +758,6 @@ if __name__ == '__main__':
     _carriers.rename(columns=carriers_renames, inplace=True)
     _carriers.drop(carriers_drop, axis=1, inplace=True, errors='ignore')
     _carriers['warehouseZone'] = _carriers['warehouseZone'].astype(int)
-    #
-    coord_mapping = first_payloads.merge(_carriers[['tourId', 'carrierId']], on='tourId', how='inner')
-    coord_mapping = coord_mapping.groupby('carrierId').agg({'locationX': 'first', 'locationY': 'first'})
-    # Update carriers DataFrame with new coordinates
-    _carriers.set_index('carrierId', inplace=True)
-    # Update coordinates where matches exist
-    _carriers.loc[coord_mapping.index, 'warehouseX'] = coord_mapping['locationX']
-    _carriers.loc[coord_mapping.index, 'warehouseY'] = coord_mapping['locationY']
-    # Reset index
-    _carriers.reset_index(inplace=True)
-    # Write
     if SNAP_COORDINATES:
         _carriers, _coordinate_lookup = snap_coordinates_when_too_far(
             _carriers,
@@ -777,6 +766,7 @@ if __name__ == '__main__':
             "warehouseY",
             _coordinate_lookup
         )
+    # Write
     _carriers.to_csv(f'{DIRECTORY_SCENARIO}/carriers--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
 
     # tourId,departureTimeInSec,departureLocationZone,maxTourDurationInSec,departureLocationX,departureLocationY
@@ -792,16 +782,13 @@ if __name__ == '__main__':
     _tours['maxTourDurationInSec'] = _tours['maxTourDurationInSec'].astype(int)
     _tours['departureLocationZone'] = _tours['departureLocationZone'].astype(int)
     _tours.drop(['index'], axis=1, inplace=True, errors='ignore')
-    #
-    # Create mapping of tourId to coordinates
-    coord_mapping = first_payloads.set_index('tourId')[['locationX', 'locationY']]
-    # Update tours DataFrame with new coordinates
-    _tours.set_index('tourId', inplace=True)
-    # Update coordinates where matches exist
-    _tours.loc[coord_mapping.index, 'departureLocationX'] = coord_mapping['locationX']
-    _tours.loc[coord_mapping.index, 'departureLocationY'] = coord_mapping['locationY']
-    # Reset index
-    _tours.reset_index(inplace=True)
-    print(f"Updated departure coordinates for {len(coord_mapping)} tours")
+    if SNAP_COORDINATES:
+        _tours, _coordinate_lookup = snap_coordinates_when_too_far(
+            _tours,
+            _osm_edges_utm,
+            "departureLocationX",
+            "departureLocationY",
+            _coordinate_lookup
+        )
     # Write
     _tours.to_csv(f'{DIRECTORY_SCENARIO}/tours--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
