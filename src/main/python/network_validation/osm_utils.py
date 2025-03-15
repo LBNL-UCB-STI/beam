@@ -14,6 +14,7 @@ from osmnx import settings
 from osmnx import truncate
 from shapely.ops import unary_union
 from statistics import median
+from statistics import mean
 
 from data_collection_utils import collect_geographic_boundaries
 from data_collection_utils import collect_census_data
@@ -179,85 +180,66 @@ def standardize_weight(weight_str: str, target_unit: str) -> float:
 
 def standardize_oneway(value):
     """
-    Return "yes" only if all values are 'yes'/'true'/'1', otherwise "no".
-
-    Parameters:
-    -----------
-    value : str, list, or scalar
-        Input value(s) to standardize. Can be a single value, a semicolon-separated string,
-        or a list of values.
-
-    Returns:
-    --------
-    str
-        "yes" if all values indicate "yes", "no" otherwise
+    Standardize oneway tag to "yes", "reverse", or "no" strings to match MATSim expectations.
+    - "yes" for forward direction oneway
+    - "reverse" for backward direction oneway
+    - "no" for bidirectional
     """
-    valid_yes = {'yes', 'true', '1', True, 1}
-
-    # Handle semicolon-separated string values
-    if isinstance(value, str) and ';' in value:
-        parts = [part.strip() for part in value.split(';')]
-        return "no" if not parts or any(not p or p.lower() not in valid_yes for p in parts) else "yes"
-
-    # Handle list case
-    if isinstance(value, list):
-        # Empty list or any value not in valid_yes should return "no"
-        return "no" if not value or any(
-            not v or (str(v).lower().strip() not in valid_yes if isinstance(v, (str, int)) else v is not True) for v in
-            value) else "yes"
-
-    # Handle single value case
-    if isinstance(value, (str, int)):
-        return "yes" if value and str(value).lower().strip() in valid_yes else "no"
-    else:
-        return "yes" if value is not None and bool(value) else "no"
-
-
-def standardize_motorcar(value):
-    """
-    Standardize motorcar tag to "yes" or "no" strings.
-
-    Parameters:
-    -----------
-    value : any
-        The motorcar tag value
-
-    Returns:
-    --------
-    str
-        "no" if motorcars are explicitly prohibited
-        "yes" otherwise (including empty values, which default to allowed)
-    """
-    # Define restrictive values
-    restrictive_values = {"no", "false", "0"}
-
-    # If value is None, NaN, or empty, assume motorcars are allowed
-    if value is None or pd.isna(value) or (isinstance(value, str) and not value.strip()):
-        return "yes"
-
-    # Convert to string and lowercase for consistent processing
-    if not isinstance(value, str):
-        value = str(value)
-
-    value = value.lower().strip()
-
-    import re
-    # Handle special cases with multiple values
-    if ';' in value or '|' in value:
-        parts = re.split(r'[;|]+', value)
-        parts = [p.strip() for p in parts if p.strip()]
-
-        if any(p in restrictive_values for p in parts):
-            return "no"
-        else:
-            return "yes"
-
-    # Check if the value is in the restrictive set
-    if value in restrictive_values:
+    # Return None if the value is None or empty
+    if value is None or value == '':
         return "no"
 
-    # All other values (yes, empty, etc.) indicate access is allowed
-    return "yes"
+    # Values that explicitly mean "yes" (forward oneway)
+    valid_yes = {'yes', 'true', '1', True, 1}
+
+    # Values that explicitly mean reverse oneway
+    valid_reverse = {'-1', 'reverse'}
+
+    # Values that explicitly mean "no"
+    valid_no = {'no', 'false', '0', False, 0}
+
+    # Handle strings
+    if isinstance(value, str):
+        value = value.lower().strip()
+        # Handle semicolon-separated values
+        if ';' in value:
+            parts = [part.strip().lower() for part in value.split(';')]
+            if all(part in valid_yes for part in parts):
+                return "yes"
+            elif all(part in valid_reverse for part in parts):
+                return "reverse"
+            else:
+                return "no"
+
+        # Handle single string
+        if value in valid_yes:
+            return "yes"
+        elif value in valid_reverse:
+            return "reverse"
+        elif value in valid_no:
+            return "no"
+        else:
+            # If we can't interpret it, MATSim logs a warning and ignores it
+            return "no"
+
+    # Handle boolean and numeric
+    if isinstance(value, (bool, int)):
+        if value in valid_yes:
+            return "yes"
+        else:
+            return "no"
+
+    # Handle lists (if that's a use case)
+    if isinstance(value, list):
+        if all(str(v).lower().strip() in valid_yes for v in value if v):
+            return "yes"
+        elif all(str(v).lower().strip() in valid_reverse for v in value if v):
+            return "reverse"
+        else:
+            return "no"
+
+    # Default case
+    return "no"
 
 
 def standardize_motor_vehicle(value):
@@ -311,7 +293,7 @@ def standardize_motor_vehicle(value):
 
 def standardize_maxspeed(value, default_kph=None):
     """
-    Standardize maxspeed values to kilometers per hour (kph).
+    Standardize maxspeed values and return them in the format "25 mph".
 
     Parameters:
     -----------
@@ -322,11 +304,13 @@ def standardize_maxspeed(value, default_kph=None):
 
     Returns:
     --------
-    float or None
-        Speed in kilometers per hour, or None if the value can't be parsed and no default is provided
+    str or None
+        Speed in format "XX mph", or None if the value can't be parsed and no default is provided
     """
     if value is None or pd.isna(value) or (isinstance(value, str) and not value.strip()):
-        return default_kph
+        if default_kph is not None:
+            return f"{round(default_kph / 1.60934)} mph"  # Convert kph to mph
+        return None
 
     # Convert to string for processing
     if not isinstance(value, str):
@@ -336,24 +320,32 @@ def standardize_maxspeed(value, default_kph=None):
 
     # Handle special cases
     if value == "signals" or value == "none" or value == "variable":
-        return default_kph
+        if default_kph is not None:
+            return f"{round(default_kph / 1.60934)} mph"  # Convert kph to mph
+        return None
 
     import re
     # Try to extract numeric value and unit
     match = re.match(r'^(\d+(?:\.\d+)?)\s*(mph|kmh|km/h|kph)?$', value)
     if match:
         speed_val = float(match.group(1))
-        unit = match.group(2)
+        unit = match.group(2) if match.group(2) else "kph"  # Default to kph if no unit
 
-        # Convert to kph if necessary
-        if unit in ["mph"]:
-            return round(speed_val * 1.60934, 1)  # Convert mph to kph
+        # Convert to mph if necessary
+        if unit in ["kmh", "km/h", "kph"]:
+            speed_mph = round(speed_val / 1.60934)  # Convert kph to mph
         else:
-            # If no unit or unit is already kph/kmh/km/h
-            return float(speed_val)
+            # Already in mph
+            speed_mph = round(speed_val)
 
-    # If we can't parse the value
-    return default_kph
+        return f"{speed_mph} mph"
+
+    # If we can't parse the value and have a default
+    if default_kph is not None:
+        return f"{round(default_kph / 1.60934)} mph"  # Convert kph to mph
+
+    # If we can't parse the value and don't have a default
+    return None
 
 
 def standardize_access(value):
@@ -462,7 +454,6 @@ def process_tags(_g: nx.MultiDiGraph, config: dict) -> nx.MultiDiGraph:
     # Standardize tags
     edges['oneway'] = edges['oneway'].apply(standardize_oneway)
     edges['motor_vehicle'] = edges['motor_vehicle'].apply(standardize_motor_vehicle)
-    edges['motorcar'] = edges['motorcar'].apply(standardize_motorcar)
     edges['maxspeed'] = edges['maxspeed'].apply(standardize_maxspeed)
     edges['access'] = edges['access'].apply(standardize_access)
     # Initialize hgv and mdv as True by default if they don't exist
@@ -503,10 +494,6 @@ def process_tags(_g: nx.MultiDiGraph, config: dict) -> nx.MultiDiGraph:
     # Ensure hgv, mdv and oneway are strictly boolean
     edges["hgv"] = edges["hgv"].astype(bool)
     edges["mdv"] = edges["mdv"].astype(bool)
-    edges['oneway'] = edges['oneway'].astype(bool)
-    edges['access'] = edges['access'].astype(bool)
-    edges['motor_vehicle'] = edges['motor_vehicle'].astype(bool)
-    edges['motorcar'] = edges['motorcar'].astype(bool)
 
     # Convert back to MultiDiGraph
     g_updated = ox.graph_from_gdfs(nodes, edges)
@@ -731,7 +718,7 @@ def adjust_and_add_graph(graphs, current_graph):
     graphs.append(ox.graph_from_gdfs(current_nodes, current_edges))
 
 
-def str_median(values):
+def median_lanes(values):
     """
     Calculate median after converting string values to numbers.
     Handles:
@@ -856,6 +843,48 @@ def bool_all(values):
 
     # If any value is False, return False
     return all(values)
+
+
+def mean_maxspeed(speed_values):
+    """
+    Calculate the mean speed from a list of speed values in the format "XX mph".
+
+    Parameters:
+    -----------
+    speed_values : list
+        List of speed values in format "XX mph"
+
+    Returns:
+    --------
+    str
+        Mean speed in format "XX mph", or None if no valid speeds found
+    """
+    if not speed_values:
+        return None
+
+    # Extract numeric values
+    speeds_mph = []
+    import re
+
+    for value in speed_values:
+        if not value or pd.isna(value):
+            continue
+
+        # Convert to string if needed
+        if not isinstance(value, str):
+            value = str(value)
+
+        # Extract the numeric part
+        match = re.match(r'^(\d+(?:\.\d+)?)\s*mph$', value.lower().strip())
+        if match:
+            speeds_mph.append(float(match.group(1)))
+
+    # Calculate mean if we have valid values
+    if speeds_mph:
+        mean_speed = mean(speeds_mph)
+        return f"{round(mean_speed)} mph"
+
+    return None
 
 
 def yes_no_all(values):
@@ -1005,7 +1034,7 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
     print("✓ Network projected")
 
     g_with_speeds = ox.add_edge_speeds(g_projected)
-    print("✓ Edge speeds added")
+    print("✓ Edge added speeds added")
 
     g_processed_tags = process_tags(g_with_speeds, _study_area_config)
     print("✓ Edge tags processed")
@@ -1020,12 +1049,13 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
     print("✓ Intersections consolidated")
 
     nodes, edges = ox.graph_to_gdfs(g_consolidated)
-    edges['length'] = edges['geometry'].length
-    g_length_updated = ox.graph_from_gdfs(nodes, edges, graph_attrs=g_consolidated.graph)
-    print("✓ Edge lengths updated")
+    print(
+        f"Length stats after consolidation: "
+        f"min={edges['length'].min()}, max={edges['length'].max()}, mean={edges['length'].mean()}"
+    )
 
     g_simplified = ox.simplification.simplify_graph(
-        g_length_updated,
+        g_consolidated,
         edge_attrs_differ=["highway", "lanes", "maxspeed"],
         remove_rings=False,
         track_merged=True,
@@ -1034,13 +1064,11 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
             "travel_time": sum,
             "hgv": bool_all,
             "mdv": bool_all,
-            "lanes": str_median,
-            "speed_kph": min,
-            "maxspeed": min,
+            "lanes": median_lanes,
+            "speed_kph": mean,
+            "maxspeed": mean_maxspeed,
             "oneway": yes_no_all,
             "access": yes_no_all,
-            "motor_vehicle": yes_no_all,
-            "motorcar": yes_no_all,
             "reversed": bool_all,
             "maxweight": min
 

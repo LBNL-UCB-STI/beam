@@ -99,7 +99,35 @@ if g_network and not os.path.exists(osm_network):
     else:
         print("✓ All node coordinates are valid.")
 
-    print(f"Converting GraphML Network to GPKG Network...")
+    # Extract nodes and edges as GeoDataFrames
+    nodes, edges = ox.graph_to_gdfs(g_network)
+    # Print CRS information
+    print("Nodes CRS:", nodes.crs)
+    print("Edges CRS:", edges.crs)
+
+    # For more detailed information about the CRS
+    print("\nDetailed Nodes CRS information:")
+    print(nodes.crs.to_string())
+    print("\nDetailed Edges CRS information:")
+    print(edges.crs.to_string())
+
+    # Check if they're the same
+    if nodes.crs == edges.crs:
+        print("\nBoth nodes and edges have the same CRS")
+    else:
+        print("\nWARNING: Nodes and edges have different CRS!")
+        print(f"Nodes CRS: {nodes.crs}")
+        print(f"Edges CRS: {edges.crs}")
+
+    # Print a sample of node coordinates
+    print("\nSample node coordinates (should be longitude/latitude if WGS84):")
+    print(nodes[['x', 'y']].head())
+
+    # Print a sample of edge geometries
+    print("\nSample edge coordinates (first point of each LineString):")
+    for idx, geom in edges.geometry.head().items():
+        print(f"Edge {idx}: First point {geom.coords[0]}")
+
     print(f"Converting GraphML Network to GPKG Network...")
     # Save GPKG Network with OSM IDs hashed
     ox.save_graph_geopackage(g_network, filepath=gpkg_network)
