@@ -48,135 +48,104 @@ gpkg_network = f'{network_dir}/{config_name}.gpkg'
 osm_network = f'{network_dir}/{config_name}.osm'
 pbf_network = f'{network_dir}/{config_name}.osm.pbf'
 
-if not os.path.exists(graphml_network) and study_area_config["download_enabled"]:
-    print(f'Downloading and preparing OSM-based {config_name} network...')
-    g_network = download_and_prepare_osm_network(study_area_config)
+print(f'Downloading and preparing OSM-based {config_name} network...')
+g_network = download_and_prepare_osm_network(study_area_config)
 
-    # Save GraphML
-    ox.save_graphml(g_network, filepath=graphml_network)
-    print(f"GRAPHML Network saved to '{graphml_network}'.")
+# Save GraphML
+ox.save_graphml(g_network, filepath=graphml_network)
+print(f"GRAPHML Network saved to '{graphml_network}'.")
 
-    # Save PKL Network
-    with open(pkl_network, 'wb') as f:
-        pickle.dump(g_network, f)
-    print(f"PKL Network saved to '{pkl_network}'.")
+# Save PKL Network
+with open(pkl_network, 'wb') as f:
+    pickle.dump(g_network, f)
+print(f"PKL Network saved to '{pkl_network}'.")
 
-    # Save PNG Network
-    # png_network = f'{network_dir}/{config_name}.png'
-    # plot(g_network, png_network)
-    # print(f"PNG Network saved to '{png_network}'.")
-elif os.path.exists(graphml_network):
-    # Load the graph with custom data types
-    g_network = ox.load_graphml(
-        graphml_network,
-        edge_dtypes={
-            'oneway': str,
-            'bridge': str,
-            'tunnel': str,
-            'length': float,
-            'lanes': int,
-            'maxspeed': str,
-            'osmid': str
-        },
-        node_dtypes={
-            'osmid': str, 'x': float, 'y': float
-        }
-    )
+# Save PNG Network
+# png_network = f'{network_dir}/{config_name}.png'
+# plot(g_network, png_network)
+# print(f"PNG Network saved to '{png_network}'.")
+
+print(f"Checking for invalid coordinates...")
+has_invalid, invalid_nodes = check_invalid_coordinates(g_network)
+
+if has_invalid:
+    print(
+        f"WARNING: Found {len(invalid_nodes)} nodes with invalid coordinates. These should be fixed before proceeding.")
+    # Optionally: Fix or remove invalid nodes
+    # g_network.remove_nodes_from(invalid_nodes)
+    # print(f"Removed {len(invalid_nodes)} invalid nodes from the network.")
 else:
-    print(f"GraphML Network not found & download isn't enabled. Please download and prepare the network first.")
-    g_network = None
+    print("✓ All node coordinates are valid.")
 
-if g_network and not os.path.exists(osm_network):
-    print(f"Checking for invalid coordinates...")
-    has_invalid, invalid_nodes = check_invalid_coordinates(g_network)
+# Extract nodes and edges as GeoDataFrames
+nodes, edges = ox.graph_to_gdfs(g_network)
+# Print CRS information
+print("Nodes CRS:", nodes.crs)
+print("Edges CRS:", edges.crs)
 
-    if has_invalid:
-        print(
-            f"WARNING: Found {len(invalid_nodes)} nodes with invalid coordinates. These should be fixed before proceeding.")
-        # Optionally: Fix or remove invalid nodes
-        # g_network.remove_nodes_from(invalid_nodes)
-        # print(f"Removed {len(invalid_nodes)} invalid nodes from the network.")
-    else:
-        print("✓ All node coordinates are valid.")
+# For more detailed information about the CRS
+print("\nDetailed Nodes CRS information:")
+print(nodes.crs.to_string())
+print("\nDetailed Edges CRS information:")
+print(edges.crs.to_string())
 
-    # Extract nodes and edges as GeoDataFrames
-    nodes, edges = ox.graph_to_gdfs(g_network)
-    # Print CRS information
-    print("Nodes CRS:", nodes.crs)
-    print("Edges CRS:", edges.crs)
+# Check if they're the same
+if nodes.crs == edges.crs:
+    print("\nBoth nodes and edges have the same CRS")
+else:
+    print("\nWARNING: Nodes and edges have different CRS!")
+    print(f"Nodes CRS: {nodes.crs}")
+    print(f"Edges CRS: {edges.crs}")
 
-    # For more detailed information about the CRS
-    print("\nDetailed Nodes CRS information:")
-    print(nodes.crs.to_string())
-    print("\nDetailed Edges CRS information:")
-    print(edges.crs.to_string())
+# Print a sample of node coordinates
+print("\nSample node coordinates (should be longitude/latitude if WGS84):")
+print(nodes[['x', 'y']].head())
 
-    # Check if they're the same
-    if nodes.crs == edges.crs:
-        print("\nBoth nodes and edges have the same CRS")
-    else:
-        print("\nWARNING: Nodes and edges have different CRS!")
-        print(f"Nodes CRS: {nodes.crs}")
-        print(f"Edges CRS: {edges.crs}")
+# Print a sample of edge geometries
+print("\nSample edge coordinates (first point of each LineString):")
+for idx, geom in edges.geometry.head().items():
+    print(f"Edge {idx}: First point {geom.coords[0]}")
 
-    # Print a sample of node coordinates
-    print("\nSample node coordinates (should be longitude/latitude if WGS84):")
-    print(nodes[['x', 'y']].head())
+print(f"Converting GraphML Network to GPKG Network...")
+# Save GPKG Network with OSM IDs hashed
+ox.save_graph_geopackage(g_network, filepath=gpkg_network)
+print(f"GPKG Network saved to '{gpkg_network}'.")
+# Save OSM Network
+print(f"Creating OSM Network...")
+# Extract nodes and edges from the graph to create a new graph in OSM format
+# Note: This will lose some information (e.g., edge attributes) and may not be 100% accurate
+nodes, edges = ox.graph_to_gdfs(g_network)
+edges = edges.drop([
+    'u_original', 'v_original', 'merged_edges', 'osmid'
+], axis=1, errors='ignore')
+nodes = nodes.drop([
+    'osmid_original'
+], axis=1, errors='ignore')
+g_osm = ox.graph_from_gdfs(nodes, edges, graph_attrs=g_network.graph)
+save_graph_xml(
+    g_osm,
+    filepath=osm_network,
+    edge_tags=[
+        'highway', 'lanes', 'maxspeed', 'name', 'oneway', 'length',
+        'tunnel', 'bridge', 'junction', 'osmid_hash', 'access'
+    ],
+    edge_tag_aggs=[('length', 'sum')]
+)
+# save_graph_to_osm(g_osm, filename=osm_network)
+print(f"OSM Network saved to '{osm_network}'.")
 
-    # Print a sample of edge geometries
-    print("\nSample edge coordinates (first point of each LineString):")
-    for idx, geom in edges.geometry.head().items():
-        print(f"Edge {idx}: First point {geom.coords[0]}")
+# Convert to PBF using osmium
+cmd = f"osmium cat {osm_network} -o {pbf_network} --overwrite --output-format pbf,compression=zlib"
+subprocess.run(cmd, shell=True)
+# osmium fileinfo -e {pbf_path}
+print(f"PBF File saved to '{pbf_network}'")
 
-    print(f"Converting GraphML Network to GPKG Network...")
-    # Save GPKG Network with OSM IDs hashed
-    ox.save_graph_geopackage(g_network, filepath=gpkg_network)
-    print(f"GPKG Network saved to '{gpkg_network}'.")
-    # Save OSM Network
-    print(f"Creating OSM Network...")
-    # Extract nodes and edges from the graph to create a new graph in OSM format
-    # Note: This will lose some information (e.g., edge attributes) and may not be 100% accurate
-    nodes, edges = ox.graph_to_gdfs(g_network)
-    edges = edges.drop([
-        'geometry', 'u_original', 'v_original', 'merged_edges', 'osmid', 'service', 'width', 'area', 'ref', 'maxlength'
-    ], axis=1, errors='ignore')
-    nodes = nodes.drop([
-        'osmid_original', 'cluster', 'railway', 'highway', 'ref', 'street_count'
-    ], axis=1, errors='ignore')
-    g_osm = ox.graph_from_gdfs(nodes, edges, graph_attrs=g_network.graph)
-    save_graph_xml(
-        g_osm,
-        filepath=osm_network,
-        edge_tags=['highway', 'lanes', 'maxspeed', 'name', 'oneway', 'length', 'tunnel', 'bridge', 'osmid_hash'],
-        edge_tag_aggs=[('length', 'sum')]
-    )
-    # save_graph_to_osm(g_osm, filename=osm_network)
-    print(f"OSM Network saved to '{osm_network}'.")
-
-    # Convert to PBF using osmium
-    cmd = f"osmium cat {osm_network} -o {pbf_network} --overwrite --output-format pbf,compression=zlib"
-    subprocess.run(cmd, shell=True)
-    # osmium fileinfo -e {pbf_path}
-    print(f"PBF File saved to '{pbf_network}'")
-
-    # Check file info using osmium
-    print("Checking PBF file info...")
-    fileinfo_cmd = f"osmium fileinfo -e {pbf_network}"
-    result = subprocess.run(fileinfo_cmd, shell=True, check=True, capture_output=True, text=True)
-    print("File information:")
-    print(result.stdout)
-elif g_network:
-    # If the OSM network file doesn't exist, attempt to load it
-    if os.path.exists(osm_network):
-        print(f"Loading OSM Network from '{osm_network}'...")
-        g_osm = load_graph_from_osm(osm_network)  # Implement this function to load the graph
-        print("OSM Network loaded successfully.")
-
-        # Count the number of links
-        num_links = g_osm.number_of_edges()
-        print(f"Number of links in the OSM Network: {num_links}")
-    else:
-        print(f"OSM Network file '{osm_network}' not found. Please ensure the network is downloaded and prepared.")
+# Check file info using osmium
+print("Checking PBF file info...")
+fileinfo_cmd = f"osmium fileinfo -e {pbf_network}"
+result = subprocess.run(fileinfo_cmd, shell=True, check=True, capture_output=True, text=True)
+print("File information:")
+print(result.stdout)
 
 
 scan_network_directories_for_ways(os.path.expanduser(f'{study_area_config["work_dir"]}/network'))

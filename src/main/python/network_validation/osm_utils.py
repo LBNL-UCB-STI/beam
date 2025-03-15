@@ -909,6 +909,77 @@ def yes_no_all(values):
     return "no" if "no" in values else "yes"
 
 
+def project_graph(G: nx.MultiDiGraph, to_crs=None, to_latlong=False) -> nx.MultiDiGraph:
+    """
+    Project a graph from its current CRS to another.
+
+    If `to_latlong` is True, this projects the graph to the coordinate
+    reference system defined by `settings.default_crs`. Otherwise it projects
+    it to the CRS defined by `to_crs`. If `to_crs` is `None`, it projects it
+    to the CRS of an appropriate UTM zone given `geometry`'s bounds.
+
+    Parameters
+    ----------
+    G
+        The graph to be projected.
+    to_crs
+        If None, project to an appropriate UTM zone. Otherwise project to
+        this CRS.
+    to_latlong
+        If True, project to `settings.default_crs` and ignore `to_crs`.
+
+    Returns
+    -------
+    G_proj
+        The projected graph.
+    """
+    if to_latlong:
+        to_crs = settings.default_crs
+
+    # STEP 1: PROJECT THE NODES
+    gdf_nodes = ox.convert.graph_to_gdfs(G, edges=False)
+
+    # project the nodes GeoDataFrame and extract the projected x/y values
+    gdf_nodes_proj = ox.projection.project_gdf(gdf_nodes, to_crs=to_crs)
+    gdf_nodes_proj["x"] = gdf_nodes_proj["geometry"].x
+    gdf_nodes_proj["y"] = gdf_nodes_proj["geometry"].y
+    to_crs = gdf_nodes_proj.crs
+
+    # STEP 2: PROJECT THE EDGES
+    # Always get edges with geometry, regardless of whether the graph is simplified
+    gdf_edges = ox.convert.graph_to_gdfs(G, nodes=False, fill_edge_geometry=True)
+
+    # If edges don't have a CRS but do have geometry, assign the source CRS
+    if gdf_edges.crs is None and not gdf_edges.empty and 'geometry' in gdf_edges.columns:
+        # If we're unsure about the source CRS, use what we know from the nodes
+        source_crs = G.graph.get('crs', gdf_nodes.crs)
+        if source_crs is not None:
+            gdf_edges.crs = source_crs
+            print(f"Setting edge CRS to {source_crs} before projection")
+
+    # Project the edges
+    gdf_edges_proj = ox.projection.project_gdf(gdf_edges, to_crs=to_crs)
+
+    # Debug output to verify projection worked
+    if not gdf_edges_proj.empty and 'geometry' in gdf_edges_proj.columns:
+        sample_geom = gdf_edges_proj.iloc[0]['geometry']
+        if sample_geom is not None:
+            print(f"Sample edge coordinate after projection: {next(iter(sample_geom.coords))}")
+
+    # STEP 3: REBUILD GRAPH
+    # turn projected node/edge gdfs into a graph and update its CRS attribute
+    G_proj = ox.convert.graph_from_gdfs(gdf_nodes_proj, gdf_edges_proj, graph_attrs=G.graph)
+    G_proj.graph["crs"] = to_crs
+
+    print(f"Projected graph with {len(G)} nodes and {len(G.edges)} edges")
+
+    # Final verification
+    nodes_check, edges_check = ox.convert.graph_to_gdfs(G_proj)
+    print(f"Verified: Nodes CRS: {nodes_check.crs}, Edges CRS: {edges_check.crs}")
+
+    return G_proj
+
+
 def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGraph:
     print("\n=== Starting OSM Network Download and Preparation ===")
 
@@ -1011,6 +1082,13 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
         )
         print(f"✓ Downloaded network with {g.number_of_nodes()} nodes and {g.number_of_edges()} edges")
 
+        # DIAGNOSTIC: Check initial CRS after download
+        nodes_init, edges_init = ox.graph_to_gdfs(g)
+        print(f"[DIAGNOSTIC] Layer {layer_name} initial CRS - Nodes: {nodes_init.crs}, Edges: {edges_init.crs}")
+        if not edges_init.empty:
+            sample_edge = edges_init.iloc[0].geometry
+            print(f"[DIAGNOSTIC] Sample edge coordinates: {list(sample_edge.coords)[0]}")
+
         # Special processing for ferry network
         if layer_name == "ferry":
             g = process_ferry_edges(g)
@@ -1021,24 +1099,50 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
                 # Skip adding this empty graph
                 continue
 
+            # DIAGNOSTIC: Check ferry processing effect on CRS
+            nodes_ferry, edges_ferry = ox.graph_to_gdfs(g)
+            print(f"[DIAGNOSTIC] After ferry processing CRS - Nodes: {nodes_ferry.crs}, Edges: {edges_ferry.crs}")
+
         # Add the graph to the list if it has edges
         adjust_and_add_graph(graphs, g)
 
     print("\n=== Processing Combined Network ===")
     g_combined = nx.compose_all(graphs)
 
-    # Rest of the function remains the same...
+    # DIAGNOSTIC: Check combined graph CRS
+    nodes_combined, edges_combined = ox.graph_to_gdfs(g_combined)
+    print(f"[DIAGNOSTIC] Combined graph CRS - Nodes: {nodes_combined.crs}, Edges: {edges_combined.crs}")
+
     print(f"✓ Combined network has {g_combined.number_of_nodes()} nodes and {g_combined.number_of_edges()} edges")
 
-    g_projected = ox.project_graph(g_combined, to_crs=utm_epsg).copy()
-    print("✓ Network projected")
+    print("Projecting graph to UTM...")
+    g_projected = project_graph(g_combined, to_crs=utm_epsg)
+    print("✓ Network projected to UTM")
 
+    # DIAGNOSTIC: Check UTM projection effect
+    nodes_utm, edges_utm = ox.graph_to_gdfs(g_projected)
+    print(f"[DIAGNOSTIC] After UTM projection - Nodes: {nodes_utm.crs}, Edges: {edges_utm.crs}")
+    if not edges_utm.empty:
+        sample_edge_utm = edges_utm.iloc[0].geometry
+        print(f"[DIAGNOSTIC] Sample UTM edge coordinates: {list(sample_edge_utm.coords)[0]}")
+
+    print("Adding edge speeds...")
     g_with_speeds = ox.add_edge_speeds(g_projected)
-    print("✓ Edge added speeds added")
+    print("✓ Edge speeds added")
 
+    # DIAGNOSTIC: Check if add_edge_speeds changes CRS
+    nodes_speed, edges_speed = ox.graph_to_gdfs(g_with_speeds)
+    print(f"[DIAGNOSTIC] After adding speeds - Nodes: {nodes_speed.crs}, Edges: {edges_speed.crs}")
+
+    print("Processing tags...")
     g_processed_tags = process_tags(g_with_speeds, _study_area_config)
     print("✓ Edge tags processed")
 
+    # DIAGNOSTIC: Check if process_tags changes CRS
+    nodes_tags, edges_tags = ox.graph_to_gdfs(g_processed_tags)
+    print(f"[DIAGNOSTIC] After processing tags - Nodes: {nodes_tags.crs}, Edges: {edges_tags.crs}")
+
+    print("Consolidating intersections...")
     g_consolidated = ox.consolidate_intersections(
         g_processed_tags,
         tolerance=tolerance,
@@ -1048,12 +1152,14 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
     )
     print("✓ Intersections consolidated")
 
-    nodes, edges = ox.graph_to_gdfs(g_consolidated)
-    print(
-        f"Length stats after consolidation: "
-        f"min={edges['length'].min()}, max={edges['length'].max()}, mean={edges['length'].mean()}"
-    )
+    # DIAGNOSTIC: Check effect of consolidate_intersections
+    nodes_consol, edges_consol = ox.graph_to_gdfs(g_consolidated)
+    print(f"[DIAGNOSTIC] After consolidation - Nodes: {nodes_consol.crs}, Edges: {edges_consol.crs}")
+    if not edges_consol.empty:
+        sample_edge_consol = edges_consol.iloc[0].geometry
+        print(f"[DIAGNOSTIC] Sample consolidated edge coordinates: {list(sample_edge_consol.coords)[0]}")
 
+    print("Simplifying graph...")
     g_simplified = ox.simplification.simplify_graph(
         g_consolidated,
         edge_attrs_differ=["highway", "lanes", "maxspeed"],
@@ -1071,11 +1177,18 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
             "access": yes_no_all,
             "reversed": bool_all,
             "maxweight": min
-
         }
     )
     print("✓ Network simplified")
 
+    # DIAGNOSTIC: Check effect of simplify_graph
+    nodes_simpl, edges_simpl = ox.graph_to_gdfs(g_simplified)
+    print(f"[DIAGNOSTIC] After simplification - Nodes: {nodes_simpl.crs}, Edges: {edges_simpl.crs}")
+    if not edges_simpl.empty:
+        sample_edge_simpl = edges_simpl.iloc[0].geometry
+        print(f"[DIAGNOSTIC] Sample simplified edge coordinates: {list(sample_edge_simpl.coords)[0]}")
+
+    print("Hashing OSMID...")
     # Hash OSMID
     nodes, edges = ox.graph_to_gdfs(g_simplified)
     edges['osmid_hash'] = edges['osmid'].apply(lambda x: shorten_osmid(x))
@@ -1083,15 +1196,69 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
     g_hashed = ox.graph_from_gdfs(nodes, edges)
     print("✓ OSMID Hashed")
 
-    g_wgs84 = ox.project_graph(g_hashed, to_crs="epsg:4326")
+    # DIAGNOSTIC: Check if graph_from_gdfs preserves CRS
+    nodes_hash, edges_hash = ox.graph_to_gdfs(g_hashed)
+    print(f"[DIAGNOSTIC] After hashing - Nodes: {nodes_hash.crs}, Edges: {edges_hash.crs}")
+
+    print("Projecting to WGS84...")
+    g_wgs84 = project_graph(g_hashed, to_latlong=True)
     print("✓ Projected to WGS84")
 
+    # DIAGNOSTIC: Verify WGS84 projection
+    nodes_wgs84, edges_wgs84 = ox.graph_to_gdfs(g_wgs84)
+    print(f"[DIAGNOSTIC] After WGS84 projection - Nodes: {nodes_wgs84.crs}, Edges: {edges_wgs84.crs}")
+    if not edges_wgs84.empty:
+        sample_edge_wgs84 = edges_wgs84.iloc[0].geometry
+        print(f"[DIAGNOSTIC] Sample WGS84 edge coordinates: {list(sample_edge_wgs84.coords)[0]}")
+
+    # DIAGNOSTIC: Double-check node coordinates
+    print(f"[DIAGNOSTIC] Sample WGS84 node coordinates: {nodes_wgs84[['x', 'y']].iloc[0].to_dict()}")
+
+    # CRITICAL TEST: Check if geometries match what CRS claims they are
+    if not edges_wgs84.empty:
+        sample_point = list(edges_wgs84.iloc[0].geometry.coords)[0]
+        if abs(sample_point[0]) > 180 or abs(sample_point[1]) > 90:
+            print(f"[DIAGNOSTIC] WARNING: Edge geometries claim to be WGS84 but coordinates are out of range!")
+            print(f"[DIAGNOSTIC] This suggests the geometries were not properly reprojected.")
+        else:
+            print(f"[DIAGNOSTIC] Edge geometries appear to be properly in WGS84 range.")
+
+    print("Finding largest connected component...")
     g_connected = ox.truncate.largest_component(g_wgs84.copy())
     print(f"✓ Final network has {g_connected.number_of_nodes()} nodes and {g_connected.number_of_edges()} edges")
 
-    print("\n=== Network Download and Preparation Complete ===\n")
-    return g_connected
+    # FINAL DIAGNOSTIC: Check final graph
+    nodes_final, edges_final = ox.graph_to_gdfs(g_connected)
+    print(f"[DIAGNOSTIC] Final graph CRS - Nodes: {nodes_final.crs}, Edges: {edges_final.crs}")
+    if not edges_final.empty:
+        sample_edge_final = edges_final.iloc[0].geometry
+        print(f"[DIAGNOSTIC] Final sample edge coordinates: {list(sample_edge_final.coords)[0]}")
+        # Check if edge geometries match their claimed CRS
+        is_wgs84_range = all(abs(x) <= 180 and abs(y) <= 90 for x, y in sample_edge_final.coords)
+        print(f"[DIAGNOSTIC] Edge geometry coordinates in WGS84 range: {is_wgs84_range}")
 
+    print("\n=== Network Download and Preparation Complete ===\n")
+
+    # IMPORTANT: Let's verify the final state to confirm our suspicions
+    print("[DIAGNOSTIC] FINAL VERIFICATION")
+    if not edges_final.empty:
+        # Check if we need to fix the projection
+        sample_coords = list(edges_final.iloc[0].geometry.coords)[0]
+        if abs(sample_coords[0]) > 180 or abs(sample_coords[1]) > 90:
+            print(f"[DIAGNOSTIC] CRITICAL ISSUE: Edge geometries are NOT in WGS84 despite claiming to be.")
+            print(f"[DIAGNOSTIC] Edge coordinates example: {sample_coords}")
+
+            # Fix attempt - this is where you would normally apply the fix if confirmed
+            print(
+                f"[DIAGNOSTIC] If implementing a fix, would set edges CRS to EPSG:{utm_epsg} and reproject to EPSG:4326")
+            # Equivalent to:
+            # edges_final.crs = f"EPSG:{utm_epsg}"
+            # edges_final = edges_final.to_crs("EPSG:4326")
+            # g_connected = ox.graph_from_gdfs(nodes_final, edges_final)
+        else:
+            print(f"[DIAGNOSTIC] VERIFIED: Edge geometries appear to be correctly in WGS84 range.")
+
+    return g_connected
 
 def save_graph_to_osm(G, filename="output.osm"):
     # Bounding box

@@ -98,7 +98,7 @@ osmnx_settings = {
         "log_console": True,
         "use_cache": True,
         "cache_only_mode": False,
-        "all_oneway": False,
+        "all_oneway": True,
         "requests_timeout": 180,
         "overpass_memory": None,
         "max_query_area_size": 50 * 1000 * 50 * 1000,  # 50km × 50km
@@ -254,11 +254,11 @@ seattle_area_config = {
             "custom_filter": create_osm_highway_filter(list(set(osm_highways) - {"residential"})),
             "buffer_zone_in_meters": 200
         },
-        # "ferry": {
-        #     "geo_level": "county",
-        #     "custom_filter": '["route"="ferry"]',
-        #     "buffer_zone_in_meters": 10000
-        # },
+        "ferry": {
+            "geo_level": "county",
+            "custom_filter": '["route"="ferry"]',
+            "buffer_zone_in_meters": 10000
+        },
         "residential": {
             "min_density_per_km2": 0,
             "geo_level": "cbg",
