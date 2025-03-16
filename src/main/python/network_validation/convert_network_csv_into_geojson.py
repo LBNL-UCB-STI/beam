@@ -5,12 +5,11 @@ import geopandas as gpd
 from shapely.geometry import LineString, Point
 import os
 import logging
+import argparse
 
 
 def setup_logging(log_file):
-    """
-    Set up logging configuration.
-    """
+    """Set up logging configuration."""
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(levelname)s - %(message)s',
@@ -21,22 +20,8 @@ def setup_logging(log_file):
     )
 
 
-def log_and_print(message, level=logging.INFO):
-    """
-    Log message and print to console.
-    """
-    if level == logging.INFO:
-        logging.info(message)
-    elif level == logging.WARNING:
-        logging.warning(message)
-    elif level == logging.ERROR:
-        logging.error(message)
-
-
 def validate_network_file(network_df):
-    """
-    Validate the network file has all required columns and valid data.
-    """
+    """Validate the network file has all required columns."""
     required_columns = [
         'linkId', 'linkLength', 'linkFreeSpeed', 'linkCapacity',
         'numberOfLanes', 'linkModes', 'attributeOrigId', 'attributeOrigType',
@@ -49,19 +34,19 @@ def validate_network_file(network_df):
         raise ValueError(f"Missing required columns in network file: {missing_columns}")
 
 
-def convert_network_to_geojson(network_file, projected_crs_epsg):
+def convert_network_to_geojson(network_file, projected_crs_epsg=32048):
     """
     Convert network CSV file to GeoJSON format.
 
     Parameters:
     network_file (str): Path to the network.csv.gz file
-    projected_crs_epsg (int): EPSG code for the projected CRS (default: 26910 for NAD83/UTM zone 10N)
+    projected_crs_epsg (int): EPSG code for the projected CRS
 
     Returns:
     str: Path to the created GeoJSON file
     """
     try:
-        log_and_print(f"Reading network file: {network_file}")
+        logging.info(f"Reading network file: {network_file}")
         network_name = os.path.splitext(os.path.splitext(os.path.basename(network_file))[0])[0]
         network_df = pd.read_csv(network_file)
 
@@ -71,7 +56,7 @@ def convert_network_to_geojson(network_file, projected_crs_epsg):
         # Filter for car modes
         car_modes = ['car', 'car;bike', 'car;walk;bike']
         network_filtered = network_df[network_df['linkModes'].isin(car_modes)]
-        log_and_print(f"Filtered network for car modes. Features remaining: {len(network_filtered):,}")
+        logging.info(f"Filtered network for car modes. Features remaining: {len(network_filtered):,}")
 
         # Create GeoDataFrame with projected CRS
         gdf = gpd.GeoDataFrame(
@@ -98,28 +83,47 @@ def convert_network_to_geojson(network_file, projected_crs_epsg):
         gdf_wgs84.to_file(output_file, driver='GeoJSON')
 
         # Log statistics
-        log_and_print(f"\n[NETWORK] Network statistics:")
-        log_and_print(f"Total features: {len(gdf_wgs84):,}")
-        log_and_print(f"Total network length: {gdf_wgs84['linkLength'].sum() / 1000:.2f} km")
-        log_and_print(f"Unique road types: {gdf_wgs84['attributeOrigType'].nunique()}")
+        logging.info(f"\n[NETWORK] Network statistics:")
+        logging.info(f"Total features: {len(gdf_wgs84):,}")
+        logging.info(f"Total network length: {gdf_wgs84['linkLength'].sum() / 1000:.2f} km")
+        logging.info(f"Unique road types: {gdf_wgs84['attributeOrigType'].nunique()}")
 
         # Road type distribution
-        log_and_print("\nTop 5 road types distribution:")
+        logging.info("\nTop 5 road types distribution:")
         road_type_dist = gdf_wgs84['attributeOrigType'].value_counts().head()
         for road_type, count in road_type_dist.items():
-            log_and_print(f"  {road_type}: {count:,} links")
+            logging.info(f"  {road_type}: {count:,} links")
 
-        log_and_print(f"\n[OUTPUT] GeoJSON file saved to: {output_file}")
+        logging.info(f"\n[OUTPUT] GeoJSON file saved to: {output_file}")
         return output_file
 
     except Exception as e:
-        log_and_print(f"Error converting network to GeoJSON: {str(e)}", logging.ERROR)
+        logging.error(f"Error converting network to GeoJSON: {str(e)}")
         raise
 
 
+def parse_arguments():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description='Convert network CSV to GeoJSON format.'
+    )
+    parser.add_argument(
+        'network_file',
+        help='Path to the network CSV file (can be gzipped)'
+    )
+    parser.add_argument(
+        '--crs',
+        type=int,
+        default=32048,
+        help='EPSG code for the projected CRS (default: 32048)'
+    )
+    return parser.parse_args()
+
+
 def main():
-    network_file = os.path.expanduser(
-        f"~/Workspace/Simulation/seattle/beam-runs/2024-04-20/2018_Baseline_RPS/network.RPS.csv.gz")
+    # Parse command line arguments
+    args = parse_arguments()
+    network_file = os.path.expanduser(args.network_file)
     network_dir = os.path.dirname(network_file)
     network_name = os.path.splitext(os.path.splitext(os.path.basename(network_file))[0])[0]
 
@@ -129,15 +133,17 @@ def main():
 
     # Check if network file exists
     if not os.path.exists(network_file):
-        log_and_print(f"Network file not found: {network_file}", logging.ERROR)
-        return
+        logging.error(f"Network file not found: {network_file}")
+        return 1
 
     try:
-        convert_network_to_geojson(network_file, projected_crs_epsg=32048)
-        log_and_print("Conversion completed successfully")
+        convert_network_to_geojson(network_file, projected_crs_epsg=args.crs)
+        logging.info("Conversion completed successfully")
+        return 0
     except Exception as e:
-        log_and_print(f"Conversion failed: {str(e)}", logging.ERROR)
+        logging.error(f"Conversion failed: {str(e)}")
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    exit(main())

@@ -59,7 +59,7 @@ def extract_edge_length(tags_dict):
         return None
 
 
-def process_isrm_network_intersection(isrm_grid_path, osm_geojson_path, osm_gpkg_path, epsg_utm, output_path):
+def process_isrm_osm_intersection(isrm_grid_path, osm_geojson_path, osm_gpkg_path, epsg_utm, output_path):
     """
     Process the intersection of ISRM grid polygons with OSM edge geometries.
     All operations are performed in UTM projection and results are converted back to WGS84.
@@ -245,6 +245,113 @@ def process_isrm_network_intersection(isrm_grid_path, osm_geojson_path, osm_gpkg
     return result_gdf
 
 
+def map_beam_network_to_isrm_osm_intersection(network_path, isrm_osm_path, output_path):
+    """
+    Map network data to ISRM-OSM intersection data using attributeOrigId to match osm_id.
+
+    Args:
+        network_path (str): Path to the network.csv.gz file
+        isrm_osm_path (str): Path to the ISRM-OSM intersection GeoJSON file
+        output_path (str): Path to save the output file
+
+    Returns:
+        pd.DataFrame: The resulting DataFrame with mapping results
+    """
+    # 1. Load network data
+    logger.info(f"Loading network data from {network_path}")
+    try:
+        network_df = pd.read_csv(network_path)
+        logger.info(f"Loaded network data with {len(network_df)} rows")
+
+        # Check if attributeOrigId column exists
+        if 'attributeOrigId' not in network_df.columns:
+            logger.error("Network file is missing 'attributeOrigId' column")
+            return None
+    except Exception as e:
+        logger.error(f"Failed to load network data: {e}")
+        return None
+
+    # 2. Load ISRM-OSM intersection data
+    logger.info(f"Loading ISRM-OSM intersection data from {isrm_osm_path}")
+    try:
+        isrm_osm_gdf = gpd.read_file(isrm_osm_path)
+        logger.info(f"Loaded ISRM-OSM data with {len(isrm_osm_gdf)} rows")
+
+        # Check if osm_id column exists
+        if 'osm_id' not in isrm_osm_gdf.columns:
+            logger.error("ISRM-OSM file is missing 'osm_id' column")
+            return None
+    except Exception as e:
+        logger.error(f"Failed to load ISRM-OSM data: {e}")
+        return None
+
+    # 3. Convert osm_id to the same type as attributeOrigId for proper joining
+    logger.info("Preparing data for mapping")
+
+    # Make sure both ID columns are of the same type
+    network_df['attributeOrigId'] = network_df['attributeOrigId'].astype(int)
+    isrm_osm_gdf['osm_id'] = isrm_osm_gdf['osm_id'].astype(int)
+
+    # 4. Merge the network and ISRM-OSM data
+    logger.info("Merging network data with ISRM-OSM data")
+    merged_df = pd.merge(
+        network_df,
+        isrm_osm_gdf,
+        left_on='attributeOrigId',
+        right_on='osm_id',
+        how='inner'
+    )
+
+    logger.info(f"Merged result has {len(merged_df)} rows")
+
+    # 5. Calculate the proportional network values based on the ISRM-OSM proportion
+    logger.info("Calculating proportional values")
+
+    # Apply proportion to network length
+    merged_df['proportional_network_length'] = merged_df['linkLength'] * merged_df['proportion']
+
+    # 6. Create a unique identifier combining network linkId and ISRM id
+    merged_df['network_isrm_id'] = merged_df['linkId'].astype(str) + '-' + merged_df['isrm_id'].astype(str)
+
+    # 7. Save the result
+    logger.info(f"Saving mapped results to {output_path}")
+    output_dir = os.path.dirname(output_path)
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # Determine output format based on file extension
+    extension = os.path.splitext(output_path)[1].lower()
+    if extension == '.gpkg':
+        if isinstance(merged_df, gpd.GeoDataFrame):
+            merged_df.to_file(output_path, driver='GPKG')
+        else:
+            # Convert to GeoDataFrame if it's just a DataFrame
+            logger.warning("Converting DataFrame to GeoDataFrame for GPKG output")
+            geo_merged_df = gpd.GeoDataFrame(merged_df, geometry='geometry')
+            geo_merged_df.to_file(output_path, driver='GPKG')
+    elif extension == '.geojson':
+        if isinstance(merged_df, gpd.GeoDataFrame):
+            merged_df.to_file(output_path, driver='GeoJSON')
+        else:
+            # Convert to GeoDataFrame if it's just a DataFrame
+            logger.warning("Converting DataFrame to GeoDataFrame for GeoJSON output")
+            geo_merged_df = gpd.GeoDataFrame(merged_df, geometry='geometry')
+            geo_merged_df.to_file(output_path, driver='GeoJSON')
+    elif extension == '.csv':
+        # For CSV, we drop the geometry column if it exists
+        if 'geometry' in merged_df.columns:
+            # Save the WKT representation of geometry
+            merged_df['geometry_wkt'] = merged_df['geometry'].apply(lambda geom: geom.wkt if geom else None)
+            merged_df = merged_df.drop(columns='geometry')
+        merged_df.to_csv(output_path, index=False)
+    else:
+        logger.warning(f"Unrecognized output format: {extension}, using CSV format")
+        merged_df.to_csv(output_path, index=False)
+
+    logger.info("Mapping complete")
+    return merged_df
+
+
 def main():
     """Main execution function with hardcoded paths."""
     area = "seattle"
@@ -259,15 +366,27 @@ def main():
     isrm_grid_path = os.path.expanduser(f"{work_dir}/inmap/ISRM/isrm_polygon.shp")
     osm_geojson_path = os.path.expanduser(f"{network_dir}/{network_name}.osm.geojson")
     osm_gpkg_path = os.path.expanduser(f"{network_dir}/{network_name}.gpkg")
-    output_path = os.path.expanduser(f"{work_dir}/inmap/isrm-{network_name}.geojson")
+    isrm_osm_dir = os.path.expanduser(f"{work_dir}/inmap/isrm-{network_name}")
+    os.makedirs(isrm_osm_dir, exist_ok=True)
+    isrm_osm_geojson_path = os.path.expanduser(f"{isrm_osm_dir}/isrm-{network_name}.geojson")
+    beam_network = os.path.expanduser(f"{network_dir}/network.csv.gz")
+    output2_path = os.path.expanduser(f"{isrm_osm_dir}/isrm-beam--network-intersection.geojson")
 
-    # Process the intersection
-    process_isrm_network_intersection(
-        isrm_grid_path=isrm_grid_path,
-        osm_geojson_path=osm_geojson_path,
-        osm_gpkg_path=osm_gpkg_path,
-        epsg_utm=study_area_config["utm_epsg"],
-        output_path=output_path
+    if not os.path.exists(isrm_osm_geojson_path):
+        # Process the intersection
+        process_isrm_osm_intersection(
+            isrm_grid_path=isrm_grid_path,
+            osm_geojson_path=osm_geojson_path,
+            osm_gpkg_path=osm_gpkg_path,
+            epsg_utm=study_area_config["utm_epsg"],
+            output_path=isrm_osm_geojson_path
+        )
+
+    # Map BEAM Network with isrm osm intersection
+    map_beam_network_to_isrm_osm_intersection(
+        beam_network,
+        isrm_osm_geojson_path,
+        output2_path
     )
 
 
