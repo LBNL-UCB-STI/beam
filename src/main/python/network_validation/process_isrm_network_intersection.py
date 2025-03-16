@@ -55,7 +55,7 @@ def extract_edge_length(tags_dict):
         return None
 
 
-def process_isrm_network_intersection(isrm_grid_path, osm_geojson_path, osm_gpkg_path, output_path):
+def process_isrm_network_intersection(isrm_grid_path, osm_geojson_path, osm_gpkg_path, epsg_utm, output_path):
     """
     Process the intersection of ISRM grid polygons with OSM edge geometries.
 
@@ -255,6 +255,7 @@ def main():
         isrm_grid_path=isrm_grid_path,
         osm_geojson_path=osm_geojson_path,
         osm_gpkg_path=osm_gpkg_path,
+        epsg_utm=study_area_config["utm_epsg"],
         output_path=output_path
     )
 
