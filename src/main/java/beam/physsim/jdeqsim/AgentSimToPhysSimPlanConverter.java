@@ -220,7 +220,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             try {
                 String outPath =
                         controlerIO
-                                .getIterationFilename(iterationNumber, "countscompare.txt");
+                                .getIterationFilename(iterationNumber, "countsCompare.txt");
                 double countsError = CountsObjectiveFunction.evaluateFromRun(outPath);
                 log.info("counts Error: " + countsError);
             } catch (Exception e) {

@@ -2,6 +2,7 @@ package beam.replanning
 
 import beam.router.model.EmbodiedBeamTrip
 import beam.utils.DebugLib
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population._
 import org.matsim.core.config.groups.PlanCalcScoreConfigGroup
 import org.matsim.core.population.PopulationUtils
@@ -9,7 +10,7 @@ import org.matsim.core.replanning.selectors.RandomPlanSelector
 
 import scala.collection.JavaConverters._
 
-object ReplanningUtil {
+object ReplanningUtil extends LazyLogging {
 
   def makeExperiencedMobSimCompatible[T <: Plan, I](person: HasPlansAndId[T, I]): Unit = {
     val experiencedPlan = person.getSelectedPlan.getCustomAttributes
@@ -19,14 +20,20 @@ object ReplanningUtil {
     if (experiencedPlan != null && experiencedPlan.getPlanElements.size() > 0) {
       // keep track of the vehicles that been used during previous simulation
       for (i <- 0 until (experiencedPlan.getPlanElements.size() - 1)) {
-        experiencedPlan.getPlanElements.get(i) match {
-          case leg: Leg =>
-            // Make sure it is not `null`
-            Option(x = person.getSelectedPlan.getPlanElements.get(i).getAttributes.getAttribute("vehicles")).foreach {
-              attibValue =>
-                leg.getAttributes.putAttribute("vehicles", attibValue)
-            }
-          case _ =>
+        if (i >= person.getSelectedPlan.getPlanElements.size()) {
+          // Log error if we've run out of elements in the selected plan
+          logger.error(s"Mismatch in plan elements: experienced plan has more elements (${experiencedPlan.getPlanElements
+            .size()}) than selected plan (${person.getSelectedPlan.getPlanElements.size()}) for person ${person.getId}")
+        } else {
+          experiencedPlan.getPlanElements.get(i) match {
+            case leg: Leg =>
+              // Make sure it is not `null`
+              Option(x = person.getSelectedPlan.getPlanElements.get(i).getAttributes.getAttribute("vehicles")).foreach {
+                attibValue =>
+                  leg.getAttributes.putAttribute("vehicles", attibValue)
+              }
+            case _ =>
+          }
         }
       }
       // BeamMobsim needs activities with coords
