@@ -271,6 +271,8 @@ def map_beam_network_to_isrm_osm_intersection(network_path, isrm_osm_path, outpu
         logger.error(f"Failed to load network data: {e}")
         return None
 
+    # Filter out rows with empty or NaN attributeOrigId
+    network_df = network_df.dropna(subset=['attributeOrigId'])
     # 2. Load ISRM-OSM intersection data
     logger.info(f"Loading ISRM-OSM intersection data from {isrm_osm_path}")
     try:
