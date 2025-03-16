@@ -1,9 +1,7 @@
-import pandas as pd
 import gzip
 import sys
-import json
-from collections import Counter, defaultdict
-import re
+from collections import Counter
+import pandas as pd
 
 
 def parse_hstore_format(data_string):
@@ -11,7 +9,7 @@ def parse_hstore_format(data_string):
     Parse fields that contain hstore format data
     Format example: "oneway"=>"no","reversed"=>"False","length"=>"72.674",...
     """
-    if pd.isna(tag_string) or not tag_string:
+    if pd.isna(data_string) or not data_string:
         return {}
 
     result = {}
@@ -22,7 +20,7 @@ def parse_hstore_format(data_string):
         in_quotes = False
         current = ""
 
-        for char in tag_string:
+        for char in data_string:
             if char == '"' and (not current or current[-1] != '\\'):
                 in_quotes = not in_quotes
 
@@ -46,10 +44,10 @@ def parse_hstore_format(data_string):
                     result[key] = val
     except Exception as e:
         print(f"Error parsing tags: {e}")
-        if len(tag_string) > 100:
-            print(f"Preview: {tag_string[:100]}...")
+        if len(data_string) > 100:
+            print(f"Preview: {data_string[:100]}...")
         else:
-            print(f"String: {tag_string}")
+            print(f"String: {data_string}")
 
     return result
 
@@ -255,7 +253,7 @@ def main(file_path, sample_size=None):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python csv_data_analyzer.py <file.csv or file.csv.gz> [sample_size]")
+        print("Usage: python3 csv_data_analyzer.py <file.csv or file.csv.gz> [sample_size]")
         sys.exit(1)
 
     file_path = sys.argv[1]

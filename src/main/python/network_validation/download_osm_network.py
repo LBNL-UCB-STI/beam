@@ -4,9 +4,8 @@
 """
 from osm_utils import download_and_prepare_osm_network
 from osm_utils import check_invalid_coordinates
-from osm_utils import save_graph_to_osm
-from osm_utils import load_graph_from_osm
 from osm_utils import scan_network_directories_for_ways
+from osm_utils import check_duplicate_edge_ids
 from osm_xml import save_graph_xml
 import osmnx as ox
 import os
@@ -50,6 +49,19 @@ pbf_network = f'{network_dir}/{config_name}.osm.pbf'
 
 print(f'Downloading and preparing OSM-based {config_name} network...')
 g_network = download_and_prepare_osm_network(study_area_config)
+nodes, edges = ox.graph_to_gdfs(g_network)
+has_duplicates, duplicate_info = check_duplicate_edge_ids(edges, 'edge_id')
+
+if has_duplicates:
+    # Display information about the duplicates
+    dup_counts, dup_examples = duplicate_info
+    print("\nDuplicate edge IDs:")
+    print(dup_counts)
+
+    print("\nExample edges with duplicate IDs:")
+    # Display relevant columns for the first few duplicate edges
+    display_cols = ['edge_id', 'u', 'v', 'osmid', 'highway']
+    print(dup_examples[display_cols].head(10))
 
 # Save GraphML
 ox.save_graphml(g_network, filepath=graphml_network)
@@ -127,7 +139,7 @@ save_graph_xml(
     filepath=osm_network,
     edge_tags=[
         'highway', 'lanes', 'maxspeed', 'name', 'oneway', 'length',
-        'tunnel', 'bridge', 'junction', 'osmid_hash', 'access'
+        'tunnel', 'bridge', 'junction', 'osm_id', 'access'
     ],
     edge_tag_aggs=[('length', 'sum')]
 )

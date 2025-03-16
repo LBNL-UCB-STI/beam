@@ -1,25 +1,24 @@
 import hashlib
-import xml.etree.ElementTree as ET
+import os
+import sys
+from collections import Counter, defaultdict
+from statistics import mean
+from statistics import median
+
 import geopandas as gpd
 import networkx as nx
-import osmnx as ox
-import pyproj
 import osmium
-import sys
-import os
+import osmnx as ox
 import pandas as pd
-from collections import Counter, defaultdict
+import pyproj
 import shapely.geometry
 from osmnx import settings
 from osmnx import truncate
 from shapely.ops import unary_union
-from statistics import median
-from statistics import mean
 
-from data_collection_utils import collect_geographic_boundaries
 from data_collection_utils import collect_census_data
+from data_collection_utils import collect_geographic_boundaries
 from data_collection_utils import filter_boundaries_by_density
-
 
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -29,7 +28,6 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 # This will add /path/to to sys.path
 parent_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, parent_dir)
-from python.utils.study_area_config import osm_highways
 
 
 def process_ferry_edges(ferry_graph) -> nx.MultiDiGraph:
@@ -500,14 +498,37 @@ def process_tags(_g: nx.MultiDiGraph, config: dict) -> nx.MultiDiGraph:
 
     return g_updated
 
-def shorten_osmid(osmid):
-    # Convert osmid to string if it isn't already
-    osmid_str = str(osmid)
-    # Create a hash of the osmid
-    hash_object = hashlib.md5(osmid_str.encode())
-    # Get first 8 characters of the hash
-    short_id = hash_object.hexdigest()[:8]
-    return short_id
+
+def create_unique_edge_id(u, v, osmid, k=None):
+    """
+    Create a unique edge ID by combining start node, end node, and osmid.
+
+    Parameters:
+    -----------
+    u : node ID of the edge's source
+    v : node ID of the edge's target
+    osmid : original OSM way ID
+    k : optional key for MultiDiGraphs (default: None)
+
+    Returns:
+    --------
+    str : A unique edge identifier
+    """
+    # Handle the case where osmid might be a list
+    if isinstance(osmid, list):
+        osmid_str = '_'.join(map(str, osmid))
+    else:
+        osmid_str = str(osmid)
+
+    # Include the key if provided (for MultiDiGraphs)
+    if k is not None:
+        unique_id = f"{u}_{v}_{k}_{osmid_str}"
+    else:
+        unique_id = f"{u}_{v}_{osmid_str}"
+
+    # Optionally hash it if you want a shorter fixed-length ID
+    hash_object = hashlib.md5(unique_id.encode())
+    return hash_object.hexdigest()[:12]  # 12 characters should be sufficient
 
 
 def find_long_tags_in_gdf(gdf, element_type="elements"):
@@ -1188,13 +1209,18 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
         sample_edge_simpl = edges_simpl.iloc[0].geometry
         print(f"[DIAGNOSTIC] Sample simplified edge coordinates: {list(sample_edge_simpl.coords)[0]}")
 
-    print("Hashing OSMID...")
     # Hash OSMID
     nodes, edges = ox.graph_to_gdfs(g_simplified)
-    edges['osmid_hash'] = edges['osmid'].apply(lambda x: shorten_osmid(x))
-    nodes['osmid_hash'] = nodes['osmid_original'].apply(lambda x: shorten_osmid(x))
+    # Create unique IDs before dropping the osmid column
+    # Print all column names to see what's available
+    print("edges.columns.tolist()")
+    print(edges.columns.tolist())
+    edges['edge_id'] = edges.apply(
+        lambda row: create_unique_edge_id(row['u'], row['v'], row['osmid'], row.get('key', None)),
+        axis=1
+    )
     g_hashed = ox.graph_from_gdfs(nodes, edges)
-    print("✓ OSMID Hashed")
+    print("✓ Unique Edge ID created")
 
     # DIAGNOSTIC: Check if graph_from_gdfs preserves CRS
     nodes_hash, edges_hash = ox.graph_to_gdfs(g_hashed)
@@ -1259,175 +1285,6 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
             print(f"[DIAGNOSTIC] VERIFIED: Edge geometries appear to be correctly in WGS84 range.")
 
     return g_connected
-
-def save_graph_to_osm(G, filename="output.osm"):
-    # Bounding box
-    xs = [d['x'] for _, d in G.nodes(data=True) if 'x' in d]
-    ys = [d['y'] for _, d in G.nodes(data=True) if 'y' in d]
-    minlon, maxlon = min(xs), max(xs)
-    minlat, maxlat = min(ys), max(ys)
-
-    root = ET.Element("osm", version="0.6", generator="OSMnx2OSM")
-    ET.SubElement(root, "bounds",
-                  minlat=str(minlat), minlon=str(minlon),
-                  maxlat=str(maxlat), maxlon=str(maxlon))
-
-    node_map = {}
-    next_node_id = -1  # Start negative for generated IDs
-
-    # OSM metadata fields to preserve
-    metadata_fields = ["version", "changeset", "timestamp", "user", "uid"]
-
-    # Write nodes + attributes as tags
-    for n, d in G.nodes(data=True):
-        lat, lon = d.get('y'), d.get('x')
-        if lat is None or lon is None: continue
-
-        # Use original OSM ID if available
-        if 'osmid' in d:
-            # Handle possible list of IDs
-            if isinstance(d['osmid'], list) and d['osmid']:
-                current_node_id = str(d['osmid'][0])
-            else:
-                current_node_id = str(d['osmid'])
-        elif 'osmid_original' in d:
-            # Sometimes OSMnx stores original IDs here
-            if isinstance(d['osmid_original'], list) and d['osmid_original']:
-                current_node_id = str(d['osmid_original'][0])
-            else:
-                current_node_id = str(d['osmid_original'])
-        else:
-            # Generate a negative ID if no original exists
-            current_node_id = str(next_node_id)
-            next_node_id -= 1
-
-        # Prepare node attributes with default values
-        node_attrs = {
-            "id": current_node_id,
-            "lat": str(lat),
-            "lon": str(lon),
-            "version": "1",
-            "changeset": "1",
-            "user": "osmnx",
-            "uid": "1",
-            "timestamp": "2020-01-01T00:00:00Z"
-        }
-
-        # Override with original metadata if available
-        for field in metadata_fields:
-            if field in d:
-                node_attrs[field] = str(d[field])
-
-        # Create node with all attributes
-        node = ET.SubElement(root, "node", **node_attrs)
-
-        node_map[n] = current_node_id
-        for k, v in d.items():
-            # Skip coordinates, IDs, and metadata fields that are already included as attributes
-            if k not in ("x", "y", "osmid", "osmid_original") and k not in metadata_fields and v is not None:
-                # Handle different value types appropriately
-                if isinstance(v, list):
-                    v_str = ";".join(str(item) for item in v)
-                else:
-                    v_str = str(v)
-                ET.SubElement(node, "tag", k=str(k), v=v_str)
-
-    # Write ways (edges) + attributes as tags
-    next_way_id = -1  # Start negative for generated IDs
-    for u, v, edata in G.edges(data=True):
-        if u not in node_map or v not in node_map:
-            continue
-
-        # Use original way ID if available
-        if 'osmid' in edata:
-            if isinstance(edata['osmid'], list) and edata['osmid']:
-                current_way_id = str(edata['osmid'][0])
-            else:
-                current_way_id = str(edata['osmid'])
-        else:
-            # Generate a negative ID if no original exists
-            current_way_id = str(next_way_id)
-            next_way_id -= 1
-
-        # Prepare way attributes with default values
-        way_attrs = {
-            "id": current_way_id,
-            "version": "1",
-            "changeset": "1",
-            "user": "osmnx",
-            "uid": "1",
-            "timestamp": "2020-01-01T00:00:00Z"
-        }
-
-        # Override with original metadata if available
-        for field in metadata_fields:
-            if field in edata:
-                way_attrs[field] = str(edata[field])
-
-        # Create way with all attributes
-        way = ET.SubElement(root, "way", **way_attrs)
-
-        ET.SubElement(way, "nd", ref=str(node_map[u]))
-        ET.SubElement(way, "nd", ref=str(node_map[v]))
-
-        # Dump all attributes, with proper handling for different data types
-        for k, v_ in edata.items():
-            # Skip metadata fields and osmid that are already included as attributes
-            if k not in metadata_fields and k != 'osmid' and v_ is not None:
-                # Handle list-type values
-                if isinstance(v_, list):
-                    v_str = ";".join(str(item) for item in v_)
-                else:
-                    v_str = str(v_)
-
-                ET.SubElement(way, "tag", k=str(k), v=v_str)
-
-    ET.ElementTree(root).write(filename, encoding="utf-8", xml_declaration=True)
-
-
-def load_graph_from_osm(filename: str) -> nx.MultiDiGraph:
-    """
-    Load a graph from an OSM file.
-
-    Parameters:
-    -----------
-    filename : str
-        The path to the OSM file.
-
-    Returns:
-    --------
-    nx.MultiDiGraph
-        The loaded graph.
-    """
-    G = nx.MultiDiGraph()
-
-    tree = ET.parse(filename)
-    root = tree.getroot()
-
-    node_map = {}
-
-    # Read nodes
-    for node in root.findall('node'):
-        node_id = int(node.get('id'))
-        lat = float(node.get('lat'))
-        lon = float(node.get('lon'))
-        G.add_node(node_id, y=lat, x=lon)
-        node_map[node_id] = (lat, lon)
-
-        for tag in node.findall('tag'):
-            G.nodes[node_id][tag.get('k')] = tag.get('v')
-
-    # Read ways (edges)
-    for way in root.findall('way'):
-        nd_refs = [int(nd.get('ref')) for nd in way.findall('nd')]
-        for u, v in zip(nd_refs[:-1], nd_refs[1:]):
-            # Add edge and get the key for the new edge
-            key = G.add_edge(u, v)
-            for tag in way.findall('tag'):
-                G.edges[u, v, key][tag.get('k')] = tag.get('v')
-
-    return G
-
 
 def scan_network_directories_for_ways(directory):
     import csv
@@ -1780,6 +1637,54 @@ def print_tag_stats(stats, category_name="Tags", element_type="Elements", limit=
             # Truncate very long values
             display_val = val[:50] + "..." if len(val) > 50 else val
             print(f"     - {display_val}: {count}")
+
+
+def check_duplicate_edge_ids(edges_gdf, id_column='edge_id'):
+    """
+    Check for duplicate edge IDs in an OSMnx edges GeoDataFrame.
+
+    Parameters:
+    -----------
+    edges_gdf : GeoDataFrame
+        The edges GeoDataFrame from ox.graph_to_gdfs()
+    id_column : str, default 'edge_id'
+        The column name containing the edge IDs to check
+
+    Returns:
+    --------
+    tuple
+        (has_duplicates, duplicate_info) where:
+        - has_duplicates: Boolean indicating if duplicates were found
+        - duplicate_info: DataFrame containing the duplicate IDs and their counts
+    """
+    # Count occurrences of each edge_id
+    id_counts = edges_gdf[id_column].value_counts()
+
+    # Filter to only those with count > 1 (duplicates)
+    duplicates = id_counts[id_counts > 1]
+
+    if len(duplicates) > 0:
+        # Create a DataFrame with duplicate IDs and their counts
+        duplicate_info = duplicates.reset_index()
+        duplicate_info.columns = ['edge_id', 'count']
+
+        # Get examples of each duplicate
+        examples = []
+        for dup_id in duplicate_info['edge_id']:
+            # Get the first few examples of this duplicate ID
+            example_edges = edges_gdf[edges_gdf[id_column] == dup_id].head(3)
+            examples.append(example_edges)
+
+        if examples:
+            # Concatenate all example edges into one DataFrame
+            examples_df = pd.concat(examples)
+            duplicate_info = (duplicate_info, examples_df)
+
+        print(f"Found {len(duplicates)} duplicate edge IDs out of {len(edges_gdf)} total edges")
+        return True, duplicate_info
+    else:
+        print(f"No duplicate edge IDs found in {len(edges_gdf)} edges")
+        return False, None
 
 
 def main(file_path=None):
