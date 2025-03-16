@@ -5,6 +5,7 @@
 Script to map ISRM grid polygons to OSM edge geometries.
 The result splits each OSM edge by ISRM polygon and calculates the proportion
 of the edge length in each polygon, starting from the ISRM grid.
+All operations are performed in UTM projection and results are converted back to WGS84.
 """
 
 import logging
@@ -32,6 +33,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Define WGS84 EPSG code
+WGS84_EPSG = 4326
+
 
 def parse_other_tags(other_tags):
     """Parse the 'other_tags' column from OSM PBF file to extract key-value pairs."""
@@ -58,11 +62,13 @@ def extract_edge_length(tags_dict):
 def process_isrm_network_intersection(isrm_grid_path, osm_geojson_path, osm_gpkg_path, epsg_utm, output_path):
     """
     Process the intersection of ISRM grid polygons with OSM edge geometries.
+    All operations are performed in UTM projection and results are converted back to WGS84.
 
     Args:
         isrm_grid_path (str): Path to ISRM grid shapefile with isrm column
         osm_geojson_path (str): Path to OSM GEOJSON file with osm_id and other_tags
         osm_gpkg_path (str): Path to OSM GPKG network with edge_id and geometry
+        epsg_utm (int): EPSG code for UTM projection to use for geometric operations
         output_path (str): Path to output file
 
     Returns:
@@ -89,10 +95,6 @@ def process_isrm_network_intersection(isrm_grid_path, osm_geojson_path, osm_gpkg
     except Exception as e:
         logger.error(f"Failed to load OSM GPKG: {e}")
         sys.exit(1)
-
-    # Ensure ISRM grid has the same CRS as GPKG network
-    if isrm_gdf.crs != gpkg_gdf.crs:
-        isrm_gdf = isrm_gdf.to_crs(gpkg_gdf.crs)
 
     # 3. Load OSM GeoJSON
     logger.info(f"Loading OSM GEOJSON from {osm_geojson_path}")
@@ -128,6 +130,11 @@ def process_isrm_network_intersection(isrm_grid_path, osm_geojson_path, osm_gpkg
     # Convert to GeoDataFrame
     edge_geom_gdf = gpd.GeoDataFrame(edge_geom_map, geometry='geometry', crs=gpkg_gdf.crs)
     logger.info(f"Successfully mapped {len(edge_geom_gdf)} edges to OSM geometries")
+
+    # Project all geometries to UTM for accurate calculations
+    logger.info(f"Projecting geometries to UTM EPSG:{epsg_utm}")
+    edge_geom_gdf = edge_geom_gdf.to_crs(epsg=epsg_utm)
+    isrm_gdf = isrm_gdf.to_crs(epsg=epsg_utm)
 
     # Create a spatial index for OSM geometries to speed up intersection queries
     edge_geom_sindex = edge_geom_gdf.sindex
@@ -205,7 +212,11 @@ def process_isrm_network_intersection(isrm_grid_path, osm_geojson_path, osm_gpkg
         logger.error("No intersections found")
         sys.exit(1)
 
-    result_gdf = gpd.GeoDataFrame(intersection_results, geometry='geometry', crs=gpkg_gdf.crs)
+    result_gdf = gpd.GeoDataFrame(intersection_results, geometry='geometry', crs=epsg_utm)
+
+    # Convert results back to WGS84 for output
+    logger.info(f"Converting results back to WGS84 (EPSG:{WGS84_EPSG})")
+    result_gdf = result_gdf.to_crs(epsg=WGS84_EPSG)
 
     # Save results
     logger.info(f"Saving results to {output_path}")
