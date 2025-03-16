@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 """
-Script to map ISRM grid polygons to network links via OSM geometries.
-The result splits each link by ISRM polygon and calculates the proportion
-of the link length in each polygon, starting from the ISRM grid.
+Script to map ISRM grid polygons to OSM edge geometries.
+The result splits each OSM edge by ISRM polygon and calculates the proportion
+of the edge length in each polygon, starting from the ISRM grid.
 """
 
 import logging
@@ -15,6 +15,19 @@ import sys
 import geopandas as gpd
 import pandas as pd
 from tqdm import tqdm
+
+# Get the absolute path to the directory containing this script
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Go up to the parent directory that contains the 'python' directory
+# If your file is in /path/to/python/freight/frism_to_beam_freight_plans.py
+# This will add /path/to to sys.path
+parent_dir = os.path.dirname(os.path.dirname(current_dir))
+sys.path.insert(0, parent_dir)
+
+# Now use absolute import
+from python.utils.study_area_config import get_area_config
+from python.utils.study_area_config import generate_config_name
 
 # Set up logging
 logging.basicConfig(
@@ -35,13 +48,23 @@ def parse_other_tags(other_tags):
     return {key: value for key, value in matches}
 
 
-def process_isrm_network_intersection(isrm_grid_path, network_csv_path, osm_pbf_path, osm_gpkg_path, output_path):
+def extract_edge_length(tags_dict):
+    """Extract the edge length from the tags dictionary."""
+    length_str = tags_dict.get('length', None)
+    if length_str is None:
+        return None
+    try:
+        return float(length_str)
+    except (ValueError, TypeError):
+        return None
+
+
+def process_isrm_network_intersection(isrm_grid_path, osm_pbf_path, osm_gpkg_path, output_path):
     """
-    Process the intersection of ISRM grid polygons with network links.
+    Process the intersection of ISRM grid polygons with OSM edge geometries.
 
     Args:
         isrm_grid_path (str): Path to ISRM grid shapefile with isrm column
-        network_csv_path (str): Path to network CSV file with attributeOrigId, linkId, linkLength
         osm_pbf_path (str): Path to OSM PBF file with osm_id and other_tags
         osm_gpkg_path (str): Path to OSM GPKG network with egde_id and geometry
         output_path (str): Path to output file
@@ -76,7 +99,6 @@ def process_isrm_network_intersection(isrm_grid_path, network_csv_path, osm_pbf_
         logger.info(f"Reprojecting ISRM grid to match OSM GPKG CRS: {gpkg_gdf.crs}")
         isrm_gdf = isrm_gdf.to_crs(gpkg_gdf.crs)
 
-
     # 3. Load OSM PBF file for mapping
     logger.info(f"Loading OSM PBF from {osm_pbf_path}")
     try:
@@ -91,135 +113,102 @@ def process_isrm_network_intersection(isrm_grid_path, network_csv_path, osm_pbf_
     # Convert osm_id to int and parse other_tags
     osm_gdf['osm_id'] = osm_gdf['osm_id'].astype(int)
 
-    # Parse other_tags to extract edge_id
-    logger.info("Parsing other_tags column to extract edge_id")
+    # Parse other_tags to extract edge_id and length
+    logger.info("Parsing other_tags column to extract edge_id and length")
     osm_gdf['parsed_tags'] = osm_gdf['other_tags'].apply(parse_other_tags)
-    osm_gdf['edge_id'] = osm_gdf['parsed_tags'].apply(lambda x: x.get('egde_id', None))
+    osm_gdf['edge_id'] = osm_gdf['parsed_tags'].apply(lambda x: x.get('edge_id', None))
 
-    # 4. Find all OSM geometries that intersect with each ISRM polygon
-    logger.info("Finding OSM geometries that intersect with ISRM polygons")
+    # Extract length from parsed_tags
+    osm_gdf['edge_length'] = osm_gdf['parsed_tags'].apply(extract_edge_length)
 
-    # Create a spatial index for OSM geometries to speed up intersection queries
-    gpkg_sindex = gpkg_gdf.sindex
+    # Filter out edges without length information
+    valid_osm_gdf = osm_gdf.dropna(subset=['edge_length'])
+    logger.info(f"Found {len(valid_osm_gdf)} edges with valid length information out of {len(osm_gdf)} total")
 
-    # Then connect to geometries
-    osm_network_map = pd.merge(
-        osm_gdf[['osm_id', 'edge_id']],
+    # Connect OSM data to geometries
+    edge_geom_map = pd.merge(
+        valid_osm_gdf[['osm_id', 'edge_id', 'edge_length']],
         gpkg_gdf[['egde_id', 'geometry']],
         left_on='edge_id',
         right_on='egde_id',
         how='inner'
     )
 
-
-
-
-
-
-
-
-    # 4. Load network CSV last
-    logger.info(f"Loading network CSV from {network_csv_path}")
-    try:
-        network_df = pd.read_csv(network_csv_path)
-        required_cols = ['attributeOrigId', 'linkId', 'linkLength']
-        if not all(col in network_df.columns for col in required_cols):
-            missing = [col for col in required_cols if col not in network_df.columns]
-            logger.error(f"Missing required columns in network CSV: {missing}")
-            sys.exit(1)
-    except Exception as e:
-        logger.error(f"Failed to load network CSV: {e}")
-        sys.exit(1)
-
-    # Convert attributeOrigId to int for matching
-    network_df['attributeOrigId'] = network_df['attributeOrigId'].astype(int)
-
-
-    # Prepare the OSM to network mapping
-    # First connect OSM and network data
-    osm_network_map = pd.merge(
-        osm_gdf[['osm_id', 'edge_id']],
-        network_df[['attributeOrigId', 'linkId', 'linkLength']],
-        left_on='osm_id',
-        right_on='attributeOrigId',
-        how='inner'
-    )
-
     # Convert to GeoDataFrame
-    osm_network_gdf = gpd.GeoDataFrame(osm_network_map, geometry='geometry', crs=gpkg_gdf.crs)
+    edge_geom_gdf = gpd.GeoDataFrame(edge_geom_map, geometry='geometry', crs=gpkg_gdf.crs)
+    logger.info(f"Successfully mapped {len(edge_geom_gdf)} edges to OSM geometries")
+
+    # Create a spatial index for OSM geometries to speed up intersection queries
+    edge_geom_sindex = edge_geom_gdf.sindex
 
     # Process ISRM polygons and find intersections
     intersection_results = []
 
-    logger.info("Finding intersections between ISRM polygons and network links")
+    logger.info("Finding intersections between ISRM polygons and OSM edges")
     for idx, isrm_row in tqdm(isrm_gdf.iterrows(), total=len(isrm_gdf), desc="Processing ISRM polygons"):
         isrm_id = isrm_row['isrm']
         isrm_geom = isrm_row.geometry
 
-        # Find potential link geometries that intersect this ISRM polygon
+        # Find potential edge geometries that intersect this ISRM polygon
         # Use spatial index for faster query
-        possible_matches_idx = list(gpkg_sindex.intersection(isrm_geom.bounds))
-        possible_matches = gpkg_gdf.iloc[possible_matches_idx]
-
-        # Further filter to only those that actually intersect
-        intersecting_links = possible_matches[possible_matches.geometry.intersects(isrm_geom)]
-
-        if len(intersecting_links) == 0:
-            logger.warning(f"No network links found for ISRM ID: {isrm_id}")
+        possible_matches_idx = list(edge_geom_sindex.intersection(isrm_geom.bounds))
+        if not possible_matches_idx:
+            # logger.warning(f"No edges found for ISRM ID: {isrm_id}")
             continue
 
-        # For each intersecting link, get details from network data
-        for link_idx, link_row in intersecting_links.iterrows():
-            egde_id = link_row['egde_id']
+        possible_matches = edge_geom_gdf.iloc[possible_matches_idx]
 
-            # Find matching network links through OSM mapping
-            matching_links = osm_network_gdf[osm_network_gdf['egde_id'] == egde_id]
+        # Further filter to only those that actually intersect
+        intersecting_edges = possible_matches[possible_matches.geometry.intersects(isrm_geom)]
 
-            if len(matching_links) == 0:
+        if len(intersecting_edges) == 0:
+            logger.warning(f"No intersecting edges found for ISRM ID: {isrm_id}")
+            continue
+
+        # For each intersecting edge, calculate intersection
+        for edge_idx, edge_row in intersecting_edges.iterrows():
+            osm_id = edge_row['osm_id']
+            edge_geom = edge_row.geometry
+            original_length = edge_row['edge_length']
+
+            # Get the actual edge length from geometry for proportion calculation
+            edge_geom_length = edge_geom.length
+
+            # Get the actual intersection geometry
+            intersection_geom = edge_geom.intersection(isrm_geom)
+
+            # Skip empty geometries
+            if intersection_geom.is_empty:
                 continue
 
-            for _, network_link in matching_links.iterrows():
-                link_id = network_link['linkId']
-                link_geom = network_link.geometry
-                original_length = network_link['linkLength']
+            # Calculate the proportion of the edge length in this ISRM polygon
+            intersection_length = intersection_geom.length
+            proportion = intersection_length / edge_geom_length if edge_geom_length > 0 else 0
+            proportional_length = original_length * proportion
 
-                # Get the actual link length from geometry for proportion calculation
-                link_geom_length = link_geom.length
+            # Create a record for this intersection
+            result = {
+                'isrm_id': isrm_id,
+                'osm_id': osm_id,
+                'edge_id': edge_row['edge_id'],
+                'original_edge_length': original_length,
+                'proportion': proportion,
+                'proportional_length': proportional_length,
+                'isrm_osm_id': f"{isrm_id}-{osm_id}",
+                'geometry': intersection_geom
+            }
 
-                # Get the actual intersection geometry
-                intersection_geom = link_geom.intersection(isrm_geom)
+            # Copy all attributes from edge
+            for key, value in edge_row.items():
+                if key not in ['geometry', 'osm_id', 'edge_length', 'edge_id'] and key not in result:
+                    result[f'edge_{key}'] = value
 
-                # Skip empty geometries
-                if intersection_geom.is_empty:
-                    continue
+            # Copy all attributes from ISRM polygon
+            for key, value in isrm_row.items():
+                if key not in ['geometry', 'isrm'] and key not in result:
+                    result[f'isrm_{key}'] = value
 
-                # Calculate the proportion of the link length in this ISRM polygon
-                intersection_length = intersection_geom.length
-                proportion = intersection_length / link_geom_length if link_geom_length > 0 else 0
-                proportional_length = original_length * proportion
-
-                # Create a record for this intersection
-                result = {
-                    'isrm_id': isrm_id,
-                    'link_id': link_id,
-                    'original_link_length': original_length,
-                    'proportion': proportion,
-                    'proportional_length': proportional_length,
-                    'isrm_link_id': f"{isrm_id}-{link_id}",
-                    'geometry': intersection_geom
-                }
-
-                # Copy all attributes from network link
-                for key, value in network_link.items():
-                    if key not in ['geometry', 'linkId', 'linkLength'] and key not in result:
-                        result[f'link_{key}'] = value
-
-                # Copy all attributes from ISRM polygon
-                for key, value in isrm_row.items():
-                    if key not in ['geometry', 'isrm'] and key not in result:
-                        result[f'isrm_{key}'] = value
-
-                intersection_results.append(result)
+            intersection_results.append(result)
 
     logger.info(f"Intersection produced {len(intersection_results)} results")
 
@@ -259,17 +248,23 @@ def process_isrm_network_intersection(isrm_grid_path, network_csv_path, osm_pbf_
 
 def main():
     """Main execution function with hardcoded paths."""
+
+    area = "seattle"  # sfbay - seattle
+    study_area_config = get_area_config(area)
+    study_area_config["graph_layers"]["residential"]["min_density_per_km2"] = 412  # 2855 - 412
+
+    #
+    work_dir = study_area_config["work_dir"]
+
     # Hardcoded paths
-    isrm_grid_path = "data/isrm_grid.shp"
-    network_csv_path = "data/network.csv"
-    osm_pbf_path = "data/osm_roads.pbf"
-    osm_gpkg_path = "data/osm_network.gpkg"
-    output_path = "results/isrm_network_intersection.gpkg"
+    isrm_grid_path = os.path.expanduser(f"{work_dir}/inmap/ISRM/isrm_polygon.shp")
+    osm_pbf_path = os.path.expanduser(f"{work_dir}/network/seattle-area-cbg412-ferry-network/seattle-area-cbg412-ferry-network.osm.pbf")
+    osm_gpkg_path = os.path.expanduser(f"{work_dir}/network/seattle-area-cbg412-ferry-network/seattle-area-cbg412-ferry-network.gpkg")
+    output_path = os.path.expanduser(f"{work_dir}/inmap/isrm_network_intersection.geojson")
 
     # Process the intersection
     process_isrm_network_intersection(
         isrm_grid_path=isrm_grid_path,
-        network_csv_path=network_csv_path,
         osm_pbf_path=osm_pbf_path,
         osm_gpkg_path=osm_gpkg_path,
         output_path=output_path
