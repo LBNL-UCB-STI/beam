@@ -25,7 +25,7 @@ sys.path.insert(0, parent_dir)
 
 # Now use absolute import
 from python.utils.study_area_config import get_area_config
-from python.utils.study_area_config import generate_config_name
+from python.utils.study_area_config import generate_network_name
 
 area = "sfbay" # sfbay - seattle
 study_area_config = get_area_config(area)
@@ -35,7 +35,7 @@ study_area_config["graph_layers"]["residential"]["min_density_per_km2"] = 2855  
 ############ Main ###########
 #############################
 
-config_name = generate_config_name(study_area_config)
+config_name = generate_network_name(study_area_config)
 network_dir = f'{study_area_config["work_dir"]}/network/{config_name}'
 
 # Create the directory if it doesn't exist
@@ -46,6 +46,7 @@ pkl_network = f'{network_dir}/{config_name}.pkl'
 gpkg_network = f'{network_dir}/{config_name}.gpkg'
 osm_network = f'{network_dir}/{config_name}.osm'
 pbf_network = f'{network_dir}/{config_name}.osm.pbf'
+geojson_network = f'{network_dir}/{config_name}.osm.geojson'
 
 print(f'Downloading and preparing OSM-based {config_name} network...')
 g_network = download_and_prepare_osm_network(study_area_config)
@@ -150,7 +151,11 @@ print(f"OSM Network saved to '{osm_network}'.")
 cmd = f"osmium cat {osm_network} -o {pbf_network} --overwrite --output-format pbf,compression=zlib"
 subprocess.run(cmd, shell=True)
 # osmium fileinfo -e {pbf_path}
-print(f"PBF File saved to '{pbf_network}'")
+print(f"OSM PBF File saved to '{pbf_network}'")
+
+cmd2 = f"ogr2ogr -f GeoJSON {geojson_network} {pbf_network} lines"
+subprocess.run(cmd2, shell=True)
+print(f"OSM GEOJSON File saved to '{geojson_network}'")
 
 # Check file info using osmium
 print("Checking PBF file info...")
@@ -159,5 +164,5 @@ result = subprocess.run(fileinfo_cmd, shell=True, check=True, capture_output=Tru
 print("File information:")
 print(result.stdout)
 
-
+#
 scan_network_directories_for_ways(os.path.expanduser(f'{study_area_config["work_dir"]}/network'))

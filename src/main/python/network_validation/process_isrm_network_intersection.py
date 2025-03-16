@@ -27,7 +27,9 @@ sys.path.insert(0, parent_dir)
 
 # Now use absolute import
 from python.utils.study_area_config import get_area_config
-from python.utils.study_area_config import generate_config_name
+from python.utils.study_area_config import generate_network_name
+from python.utils.study_area_config import create_osm_highway_filter
+from python.utils.study_area_config import osm_highways
 
 # Set up logging
 logging.basicConfig(
@@ -35,7 +37,6 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
 
 def parse_other_tags(other_tags):
     """Parse the 'other_tags' column from OSM PBF file to extract key-value pairs."""
@@ -59,14 +60,14 @@ def extract_edge_length(tags_dict):
         return None
 
 
-def process_isrm_network_intersection(isrm_grid_path, osm_pbf_path, osm_gpkg_path, output_path):
+def process_isrm_network_intersection(isrm_grid_path, osm_geojson_path, osm_gpkg_path, output_path):
     """
     Process the intersection of ISRM grid polygons with OSM edge geometries.
 
     Args:
         isrm_grid_path (str): Path to ISRM grid shapefile with isrm column
-        osm_pbf_path (str): Path to OSM PBF file with osm_id and other_tags
-        osm_gpkg_path (str): Path to OSM GPKG network with egde_id and geometry
+        osm_geojson_path (str): Path to OSM GEOJSON file with osm_id and other_tags
+        osm_gpkg_path (str): Path to OSM GPKG network with edge_id and geometry
         output_path (str): Path to output file
 
     Returns:
@@ -86,9 +87,9 @@ def process_isrm_network_intersection(isrm_grid_path, osm_pbf_path, osm_gpkg_pat
     # 2. Load OSM GPKG network for geometries
     logger.info(f"Loading OSM GPKG network from {osm_gpkg_path}")
     try:
-        gpkg_gdf = gpd.read_file(osm_gpkg_path)
-        if 'egde_id' not in gpkg_gdf.columns:
-            logger.error("OSM GPKG file is missing 'egde_id' column")
+        gpkg_gdf = gpd.read_file(osm_gpkg_path, layer='edges')
+        if 'edge_id' not in gpkg_gdf.columns:
+            logger.error("OSM GPKG file is missing 'edge_id' column")
             sys.exit(1)
     except Exception as e:
         logger.error(f"Failed to load OSM GPKG: {e}")
@@ -100,9 +101,9 @@ def process_isrm_network_intersection(isrm_grid_path, osm_pbf_path, osm_gpkg_pat
         isrm_gdf = isrm_gdf.to_crs(gpkg_gdf.crs)
 
     # 3. Load OSM PBF file for mapping
-    logger.info(f"Loading OSM PBF from {osm_pbf_path}")
+    logger.info(f"Loading OSM GEOJSON from {osm_geojson_path}")
     try:
-        osm_gdf = gpd.read_file(osm_pbf_path)
+        osm_gdf = gpd.read_file(osm_geojson_path)
         if 'osm_id' not in osm_gdf.columns or 'other_tags' not in osm_gdf.columns:
             logger.error("OSM PBF file is missing 'osm_id' or 'other_tags' columns")
             sys.exit(1)
@@ -112,14 +113,15 @@ def process_isrm_network_intersection(isrm_grid_path, osm_pbf_path, osm_gpkg_pat
 
     # Convert osm_id to int and parse other_tags
     osm_gdf['osm_id'] = osm_gdf['osm_id'].astype(int)
+    pd.set_option('display.max_columns', None)
 
     # Parse other_tags to extract edge_id and length
-    logger.info("Parsing other_tags column to extract edge_id and length")
+    logger.info("Parsing tags column to extract edge_id and length")
     osm_gdf['parsed_tags'] = osm_gdf['other_tags'].apply(parse_other_tags)
     osm_gdf['edge_id'] = osm_gdf['parsed_tags'].apply(lambda x: x.get('edge_id', None))
-
-    # Extract length from parsed_tags
     osm_gdf['edge_length'] = osm_gdf['parsed_tags'].apply(extract_edge_length)
+
+    logger.info(osm_gdf.head(5))
 
     # Filter out edges without length information
     valid_osm_gdf = osm_gdf.dropna(subset=['edge_length'])
@@ -128,9 +130,9 @@ def process_isrm_network_intersection(isrm_grid_path, osm_pbf_path, osm_gpkg_pat
     # Connect OSM data to geometries
     edge_geom_map = pd.merge(
         valid_osm_gdf[['osm_id', 'edge_id', 'edge_length']],
-        gpkg_gdf[['egde_id', 'geometry']],
+        gpkg_gdf[['edge_id', 'geometry']],
         left_on='edge_id',
-        right_on='egde_id',
+        right_on='edge_id',
         how='inner'
     )
 
@@ -183,7 +185,7 @@ def process_isrm_network_intersection(isrm_grid_path, osm_pbf_path, osm_gpkg_pat
 
             # Calculate the proportion of the edge length in this ISRM polygon
             intersection_length = intersection_geom.length
-            proportion = intersection_length / edge_geom_length if edge_geom_length > 0 else 0
+            proportion = round(intersection_length / edge_geom_length, 2) if edge_geom_length > 0 else 0
             proportional_length = original_length * proportion
 
             # Create a record for this intersection
@@ -254,18 +256,20 @@ def main():
     study_area_config["graph_layers"]["residential"]["min_density_per_km2"] = 412  # 2855 - 412
 
     #
+    network_name = generate_network_name(study_area_config)
     work_dir = study_area_config["work_dir"]
+    network_dir = f'{work_dir}/network/{network_name}'
 
     # Hardcoded paths
     isrm_grid_path = os.path.expanduser(f"{work_dir}/inmap/ISRM/isrm_polygon.shp")
-    osm_pbf_path = os.path.expanduser(f"{work_dir}/network/seattle-area-cbg412-ferry-network/seattle-area-cbg412-ferry-network.osm.pbf")
-    osm_gpkg_path = os.path.expanduser(f"{work_dir}/network/seattle-area-cbg412-ferry-network/seattle-area-cbg412-ferry-network.gpkg")
-    output_path = os.path.expanduser(f"{work_dir}/inmap/isrm_network_intersection.geojson")
+    osm_geojson_path = os.path.expanduser(f"{network_dir}/{network_name}.osm.geojson")
+    osm_gpkg_path = os.path.expanduser(f"{network_dir}/{network_name}.gpkg")
+    output_path = os.path.expanduser(f"{work_dir}/inmap/isrm-{network_name}.geojson")
 
     # Process the intersection
     process_isrm_network_intersection(
         isrm_grid_path=isrm_grid_path,
-        osm_pbf_path=osm_pbf_path,
+        osm_geojson_path=osm_geojson_path,
         osm_gpkg_path=osm_gpkg_path,
         output_path=output_path
     )

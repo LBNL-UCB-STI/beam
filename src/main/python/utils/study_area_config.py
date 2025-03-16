@@ -10,7 +10,7 @@ from osmnx import settings
 ########## Methods ##########
 #############################
 
-def generate_config_name(config: dict) -> str:
+def generate_network_name(config: dict) -> str:
     """
     Generate a configuration name based on study area, graph layers, and tolerance.
     Format: [study_area]-[main_geo_level]-[residential_geo_level][density]-t[tolerance][-ferry]-network
