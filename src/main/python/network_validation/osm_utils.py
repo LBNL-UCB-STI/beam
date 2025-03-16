@@ -1216,7 +1216,7 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
     print("edges.columns.tolist()")
     print(edges.columns.tolist())
     edges['edge_id'] = edges.apply(
-        lambda row: create_unique_edge_id(row['u'], row['v'], row['osmid'], row.get('key', None)),
+        lambda row: create_unique_edge_id(row['u_original'], row['v_original'], row['osmid'], row.get('key', None)),
         axis=1
     )
     g_hashed = ox.graph_from_gdfs(nodes, edges)
@@ -1250,7 +1250,7 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
             print(f"[DIAGNOSTIC] Edge geometries appear to be properly in WGS84 range.")
 
     print("Finding largest connected component...")
-    g_connected = ox.truncate.largest_component(g_wgs84.copy())
+    g_connected = ox.truncate.largest_component(g_wgs84)
     print(f"✓ Final network has {g_connected.number_of_nodes()} nodes and {g_connected.number_of_edges()} edges")
 
     # FINAL DIAGNOSTIC: Check final graph

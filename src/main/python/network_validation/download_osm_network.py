@@ -27,9 +27,9 @@ sys.path.insert(0, parent_dir)
 from python.utils.study_area_config import get_area_config
 from python.utils.study_area_config import generate_config_name
 
-area = "seattle" # sfbay - seattle
+area = "sfbay" # sfbay - seattle
 study_area_config = get_area_config(area)
-study_area_config["graph_layers"]["residential"]["min_density_per_km2"] = 412  # 2855 - 412
+study_area_config["graph_layers"]["residential"]["min_density_per_km2"] = 2855  # 2855 - 412
 
 #############################
 ############ Main ###########
@@ -60,7 +60,7 @@ if has_duplicates:
 
     print("\nExample edges with duplicate IDs:")
     # Display relevant columns for the first few duplicate edges
-    display_cols = ['edge_id', 'u', 'v', 'osmid', 'highway']
+    display_cols = ['edge_id', 'u_original', 'v_original', 'osmid', 'highway']
     print(dup_examples[display_cols].head(10))
 
 # Save GraphML
@@ -139,7 +139,7 @@ save_graph_xml(
     filepath=osm_network,
     edge_tags=[
         'highway', 'lanes', 'maxspeed', 'name', 'oneway', 'length',
-        'tunnel', 'bridge', 'junction', 'osm_id', 'access'
+        'tunnel', 'bridge', 'junction', 'edge_id', 'access', 'osm_id'
     ],
     edge_tag_aggs=[('length', 'sum')]
 )
