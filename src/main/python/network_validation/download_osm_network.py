@@ -31,7 +31,7 @@ def main():
     """Main execution function."""
     area = "sfbay"  # Options: sfbay, seattle
     study_area_config = get_area_config(area)
-    study_area_config["graph_layers"]["residential"]["min_density_per_km2"] = 2855  # 2855 for sfbay, 412 for seattle
+    study_area_config["graph_layers"]["residential"]["min_density_per_km2"] = 5000  # 2855 for sfbay, 412 for seattle
 
     # Generate configuration name and prepare directory
     config_name = generate_network_name(study_area_config)

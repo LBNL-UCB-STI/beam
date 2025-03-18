@@ -1191,15 +1191,6 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
     g_connected = ox.truncate.largest_component(g_wgs84)
     print(f"✓ Final network has {g_connected.number_of_nodes()} nodes and {g_connected.number_of_edges()} edges")
 
-    # Verify WGS84 projection
-    nodes_final, edges_final = ox.graph_to_gdfs(g_connected)
-    if not edges_final.empty:
-        sample_coords = list(edges_final.iloc[0].geometry.coords)[0]
-        if abs(sample_coords[0]) > 180 or abs(sample_coords[1]) > 90:
-            print("WARNING: Edge geometries appear to have projection issues.")
-        else:
-            print("✓ Edge geometries verified in WGS84 range")
-
     print("=== Network Download and Preparation Complete ===")
     return g_connected
 
