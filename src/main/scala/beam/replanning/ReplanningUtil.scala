@@ -21,9 +21,10 @@ object ReplanningUtil extends LazyLogging {
       // keep track of the vehicles that been used during previous simulation
       for (i <- 0 until (experiencedPlan.getPlanElements.size() - 1)) {
         if (i >= person.getSelectedPlan.getPlanElements.size() || i >= experiencedPlan.getPlanElements.size()) {
-            logger.error(s"Skipping index $i: experiencedPlan has more elements (${experiencedPlan.getPlanElements.size()}) than selectedPlan (${person.getSelectedPlan.getPlanElements.size()}) for person ${person.getId}")
-            // Skip this iteration instead of exiting the function
-            // Use "return" only if you want to stop processing the entire function
+          logger.error(s"Skipping index $i: experiencedPlan has more elements (${experiencedPlan.getPlanElements
+            .size()}) than selectedPlan (${person.getSelectedPlan.getPlanElements.size()}) for person ${person.getId}")
+          // Skip this iteration instead of exiting the function
+          // Use "return" only if you want to stop processing the entire function
         } else {
           experiencedPlan.getPlanElements.get(i) match {
             case leg: Leg =>
