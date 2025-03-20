@@ -5,7 +5,6 @@ import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles.{VehicleCategory, VehicleManager}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
-import beam.agentsim.infrastructure.power.SitePowerManager
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
@@ -487,8 +486,6 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       val newCostInDollarsString = (feeInCents * parkingCostScalingFactor / 100.0).toString
       val reservedFor = validateReservedFor(reservedForString, beamConfig, defaultReservedFor)
       // parse this row from the source file
-
-//      val taz = tazString.toUpperCase.createId[TAZ]
       val parkingType = ParkingType(parkingTypeString)
       val pricingModel = PricingModel(pricingModelString, newCostInDollarsString)
       val timeRestrictions = parseTimeRestrictions(timeRestrictionsString)
@@ -498,10 +495,13 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
         if (isBlank(parkingZoneIdString)) Some(ParkingZone.createId(rowNumber.toString))
         else Some(ParkingZone.createId(parkingZoneIdString))
 
-      val coordMaybe: Option[Coord] = (Option(locationXString), Option(locationYString)) match {
-        case (Some(xLoc), Some(yLoc)) => Some(new Coord(xLoc.toDouble, yLoc.toDouble))
-        case _                        => None
-      }
+      val coordMaybe: Option[Coord] = for {
+        xLoc <- Option(locationXString).filterNot(isBlank)
+        yLoc <- Option(locationYString).filterNot(isBlank)
+        x    <- Try(xLoc.toDouble).toOption
+        y    <- Try(yLoc.toDouble).toOption
+      } yield new Coord(x, y)
+
       val linkMaybe = coordMaybe match {
         case Some(coord) if beamServices.isDefined =>
           Some(NetworkUtils.getNearestLink(beamServices.get.beamScenario.network, beamServices.get.geo.wgs2Utm(coord)))
@@ -514,19 +514,39 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
           }
         case _ => None
       }
+
       val geoMap = beamServices.map(_.beamScenario.tazTreeMap)
-      val taz = (Option(tazString), geoMap) match {
-        case (Some(tazId), _) => tazId.toUpperCase.createId[TAZ]
+
+      val tazMaybe: Option[Id[TAZ]] = (Option(tazString), geoMap) match {
+        case (Some(tazId), _) =>
+          Some(tazId.toUpperCase.createId[TAZ])
         case (None, Some(tazTreeMap)) =>
-          linkMaybe
-            .flatMap(link => tazTreeMap.getTAZfromLink(link.getId).map(_.tazId))
-            .getOrElse(
-              coordMaybe
-                .map(coord => tazTreeMap.getTAZ(beamServices.get.geo.wgs2Utm(coord)).tazId)
-                .getOrElse(throw new IllegalArgumentException("Invalid Coord for parking zone"))
-            )
-        case _ =>
-          throw new IllegalArgumentException("If parking zone defined by link or coord, we must include a tazTreeMap")
+          // Try to get TAZ from link
+          val tazFromLink = for {
+            link <- linkMaybe
+            taz  <- tazTreeMap.getTAZfromLink(link.getId)
+          } yield taz.tazId
+
+          // If that fails, try getting TAZ from coordinates
+          tazFromLink.orElse {
+            for {
+              bs    <- beamServices
+              coord <- coordMaybe
+              utmCoord = bs.geo.wgs2Utm(coord)
+              taz = tazTreeMap.getTAZ(utmCoord)
+            } yield taz.tazId
+          }
+        case _ => None
+      }
+
+      // Handle the taz result separately, with meaningful error messages if needed
+      val taz = tazMaybe.getOrElse {
+        if (geoMap.isEmpty)
+          throw new IllegalArgumentException("Missing tazTreeMap: cannot determine TAZ for parking zone")
+        else if (linkMaybe.isEmpty && coordMaybe.isEmpty)
+          throw new IllegalArgumentException("Missing location data: cannot determine TAZ for parking zone")
+        else
+          throw new IllegalArgumentException("Failed to determine TAZ for parking zone")
       }
 
       val sitePowerManagerMaybe = if (isBlank(sitePowerManagerString)) None else Some(sitePowerManagerString)
@@ -588,14 +608,34 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
   }
 
   private def validateCsvRow(csvRow: jMap): Boolean = {
+    // Check required fields are present and non-empty
     val allRequiredPresented = Seq("parkingType", "pricingModel", "chargingPointType", "numStalls", "feeInCents")
       .forall(key => {
         val value = csvRow.get(key)
         value != null && value.nonEmpty
       })
-    allRequiredPresented &&
-    Try(csvRow.get("numStalls").toDouble).toOption.exists(_ >= 0) &&
-    Try(csvRow.get("feeInCents").toDouble).toOption.exists(_ >= 0)
+
+    // Check that either TAZ or both location coordinates are provided
+    val hasTaz = Option(csvRow.get("taz")).exists(_.nonEmpty)
+    val hasLocationX = Option(csvRow.get("locationX")).exists(_.nonEmpty)
+    val hasLocationY = Option(csvRow.get("locationY")).exists(_.nonEmpty)
+    val hasCoordinates = hasLocationX && hasLocationY
+
+    // Validate that at least one location identifier is present
+    val hasLocationIdentifier = hasTaz || hasCoordinates
+
+    // Validate numeric fields
+    val validNumericFields =
+      Try(csvRow.get("numStalls").toDouble).toOption.exists(_ >= 0) &&
+      Try(csvRow.get("feeInCents").toDouble).toOption.exists(_ >= 0)
+
+    // Coordinates must be valid numbers if provided
+    val validCoordinates = (!hasLocationX && !hasLocationY) ||
+      (hasCoordinates &&
+      Try(csvRow.get("locationX").toDouble).isSuccess &&
+      Try(csvRow.get("locationY").toDouble).isSuccess)
+
+    allRequiredPresented && hasLocationIdentifier && validNumericFields && validCoordinates
   }
 
   /**
