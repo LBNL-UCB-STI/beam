@@ -27,20 +27,18 @@ fsystem_to_roadclass_lookup = {1.0: 'Interstate',
                                7.0: 'Local'}
 roadclass_to_fsystem_lookup = {value: key for key, value in fsystem_to_roadclass_lookup.items()}
 beam_to_roadclass_lookup = {'motorway': fsystem_to_roadclass_lookup[1.0],
-                            'motorway_link': fsystem_to_roadclass_lookup[2.0],
+                            'motorway_link': fsystem_to_roadclass_lookup[2.0],  # Links connect to lower classes
                             'trunk': fsystem_to_roadclass_lookup[2.0],
-                            'trunk_link': fsystem_to_roadclass_lookup[2.0],
+                            'trunk_link': fsystem_to_roadclass_lookup[3.0],     # One class down
                             'primary': fsystem_to_roadclass_lookup[3.0],
-                            'primary_link': fsystem_to_roadclass_lookup[4.0],
+                            'primary_link': fsystem_to_roadclass_lookup[4.0],   # One class down
                             'secondary': fsystem_to_roadclass_lookup[4.0],
-                            'secondary_link': fsystem_to_roadclass_lookup[5.0],
+                            'secondary_link': fsystem_to_roadclass_lookup[5.0], # One class down
                             'tertiary': fsystem_to_roadclass_lookup[5.0],
-                            'tertiary_link': fsystem_to_roadclass_lookup[6.0],
+                            'tertiary_link': fsystem_to_roadclass_lookup[6.0],  # One class down
                             'unclassified': fsystem_to_roadclass_lookup[6.0],
-                            'residential': fsystem_to_roadclass_lookup[7.0],
-                            'living_street': fsystem_to_roadclass_lookup[7.0],
-                            'road': fsystem_to_roadclass_lookup[7.0],
-                            np.nan: fsystem_to_roadclass_lookup[7.0]}
+                            'residential': fsystem_to_roadclass_lookup[7.0]
+                           }
 state_fips_to_code = {
     '01': 'AL', '02': 'AK', '04': 'AZ', '05': 'AR', '06': 'CA',
     '08': 'CO', '09': 'CT', '10': 'DE', '11': 'DC', '12': 'FL',
