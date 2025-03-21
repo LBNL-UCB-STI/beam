@@ -448,7 +448,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         final Leg lastLeg = (Leg) Iterables.getLast(plan.getPlanElements(), null);
         // it means that this is the same leg that is split for parking
         final Leg connectedLeg = lastLeg != null && DoubleMath.fuzzyEquals(
-                (Double) lastLeg.getAttributes().getAttribute("event_time"), pte.departureTime(), TOLERANCE)
+                (Double) lastLeg.getAttributes().getAttribute("event_time"), pte.departureTime(), TOLERANCE) && (Objects.equals(lastLeg.getMode(), pte.mode().value()))
                 ? lastLeg : null;
         final Leg leg = createLeg(pte, connectedLeg, departureTimeShift);
 
