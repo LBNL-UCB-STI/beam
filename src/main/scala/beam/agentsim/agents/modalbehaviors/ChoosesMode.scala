@@ -1119,6 +1119,7 @@ trait ChoosesMode {
       .filterNot(_.vehicle.isSharedVehicle)
       .toVector
       .distinct
+
     newAndTourVehicles.flatMap {
       case ActualVehicle(beamVehicle) if tourVehicle.contains(beamVehicle.id) => Some(ActualVehicle(beamVehicle))
       case ActualVehicle(beamVehicle) if BeamVehicle.isSharedTeleportationVehicle(beamVehicle.id) =>
@@ -1132,7 +1133,8 @@ trait ChoosesMode {
         beamVehicles.remove(beamVehicle.id)
         None
       case ActualVehicle(beamVehicle)
-          if tourVehicle.exists(_ != beamVehicle.id) && BeamVehicle.isEmergencyVehicle(beamVehicle.id) =>
+          if tourVehicle
+            .exists(newAndTourVehicles.contains) && BeamVehicle.isEmergencyVehicle(beamVehicle.id) =>
         logger.debug(
           s"Person person ${this.id} is already on a car based tour, and we have access to vehicle " +
           s" ${beamVehicle.id}, and we shouldn't need it. Going to abandon it."
