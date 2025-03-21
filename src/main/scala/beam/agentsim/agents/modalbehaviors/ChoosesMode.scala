@@ -414,8 +414,12 @@ trait ChoosesMode {
       val availableEmergencyVehicles =
         beamVehicles.filterKeys(k => k.toString.startsWith(f"${this.id.toString}-emergency")).values.toVector
 
-      val otherNewAndTourVehicles =
-        filterAvailableVehicles(availablePersonalStreetVehicles, currentTourStrategy)
+//      val otherNewAndTourVehicles =
+//        filterAvailableVehicles(availablePersonalStreetVehicles ++ availableEmergencyVehicles, currentTourStrategy)
+      val otherNewAndTourVehicles = filterAvailableVehicles(
+        availablePersonalStreetVehicles ++ availableEmergencyVehicles,
+        currentTourStrategy
+      ).distinct
 
       val availableModesGivenTourMode = getAvailableModesGivenTourMode(
         availableModes,
@@ -438,7 +442,7 @@ trait ChoosesMode {
         currentTripMode,
         currentTourStrategy.tourMode,
         hasRideHail,
-        otherNewAndTourVehicles ++ availableEmergencyVehicles,
+        otherNewAndTourVehicles,
         choosesModeData,
         triggerId
       )
@@ -1124,6 +1128,14 @@ trait ChoosesMode {
           s"Person person ${this.id} is already on a walk based tour, and we have access to vehicle " +
           s" ${beamVehicle.id}, and we're" +
           " on the way home, but it is not our tour personal vehicle. Going to abandon it."
+        )
+        beamVehicles.remove(beamVehicle.id)
+        None
+      case ActualVehicle(beamVehicle)
+          if tourVehicle.exists(_ != beamVehicle.id) && BeamVehicle.isEmergencyVehicle(beamVehicle.id) =>
+        logger.debug(
+          s"Person person ${this.id} is already on a car based tour, and we have access to vehicle " +
+          s" ${beamVehicle.id}, and we shouldn't need it. Going to abandon it."
         )
         beamVehicles.remove(beamVehicle.id)
         None
