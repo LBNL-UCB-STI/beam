@@ -1,7 +1,7 @@
-from validation_utils import download_h5_data
 import os
-import pandas as pd
 import time
+
+import pandas as pd
 import psutil
 
 

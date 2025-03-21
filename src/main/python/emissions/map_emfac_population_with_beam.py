@@ -1,4 +1,6 @@
-from emissions_utils import *
+from emfac_emissions_mapping import *
+import pandas as pd
+import os
 pd.set_option('display.max_columns', 20)
 
 # HEADER
@@ -39,6 +41,15 @@ pax_filtered_out_emissions_file = f"{input_dir}/vehicle-tech/pax-filtered-out-Tr
 pax_vehicle_types_emissions_file = f"{input_dir}/vehicle-tech/pax-vehicletypes--{str(pax_year)}-{pax_scenario}-TrAP.csv"
 pax_emissions_rates_relative_filepath = f"TrAP/{str(pax_year)}-Pax-{pax_scenario}"
 
+# def combine_csv_files(input_files, output_file):
+#     # Read and combine CSV files vertically
+#     combined_df = pd.concat([pd.read_csv(f) for f in input_files], ignore_index=True)
+#
+#     # Write the combined dataframe to a new CSV file
+#     combined_df.to_csv(output_file, index=False)
+#
+#     print(f"Combined CSV file has been created: {output_file}")
+#     return combined_df  # Return the dataframe for further processing if needed
 # combine_csv_files(
 # [
 #     os.path.expanduser('~/Workspace/Models/emfac/imputed_MTC_emission_rate_agg_NH3_added_2018.csv'),
@@ -68,9 +79,6 @@ pax_fuel_mapping_assumptions = {
     'H2fc': 'Electricity',
     'BioDsl': 'Diesel'
 }
-
-
-
 
 #  ######### MAIN ##########
 
@@ -102,7 +110,7 @@ emissions_rates = pd.read_csv(emfac_emissions_file, low_memory=False, dtype={
     'emission_rate': float
 })
 filtered_rates = emissions_rates[
-        emissions_rates["sub_area"].str.contains(fr"\({re.escape(region_to_emfac_area[area])}\)", case=False, na=False) &
+        emissions_rates["sub_area"].str.contains(fr"\({re.escape(region_to_carb_area[area])}\)", case=False, na=False) &
         (emissions_rates["calendar_year"] == emfac_year)
     ]
 
