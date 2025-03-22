@@ -26,36 +26,33 @@ PAX_FUEL_MAPPING_ASSUMPTIONS = {
 }
 
 
-def process_freight_mapping(
-        emfac_year, filtered_rates, emfac_population,
-        ft_carriers, ft_payloads, ft_vehicle_types,
-        ft_carriers_emissions_file, ft_filtered_out_emissions_file,
-        ft_vehicle_types_emissions_file, ft_emissions_rates_relative_filepath,
-        input_dir):
+def process_freight_mapping(_emfac_year, _filtered_rates, _emfac_population, _ft_carriers, _ft_payloads,
+                            _ft_vehicle_types, _ft_carriers_emissions_file, _ft_filtered_out_emissions_file,
+                            _ft_vehicle_types_emissions_file, _ft_emissions_rates_relative_filepath, _input_dir):
     """
     Process EMFAC mapping for freight vehicles
 
     Args:
-        emfac_year: The EMFAC year to use
-        filtered_rates: Filtered emissions rates
-        emfac_population: EMFAC population data
-        ft_carriers: Freight carriers data
-        ft_payloads: Freight payloads data
-        ft_vehicle_types: Freight vehicle types data
-        ft_carriers_emissions_file: Output path for carriers emissions
-        ft_filtered_out_emissions_file: Output path for filtered out emissions
-        ft_vehicle_types_emissions_file: Output path for vehicle types emissions
-        ft_emissions_rates_relative_filepath: Relative filepath for emissions rates
-        input_dir: Input directory for data files
+        _emfac_year: The EMFAC year to use
+        _filtered_rates: Filtered emissions rates
+        _emfac_population: EMFAC population data
+        _ft_carriers: Freight carriers data
+        _ft_payloads: Freight payloads data
+        _ft_vehicle_types: Freight vehicle types data
+        _ft_carriers_emissions_file: Output path for carriers emissions
+        _ft_filtered_out_emissions_file: Output path for filtered out emissions
+        _ft_vehicle_types_emissions_file: Output path for vehicle types emissions
+        _ft_emissions_rates_relative_filepath: Relative filepath for emissions rates
+        _input_dir: Input directory for data files
     """
     print("\nMapping EMFAC for freight!")
 
     # Create vehicle class mapping
-    _, ft_emfac_class_map = create_vehicle_class_mapping(emfac_population["vehicle_class"].unique())
+    _, ft_emfac_class_map = create_vehicle_class_mapping(_emfac_population["vehicle_class"].unique())
 
     # Prepare EMFAC rates
     ft_emissions_rates_for_mapping = prepare_emfac_emissions_for_mapping(
-        filtered_rates,
+        _filtered_rates,
         ft_emfac_class_map
     )
     print(f"EMFAC Freight Rates => rows: {len(ft_emissions_rates_for_mapping)}, "
@@ -64,8 +61,8 @@ def process_freight_mapping(
 
     # Prepare EMFAC population
     ft_emfac_pop_for_mapping = prepare_emfac_population_for_mapping(
-        emfac_population,
-        emfac_year,
+        _emfac_population,
+        _emfac_year,
         ft_emfac_class_map,
         FT_FUEL_MAPPING_ASSUMPTIONS
     )
@@ -75,9 +72,9 @@ def process_freight_mapping(
 
     # Prepare freight vehicle population
     ft_population_for_mapping = prepare_ft_vehicle_population_for_mapping(
-        ft_carriers,
-        ft_payloads,
-        ft_vehicle_types,
+        _ft_carriers,
+        _ft_payloads,
+        _ft_vehicle_types,
         FT_FUEL_MAPPING_ASSUMPTIONS
     )
     print(f"BEAM Freight Population => rows: {len(ft_population_for_mapping)}, "
@@ -85,7 +82,7 @@ def process_freight_mapping(
           f"fuel: {len(ft_population_for_mapping['beamFuel'].unique())}")
 
     # Check for unmapped vehicles
-    unique_vehicles = set(ft_carriers["vehicleId"].unique()) - set(ft_population_for_mapping["vehicleId"].unique())
+    unique_vehicles = set(_ft_carriers["vehicleId"].unique()) - set(ft_population_for_mapping["vehicleId"].unique())
     if len(unique_vehicles) > 0:
         print(f"Failed to map, maybe some vehicles in carriers were not used in payload plans:")
         print(unique_vehicles)
@@ -109,18 +106,18 @@ def process_freight_mapping(
     # Build new vehicle types
     print("------------------------------------------------------------------")
     print("Building new set of freight vehicle types")
-    updated_vehicle_types = build_new_ft_vehtypes(updated_freight_population, ft_vehicle_types)
+    updated_vehicle_types = build_new_ft_vehtypes(updated_freight_population, _ft_vehicle_types)
     print(
-        f"Previous vehicle types had {len(ft_vehicle_types)} types while the new set has {len(updated_vehicle_types)} types")
+        f"Previous vehicle types had {len(_ft_vehicle_types)} types while the new set has {len(updated_vehicle_types)} types")
 
     # Assign new vehicle types to carriers
     print("------------------------------------------------------------------")
     print("Assigning new freight vehicle types to carriers")
-    updated_carriers = assign_new_ft_vehtypes_to_carriers(ft_carriers, updated_freight_population,
-                                                          ft_carriers_emissions_file)
+    updated_carriers = assign_new_ft_vehtypes_to_carriers(_ft_carriers, updated_freight_population,
+                                                          _ft_carriers_emissions_file)
 
     # Check for unassigned vehicles
-    unique_vehicles = set(ft_carriers["vehicleId"].unique()) - set(updated_carriers["vehicleId"].unique())
+    unique_vehicles = set(_ft_carriers["vehicleId"].unique()) - set(updated_carriers["vehicleId"].unique())
     if len(unique_vehicles) > 0:
         print(f"Failed to assign vehicle types to these vehicles: {unique_vehicles}")
 
@@ -128,9 +125,9 @@ def process_freight_mapping(
     print("------------------------------------------------------------------")
     print("Formatting EMFAC freight rates for BEAM")
     ft_emfac_formatted, ft_emfac_filtered_out = format_rates_for_beam(ft_emissions_rates_for_mapping)
-    ft_emfac_filtered_out.to_csv(ft_filtered_out_emissions_file)
+    ft_emfac_filtered_out.to_csv(_ft_filtered_out_emissions_file)
     print(
-        f"Filtered out freight processes with all zeros emissions, verify output here => {ft_filtered_out_emissions_file}")
+        f"Filtered out freight processes with all zeros emissions, verify output here => {_ft_filtered_out_emissions_file}")
 
     # Assign emissions rates
     print("------------------------------------------------------------------")
@@ -138,8 +135,8 @@ def process_freight_mapping(
     ft_vehicle_types_with_emissions_rates = assign_emissions_rates_to_vehtypes(
         ft_emfac_formatted,
         updated_vehicle_types,
-        input_dir + "/vehicle-tech",
-        ft_emissions_rates_relative_filepath
+        _input_dir + "/vehicle-tech",
+        _ft_emissions_rates_relative_filepath
     )
 
     # Check for types without emissions rates
@@ -150,36 +147,34 @@ def process_freight_mapping(
         print(f"Failed to assign emissions rates to these vehicle types: {unique_ft_vehicle_types}")
 
     # Save updated vehicle types
-    print(f"Writing {ft_vehicle_types_emissions_file}")
-    updated_vehicle_types.to_csv(ft_vehicle_types_emissions_file, index=False)
+    print(f"Writing {_ft_vehicle_types_emissions_file}")
+    updated_vehicle_types.to_csv(_ft_vehicle_types_emissions_file, index=False)
 
 
-def process_passenger_mapping(
-        emfac_year, filtered_rates, emfac_population,
-        pax_vehicle_types,
-        pax_filtered_out_emissions_file, pax_vehicle_types_emissions_file,
-        pax_emissions_rates_relative_filepath, input_dir):
+def process_passenger_mapping(_emfac_year, _filtered_rates, _emfac_population, _pax_vehicle_types,
+                              _pax_filtered_out_emissions_file, _pax_vehicle_types_emissions_file,
+                              _pax_emissions_rates_relative_filepath, _input_dir):
     """
     Process EMFAC mapping for passenger vehicles
 
     Args:
-        emfac_year: The EMFAC year to use
-        filtered_rates: Filtered emissions rates
-        emfac_population: EMFAC population data
-        pax_vehicle_types: Passenger vehicle types data
-        pax_filtered_out_emissions_file: Output path for filtered out emissions
-        pax_vehicle_types_emissions_file: Output path for vehicle types emissions
-        pax_emissions_rates_relative_filepath: Relative filepath for emissions rates
-        input_dir: Input directory for data files
+        _emfac_year: The EMFAC year to use
+        _filtered_rates: Filtered emissions rates
+        _emfac_population: EMFAC population data
+        _pax_vehicle_types: Passenger vehicle types data
+        _pax_filtered_out_emissions_file: Output path for filtered out emissions
+        _pax_vehicle_types_emissions_file: Output path for vehicle types emissions
+        _pax_emissions_rates_relative_filepath: Relative filepath for emissions rates
+        _input_dir: Input directory for data files
     """
     print("\nMapping EMFAC for passengers!")
 
     # Create vehicle class mapping
-    pax_emfac_class_map, _ = create_vehicle_class_mapping(emfac_population["vehicle_class"].unique())
+    pax_emfac_class_map, _ = create_vehicle_class_mapping(_emfac_population["vehicle_class"].unique())
 
     # Prepare EMFAC rates
     pax_emissions_rates_for_mapping = prepare_emfac_emissions_for_mapping(
-        filtered_rates,
+        _filtered_rates,
         pax_emfac_class_map
     )
     print(f"EMFAC Passenger Rates => rows: {len(pax_emissions_rates_for_mapping)}, "
@@ -188,8 +183,8 @@ def process_passenger_mapping(
 
     # Prepare EMFAC population
     emfac_passenger_population_for_mapping = prepare_emfac_population_for_mapping(
-        emfac_population,
-        emfac_year,
+        _emfac_population,
+        _emfac_year,
         pax_emfac_class_map,
         PAX_FUEL_MAPPING_ASSUMPTIONS
     )
@@ -199,7 +194,7 @@ def process_passenger_mapping(
 
     # Prepare passenger population
     pax_population_for_mapping = prepare_pax_vehicle_population_for_mapping(
-        pax_vehicle_types,
+        _pax_vehicle_types,
         PAX_FUEL_MAPPING_ASSUMPTIONS
     )
     print(f"BEAM Passenger Population => rows: {len(pax_population_for_mapping)}, "
@@ -220,9 +215,9 @@ def process_passenger_mapping(
     print("------------------------------------------------------------------")
     print("Formatting Passenger EMFAC rates for BEAM")
     pax_emfac_formatted, pax_emfac_filtered_out = format_rates_for_beam(pax_emissions_rates_for_mapping)
-    pax_emfac_filtered_out.to_csv(pax_filtered_out_emissions_file)
+    pax_emfac_filtered_out.to_csv(_pax_filtered_out_emissions_file)
     print(
-        f"Filtered out passenger processes with all zeros emissions, verify output here => {pax_filtered_out_emissions_file}")
+        f"Filtered out passenger processes with all zeros emissions, verify output here => {_pax_filtered_out_emissions_file}")
 
     # Assign emissions rates
     print("------------------------------------------------------------------")
@@ -230,20 +225,20 @@ def process_passenger_mapping(
     pax_vehicle_types_with_emissions_rates = assign_emissions_rates_to_vehtypes(
         pax_emfac_formatted,
         updated_passenger_vehicle_types,
-        input_dir + "/vehicle-tech",
-        pax_emissions_rates_relative_filepath
+        _input_dir + "/vehicle-tech",
+        _pax_emissions_rates_relative_filepath
     )
 
     # Add back unmapped vehicle types
     print("------------------------------------------------------------------")
     print("Adding back Passenger vehicle types not mapped with EMFAC")
     index_population = set(pax_population_for_mapping.index)
-    index_vehicle_types = set(pax_vehicle_types.index)
+    index_vehicle_types = set(_pax_vehicle_types.index)
     missing_rows = index_vehicle_types - index_population
-    missing_df = pax_vehicle_types.loc[list(missing_rows)]
+    missing_df = _pax_vehicle_types.loc[list(missing_rows)]
     missing_df["emissionsRatesFile"] = ""
     pax_emfac_vehicletypes = pd.concat([pax_vehicle_types_with_emissions_rates[missing_df.columns], missing_df], axis=0)
-    pax_emfac_vehicletypes.to_csv(pax_vehicle_types_emissions_file, index=False)
+    pax_emfac_vehicletypes.to_csv(_pax_vehicle_types_emissions_file, index=False)
 
     print("Done mapping EMFAC for passengers!")
 
