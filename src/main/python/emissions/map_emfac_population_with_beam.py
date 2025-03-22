@@ -1,4 +1,4 @@
-from emfac_emissions_mapping import *
+from _emfac_emissions_mapping import *
 import pandas as pd
 import os
 import re

@@ -7,8 +7,8 @@ import pyarrow.csv as pv
 from pyproj import Transformer
 from shapely.geometry import LineString
 
-from beam_emissions_plotting import *
-from emfac_emissions_mapping import *
+from _beam_emissions_plotting import *
+from _emfac_emissions_mapping import *
 
 # Configure pandas display options
 pd.set_option('display.max_columns', 20)
