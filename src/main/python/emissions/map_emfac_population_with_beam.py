@@ -1,7 +1,19 @@
 from _emfac_emissions_mapping import *
 import pandas as pd
+import pyarrow as pa
+import pyarrow.csv as csv
 import os
 import re
+import sys
+
+# Get the absolute path to the directory containing this script
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(os.path.dirname(current_dir))
+sys.path.insert(0, parent_dir)
+
+# Now use absolute import
+from python.utils.study_area_config import get_area_config
+from python.utils.study_area_config import generate_network_name
 
 pd.set_option('display.max_columns', 20)
 
@@ -242,55 +254,119 @@ def process_passenger_mapping(_emfac_year, _filtered_rates, _emfac_population, _
 
     print("Done mapping EMFAC for passengers!")
 
-# def combine_csv_files(input_files, output_file):
-#     # Read and combine CSV files vertically
-#     combined_df = pd.concat([pd.read_csv(f) for f in input_files], ignore_index=True)
-#
-#     # Write the combined dataframe to a new CSV file
-#     combined_df.to_csv(output_file, index=False)
-#
-#     print(f"Combined CSV file has been created: {output_file}")
-#     return combined_df  # Return the dataframe for further processing if needed
 
+def combine_csv_files(input_files, output_file):
+    # Read and combine CSV files vertically
+    combined_df = pd.concat([pd.read_csv(f) for f in input_files], ignore_index=True)
+
+    def categorize_model_year(year):
+        if year <= 1993:
+            return 'MY<=1993'
+        elif 1994 <= year <= 1999:
+            return '1994-1999'
+        elif 2000 <= year <= 2003:
+            return '2000-2003'
+        elif 2004 <= year <= 2006:
+            return '2004-2006'
+        elif 2007 <= year <= 2009:
+            return '2007-2009'
+        elif 2010 <= year <= 2013:
+            return '2010-2013'
+        elif 2014 <= year <= 2015:
+            return '2014-2015'
+        else:  # year >= 2016
+            return 'MY>=2016'
+
+    # Create a new column with the categorized model years
+    combined_df['model_year_group'] = combined_df['model_year'].apply(categorize_model_year)
+
+    # Write the combined dataframe to a new CSV file
+    combined_df.to_csv(output_file, index=False)
+
+    print(f"Combined CSV file has been created: {output_file}")
+    return combined_df  # Return the dataframe for further processing if needed
+
+# combine_csv_files(
+# [
+#     os.path.expanduser('~/Workspace/Simulation/sfbay/emissions/imputed_MTC_emission_rate_agg_NH3_added_2018.csv'),
+#     os.path.expanduser('~/Workspace/Simulation/sfbay/emissions/imputed_MTC_emission_rate_agg_NH3_added_2025.csv'),
+#     os.path.expanduser('~/Workspace/Simulation/sfbay/emissions/imputed_MTC_emission_rate_agg_NH3_added_2030.csv'),
+#     os.path.expanduser('~/Workspace/Simulation/sfbay/emissions/imputed_MTC_emission_rate_agg_NH3_added_2040.csv'),
+#     os.path.expanduser('~/Workspace/Simulation/sfbay/emissions/imputed_MTC_emission_rate_agg_NH3_added_2050.csv')
+# ],
+#     os.path.expanduser('~/Workspace/Simulation/sfbay/emissions/imputed_MTC_emission_rate_agg_NH3_added_2018_2025_2030_2040_2050.csv')
+# )
 
 if __name__ == "__main__":
     # Configuration parameters
     area = "sfbay"
-    ft_iteration = "2024-01-23"
-    runFT = True  # Run Freight Emissions Mapping
-    runPAX = False  # Run Passenger Emissions Mapping
+    study_area_config = get_area_config(area)
 
     # Scenario parameters
     # emfac_year, ft_year, ft_scenario, pax_year, pax_scenario = 2050, 2050, "HOPhighp2", 2045, "LowTech"
     # emfac_year, ft_year, ft_scenario, pax_year, pax_scenario = 2018, 2018, "Baseline", 2018, "Baseline"
     # emfac_year, ft_year, ft_scenario, pax_year, pax_scenario = 2050, 2050, "Refhighp6", 2045, "LowTech"
-    emfac_year, ft_year, ft_scenario, pax_year, pax_scenario = 2050, 2050, "HOPhighp6", 2045, "LowTech"
+    run_config = {
+        "emfac_year": 2018,
 
-    # File paths
-    emfac_population_file = os.path.expanduser(
-        '~/Workspace/Models/emfac/Default_Statewide_2018_2025_2030_2040_2050_Annual_population_20240612233346.csv')
-    emfac_emissions_file = os.path.expanduser(
-        '~/Workspace/Models/emfac/imputed_MTC_emission_rate_agg_NH3_added_2018_2025_2030_2040_2050.csv')
+        "run_batch": "2024-01-23",
 
-    # Input directories and files
-    input_dir = os.path.expanduser(f"~/Workspace/Simulation/{area}/beam-freight/{ft_iteration}")
-    carriers_file = f"{input_dir}/{str(ft_year)}_{ft_scenario}/carriers--{str(ft_year)}-{ft_scenario}.csv"
-    payloads_file = f"{input_dir}/{str(ft_year)}_{ft_scenario}/payloads--{str(ft_year)}-{ft_scenario}.csv"
-    ft_vehicle_types_file = f"{input_dir}/vehicle-tech/ft-vehicletypes--{str(ft_year)}-{ft_scenario}.csv"
-    pax_vehicle_types_file = f"{input_dir}/vehicle-tech/pax-vehicletypes--{str(pax_year)}-{pax_scenario}.csv"
+        "ft_scenario": "2018_Baseline",
+        "run_ft": True, # Run Freight Emissions Mapping
 
-    # Output files
-    ft_filtered_out_emissions_file = f"{input_dir}/vehicle-tech/ft-filtered-out--{str(ft_year)}-{ft_scenario}-TrAP.csv"
-    ft_vehicle_types_emissions_file = f"{input_dir}/vehicle-tech/ft-vehicletypes--{str(ft_year)}-{ft_scenario}-TrAP.csv"
-    ft_carriers_emissions_file = f"{input_dir}/{str(ft_year)}_{ft_scenario}/carriers--{str(ft_year)}-{ft_scenario}-TrAP.csv"
-    ft_emissions_rates_relative_filepath = f"TrAP/{str(ft_year)}-FT-{ft_scenario}"
+        "pax_scenario": "2018_Baseline",
+        "run_pax": False # Run Passenger Emissions Mapping
+    }
 
-    pax_filtered_out_emissions_file = f"{input_dir}/vehicle-tech/pax-filtered-out-TrAP.csv"
-    pax_vehicle_types_emissions_file = f"{input_dir}/vehicle-tech/pax-vehicletypes--{str(pax_year)}-{pax_scenario}-TrAP.csv"
-    pax_emissions_rates_relative_filepath = f"TrAP/{str(pax_year)}-Pax-{pax_scenario}"
+    ft_scenario_label = run_config["ft_scenario"].replace("_", "-")
+    pax_scenario_label = run_config["pax_scenario"].replace("_", "-")
+    work_dir = study_area_config["work_dir"]
 
-    # Print scenario info
-    print(f"Scenario {area}, {str(ft_year)}-{ft_scenario} from {ft_iteration}..")
+    # ### Input directories and files ### #
+    # Emissions
+    emfac_pop_file = f"{work_dir}/emissions/emfac/Default_Statewide_2018_2025_2030_2040_2050_Annual_population_20240612233346.csv"
+    emfac_vmt_file = f"{work_dir}/emissions/emfac/Default_Statewide_2018_2025_2030_2040_2050_Annual_vmt_20240612233346.csv"
+    emfac_rates_file = f"{work_dir}/emissions/emfac/imputed_MTC_emission_rate_agg_NH3_added_2018_2025_2030_2040_2050.csv"
+    emfac_rates_by_model_year_file = f"{work_dir}/emissions/emfac/imputed_MTC_emission_rate_agg_NH3_added_2018_2025_2030_2040_2050_byMY.csv"
+    black_carbon_rates_file = f"{work_dir}/emissions/black_carbon/emfac_bc_rate_three_ver_2018.csv"
+    road_dust_pm_rates_file = f"{work_dir}/emissions/road_dust/carb_road_dust_rate_2018.csv"
+    # Freight Population
+    ft_plans_dir = f"{work_dir}/beam-ft/{run_config["run_batch"]}"
+    carriers_file = f"{ft_plans_dir}/{run_config["ft_scenario"]}/carriers--{ft_scenario_label}.csv"
+    payloads_file = f"{ft_plans_dir}/{run_config["ft_scenario"]}/payloads--{ft_scenario_label}.csv"
+    ft_vehicle_types_file = f"{ft_plans_dir}/vehicle-tech/ft-vehicletypes--{ft_scenario_label}.csv"
+    # Passenger Population
+    pax_plans_dir = f"{work_dir}/beam-pax/{run_config["run_batch"]}"
+    pax_vehicle_types_file = f"{pax_plans_dir}/vehicle-tech/pax-vehicletypes--{pax_scenario_label}.csv"
+
+    # ### Output directories and files ### #
+    # Freight Population
+    ft_filtered_out_emissions_file = f"{ft_plans_dir}/vehicle-tech/ft-filtered-out--{ft_scenario_label}-TrAP.csv"
+    ft_vehicle_types_emissions_file = f"{ft_plans_dir}/vehicle-tech/ft-vehicletypes--{ft_scenario_label}-TrAP.csv"
+    ft_carriers_emissions_file = f"{ft_plans_dir}/{run_config["ft_scenario"]}/carriers--{ft_scenario_label}-TrAP.csv"
+    ft_emissions_rates_relative_filepath = f"TrAP/FT-{str(ft_scenario_label)}"
+    # Passenger Population
+    pax_filtered_out_emissions_file = f"{pax_plans_dir}/vehicle-tech/pax-filtered-out-TrAP.csv"
+    pax_vehicle_types_emissions_file = f"{pax_plans_dir}/vehicle-tech/pax-vehicletypes--{pax_scenario_label}-TrAP.csv"
+    pax_emissions_rates_relative_filepath = f"TrAP/PAX-{str(pax_scenario_label)}"
+
+    # ### Prep emissions rates ### #
+    if not os.path.exists(emfac_rates_by_model_year_file):
+        if os.path.exists(emfac_rates_file):
+            table = csv.read_csv(emfac_rates_file, read_options=pa.csv.ReadOptions(use_threads=True))
+            df = table.to_pandas()
+            group_col = ['calendar_year', 'season_month', 'sub_area', 'vehicle_class', 'fuel', 'temperature',
+                         'relative_humidity', 'process', 'speed_time', 'pollutant', 'MY_group']
+            # Group by MY_group and calculate statistics
+            emission_rates = df.groupby(group_col).agg({'emission_rate': 'mean'})
+        else:
+            print(f"Error: Emissions rates file '{emfac_rates_file}' not found.")
+            sys.exit(1)
+    else:
+        table = csv.read_csv(emfac_rates_by_model_year_file, read_options=pa.csv.ReadOptions(use_threads=True))
+        emission_rates = table.to_pandas()
+
+
 
     # Load common data
     emfac_population = pd.read_csv(emfac_population_file, low_memory=False, dtype=str)
@@ -317,7 +393,9 @@ if __name__ == "__main__":
         ]
 
     # Process passenger mapping if enabled
-    if runPAX:
+    if run_config["run_pax"]:
+        # Print scenario info
+        print(f"Scenario {area}, {str(ft_year)}-{ft_scenario} from {ft_iteration}..")
         pax_vehicle_types = pd.read_csv(pax_vehicle_types_file)
         process_passenger_mapping(
             emfac_year, filtered_rates, emfac_population,
@@ -327,7 +405,7 @@ if __name__ == "__main__":
         )
 
     # Process freight mapping if enabled
-    if runFT:
+    if run_config["run_ft"]:
         ft_payloads = pd.read_csv(payloads_file)
         ft_vehicle_types = pd.read_csv(ft_vehicle_types_file)
         ft_carriers = pd.read_csv(carriers_file, dtype=str)
@@ -339,13 +417,4 @@ if __name__ == "__main__":
             input_dir
         )
 
-    # combine_csv_files(
-    # [
-    #     os.path.expanduser('~/Workspace/Models/emfac/imputed_MTC_emission_rate_agg_NH3_added_2018.csv'),
-    # os.path.expanduser('~/Workspace/Models/emfac/imputed_MTC_emission_rate_agg_NH3_added_2025.csv'),
-    # os.path.expanduser('~/Workspace/Models/emfac/imputed_MTC_emission_rate_agg_NH3_added_2030.csv'),
-    # os.path.expanduser('~/Workspace/Models/emfac/imputed_MTC_emission_rate_agg_NH3_added_2040.csv'),
-    # os.path.expanduser('~/Workspace/Models/emfac/imputed_MTC_emission_rate_agg_NH3_added_2050.csv')
-    # ]
-    # , emfac_emissions_file)
     print("End")
