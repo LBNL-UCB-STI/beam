@@ -1,9 +1,9 @@
 import os
 import sys
-
+import math
 import pandas as pd
 
-from _carb_emissions_rates_generation import *
+from generate_california_emissions_rates import *
 from _emfac_emissions_mapping import *
 
 # Get the absolute path to the directory containing this script
@@ -35,6 +35,20 @@ PAX_FUEL_MAPPING_ASSUMPTIONS = {
     'H2fc': 'Electricity',
     'BioDsl': 'Diesel'
 }
+
+def calculate_distance(x1, y1, x2, y2):
+    """Calculate Euclidean distance between two points"""
+    return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+
+def combine_csv_files(input_files, output_file):
+    # Read and combine CSV files vertically
+    combined_df = pd.concat([pd.read_csv(f) for f in input_files], ignore_index=True)
+
+    # Write the combined dataframe to a new CSV file
+    combined_df.to_csv(output_file, index=False)
+
+    print(f"Combined CSV file has been created: {output_file}")
+    return combined_df  # Return the dataframe for further processing if needed
 
 
 def process_freight_mapping(_emfac_year, _filtered_rates, _emfac_population, _ft_carriers, _ft_payloads,
@@ -254,26 +268,203 @@ def process_passenger_mapping(_emfac_year, _filtered_rates, _emfac_population, _
     print("Done mapping EMFAC for passengers!")
 
 
-def combine_csv_files(input_files, output_file):
-    # Read and combine CSV files vertically
-    combined_df = pd.concat([pd.read_csv(f) for f in input_files], ignore_index=True)
+def process_emfac_vmt(study_area, scenario_name, config, work_dir):
+    """
+    Process EMFAC VMT data by model year, adding proportional calculations.
 
-    # Write the combined dataframe to a new CSV file
-    combined_df.to_csv(output_file, index=False)
+    Args:
+        config: Configuration dictionary containing filtering and file path information
 
-    print(f"Combined CSV file has been created: {output_file}")
-    return combined_df  # Return the dataframe for further processing if needed
+    Returns:
+        pandas.DataFrame: Processed and grouped VMT data with proportion calculations
+    """
+    _emfac_vmt_output_file = os.path.join(
+        work_dir,
+        f"emissions/{study_area}_emfac_vmt_{scenario_name}.csv"
+    )
+    if os.path.exists(_emfac_vmt_output_file):
+        _emfac_vmt = pd.read_csv(_emfac_vmt_output_file)
+    else:
+        include_nan = config["filters"]["include_nan"]
+        calendar_year = config["filters"]["calendar_year"]
+        air_basin_area = config["filters"]["sub_area"]
+        _emfac_vmt_by_model_year_file = os.path.join(
+            work_dir,
+            config["emfac"]["emfac_vmt_by_model_year_file"]
+        )
 
-# combine_csv_files(
-# [
-#     os.path.expanduser('~/Workspace/Simulation/sfbay/emissions/imputed_MTC_emission_rate_agg_NH3_added_2018.csv'),
-#     os.path.expanduser('~/Workspace/Simulation/sfbay/emissions/imputed_MTC_emission_rate_agg_NH3_added_2025.csv'),
-#     os.path.expanduser('~/Workspace/Simulation/sfbay/emissions/imputed_MTC_emission_rate_agg_NH3_added_2030.csv'),
-#     os.path.expanduser('~/Workspace/Simulation/sfbay/emissions/imputed_MTC_emission_rate_agg_NH3_added_2040.csv'),
-#     os.path.expanduser('~/Workspace/Simulation/sfbay/emissions/imputed_MTC_emission_rate_agg_NH3_added_2050.csv')
-# ],
-#     os.path.expanduser('~/Workspace/Simulation/sfbay/emissions/imputed_MTC_emission_rate_agg_NH3_added_2018_2025_2030_2040_2050.csv')
-# )
+        table = csv.read_csv(_emfac_vmt_by_model_year_file, read_options=pa.csv.ReadOptions(use_threads=True))
+        df = table.to_pandas()
+
+        # Filter by calendar year
+        if 'calendar_year' in df.columns:
+            df = df[(df['calendar_year'] == calendar_year) | (include_nan & df['calendar_year'].isna())]
+
+        # Filter by sub area
+        if 'sub_area' in df.columns:
+            # Create a filter condition for partial matches
+            sub_area_filter = include_nan & df['sub_area'].isna()
+
+            for area in air_basin_area:
+                # Look for exact match or area in parentheses (e.g., "Santa Clara (SF)" for "SF")
+                sub_area_filter = sub_area_filter | df['sub_area'].str.contains(f'\\({area}\\)', regex=True) | (
+                        df['sub_area'] == area)
+
+            # Apply the filter
+            df = df[sub_area_filter]
+
+        # Convert numeric columns to float for calculations
+        numeric_columns = ['total_vmt', 'cvmt', 'evmt']
+        for col in numeric_columns:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+
+        # Categorize model years
+        df['model_year_group'] = df['model_year'].apply(categorize_model_year)
+
+        # Clean data
+        df = df.fillna('')
+        df = df.reset_index(drop=True)
+
+        # Group by relevant columns and sum VMT
+        group_col = ['sub_area', 'vehicle_class', 'fuel', 'model_year_group']
+        df_grouped = df.groupby(group_col)['total_vmt'].sum().reset_index()
+
+        # Calculate total VMT across all groups
+        total_vmt = df_grouped['total_vmt'].sum()
+
+        # Calculate proportion of each group relative to total
+        df_grouped['vmt_proportion'] = df_grouped['total_vmt'] / total_vmt
+
+        # Create ID column for reference
+        df_grouped['emfacId'] = df_grouped.apply(
+            lambda row: sanitize_name(f"{row['model_year_group']}-{row['vehicle_class']}-{row['fuel']}"),
+            axis=1
+        )
+
+        _emfac_vmt = df_grouped
+
+        _emfac_vmt.to_csv(_emfac_vmt_output_file, index=False)
+
+    return _emfac_vmt
+
+
+def calculate_tour_distances(df):
+    """Calculate total distance for each tour ID from the coordinates"""
+    # Sort data by tourId and sequenceRank
+    df = df.sort_values(by=['tourId', 'sequenceRank'])
+
+    # Get unique tour IDs
+    tour_ids = df['tourId'].unique()
+
+    # Initialize results dictionary
+    tour_distances = {}
+
+    # Calculate total distance for each tour
+    for tour_id in tour_ids:
+        # Get points for this tour
+        tour_points = df[df['tourId'] == tour_id]
+
+        # Initialize total distance
+        total_distance = 0
+
+        # Calculate distance between consecutive points
+        for i in range(len(tour_points) - 1):
+            current_point = tour_points.iloc[i]
+            next_point = tour_points.iloc[i + 1]
+
+            distance = calculate_distance(
+                current_point['locationX'],
+                current_point['locationY'],
+                next_point['locationX'],
+                next_point['locationY']
+            )
+
+            total_distance += distance
+
+        # Store the total distance for this tour
+        tour_distances[tour_id] = total_distance
+
+    return tour_distances
+
+def process_beam_freight(study_area, scenario_name, config, work_dir, fuel_assumption_mapping):
+    beam_fleet_vmt_file = str(os.path.join(
+        work_dir,
+        f"emissions/{study_area}_beam_fleet_vmt_{scenario_name}.csv"
+    ))
+
+    if os.path.exists(beam_fleet_vmt_file):
+        fleet_df = pd.read_csv(beam_fleet_vmt_file)
+    else:
+        _carriers_file = str(os.path.join(work_dir, config["beam"]["carriers_file"]))
+        _payloads_file = str(os.path.join(work_dir, config["beam"]["payloads_file"]))
+        _ft_vehicle_types_file = str(os.path.join(work_dir, config["beam"]["ft_vehicle_types_file"]))
+        #_pax_vehicle_types_file = str(os.path.join(work_dir, config["pax_vehicle_types_file"]))
+
+        carriers = pd.read_csv(_carriers_file)
+        payloads_raw = pd.read_csv(_payloads_file)
+        ft_vehicletypes = pd.read_csv(_ft_vehicle_types_file)
+        #_pax_vehicle_types = pd.read_csv(_pax_vehicle_types_file)
+
+        carriers_formatted = carriers[['tourId', 'vehicleId', 'vehicleTypeId']]
+        payloads = payloads_raw[['payloadId', 'tourId', 'payloadType']].copy()
+        ft_vehicletypes = ft_vehicletypes[['vehicleTypeId', 'primaryFuelType', 'secondaryFuelType']].copy()
+        tour_distances = calculate_tour_distances(payloads_raw)
+
+        ft_vehicletypes['beamClass'] = ft_vehicletypes['vehicleTypeId'].apply(get_vehicle_class_from_freight)
+
+        # Summarize data
+        payloads.loc[:, 'payloadType'] = payloads['payloadType'].astype(str)
+        payloads_summary = payloads.groupby(['tourId'])['payloadType'].agg('|'.join).reset_index()
+
+        # Merge payload summary with carriers
+        payloads_merged = pd.merge(payloads_summary, carriers_formatted, on='tourId', how='left')
+
+        # Load and process vehicle types
+        ft_vehicletypes['beamFuel'] = np.where(
+            (ft_vehicletypes['primaryFuelType'] == fuel_emfac2beam_map["Elec"]) &
+            ft_vehicletypes['secondaryFuelType'].notna(),
+            fuel_emfac2beam_map['Phe'],
+            ft_vehicletypes['primaryFuelType']
+        )
+
+        def handle_missing_fuel(x):
+            try:
+                return fuel_assumption_mapping[fuel_beam2emfac_map[x.lower()]]
+            except KeyError:
+                warnings.warn(f"Fuel type '{x}' not found in mapping. Using original value.")
+                return x
+
+        ft_vehicletypes['mappedFuel'] = ft_vehicletypes['beamFuel'].map(handle_missing_fuel)
+
+        # Merge payloads with vehicle types
+        payloads_vehtypes = pd.merge(
+            payloads_merged,
+            ft_vehicletypes[['vehicleTypeId', 'beamClass', 'beamFuel', 'mappedFuel']],
+            on='vehicleTypeId',
+            how='left'
+        )
+
+        # Check for missing fuel types
+        if payloads_vehtypes['beamFuel'].isna().any():
+            print("Warning: Missing fuel types for some vehicle IDs")
+            print(payloads_vehtypes[payloads_vehtypes['beamFuel'].isna()])
+
+        fleet_df = payloads_vehtypes.drop_duplicates('vehicleId', keep='first')
+
+        # Calculate total distance across all tours
+        total_distance_all_tours = sum(tour_distances.values())
+        # Calculate proportion for each tour
+        tour_proportions = {tour_id: distance / total_distance_all_tours
+                            for tour_id, distance in tour_distances.items()}
+
+        fleet_df['total_vmt'] = fleet_df['tourId'].map(tour_distances)
+        fleet_df['vmt_proportion'] = fleet_df['tourId'].map(tour_proportions)
+        fleet_df.to_csv(beam_fleet_vmt_file, index=False)
+
+    return fleet_df
+
+
 
 if __name__ == "__main__":
     # Configuration parameters
@@ -292,12 +483,9 @@ if __name__ == "__main__":
     # Emissions
     # Freight Population
     ft_plans_dir = f"{work_dir}/beam-ft/{run_batch}"
-    carriers_file = f"{ft_plans_dir}/{scenario}/carriers--{ft_scenario_label}.csv"
-    payloads_file = f"{ft_plans_dir}/{scenario}/payloads--{ft_scenario_label}.csv"
-    ft_vehicle_types_file = f"{ft_plans_dir}/vehicle-tech/ft-vehicletypes--{ft_scenario_label}.csv"
     # Passenger Population
     pax_plans_dir = f"{work_dir}/beam-pax/{run_batch}"
-    pax_vehicle_types_file = f"{pax_plans_dir}/vehicle-tech/pax-vehicletypes--{pax_scenario_label}.csv"
+
 
     # ### Output directories and files ### #
     # Freight Population
@@ -310,19 +498,21 @@ if __name__ == "__main__":
     pax_vehicle_types_emissions_file = f"{pax_plans_dir}/vehicle-tech/pax-vehicletypes--{pax_scenario_label}-TrAP.csv"
     pax_emissions_rates_relative_filepath = f"TrAP/PAX-{str(pax_scenario_label)}"
 
-    emfac_vmt_by_model_year_file = os.path.join(
-        emissions_config["dir"],
-        emissions_config["emfac"]["emfac_vmt_by_model_year_file"]
-    )
+    # print("\n=== EMFAC VMT ===\n")
+    # emfac_vmt = process_emfac_vmt(area, scenario, emissions_config)
+    # print(f"total_vmt: {emfac_vmt["total_vmt"].sum()}")
+    #
+    # # ### Prep emissions rates ### #
+    # print("\n=== EMFAC Vehicle Classes ===\n")
+    # pax_emfac_class_map, ft_emfac_class_map = create_vehicle_class_mapping(emfac_vmt["vehicle_class"].unique())
+    #
+    # print("\n=== CARB Emissions Rates ===\n")
+    # rates = process_emissions_rates(area, scenario, emissions_config, pax_emfac_class_map | ft_emfac_class_map)
+    # print(f"rates: {len(rates)}")
 
-    emfac_vmt = pd.read_csv(str(emfac_vmt_by_model_year_file), low_memory=False, dtype=str)
-
-    # ### Prep emissions rates ### #
-    print("=== Identify vehicle classes ===\n")
-    pax_emfac_class_map, ft_emfac_class_map = create_vehicle_class_mapping(emfac_vmt["vehicle_class"].unique())
-    print("\n=== Process Emissions Rates ===\n")
-    rates = process_emissions_rates(area, scenario, emissions_config, pax_emfac_class_map | ft_emfac_class_map)
-    print(f"{len(rates)} rates")
+    print("\n=== BEAM Fleet ===\n")
+    beam_fleet = process_beam_freight(area, scenario, emissions_config, work_dir, FT_FUEL_MAPPING_ASSUMPTIONS)
+    print(f"Fleet: {len(beam_fleet)}")
 
 
     # # Load common data
@@ -373,5 +563,16 @@ if __name__ == "__main__":
     #         ft_vehicle_types_emissions_file, ft_emissions_rates_relative_filepath,
     #         input_dir
     #     )
+
+    # combine_csv_files(
+    # [
+    #     os.path.expanduser('~/Workspace/Simulation/sfbay/emissions/imputed_MTC_emission_rate_agg_NH3_added_2018.csv'),
+    #     os.path.expanduser('~/Workspace/Simulation/sfbay/emissions/imputed_MTC_emission_rate_agg_NH3_added_2025.csv'),
+    #     os.path.expanduser('~/Workspace/Simulation/sfbay/emissions/imputed_MTC_emission_rate_agg_NH3_added_2030.csv'),
+    #     os.path.expanduser('~/Workspace/Simulation/sfbay/emissions/imputed_MTC_emission_rate_agg_NH3_added_2040.csv'),
+    #     os.path.expanduser('~/Workspace/Simulation/sfbay/emissions/imputed_MTC_emission_rate_agg_NH3_added_2050.csv')
+    # ],
+    #     os.path.expanduser('~/Workspace/Simulation/sfbay/emissions/imputed_MTC_emission_rate_agg_NH3_added_2018_2025_2030_2040_2050.csv')
+    # )
 
     print("End")

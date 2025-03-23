@@ -222,7 +222,6 @@ sfbay_area_config = {
 
     "emissions": {
         "2018_Baseline" : {
-            "dir": os.path.expanduser("~/Workspace/Simulation/sfbay/emissions"),
             "filters": {
                 "season_month": "Annual",
                 "calendar_year": 2018,
@@ -232,15 +231,21 @@ sfbay_area_config = {
                 "include_nan": True
             },
             "emfac": {
-                "emfac_rates_by_model_year_file": f"emfac/imputed_MTC_emission_rate_agg_NH3_added_2018_2025_2030_2040_2050_byMY.csv",
-                "emfac_vmt_by_model_year_file": f"emfac/Default_Statewide_2018_2025_2030_2040_2050_Annual_vmt_20240612233346.csv"
+                "emfac_rates_by_model_year_file": f"emissions/emfac/imputed_MTC_emission_rate_agg_NH3_added_2018_2025_2030_2040_2050_byMY.csv",
+                "emfac_vmt_by_model_year_file": f"emissions/emfac/Default_Statewide_2018_2025_2030_2040_2050_Annual_vmt_20240612233346.csv"
             },
             "black_carbon": {
-                "black_carbon_rates_file": f"black_carbon/emfac_bc_rate_three_ver_2018.csv",
+                "black_carbon_rates_file": f"emissions/black_carbon/emfac_bc_rate_three_ver_2018.csv",
             },
             "road_dust": {
-                "rainy_days_file": f"road_dust/CA_input/rainy_days.csv",
-                "silt_loading_file": f"road_dust/CA_input/silt_loading.csv",
+                "rainy_days_file": f"emissions/road_dust/CA_input/rainy_days.csv",
+                "silt_loading_file": f"emissions/road_dust/CA_input/silt_loading.csv",
+            },
+            "beam" : {
+                "carriers_file": f"beam-ft/2024-11-06/2018_Baseline/carriers--2018-Baseline.csv",
+                "payloads_file": f"beam-ft/2024-11-06/2018_Baseline/payloads--2018-Baseline.csv",
+                "ft_vehicle_types_file": f"beam-ft/vehicle-tech/ft-vehicletypes--20241106--2018-Baseline.csv",
+                "pax_vehicle_types_file": f"beam-pax/vehicle-tech/pax-vehicletypes--2018-Baseline.csv"
             }
         }
     }
