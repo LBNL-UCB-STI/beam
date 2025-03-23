@@ -218,6 +218,31 @@ sfbay_area_config = {
         # // Initial core requirement: 1233 ppsm = 475 ppsk
         # // Urban extension requirement: 580 ppsm = 224 ppsk
         # // Rural Areas less than 580 people per square mile
+    },
+
+    "emissions": {
+        "2018_Baseline" : {
+            "dir": os.path.expanduser("~/Workspace/Simulation/sfbay/emissions"),
+            "filters": {
+                "season_month": "Annual",
+                "calendar_year": 2018,
+                "temperature": 60.,
+                "relative_humidity": 40.,
+                "sub_area": ["SF"],
+                "include_nan": True
+            },
+            "emfac": {
+                "emfac_rates_by_model_year_file": f"emfac/imputed_MTC_emission_rate_agg_NH3_added_2018_2025_2030_2040_2050_byMY.csv",
+                "emfac_vmt_by_model_year_file": f"emfac/Default_Statewide_2018_2025_2030_2040_2050_Annual_vmt_20240612233346.csv"
+            },
+            "black_carbon": {
+                "black_carbon_rates_file": f"black_carbon/emfac_bc_rate_three_ver_2018.csv",
+            },
+            "road_dust": {
+                "rainy_days_file": f"road_dust/CA_input/rainy_days.csv",
+                "silt_loading_file": f"road_dust/CA_input/silt_loading.csv",
+            }
+        }
     }
 }
 

@@ -1,10 +1,10 @@
-from _emfac_emissions_mapping import *
-import pandas as pd
-import pyarrow as pa
-import pyarrow.csv as csv
 import os
-import re
 import sys
+
+import pandas as pd
+
+from _carb_emissions_rates_generation import *
+from _emfac_emissions_mapping import *
 
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -13,7 +13,6 @@ sys.path.insert(0, parent_dir)
 
 # Now use absolute import
 from python.utils.study_area_config import get_area_config
-from python.utils.study_area_config import generate_network_name
 
 pd.set_option('display.max_columns', 20)
 
@@ -259,27 +258,6 @@ def combine_csv_files(input_files, output_file):
     # Read and combine CSV files vertically
     combined_df = pd.concat([pd.read_csv(f) for f in input_files], ignore_index=True)
 
-    def categorize_model_year(year):
-        if year <= 1993:
-            return 'MY<=1993'
-        elif 1994 <= year <= 1999:
-            return '1994-1999'
-        elif 2000 <= year <= 2003:
-            return '2000-2003'
-        elif 2004 <= year <= 2006:
-            return '2004-2006'
-        elif 2007 <= year <= 2009:
-            return '2007-2009'
-        elif 2010 <= year <= 2013:
-            return '2010-2013'
-        elif 2014 <= year <= 2015:
-            return '2014-2015'
-        else:  # year >= 2016
-            return 'MY>=2016'
-
-    # Create a new column with the categorized model years
-    combined_df['model_year_group'] = combined_df['model_year'].apply(categorize_model_year)
-
     # Write the combined dataframe to a new CSV file
     combined_df.to_csv(output_file, index=False)
 
@@ -301,120 +279,99 @@ if __name__ == "__main__":
     # Configuration parameters
     area = "sfbay"
     study_area_config = get_area_config(area)
-
-    # Scenario parameters
-    # emfac_year, ft_year, ft_scenario, pax_year, pax_scenario = 2050, 2050, "HOPhighp2", 2045, "LowTech"
-    # emfac_year, ft_year, ft_scenario, pax_year, pax_scenario = 2018, 2018, "Baseline", 2018, "Baseline"
-    # emfac_year, ft_year, ft_scenario, pax_year, pax_scenario = 2050, 2050, "Refhighp6", 2045, "LowTech"
-    run_config = {
-        "emfac_year": 2018,
-
-        "run_batch": "2024-01-23",
-
-        "ft_scenario": "2018_Baseline",
-        "run_ft": True, # Run Freight Emissions Mapping
-
-        "pax_scenario": "2018_Baseline",
-        "run_pax": False # Run Passenger Emissions Mapping
-    }
-
-    ft_scenario_label = run_config["ft_scenario"].replace("_", "-")
-    pax_scenario_label = run_config["pax_scenario"].replace("_", "-")
     work_dir = study_area_config["work_dir"]
+
+    run_batch = "2024-11-06"
+    scenario = "2018_Baseline"
+    ft_scenario_label = scenario.replace("_", "-")
+    pax_scenario_label = scenario.replace("_", "-")
+    emissions_config = study_area_config["emissions"][scenario]
+
 
     # ### Input directories and files ### #
     # Emissions
-    emfac_pop_file = f"{work_dir}/emissions/emfac/Default_Statewide_2018_2025_2030_2040_2050_Annual_population_20240612233346.csv"
-    emfac_vmt_file = f"{work_dir}/emissions/emfac/Default_Statewide_2018_2025_2030_2040_2050_Annual_vmt_20240612233346.csv"
-    emfac_rates_file = f"{work_dir}/emissions/emfac/imputed_MTC_emission_rate_agg_NH3_added_2018_2025_2030_2040_2050.csv"
-    emfac_rates_by_model_year_file = f"{work_dir}/emissions/emfac/imputed_MTC_emission_rate_agg_NH3_added_2018_2025_2030_2040_2050_byMY.csv"
-    black_carbon_rates_file = f"{work_dir}/emissions/black_carbon/emfac_bc_rate_three_ver_2018.csv"
-    road_dust_pm_rates_file = f"{work_dir}/emissions/road_dust/carb_road_dust_rate_2018.csv"
     # Freight Population
-    ft_plans_dir = f"{work_dir}/beam-ft/{run_config["run_batch"]}"
-    carriers_file = f"{ft_plans_dir}/{run_config["ft_scenario"]}/carriers--{ft_scenario_label}.csv"
-    payloads_file = f"{ft_plans_dir}/{run_config["ft_scenario"]}/payloads--{ft_scenario_label}.csv"
+    ft_plans_dir = f"{work_dir}/beam-ft/{run_batch}"
+    carriers_file = f"{ft_plans_dir}/{scenario}/carriers--{ft_scenario_label}.csv"
+    payloads_file = f"{ft_plans_dir}/{scenario}/payloads--{ft_scenario_label}.csv"
     ft_vehicle_types_file = f"{ft_plans_dir}/vehicle-tech/ft-vehicletypes--{ft_scenario_label}.csv"
     # Passenger Population
-    pax_plans_dir = f"{work_dir}/beam-pax/{run_config["run_batch"]}"
+    pax_plans_dir = f"{work_dir}/beam-pax/{run_batch}"
     pax_vehicle_types_file = f"{pax_plans_dir}/vehicle-tech/pax-vehicletypes--{pax_scenario_label}.csv"
 
     # ### Output directories and files ### #
     # Freight Population
     ft_filtered_out_emissions_file = f"{ft_plans_dir}/vehicle-tech/ft-filtered-out--{ft_scenario_label}-TrAP.csv"
     ft_vehicle_types_emissions_file = f"{ft_plans_dir}/vehicle-tech/ft-vehicletypes--{ft_scenario_label}-TrAP.csv"
-    ft_carriers_emissions_file = f"{ft_plans_dir}/{run_config["ft_scenario"]}/carriers--{ft_scenario_label}-TrAP.csv"
+    ft_carriers_emissions_file = f"{ft_plans_dir}/{scenario}/carriers--{ft_scenario_label}-TrAP.csv"
     ft_emissions_rates_relative_filepath = f"TrAP/FT-{str(ft_scenario_label)}"
     # Passenger Population
     pax_filtered_out_emissions_file = f"{pax_plans_dir}/vehicle-tech/pax-filtered-out-TrAP.csv"
     pax_vehicle_types_emissions_file = f"{pax_plans_dir}/vehicle-tech/pax-vehicletypes--{pax_scenario_label}-TrAP.csv"
     pax_emissions_rates_relative_filepath = f"TrAP/PAX-{str(pax_scenario_label)}"
 
+    emfac_vmt_by_model_year_file = os.path.join(
+        emissions_config["dir"],
+        emissions_config["emfac"]["emfac_vmt_by_model_year_file"]
+    )
+
+    emfac_vmt = pd.read_csv(str(emfac_vmt_by_model_year_file), low_memory=False, dtype=str)
+
     # ### Prep emissions rates ### #
-    if not os.path.exists(emfac_rates_by_model_year_file):
-        if os.path.exists(emfac_rates_file):
-            table = csv.read_csv(emfac_rates_file, read_options=pa.csv.ReadOptions(use_threads=True))
-            df = table.to_pandas()
-            group_col = ['calendar_year', 'season_month', 'sub_area', 'vehicle_class', 'fuel', 'temperature',
-                         'relative_humidity', 'process', 'speed_time', 'pollutant', 'MY_group']
-            # Group by MY_group and calculate statistics
-            emission_rates = df.groupby(group_col).agg({'emission_rate': 'mean'})
-        else:
-            print(f"Error: Emissions rates file '{emfac_rates_file}' not found.")
-            sys.exit(1)
-    else:
-        table = csv.read_csv(emfac_rates_by_model_year_file, read_options=pa.csv.ReadOptions(use_threads=True))
-        emission_rates = table.to_pandas()
+    print("=== Identify vehicle classes ===\n")
+    pax_emfac_class_map, ft_emfac_class_map = create_vehicle_class_mapping(emfac_vmt["vehicle_class"].unique())
+    print("\n=== Process Emissions Rates ===\n")
+    rates = process_emissions_rates(area, scenario, emissions_config, pax_emfac_class_map | ft_emfac_class_map)
+    print(f"{len(rates)} rates")
 
 
-
-    # Load common data
-    emfac_population = pd.read_csv(emfac_population_file, low_memory=False, dtype=str)
-    emfac_population['population'] = pd.to_numeric(emfac_population['population'], errors='coerce')
-
-    emissions_rates = pd.read_csv(emfac_emissions_file, low_memory=False, dtype={
-        'calendar_year': int,
-        'season_month': str,
-        'sub_area': str,
-        'vehicle_class': str,
-        'fuel': str,
-        'temperature': float,
-        'relative_humidity': float,
-        'process': str,
-        'speed_time': float,
-        'pollutant': str,
-        'emission_rate': float
-    })
-
-    # Filter rates for the specific area and year
-    filtered_rates = emissions_rates[
-        emissions_rates["sub_area"].str.contains(fr"\({re.escape(region_to_carb_area[area])}\)", case=False, na=False) &
-        (emissions_rates["calendar_year"] == emfac_year)
-        ]
-
-    # Process passenger mapping if enabled
-    if run_config["run_pax"]:
-        # Print scenario info
-        print(f"Scenario {area}, {str(ft_year)}-{ft_scenario} from {ft_iteration}..")
-        pax_vehicle_types = pd.read_csv(pax_vehicle_types_file)
-        process_passenger_mapping(
-            emfac_year, filtered_rates, emfac_population,
-            pax_vehicle_types,
-            pax_filtered_out_emissions_file, pax_vehicle_types_emissions_file,
-            pax_emissions_rates_relative_filepath, input_dir
-        )
-
-    # Process freight mapping if enabled
-    if run_config["run_ft"]:
-        ft_payloads = pd.read_csv(payloads_file)
-        ft_vehicle_types = pd.read_csv(ft_vehicle_types_file)
-        ft_carriers = pd.read_csv(carriers_file, dtype=str)
-        process_freight_mapping(
-            emfac_year, filtered_rates, emfac_population,
-            ft_carriers, ft_payloads, ft_vehicle_types,
-            ft_carriers_emissions_file, ft_filtered_out_emissions_file,
-            ft_vehicle_types_emissions_file, ft_emissions_rates_relative_filepath,
-            input_dir
-        )
+    # # Load common data
+    # emfac_population = pd.read_csv(emfac_population_file, low_memory=False, dtype=str)
+    # emfac_population['population'] = pd.to_numeric(emfac_population['population'], errors='coerce')
+    #
+    # emissions_rates = pd.read_csv(emfac_emissions_file, low_memory=False, dtype={
+    #     'calendar_year': int,
+    #     'season_month': str,
+    #     'sub_area': str,
+    #     'vehicle_class': str,
+    #     'fuel': str,
+    #     'temperature': float,
+    #     'relative_humidity': float,
+    #     'process': str,
+    #     'speed_time': float,
+    #     'pollutant': str,
+    #     'emission_rate': float
+    # })
+    #
+    # # Filter rates for the specific area and year
+    # filtered_rates = emissions_rates[
+    #     emissions_rates["sub_area"].str.contains(fr"\({re.escape(region_to_carb_area[area])}\)", case=False, na=False) &
+    #     (emissions_rates["calendar_year"] == emfac_year)
+    #     ]
+    #
+    # # Process passenger mapping if enabled
+    # if run_config["run_pax"]:
+    #     # Print scenario info
+    #     print(f"Scenario {area}, {str(ft_year)}-{ft_scenario} from {ft_iteration}..")
+    #     pax_vehicle_types = pd.read_csv(pax_vehicle_types_file)
+    #     process_passenger_mapping(
+    #         emfac_year, filtered_rates, emfac_population,
+    #         pax_vehicle_types,
+    #         pax_filtered_out_emissions_file, pax_vehicle_types_emissions_file,
+    #         pax_emissions_rates_relative_filepath, input_dir
+    #     )
+    #
+    # # Process freight mapping if enabled
+    # if run_config["run_ft"]:
+    #     ft_payloads = pd.read_csv(payloads_file)
+    #     ft_vehicle_types = pd.read_csv(ft_vehicle_types_file)
+    #     ft_carriers = pd.read_csv(carriers_file, dtype=str)
+    #     process_freight_mapping(
+    #         emfac_year, filtered_rates, emfac_population,
+    #         ft_carriers, ft_payloads, ft_vehicle_types,
+    #         ft_carriers_emissions_file, ft_filtered_out_emissions_file,
+    #         ft_vehicle_types_emissions_file, ft_emissions_rates_relative_filepath,
+    #         input_dir
+    #     )
 
     print("End")
