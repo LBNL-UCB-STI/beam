@@ -6,6 +6,8 @@ import beam.utils.scenario.urbansim.censusblock.EntityTransformer
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
+import scala.util.Try
+
 class CsvPersonReader(path: String) extends BaseCsvReader[InputPersonInfo](path) {
 
   override val transformer = new EntityTransformer[InputPersonInfo] {
@@ -51,7 +53,7 @@ class CsvHouseholdReader(path: String) extends BaseCsvReader[InputHousehold](pat
     override def transform(record: java.util.Map[String, String]): InputHousehold = {
       InputHousehold(
         householdId = record.get("household_id"),
-        cars = record.get("cars").toInt,
+        cars = Try(record.get("cars").toInt).getOrElse(record.get("auto_ownership").toInt),
         income = record.get("income").toInt,
         blockId = record.get("block_id").toLong
       )
