@@ -120,7 +120,12 @@ def create_vehicle_class_mapping(vehicle_list):
     pax_emfac_class_map = {emfac: beam for emfac, beam in mapping.items() if
                            beam in [class_car, class_bike, class_mdp]}
 
-    return pax_emfac_class_map, ft_emfac_class_map
+    emfac_class_map = {
+        "freight": ft_emfac_class_map,
+        "passenger": pax_emfac_class_map
+    }
+
+    return emfac_class_map
 
 
 

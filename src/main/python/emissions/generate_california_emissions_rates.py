@@ -453,53 +453,56 @@ def process_road_dust(study_area, scenario_name, config, work_dir, emfacIds):
     return road_dust_rates
 
 
-def process_emissions_rates(study_area, scenario_name, config, work_dir, emfac_class_map):
+def process_emissions_rates(_study_area, _scenario_name, _work_dir, _emfac_class_map, config):
     """
     Process emissions rates for one or more scenarios based on the provided configuration.
 
     Args:
-        study_area (str): Area for which emissions rates need to be processed
+        _study_area (str): Area for which emissions rates need to be processed
+        _scenario_name:
         config (dict): Configuration dictionary containing emission scenarios
+        _work_dir:
+        _emfac_class_map:
 
     Returns:
         dict: Dictionary of processed emissions rates for each scenario
     """
     # File paths for outputs
-    combined_rate_file = os.path.join(work_dir, f"{study_area}_emissions_rates_{scenario_name}.csv")
+    combined_rate_file = os.path.join(_work_dir, f"emissions/{_study_area}_emissions_rates_{_scenario_name}.csv")
 
     if os.path.exists(combined_rate_file):
-        _combined_rates = pd.read_csv(combined_rate_file)
+        _combined_rates = pd.read_csv(combined_rate_file, dtype=str)
     else:
         dfs = []
         emfacIds = set()
         # Process EMFAC emissions if configured
         if 'emfac' in config:
-            print(f"Processing emfac emissions for scenario '{scenario_name}'")
-            emfac_rates = process_emfac_emissions(study_area, scenario_name, config, work_dir, emfac_class_map)
+            print(f"Processing emfac emissions for scenario '{_scenario_name}'")
+            emfac_rates = process_emfac_emissions(_study_area, _scenario_name, config, _work_dir, _emfac_class_map)
             dfs.append(emfac_rates)
             emfacIds.update(emfac_rates["emfacId"].unique())
         else:
-            print(f"Skipping EMFAC processing for scenario '{scenario_name}' as no config is provided.")
+            print(f"Skipping EMFAC processing for scenario '{_scenario_name}' as no config is provided.")
 
         # Process black carbon emissions if configured
         if 'black_carbon' in config:
-            print(f"Processing black carbon emissions for scenario '{scenario_name}'")
-            black_carbon_rates = process_black_carbon(study_area, scenario_name, config, work_dir, emfac_class_map)
+            print(f"Processing black carbon emissions for scenario '{_scenario_name}'")
+            black_carbon_rates = process_black_carbon(_study_area, _scenario_name, config, _work_dir, _emfac_class_map)
             dfs.append(black_carbon_rates)
             emfacIds.update(black_carbon_rates["emfacId"].unique())
         else:
-            print(f"Skipping Black Carbon processing for scenario '{scenario_name}' as no config is provided.")
+            print(f"Skipping Black Carbon processing for scenario '{_scenario_name}' as no config is provided.")
 
         # Process road dust emissions if configured
         if 'road_dust' in config:
-            print(f"Processing road dust emissions for scenario '{scenario_name}'")
-            road_dust_rates = process_road_dust(study_area, scenario_name, config, work_dir, emfacIds)
+            print(f"Processing road dust emissions for scenario '{_scenario_name}'")
+            road_dust_rates = process_road_dust(_study_area, _scenario_name, config, _work_dir, emfacIds)
             dfs.append(road_dust_rates)
         else:
-            print(f"Skipping Paved Road Dust processing for scenario '{scenario_name}' as no config is provided.")
+            print(f"Skipping Paved Road Dust processing for scenario '{_scenario_name}' as no config is provided.")
 
         if not dfs or len(dfs) < 3:
-            print(f"Warning: No emission rates available for scenario '{scenario_name}'")
+            print(f"Warning: No emission rates available for scenario '{_scenario_name}'")
             _combined_rates = pd.DataFrame()
         else:
             # Get all unique columns from all dataframes
@@ -518,7 +521,7 @@ def process_emissions_rates(study_area, scenario_name, config, work_dir, emfac_c
                         valid_dfs[i][col] = None
 
             _combined_rates = pd.concat(valid_dfs, ignore_index=True)
-            _combined_rates["scenario"] = scenario_name
+            _combined_rates["scenario"] = _scenario_name
             # Specify the columns you want to appear first
             first_cols = [
                 "scenario", "emfacId", "county", "speed_mph_float_bins", "time_minutes_float_bins", "road_category",
