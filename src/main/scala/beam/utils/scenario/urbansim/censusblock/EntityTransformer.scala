@@ -1,6 +1,7 @@
 package beam.utils.scenario.urbansim.censusblock
 
 import java.io
+import org.apache.avro.generic.GenericRecord
 
 trait EntityTransformer[T] {
 
@@ -30,4 +31,8 @@ trait EntityTransformer[T] {
   def getOptional(rec: java.util.Map[String, String], column: String): Option[String] = Option(rec.get(column))
 
   def transform(rec: java.util.Map[String, String]): T
+}
+
+trait ParquetTransformer[T] {
+  def transform(record: GenericRecord): T
 }
