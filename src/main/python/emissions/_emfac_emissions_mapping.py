@@ -62,7 +62,7 @@ pollutant_columns = {
     'TOG': 'rate_tog_gram_float'
 }
 
-def get_vehicle_class_from_freight(vehicle_type):
+def get_vehicle_class(vehicle_type):
     if 'md' in vehicle_type:
         return class_46
     elif 'hdt' in vehicle_type:
@@ -354,7 +354,7 @@ def prepare_ft_vehicle_population_for_mapping(carriers, payloads_raw, ft_vehicle
     payloads = payloads_raw[['payloadId', 'tourId', 'payloadType']].copy()
     ft_vehicletypes = ft_vehicletypes[['vehicleTypeId', 'primaryFuelType', 'secondaryFuelType']].copy()
 
-    ft_vehicletypes['beamClass'] = ft_vehicletypes['vehicleTypeId'].apply(get_vehicle_class_from_freight)
+    ft_vehicletypes['beamClass'] = ft_vehicletypes['vehicleTypeId'].apply(get_vehicle_class)
 
     # Summarize data
     payloads.loc[:, 'payloadType'] = payloads['payloadType'].astype(str)

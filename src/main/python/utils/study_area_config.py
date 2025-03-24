@@ -245,8 +245,8 @@ sfbay_area_config = {
             "beam" : {
                 "carriers_file": f"beam-ft/2024-11-06/2018_Baseline/carriers--2018-Baseline.csv",
                 "payloads_file": f"beam-ft/2024-11-06/2018_Baseline/payloads--2018-Baseline.csv",
-                "ft_vehicle_types_file": f"beam-ft/vehicle-tech/ft-vehicletypes--20241106--2018-Baseline.csv",
-                "pax_vehicle_types_file": f"beam-pax/vehicle-tech/pax-vehicletypes--2018-Baseline.csv"
+                "ft_vehicle_types_file": f"vehicle-tech/ft-vehicletypes--20241106--2018-Baseline.csv",
+                "pax_vehicle_types_file": f"vehicle-tech/pax-vehicletypes--2018-Baseline.csv"
             }
         }
     }
