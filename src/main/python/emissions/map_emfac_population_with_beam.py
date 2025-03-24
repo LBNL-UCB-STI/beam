@@ -27,6 +27,7 @@ beam_class_bike = "Bike"
 beam_class_mdp = "MediumDutyPassenger"
 
 beam_freight_classes = [beam_class_46, beam_class_78_v, beam_class_78_t]
+beam_passenger_classes = [beam_class_car, beam_class_bike, beam_class_mdp]
 
 def calculate_distance(x1, y1, x2, y2):
     """Calculate Euclidean distance between two points"""
@@ -63,7 +64,7 @@ def process_emfac_population(_study_area, _scenario_name, _work_dir, config):
     if os.path.exists(_emfac_population_output_file):
         _emfac_population = pd.read_csv(_emfac_population_output_file)
         _emfac_class_map = get_emfac_beam_vehicle_class_mapping(
-            area, scenario, work_dir, _emfac_population["vehicle_class"].unique()
+            _study_area, _scenario_name, _work_dir, _emfac_population["vehicle_class"].unique()
         )
     else:
         include_nan = config["filters"]["include_nan"]
@@ -106,7 +107,7 @@ def process_emfac_population(_study_area, _scenario_name, _work_dir, config):
         df = df.reset_index(drop=True)
 
         # Group by relevant columns and sum population
-        group_col = ['sub_area', 'vehicle_class', 'fuel', 'model_year_group']
+        group_col = ['vehicle_class', 'fuel', 'model_year_group']
         df_grouped = df.groupby(group_col)['population'].sum().reset_index()
 
         # Calculate total population across all groups
@@ -124,7 +125,7 @@ def process_emfac_population(_study_area, _scenario_name, _work_dir, config):
         _emfac_population = df_grouped
 
         _emfac_class_map = get_emfac_beam_vehicle_class_mapping(
-            area, scenario, work_dir, _emfac_population["vehicle_class"].unique()
+            _study_area, _scenario_name, _work_dir, _emfac_population["vehicle_class"].unique()
         )
 
         _emfac_population["beamClass"] = _emfac_population["vehicle_class"].map(_emfac_class_map)
@@ -216,7 +217,7 @@ def process_emfac_vmt(_study_area, _scenario_name, _work_dir, _emfac_class_map, 
         df = df.reset_index(drop=True)
 
         # Group by relevant columns and sum VMT
-        group_col = ['sub_area', 'vehicle_class', 'fuel', 'model_year_group']
+        group_col = ['vehicle_class', 'fuel', 'model_year_group']
         df_grouped = df.groupby(group_col)['total_vmt'].sum().reset_index()
 
         # Calculate total VMT across all groups
@@ -243,40 +244,23 @@ def process_emfac_vmt(_study_area, _scenario_name, _work_dir, _emfac_class_map, 
 
 
 def calculate_tour_distances(df):
-    """Calculate total distance for each tour ID from the coordinates"""
+    """Calculate total distance for each tour ID from the coordinates using vectorized operations"""
     # Sort data by tourId and sequenceRank
     df = df.sort_values(by=['tourId', 'sequenceRank'])
 
-    # Get unique tour IDs
-    tour_ids = df['tourId'].unique()
+    # Create shifted columns to calculate distances between consecutive points
+    df['next_x'] = df.groupby('tourId')['locationX'].shift(-1)
+    df['next_y'] = df.groupby('tourId')['locationY'].shift(-1)
 
-    # Initialize results dictionary
-    tour_distances = {}
+    # Calculate distances (only where next point exists)
+    mask = ~df['next_x'].isna()
+    df.loc[mask, 'segment_distance'] = np.sqrt(
+        (df.loc[mask, 'locationX'] - df.loc[mask, 'next_x']) ** 2 +
+        (df.loc[mask, 'locationY'] - df.loc[mask, 'next_y']) ** 2
+    )
 
-    # Calculate total distance for each tour
-    for tour_id in tour_ids:
-        # Get points for this tour
-        tour_points = df[df['tourId'] == tour_id]
-
-        # Initialize total distance
-        total_distance = 0
-
-        # Calculate distance between consecutive points
-        for i in range(len(tour_points) - 1):
-            current_point = tour_points.iloc[i]
-            next_point = tour_points.iloc[i + 1]
-
-            distance = calculate_distance(
-                current_point['locationX'],
-                current_point['locationY'],
-                next_point['locationX'],
-                next_point['locationY']
-            )
-
-            total_distance += distance
-
-        # Store the total distance for this tour
-        tour_distances[tour_id] = total_distance
+    # Sum up distances by tour
+    tour_distances = df.groupby('tourId')['segment_distance'].sum().to_dict()
 
     return tour_distances
 
@@ -298,7 +282,7 @@ def updated_fuel_types_from_emfac(og_vehicletypes_df):
         (vehtypes['primaryFuelType_lower'] == "naturalgas")
     ]
 
-    values = ['Elec', 'Elec', 'Phe', 'Gas', 'Dsl', 'BioDsl', 'NG']
+    values = ['Elec', 'Elec', 'Phe', 'Gas', 'Dsl', 'Dsl', 'NG']
 
     # Use numpy.select to handle multiple conditions
     vehtypes['emfacFuel'] = np.select(
@@ -307,8 +291,9 @@ def updated_fuel_types_from_emfac(og_vehicletypes_df):
         default=vehtypes['primaryFuelType']
     )
     vehtypes['beamClass'] = vehtypes['vehicleCategory']
+    vehtypes.drop('primaryFuelType_lower', axis=1, inplace=True)
 
-    return vehtypes.drop('primaryFuelType_lower', axis=1, inplace=True)
+    return vehtypes
 
 
 def get_emfac_beam_vehicle_class_mapping(_study_area, _scenario_name, _work_dir, vehicle_list):
@@ -390,215 +375,6 @@ def get_emfac_beam_vehicle_class_mapping(_study_area, _scenario_name, _work_dir,
 
     print(f"Successfully created {_vehicle_class_output_file}")
     return _emfac_class_map
-
-
-def print_emfac_distributions(emfac_data):
-    """
-    Calculate and print VMT distributions from EMFAC data by:
-    1. Model year
-    2. Vehicle class
-    3. Fuel type
-    4. BEAM class
-
-    Parameters:
-    -----------
-    emfac_data : pandas DataFrame
-        EMFAC data with model_year_group, vehicle_class, fuel, beamClass, and vmt_proportion columns
-    """
-    # Calculate total VMT proportion for normalization
-    total_vmt_proportion = emfac_data['vmt_proportion'].sum()
-
-    # 1. Print model year distribution
-    print("\n=== VMT Distribution by Model Year ===")
-    print(f"{'Year':<10} {'VMT %':<10}")
-    print("-" * 20)
-
-    for year, group in emfac_data.groupby('model_year_group'):
-        year_vmt = group['vmt_proportion'].sum()
-        percentage = (year_vmt / total_vmt_proportion) * 100
-        print(f"{year:<10} {percentage:<10.2f}%")
-
-    # 2. Print vehicle class distribution
-    print("\n=== VMT Distribution by Vehicle Class ===")
-    print(f"{'Vehicle Class':<20} {'VMT %':<10}")
-    print("-" * 30)
-
-    for vehicle_class, group in emfac_data.groupby('vehicle_class'):
-        vclass_vmt = group['vmt_proportion'].sum()
-        percentage = (vclass_vmt / total_vmt_proportion) * 100
-        print(f"{vehicle_class:<20} {percentage:<10.2f}%")
-
-    # 3. Print fuel distribution
-    print("\n=== VMT Distribution by Fuel Type ===")
-    print(f"{'Fuel':<10} {'VMT %':<10}")
-    print("-" * 20)
-
-    for fuel, group in emfac_data.groupby('fuel'):
-        fuel_vmt = group['vmt_proportion'].sum()
-        percentage = (fuel_vmt / total_vmt_proportion) * 100
-        print(f"{fuel:<10} {percentage:<10.2f}%")
-
-    # 4. Print BEAM class distribution
-    print("\n=== VMT Distribution by BEAM Class ===")
-    print(f"{'BEAM Class':<25} {'VMT %':<10}")
-    print("-" * 35)
-
-    for beam_class, group in emfac_data.groupby('beamClass'):
-        beam_vmt = group['vmt_proportion'].sum()
-        percentage = (beam_vmt / total_vmt_proportion) * 100
-        print(f"{beam_class:<25} {percentage:<10.2f}%")
-
-    # 5. Print top combinations by model year and BEAM class
-    print("\n=== VMT Distribution by Year and BEAM Class ===")
-    print(f"{'Year':<6} {'BEAM Class':<25} {'VMT %':<10}")
-    print("-" * 41)
-
-    year_beam_distribution = []
-    for (year, beam_class), group in emfac_data.groupby(['model_year_group', 'beamClass']):
-        vmt_sum = group['vmt_proportion'].sum()
-        percentage = (vmt_sum / total_vmt_proportion) * 100
-        year_beam_distribution.append((year, beam_class, percentage))
-
-    # Sort by percentage (descending) and print
-    for year, beam_class, percentage in sorted(year_beam_distribution,
-                                               key=lambda x: x[2],
-                                               reverse=True):
-        print(f"{year:<6} {beam_class:<25} {percentage:<10.2f}%")
-
-    # 6. Print top combinations (year, vehicle_class, fuel, beam_class)
-    print("\n=== Top 10 VMT Distribution by Year-Class-Fuel-BEAM Combination ===")
-    print(f"{'Year':<6} {'Vehicle Class':<20} {'Fuel':<6} {'BEAM Class':<25} {'VMT %':<10}")
-    print("-" * 71)
-
-    # Create combined distribution and sort by percentage
-    combined_distribution = []
-    for (year, vehicle_class, fuel, beam_class), group in emfac_data.groupby(
-            ['model_year_group', 'vehicle_class', 'fuel', 'beamClass']):
-        vmt_sum = group['vmt_proportion'].sum()
-        percentage = (vmt_sum / total_vmt_proportion) * 100
-        combined_distribution.append((year, vehicle_class, fuel, beam_class, percentage))
-
-    # Sort by percentage (descending) and print top 10
-    for year, vehicle_class, fuel, beam_class, percentage in sorted(combined_distribution,
-                                                                    key=lambda x: x[4],
-                                                                    reverse=True)[:10]:
-        print(f"{year:<6} {vehicle_class:<20} {fuel:<6} {beam_class:<25} {percentage:<10.2f}%")
-
-
-def print_beam_freight_distributions(beam_data):
-    """
-    Calculate and print VMT distributions from BEAM freight data by:
-    1. BEAM vehicle class
-    2. EMFAC fuel type
-    3. Combined class and fuel
-
-    Parameters:
-    -----------
-    beam_data : pandas DataFrame
-        BEAM data with beamClass, emfacFuel, and vmt_proportion columns
-    """
-    # Calculate total VMT for normalization
-    total_vmt = beam_data['total_vmt'].sum()
-
-    # 1. Print beamClass distribution
-    print("\n=== VMT Distribution by BEAM Vehicle Class ===")
-    print(f"{'BEAM Class':<25} {'Total VMT':<15} {'VMT %':<10}")
-    print("-" * 50)
-
-    for beam_class, group in beam_data.groupby('beamClass'):
-        group_total_vmt = group['total_vmt'].sum()
-        vmt_percentage = (group_total_vmt / total_vmt) * 100
-        print(f"{beam_class:<25} {group_total_vmt:<15.2f} {vmt_percentage:<10.2f}%")
-
-    # 2. Print emfacFuel distribution
-    print("\n=== VMT Distribution by EMFAC Fuel Type ===")
-    print(f"{'Fuel':<12} {'Total VMT':<15} {'VMT %':<10}")
-    print("-" * 37)
-
-    for fuel, group in beam_data.groupby('emfacFuel'):
-        group_total_vmt = group['total_vmt'].sum()
-        vmt_percentage = (group_total_vmt / total_vmt) * 100
-        print(f"{fuel:<12} {group_total_vmt:<15.2f} {vmt_percentage:<10.2f}%")
-
-    # 3. Print combined distribution (beamClass, emfacFuel)
-    print("\n=== VMT Distribution by BEAM Class and Fuel Combination ===")
-    print(f"{'BEAM Class':<25} {'Fuel':<10} {'Total VMT':<15} {'VMT %':<10}")
-    print("-" * 60)
-
-    # Create combined distribution and sort by VMT percentage
-    combined_distribution = []
-    for (beam_class, fuel), group in beam_data.groupby(['beamClass', 'emfacFuel']):
-        group_total_vmt = group['total_vmt'].sum()
-        vmt_percentage = (group_total_vmt / total_vmt) * 100
-        combined_distribution.append((beam_class, fuel, group_total_vmt, vmt_percentage))
-
-    # Sort by percentage (descending) and print all combinations
-    for beam_class, fuel, group_total_vmt, vmt_percentage in sorted(combined_distribution,
-                                                                    key=lambda x: x[3],
-                                                                    reverse=True):
-        print(f"{beam_class:<25} {fuel:<10} {group_total_vmt:<15.2f} {vmt_percentage:<10.2f}%")
-
-    # 4. Add statistics about the VMT values
-    print("\n=== VMT Statistics by BEAM Class ===")
-    print(f"{'BEAM Class':<25} {'Min VMT':<12} {'Max VMT':<12} {'Avg VMT':<12} {'Total VMT':<15} {'VMT %':<10}")
-    print("-" * 86)
-
-    for beam_class, group in beam_data.groupby('beamClass'):
-        min_vmt = group['total_vmt'].min()
-        max_vmt = group['total_vmt'].max()
-        avg_vmt = group['total_vmt'].mean()
-        group_total_vmt = group['total_vmt'].sum()
-        vmt_percentage = (group_total_vmt / total_vmt) * 100
-        print(
-            f"{beam_class:<25} {min_vmt:<12.4f} {max_vmt:<12.4f} {avg_vmt:<12.4f} {group_total_vmt:<15.2f} {vmt_percentage:<10.2f}%")
-
-    # 5. Add fuel-specific VMT statistics
-    print("\n=== VMT Statistics by Fuel Type ===")
-    print(f"{'Fuel Type':<12} {'Min VMT':<12} {'Max VMT':<12} {'Avg VMT':<12} {'Total VMT':<15} {'VMT %':<10}")
-    print("-" * 73)
-
-    for fuel, group in beam_data.groupby('emfacFuel'):
-        min_vmt = group['total_vmt'].min()
-        max_vmt = group['total_vmt'].max()
-        avg_vmt = group['total_vmt'].mean()
-        group_total_vmt = group['total_vmt'].sum()
-        vmt_percentage = (group_total_vmt / total_vmt) * 100
-        print(
-            f"{fuel:<12} {min_vmt:<12.4f} {max_vmt:<12.4f} {avg_vmt:<12.4f} {group_total_vmt:<15.2f} {vmt_percentage:<10.2f}%")
-
-    # 6. Add combined BEAM class and fuel VMT statistics
-    print("\n=== VMT Statistics by BEAM Class and Fuel Combination ===")
-    print(
-        f"{'BEAM Class':<25} {'Fuel':<10} {'Min VMT':<12} {'Max VMT':<12} {'Avg VMT':<12} {'Total VMT':<15} {'VMT %':<10}")
-    print("-" * 96)
-
-    combined_vmt_stats = []
-    for (beam_class, fuel), group in beam_data.groupby(['beamClass', 'emfacFuel']):
-        min_vmt = group['total_vmt'].min()
-        max_vmt = group['total_vmt'].max()
-        avg_vmt = group['total_vmt'].mean()
-        group_total_vmt = group['total_vmt'].sum()
-        vmt_percentage = (group_total_vmt / total_vmt) * 100
-        combined_vmt_stats.append((beam_class, fuel, min_vmt, max_vmt, avg_vmt, group_total_vmt, vmt_percentage))
-
-    # Sort by total VMT percentage (descending) and print
-    for beam_class, fuel, min_vmt, max_vmt, avg_vmt, group_total_vmt, vmt_percentage in sorted(combined_vmt_stats,
-                                                                                               key=lambda x: x[6],
-                                                                                               reverse=True):
-        print(
-            f"{beam_class:<25} {fuel:<10} {min_vmt:<12.4f} {max_vmt:<12.4f} {avg_vmt:<12.4f} {group_total_vmt:<15.2f} {vmt_percentage:<10.2f}%")
-
-    # 7. Print vehicle types by VMT if available
-    if 'vehicleTypeId' in beam_data.columns:
-        print("\n=== Top 10 Vehicle Types by Total VMT ===")
-        vmt_by_vehicle = {}
-        for vehicle_type, group in beam_data.groupby('vehicleTypeId'):
-            vmt_by_vehicle[vehicle_type] = group['total_vmt'].sum()
-
-        top_vehicles_by_vmt = sorted(vmt_by_vehicle.items(), key=lambda x: x[1], reverse=True)[:10]
-        for vehicle_type, vmt_sum in top_vehicles_by_vmt:
-            vmt_percentage = (vmt_sum / total_vmt) * 100
-            print(f"{vehicle_type}: {vmt_sum:.2f} VMT ({vmt_percentage:.2f}%)")
 
 
 def print_stats(emfac_df, mapped_beaf_freight_df):
@@ -704,7 +480,7 @@ def print_stats(emfac_df, mapped_beaf_freight_df):
     print(cls_my_comparison.sort_values(by='Difference', key=abs, ascending=False).head(5).round(4))
 
 
-def map_emfac_to_beam_freight(study_area, scenario_name, work_dir, emfac_data, beam_data):
+def map_emfac_to_beam_freight(_scenario, _work_dir, _emfac_data, _beam_data, _config):
     """
     Maps EMFAC vehicle classes to BEAM freight data preserving the distribution of:
     1. Model year
@@ -715,10 +491,11 @@ def map_emfac_to_beam_freight(study_area, scenario_name, work_dir, emfac_data, b
     the statistical integrity of VMT distributions across vehicle classes and model years.
     After mapping, it compares the resulting distributions to verify preservation quality.
 
+    This version ensures that each emfacId is unique by removing it from the pool after use
+    and recalculating VMT proportions.
+
     Parameters:
     -----------
-    study_area : str
-        Study area name
     scenario_name : str
         Scenario name
     work_dir : str
@@ -727,6 +504,8 @@ def map_emfac_to_beam_freight(study_area, scenario_name, work_dir, emfac_data, b
         EMFAC VMT distribution data
     beam_data : pd.DataFrame
         BEAM freight VMT data
+    config : dict
+        Configuration dictionary
 
     Returns:
     --------
@@ -734,22 +513,20 @@ def map_emfac_to_beam_freight(study_area, scenario_name, work_dir, emfac_data, b
         The BEAM data with emfacId assigned to each row
     """
     # Check if output file already exists
-    output_file = os.path.join(
-        work_dir,
-        f"emissions/{study_area}_beam_freight_emfac_{scenario_name}.csv"
-    )
+    _carriers_dir = f"{_work_dir}/{os.path.dirname(_config['beam']['carriers_file'])}"
+    output_file = os.path.join(_carriers_dir, f"emfac-fleet--{_scenario.replace('_', '-')}.csv")
 
     if os.path.exists(output_file):
         print(f"Using existing mapping file: {output_file}")
         return pd.read_csv(output_file)
 
+    print("=== VMT-based Mapping Of BEAM Freight with EMFAC ===")
     # Filter EMFAC data to freight classes
-    emfac_freight_data = emfac_data[emfac_data["beamClass"].isin(beam_freight_classes)]
-    beam_df = beam_data.copy()
+    emfac_freight_data = _emfac_data[_emfac_data["beamClass"].isin(beam_freight_classes)]
+    beam_df = _beam_data.copy()
     emfac_df = emfac_freight_data.copy()
 
     # Print distributions for verification
-    print(f"=== Map EMFAC To BEAM Freight Population ===")
     print(f"Loaded BEAM file with {len(beam_df)} rows and EMFAC file with {len(emfac_df)} rows.")
 
     # Step 1: Calculate total BEAM data VMT
@@ -759,6 +536,16 @@ def map_emfac_to_beam_freight(study_area, scenario_name, work_dir, emfac_data, b
     # Step 2: Extract VMT proportion in EMFAC data
     emfac_vmt_props = emfac_df.groupby(['beamClass', 'model_year_group', 'fuel'])['total_vmt'].sum().reset_index()
     emfac_vmt_props['vmt_proportion'] = emfac_vmt_props['total_vmt'] / emfac_vmt_props['total_vmt'].sum()
+
+    # Step 3: Convert EMFAC data to a nested dictionary for easier manipulation and removal
+    emfac_entries = {}
+    for cls in beam_freight_classes:
+        class_data = emfac_df[emfac_df['beamClass'] == cls].copy()
+        if not class_data.empty:
+            # Group by fuel and model year
+            emfac_entries[cls] = {}
+            for (fuel, model_year), group in class_data.groupby(['fuel', 'model_year_group']):
+                emfac_entries[cls][(fuel, model_year)] = group.copy()
 
     # Initialize result dataframe
     result_df = beam_df.copy()
@@ -790,19 +577,13 @@ def map_emfac_to_beam_freight(study_area, scenario_name, work_dir, emfac_data, b
     for i, current_class in enumerate(beam_freight_classes):
         print(f"\nProcessing {current_class}...")
 
-        # Get current data
-        current_beam = beam_by_class[current_class]
-        current_emfac = emfac_df[emfac_df['beamClass'] == current_class]
-
-        if current_emfac.empty:
+        # Skip if no EMFAC data for this class
+        if current_class not in emfac_entries or not emfac_entries[current_class]:
             print(f"No EMFAC data for {current_class}, skipping...")
             continue
 
-        # Get model year and fuel distributions
-        my_fuel_dist = current_emfac.groupby(['model_year_group', 'fuel'])['vmt_proportion'].sum().reset_index()
-        my_fuel_dist['vmt_proportion'] = my_fuel_dist['vmt_proportion'] / my_fuel_dist['vmt_proportion'].sum()
-
         # Process unassigned vehicles in current class
+        current_beam = beam_by_class[current_class]
         beam_indices = set(current_beam.index)
         unassigned_in_class = beam_indices.intersection(unassigned_indices)
 
@@ -812,36 +593,65 @@ def map_emfac_to_beam_freight(study_area, scenario_name, work_dir, emfac_data, b
             idx = random.choice(list(unassigned_in_class))
             vehicle = beam_df.loc[idx]
 
-            # Try to find matching fuel
-            matching_by_fuel = my_fuel_dist[my_fuel_dist['fuel'] == vehicle['emfacFuel']]
+            # Check if we have entries for this fuel
+            fuel = vehicle['emfacFuel']
 
-            if not matching_by_fuel.empty:
-                # Sample model_year_group based on VMT proportion
-                sampled_my = np.random.choice(
-                    matching_by_fuel['model_year_group'],
-                    p=matching_by_fuel['vmt_proportion'] / matching_by_fuel['vmt_proportion'].sum()
-                )
+            # Get all keys (fuel, model_year) for this class with matching fuel
+            matching_keys = [k for k in emfac_entries[current_class].keys() if k[0] == fuel]
 
-                # Get matching EMFAC entries and sample one
-                matching_emfac = current_emfac[
-                    (current_emfac['fuel'] == vehicle['emfacFuel']) &
-                    (current_emfac['model_year_group'] == sampled_my)
-                    ]
+            if matching_keys:
+                # Calculate total VMT for this fuel type across all model years
+                total_vmt = sum(group['total_vmt'].sum() for k, group in
+                                [(k, emfac_entries[current_class][k]) for k in matching_keys])
 
-                sampled_emfac = matching_emfac.sample(weights='vmt_proportion').iloc[0]
+                if total_vmt > 0:  # Make sure we have valid VMT entries
+                    # Sample a key based on VMT proportion
+                    key_probs = [emfac_entries[current_class][k]['total_vmt'].sum() / total_vmt
+                                 for k in matching_keys]
 
-                # Assign emfacId
-                result_df.loc[idx, 'emfacId'] = sampled_emfac['emfacId']
-                result_df.loc[idx, 'assigned_class'] = current_class
+                    sampled_key = matching_keys[np.random.choice(len(matching_keys), p=key_probs)]
 
-                # Update tracking
-                assigned_vmt[current_class] += vehicle['total_vmt']
-                unassigned_indices.remove(idx)
-                unassigned_in_class.remove(idx)
+                    # Get the group of potential entries
+                    group = emfac_entries[current_class][sampled_key]
+
+                    # Sample an entry based on VMT proportion
+                    if not group.empty:
+                        vmt_props = group['total_vmt'] / group['total_vmt'].sum()
+                        sampled_idx = np.random.choice(group.index, p=vmt_props)
+                        sampled_emfac = group.loc[sampled_idx]
+
+                        # Assign emfacId
+                        result_df.loc[idx, 'emfacId'] = sampled_emfac['emfacId']
+                        result_df.loc[idx, 'assigned_class'] = current_class
+
+                        # Remove used entry from the pool
+                        emfac_entries[current_class][sampled_key] = group.drop(sampled_idx)
+
+                        # If group is now empty, remove the key
+                        if emfac_entries[current_class][sampled_key].empty:
+                            del emfac_entries[current_class][sampled_key]
+
+                        # Update tracking
+                        assigned_vmt[current_class] += vehicle['total_vmt']
+                        unassigned_indices.remove(idx)
+                        unassigned_in_class.remove(idx)
+                    else:
+                        # Empty group - remove key
+                        del emfac_entries[current_class][sampled_key]
+                        continue
+                else:
+                    # No valid VMT entries
+                    for k in matching_keys:
+                        if emfac_entries[current_class][k].empty:
+                            del emfac_entries[current_class][k]
+                    print(f"No valid VMT entries for fuel {fuel} in class {current_class}")
+                    unassigned_in_class.remove(idx)
+                    continue
             else:
-                # No matching fuel found for this vehicle
-                print(f"No matching fuel in EMFAC for vehicle {vehicle['vehicleId']} with fuel {vehicle['emfacFuel']}")
+                # No matching fuel for this class, remove from consideration
+                print(f"No matching fuel {fuel} in EMFAC for vehicle {vehicle['vehicleId']}")
                 unassigned_in_class.remove(idx)
+                continue
 
         # STEP 4.2: Current class exhausted but threshold not met
         if (assigned_vmt[current_class] < target_vmt[current_class]) and not unassigned_in_class:
@@ -851,6 +661,12 @@ def map_emfac_to_beam_freight(study_area, scenario_name, work_dir, emfac_data, b
             # Check if there are more classes to process
             if i + 1 < len(beam_freight_classes):
                 next_class = beam_freight_classes[i + 1]
+
+                # Skip if next class has no EMFAC data
+                if next_class not in emfac_entries or not emfac_entries[next_class]:
+                    print(f"No EMFAC data for next class {next_class}, continuing...")
+                    continue
+
                 print(f"Flipping vehicles from {next_class} to {current_class}")
 
                 # Get unassigned vehicles from next class
@@ -858,37 +674,63 @@ def map_emfac_to_beam_freight(study_area, scenario_name, work_dir, emfac_data, b
                 next_indices = set(next_beam.index)
                 unassigned_next = next_indices.intersection(unassigned_indices)
 
-                # Assign from next class until threshold is met
+                # Process vehicles from next class
                 while (assigned_vmt[current_class] < target_vmt[current_class]) and unassigned_next:
+                    # Sample a vehicle from next class
                     idx = random.choice(list(unassigned_next))
                     vehicle = beam_df.loc[idx]
 
-                    # Try to match by fuel
-                    matching_by_fuel = my_fuel_dist[my_fuel_dist['fuel'] == vehicle['emfacFuel']]
+                    # Find matching entries from current class
+                    fuel = vehicle['emfacFuel']
+                    matching_keys = [k for k in emfac_entries[current_class].keys() if k[0] == fuel]
 
-                    if not matching_by_fuel.empty:
-                        sampled_my = np.random.choice(
-                            matching_by_fuel['model_year_group'],
-                            p=matching_by_fuel['vmt_proportion'] / matching_by_fuel['vmt_proportion'].sum()
-                        )
+                    if matching_keys:
+                        # Calculate total VMT
+                        total_vmt = sum(group['total_vmt'].sum() for k, group in
+                                        [(k, emfac_entries[current_class][k]) for k in matching_keys])
 
-                        matching_emfac = current_emfac[
-                            (current_emfac['fuel'] == vehicle['emfacFuel']) &
-                            (current_emfac['model_year_group'] == sampled_my)
-                            ]
+                        if total_vmt > 0:
+                            # Sample key based on VMT proportion
+                            key_probs = [emfac_entries[current_class][k]['total_vmt'].sum() / total_vmt
+                                         for k in matching_keys]
 
-                        sampled_emfac = matching_emfac.sample(weights='vmt_proportion').iloc[0]
+                            sampled_key = matching_keys[np.random.choice(len(matching_keys), p=key_probs)]
+                            group = emfac_entries[current_class][sampled_key]
 
-                        # Assign and flip class
-                        result_df.loc[idx, 'emfacId'] = sampled_emfac['emfacId']
-                        result_df.loc[idx, 'assigned_class'] = current_class
+                            # Sample an entry
+                            if not group.empty:
+                                vmt_props = group['total_vmt'] / group['total_vmt'].sum()
+                                sampled_idx = np.random.choice(group.index, p=vmt_props)
+                                sampled_emfac = group.loc[sampled_idx]
 
-                        # Update tracking
-                        assigned_vmt[current_class] += vehicle['total_vmt']
-                        unassigned_indices.remove(idx)
-                        unassigned_next.remove(idx)
+                                # Assign and flip class
+                                result_df.loc[idx, 'emfacId'] = sampled_emfac['emfacId']
+                                result_df.loc[idx, 'assigned_class'] = current_class
+
+                                # Remove used entry
+                                emfac_entries[current_class][sampled_key] = group.drop(sampled_idx)
+
+                                # Clean up empty groups
+                                if emfac_entries[current_class][sampled_key].empty:
+                                    del emfac_entries[current_class][sampled_key]
+
+                                # Update tracking
+                                assigned_vmt[current_class] += vehicle['total_vmt']
+                                unassigned_indices.remove(idx)
+                                unassigned_next.remove(idx)
+                            else:
+                                # Empty group
+                                del emfac_entries[current_class][sampled_key]
+                                continue
+                        else:
+                            # No valid VMT entries
+                            for k in matching_keys:
+                                if emfac_entries[current_class][k].empty:
+                                    del emfac_entries[current_class][k]
+                            unassigned_next.remove(idx)
+                            continue
                     else:
-                        # No matching fuel in next class
+                        # No matching fuel
                         print(f"When flipping from {next_class} to {current_class}: " +
                               f"No matching fuel in EMFAC for vehicle {vehicle['vehicleId']} with fuel {vehicle['emfacFuel']}")
                         unassigned_next.remove(idx)
@@ -901,50 +743,69 @@ def map_emfac_to_beam_freight(study_area, scenario_name, work_dir, emfac_data, b
             # Check if there are more classes to process
             if i + 1 < len(beam_freight_classes):
                 next_class = beam_freight_classes[i + 1]
-                next_emfac = emfac_df[emfac_df['beamClass'] == next_class]
 
-                if next_emfac.empty:
-                    print(f"No EMFAC data for {next_class}, continuing with current class...")
+                # Skip if next class has no EMFAC data
+                if next_class not in emfac_entries or not emfac_entries[next_class]:
+                    print(f"No EMFAC data for next class {next_class}, continuing with unassigned vehicles...")
                     continue
 
                 print(f"Flipping remaining {current_class} vehicles to {next_class}")
 
-                # Get distribution for next class
-                next_my_fuel_dist = next_emfac.groupby(['model_year_group', 'fuel'])[
-                    'vmt_proportion'].sum().reset_index()
-                next_my_fuel_dist['vmt_proportion'] = next_my_fuel_dist['vmt_proportion'] / next_my_fuel_dist[
-                    'vmt_proportion'].sum()
-
-                # Assign remaining vehicles to next class
+                # Process remaining vehicles in current class
                 for idx in list(unassigned_in_class):
                     vehicle = beam_df.loc[idx]
+                    fuel = vehicle['emfacFuel']
 
-                    # Try to match by fuel
-                    matching_by_fuel = next_my_fuel_dist[next_my_fuel_dist['fuel'] == vehicle['emfacFuel']]
+                    # Find matching entries in next class
+                    matching_keys = [k for k in emfac_entries[next_class].keys() if k[0] == fuel]
 
-                    if not matching_by_fuel.empty:
-                        sampled_my = np.random.choice(
-                            matching_by_fuel['model_year_group'],
-                            p=matching_by_fuel['vmt_proportion'] / matching_by_fuel['vmt_proportion'].sum()
-                        )
+                    if matching_keys:
+                        # Calculate total VMT
+                        total_vmt = sum(group['total_vmt'].sum() for k, group in
+                                        [(k, emfac_entries[next_class][k]) for k in matching_keys])
 
-                        matching_emfac = next_emfac[
-                            (next_emfac['fuel'] == vehicle['emfacFuel']) &
-                            (next_emfac['model_year_group'] == sampled_my)
-                            ]
+                        if total_vmt > 0:
+                            # Sample key based on VMT proportion
+                            key_probs = [emfac_entries[next_class][k]['total_vmt'].sum() / total_vmt
+                                         for k in matching_keys]
 
-                        sampled_emfac = matching_emfac.sample(weights='vmt_proportion').iloc[0]
+                            sampled_key = matching_keys[np.random.choice(len(matching_keys), p=key_probs)]
+                            group = emfac_entries[next_class][sampled_key]
 
-                        # Assign and flip class
-                        result_df.loc[idx, 'emfacId'] = sampled_emfac['emfacId']
-                        result_df.loc[idx, 'assigned_class'] = next_class
+                            # Sample an entry
+                            if not group.empty:
+                                vmt_props = group['total_vmt'] / group['total_vmt'].sum()
+                                sampled_idx = np.random.choice(group.index, p=vmt_props)
+                                sampled_emfac = group.loc[sampled_idx]
 
-                        # Update tracking
-                        assigned_vmt[next_class] += vehicle['total_vmt']
-                        unassigned_indices.remove(idx)
-                        unassigned_in_class.remove(idx)
+                                # Assign and flip class
+                                result_df.loc[idx, 'emfacId'] = sampled_emfac['emfacId']
+                                result_df.loc[idx, 'assigned_class'] = next_class
+
+                                # Remove used entry
+                                emfac_entries[next_class][sampled_key] = group.drop(sampled_idx)
+
+                                # Clean up empty groups
+                                if emfac_entries[next_class][sampled_key].empty:
+                                    del emfac_entries[next_class][sampled_key]
+
+                                # Update tracking
+                                assigned_vmt[next_class] += vehicle['total_vmt']
+                                unassigned_indices.remove(idx)
+                                unassigned_in_class.remove(idx)
+                            else:
+                                # Empty group
+                                del emfac_entries[next_class][sampled_key]
+                                continue
+                        else:
+                            # No valid VMT entries
+                            for k in matching_keys:
+                                if emfac_entries[next_class][k].empty:
+                                    del emfac_entries[next_class][k]
+                            unassigned_in_class.remove(idx)
+                            continue
                     else:
-                        # No matching fuel when flipping to next class
+                        # No matching fuel
                         print(f"When flipping from {current_class} to {next_class}: " +
                               f"No matching fuel in EMFAC for vehicle {vehicle['vehicleId']} with fuel {vehicle['emfacFuel']}")
                         unassigned_in_class.remove(idx)
@@ -953,29 +814,49 @@ def map_emfac_to_beam_freight(study_area, scenario_name, work_dir, emfac_data, b
     if unassigned_indices:
         print(f"\nHandling {len(unassigned_indices)} remaining unassigned vehicles...")
 
+        # Create a pool of all remaining EMFAC entries
+        all_remaining_entries = []
+        for cls in emfac_entries:
+            for key in emfac_entries[cls]:
+                all_remaining_entries.append(emfac_entries[cls][key])
+
+        all_remaining_df = pd.concat(all_remaining_entries) if all_remaining_entries else pd.DataFrame()
+
         for idx in list(unassigned_indices):
             vehicle = beam_df.loc[idx]
 
-            # Try to match by fuel first
-            matching_by_fuel = emfac_df[emfac_df['fuel'] == vehicle['emfacFuel']]
+            if not all_remaining_df.empty:
+                # Try to match by fuel first
+                matching_by_fuel = all_remaining_df[all_remaining_df['fuel'] == vehicle['emfacFuel']]
 
-            if not matching_by_fuel.empty:
-                sampled_emfac = matching_by_fuel.sample(weights='vmt_proportion').iloc[0]
+                if not matching_by_fuel.empty:
+                    # Sample based on VMT proportion
+                    vmt_props = matching_by_fuel['total_vmt'] / matching_by_fuel['total_vmt'].sum()
+                    sampled_idx = np.random.choice(matching_by_fuel.index, p=vmt_props)
+                    sampled_emfac = all_remaining_df.loc[sampled_idx]
+                else:
+                    # If no fuel match, sample any remaining entry
+                    vmt_props = all_remaining_df['total_vmt'] / all_remaining_df['total_vmt'].sum()
+                    sampled_idx = np.random.choice(all_remaining_df.index, p=vmt_props)
+                    sampled_emfac = all_remaining_df.loc[sampled_idx]
+
+                # Assign the emfacId
+                result_df.loc[idx, 'emfacId'] = sampled_emfac['emfacId']
+                result_df.loc[idx, 'assigned_class'] = sampled_emfac['beamClass']
+
+                # Remove the used entry
+                all_remaining_df = all_remaining_df.drop(sampled_idx)
+
+                # Update tracking
+                assigned_class = sampled_emfac['beamClass']
+                if assigned_class in assigned_vmt:
+                    assigned_vmt[assigned_class] += vehicle['total_vmt']
             else:
-                # If no fuel match, sample any EMFAC entry
-                print(
-                    f"No matching fuel in EMFAC for remaining vehicle {vehicle['vehicleId']} with fuel {vehicle['emfacFuel']}")
-                matching_by_class = emfac_df[emfac_df['beamClass'] == vehicle['beamClass']]
-                sampled_emfac = matching_by_class.sample(weights='vmt_proportion').iloc[0]
-
-            # Assign the emfacId
-            result_df.loc[idx, 'emfacId'] = sampled_emfac['emfacId']
-            result_df.loc[idx, 'assigned_class'] = sampled_emfac['beamClass']
-
-            # Update tracking
-            assigned_class = sampled_emfac['beamClass']
-            if assigned_class in assigned_vmt:
-                assigned_vmt[assigned_class] += vehicle['total_vmt']
+                # No more EMFAC entries available, create a fallback ID
+                # This should be very rare if EMFAC dataset is large enough
+                print(f"Warning: No more EMFAC entries available for vehicle {vehicle['vehicleId']}")
+                result_df.loc[idx, 'emfacId'] = f"synthetic_emfac_{idx}"
+                result_df.loc[idx, 'assigned_class'] = vehicle['beamClass']
 
             unassigned_indices.remove(idx)
 
@@ -984,7 +865,14 @@ def map_emfac_to_beam_freight(study_area, scenario_name, work_dir, emfac_data, b
     if unassigned_count > 0:
         print(f"Warning: {unassigned_count} vehicles still not assigned an emfacId")
     else:
-        print("All vehicles successfully assigned an emfacId")
+        print("All freight vehicles successfully assigned an emfacId")
+
+    # Verify emfacId uniqueness
+    duplicate_count = result_df['emfacId'].duplicated().sum()
+    if duplicate_count > 0:
+        print(f"Warning: {duplicate_count} duplicate emfacIds found")
+    else:
+        print("All emfacIds are unique")
 
     # Save results
     print(f"\nSaving results to {output_file}")
@@ -1018,7 +906,285 @@ def process_single_vehicle_type(veh_type, emissions_rates, rates_prefix_filepath
         return veh_type_id
 
 
-def assign_emfac_id_to_vehicle_types(study_area, scenario_name, emissions_rates, emfac_population, config):
+# Helper function to extract income group from vehicle type ID
+def extract_income_group(vehicle_type_id):
+    """
+    Extract income group from vehicle type ID or return a default.
+    Adjust this based on your actual vehicle type ID format.
+    """
+    # Try to extract income group from the ID
+    # This is a placeholder - adjust according to your specific format
+    import re
+    match = re.search(r'income-(\d+-\d+)', str(vehicle_type_id))
+    if match:
+        return match.group(1)
+
+    # If income group can't be determined, check if there's a specific pattern or return default
+    if 'low' in str(vehicle_type_id).lower():
+        return "0-25"
+    elif 'med' in str(vehicle_type_id).lower():
+        return "25-50"
+    elif 'high' in str(vehicle_type_id).lower():
+        return "50-75"
+    elif 'very-high' in str(vehicle_type_id).lower():
+        return "75-100"
+    else:
+        # Default income group
+        return "0-25"
+
+
+def update_vehicle_probabilities(_pax_vehicle_types, _emfac_pop):
+    """
+    Calculate vehicle type probabilities based on BEAM probabilities and EMFAC population share.
+    Buses are handled separately and concatenated after processing the rest.
+    """
+    # Step 1: Merge vehicle types with population data
+    df_merged_raw = pd.merge(
+        _pax_vehicle_types,
+        _emfac_pop,
+        left_on=['beamClass', 'emfacFuel'],
+        right_on=['beamClass', 'fuel'],
+        how='left'
+    )
+
+    # Separate buses and non-buses
+    bus_mask = ((df_merged_raw['vehicleCategory'] == beam_class_mdp) &
+                (df_merged_raw['vehicleTypeId'].str.lower().str.contains('bus')))
+
+    # Process buses - sample one row per vehicleTypeId based on population
+    df_buses = df_merged_raw[bus_mask].copy()
+    df_buses_filtered = df_buses.groupby('vehicleTypeId').sample(n=1, weights='population')
+
+
+    # Process cars and bikes
+    car_bike_mask = (df_merged_raw['vehicleCategory'].isin([beam_class_car, beam_class_bike]))
+    df_merged = df_merged_raw[car_bike_mask].copy()
+
+    # Save original vehicle type ID and create new combined ID
+    df_merged["originalVehicleTypeId"] = df_merged["vehicleTypeId"]
+    df_merged["vehicleTypeId"] = df_merged.apply(
+        lambda row: f"{row['emfacId']}--{row['originalVehicleTypeId']}",
+        axis=1
+    )
+
+    # Extract income group from vehicle type ID
+    df_merged['income_group'] = df_merged.apply(
+        lambda row: extract_income_group(row['vehicleTypeId']),
+        axis=1
+    )
+
+    # Step 2: Calculate total probabilities by income group
+    income_group_probabilities = {}
+    total_probability = 0
+
+    # Calculate total probability for each income group
+    for income_group in df_merged['income_group'].unique():
+        group_mask = df_merged['income_group'] == income_group
+        if 'sampleProbabilityWithinCategory' in df_merged.columns:
+            group_probs = df_merged.loc[group_mask, 'sampleProbabilityWithinCategory']
+            group_probs = pd.to_numeric(group_probs, errors='coerce').fillna(0)
+            income_group_probabilities[income_group] = group_probs.sum()
+            total_probability += group_probs.sum()
+
+    # Step 3: Adjust probabilities based on EMFAC population share
+    for idx, row in df_merged.iterrows():
+        beam_class = row['beamClass']
+        emfac_fuel = row['emfacFuel']
+        income_group = row['income_group']
+
+        # Get original probability
+        orig_prob = pd.to_numeric(row['sampleProbabilityWithinCategory'], errors='coerce')
+        if pd.isna(orig_prob):
+            orig_prob = 1  # Default to 1 if conversion fails
+
+        # Match by both beam class and fuel
+        matching_emfac = _emfac_pop[
+            (_emfac_pop['beamClass'] == beam_class) &
+            (_emfac_pop['fuel'] == emfac_fuel)
+            ]
+
+        # If no match, fall back to matching by beam class only
+        if len(matching_emfac) == 0:
+            matching_emfac = _emfac_pop[_emfac_pop['beamClass'] == beam_class]
+
+        # If we found matching EMFAC entries, adjust probability based on population share
+        if len(matching_emfac) > 0:
+            # Calculate total population for this beam class
+            total_pop = matching_emfac['population'].sum()
+
+            # Find the matching EMFAC row for this specific vehicle
+            emfac_match = matching_emfac[matching_emfac['emfacId'] == row['emfacId']]
+
+            if emfac_match is not None and len(emfac_match) > 0:
+                # Calculate population share
+                pop_share = emfac_match.iloc[0]['population'] / total_pop if total_pop > 0 else 1.0 / len(
+                    matching_emfac)
+
+                # Adjust probability based on population share
+                adjusted_prob = orig_prob * pop_share
+                df_merged.at[idx, 'sampleProbabilityWithinCategory'] = adjusted_prob
+
+                # Update probability string
+                update_probability_string(df_merged, idx, adjusted_prob, income_group, total_probability)
+
+    # Step 4: Normalize probabilities within income groups
+    normalize_probabilities_by_income_group(df_merged, income_group_probabilities)
+
+    # Step 5: Normalize ridehail probabilities
+    normalize_ridehail_probabilities(df_merged)
+
+    # Drop temporary columns
+    if 'originalVehicleTypeId' in df_merged.columns:
+        df_merged.drop('originalVehicleTypeId', axis=1, inplace=True)
+
+    # Combine buses with processed cars and bikes
+    df_buses_filtered["vehicleTypeId"] = df_buses_filtered["vehicleTypeId"]  # Keep original ID for buses
+    result_df = pd.concat([df_merged, df_buses_filtered], ignore_index=True)
+
+    return result_df
+
+
+# Helper functions to make the main function cleaner
+def update_probability_string(df, idx, adjusted_prob, income_group, total_probability):
+    """Update the probability string for a given row"""
+    if 'sampleProbabilityString' not in df.columns or pd.isna(df.at[idx, 'sampleProbabilityString']):
+        df.at[idx, 'sampleProbabilityString'] = f"income | {income_group}:{adjusted_prob}"
+        return
+
+    original_string = df.at[idx, 'sampleProbabilityString']
+    has_ridehail = 'ridehail' in original_string
+
+    if has_ridehail:
+        parts = original_string.split(';')
+        ridehail_part = parts[0].strip()
+        ridehail_prefix = ridehail_part.split(':')[0] + ':'
+
+        # Calculate overall probability
+        overall_prob = adjusted_prob / total_probability if total_probability > 0 else 0
+
+        if len(parts) > 1:
+            income_part = parts[1].strip()
+            income_prefix = income_part.split(':')[0] + ':'
+            df.at[idx, 'sampleProbabilityString'] = f"{ridehail_prefix}{overall_prob}; {income_prefix}{adjusted_prob}"
+        else:
+            df.at[idx, 'sampleProbabilityString'] = f"{ridehail_prefix}{overall_prob}"
+    else:
+        if ';' in original_string:
+            parts = original_string.split(';')
+            first_part = parts[0]
+            if len(parts) > 1 and 'income' in parts[1]:
+                income_prefix = parts[1].split(':')[0] + ':'
+                df.at[idx, 'sampleProbabilityString'] = f"{first_part}; {income_prefix}{adjusted_prob}"
+            else:
+                df.at[idx, 'sampleProbabilityString'] = f"{first_part}; income | {income_group}:{adjusted_prob}"
+        else:
+            df.at[idx, 'sampleProbabilityString'] = f"income | {income_group}:{adjusted_prob}"
+
+
+def normalize_probabilities_by_income_group(df, income_group_probabilities):
+    """Normalize probabilities within income groups"""
+    for income_group in df['income_group'].unique():
+        for beam_class in df['beamClass'].unique():
+            # Get rows for this income group and beam class
+            mask = (df['income_group'] == income_group) & (df['beamClass'] == beam_class)
+
+            if not mask.any():
+                continue
+
+            # Get the sum of probabilities for this group
+            group_probs = pd.to_numeric(df.loc[mask, 'sampleProbabilityWithinCategory'], errors='coerce').fillna(0)
+            group_sum = group_probs.sum()
+
+            # Normalize if needed
+            target_sum = income_group_probabilities.get(income_group, 0)
+            if group_sum > 0 and target_sum > 0 and abs(group_sum - target_sum) > 0.001:
+                norm_factor = target_sum / group_sum
+
+                for idx in df.loc[mask].index:
+                    if pd.notna(df.at[idx, 'sampleProbabilityWithinCategory']):
+                        current_prob = pd.to_numeric(df.at[idx, 'sampleProbabilityWithinCategory'], errors='coerce')
+                        if not pd.isna(current_prob):
+                            df.at[idx, 'sampleProbabilityWithinCategory'] = current_prob * norm_factor
+                            update_normalized_probability_string(df, idx, income_group)
+
+
+def update_normalized_probability_string(df, idx, income_group):
+    """Update probability string after normalization"""
+    if pd.isna(df.at[idx, 'sampleProbabilityString']):
+        return
+
+    has_ridehail = 'ridehail' in df.at[idx, 'sampleProbabilityString']
+    parts = df.at[idx, 'sampleProbabilityString'].split(';')
+
+    if has_ridehail and len(parts) >= 2:
+        ridehail_part = parts[0]
+        income_part_prefix = parts[1].split(':')[0]
+        updated_prob = df.at[idx, 'sampleProbabilityWithinCategory']
+        df.at[idx, 'sampleProbabilityString'] = f"{ridehail_part}; {income_part_prefix}:{updated_prob}"
+    elif len(parts) >= 1:
+        if len(parts) >= 2:
+            first_part = parts[0]
+            income_prefix = parts[1].split(':')[0]
+            updated_prob = df.at[idx, 'sampleProbabilityWithinCategory']
+            df.at[idx, 'sampleProbabilityString'] = f"{first_part}; {income_prefix}:{updated_prob}"
+        else:
+            updated_prob = df.at[idx, 'sampleProbabilityWithinCategory']
+            df.at[idx, 'sampleProbabilityString'] = f"income | {income_group}:{updated_prob}"
+
+
+def normalize_ridehail_probabilities(df):
+    """Normalize ridehail probabilities to sum to 1.0 for each beam class"""
+    has_any_ridehail = any('ridehail' in str(row.get('sampleProbabilityString', ''))
+                           for _, row in df.iterrows() if pd.notna(row.get('sampleProbabilityString', '')))
+
+    if not has_any_ridehail:
+        return
+
+    for beam_class in df['beamClass'].unique():
+        beam_mask = df['beamClass'] == beam_class
+
+        # Extract ridehail probabilities
+        ridehail_probs = []
+        for idx in df.loc[beam_mask].index:
+            if pd.notna(df.at[idx, 'sampleProbabilityString']):
+                try:
+                    parts = df.at[idx, 'sampleProbabilityString'].split(';')
+                    if len(parts) >= 1 and 'ridehail' in parts[0]:
+                        ridehail_part = parts[0].strip()
+                        prob_str = ridehail_part.split(':')[-1].strip()
+                        prob = float(prob_str)
+                        ridehail_probs.append((idx, prob))
+                except:
+                    continue
+
+        # Skip if no valid ridehail probabilities
+        if not ridehail_probs:
+            continue
+
+        # Calculate sum and normalize if needed
+        indices, values = zip(*ridehail_probs)
+        prob_sum = sum(values)
+
+        if prob_sum > 0 and abs(prob_sum - 1.0) > 0.001:
+            norm_factor = 1.0 / prob_sum
+
+            # Update probabilities
+            for idx, _ in ridehail_probs:
+                parts = df.at[idx, 'sampleProbabilityString'].split(';')
+                if len(parts) >= 1:
+                    ridehail_prefix = parts[0].split(':')[0] + ':'
+                    income_part = parts[1] if len(parts) > 1 else ""
+
+                    current_prob = float(parts[0].split(':')[-1].strip())
+                    updated_prob = current_prob * norm_factor
+
+                    if income_part:
+                        df.at[idx, 'sampleProbabilityString'] = f"{ridehail_prefix}{updated_prob}; {income_part}"
+                    else:
+                        df.at[idx, 'sampleProbabilityString'] = f"{ridehail_prefix}{updated_prob}"
+
+
+def assign_emfac_id_to_vehicle_types(_scenario, _emissions_rates, _emfac_pop, _emfac_vmt, _work_dir, _config):
     """
     Process freight vehicle emissions in three steps:
     1. Build new freight vehicle types
@@ -1040,29 +1206,26 @@ def assign_emfac_id_to_vehicle_types(study_area, scenario_name, emissions_rates,
         (updated_vehicle_types, updated_carrier_df)
     """
     from joblib import Parallel, delayed
-
-    _work_dir = study_area_config["work_dir"]
-    carriers_out_file = os.path.join(_work_dir, f"{config["carriers_file"].replace(".csv", "--TrAP.csv")}")
-    ft_vehtypes_out_file = os.path.join(_work_dir,f"{config["ft_vehicle_types_file"].replace(".csv", "--TrAP.csv")}")
-    pax_vehtypes_out_file = os.path.join(_work_dir,f"{config["pax_vehicle_types_file"].replace(".csv", "--TrAP.csv")}")
-    beam_fleet_vmt_file = str(os.path.join(_work_dir,f"emissions/{study_area}_beam_freight_vmt_{scenario_name}.csv"))
+    carriers_out_file = os.path.join(_work_dir, f"{_config["beam"]["carriers_file"].replace(".csv", "--TrAP.csv")}")
+    ft_vehtypes_out_file = os.path.join(_work_dir,f"{_config["beam"]["ft_vehicle_types_file"].replace(".csv", "--TrAP.csv")}")
+    pax_vehtypes_out_file = os.path.join(_work_dir,f"{_config["beam"]["pax_vehicle_types_file"].replace(".csv", "--TrAP.csv")}")
     emissions_rates_dir = os.path.join(
-        os.path.dirname(os.path.join(_work_dir, f"{config["ft_vehicle_types_file"]}")),
-        f"TrAP/{ft_scenario_label}"
+        os.path.dirname(os.path.join(_work_dir, f"{_config["beam"]["ft_vehicle_types_file"]}")),
+        f"TrAP/{_scenario.replace("_", "-")}"
     )
 
     if os.path.exists(carriers_out_file) and os.path.exists(ft_vehtypes_out_file) and os.path.exists(pax_vehtypes_out_file):
         print("All carriers and vehicle types emissions files have already been created")
     else:
         # Create a copy of the original vehicleTypeId and set up a lookup dictionary
-        pax_vehicle_types = pd.read_csv(os.path.join(_work_dir, f"{config["pax_vehicle_types_file"]}"), dtype=str)
+        pax_vehicle_types = pd.read_csv(os.path.join(_work_dir, f"{_config["beam"]["pax_vehicle_types_file"]}"), dtype=str)
         car_bike_mask = (pax_vehicle_types['vehicleCategory'].isin([beam_class_car, beam_class_bike]))
         bus_mask = ((pax_vehicle_types['vehicleCategory'] == beam_class_mdp) & (pax_vehicle_types['vehicleTypeId'].str.lower().str.contains('bus')))
         pax_freight_mask = (pax_vehicle_types['vehicleCategory'].isin(beam_freight_classes))
         pax_vehicle_types_filtered = pax_vehicle_types[car_bike_mask | bus_mask]
         pax_vehicle_types_others = pax_vehicle_types[~(car_bike_mask | bus_mask | pax_freight_mask)]
 
-        ft_vehicle_types = pd.read_csv(os.path.join(_work_dir, f"{config["ft_vehicle_types_file"]}"), dtype=str)
+        ft_vehicle_types = pd.read_csv(os.path.join(_work_dir, f"{_config["beam"]["ft_vehicle_types_file"]}"), dtype=str)
         ft_freight_mask = (ft_vehicle_types['vehicleCategory'].isin(beam_freight_classes))
         ft_vehicle_types_filtered = ft_vehicle_types[ft_freight_mask]
 
@@ -1070,11 +1233,14 @@ def assign_emfac_id_to_vehicle_types(study_area, scenario_name, emissions_rates,
             pd.concat([pax_vehicle_types_filtered, ft_vehicle_types_filtered], axis=0)
         )
 
+        ft_vehicle_types_filtered = vehicle_types_updated[vehicle_types_updated["beamClass"].isin(beam_freight_classes)]
+        pax_vehicle_types_filtered = vehicle_types_updated[vehicle_types_updated["beamClass"].isin(beam_passenger_classes)]
+
         # ## Freight ## #
-        _carriers_file = str(os.path.join(_work_dir, config["beam"]["carriers_file"]))
-        _payloads_file = str(os.path.join(_work_dir, config["beam"]["payloads_file"]))
-        carriers_raw = pd.read_csv(str(os.path.join(_work_dir, config["beam"]["carriers_file"])), dtype=str)
-        payloads_raw = pd.read_csv(str(os.path.join(_work_dir, config["beam"]["payloads_file"])), dtype=str)
+        _carriers_file = str(os.path.join(_work_dir, _config["beam"]["carriers_file"]))
+        _payloads_file = str(os.path.join(_work_dir, _config["beam"]["payloads_file"]))
+        carriers_raw = pd.read_csv(str(os.path.join(_work_dir, _config["beam"]["carriers_file"])))
+        payloads_raw = pd.read_csv(str(os.path.join(_work_dir, _config["beam"]["payloads_file"])))
         tour_distances = calculate_tour_distances(payloads_raw)
         carriers = carriers_raw[['tourId', 'vehicleId', 'vehicleTypeId']].copy()
         payloads = payloads_raw[['payloadId', 'tourId', 'payloadType']].copy()
@@ -1084,89 +1250,71 @@ def assign_emfac_id_to_vehicle_types(study_area, scenario_name, emissions_rates,
         # Merge payloads with vehicle types
         payloads_vehtypes = pd.merge(
             payloads_merged,
-            vehicle_types_updated[['vehicleTypeId', 'beamClass', 'emfacFuel', 'primaryFuelType', 'secondaryFuelType']],
+            ft_vehicle_types_filtered[['vehicleTypeId', 'beamClass', 'emfacFuel', 'primaryFuelType', 'secondaryFuelType']],
             on='vehicleTypeId',
             how='left'
         )
-        discrete_freight_population = payloads_vehtypes.drop_duplicates('vehicleId', keep='first').copy()
+        freight_pop = payloads_vehtypes.drop_duplicates('vehicleId', keep='first').copy()
         # Calculate total distance across all tours
         total_distance = sum(tour_distances.values())
         # Calculate proportion for each tour
         tour_proportions = {tour_id: distance / total_distance for tour_id, distance in tour_distances.items()}
-        discrete_freight_population['total_vmt'] = discrete_freight_population['tourId'].map(tour_distances)
-        discrete_freight_population['vmt_proportion'] = discrete_freight_population['tourId'].map(tour_proportions)
-        discrete_freight_population["oldVehicleTypeId"] = discrete_freight_population["vehicleTypeId"]
-        discrete_freight_population["vehicleTypeId"] = discrete_freight_population['emfacId']
-        discrete_freight_population.drop_duplicates(subset='vehicleTypeId', keep='first')
-        discrete_freight_population.to_csv(beam_fleet_vmt_file, index=False)
-        ft_vehtypes_with_emfac_id = pd.DataFrame(
-            discrete_freight_population.apply(
-                lambda row: {
-                    **ft_vehicle_types_filtered.set_index("vehicleTypeId").to_dict('index')[row["oldVehicleTypeId"]],
-                    "vehicleTypeId": row["vehicleTypeId"],
-                    "vehicleCategory": row["beamClass"]
-                },
-                axis=1
-            ).tolist()
+        freight_pop['total_vmt'] = freight_pop['tourId'].map(tour_distances)
+        freight_pop['vmt_proportion'] = freight_pop['tourId'].map(tour_proportions)
+        freight_pop_with_emfac_id = map_emfac_to_beam_freight(_scenario, _work_dir, _emfac_vmt, freight_pop, _config)
+        freight_pop_with_emfac_id["oldVehicleTypeId"] = freight_pop_with_emfac_id["vehicleTypeId"]
+        freight_pop_with_emfac_id["vehicleTypeId"] = freight_pop_with_emfac_id['emfacId']
+        freight_pop_with_emfac_id.drop_duplicates(subset='vehicleTypeId', keep='first')
+        # Join the dataframes instead of iterating
+        ft_vehtypes_with_emfac_id = freight_pop_with_emfac_id.merge(
+            ft_vehicle_types_filtered,
+            left_on="oldVehicleTypeId",
+            right_on="vehicleTypeId",
+            suffixes=('', '_original')
         )
-        ft_vehtypes_with_emfac_id.drop('oldVehicleTypeId', axis=1, inplace=True)
+        # Keep only the columns you need and rename as necessary
+        ft_vehtypes_with_emfac_id = ft_vehtypes_with_emfac_id.rename(columns={"beamClass": "vehicleCategory"})
+        cols_to_drop = [col for col in ft_vehtypes_with_emfac_id.columns if col.endswith('_original')] # Drop any redundant columns
+        ft_vehtypes_with_emfac_id = ft_vehtypes_with_emfac_id.drop(columns=cols_to_drop + ["oldVehicleTypeId"])
         vehicle_id_to_type_mapping = dict(
-            zip(discrete_freight_population['vehicleId'], discrete_freight_population['vehicleTypeId'])
+            zip(freight_pop_with_emfac_id['vehicleId'], freight_pop_with_emfac_id['vehicleTypeId'])
         )
         carriers = carriers_raw.copy()
         carriers['vehicleTypeId'] = carriers.apply(lambda row: vehicle_id_to_type_mapping.get(row['vehicleId']), axis=1)
         carriers.dropna(subset=['vehicleTypeId'], inplace=True)
         # Find the dropped rows by filtering the original dataframe
         dropped_rows = carriers_raw[carriers_raw['vehicleTypeId'].isna()]
-        if dropped_rows:
+        if not dropped_rows.empty:
             # Print the dropped rows
             print("Dropped rows:")
             print(dropped_rows)
+
         print(f"Writing {carriers_out_file}")
         carriers.to_csv(carriers_out_file, index=False)
 
         # ## Passenger ## #
-        # Step 2: Build new passenger vehicle types
-        df_merged = pd.merge(vehicle_types_updated, emfac_population,
-            left_on=['beamClass', 'emfacFuel'],  # column names in the left dataframe
-            right_on=['beamClass', 'fuel'],  # corresponding column names in the right dataframe
-            how='left'
-        )
-        car_mask = df_merged["beamClass"] == beam_class_car
-        non_car_mask = (df_merged["beamClass"] == beam_class_bike) | (df_merged["beamClass"] == beam_class_mdp)
-        df_merged_car = df_merged[car_mask].copy()
-        df_merged_others = df_merged[non_car_mask].copy()
-        # Process car class vehicles
-        df_merged_car['population_share'] = df_merged_car['population'] / df_merged_car['population'].sum()
-        # This function should be defined based on your specific requirements
-        # Assuming it's available in the original codebase
-        # If not defined elsewhere, you need to implement it here
-        df_merged_car['updated_sampleProbabilityString'] = df_merged_car.apply(
-            lambda row: row.get('sampleProbabilityString', ''), axis=1
-        )
-        df_merged_car['updated_sampleProbabilityWithinCategory'] = df_merged_car.apply(
-            lambda row: row['sampleProbabilityWithinCategory'] * row['population_share'], axis=1
-        )
-        # Update vehicleTypeId
-        df_merged_car['oldVehicleTypeId'] = df_merged_car.apply(lambda row: f"{row['emfacId']}", axis=1)
-        # Update the original dataframe with new probabilities and vehicleTypeId
-        df_merged_car['sampleProbabilityString'] = df_merged_car['updated_sampleProbabilityString']
-        df_merged_car['sampleProbabilityWithinCategory'] = df_merged_car['updated_sampleProbabilityWithinCategory']
-        df_merged_car['vehicleTypeId'] = df_merged_car['oldVehicleTypeId']
-        df_merged_car['vehicleCategory'] = df_merged_car['beamClass']
-        df_merged_car.drop('oldVehicleTypeId', axis=1, inplace=True)
-        # Combine the car and other vehicle types into a single dataframe
-        pax_vehtypes_with_emfac_id = pd.concat([df_merged_car[df_merged_others.columns], df_merged_others], axis=0)
+        _emfac_pop_for_pax = _emfac_pop[_emfac_pop["beamClass"].isin(beam_passenger_classes)]
+        pax_vehtypes_with_emfac_id = update_vehicle_probabilities(pax_vehicle_types_filtered, _emfac_pop_for_pax)
 
+        # ## Freight and Passenger ## #
+        columns_to_keep = list(pax_vehicle_types.columns) + ["emfacId"]
+        # Create separate column lists for each DataFrame
+        pax_columns_to_keep = ['vehicleTypeId'] + [col for col in columns_to_keep if
+                                                   col in pax_vehtypes_with_emfac_id.columns and col != 'vehicleTypeId']
+        ft_columns_to_keep = ['vehicleTypeId'] + [col for col in columns_to_keep if
+                                                  col in ft_vehtypes_with_emfac_id.columns and col != 'vehicleTypeId']
 
-        # ## Freight & Passenger ## #
-        vehtypes_with_emfac_id = pd.concat([pax_vehtypes_with_emfac_id, ft_vehtypes_with_emfac_id], axis=0)
+        # Check for duplicates before concatenation
+        print("Pax duplicates:", pax_vehtypes_with_emfac_id['vehicleTypeId'].duplicated().any())
+        print("Freight duplicates:", ft_vehtypes_with_emfac_id['vehicleTypeId'].duplicated().any())
+
+        # Concatenate with appropriate columns for each DataFrame
+        vehtypes_with_emfac_id = pd.concat([
+            pax_vehtypes_with_emfac_id[pax_columns_to_keep].reset_index(drop=True),
+            ft_vehtypes_with_emfac_id[ft_columns_to_keep].reset_index(drop=True)
+        ], axis=0, sort=False)
 
         # ## Emissions Rates ## #
-        # Define the desired column order with 'vehicleTypeId' at the front
-        _updated_vehicle_types = vehtypes_with_emfac_id[
-            ['vehicleTypeId'] + [col for col in vehtypes_with_emfac_id.columns if col not in {'vehicleTypeId'}]
-        ]
         # Prepare the directory for writing emissions rates files
         try:
             # Remove directory if it exists
@@ -1181,12 +1329,12 @@ def assign_emfac_id_to_vehicle_types(study_area, scenario_name, emissions_rates,
         # Use parallel processing with error handling and chunking
         chunk_size = 100  # Adjust this value based on your data size and available memory
         results = []
-        for i in range(0, len(_updated_vehicle_types), chunk_size):
-            chunk = _updated_vehicle_types.iloc[i:i + chunk_size]
+        for i in range(0, len(vehtypes_with_emfac_id), chunk_size):
+            chunk = vehtypes_with_emfac_id.iloc[i:i + chunk_size]
             chunk_results = Parallel(n_jobs=-1, timeout=600)(  # 10-minute timeout
                 delayed(process_single_vehicle_type)(
                     veh_type,
-                    emissions_rates,
+                    _emissions_rates,
                     f"{emissions_rates_dir}/"
                 ) for _, veh_type in chunk.iterrows()
             )
@@ -1204,66 +1352,65 @@ def assign_emfac_id_to_vehicle_types(study_area, scenario_name, emissions_rates,
         for veh_type_id in results:
             if veh_type_id:
                 relative_rates_filepath = f"{shortened_path}/{veh_type_id}.csv"
-                _updated_vehicle_types.loc[
-                    _updated_vehicle_types['vehicleTypeId'] == veh_type_id, 'emissionsRatesFile'] = relative_rates_filepath
+                vehtypes_with_emfac_id.loc[
+                    vehtypes_with_emfac_id['vehicleTypeId'] == veh_type_id, 'emissionsRatesFile'] = relative_rates_filepath
 
         # Save updated vehicle types
         print(f"Writing:\n{ft_vehtypes_out_file}\n{pax_vehtypes_out_file}")
-        ft_freight_mask = (_updated_vehicle_types['vehicleCategory'].isin(beam_freight_classes))
-        _updated_ft_vehicle_types = _updated_vehicle_types[ft_freight_mask]
+        ft_freight_mask = (vehtypes_with_emfac_id['vehicleCategory'].isin(beam_freight_classes))
+        _updated_ft_vehicle_types = vehtypes_with_emfac_id[ft_freight_mask]
         _updated_ft_vehicle_types.to_csv(ft_vehtypes_out_file, index=False)
 
         _updated_pax_vehicle_types_others = pax_vehicle_types_others.copy()
         _updated_pax_vehicle_types_others['emissionsRatesFile'] = ""
         _updated_pax_vehicle_types = pd.concat(
-            [_updated_vehicle_types[~ft_freight_mask], pax_vehicle_types_others],
+            [vehtypes_with_emfac_id[~ft_freight_mask], pax_vehicle_types_others],
             axis=0
         )
         _updated_pax_vehicle_types.to_csv(pax_vehtypes_out_file, index=False)
 
 
-if __name__ == "__main__":
+def run():
     # Configuration parameters
     area = "sfbay"
-    study_area_config = get_area_config(area)
-    work_dir = study_area_config["work_dir"]
-
     run_batch = "2024-11-06"
+    run_batch_label = run_batch.replace("-", "")
     scenario = "2018_Baseline"
-    ft_scenario_label = scenario.replace("_", "-")
-    pax_scenario_label = scenario.replace("_", "-")
-    run_batch_label = run_batch.replace("-","")
-    emissions_config = study_area_config["emissions"][scenario]
+    scenario_label = scenario.replace("_", "-")
+
+    print(f"\n{'='*50}")
+    print(f"  EMISSIONS PROCESSING - {area.upper()} REGION")
+    print(f"  Run Batch: {run_batch}")
+    print(f"  Scenario: {scenario}")
+    print(f"{'='*50}\n")
+
+    study_area_config = get_area_config(area)
+    config = study_area_config["emissions"][scenario]
+    beam_config = config["beam"]
+    beam_config["carriers_file"] = f"beam-ft/{run_batch}/{scenario}/carriers--{scenario_label}.csv"
+    beam_config["payloads_file"] = f"beam-ft/{run_batch}/{scenario}/payloads--{scenario_label}.csv"
+    beam_config["ft_vehicle_types_file"] = f"vehicle-tech/ft-vehicletypes--{run_batch_label}--{scenario_label}.csv"
+    beam_config["pax_vehicle_types_file"] = f"vehicle-tech/pax-vehicletypes--{scenario_label}.csv"
 
     # ### Output directories and files ### #
     #
-    emfac_pop, emfac_class_map = process_emfac_population(area, scenario, work_dir, emissions_config)
+    emfac_pop, emfac_class_map = process_emfac_population(area, scenario, study_area_config["work_dir"], config)
     print("\n=== EMFAC Population ===\n")
     print(f"total_population: {emfac_pop["population"].sum() / 1_000_000:.1f}M")
     #
     print("\n=== EMFAC VMT ===\n")
-    emfac_vmt = process_emfac_vmt(area, scenario, work_dir, emfac_class_map, emissions_config)
+    emfac_vmt = process_emfac_vmt(area, scenario, study_area_config["work_dir"], emfac_class_map, config)
     print(f"total_vmt: {emfac_vmt["total_vmt"].sum() / 1_000_000:.1f}M")
     #
     print("\n=== CARB Emissions Rates ===\n")
-    rates = process_emissions_rates(area, scenario, work_dir, emfac_class_map, emissions_config)
-    print(f"rates: {len(rates)}")
+    rates = process_emissions_rates(area, scenario, study_area_config["work_dir"], emfac_class_map, config)
+    print(f"rates: {len(rates):,}")
 
-    print("\n=== BEAM Fleet ===\n")
-    beam_freight_fleet = process_beam_freight(
-        area,
-        scenario,
-        work_dir,
-        emissions_config
-    )
-    print(f"Fleet: {len(beam_freight_fleet)}")
+    print("\n=== Map EMFAC To BEAM Population ===\n")
+    assign_emfac_id_to_vehicle_types(scenario, rates, emfac_pop, emfac_vmt, study_area_config["work_dir"], config)
 
-    print("\n=== Map EMFAC To BEAM Freight Population ===\n")
-    mapped_beam_freight_fleet = map_emfac_to_beam_freight(area, scenario, work_dir, emfac_vmt, beam_freight_fleet)
-    # print_stats(emfac_vmt, mapped_beam_freight_fleet)
-
-    assign_emfac_id_to_vehicle_types(area, scenario, rates, emfac_pop, emissions_config)
-
+if __name__ == "__main__":
+    run()
     # # Load common data
     # emfac_population = pd.read_csv(emfac_population_file, low_memory=False, dtype=str)
     # emfac_population['population'] = pd.to_numeric(emfac_population['population'], errors='coerce')

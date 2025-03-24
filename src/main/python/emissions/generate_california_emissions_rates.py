@@ -4,6 +4,8 @@ import sys
 import pandas as pd
 import pyarrow as pa
 import pyarrow.csv as csv
+import numpy as np
+from multiprocessing import Pool
 from joblib import Parallel, delayed
 
 from _emfac_emissions_mapping import sanitize_name
@@ -247,6 +249,15 @@ def process_rates_group(df, row):
 
     return pd.concat(df_output_list, ignore_index=True)
 
+# Define this function at module level (outside any other function)
+def process_chunk(chunk_data):
+    chunk, emissions_df = chunk_data
+    results = []
+    for _, row in chunk.iterrows():
+        result = process_rates_group(emissions_df, row)
+        results.append(result)
+    return pd.concat(results, ignore_index=True) if results else pd.DataFrame()
+
 def process_emfac_rates(
         emfac_rates_by_model_year_file,
         emfac_class_map,
@@ -330,9 +341,13 @@ def process_emfac_rates(
         df_unique = emissions_rates[["county", "emfacId"]].drop_duplicates().reset_index(drop=True)
 
         # Parallel processing
-        df_output_list = Parallel(n_jobs=-1)(
-            delayed(process_rates_group)(emissions_rates, row) for index, row in df_unique.iterrows()
-        )
+        # Use fewer, larger chunks and match to number of CPU cores
+        num_cores = min(os.cpu_count() or 4, 8)  # Cap at 8 to prevent excessive overhead
+        chunks = np.array_split(df_unique, num_cores)
+
+        # Use parallel processing with fewer, larger chunks
+        with Pool(num_cores) as pool:
+            df_output_list = pool.map(process_chunk, [(chunk, emissions_rates) for chunk in chunks])
 
         # Formatting for merge
         df_output = pd.concat(df_output_list, ignore_index=True).drop(["speed_time"], axis=1)
