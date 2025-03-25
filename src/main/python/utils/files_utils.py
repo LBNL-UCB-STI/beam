@@ -3,7 +3,17 @@ import io
 
 from tqdm import tqdm
 from tqdm.auto import tqdm
+import pandas as pd
 
+def combine_csv_files(input_files, output_file):
+    # Read and combine CSV files vertically
+    combined_df = pd.concat([pd.read_csv(f) for f in input_files], ignore_index=True)
+
+    # Write the combined dataframe to a new CSV file
+    combined_df.to_csv(output_file, index=False)
+
+    print(f"Combined CSV file has been created: {output_file}")
+    return combined_df  # Return the dataframe for further processing if needed
 
 def fast_df_to_gzip(df, output_file, compression_level=5, chunksize=100000):
     """
