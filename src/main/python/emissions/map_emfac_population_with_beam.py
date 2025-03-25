@@ -5,7 +5,9 @@ import shutil
 import numpy as np
 
 # from _emfac_emissions_mapping import *
-from generate_california_emissions_rates import *
+from _emfac_and_emissions_rates_processing import *
+from _emfac_beam_vmt_matching import map_emfac_to_beam_freight
+from _emfac_beam_vmt_matching import update_vehicle_types_from_emfac_mapping
 
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -244,85 +246,6 @@ def process_emfac_vmt(_study_area, _scenario_name, _work_dir, _emfac_class_map, 
 
 
 
-def get_emfac_beam_vehicle_class_mapping(_study_area, _scenario_name, _work_dir, vehicle_list):
-    """
-    Creates vehicle class mapping and saves it to a JSON file if it doesn't exist.
-    If the file exists, loads and returns the existing mapping.
-
-    Args:
-        _study_area: Stud Area
-        _scenario_name: Scenario Name
-        _work_dir:
-        vehicle_list: List of vehicle types to map
-
-    Returns:
-        dict: The vehicle class mapping (either newly created or loaded from existing file)
-    """
-    import json
-    from collections import defaultdict
-    _vehicle_class_output_file = os.path.join(
-        _work_dir,
-        f"emissions/{_study_area}_vehicle_class_mapping_{_scenario_name}.json"
-    )
-    # Check if the file already exists
-    if os.path.exists(_vehicle_class_output_file):
-        print(f"File {_vehicle_class_output_file} already exists. Loading existing mapping.")
-        with open(_vehicle_class_output_file, 'r') as f:
-            return json.load(f)
-
-    # Create the mapping
-    mapping = {}
-
-    for vehicle in vehicle_list:
-        if 'Utility' in vehicle or 'Public' in vehicle:
-            mapping[vehicle] = "NotMatched"
-        elif 'Port' in vehicle or 'POLA' in vehicle or 'POAK' in vehicle:
-            mapping[vehicle] = "NotMatched"
-        elif 'SWCV' in vehicle or 'PTO' in vehicle or 'T6TS' in vehicle:
-            mapping[vehicle] = "NotMatched"
-        elif vehicle in ['LDA', 'LDT1', 'LDT2', 'MDV']:
-            mapping[vehicle] = beam_class_car
-        elif vehicle in ['MCY']:
-            mapping[vehicle] = beam_class_bike
-        elif vehicle in ['UBUS']:
-            mapping[vehicle] = beam_class_mdp
-        elif 'LHD' in vehicle:
-            mapping[vehicle] = beam_class_2b3
-        elif 'Class 4' in vehicle or 'Class 5' in vehicle or 'Class 6' in vehicle:
-            mapping[vehicle] = beam_class_46
-        elif 'Class 7' in vehicle or 'Class 8' in vehicle:
-            if 'Tractor' in vehicle or 'CAIRP' in vehicle:
-                mapping[vehicle] = beam_class_78_t
-            else:
-                mapping[vehicle] = beam_class_78_v
-        elif "T7IS" in vehicle:
-            mapping[vehicle] = beam_class_78_t
-        else:
-            mapping[vehicle] = "NotMatched"
-
-    # Print category groupings
-    class_groups = defaultdict(list)
-    for vehicle, vehicle_class in mapping.items():
-        class_groups[vehicle_class].append(vehicle)
-    for vehicle_class, vehicles in class_groups.items():
-        print(f"Category: {vehicle_class}")
-        for vehicle in vehicles:
-            print(f"  - {vehicle}")
-
-    # Create final mapping structure
-    ft_emfac_class_map = {emfac: beam for emfac, beam in mapping.items() if
-                          beam in [beam_class_46, beam_class_78_v, beam_class_78_t]}
-    pax_emfac_class_map = {emfac: beam for emfac, beam in mapping.items() if
-                           beam in [beam_class_car, beam_class_bike, beam_class_mdp]}
-
-    _emfac_class_map = ft_emfac_class_map | pax_emfac_class_map
-
-    # Write to JSON file
-    with open(_vehicle_class_output_file, 'w') as f:
-        json.dump(_emfac_class_map, f, indent=2)
-
-    print(f"Successfully created {_vehicle_class_output_file}")
-    return _emfac_class_map
 
 
 def print_stats(emfac_df, mapped_beaf_freight_df):
@@ -427,132 +350,6 @@ def print_stats(emfac_df, mapped_beaf_freight_df):
     print(f"Top 5 combinations with largest differences:")
     print(cls_my_comparison.sort_values(by='Difference', key=abs, ascending=False).head(5).round(4))
 
-
-def map_emfac_to_beam_freight(_scenario, _work_dir, _emfac_vmt, _config):
-    # Step 0: Check if output file already exists
-    _carriers_dir = f"{_work_dir}/{os.path.dirname(_config['beam']['carriers_file'])}"
-    output_file = os.path.join(_carriers_dir, f"emfac-fleet--{_scenario.replace('_', '-')}.csv")
-
-    if os.path.exists(output_file):
-        print(f"Using existing mapping file: {output_file}")
-        return pd.read_csv(output_file)
-
-    print("=== VMT-based Mapping Of BEAM Freight with EMFAC ===")
-
-    # Step 1: Prepare Vehicle Types
-    ft_vehicle_types_raw = pd.read_csv(os.path.join(_work_dir, f"{_config["beam"]["ft_vehicle_types_file"]}"), dtype=str)
-    ft_freight_mask = (ft_vehicle_types_raw['vehicleCategory'].isin(beam_freight_classes))
-    ft_vehicle_types_filtered = ft_vehicle_types_raw[ft_freight_mask].copy()
-    ft_vehicle_types = updated_fuel_types_from_emfac(ft_vehicle_types_filtered)[
-        ['vehicleTypeId', 'beamClass', 'emfacFuel']
-    ]
-
-    # Step 2: Extract VMT proportion in BEAM Freight data
-    payloads_raw = pd.read_csv(str(os.path.join(_work_dir, _config["beam"]["payloads_file"])))
-    carriers_raw = pd.read_csv(str(os.path.join(_work_dir, _config["beam"]["carriers_file"])))
-    tour_summary = calculate_tour_summary_by_vehicle(payloads_raw)
-    payloads_merged = pd.merge(
-        tour_summary,
-        carriers_raw[['vehicleId', 'vehicleTypeId']],
-        on='vehicleId',
-        how='left'
-    )
-    vehicle_w_vmt = pd.merge(payloads_merged, ft_vehicle_types, on='vehicleTypeId', how='left')
-    vehicle_w_vmt = vehicle_w_vmt.drop_duplicates(subset=['vehicleId'], keep='first')
-    vehicle_w_vmt = vehicle_w_vmt.sort_values('vmt_proportion', ascending=False).reset_index(drop=True)
-    total_beam_vmt = vehicle_w_vmt['total_vmt'].sum()
-    print(f"BEAM VMT with {len(vehicle_w_vmt)} rows and total vmt of {total_beam_vmt}.")
-
-    # Step 3: Extract VMT proportion in EMFAC data
-    ft_emfac_vmt = _emfac_vmt[_emfac_vmt["beamClass"].isin(beam_freight_classes)]
-    emfac_w_vmt = ft_emfac_vmt.groupby(['beamClass', 'model_year_group', 'fuel'])['total_vmt'].sum().reset_index()
-    emfac_w_vmt['vmt_proportion'] = emfac_w_vmt['total_vmt'] / emfac_w_vmt['total_vmt'].sum()
-    emfac_w_vmt = emfac_w_vmt.sort_values('vmt_proportion', ascending=False).reset_index(drop=True)
-    total_emfac_vmt = emfac_w_vmt['total_vmt'].sum()
-    print(f"EMFAC VMT with {len(ft_emfac_vmt)} rows and total vmt of {total_emfac_vmt}.")
-
-    # Step 4: Calculate EMFAC VMT tracking
-    emfac_w_vmt['composite_key'] = emfac_w_vmt['model_year_group'].astype(str) + ',' + \
-                                   emfac_w_vmt['beamClass'] + ',' + \
-                                   emfac_w_vmt['fuel']
-    key_vmt_series = emfac_w_vmt.groupby('composite_key')['total_vmt'].sum()
-    emfac_vmt_track = {k: v / total_emfac_vmt for k, v in key_vmt_series.items()}
-    print("Top EMFAC VMT proportions:")
-    for key, prop in sorted(emfac_vmt_track.items(), key=lambda x: x[1], reverse=True)[:5]:
-        print(f"  {key}: {prop:.4f}")
-
-    # Step 5: Match BEAM vehicles to EMFAC vehicles with VMT-weighted sampling
-    # This step performs hierarchical matching with fallbacks:
-    # 1. Try exact match (same vehicle class AND fuel type)
-    # 2. Fall back to matching just fuel type if needed
-    # 3. Fall back to matching just vehicle class if needed
-    # 4. Last resort: use any available EMFAC vehicle
-    # The process tracks VMT by composite key (year,class,fuel) to prevent overallocation
-    emfac_w_vmt_fall_back = emfac_w_vmt.copy()
-    beam_vmt_track = {}
-    for i, (veh_type_id, veh_class, fuel, vmt, vmt_prop) in enumerate(
-            vehicle_w_vmt[['vehicleTypeId', 'beamClass', 'emfacFuel', 'total_vmt', 'vmt_proportion']].values
-    ):
-        class_mask = emfac_w_vmt[emfac_w_vmt['beamClass'] == veh_class]
-        fuel_mask = emfac_w_vmt[emfac_w_vmt['emfacFuel'] == fuel]
-        full_matches = emfac_w_vmt[class_mask & fuel_mask].copy()
-        if not full_matches.empty:
-            sampled_match = full_matches.sample(n=1, weights='vmt_proportion').iloc[0]
-            selected_emfac_id, selected_model_year = sampled_match[["emfacId", 'model_year_group']].values()
-            composite_key = f"{selected_model_year},{veh_class},{fuel}"
-            vehicle_w_vmt.loc[i, "emfacId"] = selected_emfac_id
-        else:
-            fuel_matches = emfac_w_vmt[fuel_mask].copy()
-            if not fuel_matches.empty:
-                sampled_match = fuel_matches.sample(n=1, weights='vmt_proportion').iloc[0]
-                selected_emfac_id, selected_model_year, selected_beam_class = sampled_match[
-                    ["emfacId", 'model_year_group', 'beamClass']
-                ].values()
-                composite_key = f"{selected_model_year},{selected_beam_class},{fuel}"
-                vehicle_w_vmt.loc[i, "beamClass"] = selected_beam_class
-                vehicle_w_vmt.loc[i, "emfacId"] = selected_emfac_id
-            else:
-                class_matches = emfac_w_vmt[class_mask].copy()
-                if not class_matches.empty:
-                    sampled_match = class_matches.sample(n=1, weights='vmt_proportion').iloc[0]
-                    selected_emfac_id, selected_model_year, selected_fuel = sampled_match[
-                        ["emfacId", 'model_year_group', 'fuel']
-                    ].values()
-                    composite_key = f"{selected_model_year},{veh_class},{selected_fuel}"
-                    vehicle_w_vmt.loc[i, "emfacFuel"] = selected_fuel
-                    vehicle_w_vmt.loc[i, "emfacId"] = selected_emfac_id
-                else:
-                    sampled_match = emfac_w_vmt.sample(n=1, weights='vmt_proportion').iloc[0]
-                    selected_emfac_id, selected_model_year, selected_fuel, selected_beam_class = sampled_match[
-                        ["emfacId", 'model_year_group', 'fuel', 'beamClass']
-                    ].values()
-                    composite_key = f"{selected_model_year},{selected_beam_class},{selected_fuel}"
-                    vehicle_w_vmt.loc[i, "emfacFuel"] = selected_fuel
-                    vehicle_w_vmt.loc[i, "beamClass"] = selected_beam_class
-                    vehicle_w_vmt.loc[i, "emfacId"] = selected_emfac_id
-
-
-        if composite_key not in beam_vmt_track:
-            beam_vmt_track[composite_key] = 0
-        beam_vmt_track[composite_key] += vmt_prop
-
-        if beam_vmt_track[composite_key] >= emfac_vmt_track[composite_key]:
-            print(f"We exhausted the composite key {composite_key} "
-                  f"    with emfac vmt share of {emfac_vmt_track[composite_key]} "
-                  f"    and beam freight vmt share of {beam_vmt_track[composite_key]}.")
-            emfac_w_vmt = emfac_w_vmt[emfac_w_vmt["composite_key"] != composite_key]
-            if emfac_w_vmt.empty:
-                emfac_w_vmt = emfac_w_vmt_fall_back.copy()
-
-    result_df = emfac_w_vmt[["vehicleId", "emfacId", "vehicleTypeId", "emfacFuel", "beamClass"]]
-
-    # Save results
-    print(f"\nSaving results to {output_file}")
-    # Drop temporary columns before saving
-    result_df = result_df.drop(['assigned_class'], axis=1)
-    result_df.to_csv(output_file, index=False)
-
-    return result_df
 
 
 def process_single_vehicle_type(veh_type, emissions_rates, rates_prefix_filepath):

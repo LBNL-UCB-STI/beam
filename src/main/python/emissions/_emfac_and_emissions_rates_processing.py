@@ -16,7 +16,9 @@ parent_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, parent_dir)
 
 # Now use absolute import
+from python.utils.study_area_config import BeamClasses
 
+# Now use absolute import
 emissions_processes = [
     "RUNEX",
     "IDLEX",
@@ -55,6 +57,91 @@ def categorize_model_year(year):
         return '2006'
     else:  # year >= 2007
         return '2018'
+
+def get_emfac_beam_vehicle_class_mapping(_study_area, _scenario_name, _work_dir, vehicle_list, to_filter_out):
+    """
+    Creates vehicle class mapping and saves it to a JSON file if it doesn't exist.
+    If the file exists, loads and returns the existing mapping.
+
+    Args:
+        _study_area: Stud Area
+        _scenario_name: Scenario Name
+        _work_dir:
+        vehicle_list: List of vehicle types to map
+        to_filter_out:
+
+    Returns:
+        dict: The vehicle class mapping (either newly created or loaded from existing file)
+    """
+    import json
+    from collections import defaultdict
+    _vehicle_class_output_file = os.path.join(
+        _work_dir,
+        f"emissions/{_study_area}_vehicle_class_mapping_{_scenario_name}.json"
+    )
+    # Check if the file already exists
+    if os.path.exists(_vehicle_class_output_file):
+        print(f"File {_vehicle_class_output_file} already exists. Loading existing mapping.")
+        with open(_vehicle_class_output_file, 'r') as f:
+            return json.load(f)
+
+    # Create the mapping
+    mapping = {}
+
+    for vehicle in vehicle_list:
+        if 'Utility' in vehicle or 'Public' in vehicle:
+            mapping[vehicle] = "NotMatched"
+        elif 'Port' in vehicle or 'POLA' in vehicle or 'POAK' in vehicle:
+            mapping[vehicle] = "NotMatched"
+        elif 'SWCV' in vehicle or 'PTO' in vehicle or 'T6TS' in vehicle:
+            mapping[vehicle] = "NotMatched"
+        elif vehicle in ['LDA', 'LDT1', 'LDT2', 'MDV']:
+            mapping[vehicle] = BeamClasses.CLASS_CAR
+        elif vehicle in ['MCY']:
+            mapping[vehicle] = BeamClasses.CLASS_BIKE
+        elif vehicle in ['UBUS']:
+            mapping[vehicle] = BeamClasses.CLASS_MDP
+        elif 'LHD' in vehicle:
+            mapping[vehicle] = BeamClasses.CLASS_2B3_VOCATIONAL
+        elif 'Class 4' in vehicle or 'Class 5' in vehicle or 'Class 6' in vehicle:
+            mapping[vehicle] = BeamClasses.CLASS_456_VOCATIONAL
+        elif 'Class 7' in vehicle or 'Class 8' in vehicle:
+            if 'Tractor' in vehicle or 'CAIRP' in vehicle:
+                mapping[vehicle] = BeamClasses.CLASS_78_TRACTOR
+            else:
+                mapping[vehicle] = BeamClasses.CLASS_78_VOCATIONAL
+        elif "T7IS" in vehicle:
+            mapping[vehicle] = BeamClasses.CLASS_78_TRACTOR
+        else:
+            mapping[vehicle] = "NotMatched"
+
+    # Print category groupings
+    class_groups = defaultdict(list)
+    for vehicle, vehicle_class in mapping.items():
+        class_groups[vehicle_class].append(vehicle)
+    for vehicle_class, vehicles in class_groups.items():
+        print(f"Category: {vehicle_class}")
+        for vehicle in vehicles:
+            print(f"  - {vehicle}")
+
+    # Create final mapping structure
+    ft_emfac_class_map = {emfac: beam for emfac, beam in mapping.items() if
+                          beam in BeamClasses.get_freight_classes()}
+    pax_emfac_class_map = {emfac: beam for emfac, beam in mapping.items() if
+                           beam in BeamClasses.get_passenger_classes()}
+
+    _emfac_class_map = ft_emfac_class_map | pax_emfac_class_map
+
+    # Filter out elements that exist in elements_to_remove
+    filtered_list = [item for item in _emfac_class_map if item not in to_filter_out]
+
+    # Write to JSON file
+    with open(_vehicle_class_output_file, 'w') as f:
+        json.dump(filtered_list, f, indent=2)
+
+    print(f"Successfully created {_vehicle_class_output_file}")
+    return filtered_list
+
 
 def calculate_road_dust_emissions(silt_loading, rainy_days):
     """
@@ -547,3 +634,207 @@ def process_emissions_rates(_study_area, _scenario_name, _work_dir, _emfac_class
             _combined_rates.to_csv(combined_rate_file, index=False)
 
     return _combined_rates
+
+
+def process_emfac_population(_study_area, _scenario_name, _work_dir, config):
+    """
+    Process EMFAC population data by model year, adding proportional calculations.
+
+    Args:
+        _study_area: Study area name
+        _scenario_name: Scenario name
+        _work_dir: Working directory path
+        config: Configuration dictionary containing filtering and file path information
+
+    Returns:
+        pandas.DataFrame: Processed and grouped population data with proportion calculations
+    """
+    _emfac_population_output_file = os.path.join(
+        _work_dir,
+        f"emissions/{_study_area}_emfac_population_{_scenario_name}.csv"
+    )
+    if os.path.exists(_emfac_population_output_file):
+        _emfac_population = pd.read_csv(_emfac_population_output_file)
+        _emfac_class_map = get_emfac_beam_vehicle_class_mapping(
+            _study_area,
+            _scenario_name,
+            _work_dir,
+            _emfac_population["vehicle_class"].unique(),
+            to_filter_out = [BeamClasses.CLASS_2B3_VOCATIONAL]
+        )
+    else:
+        include_nan = config["filters"]["include_nan"]
+        calendar_year = config["filters"]["calendar_year"]
+        air_basin_area = config["filters"]["sub_area"]
+        _emfac_population_by_model_year_file = os.path.join(
+            _work_dir,
+            config["emfac"]["emfac_pop_by_model_year_file"]
+        )
+
+        table = csv.read_csv(_emfac_population_by_model_year_file, read_options=pa.csv.ReadOptions(use_threads=True))
+        df = table.to_pandas()
+
+        # Filter by calendar year
+        if 'calendar_year' in df.columns:
+            df = df[(df['calendar_year'] == calendar_year) | (include_nan & df['calendar_year'].isna())]
+
+        # Filter by sub area
+        if 'sub_area' in df.columns:
+            # Create a filter condition for partial matches
+            sub_area_filter = include_nan & df['sub_area'].isna()
+
+            for _area in air_basin_area:
+                # Look for exact match or area in parentheses (e.g., "Santa Clara (SF)" for "SF")
+                sub_area_filter = sub_area_filter | df['sub_area'].str.contains(f'\\({_area}\\)', regex=True) | (
+                        df['sub_area'] == _area)
+
+            # Apply the filter
+            df = df[sub_area_filter]
+
+        # Convert population column to float for calculations
+        if 'population' in df.columns:
+            df['population'] = pd.to_numeric(df['population'], errors='coerce')
+
+        # Categorize model years
+        df['model_year_group'] = df['model_year'].apply(categorize_model_year)
+
+        # Clean data
+        df = df.fillna('')
+        df = df.reset_index(drop=True)
+
+        # Group by relevant columns and sum population
+        group_col = ['vehicle_class', 'fuel', 'model_year_group']
+        df_grouped = df.groupby(group_col)['population'].sum().reset_index()
+
+        # Calculate total population across all groups
+        total_population = df_grouped['population'].sum()
+
+        # Calculate proportion of each group relative to total
+        df_grouped['population_proportion'] = df_grouped['population'] / total_population
+
+        # Create ID column for reference
+        df_grouped['emfacId'] = df_grouped.apply(
+            lambda row: sanitize_name(f"{row['model_year_group']}-{row['vehicle_class']}-{row['fuel']}"),
+            axis=1
+        )
+
+        _emfac_population = df_grouped
+
+        _emfac_class_map = get_emfac_beam_vehicle_class_mapping(
+            _study_area, _scenario_name, _work_dir, _emfac_population["vehicle_class"].unique()
+        )
+
+        _emfac_population["beamClass"] = _emfac_population["vehicle_class"].map(_emfac_class_map)
+        unmapped_classes = _emfac_population[_emfac_population["beamClass"].isna()]["vehicle_class"].unique()
+        if len(unmapped_classes) > 0:
+            unmapped_classes_message = "The following vehicle classes were not mapped:\n"
+            formatted_list = ""
+            current_line = ""
+
+            for vehicle_class in unmapped_classes:
+                # Check if adding this class would exceed the line limit
+                if len(current_line + vehicle_class) > 115:  # 115 to leave room for comma and space
+                    formatted_list += current_line.rstrip(", ") + "\n"
+                    current_line = vehicle_class + ", "
+                else:
+                    current_line += vehicle_class + ", "
+
+            # Add the last line
+            if current_line:
+                formatted_list += current_line.rstrip(", ")
+
+            print(f"{unmapped_classes_message}{formatted_list}")
+
+        _emfac_population = _emfac_population.dropna(subset=["beamClass"])
+
+        _emfac_population.to_csv(_emfac_population_output_file, index=False)
+
+    return _emfac_population, _emfac_class_map
+
+
+def process_emfac_vmt(_study_area, _scenario_name, _work_dir, _emfac_class_map, config):
+    """
+    Process EMFAC VMT data by model year, adding proportional calculations.
+
+    Args:
+        _study_area:
+        _scenario_name:
+        config: Configuration dictionary containing filtering and file path information
+        _work_dir:
+
+    Returns:
+        pandas.DataFrame: Processed and grouped VMT data with proportion calculations
+    """
+    _emfac_vmt_output_file = os.path.join(
+        _work_dir,
+        f"emissions/{_study_area}_emfac_vmt_{_scenario_name}.csv"
+    )
+    if os.path.exists(_emfac_vmt_output_file):
+        _emfac_vmt = pd.read_csv(_emfac_vmt_output_file)
+    else:
+        include_nan = config["filters"]["include_nan"]
+        calendar_year = config["filters"]["calendar_year"]
+        air_basin_area = config["filters"]["sub_area"]
+        _emfac_vmt_by_model_year_file = os.path.join(
+            _work_dir,
+            config["emfac"]["emfac_vmt_by_model_year_file"]
+        )
+
+        table = csv.read_csv(_emfac_vmt_by_model_year_file, read_options=pa.csv.ReadOptions(use_threads=True))
+        df = table.to_pandas()
+
+        # Filter by calendar year
+        if 'calendar_year' in df.columns:
+            df = df[(df['calendar_year'] == calendar_year) | (include_nan & df['calendar_year'].isna())]
+
+        # Filter by sub area
+        if 'sub_area' in df.columns:
+            # Create a filter condition for partial matches
+            sub_area_filter = include_nan & df['sub_area'].isna()
+
+            for _area in air_basin_area:
+                # Look for exact match or area in parentheses (e.g., "Santa Clara (SF)" for "SF")
+                sub_area_filter = sub_area_filter | df['sub_area'].str.contains(f'\\({_area}\\)', regex=True) | (
+                        df['sub_area'] == _area)
+
+            # Apply the filter
+            df = df[sub_area_filter]
+
+        # Convert numeric columns to float for calculations
+        numeric_columns = ['total_vmt', 'cvmt', 'evmt']
+        for col in numeric_columns:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+
+        # Categorize model years
+        df['model_year_group'] = df['model_year'].apply(categorize_model_year)
+
+        # Clean data
+        df = df.fillna('')
+        df = df.reset_index(drop=True)
+
+        # Group by relevant columns and sum VMT
+        group_col = ['vehicle_class', 'fuel', 'model_year_group']
+        df_grouped = df.groupby(group_col)['total_vmt'].sum().reset_index()
+
+        # Calculate total VMT across all groups
+        total_vmt = df_grouped['total_vmt'].sum()
+
+        # Calculate proportion of each group relative to total
+        df_grouped['vmt_proportion'] = df_grouped['total_vmt'] / total_vmt
+
+        # Create ID column for reference
+        df_grouped['emfacId'] = df_grouped.apply(
+            lambda row: sanitize_name(f"{row['model_year_group']}-{row['vehicle_class']}-{row['fuel']}"),
+            axis=1
+        )
+
+        _emfac_vmt = df_grouped
+
+        _emfac_vmt["beamClass"] = _emfac_vmt["vehicle_class"].map(_emfac_class_map)
+
+        _emfac_vmt = _emfac_vmt.dropna(subset=["beamClass"])
+
+        _emfac_vmt.to_csv(_emfac_vmt_output_file, index=False)
+
+    return _emfac_vmt

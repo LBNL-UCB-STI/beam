@@ -96,17 +96,68 @@ def get_area_config(area_name):
 ########## Settings #########
 #############################
 
-# Define class constants
-beam_class_2b3 = 'Class2b3Vocational'
-beam_class_46 = 'Class456Vocational'
-beam_class_78_v = 'Class78Vocational'
-beam_class_78_t = 'Class78Tractor'
-beam_class_car = "Car"  # these include light and medium duty trucks
-beam_class_bike = "Bike"
-beam_class_mdp = "MediumDutyPassenger"
+# Create a file named beam_classes.py
 
-beam_freight_classes = [beam_class_46, beam_class_78_v, beam_class_78_t]
-beam_passenger_classes = [beam_class_car, beam_class_bike, beam_class_mdp]
+class BeamClasses:
+    """
+    BEAM vehicle class definitions with flexible import options.
+
+    This class provides accessible vehicle class constants used in BEAM transportation models,
+    with helper methods for grouping and categorization.
+    """
+    # Freight vehicle classes
+    CLASS_2B3_VOCATIONAL = 'Class2b3Vocational'
+    CLASS_456_VOCATIONAL = 'Class456Vocational'
+    CLASS_78_VOCATIONAL = 'Class78Vocational'
+    CLASS_78_TRACTOR = 'Class78Tractor'
+
+    # Non-freight vehicle classes
+    CLASS_CAR = "Car"  # includes light and medium duty trucks
+    CLASS_BIKE = "Bike"
+    CLASS_MDP = "MediumDutyPassenger"
+
+    @classmethod
+    def get_freight_classes(cls):
+        """Returns a list of all freight vehicle classes."""
+        return [
+            cls.CLASS_2B3_VOCATIONAL,
+            cls.CLASS_456_VOCATIONAL,
+            cls.CLASS_78_VOCATIONAL,
+            cls.CLASS_78_TRACTOR
+        ]
+
+    @classmethod
+    def get_passenger_classes(cls):
+        """Returns a list of all non-freight vehicle classes."""
+        return [
+            cls.CLASS_CAR,
+            cls.CLASS_BIKE,
+            cls.CLASS_MDP
+        ]
+
+    @classmethod
+    def get_all_classes(cls):
+        """Returns a list of all vehicle classes."""
+        return cls.get_freight_classes() + cls.get_non_freight_classes()
+
+    @classmethod
+    def is_freight(cls, beam_class):
+        """Returns True if the given class is a freight vehicle class."""
+        return beam_class in cls.get_freight_classes()
+
+    @classmethod
+    def class_to_display_name(cls, beam_class):
+        """Converts internal class names to display-friendly names."""
+        display_names = {
+            cls.CLASS_2B3_VOCATIONAL: "Class 2b/3 Vocational",
+            cls.CLASS_456_VOCATIONAL: "Class 4-6 Vocational",
+            cls.CLASS_78_VOCATIONAL: "Class 7-8 Vocational",
+            cls.CLASS_78_TRACTOR: "Class 7-8 Tractor",
+            cls.CLASS_CAR: "Passenger Car",
+            cls.CLASS_BIKE: "Bicycle",
+            cls.CLASS_MDP: "Medium-Duty Passenger"
+        }
+        return display_names.get(beam_class, beam_class)
 
 constants = {
     "joule_per_meter_base_rate": 1.213e8, # Energy consumption base rate in joules per meter
