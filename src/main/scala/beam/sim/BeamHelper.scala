@@ -842,7 +842,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
                   if (new java.io.File(parquetPath).exists()) parquetPath
                   else csvPath
                 }
-                
+
                 new UrbansimReaderV2(
                   inputPersonPath = getPath("persons"),
                   inputPlanPath = getPath("plans"),
@@ -854,7 +854,8 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
                   modeMap = BeamConfigUtils.parseListToMap(
                     beamConfig.beam.exchange.scenario.modeMap
                       .getOrElse(throw new RuntimeException("beam.exchange.scenario.modeMap must be set"))
-                  )
+                  ),
+                  fileFormat = beamConfig.beam.exchange.scenario.fileFormat
                 )
               case "generic" =>
                 val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"

@@ -4,6 +4,8 @@ import beam.utils.scenario.urbansim.censusblock.entities._
 import org.apache.avro.generic.GenericRecord
 import org.apache.avro.AvroRuntimeException
 
+import scala.util.Try
+
 class ParquetPersonReader(path: String) extends BaseParquetReader[InputPersonInfo](path) {
 
   override protected def transform(record: GenericRecord): InputPersonInfo = {
@@ -48,7 +50,7 @@ class ParquetHouseholdReader(path: String) extends BaseParquetReader[InputHouseh
   override protected def transform(record: GenericRecord): InputHousehold = {
     InputHousehold(
       householdId = record.get("household_id").toString.split("\\.")(0),
-      cars = record.get("cars").toString.toDouble.toInt,
+      cars = Try(record.get("cars")).getOrElse(record.get("auto_ownership")).toString.toDouble.toInt,
       income = record.get("income").toString.toDouble.toInt,
       blockId = record.get("block_id").toString.toLong
     )
