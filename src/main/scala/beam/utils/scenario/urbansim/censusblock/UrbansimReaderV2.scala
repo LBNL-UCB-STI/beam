@@ -2,12 +2,13 @@ package beam.utils.scenario.urbansim.censusblock
 
 import beam.sim.common.GeoUtils
 import beam.utils.csv.readers
-import beam.utils.scenario.urbansim.censusblock.entities.InputHousehold
+import beam.utils.scenario.urbansim.censusblock.entities.{Block, InputHousehold, InputPersonInfo, InputPlanElement}
 import beam.utils.scenario.urbansim.censusblock.merger.{HouseholdMerger, PersonMerger, PlanMerger}
 import beam.utils.scenario.urbansim.censusblock.reader._
 import beam.utils.scenario.{HouseholdInfo, PersonInfo, PlanElement, ScenarioSource, VehicleInfo}
 import org.matsim.api.core.v01.Coord
-import org.slf4j.LoggerFactory
+import com.typesafe.scalalogging.LazyLogging
+import beam.utils.scenario.urbansim.censusblock.reader.ReaderFactories._
 
 import java.nio.file.{Files, Paths}
 
@@ -19,16 +20,29 @@ class UrbansimReaderV2(
   val inputBlockPath: String,
   val geoUtils: GeoUtils,
   val shouldConvertWgs2Utm: Boolean,
-  val modeMap: Map[String, String]
-) extends ScenarioSource {
-
-  private val logger = LoggerFactory.getLogger(getClass)
+  val modeMap: Map[String, String],
+  val fileFormat: String = "csv"
+) extends ScenarioSource with LazyLogging {
 
   private val rdr = readers.BeamCsvScenarioReader
 
+  if (fileFormat == "parquet") {
+    val requiredFiles = List(
+      inputPersonPath,
+      inputPlanPath,
+      inputHouseholdPath,
+      inputBlockPath
+    )
+    val missingFiles = requiredFiles.filterNot(path => Files.exists(Paths.get(path)))
+    require(
+      missingFiles.isEmpty,
+      s"All Parquet files must exist. Missing files: ${missingFiles.mkString(", ")}"
+    )
+  }
+
   private val inputHouseHoldMap: Map[String, InputHousehold] = {
     logger.info("Start reading of households info...")
-    val reader = new HouseHoldReader(inputHouseholdPath)
+    val reader = createReader[InputHousehold](inputHouseholdPath, fileFormat)
     try {
       reader
         .iterator()
@@ -42,7 +56,7 @@ class UrbansimReaderV2(
 
   override def getPersons: Iterable[PersonInfo] = {
     val merger = new PersonMerger(inputHouseHoldMap)
-    val personReader = new PersonReader(inputPersonPath)
+    val personReader = createReader[InputPersonInfo](inputPersonPath, fileFormat)
 
     logger.info("Merging incomes into person...")
 
@@ -59,7 +73,7 @@ class UrbansimReaderV2(
 
     logger.info("Merging modes into plan...")
 
-    val planReader = new PlanReader(inputPlanPath)
+    val planReader = createReader[InputPlanElement](inputPlanPath, fileFormat)
 
     try {
       merger
@@ -81,7 +95,8 @@ class UrbansimReaderV2(
 
   override def getHousehold: Iterable[HouseholdInfo] = {
     logger.debug("Reading of the blocks...")
-    val blockReader = new BlockReader(inputBlockPath)
+    val blockReader = createReader[Block](inputBlockPath, fileFormat)
+
     val blocks = blockReader
       .iterator()
       .map(b => b.blockId -> b)
@@ -114,5 +129,9 @@ class UrbansimReaderV2(
     } else {
       Iterable.empty[VehicleInfo]
     }
+  }
+
+  private def createReader[T](path: String, format: String)(implicit factory: ReaderFactory[T]): Reader[T] = {
+    factory.createReader(path, format)
   }
 }
