@@ -2,6 +2,7 @@ import os.path
 import sys
 import pandas as pd
 import numpy as np
+from tqdm import tqdm
 
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -433,8 +434,12 @@ def emfac2freight_by_model_year_class_fuel(emfac_vmt, carriers_raw, payloads_raw
     beam_vmt_track = {}
     vehicle_w_vmt['assigned_class'] = ""  # Track matching strategy
 
+    # Create progress bar
+    total_vehicles = len(vehicle_w_vmt)
+    print(f"Matching {total_vehicles} vehicles to EMFAC records...")
+
     # Perform the matching
-    for i, row in vehicle_w_vmt.iterrows():
+    for i, row in tqdm(vehicle_w_vmt.iterrows(), total=total_vehicles, desc="Matching vehicles"):
         veh_class = row['beamClass']
         fuel = row['emfacFuel']
         vmt_prop = row['vmt_proportion']
