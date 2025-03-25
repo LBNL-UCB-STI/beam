@@ -243,10 +243,13 @@ def process_emfac_vmt(_study_area, _scenario_name, _work_dir, _emfac_class_map, 
     return _emfac_vmt
 
 
-def calculate_tour_distances(df):
-    """Calculate total distance for each tour ID from the coordinates using vectorized operations"""
+def calculate_tour_summary_by_vehicle(payloads_raw):
+    """
+    Calculate tour distances and create a summary dataframe with distance metrics.
+    Returns both the tour summary and vehicle summary.
+    """
     # Sort data by tourId and sequenceRank
-    df = df.sort_values(by=['tourId', 'sequenceRank'])
+    df = payloads_raw.sort_values(by=['tourId', 'sequenceRank'])
 
     # Create shifted columns to calculate distances between consecutive points
     df['next_x'] = df.groupby('tourId')['locationX'].shift(-1)
@@ -261,15 +264,57 @@ def calculate_tour_distances(df):
 
     # Sum up distances by tour
     tour_distances = df.groupby('tourId')['segment_distance'].sum().to_dict()
+    total_distance = sum(tour_distances.values())
+    tour_proportions = {tour_id: dist / total_distance for tour_id, dist in tour_distances.items()}
 
-    return tour_distances
+    # Create summary dataframe
+    payloads = payloads_raw[['payloadId', 'tourId', 'vehicleId', 'payloadType']].copy()
+    payloads['payloadType'] = payloads['payloadType'].astype(str)
 
+    # Group by tour and add distance metrics
+    summary = (payloads
+               .groupby('tourId')['payloadType']
+               .agg('|'.join)
+               .reset_index())
+
+    # Add distance metrics
+    summary['total_vmt'] = summary['tourId'].map(tour_distances)
+    summary['vmt_proportion'] = summary['tourId'].map(tour_proportions)
+
+    # Final aggregation by vehicle
+    vehicle_summary = summary.groupby('vehicleId').agg({
+        'total_vmt': 'sum',
+        'vmt_proportion': 'sum'
+    })
+
+    return summary, vehicle_summary
+
+# Function to determine the correct key for the map
+def get_fuel_key(row):
+    primary_fuel = row['primaryFuelType'].str.lower()
+
+    # Special handling for electricity based on secondary fuel
+    if primary_fuel == "electricity":
+        suffix = "only" if pd.isna(row['secondaryFuelType']) else "hybrid"
+        return f"{primary_fuel}-{suffix}"
+
+    return primary_fuel
 
 def updated_fuel_types_from_emfac(og_vehicletypes_df):
     vehtypes = og_vehicletypes_df.copy()
     # Convert primaryFuelType to lowercase directly
     vehtypes['primaryFuelType_lower'] = vehtypes['primaryFuelType'].str.lower()
 
+    fuel_map = {
+        "hydrogen": 'Elec',
+        "electricity-na": 'Elec',
+        "electricity-notna": 'Phe',
+        "gasoline": 'Gas',
+        "diesel": 'Dsl',
+        "biodiesel": 'Dsl',
+        "naturalgas": 'NG'
+
+    }
     # Create conditions and values for mapping
     # For now we assume H2FC will behave like BEV vehicles
     conditions = [
@@ -480,39 +525,8 @@ def print_stats(emfac_df, mapped_beaf_freight_df):
     print(cls_my_comparison.sort_values(by='Difference', key=abs, ascending=False).head(5).round(4))
 
 
-def map_emfac_to_beam_freight(_scenario, _work_dir, _emfac_data, _beam_data, _config):
-    """
-    Maps EMFAC vehicle classes to BEAM freight data preserving the distribution of:
-    1. Model year
-    2. Vehicle class
-    3. Fuel type
-
-    The function assigns appropriate emfacId to each BEAM freight vehicle while maintaining
-    the statistical integrity of VMT distributions across vehicle classes and model years.
-    After mapping, it compares the resulting distributions to verify preservation quality.
-
-    This version ensures that each emfacId is unique by removing it from the pool after use
-    and recalculating VMT proportions.
-
-    Parameters:
-    -----------
-    scenario_name : str
-        Scenario name
-    work_dir : str
-        Working directory
-    emfac_data : pd.DataFrame
-        EMFAC VMT distribution data
-    beam_data : pd.DataFrame
-        BEAM freight VMT data
-    config : dict
-        Configuration dictionary
-
-    Returns:
-    --------
-    pd.DataFrame
-        The BEAM data with emfacId assigned to each row
-    """
-    # Check if output file already exists
+def map_emfac_to_beam_freight(_scenario, _work_dir, _emfac_vmt, _config):
+    # Step 0: Check if output file already exists
     _carriers_dir = f"{_work_dir}/{os.path.dirname(_config['beam']['carriers_file'])}"
     output_file = os.path.join(_carriers_dir, f"emfac-fleet--{_scenario.replace('_', '-')}.csv")
 
@@ -521,358 +535,191 @@ def map_emfac_to_beam_freight(_scenario, _work_dir, _emfac_data, _beam_data, _co
         return pd.read_csv(output_file)
 
     print("=== VMT-based Mapping Of BEAM Freight with EMFAC ===")
-    # Filter EMFAC data to freight classes
-    emfac_freight_data = _emfac_data[_emfac_data["beamClass"].isin(beam_freight_classes)]
-    beam_df = _beam_data.copy()
-    emfac_df = emfac_freight_data.copy()
 
-    # Print distributions for verification
-    print(f"Loaded BEAM file with {len(beam_df)} rows and EMFAC file with {len(emfac_df)} rows.")
+    # Step 1: Prepare Vehicle Types
+    ft_vehicle_types_raw = pd.read_csv(os.path.join(_work_dir, f"{_config["beam"]["ft_vehicle_types_file"]}"), dtype=str)
+    ft_freight_mask = (ft_vehicle_types_raw['vehicleCategory'].isin(beam_freight_classes))
+    ft_vehicle_types_filtered = ft_vehicle_types_raw[ft_freight_mask].copy()
+    ft_vehicle_types = updated_fuel_types_from_emfac(ft_vehicle_types_filtered)[
+        ['vehicleTypeId', 'beamClass', 'emfacFuel']
+    ]
 
-    # Step 1: Calculate total BEAM data VMT
-    total_beam_vmt = beam_df['total_vmt'].sum()
-    print(f"Total BEAM VMT: {total_beam_vmt}")
+    # Step 2: Extract VMT proportion in BEAM Freight data
+    payloads_raw = pd.read_csv(str(os.path.join(_work_dir, _config["beam"]["payloads_file"])))
+    carriers_raw = pd.read_csv(str(os.path.join(_work_dir, _config["beam"]["carriers_file"])))
+    tour_summary = calculate_tour_summary_by_vehicle(payloads_raw)
+    payloads_merged = pd.merge(
+        tour_summary,
+        carriers_raw[['vehicleId', 'vehicleTypeId']],
+        on='vehicleId',
+        how='left'
+    )
+    vehicle_w_vmt = pd.merge(payloads_merged, ft_vehicle_types, on='vehicleTypeId', how='left')
+    vehicle_w_vmt = vehicle_w_vmt.drop_duplicates(subset=['vehicleId'], keep='first')
+    vehicle_w_vmt = vehicle_w_vmt.sort_values('vmt_proportion', ascending=False).reset_index(drop=True)
+    total_beam_vmt = vehicle_w_vmt['total_vmt'].sum()
+    print(f"BEAM VMT with {len(vehicle_w_vmt)} rows and total vmt of {total_beam_vmt}.")
 
-    # Step 2: Extract VMT proportion in EMFAC data
-    emfac_vmt_props = emfac_df.groupby(['beamClass', 'model_year_group', 'fuel'])['total_vmt'].sum().reset_index()
-    emfac_vmt_props['vmt_proportion'] = emfac_vmt_props['total_vmt'] / emfac_vmt_props['total_vmt'].sum()
+    # Step 3: Extract VMT proportion in EMFAC data
+    ft_emfac_vmt = _emfac_vmt[_emfac_vmt["beamClass"].isin(beam_freight_classes)]
+    emfac_w_vmt = ft_emfac_vmt.groupby(['beamClass', 'model_year_group', 'fuel'])['total_vmt'].sum().reset_index()
+    emfac_w_vmt['vmt_proportion'] = emfac_w_vmt['total_vmt'] / emfac_w_vmt['total_vmt'].sum()
+    emfac_w_vmt = emfac_w_vmt.sort_values('vmt_proportion', ascending=False).reset_index(drop=True)
+    total_emfac_vmt = emfac_w_vmt['total_vmt'].sum()
+    print(f"EMFAC VMT with {len(ft_emfac_vmt)} rows and total vmt of {total_emfac_vmt}.")
 
-    # Step 3: Convert EMFAC data to a nested dictionary for easier manipulation and removal
-    emfac_entries = {}
-    for cls in beam_freight_classes:
-        class_data = emfac_df[emfac_df['beamClass'] == cls].copy()
-        if not class_data.empty:
-            # Group by fuel and model year
-            emfac_entries[cls] = {}
-            for (fuel, model_year), group in class_data.groupby(['fuel', 'model_year_group']):
-                emfac_entries[cls][(fuel, model_year)] = group.copy()
+    # Step 4: Calculate EMFAC VMT tracking
+    emfac_w_vmt['composite_key'] = emfac_w_vmt['model_year_group'].astype(str) + ',' + \
+                                   emfac_w_vmt['beamClass'] + ',' + \
+                                   emfac_w_vmt['fuel']
+    key_vmt_series = emfac_w_vmt.groupby('composite_key')['total_vmt'].sum()
+    emfac_vmt_track = {k: v / total_emfac_vmt for k, v in key_vmt_series.items()}
+    print("Top EMFAC VMT proportions:")
+    for key, prop in sorted(emfac_vmt_track.items(), key=lambda x: x[1], reverse=True)[:5]:
+        print(f"  {key}: {prop:.4f}")
 
-    # Initialize result dataframe
-    result_df = beam_df.copy()
-    result_df['emfacId'] = None
-    result_df['assigned_class'] = result_df['beamClass']  # Track original vs assigned class
-
-    # Calculate target VMT for each class based on EMFAC proportions
-    assigned_vmt = {cls: 0 for cls in beam_freight_classes}
-    target_vmt = {cls: 0 for cls in beam_freight_classes}
-
-    for cls in beam_freight_classes:
-        class_vmt = emfac_df[emfac_df['beamClass'] == cls]['total_vmt'].sum()
-        target_vmt[cls] = (class_vmt / emfac_df['total_vmt'].sum()) * total_beam_vmt
-
-    # Print target VMT distribution
-    print("Target VMT distribution from EMFAC:")
-    for cls, vmt in target_vmt.items():
-        print(f"{cls}: {vmt:.2f} ({vmt / total_beam_vmt * 100:.2f}%)")
-
-    # Sort BEAM data by class for processing
-    beam_by_class = {cls: beam_df[beam_df['beamClass'] == cls].copy() for cls in beam_freight_classes}
-    for cls, df in beam_by_class.items():
-        print(f"BEAM {cls} count: {len(df)}, VMT: {df['total_vmt'].sum()}")
-
-    # Keep track of unassigned vehicles
-    unassigned_indices = set(beam_df.index)
-
-    # Process each class in order
-    for i, current_class in enumerate(beam_freight_classes):
-        print(f"\nProcessing {current_class}...")
-
-        # Skip if no EMFAC data for this class
-        if current_class not in emfac_entries or not emfac_entries[current_class]:
-            print(f"No EMFAC data for {current_class}, skipping...")
-            continue
-
-        # Process unassigned vehicles in current class
-        current_beam = beam_by_class[current_class]
-        beam_indices = set(current_beam.index)
-        unassigned_in_class = beam_indices.intersection(unassigned_indices)
-
-        # STEP 4.1: Assign vehicles from current class until threshold is met
-        while (assigned_vmt[current_class] < target_vmt[current_class]) and unassigned_in_class:
-            # Sample a vehicle
-            idx = random.choice(list(unassigned_in_class))
-            vehicle = beam_df.loc[idx]
-
-            # Check if we have entries for this fuel
-            fuel = vehicle['emfacFuel']
-
-            # Get all keys (fuel, model_year) for this class with matching fuel
-            matching_keys = [k for k in emfac_entries[current_class].keys() if k[0] == fuel]
-
-            if matching_keys:
-                # Calculate total VMT for this fuel type across all model years
-                total_vmt = sum(group['total_vmt'].sum() for k, group in
-                                [(k, emfac_entries[current_class][k]) for k in matching_keys])
-
-                if total_vmt > 0:  # Make sure we have valid VMT entries
-                    # Sample a key based on VMT proportion
-                    key_probs = [emfac_entries[current_class][k]['total_vmt'].sum() / total_vmt
-                                 for k in matching_keys]
-
-                    sampled_key = matching_keys[np.random.choice(len(matching_keys), p=key_probs)]
-
-                    # Get the group of potential entries
-                    group = emfac_entries[current_class][sampled_key]
-
-                    # Sample an entry based on VMT proportion
-                    if not group.empty:
-                        vmt_props = group['total_vmt'] / group['total_vmt'].sum()
-                        sampled_idx = np.random.choice(group.index, p=vmt_props)
-                        sampled_emfac = group.loc[sampled_idx]
-
-                        # Assign emfacId
-                        result_df.loc[idx, 'emfacId'] = sampled_emfac['emfacId']
-                        result_df.loc[idx, 'assigned_class'] = current_class
-
-                        # Remove used entry from the pool
-                        emfac_entries[current_class][sampled_key] = group.drop(sampled_idx)
-
-                        # If group is now empty, remove the key
-                        if emfac_entries[current_class][sampled_key].empty:
-                            del emfac_entries[current_class][sampled_key]
-
-                        # Update tracking
-                        assigned_vmt[current_class] += vehicle['total_vmt']
-                        unassigned_indices.remove(idx)
-                        unassigned_in_class.remove(idx)
-                    else:
-                        # Empty group - remove key
-                        del emfac_entries[current_class][sampled_key]
-                        continue
-                else:
-                    # No valid VMT entries
-                    for k in matching_keys:
-                        if emfac_entries[current_class][k].empty:
-                            del emfac_entries[current_class][k]
-                    print(f"No valid VMT entries for fuel {fuel} in class {current_class}")
-                    unassigned_in_class.remove(idx)
-                    continue
+    # Step 5: Match BEAM vehicles to EMFAC vehicles with VMT-weighted sampling
+    # This step performs hierarchical matching with fallbacks:
+    # 1. Try exact match (same vehicle class AND fuel type)
+    # 2. Fall back to matching just fuel type if needed
+    # 3. Fall back to matching just vehicle class if needed
+    # 4. Last resort: use any available EMFAC vehicle
+    # The process tracks VMT by composite key (year,class,fuel) to prevent overallocation
+    emfac_w_vmt_fall_back = emfac_w_vmt.copy()
+    beam_vmt_track = {}
+    vehicle_w_vmt["beamClassBis"] = ""
+    vehicle_w_vmt["emfacFuelBis"] = ""
+    for i, (veh_type_id, veh_class, fuel, vmt, vmt_prop) in enumerate(
+            vehicle_w_vmt[['vehicleTypeId', 'beamClass', 'emfacFuel', 'total_vmt', 'vmt_proportion']].values
+    ):
+        class_mask = emfac_w_vmt[emfac_w_vmt['beamClass'] == veh_class]
+        fuel_mask = emfac_w_vmt[emfac_w_vmt['emfacFuel'] == fuel]
+        full_matches = emfac_w_vmt[class_mask & fuel_mask].copy()
+        if not full_matches.empty:
+            sampled_match = full_matches.sample(n=1, weights='vmt_proportion').iloc[0]
+            selected_emfac_id, selected_model_year = sampled_match[["emfacId", 'model_year_group']].values()
+            composite_key = f"{selected_model_year},{veh_class},{fuel}"
+            vehicle_w_vmt.loc[i, "emfacId"] = selected_emfac_id
+        else:
+            fuel_matches = emfac_w_vmt[fuel_mask].copy()
+            if not fuel_matches.empty:
+                sampled_match = fuel_matches.sample(n=1, weights='vmt_proportion').iloc[0]
+                selected_emfac_id, selected_model_year, selected_beam_class = sampled_match[
+                    ["emfacId", 'model_year_group', 'beamClass']
+                ].values()
+                composite_key = f"{selected_model_year},{selected_beam_class},{fuel}"
+                vehicle_w_vmt.loc[i, "beamClassBis"] = selected_beam_class
+                vehicle_w_vmt.loc[i, "emfacId"] = selected_emfac_id
             else:
-                # No matching fuel for this class, remove from consideration
-                print(f"No matching fuel {fuel} in EMFAC for vehicle {vehicle['vehicleId']}")
-                unassigned_in_class.remove(idx)
-                continue
-
-        # STEP 4.2: Current class exhausted but threshold not met
-        if (assigned_vmt[current_class] < target_vmt[current_class]) and not unassigned_in_class:
-            print(f"{current_class} exhausted but threshold not met. " +
-                  f"Current: {assigned_vmt[current_class]:.2f}, Target: {target_vmt[current_class]:.2f}")
-
-            # Check if there are more classes to process
-            if i + 1 < len(beam_freight_classes):
-                next_class = beam_freight_classes[i + 1]
-
-                # Skip if next class has no EMFAC data
-                if next_class not in emfac_entries or not emfac_entries[next_class]:
-                    print(f"No EMFAC data for next class {next_class}, continuing...")
-                    continue
-
-                print(f"Flipping vehicles from {next_class} to {current_class}")
-
-                # Get unassigned vehicles from next class
-                next_beam = beam_by_class[next_class]
-                next_indices = set(next_beam.index)
-                unassigned_next = next_indices.intersection(unassigned_indices)
-
-                # Process vehicles from next class
-                while (assigned_vmt[current_class] < target_vmt[current_class]) and unassigned_next:
-                    # Sample a vehicle from next class
-                    idx = random.choice(list(unassigned_next))
-                    vehicle = beam_df.loc[idx]
-
-                    # Find matching entries from current class
-                    fuel = vehicle['emfacFuel']
-                    matching_keys = [k for k in emfac_entries[current_class].keys() if k[0] == fuel]
-
-                    if matching_keys:
-                        # Calculate total VMT
-                        total_vmt = sum(group['total_vmt'].sum() for k, group in
-                                        [(k, emfac_entries[current_class][k]) for k in matching_keys])
-
-                        if total_vmt > 0:
-                            # Sample key based on VMT proportion
-                            key_probs = [emfac_entries[current_class][k]['total_vmt'].sum() / total_vmt
-                                         for k in matching_keys]
-
-                            sampled_key = matching_keys[np.random.choice(len(matching_keys), p=key_probs)]
-                            group = emfac_entries[current_class][sampled_key]
-
-                            # Sample an entry
-                            if not group.empty:
-                                vmt_props = group['total_vmt'] / group['total_vmt'].sum()
-                                sampled_idx = np.random.choice(group.index, p=vmt_props)
-                                sampled_emfac = group.loc[sampled_idx]
-
-                                # Assign and flip class
-                                result_df.loc[idx, 'emfacId'] = sampled_emfac['emfacId']
-                                result_df.loc[idx, 'assigned_class'] = current_class
-
-                                # Remove used entry
-                                emfac_entries[current_class][sampled_key] = group.drop(sampled_idx)
-
-                                # Clean up empty groups
-                                if emfac_entries[current_class][sampled_key].empty:
-                                    del emfac_entries[current_class][sampled_key]
-
-                                # Update tracking
-                                assigned_vmt[current_class] += vehicle['total_vmt']
-                                unassigned_indices.remove(idx)
-                                unassigned_next.remove(idx)
-                            else:
-                                # Empty group
-                                del emfac_entries[current_class][sampled_key]
-                                continue
-                        else:
-                            # No valid VMT entries
-                            for k in matching_keys:
-                                if emfac_entries[current_class][k].empty:
-                                    del emfac_entries[current_class][k]
-                            unassigned_next.remove(idx)
-                            continue
-                    else:
-                        # No matching fuel
-                        print(f"When flipping from {next_class} to {current_class}: " +
-                              f"No matching fuel in EMFAC for vehicle {vehicle['vehicleId']} with fuel {vehicle['emfacFuel']}")
-                        unassigned_next.remove(idx)
-
-        # STEP 4.3: Threshold met before exhausting current class
-        elif (assigned_vmt[current_class] >= target_vmt[current_class]) and unassigned_in_class:
-            print(f"{current_class} threshold met before exhausting class. " +
-                  f"Current: {assigned_vmt[current_class]:.2f}, Target: {target_vmt[current_class]:.2f}")
-
-            # Check if there are more classes to process
-            if i + 1 < len(beam_freight_classes):
-                next_class = beam_freight_classes[i + 1]
-
-                # Skip if next class has no EMFAC data
-                if next_class not in emfac_entries or not emfac_entries[next_class]:
-                    print(f"No EMFAC data for next class {next_class}, continuing with unassigned vehicles...")
-                    continue
-
-                print(f"Flipping remaining {current_class} vehicles to {next_class}")
-
-                # Process remaining vehicles in current class
-                for idx in list(unassigned_in_class):
-                    vehicle = beam_df.loc[idx]
-                    fuel = vehicle['emfacFuel']
-
-                    # Find matching entries in next class
-                    matching_keys = [k for k in emfac_entries[next_class].keys() if k[0] == fuel]
-
-                    if matching_keys:
-                        # Calculate total VMT
-                        total_vmt = sum(group['total_vmt'].sum() for k, group in
-                                        [(k, emfac_entries[next_class][k]) for k in matching_keys])
-
-                        if total_vmt > 0:
-                            # Sample key based on VMT proportion
-                            key_probs = [emfac_entries[next_class][k]['total_vmt'].sum() / total_vmt
-                                         for k in matching_keys]
-
-                            sampled_key = matching_keys[np.random.choice(len(matching_keys), p=key_probs)]
-                            group = emfac_entries[next_class][sampled_key]
-
-                            # Sample an entry
-                            if not group.empty:
-                                vmt_props = group['total_vmt'] / group['total_vmt'].sum()
-                                sampled_idx = np.random.choice(group.index, p=vmt_props)
-                                sampled_emfac = group.loc[sampled_idx]
-
-                                # Assign and flip class
-                                result_df.loc[idx, 'emfacId'] = sampled_emfac['emfacId']
-                                result_df.loc[idx, 'assigned_class'] = next_class
-
-                                # Remove used entry
-                                emfac_entries[next_class][sampled_key] = group.drop(sampled_idx)
-
-                                # Clean up empty groups
-                                if emfac_entries[next_class][sampled_key].empty:
-                                    del emfac_entries[next_class][sampled_key]
-
-                                # Update tracking
-                                assigned_vmt[next_class] += vehicle['total_vmt']
-                                unassigned_indices.remove(idx)
-                                unassigned_in_class.remove(idx)
-                            else:
-                                # Empty group
-                                del emfac_entries[next_class][sampled_key]
-                                continue
-                        else:
-                            # No valid VMT entries
-                            for k in matching_keys:
-                                if emfac_entries[next_class][k].empty:
-                                    del emfac_entries[next_class][k]
-                            unassigned_in_class.remove(idx)
-                            continue
-                    else:
-                        # No matching fuel
-                        print(f"When flipping from {current_class} to {next_class}: " +
-                              f"No matching fuel in EMFAC for vehicle {vehicle['vehicleId']} with fuel {vehicle['emfacFuel']}")
-                        unassigned_in_class.remove(idx)
-
-    # Handle any remaining unassigned vehicles
-    if unassigned_indices:
-        print(f"\nHandling {len(unassigned_indices)} remaining unassigned vehicles...")
-
-        # Create a pool of all remaining EMFAC entries
-        all_remaining_entries = []
-        for cls in emfac_entries:
-            for key in emfac_entries[cls]:
-                all_remaining_entries.append(emfac_entries[cls][key])
-
-        all_remaining_df = pd.concat(all_remaining_entries) if all_remaining_entries else pd.DataFrame()
-
-        for idx in list(unassigned_indices):
-            vehicle = beam_df.loc[idx]
-
-            if not all_remaining_df.empty:
-                # Try to match by fuel first
-                matching_by_fuel = all_remaining_df[all_remaining_df['fuel'] == vehicle['emfacFuel']]
-
-                if not matching_by_fuel.empty:
-                    # Sample based on VMT proportion
-                    vmt_props = matching_by_fuel['total_vmt'] / matching_by_fuel['total_vmt'].sum()
-                    sampled_idx = np.random.choice(matching_by_fuel.index, p=vmt_props)
-                    sampled_emfac = all_remaining_df.loc[sampled_idx]
+                class_matches = emfac_w_vmt[class_mask].copy()
+                if not class_matches.empty:
+                    sampled_match = class_matches.sample(n=1, weights='vmt_proportion').iloc[0]
+                    selected_emfac_id, selected_model_year, selected_fuel = sampled_match[
+                        ["emfacId", 'model_year_group', 'fuel']
+                    ].values()
+                    composite_key = f"{selected_model_year},{veh_class},{selected_fuel}"
+                    vehicle_w_vmt.loc[i, "emfacFuelBis"] = selected_fuel
+                    vehicle_w_vmt.loc[i, "emfacId"] = selected_emfac_id
                 else:
-                    # If no fuel match, sample any remaining entry
-                    vmt_props = all_remaining_df['total_vmt'] / all_remaining_df['total_vmt'].sum()
-                    sampled_idx = np.random.choice(all_remaining_df.index, p=vmt_props)
-                    sampled_emfac = all_remaining_df.loc[sampled_idx]
+                    sampled_match = emfac_w_vmt.sample(n=1, weights='vmt_proportion').iloc[0]
+                    selected_emfac_id, selected_model_year, selected_fuel, selected_beam_class = sampled_match[
+                        ["emfacId", 'model_year_group', 'fuel', 'beamClass']
+                    ].values()
+                    composite_key = f"{selected_model_year},{selected_beam_class},{selected_fuel}"
+                    vehicle_w_vmt.loc[i, "emfacFuelBis"] = selected_fuel
+                    vehicle_w_vmt.loc[i, "beamClassBis"] = selected_beam_class
+                    vehicle_w_vmt.loc[i, "emfacId"] = selected_emfac_id
 
-                # Assign the emfacId
-                result_df.loc[idx, 'emfacId'] = sampled_emfac['emfacId']
-                result_df.loc[idx, 'assigned_class'] = sampled_emfac['beamClass']
 
-                # Remove the used entry
-                all_remaining_df = all_remaining_df.drop(sampled_idx)
+        if composite_key not in beam_vmt_track:
+            beam_vmt_track[composite_key] = 0
+        beam_vmt_track[composite_key] += vmt_prop
 
-                # Update tracking
-                assigned_class = sampled_emfac['beamClass']
-                if assigned_class in assigned_vmt:
-                    assigned_vmt[assigned_class] += vehicle['total_vmt']
-            else:
-                # No more EMFAC entries available, create a fallback ID
-                # This should be very rare if EMFAC dataset is large enough
-                print(f"Warning: No more EMFAC entries available for vehicle {vehicle['vehicleId']}")
-                result_df.loc[idx, 'emfacId'] = f"synthetic_emfac_{idx}"
-                result_df.loc[idx, 'assigned_class'] = vehicle['beamClass']
+        if beam_vmt_track[composite_key] >= emfac_vmt_track[composite_key]:
+            print(f"We exhausted the composite key {composite_key} "
+                  f"    with emfac vmt share of {emfac_vmt_track[composite_key]} "
+                  f"    and beam freight vmt share of {beam_vmt_track[composite_key]}.")
+            emfac_w_vmt = emfac_w_vmt[emfac_w_vmt["composite_key"] != composite_key]
+            if emfac_w_vmt.empty:
+                emfac_w_vmt = emfac_w_vmt_fall_back.copy()
 
-            unassigned_indices.remove(idx)
+    # Step 6: Update vehicle properties based on matched EMFAC vehicles
+    # Simplify property reconciliation with a priority-based matching approach
+    vehicle_w_vmt_original = vehicle_w_vmt.copy()
 
-    # Verify all vehicles have been assigned
-    unassigned_count = result_df['emfacId'].isna().sum()
-    if unassigned_count > 0:
-        print(f"Warning: {unassigned_count} vehicles still not assigned an emfacId")
-    else:
-        print("All freight vehicles successfully assigned an emfacId")
+    for i, row in vehicle_w_vmt.iterrows():
+        # Check if substitutions were made
+        beam_class_changed = row['beamClassBis'] != "" and row['beamClassBis'] != row['beamClass']
+        fuel_changed = row['emfacFuelBis'] != "" and row['emfacFuelBis'] != row['emfacFuel']
 
-    # Verify emfacId uniqueness
-    duplicate_count = result_df['emfacId'].duplicated().sum()
-    if duplicate_count > 0:
-        print(f"Warning: {duplicate_count} duplicate emfacIds found")
-    else:
-        print("All emfacIds are unique")
+        if not (beam_class_changed or fuel_changed):
+            continue  # No changes needed for this vehicle
+
+        # Define matching strategies in order of preference
+        matching_strategies = []
+
+        if beam_class_changed and fuel_changed:
+            # Both changed - try all strategies
+            matching_strategies = [
+                # Strategy 1: Match both class and fuel (exact match)
+                (vehicle_w_vmt_original['beamClass'] == row['beamClass']) &
+                (vehicle_w_vmt_original['emfacFuel'] == row['emfacFuel']),
+
+                # Strategy 2: Match fuel only
+                vehicle_w_vmt_original['emfacFuel'] == row['emfacFuel'],
+
+                # Strategy 3: Match class only
+                vehicle_w_vmt_original['beamClass'] == row['beamClass']
+            ]
+        elif beam_class_changed:
+            # Only class changed
+            matching_strategies = [
+                # Strategy 1: Match class
+                vehicle_w_vmt_original['beamClass'] == row['beamClass'],
+
+                # Strategy 2: Match fuel
+                vehicle_w_vmt_original['emfacFuel'] == row['emfacFuel']
+            ]
+        elif fuel_changed:
+            # Only fuel changed
+            matching_strategies = [
+                # Strategy 1: Match both class and fuel
+                (vehicle_w_vmt_original['beamClass'] == row['beamClass']) &
+                (vehicle_w_vmt_original['emfacFuel'] == row['emfacFuel']),
+
+                # Strategy 2: Match class only
+                vehicle_w_vmt_original['beamClass'] == row['beamClass'],
+
+                # Strategy 3: Match fuel only
+                vehicle_w_vmt_original['emfacFuel'] == row['emfacFuel']
+            ]
+
+        # Try each strategy until we find a match
+        best_match = None
+        for strategy in matching_strategies:
+            matches = vehicle_w_vmt_original[strategy]
+            if not matches.empty:
+                best_match = matches.iloc[0]
+                break
+
+        # As last resort, take any vehicle if all strategies failed
+        if best_match is None and not vehicle_w_vmt_original.empty:
+            best_match = vehicle_w_vmt_original.iloc[0]
+
+        # Apply the appropriate properties based on what changed
+        if best_match is not None:
+            if beam_class_changed:
+                vehicle_w_vmt.loc[i, 'beamClass'] = best_match['beamClass']
+                vehicle_w_vmt.loc[i, 'vehicleCategory'] = best_match['vehicleCategory']
+
+            if fuel_changed:
+                vehicle_w_vmt.loc[i, 'primaryFuelType'] = best_match['primaryFuelType']
+                vehicle_w_vmt.loc[i, 'secondaryFuelType'] = best_match['secondaryFuelType']
+
+    # Clean up temporary columns
+    vehicle_w_vmt = vehicle_w_vmt.drop(['beamClassBis', 'emfacFuelBis'], axis=1)
+
+
 
     # Save results
     print(f"\nSaving results to {output_file}")
@@ -1225,10 +1072,6 @@ def assign_emfac_id_to_vehicle_types(_scenario, _emissions_rates, _emfac_pop, _e
         pax_vehicle_types_filtered = pax_vehicle_types[car_bike_mask | bus_mask]
         pax_vehicle_types_others = pax_vehicle_types[~(car_bike_mask | bus_mask | pax_freight_mask)]
 
-        ft_vehicle_types = pd.read_csv(os.path.join(_work_dir, f"{_config["beam"]["ft_vehicle_types_file"]}"), dtype=str)
-        ft_freight_mask = (ft_vehicle_types['vehicleCategory'].isin(beam_freight_classes))
-        ft_vehicle_types_filtered = ft_vehicle_types[ft_freight_mask]
-
         vehicle_types_updated = updated_fuel_types_from_emfac(
             pd.concat([pax_vehicle_types_filtered, ft_vehicle_types_filtered], axis=0)
         )
@@ -1237,31 +1080,8 @@ def assign_emfac_id_to_vehicle_types(_scenario, _emissions_rates, _emfac_pop, _e
         pax_vehicle_types_filtered = vehicle_types_updated[vehicle_types_updated["beamClass"].isin(beam_passenger_classes)]
 
         # ## Freight ## #
-        _carriers_file = str(os.path.join(_work_dir, _config["beam"]["carriers_file"]))
-        _payloads_file = str(os.path.join(_work_dir, _config["beam"]["payloads_file"]))
-        carriers_raw = pd.read_csv(str(os.path.join(_work_dir, _config["beam"]["carriers_file"])))
-        payloads_raw = pd.read_csv(str(os.path.join(_work_dir, _config["beam"]["payloads_file"])))
-        tour_distances = calculate_tour_distances(payloads_raw)
-        carriers = carriers_raw[['tourId', 'vehicleId', 'vehicleTypeId']].copy()
-        payloads = payloads_raw[['payloadId', 'tourId', 'payloadType']].copy()
-        payloads.loc[:, 'payloadType'] = payloads['payloadType'].astype(str)
-        payloads_summary = payloads.groupby(['tourId'])['payloadType'].agg('|'.join).reset_index()
-        payloads_merged = pd.merge(payloads_summary, carriers, on='tourId', how='left')
-        # Merge payloads with vehicle types
-        payloads_vehtypes = pd.merge(
-            payloads_merged,
-            ft_vehicle_types_filtered[['vehicleTypeId', 'beamClass', 'emfacFuel', 'primaryFuelType', 'secondaryFuelType']],
-            on='vehicleTypeId',
-            how='left'
-        )
-        freight_pop = payloads_vehtypes.drop_duplicates('vehicleId', keep='first').copy()
-        # Calculate total distance across all tours
-        total_distance = sum(tour_distances.values())
-        # Calculate proportion for each tour
-        tour_proportions = {tour_id: distance / total_distance for tour_id, distance in tour_distances.items()}
-        freight_pop['total_vmt'] = freight_pop['tourId'].map(tour_distances)
-        freight_pop['vmt_proportion'] = freight_pop['tourId'].map(tour_proportions)
-        freight_pop_with_emfac_id = map_emfac_to_beam_freight(_scenario, _work_dir, _emfac_vmt, freight_pop, _config)
+
+        freight_pop_with_emfac_id = map_emfac_to_beam_freight(_scenario, _work_dir, _emfac_vmt, _config)
         freight_pop_with_emfac_id["oldVehicleTypeId"] = freight_pop_with_emfac_id["vehicleTypeId"]
         freight_pop_with_emfac_id["vehicleTypeId"] = freight_pop_with_emfac_id['emfacId']
         freight_pop_with_emfac_id.drop_duplicates(subset='vehicleTypeId', keep='first')
