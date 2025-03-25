@@ -5,10 +5,21 @@ This file contains all the parameters needed to define a study area and its netw
 import os
 import osmnx as ox
 from osmnx import settings
+import pandas as pd
 
 #############################
 ########## Methods ##########
 #############################
+
+def get_fuel_key(row):
+    fuel = row['primaryFuelType'].str.lower()
+
+    # Special handling for electricity based on secondary fuel
+    if fuel == "electricity":
+        suffix = "only" if pd.isna(row['secondaryFuelType']) else "hybrid"
+        return f"{fuel}-{suffix}"
+
+    return fuel
 
 def generate_network_name(config: dict) -> str:
     """
@@ -84,6 +95,18 @@ def get_area_config(area_name):
 #############################
 ########## Settings #########
 #############################
+
+# Define class constants
+beam_class_2b3 = 'Class2b3Vocational'
+beam_class_46 = 'Class456Vocational'
+beam_class_78_v = 'Class78Vocational'
+beam_class_78_t = 'Class78Tractor'
+beam_class_car = "Car"  # these include light and medium duty trucks
+beam_class_bike = "Bike"
+beam_class_mdp = "MediumDutyPassenger"
+
+beam_freight_classes = [beam_class_46, beam_class_78_v, beam_class_78_t]
+beam_passenger_classes = [beam_class_car, beam_class_bike, beam_class_mdp]
 
 constants = {
     "joule_per_meter_base_rate": 1.213e8, # Energy consumption base rate in joules per meter
@@ -247,6 +270,15 @@ sfbay_area_config = {
                 "payloads_file": f"beam-ft/2024-11-06/2018_Baseline/payloads--2018-Baseline.csv",
                 "ft_vehicle_types_file": f"vehicle-tech/ft-vehicletypes--20241106--2018-Baseline.csv",
                 "pax_vehicle_types_file": f"vehicle-tech/pax-vehicletypes--2018-Baseline.csv"
+            },
+            "fuel": {
+                "hydrogen": 'Elec',
+                "electricity-only": 'Elec',
+                "electricity-hybrid": 'Phe',
+                "gasoline": 'Gas',
+                "diesel": 'Dsl',
+                "biodiesel": 'Dsl',
+                "naturalgas": 'NG'
             }
         }
     }

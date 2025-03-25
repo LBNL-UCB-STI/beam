@@ -291,52 +291,44 @@ def calculate_tour_summary_by_vehicle(payloads_raw):
 
 # Function to determine the correct key for the map
 def get_fuel_key(row):
-    primary_fuel = row['primaryFuelType'].str.lower()
+    fuel = row['primaryFuelType'].str.lower()
 
     # Special handling for electricity based on secondary fuel
-    if primary_fuel == "electricity":
+    if fuel == "electricity":
         suffix = "only" if pd.isna(row['secondaryFuelType']) else "hybrid"
-        return f"{primary_fuel}-{suffix}"
+        return f"{fuel}-{suffix}"
 
-    return primary_fuel
+    return fuel
+
 
 def updated_fuel_types_from_emfac(og_vehicletypes_df):
     vehtypes = og_vehicletypes_df.copy()
-    # Convert primaryFuelType to lowercase directly
-    vehtypes['primaryFuelType_lower'] = vehtypes['primaryFuelType'].str.lower()
 
+    # Use get_fuel_key to generate fuel keys
+    vehtypes['fuel_key'] = vehtypes.apply(get_fuel_key, axis=1)
+
+    # Define fuel mapping dictionary
     fuel_map = {
         "hydrogen": 'Elec',
-        "electricity-na": 'Elec',
-        "electricity-notna": 'Phe',
+        "electricity-only": 'Elec',
+        "electricity-hybrid": 'Phe',
         "gasoline": 'Gas',
         "diesel": 'Dsl',
         "biodiesel": 'Dsl',
         "naturalgas": 'NG'
-
     }
-    # Create conditions and values for mapping
-    # For now we assume H2FC will behave like BEV vehicles
-    conditions = [
-        (vehtypes['primaryFuelType_lower'] == "hydrogen"),
-        (vehtypes['primaryFuelType_lower'] == "electricity") & vehtypes['secondaryFuelType'].isna(),
-        (vehtypes['primaryFuelType_lower'] == "electricity") & vehtypes['secondaryFuelType'].notna(),
-        (vehtypes['primaryFuelType_lower'] == "gasoline"),
-        (vehtypes['primaryFuelType_lower'] == "diesel"),
-        (vehtypes['primaryFuelType_lower'] == "biodiesel"),
-        (vehtypes['primaryFuelType_lower'] == "naturalgas")
-    ]
 
-    values = ['Elec', 'Elec', 'Phe', 'Gas', 'Dsl', 'Dsl', 'NG']
+    # Map the fuel keys to emfacFuel values
+    vehtypes['emfacFuel'] = vehtypes['fuel_key'].map(fuel_map)
 
-    # Use numpy.select to handle multiple conditions
-    vehtypes['emfacFuel'] = np.select(
-        conditions,
-        values,
-        default=vehtypes['primaryFuelType']
-    )
+    # Use original value as default when no mapping exists
+    vehtypes.loc[~vehtypes['fuel_key'].isin(fuel_map.keys()), 'emfacFuel'] = vehtypes['primaryFuelType']
+
+    # Set beamClass as vehicleCategory
     vehtypes['beamClass'] = vehtypes['vehicleCategory']
-    vehtypes.drop('primaryFuelType_lower', axis=1, inplace=True)
+
+    # Drop the temporary column
+    vehtypes.drop('fuel_key', axis=1, inplace=True)
 
     return vehtypes
 
@@ -587,8 +579,6 @@ def map_emfac_to_beam_freight(_scenario, _work_dir, _emfac_vmt, _config):
     # The process tracks VMT by composite key (year,class,fuel) to prevent overallocation
     emfac_w_vmt_fall_back = emfac_w_vmt.copy()
     beam_vmt_track = {}
-    vehicle_w_vmt["beamClassBis"] = ""
-    vehicle_w_vmt["emfacFuelBis"] = ""
     for i, (veh_type_id, veh_class, fuel, vmt, vmt_prop) in enumerate(
             vehicle_w_vmt[['vehicleTypeId', 'beamClass', 'emfacFuel', 'total_vmt', 'vmt_proportion']].values
     ):
@@ -608,7 +598,7 @@ def map_emfac_to_beam_freight(_scenario, _work_dir, _emfac_vmt, _config):
                     ["emfacId", 'model_year_group', 'beamClass']
                 ].values()
                 composite_key = f"{selected_model_year},{selected_beam_class},{fuel}"
-                vehicle_w_vmt.loc[i, "beamClassBis"] = selected_beam_class
+                vehicle_w_vmt.loc[i, "beamClass"] = selected_beam_class
                 vehicle_w_vmt.loc[i, "emfacId"] = selected_emfac_id
             else:
                 class_matches = emfac_w_vmt[class_mask].copy()
@@ -618,7 +608,7 @@ def map_emfac_to_beam_freight(_scenario, _work_dir, _emfac_vmt, _config):
                         ["emfacId", 'model_year_group', 'fuel']
                     ].values()
                     composite_key = f"{selected_model_year},{veh_class},{selected_fuel}"
-                    vehicle_w_vmt.loc[i, "emfacFuelBis"] = selected_fuel
+                    vehicle_w_vmt.loc[i, "emfacFuel"] = selected_fuel
                     vehicle_w_vmt.loc[i, "emfacId"] = selected_emfac_id
                 else:
                     sampled_match = emfac_w_vmt.sample(n=1, weights='vmt_proportion').iloc[0]
@@ -626,8 +616,8 @@ def map_emfac_to_beam_freight(_scenario, _work_dir, _emfac_vmt, _config):
                         ["emfacId", 'model_year_group', 'fuel', 'beamClass']
                     ].values()
                     composite_key = f"{selected_model_year},{selected_beam_class},{selected_fuel}"
-                    vehicle_w_vmt.loc[i, "emfacFuelBis"] = selected_fuel
-                    vehicle_w_vmt.loc[i, "beamClassBis"] = selected_beam_class
+                    vehicle_w_vmt.loc[i, "emfacFuel"] = selected_fuel
+                    vehicle_w_vmt.loc[i, "beamClass"] = selected_beam_class
                     vehicle_w_vmt.loc[i, "emfacId"] = selected_emfac_id
 
 
@@ -643,83 +633,7 @@ def map_emfac_to_beam_freight(_scenario, _work_dir, _emfac_vmt, _config):
             if emfac_w_vmt.empty:
                 emfac_w_vmt = emfac_w_vmt_fall_back.copy()
 
-    # Step 6: Update vehicle properties based on matched EMFAC vehicles
-    # Simplify property reconciliation with a priority-based matching approach
-    vehicle_w_vmt_original = vehicle_w_vmt.copy()
-
-    for i, row in vehicle_w_vmt.iterrows():
-        # Check if substitutions were made
-        beam_class_changed = row['beamClassBis'] != "" and row['beamClassBis'] != row['beamClass']
-        fuel_changed = row['emfacFuelBis'] != "" and row['emfacFuelBis'] != row['emfacFuel']
-
-        if not (beam_class_changed or fuel_changed):
-            continue  # No changes needed for this vehicle
-
-        # Define matching strategies in order of preference
-        matching_strategies = []
-
-        if beam_class_changed and fuel_changed:
-            # Both changed - try all strategies
-            matching_strategies = [
-                # Strategy 1: Match both class and fuel (exact match)
-                (vehicle_w_vmt_original['beamClass'] == row['beamClass']) &
-                (vehicle_w_vmt_original['emfacFuel'] == row['emfacFuel']),
-
-                # Strategy 2: Match fuel only
-                vehicle_w_vmt_original['emfacFuel'] == row['emfacFuel'],
-
-                # Strategy 3: Match class only
-                vehicle_w_vmt_original['beamClass'] == row['beamClass']
-            ]
-        elif beam_class_changed:
-            # Only class changed
-            matching_strategies = [
-                # Strategy 1: Match class
-                vehicle_w_vmt_original['beamClass'] == row['beamClass'],
-
-                # Strategy 2: Match fuel
-                vehicle_w_vmt_original['emfacFuel'] == row['emfacFuel']
-            ]
-        elif fuel_changed:
-            # Only fuel changed
-            matching_strategies = [
-                # Strategy 1: Match both class and fuel
-                (vehicle_w_vmt_original['beamClass'] == row['beamClass']) &
-                (vehicle_w_vmt_original['emfacFuel'] == row['emfacFuel']),
-
-                # Strategy 2: Match class only
-                vehicle_w_vmt_original['beamClass'] == row['beamClass'],
-
-                # Strategy 3: Match fuel only
-                vehicle_w_vmt_original['emfacFuel'] == row['emfacFuel']
-            ]
-
-        # Try each strategy until we find a match
-        best_match = None
-        for strategy in matching_strategies:
-            matches = vehicle_w_vmt_original[strategy]
-            if not matches.empty:
-                best_match = matches.iloc[0]
-                break
-
-        # As last resort, take any vehicle if all strategies failed
-        if best_match is None and not vehicle_w_vmt_original.empty:
-            best_match = vehicle_w_vmt_original.iloc[0]
-
-        # Apply the appropriate properties based on what changed
-        if best_match is not None:
-            if beam_class_changed:
-                vehicle_w_vmt.loc[i, 'beamClass'] = best_match['beamClass']
-                vehicle_w_vmt.loc[i, 'vehicleCategory'] = best_match['vehicleCategory']
-
-            if fuel_changed:
-                vehicle_w_vmt.loc[i, 'primaryFuelType'] = best_match['primaryFuelType']
-                vehicle_w_vmt.loc[i, 'secondaryFuelType'] = best_match['secondaryFuelType']
-
-    # Clean up temporary columns
-    vehicle_w_vmt = vehicle_w_vmt.drop(['beamClassBis', 'emfacFuelBis'], axis=1)
-
-
+    result_df = emfac_w_vmt[["vehicleId", "emfacId", "vehicleTypeId", "emfacFuel", "beamClass"]]
 
     # Save results
     print(f"\nSaving results to {output_file}")
