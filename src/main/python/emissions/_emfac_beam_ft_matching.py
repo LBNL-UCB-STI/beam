@@ -1,7 +1,8 @@
 import os.path
 import sys
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 
 # Get the absolute path to the directory containing this script
@@ -442,7 +443,7 @@ def emfac2freight_by_model_year_class_fuel(ft_emfac_vmt, carriers_raw, payloads_
     return result_df
 
 
-def generate_emfac_mapped_freight_fleet(emfac_vmt, work_dir, config, freight_classes, format_func):
+def generate_emfac_mapped_freight_fleet(emfac_vmt, freight_classes, format_func, work_dir, config):
     """
     Create updated vehicle types and carriers files based on EMFAC mapping.
 
@@ -452,7 +453,6 @@ def generate_emfac_mapped_freight_fleet(emfac_vmt, work_dir, config, freight_cla
     3. Performs the EMFAC-to-BEAM mapping process
     4. Creates new vehicle type records with EMFAC-specific IDs
     5. Updates carrier references to point to the new vehicle types
-    6. Saves the updated files and reports matching statistics
 
     The matching process uses a hierarchical strategy to find appropriate BEAM vehicle types
     that match the EMFAC characteristics (fuel type and vehicle class). For each mapped
@@ -479,8 +479,6 @@ def generate_emfac_mapped_freight_fleet(emfac_vmt, work_dir, config, freight_cla
     carriers_file = str(os.path.join(work_dir, config["beam"]["carriers_file"]))
     payloads_file = str(os.path.join(work_dir, config["beam"]["payloads_file"]))
     vehicle_types_file = str(os.path.join(work_dir, config["beam"]["ft_vehicle_types_file"]))
-    carriers_out_file = carriers_file.replace(".csv", "--TrAP.csv")
-    vehicle_types_out_file = vehicle_types_file.replace(".csv", "--TrAP.csv")
 
     # Load source data
     print(f"Loading data from:\n  {carriers_file}\n  {vehicle_types_file}")
@@ -574,11 +572,6 @@ def generate_emfac_mapped_freight_fleet(emfac_vmt, work_dir, config, freight_cla
 
     # Update the carriers file with new vehicle type IDs
     new_carriers["vehicleTypeId"] = new_carriers["vehicleTypeId"].map(pd.Series(vehicle_type_map)).fillna(new_carriers["vehicleTypeId"])
-
-    # Save updated files
-    print(f"\nSaving updated files to:\n  {carriers_out_file}\n  {vehicle_types_out_file}")
-    new_vehicle_types.to_csv(vehicle_types_out_file, index=False)
-    new_carriers.to_csv(carriers_out_file, index=False)
 
     # Print summary statistics
     print("\nMatch statistics:")

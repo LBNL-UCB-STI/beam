@@ -1,12 +1,9 @@
-import math
 import os.path
-import random
 import shutil
-import numpy as np
 
-# from _emfac_emissions_mapping import *
 from _emfac_and_emissions_rates_processing import *
 from _emfac_beam_ft_matching import generate_emfac_mapped_freight_fleet
+from _emfac_beam_pax_mapping import generate_emfac_mapped_passenger_fleet
 
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -112,91 +109,91 @@ def assign_emfac_id_to_vehicle_types(_scenario, _emissions_rates, _emfac_pop, _e
         print("All carriers and freight vehicle types emissions files have already been created:")
         print(f"    carriers: {carriers_out_file}")
         print(f"    freight vehicle types: {ft_vehtypes_out_file}")
+        # new_carriers = pd.read_csv(carriers_out_file)
+        new_ft_vehicle_types = pd.read_csv(ft_vehtypes_out_file)
     else:
         new_carriers, new_ft_vehicle_types = generate_emfac_mapped_freight_fleet(
-            _emfac_vmt, _work_dir, _config, BeamClasses.get_freight_classes(), format_vehicle_types_for_emfac_mapping
+            _emfac_vmt, BeamClasses.get_freight_classes(), format_vehicle_types_for_emfac_mapping, _work_dir, _config
         )
+        print(f"\nSaving updated files to:\n  {carriers_out_file}\n  {ft_vehtypes_out_file}")
+        new_ft_vehicle_types.to_csv(ft_vehtypes_out_file, index=False)
+        new_carriers.to_csv(carriers_out_file, index=False)
+
 
     if os.path.exists(pax_vehtypes_out_file):
         print("Passenger vehicle types emissions files have already been created:")
         print(f"    passenger vehicle types: {pax_vehtypes_out_file}")
+        new_pax_vehicle_types = pd.read_csv(pax_vehtypes_out_file)
+        temp = pd.read_csv(os.path.join(_work_dir,f"{_config["beam"]["pax_vehicle_types_file"]}"))
+        other_pax_vehicle_types = temp[temp["vehicleCategory"].isin(BeamClasses.get_freight_classes() + new_pax_vehicle_types["vehicleCategory"].unique())]
     else:
         # ## Passenger ## #
-        _emfac_pop_for_pax = _emfac_pop[_emfac_pop["beamClass"].isin(BeamClasses.get_passenger_classes())]
-        pax_vehtypes_with_emfac_id = update_vehicle_probabilities(pax_vehicle_types_filtered, _emfac_pop_for_pax)
+        new_pax_vehicle_types, other_pax_vehicle_types = generate_emfac_mapped_passenger_fleet(
+            _emfac_pop,
+            car_class = BeamClasses.CLASS_CAR,
+            bike_class = BeamClasses.CLASS_BIKE,
+            transit_class = BeamClasses.CLASS_MDP,
+            filter_out_classes = BeamClasses.get_freight_classes(),
+            format_func = format_vehicle_types_for_emfac_mapping,
+            work_dir = _work_dir,
+            config = _config)
 
-        # ## Freight and Passenger ## #
-        columns_to_keep = list(pax_vehicle_types.columns) + ["emfacId"]
-        # Create separate column lists for each DataFrame
-        pax_columns_to_keep = ['vehicleTypeId'] + [col for col in columns_to_keep if
-                                                   col in pax_vehtypes_with_emfac_id.columns and col != 'vehicleTypeId']
-        ft_columns_to_keep = ['vehicleTypeId'] + [col for col in columns_to_keep if
-                                                  col in ft_vehtypes_with_emfac_id.columns and col != 'vehicleTypeId']
 
-        # Check for duplicates before concatenation
-        print("Pax duplicates:", pax_vehtypes_with_emfac_id['vehicleTypeId'].duplicated().any())
-        print("Freight duplicates:", ft_vehtypes_with_emfac_id['vehicleTypeId'].duplicated().any())
+    # ## Emissions Rates ## #
+    # Prepare the directory for writing emissions rates files
+    vehtypes_with_emfac_id = pd.concat([new_ft_vehicle_types, new_pax_vehicle_types], ignore_index=True)
+    try:
+        # Remove directory if it exists
+        if os.path.exists(emissions_rates_dir):
+            shutil.rmtree(emissions_rates_dir)
+        # Create directory
+        os.makedirs(emissions_rates_dir, exist_ok=True)
+        print(f"Ready to write new data to the directory {emissions_rates_dir}")
+    except Exception as e:
+        print(f"Failed to prepare directory {emissions_rates_dir}: {e}")
 
-        # Concatenate with appropriate columns for each DataFrame
-        vehtypes_with_emfac_id = pd.concat([
-            pax_vehtypes_with_emfac_id[pax_columns_to_keep].reset_index(drop=True),
-            ft_vehtypes_with_emfac_id[ft_columns_to_keep].reset_index(drop=True)
-        ], axis=0, sort=False)
-
-        # ## Emissions Rates ## #
-        # Prepare the directory for writing emissions rates files
-        try:
-            # Remove directory if it exists
-            if os.path.exists(emissions_rates_dir):
-                shutil.rmtree(emissions_rates_dir)
-            # Create directory
-            os.makedirs(emissions_rates_dir, exist_ok=True)
-            print(f"Ready to write new data to the directory {emissions_rates_dir}")
-        except Exception as e:
-            print(f"Failed to prepare directory {emissions_rates_dir}: {e}")
-
-        # Use parallel processing with error handling and chunking
-        chunk_size = 100  # Adjust this value based on your data size and available memory
-        results = []
-        for i in range(0, len(vehtypes_with_emfac_id), chunk_size):
-            chunk = vehtypes_with_emfac_id.iloc[i:i + chunk_size]
-            chunk_results = Parallel(n_jobs=-1, timeout=600)(  # 10-minute timeout
-                delayed(process_single_vehicle_type)(
-                    veh_type,
-                    _emissions_rates,
-                    f"{emissions_rates_dir}/"
-                ) for _, veh_type in chunk.iterrows()
-            )
-            results.extend(chunk_results)
-            # Clear some memory
-            del chunk_results
-
-        # Update the vehicle_types DataFrame with the new emissionsRatesFile information
-        # Split the path into components
-        path_parts = emissions_rates_dir.split('/')
-        # Find the index of "TrAP" in the parts
-        trap_index = path_parts.index("TrAP")
-        # Join the parts from "TrAP" onwards
-        shortened_path = '/'.join(path_parts[trap_index:])
-        for veh_type_id in results:
-            if veh_type_id:
-                relative_rates_filepath = f"{shortened_path}/{veh_type_id}.csv"
-                vehtypes_with_emfac_id.loc[
-                    vehtypes_with_emfac_id['vehicleTypeId'] == veh_type_id, 'emissionsRatesFile'] = relative_rates_filepath
-
-        # Save updated vehicle types
-        print(f"Writing:\n{ft_vehtypes_out_file}\n{pax_vehtypes_out_file}")
-        ft_freight_mask = (vehtypes_with_emfac_id['vehicleCategory'].isin(BeamClasses.get_freight_classes()))
-        _updated_ft_vehicle_types = vehtypes_with_emfac_id[ft_freight_mask]
-        _updated_ft_vehicle_types.to_csv(ft_vehtypes_out_file, index=False)
-
-        _updated_pax_vehicle_types_others = pax_vehicle_types_others.copy()
-        _updated_pax_vehicle_types_others['emissionsRatesFile'] = ""
-        _updated_pax_vehicle_types = pd.concat(
-            [vehtypes_with_emfac_id[~ft_freight_mask], pax_vehicle_types_others],
-            axis=0
+    # Use parallel processing with error handling and chunking
+    chunk_size = 100  # Adjust this value based on your data size and available memory
+    results = []
+    for i in range(0, len(vehtypes_with_emfac_id), chunk_size):
+        chunk = vehtypes_with_emfac_id.iloc[i:i + chunk_size]
+        chunk_results = Parallel(n_jobs=-1, timeout=600)(  # 10-minute timeout
+            delayed(process_single_vehicle_type)(
+                veh_type,
+                _emissions_rates,
+                f"{emissions_rates_dir}/"
+            ) for _, veh_type in chunk.iterrows()
         )
-        _updated_pax_vehicle_types.to_csv(pax_vehtypes_out_file, index=False)
+        results.extend(chunk_results)
+        # Clear some memory
+        del chunk_results
+
+    # Update the vehicle_types DataFrame with the new emissionsRatesFile information
+    # Split the path into components
+    path_parts = emissions_rates_dir.split('/')
+    # Find the index of "TrAP" in the parts
+    trap_index = path_parts.index("TrAP")
+    # Join the parts from "TrAP" onwards
+    shortened_path = '/'.join(path_parts[trap_index:])
+    for veh_type_id in results:
+        if veh_type_id:
+            relative_rates_filepath = f"{shortened_path}/{veh_type_id}.csv"
+            vehtypes_with_emfac_id.loc[
+                vehtypes_with_emfac_id['vehicleTypeId'] == veh_type_id, 'emissionsRatesFile'] = relative_rates_filepath
+
+    # Save updated vehicle types
+    print(f"Writing:\n{ft_vehtypes_out_file}\n{pax_vehtypes_out_file}")
+    ft_freight_mask = (vehtypes_with_emfac_id['vehicleCategory'].isin(BeamClasses.get_freight_classes()))
+    _updated_ft_vehicle_types = vehtypes_with_emfac_id[ft_freight_mask]
+    _updated_ft_vehicle_types.to_csv(ft_vehtypes_out_file, index=False)
+
+    _updated_pax_vehicle_types_others = other_pax_vehicle_types.copy()
+    _updated_pax_vehicle_types_others['emissionsRatesFile'] = ""
+    _updated_pax_vehicle_types = pd.concat(
+        [vehtypes_with_emfac_id[~ft_freight_mask], other_pax_vehicle_types],
+        axis=0
+    )
+    _updated_pax_vehicle_types.to_csv(pax_vehtypes_out_file, index=False)
 
 
 def run():
