@@ -6,7 +6,7 @@ import numpy as np
 
 # from _emfac_emissions_mapping import *
 from _emfac_and_emissions_rates_processing import *
-from _emfac_beam_ft_matching import generate_emfac_mapped_fleet
+from _emfac_beam_ft_matching import generate_emfac_mapped_freight_fleet
 
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -16,9 +16,44 @@ sys.path.insert(0, parent_dir)
 # Now use absolute import
 from python.utils.study_area_config import get_area_config
 from python.utils.study_area_config import BeamClasses
+from python.utils.study_area_config import get_fuel_key
 
 pd.set_option('display.max_columns', 20)
 
+
+def format_vehicle_types_for_emfac_mapping(vehicle_types, fuel_map):
+    """
+    Prepare vehicle types for EMFAC mapping by standardizing class and fuel information.
+
+    This function takes a DataFrame of vehicle types and performs the following:
+    1. Derives fuel keys from existing vehicle records using get_fuel_key
+    2. Maps these fuel keys to standard EMFAC fuel types using the provided fuel_map
+    3. Sets the beamClass equal to vehicleCategory for consistency
+    4. Returns a simplified DataFrame with only the essential columns for mapping
+
+    Args:
+        vehicle_types (pandas.DataFrame): DataFrame containing vehicle type records
+            with required columns for fuel key calculation
+        fuel_map (dict): Mapping dictionary that converts fuel keys to EMFAC fuel types
+
+    Returns:
+        pandas.DataFrame: Simplified DataFrame with columns 'vehicleTypeId', 'beamClass',
+            and 'emfacFuel', ready for EMFAC mapping
+
+    Note:
+        This function prints a warning if any vehicles have NA values in the
+        emfacFuel column after mapping
+    """
+    vehicle_types['fuel_key'] = vehicle_types.apply(get_fuel_key, axis=1)
+    vehicle_types['emfacFuel'] = vehicle_types['fuel_key'].map(fuel_map)
+
+    # Check for NA values in emfacFuel
+    na_count = vehicle_types['emfacFuel'].isna().sum()
+    if na_count > 0:
+        print(f"Warning: {na_count} NA values in emfacFuel")
+
+    vehicle_types['beamClass'] = vehicle_types['vehicleCategory']
+    return vehicle_types[['vehicleTypeId', 'beamClass', 'emfacFuel']].copy()
 
 def process_single_vehicle_type(veh_type, emissions_rates, rates_prefix_filepath):
     veh_type_id = veh_type['vehicleTypeId']
@@ -78,65 +113,14 @@ def assign_emfac_id_to_vehicle_types(_scenario, _emissions_rates, _emfac_pop, _e
         print(f"    carriers: {carriers_out_file}")
         print(f"    freight vehicle types: {ft_vehtypes_out_file}")
     else:
-        new_carriers, new_ft_vehicle_types = generate_emfac_mapped_fleet(_emfac_vmt, _work_dir, _config)
+        new_carriers, new_ft_vehicle_types = generate_emfac_mapped_freight_fleet(
+            _emfac_vmt, _work_dir, _config, BeamClasses.get_freight_classes(), format_vehicle_types_for_emfac_mapping
+        )
 
     if os.path.exists(pax_vehtypes_out_file):
         print("Passenger vehicle types emissions files have already been created:")
         print(f"    passenger vehicle types: {pax_vehtypes_out_file}")
     else:
-        print("ok")
-
-    if os.path.exists(carriers_out_file) and os.path.exists(ft_vehtypes_out_file) and os.path.exists(pax_vehtypes_out_file):
-        print("All carriers and vehicle types emissions files have already been created")
-    else:
-        # Create a copy of the original vehicleTypeId and set up a lookup dictionary
-        pax_vehicle_types = pd.read_csv(os.path.join(_work_dir, f"{_config["beam"]["pax_vehicle_types_file"]}"), dtype=str)
-        car_bike_mask = (pax_vehicle_types['vehicleCategory'].isin([BeamClasses.CLASS_CAR, BeamClasses.CLASS_BIKE]))
-        bus_mask = ((pax_vehicle_types['vehicleCategory'] == BeamClasses.CLASS_MDP) & (pax_vehicle_types['vehicleTypeId'].str.lower().str.contains('bus')))
-        pax_freight_mask = (pax_vehicle_types['vehicleCategory'].isin(BeamClasses.get_freight_classes()))
-        pax_vehicle_types_filtered = pax_vehicle_types[car_bike_mask | bus_mask]
-        pax_vehicle_types_others = pax_vehicle_types[~(car_bike_mask | bus_mask | pax_freight_mask)]
-
-        vehicle_types_updated = updated_fuel_types_from_emfac(
-            pd.concat([pax_vehicle_types_filtered, ft_vehicle_types_filtered], axis=0)
-        )
-
-        ft_vehicle_types_filtered = vehicle_types_updated[vehicle_types_updated["beamClass"].isin(BeamClasses.get_freight_classes())]
-        pax_vehicle_types_filtered = vehicle_types_updated[vehicle_types_updated["beamClass"].isin(BeamClasses.get_passenger_classes())]
-
-        # ## Freight ## #
-
-        freight_pop_with_emfac_id = emfac2freight_by_model_year_class_fuel(_scenario, _work_dir, _emfac_vmt, _config)
-        freight_pop_with_emfac_id["oldVehicleTypeId"] = freight_pop_with_emfac_id["vehicleTypeId"]
-        freight_pop_with_emfac_id["vehicleTypeId"] = freight_pop_with_emfac_id['emfacId']
-        freight_pop_with_emfac_id.drop_duplicates(subset='vehicleTypeId', keep='first')
-        # Join the dataframes instead of iterating
-        ft_vehtypes_with_emfac_id = freight_pop_with_emfac_id.merge(
-            ft_vehicle_types_filtered,
-            left_on="oldVehicleTypeId",
-            right_on="vehicleTypeId",
-            suffixes=('', '_original')
-        )
-        # Keep only the columns you need and rename as necessary
-        ft_vehtypes_with_emfac_id = ft_vehtypes_with_emfac_id.rename(columns={"beamClass": "vehicleCategory"})
-        cols_to_drop = [col for col in ft_vehtypes_with_emfac_id.columns if col.endswith('_original')] # Drop any redundant columns
-        ft_vehtypes_with_emfac_id = ft_vehtypes_with_emfac_id.drop(columns=cols_to_drop + ["oldVehicleTypeId"])
-        vehicle_id_to_type_mapping = dict(
-            zip(freight_pop_with_emfac_id['vehicleId'], freight_pop_with_emfac_id['vehicleTypeId'])
-        )
-        carriers = carriers_raw.copy()
-        carriers['vehicleTypeId'] = carriers.apply(lambda row: vehicle_id_to_type_mapping.get(row['vehicleId']), axis=1)
-        carriers.dropna(subset=['vehicleTypeId'], inplace=True)
-        # Find the dropped rows by filtering the original dataframe
-        dropped_rows = carriers_raw[carriers_raw['vehicleTypeId'].isna()]
-        if not dropped_rows.empty:
-            # Print the dropped rows
-            print("Dropped rows:")
-            print(dropped_rows)
-
-        print(f"Writing {carriers_out_file}")
-        carriers.to_csv(carriers_out_file, index=False)
-
         # ## Passenger ## #
         _emfac_pop_for_pax = _emfac_pop[_emfac_pop["beamClass"].isin(BeamClasses.get_passenger_classes())]
         pax_vehtypes_with_emfac_id = update_vehicle_probabilities(pax_vehicle_types_filtered, _emfac_pop_for_pax)

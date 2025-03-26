@@ -10,8 +10,6 @@ parent_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, parent_dir)
 
 # Now use absolute import
-from python.utils.study_area_config import beam_freight_classes
-from python.utils.study_area_config import get_fuel_key
 
 
 def calculate_tour_summary_by_vehicle(payloads_raw):
@@ -169,41 +167,6 @@ def find_best_match(veh_class, fuel, df):
     }
 
 
-def format_vehicle_types_for_emfac_mapping(vehicle_types, fuel_map):
-    """
-    Prepare vehicle types for EMFAC mapping by standardizing class and fuel information.
-
-    This function takes a DataFrame of vehicle types and performs the following:
-    1. Derives fuel keys from existing vehicle records using get_fuel_key
-    2. Maps these fuel keys to standard EMFAC fuel types using the provided fuel_map
-    3. Sets the beamClass equal to vehicleCategory for consistency
-    4. Returns a simplified DataFrame with only the essential columns for mapping
-
-    Args:
-        vehicle_types (pandas.DataFrame): DataFrame containing vehicle type records
-            with required columns for fuel key calculation
-        fuel_map (dict): Mapping dictionary that converts fuel keys to EMFAC fuel types
-
-    Returns:
-        pandas.DataFrame: Simplified DataFrame with columns 'vehicleTypeId', 'beamClass',
-            and 'emfacFuel', ready for EMFAC mapping
-
-    Note:
-        This function prints a warning if any vehicles have NA values in the
-        emfacFuel column after mapping
-    """
-    vehicle_types['fuel_key'] = vehicle_types.apply(get_fuel_key, axis=1)
-    vehicle_types['emfacFuel'] = vehicle_types['fuel_key'].map(fuel_map)
-
-    # Check for NA values in emfacFuel
-    na_count = vehicle_types['emfacFuel'].isna().sum()
-    if na_count > 0:
-        print(f"Warning: {na_count} NA values in emfacFuel")
-
-    vehicle_types['beamClass'] = vehicle_types['vehicleCategory']
-    return vehicle_types[['vehicleTypeId', 'beamClass', 'emfacFuel']].copy()
-
-
 def analyze_vmt_distribution(beam_vmt_track, emfac_vmt_track):
     """
     Analyze and compare VMT distributions between EMFAC and BEAM data after mapping.
@@ -348,7 +311,7 @@ def analyze_vmt_distribution(beam_vmt_track, emfac_vmt_track):
     print(f"Average absolute difference by fuel: {fuel_comparison['abs_difference'].mean() * 100:.2f}%")
 
 
-def emfac2freight_by_model_year_class_fuel(emfac_vmt, carriers_raw, payloads_raw, vehicle_types_formatted):
+def emfac2freight_by_model_year_class_fuel(ft_emfac_vmt, carriers_raw, payloads_raw, vehicle_types_formatted):
     """
     Map EMFAC vehicle data to BEAM freight vehicles based on VMT proportions and vehicle attributes.
 
@@ -366,8 +329,8 @@ def emfac2freight_by_model_year_class_fuel(emfac_vmt, carriers_raw, payloads_raw
     6. Analyzes and reports on the resulting VMT distribution match quality
 
     Args:
-        emfac_vmt (pandas.DataFrame): EMFAC VMT data containing columns 'beamClass',
-            'model_year_group', 'fuel', 'total_vmt', and 'emfacId'
+        ft_emfac_vmt (pandas.DataFrame): EMFAC VMT data containing columns 'beamClass',
+            'model_year_group', 'fuel', 'total_vmt', and 'emfacId' for freight fleet
         carriers_raw (pandas.DataFrame): Raw carriers data with 'vehicleId' and 'vehicleTypeId'
         payloads_raw (pandas.DataFrame): Raw payload data for calculating tour distances
         vehicle_types_formatted (pandas.DataFrame): Pre-formatted vehicle types with 'vehicleTypeId',
@@ -402,8 +365,6 @@ def emfac2freight_by_model_year_class_fuel(emfac_vmt, carriers_raw, payloads_raw
 
     # Step 3: Extract VMT proportion in EMFAC data
     # Optimized code
-    needed_columns = ['beamClass', 'model_year_group', 'fuel', 'total_vmt', 'emfacId']
-    ft_emfac_vmt = emfac_vmt[needed_columns][emfac_vmt["beamClass"].isin(beam_freight_classes)]
     emfac_w_vmt = ft_emfac_vmt.groupby(['beamClass', 'model_year_group', 'fuel'])['total_vmt'].sum().reset_index()
     emfac_w_vmt['vmt_proportion'] = emfac_w_vmt['total_vmt'] / emfac_w_vmt['total_vmt'].sum()
     emfac_w_vmt = emfac_w_vmt.sort_values('vmt_proportion', ascending=False).reset_index(drop=True)
@@ -481,7 +442,7 @@ def emfac2freight_by_model_year_class_fuel(emfac_vmt, carriers_raw, payloads_raw
     return result_df
 
 
-def generate_emfac_mapped_fleet(emfac_vmt, work_dir, config):
+def generate_emfac_mapped_freight_fleet(emfac_vmt, work_dir, config, freight_classes, format_func):
     """
     Create updated vehicle types and carriers files based on EMFAC mapping.
 
@@ -501,6 +462,9 @@ def generate_emfac_mapped_fleet(emfac_vmt, work_dir, config):
         emfac_vmt (pandas.DataFrame): EMFAC VMT data with emissions characteristics
         work_dir (str): Working directory containing input files
         config (dict): Configuration dictionary with file paths and settings
+        freight_classes (list): List of vehicle classes to consider as freight vehicles
+        format_func (callable): Function to format vehicle types for EMFAC mapping,
+            taking vehicle_types DataFrame and fuel_map dict as arguments
 
     Returns:
         tuple: (updated_carriers_df, updated_vehicle_types_df) containing:
@@ -525,15 +489,21 @@ def generate_emfac_mapped_fleet(emfac_vmt, work_dir, config):
     vehicle_types_raw = pd.read_csv(vehicle_types_file, dtype=str)
 
     # Get freight vehicle types with EMFAC mappings
-    vehicle_types = format_vehicle_types_for_emfac_mapping(
+    vehicle_types = format_func(
         vehicle_types_raw.loc[
-            vehicle_types_raw['vehicleCategory'].isin(beam_freight_classes),
+            vehicle_types_raw['vehicleCategory'].isin(freight_classes),
             ['vehicleTypeId', 'vehicleCategory', 'primaryFuelType', 'secondaryFuelType']
         ].copy(),
         config["fuel"]
     )
 
-    mapping_results = emfac2freight_by_model_year_class_fuel(emfac_vmt, carriers_raw, payloads_raw, vehicle_types)
+    ft_emfac_vmt = emfac_vmt[
+        ['beamClass', 'model_year_group', 'fuel', 'total_vmt', 'emfacId']
+    ][
+        emfac_vmt["beamClass"].isin(freight_classes)
+    ].copy()
+
+    mapping_results = emfac2freight_by_model_year_class_fuel(ft_emfac_vmt, carriers_raw, payloads_raw, vehicle_types)
 
     # Initialize tracking variables
     new_vehicle_types = pd.DataFrame(columns=vehicle_types_raw.columns)
