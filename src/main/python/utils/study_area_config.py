@@ -12,10 +12,26 @@ import pandas as pd
 #############################
 
 def get_fuel_key(row):
-    fuel = row['primaryFuelType'].str.lower()
+    """
+    Derive the standardized fuel key from vehicle data row.
 
-    # Special handling for electricity based on secondary fuel
+    This function extracts the primary fuel type and adds a suffix
+    for electric vehicles based on whether they are pure electric
+    or hybrid vehicles.
+
+    Args:
+        row (pandas.Series): A row from a vehicle types DataFrame
+            containing 'primaryFuelType' and 'secondaryFuelType' columns
+
+    Returns:
+        str: A standardized fuel key string
+    """
+    # Get primary fuel and convert to lowercase
+    fuel = row['primaryFuelType'].lower()
+
+    # Special handling for electric vehicles
     if fuel == "electricity":
+        # Check if it's a hybrid (has a secondary fuel) or pure electric
         suffix = "only" if pd.isna(row['secondaryFuelType']) else "hybrid"
         return f"{fuel}-{suffix}"
 
@@ -138,7 +154,7 @@ class BeamClasses:
     @classmethod
     def get_all_classes(cls):
         """Returns a list of all vehicle classes."""
-        return cls.get_freight_classes() + cls.get_non_freight_classes()
+        return cls.get_freight_classes() + cls.get_passenger_classes()
 
     @classmethod
     def is_freight(cls, beam_class):
@@ -322,14 +338,58 @@ sfbay_area_config = {
                 "ft_vehicle_types_file": f"vehicle-tech/ft-vehicletypes--20241106--2018-Baseline.csv",
                 "pax_vehicle_types_file": f"vehicle-tech/pax-vehicletypes--2018-Baseline.csv"
             },
-            "fuel": {
-                "hydrogen": 'Elec',
-                "electricity-only": 'Elec',
-                "electricity-hybrid": 'Phe',
-                "gasoline": 'Gas',
-                "diesel": 'Dsl',
-                "biodiesel": 'Dsl',
-                "naturalgas": 'NG'
+            "fuel_mapping": {
+                "beam": {
+                    "hydrogen": 'Elec', # From emission pov, BEAM's hydrogen cars shall be electric
+                    "electricity-only": 'Elec',
+                    "electricity-hybrid": 'Phe',
+                    "gasoline": 'Gas',
+                    "diesel": 'Dsl',
+                    "biodiesel": 'Dsl' # From emission pov, BEAM's biodiesel cars shall be diesel
+                },
+                "emfac": {
+                    "Elec": 'Elec',
+                    "Phe": 'Phe',
+                    "Gas": 'Gas',
+                    "Dsl": 'Dsl',
+                    "NG": 'Dsl' # EMFAC NG cars will be mapped to BEAM's diesel cars
+                }
+            },
+            "class_mapping": {
+                "emfac": {
+                    "T6 CAIRP Class 4": "Class456Vocational",
+                    "T6 CAIRP Class 5": "Class456Vocational",
+                    "T6 CAIRP Class 6": "Class456Vocational",
+                    "T6 CAIRP Class 7": "Class78Tractor",
+                    "T6 Instate Delivery Class 4": "Class456Vocational",
+                    "T6 Instate Delivery Class 5": "Class456Vocational",
+                    "T6 Instate Delivery Class 6": "Class456Vocational",
+                    "T6 Instate Delivery Class 7": "Class78Vocational",
+                    "T6 Instate Other Class 4": "Class456Vocational",
+                    "T6 Instate Other Class 5": "Class456Vocational",
+                    "T6 Instate Other Class 6": "Class456Vocational",
+                    "T6 Instate Other Class 7": "Class78Vocational",
+                    "T6 Instate Tractor Class 6": "Class456Vocational",
+                    "T6 Instate Tractor Class 7": "Class78Tractor",
+                    "T6 OOS Class 4": "Class456Vocational",
+                    "T6 OOS Class 5": "Class456Vocational",
+                    "T6 OOS Class 6": "Class456Vocational",
+                    "T6 OOS Class 7": "Class78Vocational",
+                    "T7 CAIRP Class 8": "Class78Tractor",
+                    "T7 NNOOS Class 8": "Class78Vocational",
+                    "T7 NOOS Class 8": "Class78Vocational",
+                    "T7 Single Concrete/Transit Mix Class 8": "Class78Vocational",
+                    "T7 Single Dump Class 8": "Class78Vocational",
+                    "T7 Single Other Class 8": "Class78Vocational",
+                    "T7 Tractor Class 8": "Class78Tractor",
+                    "T7IS": "Class78Tractor",
+                    "LDA": "Car",
+                    "LDT1": "Car",
+                    "LDT2": "Car",
+                    "MCY": "Bike",
+                    "MDV": "Car",
+                    "UBUS": "MediumDutyPassenger"
+                }
             }
         }
     }

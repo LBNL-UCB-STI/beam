@@ -63,7 +63,7 @@ def calculate_tour_summary_by_vehicle(payloads_raw):
     tour_proportions = {tour_id: dist / total_distance for tour_id, dist in tour_distances.items()}
 
     # Create summary dataframe
-    payloads = payloads_raw[['tourId', 'vehicleId', 'payloadType']].copy()
+    payloads = payloads_raw[['tourId', 'payloadType']].copy()
     payloads['payloadType'] = payloads['payloadType'].astype(str)
 
     # Group by tour and add distance metrics
@@ -76,16 +76,10 @@ def calculate_tour_summary_by_vehicle(payloads_raw):
     summary['total_vmt'] = summary['tourId'].map(tour_distances)
     summary['vmt_proportion'] = summary['tourId'].map(tour_proportions)
 
-    # Final aggregation by vehicle
-    vehicle_summary = summary.groupby('vehicleId').agg({
-        'total_vmt': 'sum',
-        'vmt_proportion': 'sum'
-    })
-
-    return vehicle_summary
+    return summary
 
 
-def find_best_match(veh_class, fuel, df):
+def find_best_match(veh_class, veh_fuel, df):
     """
     Find the best matching EMFAC vehicle record using a hierarchical matching strategy.
 
@@ -101,9 +95,9 @@ def find_best_match(veh_class, fuel, df):
 
     Args:
         veh_class (str): BEAM vehicle class to match
-        fuel (str): EMFAC fuel type to match
+        veh_fuel (str): EMFAC fuel type to match
         df (pandas.DataFrame): DataFrame of EMFAC vehicles with columns:
-            'beamClass', 'fuel', 'model_year_group', 'emfacId', and 'vmt_proportion'
+            'mappedClass', 'fuel', 'model_year_group', 'emfacId', and 'vmt_proportion'
 
     Returns:
         dict: Matching result with the following keys:
@@ -114,8 +108,8 @@ def find_best_match(veh_class, fuel, df):
             'updates': Dictionary of fields that need to be updated in the original record
     """
     # Create boolean arrays once
-    class_mask = df['beamClass'].values == veh_class
-    fuel_mask = df['fuel'].values == fuel
+    class_mask = df['mappedClass'].values == veh_class
+    fuel_mask = df['mappedFuel'].values == veh_fuel
 
     # Combine masks with NumPy
     full_match_mask = np.logical_and(class_mask, fuel_mask)
@@ -125,7 +119,7 @@ def find_best_match(veh_class, fuel, df):
         return {
             'match': match,
             'type': 'exact',
-            'composite_key': f"{match['model_year_group']},{veh_class},{fuel}",
+            'composite_key': f"{match['model_year_group']},{veh_class},{veh_fuel}",
             'emfacId': match['emfacId'],
             'updates': {}
         }
@@ -137,9 +131,9 @@ def find_best_match(veh_class, fuel, df):
         return {
             'match': match,
             'type': 'fuel',
-            'composite_key': f"{match['model_year_group']},{match['beamClass']},{fuel}",
+            'composite_key': f"{match['model_year_group']},{match['mappedClass']},{veh_fuel}",
             'emfacId': match['emfacId'],
-            'updates': {'beamClass': match['beamClass']}
+            'updates': {'mappedClass': match['mappedClass']}
         }
 
     # Try class match only
@@ -149,9 +143,9 @@ def find_best_match(veh_class, fuel, df):
         return {
             'match': match,
             'type': 'class',
-            'composite_key': f"{match['model_year_group']},{veh_class},{match['fuel']}",
+            'composite_key': f"{match['model_year_group']},{veh_class},{match['mappedFuel']}",
             'emfacId': match['emfacId'],
-            'updates': {'emfacFuel': match['fuel']}
+            'updates': {'mappedFuel': match['mappedFuel']}
         }
 
     # Last resort - any vehicle
@@ -159,11 +153,11 @@ def find_best_match(veh_class, fuel, df):
     return {
         'match': match,
         'type': 'any',
-        'composite_key': f"{match['model_year_group']},{match['beamClass']},{match['fuel']}",
+        'composite_key': f"{match['model_year_group']},{match['mappedClass']},{match['mappedFuel']}",
         'emfacId': match['emfacId'],
         'updates': {
-            'beamClass': match['beamClass'],
-            'emfacFuel': match['fuel']
+            'mappedClass': match['mappedClass'],
+            'mappedFuel': match['mappedFuel']
         }
     }
 
@@ -206,7 +200,7 @@ def analyze_vmt_distribution(beam_vmt_track, emfac_vmt_track):
     for composite_key in set(list(beam_vmt_track.keys()) + list(emfac_vmt_track.keys())):
         parts = composite_key.split(',')
         if len(parts) == 3:
-            model_year_group, beam_class, fuel = parts
+            model_year_group, mapped_class, mapped_fuel = parts
 
             # Get VMT proportions (default to 0 if not present)
             emfac_proportion = emfac_vmt_track.get(composite_key, 0)
@@ -215,33 +209,33 @@ def analyze_vmt_distribution(beam_vmt_track, emfac_vmt_track):
             # Add to respective lists
             emfac_rows.append({
                 'model_year_group': model_year_group,
-                'beamClass': beam_class,
-                'fuel': fuel,
+                'mappedClass': mapped_class,
+                'mappedFuel': mapped_fuel,
                 'vmt_proportion': emfac_proportion
             })
 
             beam_rows.append({
                 'model_year_group': model_year_group,
-                'beamClass': beam_class,
-                'fuel': fuel,
+                'mappedClass': mapped_class,
+                'mappedFuel': mapped_fuel,
                 'vmt_share': beam_proportion
             })
 
     emfac_df = pd.DataFrame(emfac_rows)
     beam_df = pd.DataFrame(beam_rows)
 
-    # 1. Compare by model_year_group and beamClass
+    # 1. Compare by model_year_group and mappedClass
     print("\n--- VMT Comparison by Model Year and Vehicle Class ---")
 
     # Aggregate by year and class
-    emfac_by_year_class = emfac_df.groupby(['model_year_group', 'beamClass'])['vmt_proportion'].sum().reset_index()
-    beam_by_year_class = beam_df.groupby(['model_year_group', 'beamClass'])['vmt_share'].sum().reset_index()
+    emfac_by_year_class = emfac_df.groupby(['model_year_group', 'mappedClass'])['vmt_proportion'].sum().reset_index()
+    beam_by_year_class = beam_df.groupby(['model_year_group', 'mappedClass'])['vmt_share'].sum().reset_index()
 
     # Merge for comparison
     year_class_comparison = pd.merge(
         emfac_by_year_class,
         beam_by_year_class,
-        on=['model_year_group', 'beamClass'],
+        on=['model_year_group', 'mappedClass'],
         how='outer',
         copy=False
     ).fillna(0)
@@ -262,7 +256,7 @@ def analyze_vmt_distribution(beam_vmt_track, emfac_vmt_track):
     # Print each row with formatting
     for _, row in top_diff.iterrows():
         print(f"{row['model_year_group']:^10} | "
-              f"{row['beamClass']:^15} | "
+              f"{row['mappedClass']:^15} | "
               f"{row['vmt_proportion'] * 100:^10.2f} | "
               f"{row['vmt_share'] * 100:^10.2f} | "
               f"{row['difference'] * 100:^10.2f}")
@@ -271,14 +265,14 @@ def analyze_vmt_distribution(beam_vmt_track, emfac_vmt_track):
     print("\n\n--- VMT Comparison by Fuel Type ---")
 
     # Aggregate by fuel
-    emfac_by_fuel = emfac_df.groupby(['fuel'])['vmt_proportion'].sum().reset_index()
-    beam_by_fuel = beam_df.groupby(['fuel'])['vmt_share'].sum().reset_index()
+    emfac_by_fuel = emfac_df.groupby(['mappedFuel'])['vmt_proportion'].sum().reset_index()
+    beam_by_fuel = beam_df.groupby(['mappedFuel'])['vmt_share'].sum().reset_index()
 
     # Merge for comparison
     fuel_comparison = pd.merge(
         emfac_by_fuel,
         beam_by_fuel,
-        on=['fuel'],
+        on=['mappedFuel'],
         how='outer'
     ).fillna(0)
 
@@ -297,7 +291,7 @@ def analyze_vmt_distribution(beam_vmt_track, emfac_vmt_track):
 
     # Print each row with formatting
     for _, row in fuel_comparison.iterrows():
-        print(f"{row['fuel']:^15} | "
+        print(f"{row['mappedFuel']:^15} | "
               f"{row['vmt_proportion'] * 100:^10.2f} | "
               f"{row['vmt_share'] * 100:^10.2f} | "
               f"{row['difference'] * 100:^10.2f}")
@@ -330,16 +324,16 @@ def emfac2freight_by_model_year_class_fuel(ft_emfac_vmt, carriers_raw, payloads_
     6. Analyzes and reports on the resulting VMT distribution match quality
 
     Args:
-        ft_emfac_vmt (pandas.DataFrame): EMFAC VMT data containing columns 'beamClass',
+        ft_emfac_vmt (pandas.DataFrame): EMFAC VMT data containing columns 'mappedClass',
             'model_year_group', 'fuel', 'total_vmt', and 'emfacId' for freight fleet
         carriers_raw (pandas.DataFrame): Raw carriers data with 'vehicleId' and 'vehicleTypeId'
         payloads_raw (pandas.DataFrame): Raw payload data for calculating tour distances
         vehicle_types_formatted (pandas.DataFrame): Pre-formatted vehicle types with 'vehicleTypeId',
-            'beamClass', and 'emfacFuel'
+            'mappedClass', and 'mappedFuel'
 
     Returns:
         pandas.DataFrame: Mapping result with columns 'vehicleId', 'emfacId', 'vehicleTypeId',
-            'emfacFuel', and 'beamClass'
+            'mappedFuel', and 'mappedClass'
 
     Note:
         The function prints progress information and performs VMT distribution analysis
@@ -348,17 +342,20 @@ def emfac2freight_by_model_year_class_fuel(ft_emfac_vmt, carriers_raw, payloads_
     print("=== VMT-based Mapping Of BEAM Freight with EMFAC ===")
 
     # Step 1: Calculate euclidian VMT dataframe
-    vehicle_summary = calculate_tour_summary_by_vehicle(payloads_raw)
+    tour_summary = calculate_tour_summary_by_vehicle(payloads_raw)
 
     # Step 2: Merge with vehicle types
-    vehicle_summary_reset = vehicle_summary.reset_index()[['vehicleId', 'total_vmt', 'vmt_proportion']]
     vehicle_w_vmt = pd.merge(
-        vehicle_summary_reset,
-        carriers_raw[['vehicleId', 'vehicleTypeId']],
-        on='vehicleId',
+        tour_summary,
+        carriers_raw[['tourId', 'vehicleId', 'vehicleTypeId']],
+        on='tourId',
         how='left',
         copy=False
-    )
+    ).groupby('vehicleId').agg({
+        'total_vmt': 'sum',
+        'vmt_proportion': 'sum',
+        'vehicleTypeId': 'first'
+    }).reset_index()
     vehicle_w_vmt = pd.merge(vehicle_w_vmt, vehicle_types_formatted, on='vehicleTypeId', how='left', copy=False)
     vehicle_w_vmt = vehicle_w_vmt.sort_values('vmt_proportion', ascending=False).reset_index(drop=True)
     total_beam_vmt = vehicle_w_vmt['total_vmt'].sum()
@@ -366,20 +363,18 @@ def emfac2freight_by_model_year_class_fuel(ft_emfac_vmt, carriers_raw, payloads_
 
     # Step 3: Extract VMT proportion in EMFAC data
     # Optimized code
-    emfac_w_vmt = ft_emfac_vmt.groupby(['beamClass', 'model_year_group', 'fuel'])['total_vmt'].sum().reset_index()
+    emfac_w_vmt = ft_emfac_vmt.groupby(['mappedClass', 'model_year_group', 'mappedFuel', 'emfacId'])['total_vmt'].sum().reset_index()
     emfac_w_vmt['vmt_proportion'] = emfac_w_vmt['total_vmt'] / emfac_w_vmt['total_vmt'].sum()
     emfac_w_vmt = emfac_w_vmt.sort_values('vmt_proportion', ascending=False).reset_index(drop=True)
 
     total_emfac_vmt = emfac_w_vmt['total_vmt'].sum()
     print(f"EMFAC VMT with {len(ft_emfac_vmt)} rows and total vmt of {total_emfac_vmt}.")
 
-    # Step 4: Create composite keys for tracking
-    emfac_w_vmt['composite_key'] = np.char.add(
-        np.char.add(
-            emfac_w_vmt['model_year_group'].astype(str).values.astype('U') + ',',
-            emfac_w_vmt['beamClass'].values.astype('U') + ','
-        ),
-        emfac_w_vmt['fuel'].values.astype('U')
+    # Step 4: Create composite key for tracking
+    emfac_w_vmt['composite_key'] = (
+            emfac_w_vmt['model_year_group'].astype(str) + ',' +
+            emfac_w_vmt['mappedClass'] + ',' +
+            emfac_w_vmt['mappedFuel']
     )
 
     key_vmt_series = emfac_w_vmt.groupby('composite_key')['total_vmt'].sum()
@@ -402,8 +397,8 @@ def emfac2freight_by_model_year_class_fuel(ft_emfac_vmt, carriers_raw, payloads_
 
     # Perform the matching
     for i, row in tqdm(vehicle_w_vmt.iterrows(), total=total_vehicles, desc="Matching vehicles"):
-        veh_class = row['beamClass']
-        fuel = row['emfacFuel']
+        veh_class = row['mappedClass']
+        veh_fuel = row['mappedFuel']
         vmt_prop = row['vmt_proportion']
 
         # Restore the full set if we've run out of options
@@ -411,7 +406,7 @@ def emfac2freight_by_model_year_class_fuel(ft_emfac_vmt, carriers_raw, payloads_
             emfac_w_vmt = emfac_w_vmt_fallback.copy()
 
         # Find the best match
-        result = find_best_match(veh_class, fuel, emfac_w_vmt)
+        result = find_best_match(veh_class, veh_fuel, emfac_w_vmt)
 
         # Apply updates
         vehicle_w_vmt.loc[i, "emfacId"] = result['emfacId']
@@ -434,7 +429,7 @@ def emfac2freight_by_model_year_class_fuel(ft_emfac_vmt, carriers_raw, payloads_
             emfac_w_vmt = emfac_w_vmt[emfac_w_vmt["composite_key"] != composite_key]
 
     # Prepare the final result
-    result_columns = ["vehicleId", "emfacId", "vehicleTypeId", "emfacFuel", "beamClass"]
+    result_columns = ["vehicleId", "emfacId", "vehicleTypeId", "mappedFuel", "mappedClass"]
     result_df = vehicle_w_vmt[result_columns]
 
     # Analyze VMT distribution
@@ -443,7 +438,146 @@ def emfac2freight_by_model_year_class_fuel(ft_emfac_vmt, carriers_raw, payloads_
     return result_df
 
 
-def generate_emfac_mapped_freight_fleet(emfac_vmt, freight_classes, format_func, work_dir, config):
+def process_emfac_mappings(mapping_results, vehicle_types, vehicle_types_raw):
+    """
+    Process EMFAC mapping results to create new vehicle types with optimized performance.
+
+    Args:
+        mapping_results (pd.DataFrame): Results of EMFAC-to-BEAM mapping
+        vehicle_types (pd.DataFrame): Formatted vehicle types for matching
+        vehicle_types_raw (pd.DataFrame): Original vehicle types with all columns
+
+    Returns:
+        tuple: (new_fleet, vehicle_type_map)
+    """
+    from tqdm import tqdm
+
+    print(f"Processing {len(mapping_results)} vehicle mappings...")
+
+    # Initialize tracking variables
+    match_stats = {"fuel_and_class": 0, "fuel_only": 0, "class_only": 0, "none": 0}
+
+    # For reproducibility
+    np.random.seed(42)
+
+    # Step 1: Create lookup dataframes for each matching strategy
+    print("Building lookup tables for matching...")
+    match_keys = []
+
+    # Get all unique combinations from mapping_results
+    unique_fuel_class_combos = mapping_results[['mappedFuel', 'mappedClass']].drop_duplicates().reset_index(drop=True)
+
+    # For each unique combination, find matching vehicle types
+    for _, combo in tqdm(unique_fuel_class_combos.iterrows(),
+                         total=len(unique_fuel_class_combos),
+                         desc="Building match tables"):
+        mapped_fuel = combo['mappedFuel']
+        mapped_class = combo['mappedClass']
+
+        # Find matching indices for this combination
+        both_match = vehicle_types[(vehicle_types['mappedFuel'] == mapped_fuel) &
+                                   (vehicle_types['mappedClass'] == mapped_class)]
+
+        fuel_match = vehicle_types[vehicle_types['mappedFuel'] == mapped_fuel]
+        class_match = vehicle_types[vehicle_types['mappedClass'] == mapped_class]
+
+        # Store the match keys for later use
+        match_keys.append({
+            'mappedFuel': mapped_fuel,
+            'mappedClass': mapped_class,
+            'both_match': both_match['vehicleTypeId'].tolist() if not both_match.empty else [],
+            'fuel_match': fuel_match['vehicleTypeId'].tolist() if not fuel_match.empty else [],
+            'class_match': class_match['vehicleTypeId'].tolist() if not class_match.empty else []
+        })
+
+    # Convert to dataframe for easier joining
+    match_keys_df = pd.DataFrame(match_keys)
+
+    # Step 2: Join mapping results with match keys
+    print("Joining mapping results with match keys...")
+    merged_data = pd.merge(
+        mapping_results,
+        match_keys_df,
+        on=['mappedFuel', 'mappedClass'],
+        how='left'
+    )
+
+    # Step 3: Vectorized creation of new records
+    print("Applying matching strategy...")
+    # Prepare to collect results
+    vehicle_type_map = {}
+    new_rows = []
+
+    # Allocate arrays to determine match type for each record
+    match_type = np.full(len(merged_data), 'none', dtype=object)
+    match_vehicle_type_id = np.full(len(merged_data), None, dtype=object)
+
+    # Apply matching strategy in order of preference: both > fuel > class > random
+    for i, row in tqdm(merged_data.iterrows(),
+                       total=len(merged_data),
+                       desc="Finding matches"):
+        if row['both_match']:
+            # Match on both fuel and class
+            match_vehicle_type_id[i] = np.random.choice(row['both_match'])
+            match_type[i] = 'fuel_and_class'
+            match_stats['fuel_and_class'] += 1
+        elif row['fuel_match']:
+            # Fall back to matching on fuel only
+            match_vehicle_type_id[i] = np.random.choice(row['fuel_match'])
+            match_type[i] = 'fuel_only'
+            match_stats['fuel_only'] += 1
+        elif row['class_match']:
+            # Fall back to matching on class only
+            match_vehicle_type_id[i] = np.random.choice(row['class_match'])
+            match_type[i] = 'class_only'
+            match_stats['class_only'] += 1
+        else:
+            # Last resort: use any vehicle type
+            match_vehicle_type_id[i] = np.random.choice(vehicle_types['vehicleTypeId'].values)
+            match_type[i] = 'none'
+            match_stats['none'] += 1
+            print(f"  Warning: No match found for vehicleId={row['vehicleId']}, "
+                  f"mappedClass={row['mappedClass']}, mappedFuel={row['mappedFuel']}")
+
+    # Step 4: Create new vehicle types in a vectorized way
+    print("Creating new vehicle types...")
+    for i, row in tqdm(merged_data.iterrows(),
+                       total=len(merged_data),
+                       desc="Creating vehicle types"):
+        mapped_vehicle_id = row['vehicleId']
+        mapped_emfac_id = row['emfacId']
+        old_vehicle_type_id = match_vehicle_type_id[i]
+
+        # Create new vehicle type ID that incorporates the EMFAC ID
+        new_vehicle_type_id = f"{mapped_emfac_id}--{old_vehicle_type_id}"
+
+        # Store the mapping for later carrier updates
+        vehicle_type_map[mapped_vehicle_id] = new_vehicle_type_id
+
+        # Get the original record from vehicle_types_raw
+        original_record = vehicle_types_raw[vehicle_types_raw['vehicleTypeId'] == old_vehicle_type_id].iloc[
+            0].copy()
+        original_record['emfacId'] = mapped_emfac_id
+        original_record['vehicleTypeId'] = new_vehicle_type_id
+        new_rows.append(original_record)
+
+    # Create dataframe from collected rows
+    print("Finalizing results...")
+    new_fleet = pd.DataFrame(new_rows)
+
+    # Print summary statistics
+    print("\nMatch statistics:")
+    print(f"  Exact matches (fuel and class): {match_stats['fuel_and_class']}")
+    print(f"  Fuel-only matches: {match_stats['fuel_only']}")
+    print(f"  Class-only matches: {match_stats['class_only']}")
+    print(f"  No matches: {match_stats['none']}")
+    print(f"  Total vehicles processed: {len(mapping_results)}")
+    print(f"  Created {len(new_fleet)} new vehicle types")
+
+    return new_fleet, vehicle_type_map
+
+
+def generate_emfac_mapped_freight_fleet(emfac_vmt, freight_classes, work_dir, config, format_func):
     """
     Create updated vehicle types and carriers files based on EMFAC mapping.
 
@@ -454,26 +588,15 @@ def generate_emfac_mapped_freight_fleet(emfac_vmt, freight_classes, format_func,
     4. Creates new vehicle type records with EMFAC-specific IDs
     5. Updates carrier references to point to the new vehicle types
 
-    The matching process uses a hierarchical strategy to find appropriate BEAM vehicle types
-    that match the EMFAC characteristics (fuel type and vehicle class). For each mapped
-    vehicle, a new vehicle type ID is created that incorporates the EMFAC ID.
-
     Args:
         emfac_vmt (pandas.DataFrame): EMFAC VMT data with emissions characteristics
+        freight_classes (list): List of vehicle classes to consider as freight vehicles
+        format_func (callable): Function to format vehicle types for EMFAC mapping
         work_dir (str): Working directory containing input files
         config (dict): Configuration dictionary with file paths and settings
-        freight_classes (list): List of vehicle classes to consider as freight vehicles
-        format_func (callable): Function to format vehicle types for EMFAC mapping,
-            taking vehicle_types DataFrame and fuel_map dict as arguments
 
     Returns:
-        tuple: (updated_carriers_df, updated_vehicle_types_df) containing:
-            - pandas.DataFrame: Updated carriers data with new vehicle type references
-            - pandas.DataFrame: New vehicle types incorporating EMFAC characteristics
-
-    Note:
-        Output files are saved with "--TrAP" suffix added to the original filenames.
-        The function prints detailed statistics about the matching process.
+        tuple: (updated_carriers_df, updated_vehicle_types_df)
     """
     # Prepare file paths
     carriers_file = str(os.path.join(work_dir, config["beam"]["carriers_file"]))
@@ -491,96 +614,32 @@ def generate_emfac_mapped_freight_fleet(emfac_vmt, freight_classes, format_func,
         vehicle_types_raw.loc[
             vehicle_types_raw['vehicleCategory'].isin(freight_classes),
             ['vehicleTypeId', 'vehicleCategory', 'primaryFuelType', 'secondaryFuelType']
-        ].copy(),
-        config["fuel"]
+        ].copy()
     )
 
-    ft_emfac_vmt = emfac_vmt[
-        ['beamClass', 'model_year_group', 'fuel', 'total_vmt', 'emfacId']
-    ][
-        emfac_vmt["beamClass"].isin(freight_classes)
+    # Filter EMFAC VMT data to freight classes
+    ft_emfac_vmt = emfac_vmt[['mappedClass', 'model_year_group', 'mappedFuel', 'total_vmt', 'emfacId']][
+        emfac_vmt["mappedClass"].isin(freight_classes)
     ].copy()
 
+    # Get mapping between EMFAC and freight vehicles
     mapping_results = emfac2freight_by_model_year_class_fuel(ft_emfac_vmt, carriers_raw, payloads_raw, vehicle_types)
 
-    # Initialize tracking variables
-    new_vehicle_types = pd.DataFrame(columns=vehicle_types_raw.columns)
-    new_carriers = carriers_raw.copy()
-    vehicle_type_map = {}  # Map old vehicle type IDs to new ones
-    match_stats = {"fuel_and_class": 0, "fuel_only": 0, "class_only": 0, "none": 0}
-
-    print(f"Processing {len(mapping_results)} vehicle mappings...")
-
-    # Process each vehicle in the EMFAC mapping results
-    for i, row in mapping_results.iterrows():
-        mapped_vehicle_id = row["vehicleId"]
-        mapped_emfac_id = row["emfacId"]
-        mapped_vehicle_type_id = row["vehicleTypeId"]
-        mapped_emfac_fuel = row["emfacFuel"]
-        mapped_beam_class = row["beamClass"]
-
-        # Create boolean arrays once
-        fuel_mask = vehicle_types["emfacFuel"].values == mapped_emfac_fuel
-        class_mask = vehicle_types["beamClass"].values == mapped_beam_class
-
-        # Combine masks with NumPy
-        full_match_mask = np.logical_and(fuel_mask, class_mask)
-
-        # Try to find a matching record using hierarchical fallback
-        if np.any(full_match_mask):
-            # Best case: match on both fuel and class
-            matched_indices = np.where(full_match_mask)[0]
-            random_idx = np.random.choice(matched_indices, 1)[0]
-            matched_record = vehicle_types.iloc[random_idx]
-            match_stats["fuel_and_class"] += 1
-        elif np.any(fuel_mask):
-            # Fall back to matching on fuel only
-            matched_indices = np.where(fuel_mask)[0]
-            random_idx = np.random.choice(matched_indices, 1)[0]
-            matched_record = vehicle_types.iloc[random_idx]
-            match_stats["fuel_only"] += 1
-        elif np.any(class_mask):
-            # Fall back to matching on class only
-            matched_indices = np.where(class_mask)[0]
-            random_idx = np.random.choice(matched_indices, 1)[0]
-            matched_record = vehicle_types.iloc[random_idx]
-            match_stats["class_only"] += 1
-        else:
-            # Last resort: use any vehicle type (shouldn't happen with proper preprocessing)
-            random_idx = np.random.choice(len(vehicle_types), 1)[0]
-            matched_record = vehicle_types.iloc[random_idx]
-            match_stats["none"] += 1
-            print(f"  Warning: No match found for "
-                  f"vehicleId={mapped_vehicle_id}, "
-                  f"beamClass={mapped_beam_class}, "
-                  f"emfacFuel={mapped_emfac_fuel}")
-
-        # Create new vehicle type ID that incorporates the EMFAC ID
-        old_vehicle_type_id = matched_record["vehicleTypeId"]
-        new_vehicle_type_id = f"{mapped_emfac_id}--{old_vehicle_type_id}"
-
-        # Store the mapping for later carrier updates
-        vehicle_type_map[mapped_vehicle_type_id] = new_vehicle_type_id
-
-        # Create new vehicle type record
-        new_row = matched_record.copy()
-        new_row["emfacId"] = mapped_emfac_id
-        new_row["vehicleTypeId"] = new_vehicle_type_id
-
-        # Add to our new vehicle types dataframe
-        new_vehicle_types = pd.concat([new_vehicle_types, pd.DataFrame([new_row])], ignore_index=True)
+    # Process mappings to create new vehicle types
+    new_fleet, vehicle_type_map = process_emfac_mappings(
+        mapping_results,
+        vehicle_types,
+        vehicle_types_raw
+    )
 
     # Update the carriers file with new vehicle type IDs
-    new_carriers["vehicleTypeId"] = new_carriers["vehicleTypeId"].map(pd.Series(vehicle_type_map)).fillna(new_carriers["vehicleTypeId"])
+    new_carriers = carriers_raw.copy()
+    new_carriers["vehicleTypeId"] = new_carriers["vehicleId"].map(
+        pd.Series(vehicle_type_map)).fillna(new_carriers["vehicleTypeId"])
 
-    # Print summary statistics
-    print("\nMatch statistics:")
-    print(f"  Exact matches (fuel and class): {match_stats['fuel_and_class']}")
-    print(f"  Fuel-only matches: {match_stats['fuel_only']}")
-    print(f"  Class-only matches: {match_stats['class_only']}")
-    print(f"  No matches: {match_stats['none']}")
-    print(f"  Total vehicles processed: {len(mapping_results)}")
-    print(f"  Created {len(new_vehicle_types)} new vehicle types")
-    print(f"  Updated {len(new_carriers)} carrier records")
+    print(f"Updated {len(new_carriers)} carrier records")
+
+    # Group by all columns except vehicleId, dropping the vehicleId column
+    new_vehicle_types = new_fleet[[col for col in new_fleet.columns if col != 'vehicleId']].drop_duplicates()
 
     return new_carriers, new_vehicle_types

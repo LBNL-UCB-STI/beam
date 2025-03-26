@@ -113,6 +113,8 @@ def process_vehicle_types_probabilities_by_vehicle_category_and_income_group(veh
     df['income_prop'] = parsed_data.apply(lambda x: x[1])
     df['ridehail_prop'] = parsed_data.apply(lambda x: x[2])
 
+    df['sampleProbabilityWithinCategory'] = pd.to_numeric(df['sampleProbabilityWithinCategory'], errors='coerce')
+
     # Normalize probabilities by category using groupby operations
     # This is faster than iterating through unique categories
     category_groups = df.groupby('vehicleCategory')
@@ -157,8 +159,8 @@ def emfac2passenger_by_category_income(vehicle_types, emfac_pop):
     Args:
         vehicle_types (pd.DataFrame): DataFrame of vehicle types with columns:
             - vehicleTypeId: ID of vehicle type
-            - beamClass: Vehicle class category in BEAM
-            - emfacFuel: Fuel type compatible with EMFAC categories
+            - mappedClass: Vehicle class category in BEAM
+            - mappedFuel: Fuel type compatible with EMFAC categories
             - income_bin: Income bin/range (e.g., '25-50')
             - income_prop: Probability for this income group
             - ridehail_prop: Ridehail probability
@@ -166,9 +168,9 @@ def emfac2passenger_by_category_income(vehicle_types, emfac_pop):
 
         emfac_pop (pd.DataFrame): DataFrame of EMFAC vehicle populations with columns:
             - emfacId: ID of EMFAC vehicle type
-            - beamClass: Vehicle class category in BEAM
+            - mappedClass: Vehicle class category in BEAM
             - vehicle_class: Specific vehicle class (e.g., 'LD1', 'LD2')
-            - fuel: Fuel type in EMFAC
+            - mappedFuel: Fuel type in EMFAC
             - population_proportion: Proportion in the total vehicle population
 
     Returns:
@@ -194,32 +196,32 @@ def emfac2passenger_by_category_income(vehicle_types, emfac_pop):
     df_merged = pd.merge(
         left=vehicle_types,
         right=car_emfac,
-        left_on=['beamClass', 'emfacFuel'],
-        right_on=['beamClass', 'fuel'],
+        left_on=['mappedClass', 'mappedFuel'],
+        right_on=['mappedClass', 'mappedFuel'],
         how='outer'
     )
 
     # Calculate vehicle class probabilities given fuel type using groupby
     vehicle_class_probs = {}
-    # Group by beamClass and fuel to get distribution by vehicle_class
-    grouped = car_emfac.groupby(['beamClass', 'fuel'])
+    # Group by mappedClass and fuel to get distribution by vehicle_class
+    grouped = car_emfac.groupby(['mappedClass', 'mappedFuel'])
 
     for group_key, group_df in grouped:
-        beam_class, fuel = group_key
-        if (beam_class, fuel) not in vehicle_class_probs:
-            vehicle_class_probs[(beam_class, fuel)] = {}
+        mapped_class, mapped_fuel = group_key
+        if (mapped_class, mapped_fuel) not in vehicle_class_probs:
+            vehicle_class_probs[(mapped_class, mapped_fuel)] = {}
 
         # Calculate normalized probabilities for each vehicle class within the group
         total_prop = group_df['population_normalized'].sum()
         if total_prop > 0:
             for _, row in group_df.iterrows():
-                vehicle_class_probs[(beam_class, fuel)][row['vehicle_class']] = row[
+                vehicle_class_probs[(mapped_class, mapped_fuel)][row['vehicle_class']] = row[
                                                                                     'population_normalized'] / total_prop
 
     # Apply the conditional probability formula to calculate new proportions
     # Using a vectorized approach where possible
     def get_vehicle_class_prob(row):
-        key = (row['beamClass'], row['fuel'])
+        key = (row['mappedClass'], row['mappedFuel'])
         vehicle_class = row['vehicle_class']
         return vehicle_class_probs.get(key, {}).get(vehicle_class, 0)
 
@@ -261,7 +263,7 @@ def emfac2passenger_by_category_income(vehicle_types, emfac_pop):
     return df_merged
 
 
-def generate_emfac_mapped_passenger_fleet(emfac_pop, car_class, bike_class, transit_class, filter_out_classes, format_func, work_dir, config):
+def generate_emfac_mapped_passenger_fleet(emfac_pop, car_class, bike_class, transit_class, filter_out_classes, work_dir, config, format_func):
     """
     Generate a passenger fleet with EMFAC mappings for different vehicle classes.
 
@@ -279,7 +281,7 @@ def generate_emfac_mapped_passenger_fleet(emfac_pop, car_class, bike_class, tran
         work_dir (str): Working directory path
         config (dict): Configuration dictionary with keys:
             - beam.pax_vehicle_types_file: Path to vehicle types file
-            - fuel: Fuel configuration parameters
+            - mappedFuel: Fuel configuration parameters
 
     Returns:
         pd.DataFrame: Combined and mapped passenger fleet with EMFAC IDs
@@ -300,11 +302,11 @@ def generate_emfac_mapped_passenger_fleet(emfac_pop, car_class, bike_class, tran
 
     # Format the filtered vehicle types
     filtered_vehicle_types = vehicle_types_filtered.loc[car_bike_mask | bus_mask].copy()
-    vehicle_types = format_func(filtered_vehicle_types, config["fuel"])
+    vehicle_types = format_func(filtered_vehicle_types)
 
     # Process car data
-    car_vehicle_types = vehicle_types[vehicle_types['beamClass'].isin([car_class])]
-    car_emfac_data = emfac_pop[emfac_pop["beamClass"].isin([car_class])]
+    car_vehicle_types = vehicle_types[vehicle_types['mappedClass'].isin([car_class])]
+    car_emfac_data = emfac_pop[emfac_pop["mappedClass"].isin([car_class])]
 
     # Process car data with probabilities
     processed_car_types = process_vehicle_types_probabilities_by_vehicle_category_and_income_group(car_vehicle_types)
@@ -314,7 +316,7 @@ def generate_emfac_mapped_passenger_fleet(emfac_pop, car_class, bike_class, tran
     car_beam_emfac = car_beam_emfac[vehicle_types_filtered.columns.tolist() + ["emfacId"]]
 
     # Process bike data
-    bike_emfac = emfac_pop[emfac_pop["beamClass"].isin([bike_class])]
+    bike_emfac = emfac_pop[emfac_pop["mappedClass"].isin([bike_class])]
 
     # Normalize bike population data
     bike_pop_min = bike_emfac['population_proportion'].min()
@@ -329,10 +331,10 @@ def generate_emfac_mapped_passenger_fleet(emfac_pop, car_class, bike_class, tran
 
     # Merge bike data
     bike_beam_emfac = pd.merge(
-        left=vehicle_types[vehicle_types['beamClass'].isin([bike_class])],
+        left=vehicle_types[vehicle_types['mappedClass'].isin([bike_class])],
         right=bike_emfac,
-        left_on=['beamClass', 'emfacFuel'],
-        right_on=['beamClass', 'fuel'],
+        left_on=['mappedClass', 'mappedFuel'],
+        right_on=['mappedClass', 'mappedFuel'],
         how='outer'
     )
 
@@ -349,7 +351,7 @@ def generate_emfac_mapped_passenger_fleet(emfac_pop, car_class, bike_class, tran
     bike_beam_emfac = bike_beam_emfac[vehicle_types_filtered.columns.tolist() + ["emfacId"]]
 
     # Process bus data
-    bus_emfac = emfac_pop[emfac_pop["beamClass"] == transit_class]
+    bus_emfac = emfac_pop[emfac_pop["mappedClass"] == transit_class]
 
     # Normalize bus population data
     bus_pop_min = bus_emfac['population_proportion'].min() if not bus_emfac.empty else 0
@@ -362,15 +364,14 @@ def generate_emfac_mapped_passenger_fleet(emfac_pop, car_class, bike_class, tran
         bus_emfac['population_normalized'] = 1.0  # Default value if no range
 
     # Bus mask for filter - corrected syntax for filtering
-    bus_types_mask = (vehicle_types['beamClass'] == transit_class) & \
+    bus_types_mask = (vehicle_types['mappedClass'] == transit_class) & \
                      (vehicle_types['vehicleTypeId'].str.lower().str.contains('bus'))
 
     # Merge bus data - using the corrected mask
     bus_beam_emfac_merged = pd.merge(
         left=vehicle_types[bus_types_mask],
         right=bus_emfac,
-        left_on=['beamClass', 'emfacFuel'],
-        right_on=['beamClass', 'fuel'],
+        on=['mappedClass', 'mappedFuel'],
         how='outer'
     )
 
