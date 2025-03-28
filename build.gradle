@@ -772,7 +772,7 @@ tasks.register('createDockerfile', Dockerfile) {
     dependsOn dockerSyncBuildContext
 
     // assuming all required modules / dependencies are installed in beammodel/beam-environment
-    from 'beammodel/beam-environment:jdk-11-4.01'
+    from 'zaneedell/beam-environment:jdk-11-4.01-v2'
     label(['maintainer': 'LBNL Beam Team'])
     workingDir("/app")
     instruction 'RUN mkdir /app/output'
