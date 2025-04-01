@@ -351,12 +351,26 @@ sfbay_area_config = {
                     "diesel": 'Dsl',
                     "biodiesel": 'Dsl' # From emission pov, BEAM's biodiesel cars shall be diesel
                 },
-                "emfac": {
+                "emfac-ft": {
+                    "Elec": 'Elec',
+                    "Phe": 'Phe',
+                    "Gas": 'Dsl',
+                    "Dsl": 'Dsl',
+                    "NG": 'Dsl' # EMFAC NG cars will be mapped to BEAM's diesel cars
+                },
+                "emfac-pax": {
+                    "Elec": 'Elec',
+                    "Phe": 'Phe',
+                    "Gas": 'Gas',
+                    "Dsl": 'Gas',
+                    "NG": 'Gas' # EMFAC NG cars will be mapped to BEAM's diesel cars
+                },
+                "emfac-bus": {
                     "Elec": 'Elec',
                     "Phe": 'Phe',
                     "Gas": 'Gas',
                     "Dsl": 'Dsl',
-                    "NG": 'Dsl' # EMFAC NG cars will be mapped to BEAM's diesel cars
+                    "NG": 'Dsl'
                 },
                 "alternatives": {
                     "Elec": ['Elec', 'Phe'],
@@ -366,7 +380,7 @@ sfbay_area_config = {
                 }
             },
             "class_mapping": {
-                "emfac": {
+                "emfac-ft": {
                     "T6 CAIRP Class 4": "Class456Vocational",
                     "T6 CAIRP Class 5": "Class456Vocational",
                     "T6 CAIRP Class 6": "Class456Vocational",
@@ -392,12 +406,16 @@ sfbay_area_config = {
                     "T7 Single Dump Class 8": "Class78Vocational",
                     "T7 Single Other Class 8": "Class78Vocational",
                     "T7 Tractor Class 8": "Class78Tractor",
-                    "T7IS": "Class78Tractor",
+                    "T7IS": "Class78Tractor"
+                },
+                "emfac-pax": {
                     "LDA": "Car",
                     "LDT1": "Car",
                     "LDT2": "Car",
                     "MCY": "Bike",
-                    "MDV": "Car",
+                    "MDV": "Car"
+                },
+                "emfac-bus": {
                     "UBUS": "MediumDutyPassenger"
                 },
                 "alternatives": {

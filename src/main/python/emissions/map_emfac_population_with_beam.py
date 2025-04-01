@@ -45,13 +45,26 @@ def prepare_emissions_data_for_mapping(area, scenario, work_dir, config):
         elif year <= 2006: return '2006'
         else: return '2018'
     def format_emissions_data(emfac_types: pd.DataFrame) -> pd.DataFrame:
-        result_df = emfac_types.copy()
-        result_df['mappedClass'] = result_df['vehicle_class'].map(config["class_mapping"]["emfac"])
-        print_unmapped(result_df, 'mappedClass', 'vehicle_class')
-        result_df.dropna(subset=['mappedClass'], inplace=True)
-        result_df['mappedFuel'] = result_df['fuel'].map(config["fuel_mapping"]["emfac"])
-        print_unmapped(result_df, 'mappedFuel', 'fuel')
-        result_df.dropna(subset=['mappedFuel'], inplace=True)
+        result_ft_df = emfac_types.copy()
+        result_ft_df['mappedClass'] = result_ft_df['vehicle_class'].map(config["class_mapping"]["emfac-ft"])
+        result_ft_df.dropna(subset=['mappedClass'], inplace=True)
+        result_ft_df['mappedFuel'] = result_ft_df['fuel'].map(config["fuel_mapping"]["emfac-ft"])
+        result_ft_df.dropna(subset=['mappedFuel'], inplace=True)
+
+        result_pax_df = emfac_types.copy()
+        result_pax_df['mappedClass'] = result_pax_df['vehicle_class'].map(config["class_mapping"]["emfac-pax"])
+        result_pax_df.dropna(subset=['mappedClass'], inplace=True)
+        result_pax_df['mappedFuel'] = result_pax_df['fuel'].map(config["fuel_mapping"]["emfac-pax"])
+        result_pax_df.dropna(subset=['mappedFuel'], inplace=True)
+
+        result_bus_df = emfac_types.copy()
+        result_bus_df['mappedClass'] = result_bus_df['vehicle_class'].map(config["class_mapping"]["emfac-bus"])
+        result_bus_df.dropna(subset=['mappedClass'], inplace=True)
+        result_bus_df['mappedFuel'] = result_bus_df['fuel'].map(config["fuel_mapping"]["emfac-bus"])
+        result_bus_df.dropna(subset=['mappedFuel'], inplace=True)
+
+        result_df = pd.concat([result_ft_df, result_pax_df, result_bus_df])
+
         result_df['model_year_group'] = result_df['model_year'].apply(categorize_model_year)
         result_df[['county', 'area']] = result_df['sub_area'].str.extract(r'^([^()]+)\s*\(([^)]+)\)')
         result_df['county'] = result_df['county'].str.strip().str.lower()
@@ -186,9 +199,12 @@ def assign_emission_rates_to_vehicle_types(scenario, emissions_rates, emfac_pop,
     path_parts = emissions_rates_dir.split('/')
     trap_index = path_parts.index("TrAP")
     shortened_path = '/'.join(path_parts[trap_index:])
-    for veh_type_id in results:
+    for veh_type_id, emfac_id in results:
         if veh_type_id:
-            relative_rates_filepath = f"{shortened_path}/{veh_type_id}.csv"
+            veh_type_id_temp = veh_type_id
+            if emfac_id not in veh_type_id:
+                veh_type_id_temp = f"{emfac_id}--{veh_type_id}"
+            relative_rates_filepath = f"{shortened_path}/{veh_type_id_temp}.csv"
             vehtypes_with_emfac_id.loc[
                 vehtypes_with_emfac_id['vehicleTypeId'] == veh_type_id, 'emissionsRatesFile'
             ] = relative_rates_filepath
@@ -198,16 +214,18 @@ def assign_emission_rates_to_vehicle_types(scenario, emissions_rates, emfac_pop,
 
     # Save freight vehicle types
     ft_freight_mask = (vehtypes_with_emfac_id['vehicleCategory'].isin(BeamClasses.get_freight_classes()))
-    updated_ft_vehicle_types = vehtypes_with_emfac_id[ft_freight_mask]
+    updated_ft_vehicle_types = vehtypes_with_emfac_id[ft_freight_mask].copy()
+    updated_ft_vehicle_types.drop(['emfacId', 'oldVehicleTypeId', 'vehicleClass'], axis=1, inplace=True)
     updated_ft_vehicle_types.to_csv(ft_vehtypes_out_file, index=False)
 
     # Save passenger vehicle types
     updated_pax_vehicle_types_others = other_pax_vehicle_types.copy()
     updated_pax_vehicle_types_others['emissionsRatesFile'] = ""
     updated_pax_vehicle_types = pd.concat(
-        [vehtypes_with_emfac_id[~ft_freight_mask], other_pax_vehicle_types],
+        [vehtypes_with_emfac_id[~ft_freight_mask].copy(), other_pax_vehicle_types],
         axis=0
     )
+    updated_pax_vehicle_types.drop(['emfacId', 'oldVehicleTypeId', 'vehicleClass'], axis=1, inplace=True)
     updated_pax_vehicle_types.to_csv(pax_vehtypes_out_file, index=False)
 
 def generate_emfac_beam_class_mapping(_study_area, _scenario_name, _work_dir, _config, to_filter_out):
@@ -288,7 +306,7 @@ def process_single_vehicle_type(
         veh_type: Dict[str, Any],
         emissions_rates: pd.DataFrame,
         rates_prefix_filepath: str
-) -> Optional[str]:
+) -> Optional[tuple[str, str]]:
     """
     Process and save emissions rates for a single vehicle type.
 
@@ -313,29 +331,32 @@ def process_single_vehicle_type(
     """
     try:
         veh_type_id = veh_type['vehicleTypeId']
+        emfac_id = veh_type['emfacId']
 
         # Filter emissions_rates for the current vehicle type
-        veh_emissions = emissions_rates[emissions_rates['emfacId'] == veh_type_id].copy()
+        veh_emissions = emissions_rates[emissions_rates['emfacId'] == emfac_id].copy()
 
         if veh_emissions.empty:
             logging.warning(f"No emissions data found for vehicle type {veh_type_id}")
             return None
 
-        # Remove the emfacId column as it's no longer needed
-        veh_emissions = veh_emissions.drop('emfacId', axis=1)
+        veh_type_id_temp = veh_type_id
+        if emfac_id not in veh_type_id:
+            veh_type_id_temp = f"{emfac_id}--{veh_type_id}"
 
         # Generate the file path
-        file_path = f"{rates_prefix_filepath}{veh_type_id}.csv"
+        file_path = f"{rates_prefix_filepath}{veh_type_id_temp}.csv"
+
+        print(f"Writing emissions data to {file_path}")
+        logging.info(f"Writing emissions data to {file_path}")
 
         # Ensure directory exists
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
-        logging.info(f"Writing emissions data to {file_path}")
-
         # Save the emissions rates to a CSV file
         veh_emissions.to_csv(file_path, index=False)
 
-        return veh_type_id
+        return veh_type_id, emfac_id
 
     except KeyError as e:
         logging.error(f"Missing required key in vehicle type data: {e}")

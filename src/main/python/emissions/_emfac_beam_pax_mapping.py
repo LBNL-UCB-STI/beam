@@ -35,17 +35,18 @@ def parse_sample_probability_string(prob_string):
 
     # Use regex for faster parsing with compile once pattern
     income_match = re.search(r"income\|([^:]+):([0-9.]+)", cleaned)
-    ridehail_match = re.search(r"ridehail\|([0-9.]+)", cleaned)
+    ridehail_match = re.search(r"ridehail\|([^:]+):([0-9.]+)", cleaned)
 
     # Extract values from matches
     income_bin = income_match.group(1) if income_match else None
     income_prob = float(income_match.group(2)) if income_match else None
-    ridehail_prob = float(ridehail_match.group(1)) if ridehail_match else None
+    ridehail_bin = ridehail_match.group(1) if ridehail_match else None
+    ridehail_prob = float(ridehail_match.group(2)) if ridehail_match else None
 
-    return income_bin, income_prob, ridehail_prob
+    return income_bin, income_prob, ridehail_bin, ridehail_prob
 
 
-def create_sample_probability_string(income_bin, income_prob, ridehail_prob):
+def create_sample_probability_string(income_bin, income_prob, ridehail_bin, ridehail_prob):
     """
     Convert income bin, income probability, and ridehail probability back to a sample probability string.
 
@@ -63,7 +64,7 @@ def create_sample_probability_string(income_bin, income_prob, ridehail_prob):
               Returns empty string if all inputs are None
     """
     # Quick return for empty data
-    if income_bin is None and income_prob is None and ridehail_prob is None:
+    if income_bin is None and income_prob is None and ridehail_bin is None and ridehail_prob is None:
         return ""
 
     # Pre-allocate list with appropriate size to avoid resizing
@@ -73,8 +74,8 @@ def create_sample_probability_string(income_bin, income_prob, ridehail_prob):
     if income_bin is not None and income_prob is not None:
         parts.append(f"income|{income_bin}:{income_prob:.6f}")
 
-    if ridehail_prob is not None:
-        parts.append(f"ridehail|{ridehail_prob:.6f}")
+    if ridehail_bin is not None and ridehail_prob is not None:
+        parts.append(f"ridehail|{ridehail_bin}:{ridehail_prob:.6f}")
 
     # Use faster string joining
     return "; ".join(parts)
@@ -111,7 +112,8 @@ def process_vehicle_types_probabilities_by_vehicle_category_and_income_group(veh
     parsed_data = df['sampleProbabilityString'].apply(parse_sample_probability_string)
     df['income_bin'] = parsed_data.apply(lambda x: x[0])
     df['income_prop'] = parsed_data.apply(lambda x: x[1])
-    df['ridehail_prop'] = parsed_data.apply(lambda x: x[2])
+    df['ridehail_bin'] = parsed_data.apply(lambda x: x[2])
+    df['ridehail_prop'] = parsed_data.apply(lambda x: x[3])
 
     df['sampleProbabilityWithinCategory'] = pd.to_numeric(df['sampleProbabilityWithinCategory'], errors='coerce')
 
@@ -138,17 +140,20 @@ def process_vehicle_types_probabilities_by_vehicle_category_and_income_group(veh
                 df.loc[mask, 'income_prop'] = df.loc[mask, 'income_prop'] / prob_sum
 
     # Normalize ridehail probabilities - can be done with vectorized operations
-    ridehail_mask = df['ridehail_prop'].notna()
-    if ridehail_mask.any():
-        prob_sum = df.loc[ridehail_mask, 'ridehail_prop'].sum()
+    for category in df['vehicleCategory'].unique():
+        category_df = df[df['vehicleCategory'] == category]
 
-        if prob_sum > 0:
-            df.loc[ridehail_mask, 'ridehail_prop'] = df.loc[ridehail_mask, 'ridehail_prop'] / prob_sum
+        for ridehail_bin in category_df['ridehail_bin'].dropna().unique():
+            mask = (df['vehicleCategory'] == category) & (df['ridehail_bin'] == ridehail_bin)
+            prob_sum = df.loc[mask, 'ridehail_prop'].sum()
+
+            if prob_sum > 0:
+                df.loc[mask, 'ridehail_prop'] = df.loc[mask, 'ridehail_prop'] / prob_sum
 
     return df
 
 
-def emfac2passenger_by_category_income(vehicle_types, emfac_pop):
+def emfac2passenger_by_category_income(vehicle_types, car_emfac):
     """
     Merge passenger vehicle types with EMFAC population data.
 
@@ -166,7 +171,7 @@ def emfac2passenger_by_category_income(vehicle_types, emfac_pop):
             - ridehail_prop: Ridehail probability
             - sampleProbabilityWithinCategory: Probability within vehicle category
 
-        emfac_pop (pd.DataFrame): DataFrame of EMFAC vehicle populations with columns:
+        car_emfac (pd.DataFrame): DataFrame of EMFAC vehicle populations with columns:
             - emfacId: ID of EMFAC vehicle type
             - mappedClass: Vehicle class category in BEAM
             - vehicle_class: Specific vehicle class (e.g., 'LD1', 'LD2')
@@ -181,17 +186,6 @@ def emfac2passenger_by_category_income(vehicle_types, emfac_pop):
             - newProportionRidehail: Recalculated ridehail proportion
             - sampleProbabilityString: Updated probability string
     """
-    # Create a copy of the EMFAC population dataframe
-    car_emfac = emfac_pop.copy()
-
-    # Normalize the population proportions to [0,1] range
-    min_value = car_emfac['population_proportion'].min()
-    max_value = car_emfac['population_proportion'].max()
-    # Avoid division by zero
-    range_value = max_value - min_value
-    car_emfac['population_normalized'] = (car_emfac[
-                                              'population_proportion'] - min_value) / range_value if range_value > 0 else 0
-
     # Merge dataframes on matching columns
     df_merged = pd.merge(
         left=vehicle_types,
@@ -243,6 +237,9 @@ def emfac2passenger_by_category_income(vehicle_types, emfac_pop):
         if income_sum > 0:
             df_merged.loc[mask, 'income_prop'] = df_merged.loc[mask, 'income_prop'] / income_sum
 
+    for ridehail_group in df_merged['ridehail_bin'].dropna().unique():
+        mask = df_merged['ridehail_bin'] == ridehail_group
+
         # Normalize ridehail proportions
         ridehail_sum = df_merged.loc[mask, 'ridehail_prop'].sum()
         if ridehail_sum > 0:
@@ -255,6 +252,7 @@ def emfac2passenger_by_category_income(vehicle_types, emfac_pop):
         lambda row: create_sample_probability_string(
             row['income_bin'],
             row['income_prop'],  # Changed from 'new_income_prob' which doesn't exist
+            row['ridehail_bin'],
             row['ridehail_prop']
         ),
         axis=1
@@ -304,28 +302,44 @@ def generate_emfac_mapped_passenger_fleet(emfac_pop, car_class, bike_class, tran
     filtered_vehicle_types = vehicle_types_filtered.loc[car_bike_mask | bus_mask].copy()
     vehicle_types = format_func(filtered_vehicle_types)
 
+    # ###################################################################################################
+    # CAR
+    # ###################################################################################################
+
     # Process car data
-    car_vehicle_types = vehicle_types[vehicle_types['mappedClass'].isin([car_class])].copy()
-    car_emfac_data = emfac_pop[emfac_pop["mappedClass"].isin([car_class])].copy()
+    car_emfac = emfac_pop[emfac_pop["mappedClass"].isin([car_class])].copy()
+
+    # Normalize bike population data
+    car_pop_sum = car_emfac['population'].sum()
+
+    if car_pop_sum > 0:
+        car_emfac['population_normalized'] = car_emfac['population'] / car_pop_sum
+    else:
+        car_emfac['population_normalized'] = 1.0  # Default value if no range
 
     # Process car data with probabilities
+    car_vehicle_types = vehicle_types[vehicle_types['mappedClass'].isin([car_class])].copy()
     processed_car_types = process_vehicle_types_probabilities_by_vehicle_category_and_income_group(car_vehicle_types)
-    car_beam_emfac = emfac2passenger_by_category_income(processed_car_types, car_emfac_data)
+    car_beam_emfac = emfac2passenger_by_category_income(processed_car_types, car_emfac)
 
     # Select only necessary columns from the result
     car_beam_emfac = car_beam_emfac[vehicle_types_filtered.columns.tolist() + ["emfacId"]]
+    car_beam_emfac["oldVehicleTypeId"] = car_beam_emfac["vehicleTypeId"]
+    car_beam_emfac["vehicleTypeId"] = car_beam_emfac["emfacId"].astype(str) + "--" + car_beam_emfac["oldVehicleTypeId"].astype(str)
+
+    # ###################################################################################################
+    # BIKE
+    # ###################################################################################################
 
     # Process bike data
     bike_emfac = emfac_pop[emfac_pop["mappedClass"].isin([bike_class])].copy()
 
     # Normalize bike population data
-    bike_pop_min = bike_emfac['population_proportion'].min()
-    bike_pop_max = bike_emfac['population_proportion'].max()
-    bike_pop_range = bike_pop_max - bike_pop_min
+    bike_pop_sum = bike_emfac['population'].sum()
 
     # Add safeguard for division by zero
-    if bike_pop_range > 0:
-        bike_emfac['population_normalized'] = (bike_emfac['population_proportion'] - bike_pop_min) / bike_pop_range
+    if bike_pop_sum > 0:
+        bike_emfac['population_normalized'] = bike_emfac['population'] / bike_pop_sum
     else:
         bike_emfac['population_normalized'] = 1.0  # Default value if no range
 
@@ -349,17 +363,21 @@ def generate_emfac_mapped_passenger_fleet(emfac_pop, car_class, bike_class, tran
 
     # Select bike columns
     bike_beam_emfac = bike_beam_emfac[vehicle_types_filtered.columns.tolist() + ["emfacId"]]
+    bike_beam_emfac["oldVehicleTypeId"] = bike_beam_emfac["vehicleTypeId"]
+    bike_beam_emfac["vehicleTypeId"] = bike_beam_emfac["emfacId"].astype(str) + "--" + bike_beam_emfac["oldVehicleTypeId"].astype(str)
+
+    # ###################################################################################################
+    # BUS
+    # ###################################################################################################
 
     # Process bus data
     bus_emfac = emfac_pop[emfac_pop["mappedClass"] == transit_class].copy()
 
     # Normalize bus population data
-    bus_pop_min = bus_emfac['population_proportion'].min() if not bus_emfac.empty else 0
-    bus_pop_max = bus_emfac['population_proportion'].max() if not bus_emfac.empty else 1
-    bus_pop_range = bus_pop_max - bus_pop_min
+    bus_pop_sum = bus_emfac['population'].sum()
 
-    if bus_pop_range > 0:
-        bus_emfac['population_normalized'] = (bus_emfac['population_proportion'] - bus_pop_min) / bus_pop_range
+    if bus_pop_sum > 0:
+        bus_emfac['population_normalized'] = bus_emfac['population'] / bus_pop_sum
     else:
         bus_emfac['population_normalized'] = 1.0  # Default value if no range
 
@@ -381,16 +399,11 @@ def generate_emfac_mapped_passenger_fleet(emfac_pop, car_class, bike_class, tran
 
     # Select bus columns
     bus_beam_emfac = bus_beam_emfac[vehicle_types_filtered.columns.tolist() + ["emfacId"]]
+    bus_beam_emfac["oldVehicleTypeId"] = bus_beam_emfac["vehicleTypeId"]
 
     # Combine all vehicle types
     result = pd.concat([car_beam_emfac, bike_beam_emfac, bus_beam_emfac], ignore_index=True)
 
-    # Create new vehicle type IDs
-    result["oldVehicleTypeId"] = result["vehicleTypeId"]
-    # Fixed string formatting - the original had an f-string syntax error
-    result["vehicleTypeId"] = result["emfacId"].astype(str) + "--" + result["oldVehicleTypeId"].astype(str)
-
-    vehicle_types_others = vehicle_types_filtered[
-        ~vehicle_types_filtered["vehicleTypeId"].isin(result["oldVehicleTypeId"].unique())]
+    vehicle_types_others = vehicle_types_filtered[~vehicle_types_filtered["vehicleTypeId"].isin(result["oldVehicleTypeId"].unique())]
 
     return result, vehicle_types_others
