@@ -16,9 +16,9 @@ from osmnx import settings
 from osmnx import truncate
 from shapely.ops import unary_union
 
-from data_collection_utils import collect_census_data
-from data_collection_utils import collect_geographic_boundaries
-from data_collection_utils import filter_boundaries_by_density
+from _data_collection_utils import collect_census_data
+from _data_collection_utils import collect_geographic_boundaries
+from _data_collection_utils import filter_boundaries_by_density
 
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))

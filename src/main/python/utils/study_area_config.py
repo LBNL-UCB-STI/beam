@@ -46,7 +46,7 @@ def generate_network_name(config: dict) -> str:
     """
     # Get study area
     study_area = config["study_area"]
-    layers = config["graph_layers"]
+    layers = config["network"]["graph_layers"]
 
     # Get residential geographic level and density
     if "residential" in layers:
@@ -250,65 +250,69 @@ fastsim_routee_files = {
 ########## SF Bay Area #########
 
 sfbay_area_config = {
-    # OSMNX settings
-    "osmnx_settings": osmnx_settings,
-
-    # Vehicle weight classifications (FHWA)
-    "weight_limits": weight_limits,
-
-    # FastSim routee files
-    "fastsim_routee_files": fastsim_routee_files,
-
-    # Transit stop data
-
-    # if download isn't enabled, we read network from disk
-    "download_enabled": True,
-
     # Base paths
     "work_dir": os.path.expanduser("~/Workspace/Simulation/sfbay"),
-
-    # Geographic settings
     "study_area": "sfbay",
     "state_fips": "06",
     # 087 Santa Cruz
     # 113 Yolo
     "county_fips": ['001', '013', '041', '055', '075', '081', '085', '095', '097'],
     "census_year": 2018,
-    "utm_epsg": 26910,  # NAD83 / UTM zone 10N
-    "tolerance": 2,
 
-    # Density thresholds and corresponding network filters
-    "graph_layers": {
-        "main": {
-            "geo_level": "county",
-            "custom_filter": create_osm_highway_filter(list(set(osm_highways) - {"residential"})),
-            "buffer_zone_in_meters": 200
-        },
-        "residential": {
-            "min_density_per_km2": 4500,
-            "geo_level": "cbg",
-            "custom_filter": create_osm_highway_filter(osm_highways),
-            "buffer_zone_in_meters": 20
-        }
-        # // California has a higher urbanization rate (94.8% urban vs 80.7% national average)
-        # // https://dof.ca.gov/wp-content/uploads/sites/352/Forecasting/Demographics/Documents/Urban-Rural_Classification_and_2020_Urban_Area_Criteria_CA_SDC.pdf
-        # const avgPersonsPerHousehold = 2.9; // CA average household size (higher than national 2.5)
-        #
-        # // Core density calculation (using similar proportions as national but adjusted for CA household size)
-        # const coreHUDensity = 1275; // National high-density nucleus requirement
-        # const caDensityAdjustment = 2.9 / 2.5; // CA vs national household size ratio
-        # // Calculate CA-adjusted thresholds
-        # const caHighDensityPPSM = coreHUDensity * 2.9;
-        # const caInitialCorePPSM = 425 * 2.9;
-        # const caUrbanExtensionPPSM = 200 * 2.9;
-        # // Result
-        # // California-adjusted density thresholds (persons per square mile):
-        # //  densest urban cores, typical of downtown areas in major California cities:  7,395 ppsm = 2,855 ppsk
-        # // High-density nucleus requirement: 3698 ppsm = 1429 ppsk
-        # // Initial core requirement: 1233 ppsm = 475 ppsk
-        # // Urban extension requirement: 580 ppsm = 224 ppsk
-        # // Rural Areas less than 580 people per square mile
+    "geo": {
+        "utm_epsg": 26910, # NAD83 / UTM zone 10N
+        "taz_shp": "geo/shp/sfbay-tazs-epsg-26910.shp",
+        "taz_id": "taz1454",
+        "cbg_id": "GEOID",
     },
+
+    "network": {
+        "osmnx_settings": osmnx_settings,
+        "weight_limits": weight_limits, # Vehicle weight classifications (FHWA)
+        "download_enabled": True, # if download isn't enabled, we read network from disk
+        "tolerance": 2,
+        "graph_layers": { # Density thresholds and corresponding network filters
+            "main": {
+                "geo_level": "county",
+                "custom_filter": create_osm_highway_filter(list(set(osm_highways) - {"residential"})),
+                "buffer_zone_in_meters": 200
+            },
+            "residential": {
+                "min_density_per_km2": 4500,
+                "geo_level": "cbg",
+                "custom_filter": create_osm_highway_filter(osm_highways),
+                "buffer_zone_in_meters": 20
+            }
+            # // California has a higher urbanization rate (94.8% urban vs 80.7% national average)
+            # // https://dof.ca.gov/wp-content/uploads/sites/352/Forecasting/Demographics/Documents/Urban-Rural_Classification_and_2020_Urban_Area_Criteria_CA_SDC.pdf
+            # const avgPersonsPerHousehold = 2.9; // CA average household size (higher than national 2.5)
+            #
+            # // Core density calculation (using similar proportions as national but adjusted for CA household size)
+            # const coreHUDensity = 1275; // National high-density nucleus requirement
+            # const caDensityAdjustment = 2.9 / 2.5; // CA vs national household size ratio
+            # // Calculate CA-adjusted thresholds
+            # const caHighDensityPPSM = coreHUDensity * 2.9;
+            # const caInitialCorePPSM = 425 * 2.9;
+            # const caUrbanExtensionPPSM = 200 * 2.9;
+            # // Result
+            # // California-adjusted density thresholds (persons per square mile):
+            # //  densest urban cores, typical of downtown areas in major California cities:  7,395 ppsm = 2,855 ppsk
+            # // High-density nucleus requirement: 3698 ppsm = 1429 ppsk
+            # // Initial core requirement: 1233 ppsm = 475 ppsk
+            # // Urban extension requirement: 580 ppsm = 224 ppsk
+            # // Rural Areas less than 580 people per square mile
+        },
+        "validation": {
+            "npmrds": {
+                "year": 2018,
+                "geo": "validation/npmrds/California.shp",
+                "data": "validation/npmrds/al_ca_oct2018_1hr_trucks_pax.csv"
+            }
+        }
+    },
+
+    # FastSim routee files
+    "fastsim_routee_files": fastsim_routee_files,
 
     "emissions": {
         "2018_Baseline" : {
