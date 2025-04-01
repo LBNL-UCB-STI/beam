@@ -5,7 +5,6 @@ import org.matsim.core.router.util.TravelTime
 
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicInteger
-import scala.util.Try
 
 class CarWeightCalculator(workerParams: R5Parameters, travelTimeNoiseFraction: Double = 0d) {
   private val networkHelper = workerParams.networkHelper
