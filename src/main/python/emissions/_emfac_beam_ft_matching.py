@@ -79,7 +79,7 @@ def calculate_tour_summary_by_vehicle(payloads_raw):
     return summary
 
 
-def find_best_match(veh_class, veh_fuel, df):
+def find_best_match(veh_class, veh_fuel, alternatives_mapping, df):
     """
     Find the best matching EMFAC vehicle record using a hierarchical matching strategy.
 
@@ -109,41 +109,66 @@ def find_best_match(veh_class, veh_fuel, df):
     """
     # Create boolean arrays once
     class_mask = df['mappedClass'].values == veh_class
+    approx_class_mask = df['mappedClass'].isin(alternatives_mapping[veh_class])
     fuel_mask = df['mappedFuel'].values == veh_fuel
+    approx_fuel_mask = df['mappedFuel'].isin(alternatives_mapping[veh_fuel])
 
     # Combine masks with NumPy
     full_match_mask = np.logical_and(class_mask, fuel_mask)
     full_matches = df[full_match_mask]
+    match_type = "type"
+    if full_matches.empty:
+        full_matches = df[np.logical_and(class_mask, approx_fuel_mask)]
+        match_type = "exact-approx-fuel"
+    if full_matches.empty:
+        full_matches = df[np.logical_and(approx_class_mask, fuel_mask)]
+        match_type = "exact-approx-class"
+    if full_matches.empty:
+        full_matches = df[np.logical_and(approx_class_mask, approx_fuel_mask)]
+        match_type = "approx-class-fuel"
+
     if not full_matches.empty:
         match = full_matches.sample(n=1, weights='vmt_proportion').iloc[0]
         return {
             'match': match,
-            'type': 'exact',
-            'composite_key': f"{match['model_year_group']},{veh_class},{veh_fuel}",
+            'type': match_type,
+            'composite_key': f"{match['model_year_group']},{match['mappedClass']},{match['mappedFuel']}",
             'emfacId': match['emfacId'],
             'updates': {}
         }
 
     # Try fuel match only
     fuel_matches = df[fuel_mask]
+    match_type = "fuel"
+    if fuel_matches.empty:
+        fuel_matches = df[approx_fuel_mask]
+        match_type = "approx-fuel"
+
     if not fuel_matches.empty:
         match = fuel_matches.sample(n=1, weights='vmt_proportion').iloc[0]
         return {
             'match': match,
-            'type': 'fuel',
-            'composite_key': f"{match['model_year_group']},{match['mappedClass']},{veh_fuel}",
+            'type': match_type,
+            'composite_key': f"{match['model_year_group']},{match['mappedClass']},{match['mappedFuel']}",
             'emfacId': match['emfacId'],
             'updates': {'mappedClass': match['mappedClass']}
         }
 
+
+
     # Try class match only
     class_matches = df[class_mask]
+    match_type = 'class'
+    if class_matches.empty:
+        class_matches = df[approx_class_mask]
+        match_type = "approx-class"
+
     if not class_matches.empty:
         match = class_matches.sample(n=1, weights='vmt_proportion').iloc[0]
         return {
             'match': match,
-            'type': 'class',
-            'composite_key': f"{match['model_year_group']},{veh_class},{match['mappedFuel']}",
+            'type': match_type,
+            'composite_key': f"{match['model_year_group']},{match['mappedClass']},{match['mappedFuel']}",
             'emfacId': match['emfacId'],
             'updates': {'mappedFuel': match['mappedFuel']}
         }
@@ -306,7 +331,7 @@ def analyze_vmt_distribution(beam_vmt_track, emfac_vmt_track):
     print(f"Average absolute difference by fuel: {fuel_comparison['abs_difference'].mean() * 100:.2f}%")
 
 
-def emfac2freight_by_model_year_class_fuel(ft_emfac_vmt, carriers_raw, payloads_raw, vehicle_types_formatted):
+def emfac2freight_by_model_year_class_fuel(ft_emfac_vmt, carriers_raw, payloads_raw, vehicle_types_formatted, alternatives_mapping):
     """
     Map EMFAC vehicle data to BEAM freight vehicles based on VMT proportions and vehicle attributes.
 
@@ -406,7 +431,15 @@ def emfac2freight_by_model_year_class_fuel(ft_emfac_vmt, carriers_raw, payloads_
             emfac_w_vmt = emfac_w_vmt_fallback.copy()
 
         # Find the best match
-        result = find_best_match(veh_class, veh_fuel, emfac_w_vmt)
+        result = find_best_match(
+            veh_class,
+            veh_fuel,
+            alternatives_mapping,
+            emfac_w_vmt
+        )
+
+        if result['type'] == "any":
+            print(result)
 
         # Apply updates
         vehicle_w_vmt.loc[i, "emfacId"] = result['emfacId']
@@ -622,8 +655,16 @@ def generate_emfac_mapped_freight_fleet(emfac_vmt, freight_classes, work_dir, co
         emfac_vmt["mappedClass"].isin(freight_classes)
     ].copy()
 
+    fuel_class_alternative_mapping = config["fuel_mapping"]["alternatives"] | config["class_mapping"]["alternatives"]
+
     # Get mapping between EMFAC and freight vehicles
-    mapping_results = emfac2freight_by_model_year_class_fuel(ft_emfac_vmt, carriers_raw, payloads_raw, vehicle_types)
+    mapping_results = emfac2freight_by_model_year_class_fuel(
+        ft_emfac_vmt,
+        carriers_raw,
+        payloads_raw,
+        vehicle_types,
+        fuel_class_alternative_mapping
+    )
 
     # Process mappings to create new vehicle types
     new_fleet, vehicle_type_map = process_emfac_mappings(

@@ -209,38 +209,38 @@ weight_limits = {
 
 fastsim_routee_files = {
     "primary_powertrain": {
-        "freight-md-D-Diesel-Baseline": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(Diesel,_2020,_no_program).csv",
-        "freight-md-E-BE-Baseline": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(BEV,_2025,_no_program).csv",
-        # "freight-md-E-H2FC-Baseline": np.nan,
-        "freight-md-E-PHEV-Baseline": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(BEV,_2025,_no_program).csv",
-        "freight-hdt-D-Diesel-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(Diesel,_2020,_no_program).csv",
-        "freight-hdt-E-BE-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(BEV,_2025,_no_program).csv",
-        # "freight-hdt-E-H2FC-Baseline": np.nan,
-        "freight-hdt-E-PHEV-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(BEV,_2025,_no_program).csv",
-        "freight-hdv-D-Diesel-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(Diesel,_2020,_no_program).csv",
-        "freight-hdv-E-BE-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(BEV,_2025,_no_program).csv",
-        # "freight-hdv-E-H2FC-Baseline": np.nan,
-        "freight-hdv-E-PHEV-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(BEV,_2025,_no_program).csv"
+        "md-D-Diesel": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(Diesel,_2020,_no_program).csv",
+        "md-E-BE": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(BEV,_2025,_no_program).csv",
+        # "md-E-H2FC": np.nan,
+        "md-E-PHEV": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(BEV,_2025,_no_program).csv",
+        "hdt-D-Diesel": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(Diesel,_2020,_no_program).csv",
+        "hdt-E-BE": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(BEV,_2025,_no_program).csv",
+        # "hdt-E-H2FC": np.nan,
+        "hdt-E-PHEV": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(BEV,_2025,_no_program).csv",
+        "hdv-D-Diesel": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(Diesel,_2020,_no_program).csv",
+        "hdv-E-BE": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(BEV,_2025,_no_program).csv",
+        # "hdv-E-H2FC": np.nan,
+        "hdv-E-PHEV": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(BEV,_2025,_no_program).csv"
     },
     "secondary_powertrain": {
-        # "freight-md-D-Diesel-Baseline": np.nan,
-        # "freight-md-E-BE-Baseline": np.nan,
-        # "freight-md-E-H2FC-Baseline": np.nan,
-        "freight-md-E-PHEV-Baseline": ("Diesel",
+        # "md-D-Diesel": np.nan,
+        # "md-E-BE": np.nan,
+        # "md-E-H2FC": np.nan,
+        "md-E-PHEV": ("Diesel",
                                        9595.796035186175,
                                        constants["max_fuel_capacity_in_joule"],
                                        "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(HEV,_2025,_no_program).csv"),
-        # "freight-hdt-D-Diesel-Baseline": np.nan,
-        # "freight-hdt-E-BE-Baseline": np.nan,
-        # "freight-hdt-E-H2FC-Baseline": np.nan,
-        "freight-hdt-E-PHEV-Baseline": ("Diesel",
+        # "hdt-D-Diesel": np.nan,
+        # "hdt-E-BE": np.nan,
+        # "hdt-E-H2FC": np.nan,
+        "hdt-E-PHEV": ("Diesel",
                                         13817.086117829229,
                                         constants["max_fuel_capacity_in_joule"],
                                         "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(HEV,_2025,_no_program).csv"),
-        # "freight-hdv-D-Diesel-Baseline": np.nan,
-        # "freight-hdv-E-BE-Baseline": np.nan,
-        # "freight-hdv-E-H2FC-Baseline": np.nan,
-        "freight-hdv-E-PHEV-Baseline": ("Diesel",
+        # "hdv-D-Diesel": np.nan,
+        # "hdv-E-BE": np.nan,
+        # "hdv-E-H2FC": np.nan,
+        "hdv-E-PHEV": ("Diesel",
                                         14026.761465378302,
                                         constants["max_fuel_capacity_in_joule"],
                                         "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(HEV,_2025,_no_program).csv")
@@ -278,7 +278,7 @@ sfbay_area_config = {
                 "buffer_zone_in_meters": 200
             },
             "residential": {
-                "min_density_per_km2": 4500,
+                "min_density_per_km2": 5500,
                 "geo_level": "cbg",
                 "custom_filter": create_osm_highway_filter(osm_highways),
                 "buffer_zone_in_meters": 20
@@ -357,6 +357,12 @@ sfbay_area_config = {
                     "Gas": 'Gas',
                     "Dsl": 'Dsl',
                     "NG": 'Dsl' # EMFAC NG cars will be mapped to BEAM's diesel cars
+                },
+                "alternatives": {
+                    "Elec": ['Elec', 'Phe'],
+                    'Phe': ['Phe', 'Elec'],
+                    "Gas": ['Gas', 'Dsl'],
+                    "Dsl": ['Dsl', 'Gas']
                 }
             },
             "class_mapping": {
@@ -393,6 +399,14 @@ sfbay_area_config = {
                     "MCY": "Bike",
                     "MDV": "Car",
                     "UBUS": "MediumDutyPassenger"
+                },
+                "alternatives": {
+                    "Class456Vocational": ['Class456Vocational', 'Class78Vocational'],
+                    'Class78Vocational': ['Class78Vocational', 'Class456Vocational', 'Class78Tractor'],
+                    "Class78Tractor": ['Class78Tractor', 'Class78Vocational'],
+                    "Car": ['Car'],
+                    "Bike": ['Bike'],
+                    "MediumDutyPassenger": ['MediumDutyPassenger']
                 }
             }
         }

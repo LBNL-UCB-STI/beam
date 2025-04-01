@@ -25,14 +25,14 @@ sys.path.insert(0, parent_dir)
 
 # Now use absolute import
 from python.utils.study_area_config import get_area_config
-from python.utils.study_area_config import generate_config_name
+from python.utils.study_area_config import generate_network_name
 from python.utils.study_area_config import constants
 
 warnings.filterwarnings('ignore')
 
 # ************************************************************************************************
 
-AREA = "seattle" # sfbay
+AREA = "sfbay" # sfbay
 BATCH_NAME = "2024-11-06"
 SCENARIO_NAME = "Baseline"
 SCENARIO_SUFFIX = ""
@@ -41,7 +41,7 @@ FRISM_VERSION = 1.5
 BUFFER_DISTANCE_METERS = 2000  # 2km
 MAX_DISTANCE_METERS = 200000  # 200km
 STUDY_AREA_CONFIG = get_area_config(AREA)
-STUDY_AREA_CONFIG["graph_layers"]["residential"]["min_density_per_km2"] = 412
+STUDY_AREA_CONFIG["network"]["graph_layers"]["residential"]["min_density_per_km2"] = 5500
 SNAP_COORDINATES = True
 
 # ************************************************************************************************
@@ -51,10 +51,10 @@ SNAP_COORDINATES = True
 
 # System and general constants
 CHUNK_SIZE = 10000  # this affects speed and parallelization of the script
-CONFIG_NAME = generate_config_name(STUDY_AREA_CONFIG)
+CONFIG_NAME = generate_network_name(STUDY_AREA_CONFIG)
 NETWORK_DIR = f'{STUDY_AREA_CONFIG["work_dir"]}/network/{CONFIG_NAME}'
 NETWORK_OSM_PBF = f'{NETWORK_DIR}/{CONFIG_NAME}.osm.pbf'
-UTM_CRS = STUDY_AREA_CONFIG["utm_epsg"]
+UTM_CRS = STUDY_AREA_CONFIG["geo"]["utm_epsg"]
 YEAR = STUDY_AREA_CONFIG["census_year"]
 SCENARIO_LABEL = SCENARIO_NAME.replace("_", "")
 PRIMARY_ENERGY_PROFILE = STUDY_AREA_CONFIG["fastsim_routee_files"]["primary_powertrain"]
@@ -62,14 +62,15 @@ SECONDARY_ENERGY_PROFILE = STUDY_AREA_CONFIG["fastsim_routee_files"]["secondary_
 
 # File paths and directories
 DIRECTORY_INPUT = f'{STUDY_AREA_CONFIG["work_dir"]}/frism/{BATCH_NAME}/{SCENARIO_NAME}'
-DIRECTORY_BATCH = f'{STUDY_AREA_CONFIG["work_dir"]}/beam-freight/{BATCH_NAME}'
+DIRECTORY_BATCH = f'{STUDY_AREA_CONFIG["work_dir"]}/beam-ft/{BATCH_NAME}'
 DIRECTORY_OUTPUT = f'{DIRECTORY_BATCH}/{YEAR}_{SCENARIO_LABEL}{SCENARIO_SUFFIX}'
-DIRECTORY_VEHICLE_TECH = f'{DIRECTORY_BATCH}/vehicle-tech'
-if SNAP_COORDINATES:
-    # Define the snapped directory path
-    DIRECTORY_SCENARIO = f'{DIRECTORY_OUTPUT}--snapped-to-{CONFIG_NAME}'
-else:
-    DIRECTORY_SCENARIO = f'{DIRECTORY_OUTPUT}'
+DIRECTORY_VEHICLE_TECH = f'{STUDY_AREA_CONFIG["work_dir"]}/vehicle-tech'
+DIRECTORY_SCENARIO = f'{DIRECTORY_OUTPUT}'
+# if SNAP_COORDINATES:
+#     # Define the snapped directory path
+#     DIRECTORY_SCENARIO = f'{DIRECTORY_OUTPUT}--snapped-to-{CONFIG_NAME}'
+# else:
+#     DIRECTORY_SCENARIO = f'{DIRECTORY_OUTPUT}'
 
 # Create necessary directories if they don't exist
 Path(DIRECTORY_SCENARIO).mkdir(parents=True, exist_ok=True)
@@ -573,6 +574,10 @@ def snap_coordinates_when_too_far(_df: pd.DataFrame,
 ## MAIN
 
 if __name__ == '__main__':
+    # Add these at the beginning of your main code, after the variables section
+    # Dictionary to store vehicle class and fuel rate mappings
+    vehicle_class_fuel_rates = {}
+
     for filename in sorted(os.listdir(DIRECTORY_INPUT)):
         filepath = f'{DIRECTORY_INPUT}/{filename}'
         print(filepath)
@@ -627,47 +632,85 @@ if __name__ == '__main__':
                     _payload_plans = df
                 else:
                     _payload_plans = pd.concat([_payload_plans, df])
-        elif "vehicle_types" in filename:
+        elif "vehicle_types" in filename: # Modify the "vehicle_types" section in the main loop
             df = pd.read_csv(filepath)
+
+            # First pass: collect vehicle class and fuel rate information for non-PHEV vehicles
+            for _, row in df.iterrows():
+                veh_class = row['veh_class']
+                fuel_type = row['primary_fuel_type']
+                fuel_rate = row['primary_fuel_rate']
+
+                if 'PHEV' not in str(row['veh_type_id']):
+                    vehicle_class_fuel_rates[f"{veh_class}-{fuel_type}"] = fuel_rate
+
+            # Process all vehicles, handling PHEVs specially
             empty_vectors = list(np.repeat("", len(df.index)))
-            vehicle_types_ids = df.apply(
-                lambda row: add_prefix('', 'veh_type_id', row, to_num=True, store_dict=None, veh_type=True,
-                                       suffix=f"-{YEAR}-{SCENARIO_LABEL}"), axis=1).tolist()
+            vehicle_types_ids = []
+            original_vehicle_types_ids = []
+            primary_fuel_types = []
+            primary_fuel_consumption = []
+            primary_fuel_capacities = []
+            secondary_fuel_types = []
+            secondary_fuel_consumption = []
+            secondary_fuel_capacities = []
+
+            for _, row in df.iterrows():
+                veh_type_id = add_prefix('', 'veh_type_id', row, to_num=True,
+                                         store_dict=None, veh_type=True, suffix=f"-{YEAR}-{SCENARIO_LABEL}")
+                vehicle_types_ids.append(veh_type_id)
+
+                original_veh_type_id = add_prefix('', 'veh_type_id', row, to_num=True,
+                                         store_dict=None, veh_type=True, suffix="")
+                original_vehicle_types_ids.append(original_veh_type_id)
+
+                veh_class = row['veh_class']
+                fuel_type = row['primary_fuel_type']
+
+                # Check if this is a PHEV vehicle
+                if 'PHEV' in str(row['veh_type_id']):
+                    if f"{veh_class}-Electricity" in vehicle_class_fuel_rates and f"{veh_class}-{fuel_type}" in vehicle_class_fuel_rates:
+                        # Primary
+                        primary_fuel_types.append('Electricity')
+                        fuel_rate_1 = vehicle_class_fuel_rates[f"{veh_class}-Electricity"]
+                        primary_fuel_consumption.append(constants["joule_per_meter_base_rate"] / (float(fuel_rate_1) * 1609.34))
+                        primary_fuel_capacities.append(12000000000000000 * 0.25)  # 25% of standard capacity
+
+                        # Secondary
+                        secondary_fuel_types.append(fuel_type)
+                        fuel_rate_2 = vehicle_class_fuel_rates[f"{veh_class}-{fuel_type}"]
+                        secondary_fuel_consumption.append(constants["joule_per_meter_base_rate"] / (float(fuel_rate_2) * 1609.34))
+                        secondary_fuel_capacities.append(12000000000000000 * 0.75)  # 75% of standard capacity
+                else:
+                    # For non-PHEV vehicles, use standard processing
+                    primary_fuel_types.append(row["primary_fuel_type"])
+                    primary_fuel_consumption.append(constants["joule_per_meter_base_rate"] /
+                                                    (np.float64(row["primary_fuel_rate"]) * 1609.34))
+                    primary_fuel_capacities.append(12000000000000000)
+                    secondary_fuel_types.append(np.nan)
+                    secondary_fuel_consumption.append(np.nan)
+                    secondary_fuel_capacities.append(np.nan)
+
+            # Create the vehicles techs dictionary with our processed values
             vehicles_techs = {
                 "vehicleTypeId": vehicle_types_ids,
                 "seatingCapacity": list(np.repeat(1, len(df.index))),
                 "standingRoomCapacity": list(np.repeat(0, len(df.index))),
                 "lengthInMeter": list(np.repeat(12, len(df.index))),
-                "primaryFuelType": df["primary_fuel_type"],
-                "primaryFuelConsumptionInJoulePerMeter": np.divide(constants["joule_per_meter_base_rate"],
-                                                                   np.float64(df["primary_fuel_rate"]) * 1609.34),
-                "primaryFuelCapacityInJoule": list(np.repeat(12000000000000000, len(df.index))),
-                "primaryVehicleEnergyFile": [PRIMARY_ENERGY_PROFILE[index] if index in PRIMARY_ENERGY_PROFILE else np.nan
-                                             for index
-                                             in
-                                             vehicle_types_ids],
-                "secondaryFuelType": [
-                    SECONDARY_ENERGY_PROFILE[index][
-                        0] if index in SECONDARY_ENERGY_PROFILE else np.nan for
-                    index
-                    in vehicle_types_ids],
-                "secondaryFuelConsumptionInJoulePerMeter": [
-                    SECONDARY_ENERGY_PROFILE[index][
-                        1] if index in SECONDARY_ENERGY_PROFILE else np.nan for
-                    index
-                    in vehicle_types_ids],
+                "primaryFuelType": primary_fuel_types,
+                "primaryFuelConsumptionInJoulePerMeter": primary_fuel_consumption,
+                "primaryFuelCapacityInJoule": primary_fuel_capacities,
+                "primaryVehicleEnergyFile": [
+                    PRIMARY_ENERGY_PROFILE[index] if index in PRIMARY_ENERGY_PROFILE else np.nan
+                    for index in original_vehicle_types_ids],
+                "secondaryFuelType": secondary_fuel_types,
+                "secondaryFuelConsumptionInJoulePerMeter": secondary_fuel_consumption,
+                "secondaryFuelCapacityInJoule": secondary_fuel_capacities,
                 "secondaryVehicleEnergyFile": [
-                    SECONDARY_ENERGY_PROFILE[index][
-                        3] if index in SECONDARY_ENERGY_PROFILE else np.nan for
-                    index
-                    in vehicle_types_ids],
-                "secondaryFuelCapacityInJoule": [
-                    SECONDARY_ENERGY_PROFILE[index][
-                        2] if index in SECONDARY_ENERGY_PROFILE else np.nan for
-                    index
-                    in vehicle_types_ids],
+                    SECONDARY_ENERGY_PROFILE[index][3] if index in SECONDARY_ENERGY_PROFILE else np.nan for
+                    index in original_vehicle_types_ids],
                 "automationLevel": list(np.repeat(1, len(df.index))),
-                "maxVelocity": df["max_speed(mph)"],  # convert to meter per second
+                "maxVelocity": df["max_speed(mph)"],
                 "passengerCarUnit": empty_vectors,
                 "rechargeLevel2RateLimitInWatts": empty_vectors,
                 "rechargeLevel3RateLimitInWatts": empty_vectors,
@@ -677,6 +720,7 @@ if __name__ == '__main__':
                 "payloadCapacityInKg": df["payload_capacity_weight"],
                 "vehicleClass": df["veh_class"]
             }
+
             df2 = pd.DataFrame(vehicles_techs)
             df2["vehicleCategory"] = np.where(df2["vehicleTypeId"].str.contains('hdv'), 'Class78Vocational',
                                               df2.vehicleCategory)
@@ -684,6 +728,7 @@ if __name__ == '__main__':
                                               df2.vehicleCategory)
             df2["vehicleCategory"] = np.where(df2["vehicleTypeId"].str.contains('ld'), 'Class2b3Vocational',
                                               df2.vehicleCategory)
+
             if _vehicle_types is None:
                 _vehicle_types = df2
             else:

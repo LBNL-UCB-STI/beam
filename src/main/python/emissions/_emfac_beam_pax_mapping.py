@@ -305,8 +305,8 @@ def generate_emfac_mapped_passenger_fleet(emfac_pop, car_class, bike_class, tran
     vehicle_types = format_func(filtered_vehicle_types)
 
     # Process car data
-    car_vehicle_types = vehicle_types[vehicle_types['mappedClass'].isin([car_class])]
-    car_emfac_data = emfac_pop[emfac_pop["mappedClass"].isin([car_class])]
+    car_vehicle_types = vehicle_types[vehicle_types['mappedClass'].isin([car_class])].copy()
+    car_emfac_data = emfac_pop[emfac_pop["mappedClass"].isin([car_class])].copy()
 
     # Process car data with probabilities
     processed_car_types = process_vehicle_types_probabilities_by_vehicle_category_and_income_group(car_vehicle_types)
@@ -316,7 +316,7 @@ def generate_emfac_mapped_passenger_fleet(emfac_pop, car_class, bike_class, tran
     car_beam_emfac = car_beam_emfac[vehicle_types_filtered.columns.tolist() + ["emfacId"]]
 
     # Process bike data
-    bike_emfac = emfac_pop[emfac_pop["mappedClass"].isin([bike_class])]
+    bike_emfac = emfac_pop[emfac_pop["mappedClass"].isin([bike_class])].copy()
 
     # Normalize bike population data
     bike_pop_min = bike_emfac['population_proportion'].min()
@@ -351,7 +351,7 @@ def generate_emfac_mapped_passenger_fleet(emfac_pop, car_class, bike_class, tran
     bike_beam_emfac = bike_beam_emfac[vehicle_types_filtered.columns.tolist() + ["emfacId"]]
 
     # Process bus data
-    bus_emfac = emfac_pop[emfac_pop["mappedClass"] == transit_class]
+    bus_emfac = emfac_pop[emfac_pop["mappedClass"] == transit_class].copy()
 
     # Normalize bus population data
     bus_pop_min = bus_emfac['population_proportion'].min() if not bus_emfac.empty else 0
