@@ -1836,8 +1836,9 @@ trait ChoosesMode {
     case Event(StateTimeout, data: ChoosesModeData) =>
       val pendingTrip = data.pendingChosenTrip.get
       val (tick, triggerId) = releaseTickAndTriggerId()
-      val currentAct = currentActivity(data.personData)
-      val correctedActivityEndTime = calculateActivityEndTime(currentAct, currentAct.getStartTime.orElse(tick.toDouble))
+      val originActivity = currentActivity(data.personData)
+      val correctedActivityEndTime =
+        calculateActivityEndTime(originActivity, originActivity.getStartTime.orElse(tick.toDouble))
       val chosenTrip =
         makeFinalCorrections(pendingTrip, tick, correctedActivityEndTime)
 
@@ -1890,7 +1891,9 @@ trait ChoosesMode {
         case None => ""
       }
 
-      val nextAct = nextActivity(data.personData).get
+      val destinationActivity = nextActivity(data.personData).get
+      val isFirstTrip = isFirstTripWithinTour(destinationActivity)
+      val isLastTrip = isLastTripWithinTour(destinationActivity)
 
       val initialTourMode = data.personData.currentTourMode
 
@@ -1904,10 +1907,10 @@ trait ChoosesMode {
         data.availableAlternatives.get,
         data.availablePersonalStreetVehicles.nonEmpty,
         chosenTrip.legs.view.map(_.beamLeg.travelPath.distanceInM).sum,
-        _experiencedBeamPlan.tourIndexOfElement(nextAct),
+        _experiencedBeamPlan.tourIndexOfElement(destinationActivity),
         chosenTrip,
         _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getType,
-        nextAct.getType,
+        destinationActivity.getType,
         tripId
       )
       eventsManager.processEvent(modeChoiceEvent)
@@ -1926,7 +1929,10 @@ trait ChoosesMode {
 
           val updatedTripStrategy =
             TripModeChoiceStrategy(Some(chosenTrip.tripClassifier))
-          _experiencedBeamPlan.putStrategy(_experiencedBeamPlan.getTripContaining(nextAct), updatedTripStrategy)
+          _experiencedBeamPlan.putStrategy(
+            _experiencedBeamPlan.getTripContaining(destinationActivity),
+            updatedTripStrategy
+          )
 
           goto(Teleporting) using data.personData.copy(
             currentTrip = Some(chosenTrip),
@@ -1948,7 +1954,7 @@ trait ChoosesMode {
             case ActualVehicle(vehicle) if data.personData.currentTourPersonalVehicle.contains(vehicle.id) =>
               if (
                 data.personData.currentTourMode
-                  .contains(WALK_BASED) && (!isFirstTripWithinTour(nextAct) || data.isWithinTripReplanning)
+                  .contains(WALK_BASED) && (!isFirstTripWithinTour(destinationActivity) || data.isWithinTripReplanning)
               ) {
                 logger.debug(
                   s"We're keeping vehicle ${vehicle.id} even though it isn't used in this trip " +
@@ -1978,6 +1984,9 @@ trait ChoosesMode {
             case ActualVehicle(vehicle) if beamVehicles.contains(vehicle.id) =>
               beamVehicles.remove(vehicle.id)
               vehicle.getManager match {
+                case Some(manager) if BeamVehicle.isEmergencyVehicle(vehicle.id) && !isLastTrip =>
+                  logger.debug("Releasing emergency vehicle")
+                  manager ! ReleaseVehicle(vehicle, triggerId)
                 case Some(manager) => manager ! ReleaseVehicle(vehicle, triggerId)
                 case _             => logger.warn(s"Giving up vehicle ${vehicle.id}, which doesn't have a manager set")
               }
@@ -2022,18 +2031,19 @@ trait ChoosesMode {
           }
 
           val currentPlanMode = _experiencedBeamPlan
-            .getStrategy[TripModeChoiceStrategy](_experiencedBeamPlan.getTripContaining(nextAct))
+            .getStrategy[TripModeChoiceStrategy](_experiencedBeamPlan.getTripContaining(destinationActivity))
             .mode
 
           // Manually set that personal bike transit vehicles must be driven home because it's not handled in parking
           currentTourPersonalVehicle match {
             case Some(veh)
-                if currentPlanMode.contains(BIKE_TRANSIT) && isFirstTripWithinTour(nextAct) && !beamVehicles(
+                if currentPlanMode
+                  .contains(BIKE_TRANSIT) && isFirstTripWithinTour(destinationActivity) && !beamVehicles(
                   veh
                 ).vehicle.isSharedVehicle =>
               beamVehicles(veh).vehicle.setMustBeDrivenHome(true)
             case Some(veh)
-                if currentPlanMode.contains(BIKE_TRANSIT) && isLastTripWithinTour(nextAct) && !beamVehicles(
+                if currentPlanMode.contains(BIKE_TRANSIT) && isLastTripWithinTour(destinationActivity) && !beamVehicles(
                   veh
                 ).vehicle.isSharedVehicle =>
               beamVehicles(veh).vehicle.setMustBeDrivenHome(false)
@@ -2043,13 +2053,18 @@ trait ChoosesMode {
           currentPlanMode match {
             case None =>
               _experiencedBeamPlan.putStrategy(
-                _experiencedBeamPlan.getTripContaining(nextAct),
+                _experiencedBeamPlan.getTripContaining(destinationActivity),
                 TripModeChoiceStrategy(Some(chosenTrip.tripClassifier))
               )
             case Some(strategyMode) if strategyMode == chosenTrip.tripClassifier =>
             case Some(strategyMode @ (DRIVE_TRANSIT | BIKE_TRANSIT | RIDE_HAIL_TRANSIT))
                 if (chosenTrip.tripClassifier == WALK_TRANSIT) && data.isWithinTripReplanning =>
               logger.debug(f"Assigning replanning walk_transit trip as part of planned $strategyMode trip")
+            case Some(otherMode) if currentTourPersonalVehicle.isDefined & isLastTrip =>
+              logger.warn(
+                s"Chose a ${chosenTrip.tripClassifier} trip with a $otherMode leg in our plans. This is because " +
+                s"we need to tour vehicle ${currentTourPersonalVehicle.get} back home"
+              )
             case Some(otherMode) =>
               logger.error(
                 s"Unexpected difference between trip modes in plans: Chose a ${chosenTrip.tripClassifier} " +

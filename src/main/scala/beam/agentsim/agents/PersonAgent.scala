@@ -1825,7 +1825,7 @@ class PersonAgent(
         logger.debug(s"$id is performing Activity at end of simulation")
         logger.warn("Performing Activity at end of simulation")
       } else {
-        logger.warn(s"$id has received Finish while in state: $stateName, personId: $id")
+        logger.debug(s"$id has received Finish while in state: $stateName, personId: $id")
       }
       stop
     case Event(TriggerWithId(_: BoardVehicleTrigger, _), _: ChoosesModeData) =>
