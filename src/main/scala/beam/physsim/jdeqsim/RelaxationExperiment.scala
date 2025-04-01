@@ -16,6 +16,7 @@ import org.matsim.core.router.util.TravelTime
   * RelaxationExperiment is an abstract base class for different traffic simulation
   * relaxation approaches. Relaxation refers to the process of iteratively improving
   * route choices in a traffic network to reach a more realistic traffic equilibrium.
+  * Results are here => https://github.com/LBNL-UCB-STI/beam/issues/2371
   */
 sealed abstract class RelaxationExperiment(
   val beamConfig: BeamConfig,
