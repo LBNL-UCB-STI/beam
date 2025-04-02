@@ -298,6 +298,30 @@ class BeamPlan extends Plan {
     }
   }
 
+  def isLastElementInTour(idx: Int): Boolean = {
+    val tour = getTourContaining(idx)
+    actsLegs.lift(idx) match {
+      case Some(act: Activity) =>
+        tour.trips.last.activity == act
+      case Some(leg: Leg) =>
+        tour.trips.last.leg.contains(leg)
+      case _ =>
+        throw new RuntimeException(s"Unexpected PlanElementIndex $idx.")
+    }
+  }
+
+  def lastTripOfCurrentTour(idx: Int): Boolean = {
+    if (idx <= 1) {
+      false
+    } else if (idx + 2 < activities.size) {
+      val nextTrip = getTourContaining(idx + 2)
+      val currentTrip = getTourContaining(idx + 1)
+      (nextTrip.tourId != currentTrip.tourId)
+    } else {
+      true
+    }
+  }
+
   def tourIndexOfElement(planElement: PlanElement): Int = {
     (for (tour <- tours.zipWithIndex if tour._1 == getTourContaining(planElement))
       yield tour._2).head

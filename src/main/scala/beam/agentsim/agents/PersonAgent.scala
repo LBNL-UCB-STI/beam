@@ -66,6 +66,7 @@ import org.matsim.core.utils.misc.Time
 import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
 import scala.concurrent.duration._
+import scala.jdk.CollectionConverters.asScalaBufferConverter
 
 /**
   */
@@ -1518,17 +1519,22 @@ class PersonAgent(
                   beamVehicles -= personalVeh.id
                   personalVeh.getManager.get ! ReleaseVehicle(personalVeh, triggerId)
                   None
-                } else if (_experiencedBeamPlan.isLastElementInTour(activity)) {
+                } else if (_experiencedBeamPlan.isLastElementInTour(data.currentActivityIndex + 1)) {
                   getParentTourStrategy(data) match {
                     case Some(parentStrategy) =>
                       // Here we're coming out of a nested tour and need to get the tour of our parent vehicle
                       parentStrategy.tourVehicle.orElse(currentTourStrategy.tourVehicle)
                     case _ =>
                       logger.warn(
-                        s"Malformed tour for person ${this.id}: ${currentTour(data).activities
-                          .map(act => act.getType + "_" + act.getCoord)}"
+                        s"Starting a ${activity.getType} activity, and the" +
+                        s" next ${_experiencedBeamPlan.getPlanElements.asScala
+                          .lift(data.currentActivityIndex + 2)
+                          .map(x => x.toString)
+                          .getOrElse("HOME")}, but not currently on a " +
+                        s"subtour. Keeping my current vehicle. Perhaps there was a malformed tour for " +
+                        s"person ${this.id}: ${currentTour(data).activities.map(act => act.getType + "->")}"
                       )
-                      None
+                      data.currentTourPersonalVehicle
                   }
                 } else {
                   data.currentTourPersonalVehicle

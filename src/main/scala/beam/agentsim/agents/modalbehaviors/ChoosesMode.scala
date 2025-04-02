@@ -1114,9 +1114,10 @@ trait ChoosesMode {
     currentTourStrategy: TourModeChoiceStrategy
   ): Vector[VehicleOrToken] = {
     val tourVehicle = currentTourStrategy.tourVehicle
+    val tourMode = currentTourStrategy.tourMode
     val newAndTourVehicles = allAvailableStreetVehicles ++ currentTourStrategy.tourVehicle
       .flatMap(v => beamVehicles.get(v))
-      .filterNot(_.vehicle.isSharedVehicle)
+      .filterNot(v => v.vehicle.isSharedVehicle && !BeamVehicle.isEmergencyVehicle(v.id))
       .toVector
       .distinct
 
@@ -1124,7 +1125,7 @@ trait ChoosesMode {
       case ActualVehicle(beamVehicle) if tourVehicle.contains(beamVehicle.id) => Some(ActualVehicle(beamVehicle))
       case ActualVehicle(beamVehicle) if BeamVehicle.isSharedTeleportationVehicle(beamVehicle.id) =>
         Some(ActualVehicle(beamVehicle))
-      case ActualVehicle(beamVehicle) if tourVehicle.isEmpty && beamVehicle.isMustBeDrivenHome =>
+      case ActualVehicle(beamVehicle) if tourVehicle.isEmpty && tourMode.isDefined && beamVehicle.isMustBeDrivenHome =>
         logger.debug(
           s"Person person ${this.id} is already on a walk based tour, and we have access to vehicle " +
           s" ${beamVehicle.id}, and we're" +
@@ -1135,7 +1136,7 @@ trait ChoosesMode {
       case ActualVehicle(beamVehicle)
           if tourVehicle
             .exists(newAndTourVehicles.contains) && BeamVehicle.isEmergencyVehicle(beamVehicle.id) =>
-        logger.debug(
+        logger.info(
           s"Person person ${this.id} is already on a car based tour, and we have access to vehicle " +
           s" ${beamVehicle.id}, and we shouldn't need it. Going to abandon it."
         )
@@ -2008,7 +2009,9 @@ trait ChoosesMode {
 
           val currentTourPersonalVehicle = {
             if (isCurrentPersonalVehicleVoided)
-              vehiclesUsed.headOption.filter(!_.vehicle.isSharedVehicle).map(_.id)
+              vehiclesUsed.headOption
+                .filter(v => !v.vehicle.isSharedVehicle || BeamVehicle.isEmergencyVehicle(v.id))
+                .map(_.id)
             else {
               data.personData.currentTourPersonalVehicle
                 .orElse(
