@@ -33,12 +33,12 @@ warnings.filterwarnings('ignore')
 # ************************************************************************************************
 
 AREA = "sfbay" # sfbay
-BATCH_NAME = "2024-11-06"
+BATCH_NAME = "2024-01-23"
 SCENARIO_NAME = "Baseline"
 SCENARIO_SUFFIX = ""
-FRISM_VERSION = 1.5
+FRISM_VERSION = 1.0
 # Coordinate snapping constants
-BUFFER_DISTANCE_METERS = 2000  # 2km
+BUFFER_DISTANCE_METERS = 100  # 100 meters
 MAX_DISTANCE_METERS = 200000  # 200km
 STUDY_AREA_CONFIG = get_area_config(AREA)
 STUDY_AREA_CONFIG["network"]["graph_layers"]["residential"]["min_density_per_km2"] = 5500
@@ -294,7 +294,9 @@ def format_payload(_payload_plans: pd.DataFrame) -> pd.DataFrame:
             'For-hire Truck': 'for-hire'
         }, na_action='ignore')
     else:
-        _payload_plans['requestType'] = _payload_plans['requestType'].map({1: 'unloading', 0: 'loading'})
+        # _payload_plans['requestType'] = _payload_plans['requestType'].map({1: 'unloading', 0: 'loading'})
+        _payload_plans.loc[_payload_plans['weightInKg'] < 0, 'requestType'] = 'unloading'
+        _payload_plans.loc[_payload_plans['weightInKg'] >= 0, 'requestType'] = 'loading'
         _payload_plans['weightInKg'] = np.abs(_payload_plans['weightInKg'])
 
     # Clean up unnecessary columns
@@ -570,6 +572,158 @@ def snap_coordinates_when_too_far(_df: pd.DataFrame,
     return result_df, coordinate_lookup
 
 
+def update_operation_duration(payloads, tours, carriers, vehicle_types):
+    """
+    Update operation durations in the payloads DataFrame based on weight, operation type,
+    vehicle class, and delivery type extracted from tourId.
+
+    Parameters:
+    -----------
+    payloads : pandas.DataFrame
+        DataFrame containing payload information including:
+        - operationDurationInSec: current operation duration
+        - weightInKg: weight being handled
+        - requestType: Indicates the type of operation (loading or unloading)
+        - tourId: ID that links to the tours DataFrame and contains delivery type info (b2b/b2c)
+
+    tours : pandas.DataFrame
+        DataFrame containing tour information including:
+        - tourId: ID that links to the payloads DataFrame
+        - vehicleTypeId: ID that links to the vehicle_types DataFrame
+
+    vehicle_types : pandas.DataFrame
+        DataFrame containing vehicle type information including:
+        - vehicleTypeId: ID that links to the tours DataFrame
+        - vehicleCategory: Vehicle category information
+
+    Returns:
+    --------
+    pandas.DataFrame
+        Updated payloads DataFrame with new operationDurationInSec values
+    """
+    # Constants for base durations (in seconds)
+    base_duration = {
+        'CLASS_456_VOCATIONAL': 600,  # 10 minutes base for Class 4-6 vocational
+        'CLASS_78_VOCATIONAL': 720,  # 12 minutes base for Class 7-8 vocational
+        'CLASS_78_TRACTOR': 900  # 15 minutes base for Class 7-8 tractor
+    }
+
+    # Weight factor: additional seconds per kg
+    weight_factor = {
+        'CLASS_456_VOCATIONAL': 0.05,
+        'CLASS_78_VOCATIONAL': 0.04,
+        'CLASS_78_TRACTOR': 0.03
+    }
+
+    # Operation factor (loading vs unloading)
+    operation_factor = {
+        'loading': 1.2,  # Loading takes 20% longer
+        'unloading': 1.0  # Base rate for unloading
+    }
+
+    # Delivery type factor (B2B vs B2C)
+    delivery_type_factor = {
+        'B2B': 1.0,  # Base rate for business deliveries
+        'B2C': 1.2  # Consumer deliveries take 20% longer due to less efficient facilities
+    }
+
+    # Create a copy to avoid modifying the original DataFrame
+    updated_payloads = payloads.copy()
+
+    # Extract delivery type from tourId
+    def extract_delivery_type(tour_id):
+        tour_id_str = str(tour_id).lower()
+        if 'b2b' in tour_id_str:
+            return 'B2B'
+        elif 'b2c' in tour_id_str:
+            return 'B2C'
+        return 'B2B'  # Default to B2B if not specified
+
+    # Add delivery type column
+    updated_payloads['delivery_type'] = updated_payloads['tourId'].apply(extract_delivery_type)
+
+    # Merge tours with carriers and vehicle_types to get vehicle information
+    tours_with_vehicle = tours.merge(
+        carriers,
+        on='tourId',
+        how='left'
+    )
+
+    # Now merge with vehicle_types
+    tours_with_vehicle = tours_with_vehicle.merge(
+        vehicle_types,
+        on='vehicleTypeId',
+        how='left'
+    )
+
+    tours_with_vehicle = tours_with_vehicle.drop_duplicates(subset=['tourId', 'vehicleTypeId'], keep='first')
+
+    # Then, merge payloads with the combined tours/vehicle data to get vehicle info for each payload
+    payload_with_vehicle = updated_payloads.merge(
+        tours_with_vehicle[['tourId', 'vehicleCategory']],
+        on='tourId',
+        how='left'
+    )
+
+    # Map vehicleCategory to the expected format
+    def normalize_vehicle_category(category):
+        if pd.isna(category):
+            return 'CLASS_456_VOCATIONAL'  # Default
+
+        category = str(category).upper().replace(' ', '')
+        if 'CLASS456VOCATIONAL' in category:
+            return 'CLASS_456_VOCATIONAL'
+        elif 'CLASS78TRACTOR' in category:
+            return 'CLASS_78_TRACTOR'
+        elif 'CLASS78VOCATIONAL' in category:
+            return 'CLASS_78_VOCATIONAL'
+        return 'CLASS_456_VOCATIONAL'  # Default if not recognized
+
+    # Add normalized vehicle category column
+    payload_with_vehicle['vehicle_category'] = payload_with_vehicle['vehicleCategory'].apply(normalize_vehicle_category)
+
+    # Map requestType to operation type - fixing the "load" substring issue
+    def map_operation_type(request_type):
+        request_type_str = str(request_type).lower()
+        if request_type_str == 'loading':
+            return 'loading'
+        elif request_type_str == 'unloading':
+            return 'unloading'
+        else:
+            return 'loading'
+
+    # Add operation type column
+    payload_with_vehicle['operation_type'] = payload_with_vehicle['requestType'].apply(map_operation_type)
+
+    # Calculate updated durations
+    def calculate_duration(row):
+        weight = abs(row['weightInKg'])
+        category = row['vehicle_category']
+        operation_type = row['operation_type']
+        delivery_type = row['delivery_type']
+
+        # Calculate components of the formula
+        base = base_duration.get(category, 600)
+        weight_adjustment = weight * weight_factor.get(category, 0.05)
+        operation_multiplier = operation_factor.get(operation_type, 1.0)
+        delivery_multiplier = delivery_type_factor.get(delivery_type, 1.0)
+        variation_factor = random.uniform(0.9, 1.1)
+
+        # Apply the mathematical formula:
+        # OperationDuration = round(((Base + Weight*Factor) * OperationMultiplier * DeliveryMultiplier * Variation) / 60) * 60
+        new_duration = (base + weight_adjustment) * operation_multiplier * delivery_multiplier * variation_factor
+
+        # Round to nearest minute (60 seconds)
+        return round(new_duration / 60) * 60
+
+    # Apply the calculation to each row
+    payload_with_vehicle['operationDurationInSec'] = payload_with_vehicle.apply(calculate_duration, axis=1)
+
+    updated_columns = payloads.columns.tolist()
+    return payload_with_vehicle[updated_columns]
+
+
+
 #############################
 ## MAIN
 
@@ -747,50 +901,7 @@ if __name__ == '__main__':
         min_distance_from_edge=BUFFER_DISTANCE_METERS
     )
 
-    # Process payloads
-    print("Processing payload plans...")
     _coordinate_lookup = {}
-    # Add random_state for reproducibility
-    # sampled_df = _payload_plans.sample(n=1000, random_state=42).copy().reset_index(drop=True)
-    # sampled_df.to_csv(f'{DIRECTORY_OUTPUT}/payloads-sampled--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
-    # Then format and save
-    # Create shared coordinate lookup table
-    _payload_plans = format_payload(_payload_plans)
-    if SNAP_COORDINATES:
-        # Snap coordinates and save
-        _payload_plans, _coordinate_lookup = snap_coordinates_when_too_far(
-            _payload_plans,
-            _osm_edges_utm,
-            "locationX",
-            "locationY",
-            _coordinate_lookup
-        )
-    _payload_plans.to_csv(f'{DIRECTORY_SCENARIO}/payloads--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
-
-    if _ondemand_plans is not None:
-        print("Processing ondemand plans...")
-        _ondemand_plans = format_payload(_ondemand_plans)
-        if SNAP_COORDINATES:
-            # Snap coordinates and save, reusing the lookup table
-            _ondemand_plans, _coordinate_lookup = snap_coordinates_when_too_far(
-                _ondemand_plans,
-                _osm_edges_utm,
-                "locationX",
-                "locationY",
-                _coordinate_lookup
-            )
-        _ondemand_plans.to_csv(f'{DIRECTORY_SCENARIO}/ondemand--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
-
-        # Create combined plans file with both regular plans and ondemand plans
-        if _payload_plans is not None:
-            print("Creating combined plans file of payloads and crowdshipments...")
-            # Save the combined file
-            pd.concat([_payload_plans, _ondemand_plans], ignore_index=True).to_csv(
-                f'{DIRECTORY_SCENARIO}/payloads+crowdshipments--{YEAR}-{SCENARIO_LABEL}.csv', index=False
-            )
-
-    # selecting initial locations
-    first_payloads = _payload_plans[_payload_plans['sequenceRank'] == 0].copy()
 
     # carrierId,tourId,vehicleId,vehicleTypeId,warehouseZone,warehouseX,warehouseY,MESOZONE,BoundaryZONE
     carriers_renames = {
@@ -837,3 +948,46 @@ if __name__ == '__main__':
         )
     # Write
     _tours.to_csv(f'{DIRECTORY_SCENARIO}/tours--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
+
+    # Process payloads
+    print("Processing payload plans...")
+    # Add random_state for reproducibility
+    # sampled_df = _payload_plans.sample(n=1000, random_state=42).copy().reset_index(drop=True)
+    # sampled_df.to_csv(f'{DIRECTORY_OUTPUT}/payloads-sampled--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
+    # Then format and save
+    # Create shared coordinate lookup table
+    _payload_plans = format_payload(_payload_plans)
+    if SNAP_COORDINATES:
+        # Snap coordinates and save
+        _payload_plans, _coordinate_lookup = snap_coordinates_when_too_far(
+            _payload_plans,
+            _osm_edges_utm,
+            "locationX",
+            "locationY",
+            _coordinate_lookup
+        )
+    _payload_plans["operationDurationInSecOG"] = _payload_plans["operationDurationInSec"]
+    _payload_plans = update_operation_duration(_payload_plans, _tours, _carriers, _vehicle_types)
+    _payload_plans.to_csv(f'{DIRECTORY_SCENARIO}/payloads--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
+
+    if _ondemand_plans is not None:
+        print("Processing ondemand plans...")
+        _ondemand_plans = format_payload(_ondemand_plans)
+        if SNAP_COORDINATES:
+            # Snap coordinates and save, reusing the lookup table
+            _ondemand_plans, _coordinate_lookup = snap_coordinates_when_too_far(
+                _ondemand_plans,
+                _osm_edges_utm,
+                "locationX",
+                "locationY",
+                _coordinate_lookup
+            )
+        _ondemand_plans.to_csv(f'{DIRECTORY_SCENARIO}/ondemand--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
+
+        # Create combined plans file with both regular plans and ondemand plans
+        if _payload_plans is not None:
+            print("Creating combined plans file of payloads and crowdshipments...")
+            # Save the combined file
+            pd.concat([_payload_plans, _ondemand_plans], ignore_index=True).to_csv(
+                f'{DIRECTORY_SCENARIO}/payloads+crowdshipments--{YEAR}-{SCENARIO_LABEL}.csv', index=False
+            )

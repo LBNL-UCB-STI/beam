@@ -72,27 +72,13 @@ else:
 # ########## Network-level speed validation
 # #########################################
 if run_network_speed_validation:
-    hourly_speed = setup.get_hourly_average_speed(processed_link_stats)
-
-    # Calculate average speed for the whole network
-    average_network_speed = hourly_speed.groupby('scenario')['speed'].mean()
-    print("Average network speed:")
-    print(average_network_speed)
-
-    # Plot hourly network speed
-    plt.figure()
-    sns.lineplot(x='hour', y='speed', hue='scenario', data=hourly_speed, errorbar=('ci', 95))
-    plt.ylim([0, 70])
-    plt.title("Network-level Speed Validation")
-    plt.savefig(plots_dir + '/' + study_area + '_beam_npmrds_network_speed_validation.png', dpi=200)
-    plt.show(block=False)
-
     hourly_speed_by_road_class = setup.get_hourly_average_speed_by_road_class(processed_link_stats)
+    hourly_speed_by_road_class_no_npmrds = hourly_speed_by_road_class[~hourly_speed_by_road_class['scenario'].str.contains("npmrds", case=False, na=False)]
 
     # plot hourly network speed by road class
     plt.figure()
     g = sns.relplot(x='hour', y='speed', hue='road_class', col='scenario', kind="line",
-                    data=hourly_speed_by_road_class,
+                    data=hourly_speed_by_road_class_no_npmrds,
                     errorbar=('ci', 95), facet_kws={'sharey': True, 'sharex': True})
     g.set_titles("{col_name}")
     g.fig.suptitle('Network-level Speed Validation by Road Class', fontsize=16, y=0.98)
@@ -104,7 +90,7 @@ if run_network_speed_validation:
     plt.savefig(plots_dir + '/' + study_area + '_beam_npmrds_network_speed_road_class_validation.png', dpi=200)
     plt.show(block=False)
 
-    hourly_speed_by_road_class.to_csv(
+    hourly_speed_by_road_class_no_npmrds.to_csv(
         output_dir + '/' + study_area + '_beam_npmrds_network_speed_road_class_validation.csv', index=False)
 # ######################################
 # ########## Link-level speed validation
