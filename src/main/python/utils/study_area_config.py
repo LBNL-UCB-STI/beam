@@ -324,7 +324,13 @@ sfbay_area_config = {
     "fastsim_routee_files": fastsim_routee_files,
 
     "freight": {
-        "stops_data": "data/austin_cargo_operations.csv"
+        "stops_data": "data/austin_cargo_operations.csv",
+        "2018_Baseline" : {
+            "carriers_file": f"beam-ft/2024-11-06/2018_Baseline/carriers--2018-Baseline.csv",
+            "payloads_file": f"beam-ft/2024-11-06/2018_Baseline/payloads--2018-Baseline.csv",
+            "tours_file": f"beam-ft/2024-11-06/2018_Baseline/tours--2018-Baseline.csv",
+            "ft_vehicle_types_file": f"vehicle-tech/ft-vehicletypes--20241106--2018-Baseline.csv"
+        }
     },
 
     "emissions": {

@@ -1,12 +1,12 @@
 import multiprocessing as mp
 import os
-import sys
 import random
+import sys
 import warnings
-import math
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Tuple, List
+
 import geopandas as gpd
 import numpy as np
 import pandas as pd
@@ -14,6 +14,8 @@ from pandas import DataFrame
 from pyrosm import OSM
 from scipy.spatial import cKDTree
 from shapely.geometry import Point
+
+from estimate_stop_duration import update_operation_duration
 
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -28,7 +30,6 @@ sys.path.insert(0, parent_dir)
 from python.utils.study_area_config import get_area_config
 from python.utils.study_area_config import generate_network_name
 from python.utils.study_area_config import constants
-from python.utils.study_area_config import BeamClasses
 
 
 warnings.filterwarnings('ignore')
@@ -576,7 +577,6 @@ def snap_coordinates_when_too_far(_df: pd.DataFrame,
 
 
 
-
 #############################
 ## MAIN
 
@@ -820,7 +820,7 @@ if __name__ == '__main__':
             _coordinate_lookup
         )
     _payload_plans["operationDurationInSecOG"] = _payload_plans["operationDurationInSec"]
-    _payload_plans = update_operation_duration(_payload_plans, _tours, _carriers, _vehicle_types)
+    _payload_plans = update_operation_duration(STUDY_AREA_CONFIG, _payload_plans, _tours, _carriers, _vehicle_types)
     _payload_plans.to_csv(f'{DIRECTORY_SCENARIO}/payloads--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
 
     if _ondemand_plans is not None:

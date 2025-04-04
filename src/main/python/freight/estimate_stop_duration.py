@@ -1,9 +1,11 @@
+import math
 import os
 import sys
-import math
-import random
-import pandas as pd
+
 import numpy as np
+import pandas as pd
+import random
+from collections import defaultdict
 
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -16,13 +18,37 @@ sys.path.insert(0, parent_dir)
 
 # Now use absolute import
 from python.utils.study_area_config import BeamClasses
-
-operation_dict = {
-    'loading': 'Pick up Cargo',
-    'unloading': 'Delivery of Cargo'
-}
+from python.utils.study_area_config import get_area_config
 
 vehicle_classes = BeamClasses.get_medium_heavy_freight_classes()
+
+
+def sample_from_distribution(distribution_info):
+    """
+    Sample a value from a distribution based on its parameters.
+    """
+    if distribution_info['distribution'] == 'lognormal':
+        params = distribution_info['params']
+        bounds = distribution_info['bounds']
+
+        # Sample from lognormal distribution
+        try:
+            sample = float(np.random.lognormal(
+                float(params['mu']),
+                float(params['sigma'])
+            ))
+        except (ValueError, TypeError):
+            # Fallback if parameters are invalid
+            sample = float(distribution_info['mean'])
+
+        # Apply bounds
+        sample = max(float(bounds['min']), min(float(bounds['max']), sample))
+
+        # Round to nearest minute
+        return round(sample)
+    else:
+        # Default to mean if distribution type not recognized
+        return round(float(distribution_info['mean']))
 
 
 def get_base_duration(df, weight_dict):
@@ -55,7 +81,7 @@ def get_base_duration(df, weight_dict):
     # Find the minimum average duration for each vehicle class across all combinations
     min_durations = {}
     for vehicle_class in vehicle_classes:
-        class_data = grouped_data[grouped_data['vehicleClass'] == vehicle_class]
+        class_data = grouped_data[grouped_data['vehicleClass'] == vehicle_class].copy().reset_index()
 
         min_duration = class_data['mean'].min()
         min_durations[vehicle_class] = min_duration
@@ -77,7 +103,7 @@ def get_base_duration(df, weight_dict):
     return min_durations_in_sec
 
 
-def get_weight_factor(df, base_duration):
+def get_weight_factor(df, base_duration, operation_dict):
     """
     Calculate weight factor for each vehicle class based on the relationship between
     cargo weight and operation duration in the survey data.
@@ -89,9 +115,9 @@ def get_weight_factor(df, base_duration):
     weight_factors = {}
 
     for vehicle_class in vehicle_classes:
-        class_data = df_copy[df_copy['vehicleClass'] == vehicle_class]
-        loading_df = class_data[class_data['activityType'] == operation_dict["loading"]]
-        unloading_df = class_data[class_data['activityType'] == operation_dict["unloading"]]
+        class_data = df_copy[df_copy['vehicleClass'] == vehicle_class].copy()
+        loading_df = class_data[class_data['activityType'] == operation_dict["loading"]].copy()
+        unloading_df = class_data[class_data['activityType'] == operation_dict["unloading"]].copy()
 
         # Set effective weight for each activity type
         loading_df['effectiveWeight'] = loading_df['cargoWeightPU']
@@ -116,12 +142,12 @@ def get_weight_factor(df, base_duration):
 
     print("\nWeight factors:")
     for vehicle_class, factor in weight_factors.items():
-        print(f"{vehicle_class}: {factor:.6f} seconds per kg")
+        print(f"    {vehicle_class}: {factor:.6f} seconds per kg")
 
     return weight_factors
 
 
-def get_operation_factor(df):
+def get_operation_factor(df, operation_dict):
     """
     Calculate operation factor (loading vs unloading) for each vehicle class.
     """
@@ -152,12 +178,12 @@ def get_operation_factor(df):
 
     print("\nOperation factors:")
     for vehicle_class, factors in operation_factors.items():
-        print(f"{vehicle_class}: loading = {factors['loading']:.2f}, unloading = {factors['unloading']:.2f}")
+        print(f"    {vehicle_class}: loading = {factors['loading']:.2f}, unloading = {factors['unloading']:.2f}")
 
     return operation_factors
 
 
-def extract_weight_bins(df, num_bins=7):
+def extract_weight_bins(df, operation_dict, num_bins=7):
     """
     Extract weight bins from the data dynamically.
 
@@ -266,15 +292,33 @@ def calculate_lognormal_params(mean, std):
     return {'mu': mu, 'sigma': sigma}
 
 
-def build_operation_duration_model(weight_dict, base_durations,
+def build_operation_duration_model_from_austin_survey(survey_file_path, variability_exponent=0.7):
+    # Process the survey data to extract parameters
+    operation_dict, weight_dict, base_durations, weight_factors, operation_factors, variability_factors = \
+        process_austin_survey_data(survey_file_path)
+
+    # Create the model class
+    duration_model = OperationDurationModel(
+        operation_dict,
+        weight_dict,
+        base_durations,
+        weight_factors,
+        operation_factors,
+        variability_factors,
+        variability_exponent
+    )
+
+    return duration_model
+
+
+
+def build_operation_duration_model(operation_dict, weight_dict, base_durations,
                                    weight_factors, operation_factors, variability_factors,
                                    variability_exponent=0.7):
     """
     Build a nested model for operation durations from predefined factors.
 
     Args:
-        vehicle_classes: List of vehicle classes
-        operation_dict: Dictionary mapping activity types to standardized operation types
         weight_dict: Dictionary mapping weight ranges to bin labels
         base_durations: Dictionary mapping vehicle classes to base durations (in seconds)
         weight_factors: Dictionary mapping vehicle classes to weight factors (seconds per lb)
@@ -286,7 +330,10 @@ def build_operation_duration_model(weight_dict, base_durations,
         Nested model structure
     """
     # Build the nested model structure
-    model = {}
+    model = {
+        "weight_dict": weight_dict,
+        "sample_func": sample_operation_duration
+    }
 
     # First level: Vehicle Class
     for vehicle_class in vehicle_classes:
@@ -295,8 +342,8 @@ def build_operation_duration_model(weight_dict, base_durations,
         # Get the variability factor for this vehicle class
         variability = variability_factors[vehicle_class]
 
-        # Second level: Operation Type
-        for _, standard_op_type in operation_dict.values():
+        # Second level: Operation Type (fixed missing .items())
+        for operation_key, standard_op_type in operation_dict.items():
             model[vehicle_class][standard_op_type] = {}
 
             # Get operation factor for this combination
@@ -332,6 +379,7 @@ def build_operation_duration_model(weight_dict, base_durations,
                     'params': calculate_lognormal_params(mean_duration_min, std_duration_min),
                     'mean': mean_duration_min,
                     'std': std_duration_min,
+                    'count': 10,  # Add a default count for compatibility
                     'bounds': {
                         'min': max(1, mean_duration_min - 2.5 * std_duration_min),
                         'max': mean_duration_min + 3 * std_duration_min
@@ -341,90 +389,94 @@ def build_operation_duration_model(weight_dict, base_durations,
     return model
 
 
-def sample_operation_duration(model, weight_dict, vehicle_class, operation_type, weight_lbs, fallback_duration=30):
+def find_closest_bin(weight_lbs, weight_bins, available_bins):
+    # Find closest bin based on numeric weight value
+    closest_bin = available_bins[0]
+    closest_distance = float('inf')
+
+    for bin_name in available_bins:
+        # Find the bin that would contain this weight
+        for (lower, upper), label in weight_bins.items():
+            if label == bin_name:
+                # Calculate midpoint of this bin
+                if upper == float('inf'):
+                    midpoint = lower * 1.5  # Approximate midpoint for highest bin
+                else:
+                    midpoint = (lower + upper) / 2
+
+                # Check if this is closer to our target weight
+                distance = abs(midpoint - weight_lbs)
+                if distance < closest_distance:
+                    closest_distance = distance
+                    closest_bin = bin_name
+                break
+
+    return closest_bin
+
+
+def sample_operation_duration(model, vehicle_class, operation_type, weight_lbs, fallback_duration=30):
     """
     Sample an operation duration from the model based on vehicle class, operation type, and weight.
-
-    Args:
-        model: The nested model structure
-        weight_dict: Dictionary mapping weight ranges to bin labels
-        vehicle_class: The vehicle class (e.g., 'Class456Vocational')
-        operation_type: Either 'loading' or 'unloading'
-        weight_lbs: The weight in pounds (lbs)
-
-    Returns:
-        Duration in minutes
     """
+    # Handle empty model
+    if not model or vehicle_class not in model or operation_type not in model[vehicle_class]:
+        return fallback_duration
+
+    # Get weight dictionary
+    weight_dict = model.get("weight_dict", {})
+    if not weight_dict:
+        return fallback_duration
+
     # Determine weight bin
     weight_bin = get_weight_bin(weight_lbs, weight_dict)
 
-    # Handle missing weight bin
+    # If weight bin isn't found in the model for this combination, find closest bin
     if weight_bin not in model[vehicle_class][operation_type]:
-        print(f"Warning: Weight bin '{weight_bin}' not found for {vehicle_class}/{operation_type}, finding closest.")
-
-        # Find the closest weight bin that has data
         available_bins = list(model[vehicle_class][operation_type].keys())
-        bin_midpoints = {}
-        for bin_label in available_bins:
-            # Extract approximate midpoint from bin names
-            # This is an approximation that works with our naming convention
-            if '-' in bin_label:
-                parts = bin_label.replace('lb', '').replace('k', '000').split('-')
-                try:
-                    lower = float(parts[0])
-                    upper = float(parts[1])
-                    bin_midpoints[bin_label] = (lower + upper) / 2
-                except:
-                    bin_midpoints[bin_label] = 0
-            elif '+' in bin_label:
-                try:
-                    lower = float(bin_label.replace('+lb', '').replace('k', '000'))
-                    bin_midpoints[bin_label] = lower * 1.5  # Approximation for "+" bins
-                except:
-                    bin_midpoints[bin_label] = float('inf')
-
-        # Find bin with closest midpoint to our weight
-        closest_bin = min(available_bins, key=lambda x: abs(bin_midpoints.get(x, 0) - weight_lbs))
-        weight_bin = closest_bin
+        if not available_bins:
+            return fallback_duration
+        weight_bin = find_closest_bin(weight_lbs, weight_dict, available_bins)
 
     # Get the distribution for this combination
     distribution = model[vehicle_class][operation_type][weight_bin]
 
-    # Sample a duration
-    if distribution['count'] > 0:
-        # If we have multiple values, randomly sample from the actual distribution
-        if distribution['count'] > 1:
-            duration = random.choice(distribution['durations'])
-        else:
-            # Just one value, use it directly
-            duration = distribution['durations'][0]
-
-        # Add some random variation (±10%)
-        variation_factor = random.uniform(0.9, 1.1)
-        duration = duration * variation_factor
-
-        # Round to nearest minute
-        duration = round(duration)
-
-        return duration
-    else:
-        return fallback_duration
+    # Sample a duration using the distribution parameters
+    return sample_from_distribution(distribution)
 
 
-def process_austin_survey_data(survey_data):
+def process_austin_survey_data(survey_file_path):
+    """
+    Process the Austin survey data to extract parameters for the operation duration model.
+
+    Args:
+        survey_file_path: Path to the survey data file
+
+    Returns:
+        Tuple of (vehicle_classes, operation_dict, base_durations, weight_factors,
+               operation_factors, variability_factors, weight_dict)
+    """
+    print("Loading survey data from:", survey_file_path)
+
+    # Load the survey data
+    survey_data = pd.read_csv(survey_file_path)
+
     print("Extracting model parameters from survey data...")
     # Print summary of the survey data
     print(f"Found {len(survey_data)} valid records in survey data")
     print(f"Vehicle classes: {', '.join(survey_data['vehicleClass'].unique())}")
     print(f"Activity types: {', '.join(survey_data['activityType'].unique())}")
 
+    operation_dict = {
+        'loading': 'Pick up Cargo',
+        'unloading': 'Delivery of Cargo'
+    }
+
+    # Filter data for relevant activity types and vehicle classes
     survey_data2 = survey_data[survey_data['activityType'].isin(operation_dict.values())]
-    survey_data2 = survey_data2[survey_data2['vehicleClass'].isin(
-        BeamClasses.get_medium_heavy_freight_classes()
-    )].copy()
+    survey_data2 = survey_data2[survey_data2['vehicleClass'].isin(vehicle_classes)].copy()
 
     # Use the extract_weight_bins function to get data-driven weight bins
-    weight_dict = extract_weight_bins(survey_data2)
+    weight_dict = extract_weight_bins(survey_data2, operation_dict)
 
     # Print the extracted weight bins
     print("\nExtracted weight bins:")
@@ -438,13 +490,13 @@ def process_austin_survey_data(survey_data):
         print(f"  {vc}: {duration} seconds")
 
     # Extract weight factors
-    weight_factors = get_weight_factor(survey_data2, base_durations)
+    weight_factors = get_weight_factor(survey_data2, base_durations, operation_dict)
     print("\nExtracted weight factors (seconds per lb):")
     for vc, factor in weight_factors.items():
         print(f"  {vc}: {factor:.6f} seconds per lb")
 
     # Extract operation factors
-    operation_factors = get_operation_factor(survey_data2)
+    operation_factors = get_operation_factor(survey_data2, operation_dict)
     print("\nExtracted operation factors:")
     for vc, factors in operation_factors.items():
         print(f"  {vc}: loading={factors['loading']:.2f}, unloading={factors['unloading']:.2f}")
@@ -463,54 +515,25 @@ def process_austin_survey_data(survey_data):
     for vc, factor in variability_factors.items():
         print(f"  {vc}: {factor:.2f}")
 
-    return base_durations, weight_factors, operation_factors, variability_factors
+    return operation_dict, weight_dict, base_durations, weight_factors, operation_factors, variability_factors
 
 
-def update_operation_duration(study_area_config, payloads, tours, carriers, vehicle_types,
-                              variability_exponent=0.7, weight_dict=None, num_weight_bins=7):
+def update_operation_duration(study_area_config, payloads, tours, carriers, vehicle_types):
     """
     Update operation durations based on factors extracted from survey data.
-
-    Args:
-        austin_survey: Survey data with operation durations
-        payloads: Payload data to update
-        tours: Tour data
-        carriers: Carrier data
-        vehicle_types: Vehicle type data
-        variability_exponent: Exponent for the utility-based variability model
-        weight_dict: Optional predefined weight bins dictionary
-        num_weight_bins: Number of weight bins to create if weight_dict is not provided
-
-    Returns:
-        Updated payload dataframe with operation durations
     """
-    vehicle_classes, operation_dict, base_durations, weight_factors, operation_factors, variability_factors \
-        = process_austin_survey_data(
-        os.path.join(study_area_config["work_dir"], study_area_config["freight"]["stops_data"])
-    )
+    survey_file_path = os.path.join(study_area_config["work_dir"],
+                                    study_area_config["freight"]["stops_data"])
 
-    # Build the model from factors
-    duration_model = build_operation_duration_model(
-        vehicle_classes,
-        operation_dict,
-        weight_dict,
-        base_durations,
-        weight_factors,
-        operation_factors,
-        variability_factors,
-        variability_exponent
-    )
+    # Create and load the model
+    duration_model = SimpleStopDurationModel()
+    duration_model.load_survey_data(survey_file_path)
 
-    # Print model statistics
-    print("Operation Duration Model Summary:")
-    for vehicle_class in duration_model:
-        print(f"\nVehicle Class: {vehicle_class}")
-        for op_type in duration_model[vehicle_class]:
-            print(f"  Operation Type: {op_type}")
-            for weight_bin in duration_model[vehicle_class][op_type]:
-                stats = duration_model[vehicle_class][op_type][weight_bin]
-                print(
-                    f"    {weight_bin}: {stats['count']} records, mean={stats['mean']:.1f}min, std={stats['std']:.1f}min")
+    # # Build the model from Austin survey data
+    # duration_model = build_operation_duration_model_from_austin_survey(survey_file_path)
+
+    # Print model summary
+    duration_model.print_summary()
 
     # Create a copy to avoid modifying the original DataFrame
     updated_payloads = payloads.copy()
@@ -538,23 +561,15 @@ def update_operation_duration(study_area_config, payloads, tours, carriers, vehi
         how='left'
     )
 
-    # Map requestType to operation_type
-    operation_type_map = {
-        'loading': 'loading',
-        'unloading': 'unloading',
-        # Add more mappings if needed
-    }
-
     # Calculate updated durations
     def calculate_duration(row):
-        # The weight is in lbs, so we use it directly
-        weight_lbs = abs(row['weightInKg'])  # Assuming weightInKg is actually in lbs despite the column name
-        category = row['vehicleCategory']
-        operation_type = operation_type_map.get(row['requestType'], 'loading')
-
         # Sample from the model
-        duration_min = sample_operation_duration(duration_model, category, operation_type, weight_lbs)
-
+        duration_min = duration_model.sample_duration(
+            row['vehicleCategory'],
+            row['requestType'],
+            row['weightInKg'] * 2.20462,  # Convert kg to lbs
+            randomize_factor=0
+        )
         # Convert to seconds
         return duration_min * 60
 
@@ -563,3 +578,340 @@ def update_operation_duration(study_area_config, payloads, tours, carriers, vehi
 
     updated_columns = payloads.columns.tolist()
     return payload_with_vehicle[updated_columns]
+
+
+class OperationDurationModel:
+    def __init__(self, operation_dict, weight_dict, base_durations, weight_factors, operation_factors,
+                 variability_factors, variability_exponent=0.7):
+        """
+        Initialize the operation duration model.
+
+        Args:
+            operation_dict: Dictionary mapping operation keys to operation types
+            weight_dict: Dictionary mapping weight ranges to bin labels
+            base_durations: Dictionary mapping vehicle classes to base durations (in seconds)
+            weight_factors: Dictionary mapping vehicle classes to weight factors (seconds per lb)
+            operation_factors: Nested dictionary mapping vehicle classes and operation types to factors
+            variability_factors: Dictionary mapping vehicle classes to variability factors
+            variability_exponent: Exponent for the utility-based variability model (default: 0.7)
+        """
+        self.operation_dict = operation_dict
+        self.weight_bins = weight_dict
+        self.base_durations = base_durations
+        self.weight_factors = weight_factors
+        self.operation_factors = operation_factors
+        self.variability_factors = variability_factors
+        self.variability_exponent = variability_exponent
+
+        # Build the model structure
+        self.model = self._build_model()
+
+    def _build_model(self):
+        """Build the nested model structure from the provided factors."""
+        model = {}
+
+        # First level: Vehicle Class
+        for vehicle_class in vehicle_classes:
+            model[vehicle_class] = {}
+
+            # Get the variability factor for this vehicle class
+            variability = self.variability_factors[vehicle_class]
+
+            # Second level: Operation Type
+            for operation_key, standard_op_type in self.operation_dict.items():
+                model[vehicle_class][operation_key] = {}
+
+                # Get operation factor for this combination
+                op_factor = self.operation_factors[vehicle_class][operation_key]
+
+                # Third level: Weight Bins
+                for (lower_bound, upper_bound), bin_label in self.weight_bins.items():
+                    # Calculate the midpoint of the weight bin for reference
+                    if upper_bound == float('inf'):
+                        midpoint = lower_bound * 1.5
+                    else:
+                        midpoint = (lower_bound + upper_bound) / 2
+
+                    # Get the base duration for this vehicle class (in seconds)
+                    base = self.base_durations[vehicle_class]
+
+                    # Get the weight factor for this vehicle class (seconds per lb)
+                    weight_factor = self.weight_factors[vehicle_class]
+
+                    # Calculate mean duration using the formula
+                    mean_duration_sec = (base + midpoint * weight_factor) * op_factor
+
+                    # Convert to minutes
+                    mean_duration_min = mean_duration_sec / 60
+
+                    # Utility approach: variability is a non-linear function of duration
+                    std_duration_min = variability * mean_duration_min ** self.variability_exponent
+
+                    # Create the distribution parameters
+                    model[vehicle_class][operation_key][bin_label] = {
+                        'distribution': 'lognormal',
+                        'params': calculate_lognormal_params(mean_duration_min, std_duration_min),
+                        'mean': mean_duration_min,
+                        'std': std_duration_min,
+                        'count': 10,
+                        'bounds': {
+                            'min': max(1, mean_duration_min - 2.5 * std_duration_min),
+                            'max': mean_duration_min + 3 * std_duration_min
+                        }
+                    }
+
+        return model
+
+
+    def sample_operation_duration(self, vehicle_class, operation_type, weight_lbs, fallback_duration=30):
+        """
+        Sample an operation duration from the model based on vehicle class, operation type, and weight.
+
+        Args:
+            vehicle_class: The vehicle class (e.g., 'Class456Vocational')
+            operation_type: Either 'loading' or 'unloading'
+            weight_lbs: The weight in pounds (lbs)
+            fallback_duration: Default duration if sampling fails
+
+        Returns:
+            Duration in minutes
+        """
+        # Handle empty model
+        if not self.model or vehicle_class not in self.model or operation_type not in self.model[vehicle_class]:
+            return fallback_duration
+
+        # Determine weight bin
+        weight_bin = get_weight_bin(weight_lbs, self.weight_bins)
+
+        # If weight bin isn't found in the model for this combination, find closest bin
+        if weight_bin not in self.model[vehicle_class][operation_type]:
+            available_bins = list(self.model[vehicle_class][operation_type].keys())
+            if not available_bins:
+                return fallback_duration
+            weight_bin = find_closest_bin(weight_lbs, self.weight_bins, available_bins)
+
+
+        # Get the distribution for this combination
+        distribution = self.model[vehicle_class][operation_type][weight_bin]
+
+        # Sample a duration using the distribution parameters
+        return sample_from_distribution(distribution)
+
+    def print_summary(self):
+        """Print a summary of the model statistics."""
+        print("Operation Duration Model Summary:")
+        for vehicle_class in self.model:
+            print(f"\nVehicle Class: {vehicle_class}")
+            for op_type in self.model[vehicle_class]:
+                print(f"  Operation Type: {op_type}")
+                for weight_bin in self.model[vehicle_class][op_type]:
+                    stats = self.model[vehicle_class][op_type][weight_bin]
+                    print(f"    {weight_bin}: mean={stats['mean']:.1f}min, std={stats['std']:.1f}min")
+
+
+class SimpleStopDurationModel:
+    """
+    A simplified decision tree model for stop durations based on:
+    - Vehicle class
+    - Operation type (loading/unloading)
+    - Weight bins
+
+    The model samples actual durations from the survey data and adds randomness.
+    """
+
+    def __init__(self):
+        """Initialize the model with empty structure."""
+        # Main structure to hold the decision tree
+        self.duration_tree = defaultdict(
+            lambda: defaultdict(
+                lambda: defaultdict(list)
+            )
+        )
+
+        # Weight bins dictionary
+        self.weight_bins = {}
+
+        # Operation type mapping
+        self.operation_dict = {
+            'loading': 'Pick up Cargo',
+            'unloading': 'Delivery of Cargo'
+        }
+
+        # For reporting statistics
+        self.stats = {}
+
+    def load_survey_data(self, survey_file_path):
+        """
+        Load the Austin survey data and organize it into the decision tree.
+
+        Args:
+            survey_file_path: Path to the survey data CSV file
+        """
+        print(f"Loading survey data from: {survey_file_path}")
+
+        # Load the survey data
+        survey_data = pd.read_csv(survey_file_path)
+
+        # Print summary of the survey data
+        print(f"Found {len(survey_data)} records in survey data")
+        print(f"Vehicle classes: {', '.join(survey_data['vehicleClass'].unique())}")
+        print(f"Activity types: {', '.join(survey_data['activityType'].unique())}")
+
+        # Filter data for relevant activity types and vehicle classes
+        filtered_data = survey_data[
+            survey_data['activityType'].isin(self.operation_dict.values()) &
+            survey_data['vehicleClass'].isin(vehicle_classes)
+            ].copy()
+
+        print(f"Filtered to {len(filtered_data)} relevant records")
+
+        self.weight_bins = extract_weight_bins(filtered_data, self.operation_dict)
+
+        # Build the decision tree from the filtered data
+        self._build_decision_tree(filtered_data)
+
+        # Calculate statistics for reporting
+        self._calculate_statistics()
+
+        return self
+
+    def _build_decision_tree(self, data):
+        """
+        Build the decision tree from the filtered data.
+
+        Args:
+            data: Filtered DataFrame with survey data
+        """
+        # Process each row in the data
+        for _, row in data.iterrows():
+            # Get the vehicle class
+            vehicle_class = row['vehicleClass']
+
+            # Get the operation type
+            activity = row['activityType']
+            operation_type = 'loading' if activity == self.operation_dict['loading'] else 'unloading'
+
+            # Get the weight and determine its bin
+            weight = row['cargoWeightPU'] if operation_type == 'loading' else row['cargoWeightDO']
+
+            weight_bin = get_weight_bin(weight, self.weight_bins)
+
+            # Get the duration
+            duration = row['operationDurationInMin']
+
+            # Add the duration to the appropriate leaf in the tree
+            self.duration_tree[vehicle_class][operation_type][weight_bin].append(duration)
+
+    def _calculate_statistics(self):
+        """Calculate and store statistics for each leaf in the tree."""
+        for vehicle_class in self.duration_tree:
+            self.stats[vehicle_class] = {}
+
+            for operation_type in self.duration_tree[vehicle_class]:
+                self.stats[vehicle_class][operation_type] = {}
+
+                for weight_bin in self.duration_tree[vehicle_class][operation_type]:
+                    durations = self.duration_tree[vehicle_class][operation_type][weight_bin]
+
+                    if durations:
+                        self.stats[vehicle_class][operation_type][weight_bin] = {
+                            'count': len(durations),
+                            'min': min(durations),
+                            'max': max(durations),
+                            'mean': sum(durations) / len(durations),
+                            'median': sorted(durations)[len(durations) // 2],
+                            'std': np.std(durations) if len(durations) > 1 else 0
+                        }
+                    else:
+                        # Empty leaf
+                        self.stats[vehicle_class][operation_type][weight_bin] = {
+                            'count': 0,
+                            'min': 0,
+                            'max': 0,
+                            'mean': 0,
+                            'median': 0,
+                            'std': 0
+                        }
+
+
+    def sample_duration(self, vehicle_class, operation_type, weight_lbs, randomize_factor=1.0, fallback_duration=30):
+        """
+        Sample a duration for the given vehicle class, operation type, and weight.
+
+        Args:
+            vehicle_class: The vehicle class
+            operation_type: The operation type (loading/unloading)
+            weight_lbs: The weight in pounds
+            randomize_factor: Whether to add randomness to the sampled duration
+
+        Returns:
+            The sampled duration in minutes
+        """
+        # Get the weight bin
+        weight_bin = get_weight_bin(weight_lbs, self.weight_bins)
+
+        # If the bin has no data, find the closest bin with data
+        if weight_bin not in self.duration_tree[vehicle_class][operation_type] or not \
+        self.duration_tree[vehicle_class][operation_type][weight_bin]:
+            available_bins = list(self.duration_tree[vehicle_class][operation_type].keys())
+            if not available_bins:
+                return fallback_duration
+            weight_bin = find_closest_bin(weight_lbs, self.weight_bins, available_bins)
+
+        # Get the durations for this leaf
+        durations = self.duration_tree[vehicle_class][operation_type][weight_bin]
+
+        # Sample a random duration from the available ones
+        duration = random.choice(durations)
+
+        # Add randomness based on the randomize_factor
+        if randomize_factor > 0:
+            # Calculate standard deviation of durations in this bin
+            std = np.std(durations) if len(durations) > 1 else duration * 0.2
+
+            # Scale the standard deviation by the randomize_factor
+            scaled_std = std * randomize_factor * 0.5
+
+            # Add Gaussian noise, but ensure the duration remains positive
+            randomized_duration = max(1, duration + random.gauss(0, scaled_std))
+            return randomized_duration
+        else:
+            return duration
+
+    def print_summary(self):
+        """Print a summary of the model statistics."""
+        print("\nSimple Stop Duration Model Summary:")
+
+        for vehicle_class in sorted(self.stats.keys()):
+            print(f"\nVehicle Class: {vehicle_class}")
+
+            for operation_type in sorted(self.stats[vehicle_class].keys()):
+                print(f"  Operation Type: {operation_type}")
+
+                for weight_bin in sorted(self.stats[vehicle_class][operation_type].keys(),
+                                         key=lambda x: next(
+                                             (lower for (lower, upper), label in self.weight_bins.items() if
+                                              label == x), 0)):
+                    stats = self.stats[vehicle_class][operation_type][weight_bin]
+                    print(f"    {weight_bin}: "
+                          f"n={stats['count']}, "
+                          f"mean={stats['mean']:.1f}min, "
+                          f"std={stats['std']:.1f}min, "
+                          f"range=[{stats['min']:.1f}-{stats['max']:.1f}]")
+
+
+if __name__ == '__main__':
+    STUDY_AREA_CONFIG = get_area_config("sfbay")
+    work_dir = STUDY_AREA_CONFIG["work_dir"]
+    scenario_config = STUDY_AREA_CONFIG["freight"]["2018_Baseline"]
+
+    _payload_plans = pd.read_csv(str(os.path.join(work_dir, scenario_config["payloads_file"])))
+    _tours = pd.read_csv(str(os.path.join(work_dir, scenario_config["tours_file"])))
+    _carriers = pd.read_csv(str(os.path.join(work_dir, scenario_config["carriers_file"])))
+    _vehicle_types = pd.read_csv(str(os.path.join(work_dir, scenario_config["ft_vehicle_types_file"])))
+
+    _payload_plans["operationDurationInSecOG"] = _payload_plans["operationDurationInSec"]
+    _payload_plans = update_operation_duration(STUDY_AREA_CONFIG, _payload_plans, _tours, _carriers, _vehicle_types)
+    _payload_plans.to_csv("outputs/payloads_test.csv", index=False)
+
+

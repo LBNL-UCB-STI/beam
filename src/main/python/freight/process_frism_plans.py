@@ -8,18 +8,42 @@ import seaborn as sns
 
 
 # Load the CSV file
-def generate_duration_histogram(durations, bins=50):
-    # Convert seconds to minutes
-    durations_minutes = durations / 60
+import matplotlib.pyplot as plt
 
+def generate_duration_histogram(durations_minutes, label, output_file, bins=50, log_scale=False):
+    """
+    Generate a histogram of operation durations.
+
+    Parameters:
+    -----------
+    durations_minutes : pandas.Series
+        Series containing operation durations in minutes
+    label : str
+        Label for the histogram title
+    output_file : str
+        Path to save the output histogram
+    bins : int, optional
+        Number of bins for the histogram (default is 50)
+    log_scale : bool, optional
+        Whether to use logarithmic scale for the x-axis (default is False)
+
+    Returns:
+    --------
+    dict
+        Dictionary containing basic statistics of the durations
+    """
     # Create a figure
     plt.figure(figsize=(12, 6))
 
     # Generate histogram
     plt.hist(durations_minutes, bins=bins, alpha=0.75, color='steelblue', edgecolor='black')
 
+    # Set logarithmic scale if specified
+    if log_scale:
+        plt.xscale('log')
+
     # Add title and labels
-    plt.title('Distribution of Operation Durations', fontsize=14)
+    plt.title(f'Distribution of {label}', fontsize=14)
     plt.xlabel('Operation Duration (minutes)', fontsize=12)
     plt.ylabel('Frequency', fontsize=12)
 
@@ -38,10 +62,10 @@ def generate_duration_histogram(durations, bins=50):
 
     # Show the plot
     plt.tight_layout()
-    plt.savefig('operation_duration_histogram_minutes.png')
+    plt.savefig(output_file)
     plt.show()
 
-    print(f"Histogram saved as 'operation_duration_histogram_minutes.png'")
+    print(f"Histogram saved as {output_file}")
 
     # Return basic statistics
     return {
@@ -51,6 +75,91 @@ def generate_duration_histogram(durations, bins=50):
         'max': durations_minutes.max()
     }
 
+def plot_duration_comparison(df, duration_col1, duration_col2, group_col=None, output_file='duration_comparison.png'):
+    """
+    Create a scatter plot comparing two sets of durations,
+    with optional grouping by a categorical variable.
+
+    Parameters:
+    -----------
+    df : pandas.DataFrame
+        The DataFrame containing the data
+    duration_col1 : str
+        Column name for the first duration in minutes
+    duration_col2 : str
+        Column name for the second duration in minutes
+    group_col : str, optional
+        Column name for grouping variable (categorical)
+    output_file : str
+        Path to save the output plot
+
+    Returns:
+    --------
+    dict
+        Dictionary containing correlation statistics
+    """
+    # Ensure clean data by removing NaN values
+    plot_df = df.dropna(subset=[duration_col1, duration_col2]).copy()
+
+    if plot_df.empty:
+        print(f"No valid data points found with non-null values in both {duration_col1} and {duration_col2}")
+        return None
+
+    durations1 = plot_df[duration_col1]
+    durations2 = plot_df[duration_col2]
+
+    # Create a figure
+    plt.figure(figsize=(12, 8))
+
+    if group_col is not None and group_col in plot_df.columns:
+        # Create a grouped scatter plot with different colors
+        groups = plot_df[group_col].unique()
+
+        # Create a colormap with distinct colors
+        colors = plt.cm.tab10(np.linspace(0, 1, len(groups)))
+
+        # Plot each group separately
+        for i, group in enumerate(groups):
+            group_data = plot_df[plot_df[group_col] == group]
+            plt.scatter(group_data[duration_col1], group_data[duration_col2],
+                        alpha=0.6, color=colors[i], edgecolor='none',
+                        label=f'{group}')
+
+            # Calculate correlation for this group if enough data points
+            if len(group_data) > 2:
+                group_corr, _ = stats.pearsonr(group_data[duration_col1], group_data[duration_col2])
+
+                # Calculate and plot best fit line for this group
+                group_slope, group_intercept = np.polyfit(group_data[duration_col1], group_data[duration_col2], 1)
+                x_line = np.array([group_data[duration_col1].min(), group_data[duration_col1].max()])
+                y_line = group_slope * x_line + group_intercept
+                plt.plot(x_line, y_line, color=colors[i], linewidth=2,
+                         linestyle='--')
+
+                # Add correlation text near the group in the plot
+                plt.annotate(f'r = {group_corr:.2f}',
+                             xy=(group_data[duration_col1].median(), group_data[duration_col2].median()),
+                             xytext=(10, 0), textcoords='offset points',
+                             fontsize=9, color=colors[i])
+
+        plt.title(f'Comparison of Two Durations by {group_col}', fontsize=14)
+    else:
+        # Generate simple scatter plot if no grouping
+        plt.scatter(durations1, durations2, alpha=0.5, color='steelblue', edgecolor='none')
+        plt.title('Comparison of Two Durations', fontsize=14)
+
+    # Add labels and grid
+    plt.xlabel(f'{duration_col1} (minutes)', fontsize=12)
+    plt.ylabel(f'{duration_col2} (minutes)', fontsize=12)
+    plt.grid(linestyle='--', alpha=0.7)
+
+    # Save the plot to a file
+    plt.savefig(output_file)
+    plt.close()
+
+    # Return correlation statistics
+    overall_corr, _ = stats.pearsonr(durations1, durations2)
+    return {'correlation': overall_corr}
 
 def plot_duration_vs_weight(df, duration_col, weight_col, group_col=None, output_file='duration_vs_weight.png'):
     """
@@ -944,6 +1053,51 @@ def analyze_cargo_operations(df, output_dir):
 
 
 def main():
+    payloads = pd.read_csv("outputs/payloads_test.csv")
+    payloads['operationDurationInMin'] = payloads['operationDurationInSec'] / 60
+    payloads['operationDurationInMinOG'] = payloads['operationDurationInSecOG'] / 60
+    payloads['weightInLbs'] = payloads['weightInKg'] * 2.20462
+
+    generate_duration_histogram(
+        payloads["operationDurationInMin"],
+        label="Model Durations",
+        output_file='outputs/model_duration_histogram.png',
+        log_scale=False
+    )
+
+    generate_duration_histogram(
+        payloads["operationDurationInMinOG"],
+        label="FRISM Durations",
+        output_file='outputs/frism_duration_histogram.png',
+        log_scale=False
+    )
+
+    plot_duration_comparison(
+        payloads,
+        duration_col1='operationDurationInMin',
+        duration_col2='operationDurationInMinOG',
+        group_col='requestType',
+        output_file='outputs/mode_duration_vs_frism_duration_by_pudo.png'
+    )
+
+    plot_duration_vs_weight(
+        payloads[payloads["requestType"] == "loading"],
+        duration_col='operationDurationInMin',
+        weight_col='weightInLbs',
+        group_col=None,
+        output_file='outputs/duration_vs_weight_pu.png'
+    )
+
+    plot_duration_vs_weight(
+        payloads[payloads["requestType"] == "unloading"],
+        duration_col='operationDurationInMin',
+        weight_col='weightInLbs',
+        group_col=None,
+        output_file='outputs/duration_vs_weight_do.png'
+    )
+
+
+def main2():
     """
     Main function to run the analysis
     """
