@@ -155,7 +155,9 @@ class BeamScoringFunctionFactory @Inject() (
             activity
           }
           .filter(activity => !activity.getType.equalsIgnoreCase("Home") & !activity.getType.equalsIgnoreCase("Work"))
-        val activityScore = personActivities.foldLeft(0.0)(_ + getActivityBenefit(_, attributes))
+        val activityScore = if (beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.score_activities) {
+          personActivities.foldLeft(0.0)(_ + getActivityBenefit(_, attributes))
+        } else { 0.0 }
         val replanningScore = -replanningEventCount.toFloat * beamConfig.beam.replanning.replanningPenaltyInDollars
 
         finalScore = allDayScore + leavingParkingEventScore + activityScore + replanningScore
