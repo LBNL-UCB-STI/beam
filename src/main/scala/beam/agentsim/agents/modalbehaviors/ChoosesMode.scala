@@ -94,6 +94,22 @@ trait ChoosesMode {
     }
     .toIndexedSeq
 
+  private val rideHailModeToFleets: Map[ActivitySimPathType, List[String]] =
+    this.beamServices.beamConfig.beam.agentsim.agents.rideHail.managers
+      .flatMap(manager =>
+        manager.supportedModes
+          .split(',')
+          .map(_.trim.toLowerCase)
+          .flatMap(BeamMode.fromString)
+          .filter(_.isRideHail)
+          .flatMap(supportedBeamMode =>
+            determineActivitySimPathTypesFromBeamMode(Some(supportedBeamMode), None)
+              .map(_ -> manager.name)
+          )
+      )
+      .groupBy(_._1)
+      .map { case (mode, fleets) => mode -> fleets.map(_._2) }
+
   private def createDummyVehicle(id: String, vehicleTypeId: String, mode: BeamMode, asDriver: Boolean) =
     StreetVehicle(
       Id.create(id, classOf[BeamVehicle]),
@@ -1542,12 +1558,12 @@ trait ChoosesMode {
                 val nextActLoc = nextActivity(choosesModeData.personData).get.getCoord
                 val currentAct = currentActivity(personData)
                 val odFailedSkimmerEvent = createFailedODSkimmerEvent(currentAct, nextAct, mode)
-                val possibleActivitySimModes =
-                  determineActivitySimPathTypesFromBeamMode(choosesModeData.personData.currentTripMode, currentAct)
                 eventsManager.processEvent(
                   odFailedSkimmerEvent
                 )
                 if (beamServices.beamConfig.beam.exchange.output.activity_sim_skimmer.exists(_.primary.enabled)) {
+                  val possibleActivitySimModes =
+                    determineActivitySimPathTypesFromBeamMode(choosesModeData.personData.currentTripMode, Some(currentAct))
                   createFailedActivitySimSkimmerEvent(currentAct, nextAct, possibleActivitySimModes).foreach(ev =>
                     eventsManager.processEvent(ev)
                   )
@@ -1859,15 +1875,33 @@ trait ChoosesMode {
     modes: Seq[ActivitySimPathType]
   ): Seq[ActivitySimSkimmerFailedTripEvent] = {
     val (origin, destination) = getOriginAndDestinationFromGeoMap(currentAct, Some(nextAct))
-    modes.map { pathType =>
-      ActivitySimSkimmerFailedTripEvent(
-        origin = origin,
-        destination = destination,
-        eventTime = _currentTick.get,
-        activitySimPathType = pathType,
-        iterationNumber = beamServices.matsimServices.getIterationNumber,
-        skimName = beamServices.beamConfig.beam.router.skim.activity_sim_skimmer.name
-      )
+    modes.flatMap { pathType =>
+      rideHailModeToFleets.get(pathType) match {
+        case Some(fleets) =>
+          fleets.map(fleet =>
+            ActivitySimSkimmerFailedTripEvent(
+              origin = failedODSkimmerEvent.origin,
+              destination = failedODSkimmerEvent.destination,
+              eventTime = _currentTick.get,
+              activitySimPathType = pathType,
+              fleet = Some(fleet),
+              iterationNumber = beamServices.matsimServices.getIterationNumber,
+              skimName = beamServices.beamConfig.beam.router.skim.activity_sim_skimmer.name
+            )
+          )
+        case _ =>
+          Seq(
+            ActivitySimSkimmerFailedTripEvent(
+              origin = origin,
+              destination = destination,
+              eventTime = _currentTick.get,
+              activitySimPathType = pathType,
+              fleet = None,
+              iterationNumber = beamServices.matsimServices.getIterationNumber,
+              skimName = beamServices.beamConfig.beam.router.skim.activity_sim_skimmer.name
+            )
+          )
+      }
     }
   }
 

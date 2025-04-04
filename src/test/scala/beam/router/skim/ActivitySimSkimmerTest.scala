@@ -12,6 +12,7 @@ class ActivitySimSkimmerTest extends AnyFlatSpec with Matchers {
     ExcerptData(
       timePeriodString = ActivitySimTimeBin.MIDDAY.toString,
       pathType = ActivitySimPathType.WALK,
+      fleetName = "",
       originId = "origin-1",
       destinationId = "destination-1",
       weightedTotalTime = 1.0,
@@ -33,7 +34,7 @@ class ActivitySimSkimmerTest extends AnyFlatSpec with Matchers {
       completedTrips = 1,
       debugText = "debug-text"
     ).toCsvString should be(
-      "MD,WALK,origin-1,destination-1,1.0,2.0,3.0,4.0,5.0,6.0,7.0,1.0,2.0,8.0,9.0,10.0,11.0,12.0,13.0,0,1,debug-text\n"
+      "MD,WALK,,origin-1,destination-1,1.0,2.0,3.0,4.0,5.0,6.0,7.0,1.0,2.0,8.0,9.0,10.0,11.0,12.0,13.0,0,1,debug-text\n"
     )
   }
 }
