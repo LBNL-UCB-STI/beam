@@ -110,7 +110,7 @@ object ActivitySimPathType {
       }
     } else if (uniqueNotWalkingModes.exists(isTransit)) {
       if (uniqueNotWalkingModes.contains(BeamMode.BIKE)) { (determineBikeTransitPathType(trip), None) }
-      else {( determineWalkTransitPathType(trip) , None)}
+      else { (determineWalkTransitPathType(trip), None) }
     } else if (
       allModes.contains(BeamMode.BIKE) && allModes.forall(m => List(BeamMode.BIKE, BeamMode.WALK).contains(m))
     ) {
