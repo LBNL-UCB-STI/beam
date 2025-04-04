@@ -160,7 +160,7 @@ class RideHailMaster(
       else
         responsesInRandomOrder.filter(_.travelProposal.isDefined)
     if (availableProposals.isEmpty) {
-      logger.warn(f"Can't find a driver because no available proposals for request ${request.toString}")
+      logger.debug(f"Can't find a driver because no available proposals for request ${request.toString}")
       RideHailResponse.dummyWithError(DriverNotFoundError, request)
     } else
       bestResponseType match {

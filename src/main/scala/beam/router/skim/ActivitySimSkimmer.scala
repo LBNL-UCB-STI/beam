@@ -295,7 +295,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
 
     val transformData: Map[ActivitySimKey, Iterable[ActivitySimSkimmerInternal]] => Iterable[ExcerptData] = { data =>
       data.map { case (key, skimMap) =>
-        weightedData(key.timeBin.entryName, key.origin, key.destination, key.pathType, skimMap.toList)
+        weightedData(key.timeBin.entryName, key.origin, key.destination, key.pathType, key.fleet, skimMap.toList)
       }
     }
 

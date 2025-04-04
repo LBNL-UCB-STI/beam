@@ -1563,7 +1563,10 @@ trait ChoosesMode {
                 )
                 if (beamServices.beamConfig.beam.exchange.output.activity_sim_skimmer.exists(_.primary.enabled)) {
                   val possibleActivitySimModes =
-                    determineActivitySimPathTypesFromBeamMode(choosesModeData.personData.currentTripMode, Some(currentAct))
+                    determineActivitySimPathTypesFromBeamMode(
+                      choosesModeData.personData.currentTripMode,
+                      Some(currentAct)
+                    )
                   createFailedActivitySimSkimmerEvent(currentAct, nextAct, possibleActivitySimModes).foreach(ev =>
                     eventsManager.processEvent(ev)
                   )
@@ -1880,8 +1883,8 @@ trait ChoosesMode {
         case Some(fleets) =>
           fleets.map(fleet =>
             ActivitySimSkimmerFailedTripEvent(
-              origin = failedODSkimmerEvent.origin,
-              destination = failedODSkimmerEvent.destination,
+              origin = origin,
+              destination = destination,
               eventTime = _currentTick.get,
               activitySimPathType = pathType,
               fleet = Some(fleet),
