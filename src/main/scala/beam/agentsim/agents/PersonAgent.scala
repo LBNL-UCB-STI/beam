@@ -663,7 +663,8 @@ class PersonAgent(
             // use the mode of the next leg as the new trip mode.
             currentTripMode = modeOfNextLeg,
             currentTourMode = currentTourModeChoiceStrategy.tourMode,
-            currentTourPersonalVehicle = currentTourModeChoiceStrategy.tourVehicle,
+            currentTourPersonalVehicle =
+              currentTourModeChoiceStrategy.tourVehicle.orElse(data.currentTourPersonalVehicle),
             numberOfReplanningAttempts = 0,
             failedTrips = IndexedSeq.empty,
             enrouteData = EnrouteData()
@@ -714,9 +715,7 @@ class PersonAgent(
 
       goto(ProcessingNextLegOrStartActivity) using data.copy(
         hasDeparted = true,
-        currentVehicle = Vector.empty[Id[BeamVehicle]],
-        currentTourPersonalVehicle =
-          data.currentTourPersonalVehicle // changed to allow you to keep your initial DRIVE_TRANSIT vehicle
+        currentVehicle = Vector.empty[Id[BeamVehicle]]
       )
 
   }

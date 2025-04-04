@@ -1353,7 +1353,11 @@ trait ChoosesMode {
               // first leg or in a parent tour
               case Some(WALK_BASED) => choosesModeData.personData.currentTourPersonalVehicle
               // Otherwise they keep track of the chosen vehicle
-              case _ => chosenCurrentTourPersonalVehicle.getOrElse(chosenTrip, None)
+              case _ =>
+                chosenCurrentTourPersonalVehicle.getOrElse(
+                  chosenTrip,
+                  choosesModeData.personData.currentTourPersonalVehicle
+                )
             }
           ),
           pendingChosenTrip = Some(chosenTrip),
@@ -1403,8 +1407,7 @@ trait ChoosesMode {
               personData = personData.copy(
                 currentTourMode = chosenCurrentTourMode,
                 currentTourPersonalVehicle = chosenCurrentTourPersonalVehicle
-                  .getOrElse(chosenTrip, None)
-                  .orElse(personData.currentTourPersonalVehicle)
+                  .getOrElse(chosenTrip, personData.currentTourPersonalVehicle)
               ),
               pendingChosenTrip = Some(chosenTrip),
               availableAlternatives = availableAlts
@@ -1481,7 +1484,7 @@ trait ChoosesMode {
                 s"Person ${this.id} ended up stuck without a car despite having car in plans, so sending the request " +
                 s"back through in order to create an emergency vehicle. Tick ${_currentTick.getOrElse(-1)} and " +
                 s"activity ${_experiencedBeamPlan.getTripContaining(personData.currentActivityIndex)} " +
-                s"of plan ${_experiencedBeamPlan.activities.map(_.getType)}"
+                s"of plan ${_experiencedBeamPlan.activities.map(_.getType)}. Available vehicles ${beamVehicles.keys.toString()}"
               )
               goto(ChoosingMode) using choosesModeData.copy(personData =
                 personData.copy(currentTourPersonalVehicle = None)
@@ -1621,6 +1624,7 @@ trait ChoosesMode {
     val agentStillAtTourOrigin: Boolean = onFirstTripWithinTour && !withinReplanning
     val outcomeTourMode = if (agentStillAtTourOrigin) { None }
     else { Some(WALK_BASED) }
+    val parentTourVehicle = getParentTourStrategy(choosesModeData.personData).flatMap(_.tourVehicle)
     val isAccessEgressInTour: Boolean = choosesModeData.personData.currentTourMode.contains(WALK_BASED)
     val newTourVehicle = choosesModeData.personData.currentTourPersonalVehicle match {
       case Some(id) if beamVehicles.contains(id) =>
@@ -1644,7 +1648,7 @@ trait ChoosesMode {
            * then take drive_transit as the mode for the last leg of their tour and pick up their car on the way home
            * */
           Some(id)
-        } else {
+        } else if (parentTourVehicle.isEmpty) {
           val vehicle = beamVehicles(id).vehicle
           vehicle.setMustBeDrivenHome(false)
           beamVehicles.remove(vehicle.id)
@@ -1654,8 +1658,15 @@ trait ChoosesMode {
               s"Abandoning vehicle $id because no return ${choosesModeData.personData.currentTripMode} " +
               s"itinerary is available"
             )
+          } else {
+            logger.debug(
+              s"Not keeping vehicle $id because no  ${choosesModeData.personData.currentTripMode} " +
+              s"is available"
+            )
           }
           None
+        } else {
+          parentTourVehicle
         }
       case _ => None
     }
@@ -1967,10 +1978,12 @@ trait ChoosesMode {
                   s"because we need it in our parent tour"
                 )
               } else {
-                logger.warn(
-                  s"We are going to give up vehicle " +
-                  s"${vehicle.id} because it's not used in our next leg. Perhaps it was created unnecessarily? - $data"
-                )
+                if (!data.isWithinTripReplanning) {
+                  logger.warn(
+                    s"We are going to give up vehicle " +
+                    s"${vehicle.id} because it's not used in our next leg. Perhaps it was created unnecessarily? - $data"
+                  )
+                }
                 isCurrentPersonalVehicleVoided = true
                 vehicle.setMustBeDrivenHome(false)
                 beamVehicles.remove(vehicle.id)
