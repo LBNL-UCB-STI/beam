@@ -133,6 +133,15 @@ class BeamClasses:
     CLASS_MDP = "MediumDutyPassenger"
 
     @classmethod
+    def get_medium_heavy_freight_classes(cls):
+        """Returns a list of all freight vehicle classes."""
+        return [
+            cls.CLASS_456_VOCATIONAL,
+            cls.CLASS_78_VOCATIONAL,
+            cls.CLASS_78_TRACTOR
+        ]
+
+    @classmethod
     def get_freight_classes(cls):
         """Returns a list of all freight vehicle classes."""
         return [
@@ -313,6 +322,10 @@ sfbay_area_config = {
 
     # FastSim routee files
     "fastsim_routee_files": fastsim_routee_files,
+
+    "freight": {
+        "stops_data": "data/austin_cargo_operations.csv"
+    },
 
     "emissions": {
         "2018_Baseline" : {
