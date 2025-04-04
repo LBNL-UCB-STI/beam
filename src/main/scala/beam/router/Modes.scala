@@ -376,10 +376,9 @@ object TourModes {
                 )
               )
           case _ =>
-//            val retainedVehicle = availableVehicles
-//              .find(v => currentTourPersonalVehicle.find(availableVehicles.map(_.id).contains).contains(v.id))
-//              .map(_.vehicle)
-            val retainedVehicle = None // TEMP: Trying out not retaining parent tour vehicles on subtours
+            val retainedVehicle = availableVehicles
+              .find(v => currentTourPersonalVehicle.find(availableVehicles.map(_.id).contains).contains(v.id))
+              .map(_.vehicle)
 
             outcome
               .getOrElseUpdate(Some(WALK_BASED), mutable.Map.empty[EmbodiedBeamTrip, Option[BeamVehicle]])
