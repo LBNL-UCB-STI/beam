@@ -4291,6 +4291,7 @@ object BeamConfig {
     }
 
     case class Router(
+      requestAllAvailableModes: scala.Boolean,
       skim: BeamConfig.Beam.Router.Skim
     )
 
@@ -4477,6 +4478,8 @@ object BeamConfig {
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router = {
         BeamConfig.Beam.Router(
+          requestAllAvailableModes =
+            c.hasPathOrNull("requestAllAvailableModes") && c.getBoolean("requestAllAvailableModes"),
           skim = BeamConfig.Beam.Router.Skim(
             if (c.hasPathOrNull("skim")) c.getConfig("skim")
             else com.typesafe.config.ConfigFactory.parseString("skim{}")

@@ -4,7 +4,7 @@ import beam.agentsim.agents.MobilityRequest
 import beam.agentsim.agents.ridehail.RideHailMatching._
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm
-import com.github.beam.OrToolsLoader
+import com.google.ortools.Loader
 import com.google.ortools.linearsolver.{MPSolver, MPVariable}
 import org.jgrapht.graph.DefaultEdge
 import org.matsim.core.utils.collections.QuadTree
@@ -17,7 +17,7 @@ import scala.concurrent.Future
 object AlonsoMoraMatchingWithMIPAssignment {
 
   private lazy val initialize: Unit = {
-    OrToolsLoader.load()
+    Loader.loadNativeLibraries()
   }
 }
 
