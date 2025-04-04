@@ -10,9 +10,9 @@ trait ReaderFactory[T] {
 
   def createReader(path: String, fileFormat: String): Reader[T] = {
     fileFormat.toLowerCase match {
-      case "csv" => createCsvReader(path)
+      case "csv"     => createCsvReader(path)
       case "parquet" => createParquetReader(path)
-      case _ => throw new IllegalArgumentException(s"Unsupported file format: $fileFormat")
+      case _         => throw new IllegalArgumentException(s"Unsupported file format: $fileFormat")
     }
   }
 }

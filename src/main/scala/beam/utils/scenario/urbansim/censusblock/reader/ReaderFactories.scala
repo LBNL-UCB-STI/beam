@@ -3,6 +3,7 @@ package beam.utils.scenario.urbansim.censusblock.reader
 import beam.utils.scenario.urbansim.censusblock.entities._
 
 object ReaderFactories {
+
   implicit val personReaderFactory: ReaderFactory[InputPersonInfo] = new ReaderFactory[InputPersonInfo] {
     override def createCsvReader(path: String): Reader[InputPersonInfo] = new CsvPersonReader(path)
     override def createParquetReader(path: String): Reader[InputPersonInfo] = new ParquetPersonReader(path)
@@ -22,4 +23,4 @@ object ReaderFactories {
     override def createCsvReader(path: String): Reader[Block] = new CsvBlockReader(path)
     override def createParquetReader(path: String): Reader[Block] = new ParquetBlockReader(path)
   }
-} 
+}

@@ -10,7 +10,7 @@ import org.apache.parquet.hadoop.util.HadoopInputFile
 
 abstract class BaseParquetReader[T](path: String) extends Reader[T] {
   private val conf = new Configuration()
-  
+
   private val parquetReader: ParquetReader[GenericRecord] = {
     val inputFile: InputFile = HadoopInputFile.fromPath(new Path(path), conf)
     AvroParquetReader
@@ -38,4 +38,4 @@ abstract class BaseParquetReader[T](path: String) extends Reader[T] {
   }
 
   protected def transform(record: GenericRecord): T
-} 
+}

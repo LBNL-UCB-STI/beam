@@ -22,7 +22,8 @@ class UrbansimReaderV2(
   val shouldConvertWgs2Utm: Boolean,
   val modeMap: Map[String, String],
   val fileFormat: String = "csv"
-) extends ScenarioSource with LazyLogging {
+) extends ScenarioSource
+    with LazyLogging {
 
   private val rdr = readers.BeamCsvScenarioReader
 
