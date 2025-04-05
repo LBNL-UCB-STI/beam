@@ -13,7 +13,7 @@ from python.utils.study_area_config import generate_network_name
 # beam run i.e. link stats and events file
 # study_area = "seattle"
 study_area = "sfbay"
-batch = "2024-11-06"
+batch = "2024-01-23"
 scenario = "2018_Baseline"
 run_link_speed_validation = True
 run_network_speed_validation = True
@@ -32,7 +32,7 @@ batch_label = batch.replace("-", "")
 scenario_label = scenario.replace("_", "-")
 link_stats = [
     LinkStats(scenario=f"{batch}_{scenario_label}", demand_fraction=0.1,
-              file_path=os.path.join(run_dir, "12.linkstats.csv.gz"))
+              file_path=os.path.join(run_dir, "3.linkstats.csv.gz"))
 ]
 vehicle_types_files = [(
     batch_label,

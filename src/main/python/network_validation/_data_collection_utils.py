@@ -2,8 +2,6 @@ import os
 
 import geopandas as gpd
 import pandas as pd
-from cenpy import products
-
 
 def collect_census_data(state_fips_code, county_fips_codes, year, census_data_file, geo_level='county'):
     """
@@ -141,6 +139,7 @@ def download_tract_census_data(state_fips_code, county_fips_codes, year, census_
     pandas.DataFrame
         DataFrame containing population data for census tracts
     """
+    from cenpy import products
     if not os.path.exists(census_data_file):
         # Connect to Census API
         try:

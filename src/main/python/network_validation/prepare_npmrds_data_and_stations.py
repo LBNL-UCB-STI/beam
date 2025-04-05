@@ -16,6 +16,8 @@ from python.utils.study_area_config import generate_network_name
 # To prepare data for a new study area, make sure to change the following configuration variables
 # Example of preparing SFBay data (9 counties + Santa Cruz and Yolo)
 study_area = "sfbay"
+batch = "2024-01-23"
+scenario = "2018_Baseline"
 config = get_area_config(study_area)
 config["network"]["graph_layers"]["residential"]["min_density_per_km2"] = 5500
 
@@ -27,7 +29,7 @@ network_name = generate_network_name(config)
 network_dir = f'{config["work_dir"]}/network/{network_name}'
 osm_pbf_path = os.path.expanduser(f"{network_dir}/{network_name}.osm.pbf")
 
-output_dir = f"{config["work_dir"]}/beam-runs/2024-11-06/2018_Baseline"
+output_dir = f"{config["work_dir"]}/beam-runs/{batch}/{scenario}"
 
 # census_year = 2018
 # state_fips = '06'
