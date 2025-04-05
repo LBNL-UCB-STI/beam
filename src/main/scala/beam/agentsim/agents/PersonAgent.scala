@@ -853,13 +853,13 @@ class PersonAgent(
   when(WaitingForRideHailReservationConfirmation) {
     // RIDE HAIL DELAY
     case Event(_: DelayedRideHailResponse, data: BasePersonData) =>
-      // this means ride hail manager is taking time to assign and we should complete our
+      // this means ride hail manager is taking linkStartTime to assign and we should complete our
       // current trigger and wait to be re-triggered by the manager
       val (_, triggerId) = releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId, Vector())
       stay() using data
     // RIDE HAIL DELAY SUCCESS (buffered mode of RHM)
-    // we get RH response with tick and trigger so that we can start our WALKing leg at the right time
+    // we get RH response with tick and trigger so that we can start our WALKing leg at the right linkStartTime
     case Event(
           TriggerWithId(RideHailResponseTrigger(tick, response: RideHailResponse), triggerId),
           data: BasePersonData
@@ -935,7 +935,7 @@ class PersonAgent(
 
   when(Waiting) {
     /*
-     * Learn as passenger that it is time to board the vehicle
+     * Learn as passenger that it is linkStartTime to board the vehicle
      */
     case Event(
           TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter, _), triggerId),
@@ -969,7 +969,7 @@ class PersonAgent(
 
   when(Moving) {
     /*
-     * Learn as passenger that it is time to alight the vehicle
+     * Learn as passenger that it is linkStartTime to alight the vehicle
      */
     case Event(
           TriggerWithId(AlightVehicleTrigger(tick, vehicleToExit, _, energyConsumedOption), triggerId),
@@ -1141,7 +1141,7 @@ class PersonAgent(
 
   private def createStallToDestTripForEnroute(data: BasePersonData, startTime: Int): (Int, BasePersonData) = {
     // read preserved car legs to head back to original destination
-    // append walk legs around them, update start time and make legs consistent
+    // append walk legs around them, update start linkStartTime and make legs consistent
     // unset reserved charging stall
     // unset enroute state, and update `data` with new legs
     val stall2DestinationCarLegs = data.enrouteData.stall2DestLegs
@@ -1390,7 +1390,7 @@ class PersonAgent(
               activityEndTime.toInt
             } else {
               logger.debug(
-                "Moving back next activity end time from {} to {} to avoid parallelism issues when teleporting",
+                "Moving back next activity end linkStartTime from {} to {} to avoid parallelism issues when teleporting",
                 activityEndTime,
                 tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow
               )
@@ -1494,7 +1494,7 @@ class PersonAgent(
               activityEndTime.toInt
             } else {
               logger.warn(
-                "Moving back next activity end time from {} to {} to avoid parallelism issues, currently on trip {}",
+                "Moving back next activity end linkStartTime from {} to {} to avoid parallelism issues, currently on trip {}",
                 activityEndTime,
                 tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
                 currentTrip

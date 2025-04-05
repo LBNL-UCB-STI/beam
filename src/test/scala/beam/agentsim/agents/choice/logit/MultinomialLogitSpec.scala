@@ -14,14 +14,14 @@ class MultinomialLogitSpec extends AnyWordSpecLike with Matchers {
 
     val common = Map(
       "cost" -> UtilityFunctionOperation.Multiplier(-0.01),
-      "time" -> UtilityFunctionOperation.Multiplier(-0.02)
+      "linkStartTime" -> UtilityFunctionOperation.Multiplier(-0.02)
     )
 
     val mnl = MultinomialLogit(utilityFunctions, common)
 
     val alts = Map(
-      "car"  -> Map("cost" -> 30.0, "time" -> 50.0),
-      "walk" -> Map("cost" -> 0.0, "time" -> 40.0)
+      "car"  -> Map("cost" -> 30.0, "linkStartTime" -> 50.0),
+      "walk" -> Map("cost" -> 0.0, "linkStartTime" -> 40.0)
     )
 
     "should evaluate utility functions as expected" in {
@@ -38,7 +38,7 @@ class MultinomialLogitSpec extends AnyWordSpecLike with Matchers {
     }
 
     "should sample higher probability alternatives more often" in {
-      // With these inputs, we expect "walk" ~81% of the time, which translates to an almost certainty that majority
+      // With these inputs, we expect "walk" ~81% of the linkStartTime, which translates to an almost certainty that majority
       // will be walk with 100 trials (p-val 3.00491e-12)
 
       val sampleSize = 100
@@ -99,7 +99,7 @@ class MultinomialLogitSpec extends AnyWordSpecLike with Matchers {
     }
 
     "should sample higher probability alternatives more often" in {
-      // With these inputs, we expect "walk" ~81% of the time, which translates to an almost certainty that majority
+      // With these inputs, we expect "walk" ~81% of the linkStartTime, which translates to an almost certainty that majority
       // will be walk with 100 trials (p-val 3.00491e-12)
 
       val sampleSize = 100

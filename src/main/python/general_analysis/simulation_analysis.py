@@ -205,7 +205,7 @@ def plot_simulation_vs_google_speed_comparison(s3url, iteration, compare_vs_3am,
 
     :param iteration: iteration of simulation
     :param s3url: url to s3 output
-    :param compare_vs_3am: if comparison should be done vs google 3am speeds (relaxed speed) instead of regular route time
+    :param compare_vs_3am: if comparison should be done vs google 3am speeds (relaxed speed) instead of regular route linkStartTime
     :param title: main title for all plotted graphs. useful for future copy-paste to distinguish different simulations
     """
 
@@ -220,7 +220,7 @@ def plot_simulation_vs_google_speed_comparison(s3url, iteration, compare_vs_3am,
     google_tt_column3am = 'googleTravelTimeWithTraffic'
 
     def get_speed(distance, travel_time):
-        # travel time may be -1 for some google requests because of some google errors
+        # travel linkStartTime may be -1 for some google requests because of some google errors
         if travel_time <= 0:
             return 0
         else:
@@ -479,7 +479,7 @@ def read_persons_vehicles_trips(s3url, iteration):
         events_file_path = s3path + "/ITERS/it.{0}/{0}.events.csv.gz".format(iteration)
 
         start_time = time.time()
-        columns = ['type', 'time', 'vehicle', 'driver', 'arrivalTime', 'departureTime', 'length', 'vehicleType',
+        columns = ['type', 'linkStartTime', 'vehicle', 'driver', 'arrivalTime', 'departureTime', 'length', 'vehicleType',
                    'person']
         events = pd.concat([df[(df['type'] == 'PersonEntersVehicle') |
                                (df['type'] == 'PathTraversal') |
@@ -508,7 +508,7 @@ def read_persons_vehicles_trips(s3url, iteration):
 
     (pte, pelv) = read_pte_pelv_for_walk_transit()
 
-    person_trips = pelv.groupby('person')[['type', 'time', 'vehicle']].agg(list).copy()
+    person_trips = pelv.groupby('person')[['type', 'linkStartTime', 'vehicle']].agg(list).copy()
     print('person_trips:', person_trips.shape)
 
     def get_dict_departure_to_index(row):
@@ -521,7 +521,7 @@ def read_persons_vehicles_trips(s3url, iteration):
 
     def calc_person_trips_distances(row, transit_modes, vehicles_trips_df):
         ttypes = row['type']
-        ttimes = row['time']
+        ttimes = row['linkStartTime']
         tvehicles = row['vehicle']
 
         veh_entered = None
@@ -810,9 +810,9 @@ def calculate_median_time_at_home(s3url, iteration, total_persons, debug_print=F
 
     def get_home_activity_time(row):
         if row['type'] == 'actend':
-            return min(row['time'] / 3600, 24.0)
+            return min(row['linkStartTime'] / 3600, 24.0)
         if row['type'] == 'actstart':
-            return max(row['time'] / -3600, -23.9)
+            return max(row['linkStartTime'] / -3600, -23.9)
         return 0
 
     home_acts['homeActTime'] = home_acts.apply(get_home_activity_time, axis=1)
@@ -823,7 +823,7 @@ def calculate_median_time_at_home(s3url, iteration, total_persons, debug_print=F
     all_people_home_time = list(home_activities['homeActTime']) + [24] * (total_persons - affected_persons)
     median_time_at_home = statistics.median(all_people_home_time)
     if debug_print:
-        print('all people home time. len:{} sum:{} mean:{} median:{}'.format(len(all_people_home_time),
+        print('all people home linkStartTime. len:{} sum:{} mean:{} median:{}'.format(len(all_people_home_time),
                                                                              sum(all_people_home_time),
                                                                              sum(all_people_home_time) / len(
                                                                                  all_people_home_time),
@@ -853,7 +853,7 @@ def plot_median_time_at_home(title_to_s3url, total_persons, iteration, figsize=(
     y = time_at_home_vs_baseline[1]
     plt.xticks(x, time_at_home_vs_baseline[0])
     ax.plot(x, y)
-    ax.set_title("Median time at home months vs baseline")
+    ax.set_title("Median linkStartTime at home months vs baseline")
 
 
 def analyze_mode_choice_changes(title_to_s3url, benchmark_url):
@@ -1021,8 +1021,8 @@ def analyze_vehicle_passenger_by_hour(s3url, iteration):
 def plot_vehicle_type_passengets_by_hours(events_file_path, chunksize=100000):
     events = pd.concat([events[events['type'] == 'PathTraversal'] for events in
                         pd.read_csv(events_file_path, low_memory=False, chunksize=chunksize)])
-    events['time'] = events['time'].astype('float')
-    events = events.sort_values(by='time', ascending=True)
+    events['linkStartTime'] = events['linkStartTime'].astype('float')
+    events = events.sort_values(by='linkStartTime', ascending=True)
 
     hour2type2num_passenger = {}
     vehicle2passengers_and_type = {}
@@ -1037,7 +1037,7 @@ def plot_vehicle_type_passengets_by_hours(events_file_path, chunksize=100000):
         hour2type2num_passenger[last_hour] = cur_type2num_passenger
 
     for index, row in events.iterrows():
-        hour = int(float(row['time']) / 3600)
+        hour = int(float(row['linkStartTime']) / 3600)
         vehicle_type = row['vehicleType']
         v = row['vehicle']
         num_passengers = int(row['numPassengers'])

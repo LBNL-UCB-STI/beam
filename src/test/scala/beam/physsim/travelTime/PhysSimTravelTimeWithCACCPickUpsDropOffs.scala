@@ -99,7 +99,7 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers
   val pickUpDropOffHolder = new PickUpDropOffHolder(beamvilleLinkPickUpsDropOffsFromSimulation, beamConfig)
 
   "JDEQSimulation (matsim and beam version)" must {
-    "return the same average link travel time" in {
+    "return the same average link travel linkStartTime" in {
       val (eventManager: EventsManagerImpl, eventBuffer: BufferEventHandler) = createEventManager
       val sim = new jdeqsim.JDEQSimulation(jdeqConfig, scenario, eventManager)
       sim.run()
@@ -117,7 +117,7 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers
   }
 
   "Different combination of PickUpDropOffHolder and CACCSettings" must {
-    "return expected link travel time in JDEQ simulation" in {
+    "return expected link travel linkStartTime in JDEQ simulation" in {
       def calcAverageLinkTravelTime(
         maybeCaccSettings: Option[CACCSettings],
         maybePickUpDropOffHolder: Option[PickUpDropOffHolder]
@@ -136,7 +136,7 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers
       withPickUpWithCACC.averageLinkTravelTime should be < withPickUpNoCACC.averageLinkTravelTime
     }
 
-    "return expected link travel time in BPR simulation" in {
+    "return expected link travel linkStartTime in BPR simulation" in {
       def calcAverageLinkTravelTime(
         maybeCaccSettings: Option[CACCSettings],
         maybePickUpDropOffHolder: Option[PickUpDropOffHolder]
@@ -155,7 +155,7 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers
       withPickUpWithCACC.averageLinkTravelTime should be <= withPickUpNoCACC.averageLinkTravelTime
     }
 
-    "return expected link travel time in ParBPR simulation" in {
+    "return expected link travel linkStartTime in ParBPR simulation" in {
       def calcAverageLinkTravelTime(
         maybeCaccSettings: Option[CACCSettings],
         maybePickUpDropOffHolder: Option[PickUpDropOffHolder]
@@ -270,7 +270,7 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers
   }
 
   object AverageLinkTravelTimeCalculationResults {
-    // threshold for link travel time to be picked up or thrown away
+    // threshold for link travel linkStartTime to be picked up or thrown away
     val maxThreshold = 1000.0
     val minThreshold = 1.0
 

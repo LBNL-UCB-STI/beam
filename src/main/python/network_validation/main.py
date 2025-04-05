@@ -14,7 +14,7 @@ def load_heavy_csv(file_path, chunk_size=100000):
     file_path : str
         Path to the CSV file
     chunk_size : int
-        Number of rows to process at a time
+        Number of rows to process at a linkStartTime
 
     Returns:
     --------

@@ -205,8 +205,8 @@ class DockerRoutingFrameworkWrapper(
           wayId2TravelTime.clear()
         }
         map.get("way_id").toLong ->
-        // travel time in routing framework is measured in tens of seconds
-        // so we are dividing it by 10 to get time in seconds
+        // travel linkStartTime in routing framework is measured in tens of seconds
+        // so we are dividing it by 10 to get linkStartTime in seconds
         map.get("bpr_result").toDouble / 10
       }
       .foreach { case (wayId, travelTime) =>

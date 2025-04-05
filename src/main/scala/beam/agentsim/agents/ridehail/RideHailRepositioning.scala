@@ -31,5 +31,5 @@ class LocationWaitingTimeMatrix(val waitingEvents: Set[WaitingEvent]) {
 
 class IterationHistory() {}
 
-// TODO: collect location, when, waiting time info.
-// TODO: collect location, when idling time.
+// TODO: collect location, when, waiting linkStartTime info.
+// TODO: collect location, when idling linkStartTime.

@@ -14,7 +14,7 @@ class RoutingModelSpec extends AnyFlatSpec with Matchers {
 
   private val defaultTravelTime = (_: Int, _: Int) => 1000
 
-  it should "produce link events from a typical car leg, given a constant travel time function" in {
+  it should "produce link events from a typical car leg, given a constant travel linkStartTime function" in {
     val leg = EmbodiedBeamLeg(
       BeamLeg(
         0,
@@ -42,7 +42,7 @@ class RoutingModelSpec extends AnyFlatSpec with Matchers {
     )
   }
 
-  it should "produce link events from a typical car leg, given a travel time function with congestion later in the day" in {
+  it should "produce link events from a typical car leg, given a travel linkStartTime function with congestion later in the day" in {
     val conditionalTravelTime = (enterTime: Int, _: Int) => if (enterTime < 2000) 1000 else 2000
 
     val leg = EmbodiedBeamLeg(
@@ -72,7 +72,7 @@ class RoutingModelSpec extends AnyFlatSpec with Matchers {
     )
   }
 
-  it should "produce just one pair of link events for a leg which crosses just one node, spending no time" in {
+  it should "produce just one pair of link events for a leg which crosses just one node, spending no linkStartTime" in {
     val leg = EmbodiedBeamLeg(
       BeamLeg(
         0,

@@ -9,8 +9,8 @@ object RideHailWaitingTazAnalysisObject {
       """
         timeBin               | Time bin
         TAZ                   | TAZ id
-        avgWait               | Average ride-hail waiting time (how long a person waits for a ride-hail vehicle)
-        medianWait            | Median ride-hail waiting time
+        avgWait               | Average ride-hail waiting linkStartTime (how long a person waits for a ride-hail vehicle)
+        medianWait            | Median ride-hail waiting linkStartTime
         numberOfPickups       | Number of pickups
         avgPoolingDelay       | Always zero
         numberOfPooledPickups | Always zero

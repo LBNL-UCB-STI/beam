@@ -163,7 +163,7 @@ object DrivesVehicle {
       val linkTravelTime = path.linkTravelTime
       var i: Int = 0
       var curTime = leg.startTime
-      // `links.length - 1` because we don't need the travel time for the last link
+      // `links.length - 1` because we don't need the travel linkStartTime for the last link
       while (i < links.length - 1) {
         val from = links(i)
         val to = links(i + 1)
@@ -258,9 +258,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       val payloadData = payloadDataForLeg(currentLeg, data)
       val (payloadIds, payloadWeight) = payloadData.getOrElse((IndexedSeq.empty, 0.0))
       val vehicleActivityData = BeamVehicle.collectVehicleActivityData(
-        currentLeg.startTime,
+        tick,
         Left(currentLeg),
-        currentBeamVehicle.beamVehicleType,
+        currentBeamVehicle,
         Some(payloadWeight),
         None,
         beamServices
@@ -343,15 +343,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         }
       }
 
-      val vehicleActivityDataFixed = BeamVehicle.addFirstLinkActivityForEmissions(
-        currentLeg.startTime,
-        vehicleActivityData,
-        currentBeamVehicle.beamVehicleType,
-        Some(payloadWeight),
-        currentLeg,
-        None,
-        beamServices
-      )
       currentBeamVehicle.setLastVehicleLink(currentLeg.travelPath.linkIds.headOption)
       val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivityForEmissions(
         currentLeg.startTime,
@@ -364,18 +355,17 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       )
 
       val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
-        maybeIDLEVehicleActivity,
+        maybeIDLEVehicleActivity.toIndexedSeq,
         classOf[PathTraversalEvent],
         beamServices
       )
       val emissionsProfilePTE = currentBeamVehicle.emitEmissions(
-        vehicleActivityDataFixed,
+        vehicleActivityData,
         classOf[PathTraversalEvent],
         beamServices
       )
       val emissionsProfile = EmissionsProfile.join(emissionsProfilePTE, emissionsProfileIDLE)
       val numberOfPassengers: Int = calculateNumberOfPassengersBasedOnCurrentTripMode(data, currentLeg, riders)
-      val currentTourMode: Option[String] = getCurrentTripMode(data)
       val pte = PathTraversalEvent(
         tick,
         currentVehicleUnderControl,
@@ -415,7 +405,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
               .drop(data.currentLegPassengerScheduleIndex + 1)
               .head
           val startLegTriggerTick = if (nextLeg.startTime < tick) {
-            logger.warn(s"Start time of next leg ${nextLeg.startTime} was less than current tick $tick.")
+            logger.warn(s"Start linkStartTime of next leg ${nextLeg.startTime} was less than current tick $tick.")
             tick
           } else {
             nextLeg.startTime
@@ -458,7 +448,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                       .seconds() <= (tick + beamConfig.beam.agentsim.schedulerParallelismWindow)
                   } {
                     log.warning(
-                      s"Vehicle {} needs to depart at time {} but agent {} sends a plug request at tick {} for stall $stall",
+                      s"Vehicle {} needs to depart at linkStartTime {} but agent {} sends a plug request at tick {} for stall $stall",
                       currentBeamVehicle.id,
                       nextActivityEndTime,
                       id,
@@ -585,23 +575,14 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
 
       val currentLocation = if (updatedStopTick > currentLeg.startTime) {
         val vehicleActivityData = BeamVehicle.collectVehicleActivityData(
-          currentLeg.startTime,
-          Left(currentLeg),
-          currentBeamVehicle.beamVehicleType,
+          updatedStopTick,
+          Left(partiallyCompletedBeamLeg),
+          currentBeamVehicle,
           Some(payloadWeight),
           None,
           beamServices
         )
         val fuelConsumed = currentBeamVehicle.useFuel(partiallyCompletedBeamLeg, vehicleActivityData, beamScenario)
-        val vehicleActivityDataFixed = BeamVehicle.addFirstLinkActivityForEmissions(
-          currentLeg.startTime,
-          vehicleActivityData,
-          currentBeamVehicle.beamVehicleType,
-          Some(payloadWeight),
-          currentLeg,
-          None,
-          beamServices
-        )
         val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivityForEmissions(
           currentLeg.startTime,
           currentBeamVehicle,
@@ -613,12 +594,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         )
 
         val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
-          maybeIDLEVehicleActivity,
-          classOf[PathTraversalEvent],
+          maybeIDLEVehicleActivity.toIndexedSeq,
+          classOf[LeavingParkingEvent],
           beamServices
         )
         val emissionsProfilePTE = currentBeamVehicle.emitEmissions(
-          vehicleActivityDataFixed,
+          vehicleActivityData,
           classOf[PathTraversalEvent],
           beamServices
         )
@@ -628,7 +609,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         tollsAccumulated += tollOnCurrentLeg
         val numberOfPassengers: Int =
           calculateNumberOfPassengersBasedOnCurrentTripMode(data, partiallyCompletedBeamLeg, riders)
-        val currentTourMode: Option[String] = getCurrentTripMode(data)
         val pte = PathTraversalEvent(
           updatedStopTick,
           currentVehicleUnderControl,

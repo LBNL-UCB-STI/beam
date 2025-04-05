@@ -459,7 +459,7 @@ trait ChoosesParking extends {
                 )
               )
             } else Vector()
-            // get walk route from stall to destination, note we give a dummy start time and update later based on drive time to stall
+            // get walk route from stall to destination, note we give a dummy start linkStartTime and update later based on drive linkStartTime to stall
             val bodyStreetVehToDest = StreetVehicle(
               body.id,
               body.beamVehicleType.id,
@@ -575,7 +575,7 @@ trait ChoosesParking extends {
           stall2DestinationResponse.itineraries.head.legs.head
         )
       }
-      // Update start time of the second leg
+      // Update start linkStartTime of the second leg
       leg2 = leg2.copy(beamLeg = leg2.beamLeg.updateStartTime(leg1.beamLeg.endTime))
 
       // update person data with new legs

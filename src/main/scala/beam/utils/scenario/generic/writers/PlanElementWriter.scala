@@ -33,7 +33,7 @@ object CsvPlanElementWriter extends PlanElementWriter with LazyLogging {
     "planSelected",
     "planElementType",
     "planElementIndex",
-    "activityType",
+    "parkingActivityType",
     "activityLocationX",
     "activityLocationY",
     "activityEndTime",

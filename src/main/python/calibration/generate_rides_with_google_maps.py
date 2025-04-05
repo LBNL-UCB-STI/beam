@@ -111,7 +111,7 @@ def convert_file(input_file_location, output_file_path, program_arguments):
     departure_time_range = departure_time_range[1:-1]
     departure_time_start = int(departure_time_range.split(",")[0])
     departure_time_end = int(departure_time_range.split(",")[1])
-    # We have chosen 2019-10-16 (Wednesday) as a day to get the routes from Google. It is 1571184000 in Unix time
+    # We have chosen 2019-10-16 (Wednesday) as a day to get the routes from Google. It is 1571184000 in Unix linkStartTime
     start_of_the_day = 1571184000
     google_departure_time = start_of_the_day + int((departure_time_end + departure_time_start) / 2)
     df['google_link'] = df.apply(lambda x: google_link(x, google_departure_time), axis=1)

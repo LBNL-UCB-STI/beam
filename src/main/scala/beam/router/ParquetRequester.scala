@@ -68,7 +68,7 @@ object ParquetRequester extends BeamHelper with LazyLogging {
     } while (counter.get() != 0)
 
     logger.info(s"Total requests: ${totalCounter.get()}")
-    logger.info(s"Total route time: ${routeTime.get()}")
+    logger.info(s"Total route linkStartTime: ${routeTime.get()}")
   }
 
   private def getRequests(drop: Int, take: Int, filePath: String): Array[RoutingRequest] = {

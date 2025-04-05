@@ -85,7 +85,7 @@ class PhysSimLinkStatsSpec extends AnyWordSpecLike with Matchers {
 
   "BPR Simulation" when {
     "double-parking happens" must {
-      "produce correct travel time" in {
+      "produce correct travel linkStartTime" in {
         val scenario: MutableScenario =
           readScenario(matsimConfig, network, "test/test-resources/beam/physsim/physsim-plans-12k.xml.gz")
         addDoubleParkingToSomeLegs(scenario)
@@ -108,7 +108,7 @@ class PhysSimLinkStatsSpec extends AnyWordSpecLike with Matchers {
       }
     }
     "no double-parking happens" must {
-      "produce correct travel time" in {
+      "produce correct travel linkStartTime" in {
         val scenario: MutableScenario =
           readScenario(matsimConfig, network, "test/test-resources/beam/physsim/physsim-plans-12k.xml.gz")
         val travelTimes: TravelTime = runBprPhysSim(scenario)

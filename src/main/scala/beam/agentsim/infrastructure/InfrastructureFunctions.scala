@@ -103,7 +103,7 @@ abstract class InfrastructureFunctions(
 
   def searchForParkingStall(inquiry: ParkingInquiry): ParkingZoneSearch.ParkingZoneSearchResult = {
 
-    // creates a hash code dependent on the personId and the intended time to reach the destination
+    // creates a hash code dependent on the personId and the intended linkStartTime to reach the destination
     // this is used to create a new seed to create some variability on the selected parking spot
     // since the parkingZoneSearchParams always uses a set seed for the Random object, every single parking inquiry
     // would have the same random draw to select from the available parking zones.

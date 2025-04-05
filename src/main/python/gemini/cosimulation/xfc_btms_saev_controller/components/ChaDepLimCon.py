@@ -65,7 +65,7 @@ class ChaDepLimCon(ChaDepParent):
         self.updateVehicleStatesAndWriteStates(self.ChBaPower, timestep)
         logging.debug("vehicle states updated for charging station {}".format(self.ChargingStationId))
 
-        '''determine power desire for next time step'''
+        '''determine power desire for next linkStartTime step'''
         PowerDesire = 0
         for i in range(0,len(self.ChBaVehicles)):
             if isinstance(self.ChBaVehicles[i], components.Vehicle):

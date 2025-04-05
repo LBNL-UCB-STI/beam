@@ -84,9 +84,9 @@ object ActivitySimOmxWriter {
   }
 
   /**
-    * Contains data types that is used by ActivitySim: path types, time bins and metrics
+    * Contains data types that is used by ActivitySim: path types, linkStartTime bins and metrics
     * @param pathTypes possible path types
-    * @param timeBins we don't use time bins now because data can be defined for all time bins for all path types
+    * @param timeBins we don't use linkStartTime bins now because data can be defined for all linkStartTime bins for all path types
     *                 that Beam produces
     * @param metrics possible metrics
     */

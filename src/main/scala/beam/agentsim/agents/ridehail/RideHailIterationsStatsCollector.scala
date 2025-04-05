@@ -20,8 +20,8 @@ import scala.util.Try
   * numberOfRides: -> passengers =1 (sum of rides)
   * customerWaitTime -> sum and average
   *
-  * idleTimes = count in each bin according to how much time remaining
-  * agent arrives in a time 1000 and leaves at time 2000
+  * idleTimes = count in each bin according to how much linkStartTime remaining
+  * agent arrives in a linkStartTime 1000 and leaves at linkStartTime 2000
   * bin Size=100 -> count as idle in 10 bins (from 1000 to 2000)
   * idleTime[TAZId,binNumber] // bin 10, 11, 12,...19 we do +1
   *

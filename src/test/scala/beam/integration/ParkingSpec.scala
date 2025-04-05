@@ -170,8 +170,8 @@ class ParkingSpec
           ).foreach { k =>
             evA.getAttributes.get(k) should equal(evB.getAttributes.get(k))
           }
-          evA.getAttributes.get("time").toDouble should be <= evB.getAttributes
-            .get("time")
+          evA.getAttributes.get("linkStartTime").toDouble should be <= evB.getAttributes
+            .get("linkStartTime")
             .toDouble
         }
       }

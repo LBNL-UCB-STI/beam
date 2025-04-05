@@ -51,7 +51,7 @@ class ControlWrapper:
             P_free_Ratio = 0
             b = 300/5000                    # btms degradation cost
             c = 0.15                        # electricity cost
-            d_param = 10                    # waiting time cost of a vehicle in $/h
+            d_param = 10                    # waiting linkStartTime cost of a vehicle in $/h
             P_chAvg = 100                   # average charging speed in kW of an vehicle
             beta = 0.15                     # bandwith for energy level curve
             # if choosen different from None, constraints to enforce c rate are applied
@@ -110,11 +110,11 @@ class ControlWrapper:
         vehicle = self.VehicleGenerator.generateVehicle(VehicleId, VehicleType, VehicleArrival, VehicleDesEnd, VehicleEngyInKwh, VehicleDesEngyInKwh, VehicleMaxEngy, VehicleMaxPower)
         # add vehicle to charging station
         self.ChargingStation.arrival(vehicle, t_act)
-        # we did not increase time in SimBroker,
+        # we did not increase linkStartTime in SimBroker,
         # but this only triggers the arrival function with the result writer, which uses t_act
 
     def step (self, timestep, t_act, GridPowerUpper, GridPowerLower, BtmsEnergy):
-        # add something with SimBrokerDummy here to update time and choose correct iteration
+        # add something with SimBrokerDummy here to update linkStartTime and choose correct iteration
         self.SimBroker.updateTime(t_act)
         
         # update from DERMS and PyDSS

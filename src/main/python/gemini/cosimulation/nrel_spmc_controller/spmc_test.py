@@ -12,13 +12,13 @@ ESS_capacity = 50      # in kWh
 
 ######################################
 ### Variables that need to be updated 
-### every sanpling time
+### every sanpling linkStartTime
 ######################################
 # from ESS    
 ESS_soc = 0.7              
 
 # from BEAM
-Tdep = [70, 150, 120, 200]     # departure time in minute from the current time
+Tdep = [70, 150, 120, 200]     # departure linkStartTime in minute from the current linkStartTime
 Ereq = [20, 20, 25, 40]      # energy remaining for each EV
 
 Pmax = [20, 25, 15, 20]    # max EV charging power (EVSE power rate)

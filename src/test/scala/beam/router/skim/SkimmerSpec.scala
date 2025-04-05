@@ -48,8 +48,8 @@ class SkimmerSpec extends AnyFlatSpec with Matchers with BeamHelper {
          |  keepKLatestSkims = 1
          |  writeSkimsInterval = 1
          |  writeAggregatedSkimsInterval = 1
-         |  travel-time-skimmer {
-         |    name = "travel-time-skimmer"
+         |  travel-linkStartTime-skimmer {
+         |    name = "travel-linkStartTime-skimmer"
          |    fileBaseName = "skimsTravelTimeObservedVsSimulated"
          |  }
          |  origin_destination_skimmer {
@@ -303,7 +303,7 @@ object SkimmerSpec extends LazyLogging {
 
   private def getCountSkimPair(row: Map[String, String]): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
     (
-      TAZSkimmerKey(row("time").toInt, row("geoId"), row("actor"), row("key")),
+      TAZSkimmerKey(row("linkStartTime").toInt, row("geoId"), row("actor"), row("key")),
       TAZSkimmerInternal(row("value").toDouble, row("observations").toInt, row("iterations").toInt)
     )
   }

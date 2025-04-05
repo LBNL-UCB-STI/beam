@@ -41,7 +41,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   }
 
   // When we have all activities, we can make `sensitivityOfRepositioningToDemand` in the range from [0, 1] to make it easer to calibrate
-  // If sensitivityOfRepositioningToDemand = 1, it means all vehicles reposition all the time
+  // If sensitivityOfRepositioningToDemand = 1, it means all vehicles reposition all the linkStartTime
   // sensitivityOfRepositioningToDemand = 0, means no one reposition
   private val cfg =
     rideHailManager.managerConfig.repositioningManager.demandFollowingRepositioningManager
@@ -182,7 +182,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   }
 
   private def createClusters: Map[Int, Array[ClusterInfo]] = {
-    // Build clusters for every time bin. Number of clusters is configured
+    // Build clusters for every linkStartTime bin. Number of clusters is configured
     timeBinToActivities.map { case (timeBin, acts) =>
       val clusters =
         if (acts.isEmpty) Array.empty[ClusterInfo]

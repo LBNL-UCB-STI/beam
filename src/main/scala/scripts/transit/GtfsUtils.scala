@@ -209,7 +209,7 @@ object GtfsUtils {
     findTrips(tripsWithStopTimes, timeFrame)
       .foreach { trips =>
         trips.foreach { trip =>
-          // calculate new stop times (without first stop time - it remains as original)
+          // calculate new stop times (without first stop linkStartTime - it remains as original)
           val offsetsBetweenStopTimes = trip.stopTimes.tail
             .zip(trip.stopTimes.init)
             .map { case (current, previous) =>
@@ -397,8 +397,8 @@ object GtfsUtils {
   final case class TripAndStopTimes(trip: Trip, stopTimes: Seq[StopTime])
 
   /**
-    * @param startTime start time in milliseconds
-    * @param endTime   end time in milliseconds
+    * @param startTime start linkStartTime in milliseconds
+    * @param endTime   end linkStartTime in milliseconds
     */
   final case class TimeFrame(startTime: Int, endTime: Int)
 

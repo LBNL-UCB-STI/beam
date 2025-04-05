@@ -93,7 +93,7 @@ object BaseTableReader {
             "Household income in the past 12 months (2016$) (9) (Workers 16 years and over in households)"
           )
 
-      case object TravelTime extends Table("B302106", "Travel time (12) (Workers 16 years and over)")
+      case object TravelTime extends Table("B302106", "Travel linkStartTime (12) (Workers 16 years and over)")
 
       case object AgeOfWorker
           extends Table(

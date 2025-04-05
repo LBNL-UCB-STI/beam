@@ -85,7 +85,7 @@ class DriveTimeSkimmer @Inject() (
         logger.warn(s"the skimmer $skimName observed simulated times are empty.")
       }
     } else {
-      logger.warn(s"the skimmer $skimName does not have access to the observed travel time for calibration.")
+      logger.warn(s"the skimmer $skimName does not have access to the observed travel linkStartTime for calibration.")
     }
 
     super.notifyIterationEnds(event)
@@ -180,7 +180,7 @@ object DriveTimeSkimmer extends LazyLogging {
         fromTAZId     | Id of origin TAZ this statistic applies to
         toTAZId       | Id of destination TAZ this statistic applies to
         hour          | Hour this statistic applies to
-        timeSimulated | Average travel time for CAR trips
+        timeSimulated | Average travel linkStartTime for CAR trips
         timeObserved  | Always 0.0
         counts        | Number of trips
         iterations    | The current iteration number
@@ -197,7 +197,7 @@ object DriveTimeSkimmer extends LazyLogging {
         fromTAZId     | Id of origin TAZ this statistic applies to
         toTAZId       | Id of destination TAZ this statistic applies to
         hour          | Hour this statistic applies to
-        timeSimulated | Average (over last n iterations) travel time for CAR trips
+        timeSimulated | Average (over last n iterations) travel linkStartTime for CAR trips
         timeObserved  | Always 0.0
         counts        | Average number of trips (over last n iterations)
         iterations    | Number of iterations

@@ -52,7 +52,7 @@ object RideHailVehicleId extends LazyLogging {
   * whichever one is suited to a particular context.
   *
   * This class is needed because objects like [[beam.agentsim.events.PathTraversalEvent]] take
-  * [[Id[BeamVehicle]]]. However, at the time of processing the event, we often need the extra information provided
+  * [[Id[BeamVehicle]]]. However, at the linkStartTime of processing the event, we often need the extra information provided
   * by this class (i.e., if the ID corresponds to a ride-hail vehicle and, if so, the vehicle's fleet).
   *
   * @param id Ride-hail vehicle ID (without prefix).

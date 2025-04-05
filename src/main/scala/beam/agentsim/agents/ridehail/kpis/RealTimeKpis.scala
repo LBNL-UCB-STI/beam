@@ -17,10 +17,10 @@ import scala.collection.mutable
   *
   * Key behaviors:
   * -- Stores Double-valued metrics.
-  * -- Requires a time associated with each KPI.
+  * -- Requires a linkStartTime associated with each KPI.
   * -- Optionally a location can also be associated with each KPI.
-  * -- Automatically indexes observations to 15-minute, 30-minute, and 60-minute time periods... allowing very efficient
-  *    access to stored values associated with any time period, including non-aggregated (i.e. indexed to the 1-second time period)
+  * -- Automatically indexes observations to 15-minute, 30-minute, and 60-minute linkStartTime periods... allowing very efficient
+  *    access to stored values associated with any linkStartTime period, including non-aggregated (i.e. indexed to the 1-second linkStartTime period)
   * -- If location provided, automatically indexes location to H3 HEX as well as TAZ for fast retrieval.
   * -- Returns a Vector of observations on retrieval to ensure all mutability is kept private.
   *
@@ -28,7 +28,7 @@ import scala.collection.mutable
   * -- Not thread-safe, this should only be used within a single Actor, e.g. within the RideHailManager. Do not share across Actors!
   * -- This is intended for collecting AND USING data within an iteration... notably different from how Skimmers function, which is only
   *    to collect data during an iteration for use in subsequent iterations. Future improvements on this class could be made to
-  *    better synchronize or complement skimmers... e.g. if this class doesn't have data about a time period or spatial index, then
+  *    better synchronize or complement skimmers... e.g. if this class doesn't have data about a linkStartTime period or spatial index, then
   *    a skimmer could be used as a fallback.
   */
 class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: Int = 1) {
@@ -37,22 +37,22 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
     mutable.HashMap.empty[SpatioTemporalKey, mutable.ListBuffer[Double]]
 
   /**
-    * Store an observation of a KPI with at a particular time.
+    * Store an observation of a KPI with at a particular linkStartTime.
     *
     * @param value observation to be stored
     * @param kpi kpi characterizing the observation
-    * @param time time in seconds
+    * @param time linkStartTime in seconds
     */
   def storeObservation(value: Double, kpi: Kpi, time: Int): Unit = {
     storeObservation(value, kpi, time, None)
   }
 
   /**
-    * Store an observation of a KPI with at a particular time and location
+    * Store an observation of a KPI with at a particular linkStartTime and location
     *
     * @param value observation to be stored
     * @param kpi kpi characterizing the observation
-    * @param time time in seconds
+    * @param time linkStartTime in seconds
     * @param location location as a Coord
     */
   def storeObservation(value: Double, kpi: Kpi, time: Int, location: Coord): Unit = {
@@ -94,13 +94,13 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
   }
 
   /**
-    * Retrieve all observed kpis from the TAZ that matches the location argument for the given time and TemporalAggregation.
+    * Retrieve all observed kpis from the TAZ that matches the location argument for the given linkStartTime and TemporalAggregation.
     *
     * The temporal aggregation indicates what temporal grouping of observations are of interest: None means no-aggregation,
-    * Hourly means all observations within the same hour as the time argument, and so on.
+    * Hourly means all observations within the same hour as the linkStartTime argument, and so on.
     *
     * @param kpi the KPI of interest to retrieve
-    * @param time the time in seconds of interest
+    * @param time the linkStartTime in seconds of interest
     * @param location the location of interest
     * @param temporalAggregation the temporal aggregation of the observations
     * @return
@@ -116,13 +116,13 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
   }
 
   /**
-    * Retrieve all observation from the HEX that matches the location argument for the given time and TemporalAggregation.
+    * Retrieve all observation from the HEX that matches the location argument for the given linkStartTime and TemporalAggregation.
     *
     * The temporal aggregation indicates what temporal grouping of observations are of interest: None means no-aggregation,
-    * Hourly means all observations within the same hour as the time argument, and so on.
+    * Hourly means all observations within the same hour as the linkStartTime argument, and so on.
     *
     * @param kpi the KPI of interest to retrieve
-    * @param time the time in seconds of interest
+    * @param time the linkStartTime in seconds of interest
     * @param location the location of interest
     * @param temporalAggregation the temporal aggregation of the observations
     * @return
@@ -137,15 +137,15 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
   }
 
   /**
-    * Retrieve all observed kpis for the given time and TemporalAggregation as well as the optional spatial keys specified.
+    * Retrieve all observed kpis for the given linkStartTime and TemporalAggregation as well as the optional spatial keys specified.
     *
     * The temporal aggregation indicates what temporal grouping of observations are of interest: None means no-aggregation,
-    * Hourly means all observations within the same hour as the time argument, and so on.
+    * Hourly means all observations within the same hour as the linkStartTime argument, and so on.
     *
-    * WARNING: only one spatial key can be defined at a time.
+    * WARNING: only one spatial key can be defined at a linkStartTime.
     *
     * @param kpi the KPI of interest to retrieve
-    * @param time the time in seconds of interest
+    * @param time the linkStartTime in seconds of interest
     * @param temporalAggregation the temporal aggregation of the observations
     * @param hexKey the optional H3 HEX to use for spatial aggregation
     * @param tazKey the optional TAZ to use for spatial aggregation
@@ -176,15 +176,15 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
   }
 
   /**
-    * Retrieve all observed kpis for the most recent time and TemporalAggregation for which data is available.
+    * Retrieve all observed kpis for the most recent linkStartTime and TemporalAggregation for which data is available.
     *
     * The temporal aggregation indicates what temporal grouping of observations are of interest: None means no-aggregation,
-    * [[Hourly]] means aggregated over all observations within the same hour as the time argument, and so on.
+    * [[Hourly]] means aggregated over all observations within the same hour as the linkStartTime argument, and so on.
     *
-    * WARNING: only one spatial key can be defined at a time.
+    * WARNING: only one spatial key can be defined at a linkStartTime.
     *
     * @param kpi the KPI of interest to retrieve
-    * @param time the time in seconds of interest
+    * @param time the linkStartTime in seconds of interest
     * @param temporalAggregation the temporal aggregation of the observations
     * @param hexKey the optional H3 HEX to use for spatial aggregation
     * @param tazKey the optional TAZ to use for spatial aggregation
@@ -259,9 +259,9 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
   }
 
   /**
-    * Helper method to covert a time in seconds to the appropriate 15-minute, 30-minute, and 60-minute bin.
+    * Helper method to covert a linkStartTime in seconds to the appropriate 15-minute, 30-minute, and 60-minute bin.
     *
-    * @param time the time in seconds
+    * @param time the linkStartTime in seconds
     * @return a 3-tuple with the 15-minute, 30-minute, and 60-minute bins
     */
   private def timeInSecondsToBins(time: Int): (QuarterHourBin, HalfHourBin, HourBin) =
@@ -272,11 +272,11 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
     )
 
   /**
-    * Helper method to convert a give time or bin (i.e. it could be a time in seconds or a bin number) to a
-    * corresponding time in seconds. For bins, this will always be the time in seconds at the beginning of the
-    * time interval. I.e. for Hourly and timeOrBin == 1, a value of 3600 will be returned.
+    * Helper method to convert a give linkStartTime or bin (i.e. it could be a linkStartTime in seconds or a bin number) to a
+    * corresponding linkStartTime in seconds. For bins, this will always be the linkStartTime in seconds at the beginning of the
+    * linkStartTime interval. I.e. for Hourly and timeOrBin == 1, a value of 3600 will be returned.
     *
-    * @param timeOrBin a time in seconds or time bin
+    * @param timeOrBin a linkStartTime in seconds or linkStartTime bin
     * @param temporalAggregation the temporal aggregation of the timeOrBin argument
     * @return
     */
@@ -294,10 +294,10 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
   }
 
   /**
-    * Helper method to convert a time in seconds to a time bin number. If temporalAggregation is None, then the value
+    * Helper method to convert a linkStartTime in seconds to a linkStartTime bin number. If temporalAggregation is None, then the value
     * of timeInSeconds is returned.
     *
-    * @param timeInSeconds a time in seconds
+    * @param timeInSeconds a linkStartTime in seconds
     * @param temporalAggregation the temporal aggregation of the needed result
     * @return
     */

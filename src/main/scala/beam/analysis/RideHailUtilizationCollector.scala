@@ -215,7 +215,7 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
     )
 
     val csvWriter =
-      new CsvWriter(filePath, Vector("vehicleId", "time", "startX", "startY", "endX", "endY", "numberOfPassengers"))
+      new CsvWriter(filePath, Vector("vehicleId", "linkStartTime", "startX", "startY", "endX", "endY", "numberOfPassengers"))
     try {
       val vehicleToRides = rides.groupBy(x => x.vehicleId)
 
@@ -326,7 +326,7 @@ object RideHailUtilizationCollector {
     OutputDataDescriptorObject("RideHailUtilizationCollector", s"ridehailRides.csv.gz", iterationLevel = true)(
       """
         vehicleId           | Id of the ride-hail vehicle making the ride
-        time                | Time in seconds when the ride is completed
+        linkStartTime                | Time in seconds when the ride is completed
         startX              | X part of the start ride coordinate
         startY              | Y part of the start ride coordinate
         endX                | X of the end ride coordinate

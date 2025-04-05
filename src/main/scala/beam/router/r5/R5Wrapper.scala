@@ -181,7 +181,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
         if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon, linkRadiusMeters)) {
           if (streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon, linkRadiusMeters)) {
-            latency("route-transit-time", Metrics.VerboseLevel) {
+            latency("route-transit-linkStartTime", Metrics.VerboseLevel) {
               streetRouter.route() // latency 1
             }
             val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
@@ -223,7 +223,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
 
   def createProfileRequest: ProfileRequest = {
     val profileRequest = new ProfileRequest()
-    // Warning: carSpeed is not used for link traversal (rather, the OSM travel time model is used),
+    // Warning: carSpeed is not used for link traversal (rather, the OSM travel linkStartTime model is used),
     // but for R5-internal bushwhacking from network to coordinate, AND ALSO for the A* remaining weight heuristic,
     // which means that this value must be an over(!)estimation, otherwise we will miss optimal routes,
     // particularly in the presence of tolls.
@@ -282,7 +282,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           val accessMode = LegMode.WALK
           val egressMode = LegMode.WALK
           val profileResponse =
-            latency("walkToVehicleRoute-router-time", Metrics.RegularLevel) {
+            latency("walkToVehicleRoute-router-linkStartTime", Metrics.RegularLevel) {
               getStreetPlanFromR5(
                 R5Request(
                   fromWgs,
@@ -355,7 +355,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       )
       val vehicleLegMode = vehicle.mode.r5Mode.flatMap(_.left.toOption).getOrElse(LegMode.valueOf(""))
       val profileResponse =
-        latency("vehicleOnEgressRoute-router-time", Metrics.RegularLevel) {
+        latency("vehicleOnEgressRoute-router-linkStartTime", Metrics.RegularLevel) {
           getStreetPlanFromR5(
             R5Request(
               fromWgs,
@@ -406,7 +406,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
      * For the mainRouteFromVehicle pattern, the traveler is using a vehicle within the context of a
      * trip that could be multimodal (e.g. drive to transit) or unimodal (drive only). We don't assume the vehicle is
      * co-located with the person, so this first block of code determines the distance from the vehicle to the person and based
-     * on a threshold, optionally routes a WALK leg to the vehicle and adjusts the main route location & time accordingly.
+     * on a threshold, optionally routes a WALK leg to the vehicle and adjusts the main route location & linkStartTime accordingly.
      *
      */
     val mainRouteToVehicle = request.streetVehiclesUseIntermodalUse == Egress && isRouteForPerson
@@ -663,7 +663,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             )
         }
 
-      val transitPaths = latency("getpath-transit-time", Metrics.VerboseLevel) {
+      val transitPaths = latency("getpath-transit-linkStartTime", Metrics.VerboseLevel) {
         profileRequest.fromTime = request.departureTime
         accessStopsByMode.flatMap { case (mode, stopVisitor) =>
           val modeSpecificBuffer = mode match {
@@ -700,7 +700,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         )
       }
 
-      latency("transfer-transit-time", Metrics.VerboseLevel) {
+      latency("transfer-transit-linkStartTime", Metrics.VerboseLevel) {
         profileResponse.generateStreetTransfers(transportNetwork, profileRequest)
       }
     }
@@ -756,7 +756,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
 
           // Lazy because this looks expensive and we may not need it because there's _another_ fare
           // calculation that takes precedence
-          lazy val fares = latency("fare-transit-time", Metrics.VerboseLevel) {
+          lazy val fares = latency("fare-transit-linkStartTime", Metrics.VerboseLevel) {
             val fareSegments = getFareSegments(segments.toVector)
             filterFaresOnTransfers(fareSegments)
           }
@@ -1055,7 +1055,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
   ): BeamLeg = {
     val tripStartTime: Int = startPoint.time
     // During routing `travelTimeByLinkCalculator` is used with shouldAddNoise = true (if it is not transit)
-    // That trick gives us back diverse route. Now we want to compute travel time per link and we don't want to include that noise
+    // That trick gives us back diverse route. Now we want to compute travel linkStartTime per link and we don't want to include that noise
     val linksTimesDistances = RoutingModel.linksToTimeAndDistance(
       activeLinkIds,
       tripStartTime,

@@ -48,8 +48,8 @@ object BeamActivity {
   }
 }
 
-// 	<event time="18488.0" type="actstart"   person="022802-2012001386215-0-6282252" link="56240" actType="Work" />
-//	<event time="18533.0" type="actend"     person="022802-2012001386215-0-6282251" link="65256" actType="Home" />
+// 	<event linkStartTime="18488.0" type="actstart"   person="022802-2012001386215-0-6282252" link="56240" actType="Work" />
+//	<event linkStartTime="18533.0" type="actend"     person="022802-2012001386215-0-6282251" link="65256" actType="Home" />
 
 class BeamActivity(override val time: Double, val personId: String, val linkId: Int, val activityType: String)
     extends BeamEvent

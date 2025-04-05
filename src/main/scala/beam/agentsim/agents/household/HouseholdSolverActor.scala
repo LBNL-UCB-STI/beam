@@ -107,8 +107,8 @@ class HouseholdSolverActor extends LoggingMessageActor with ActorLogging {
         initialTotalTime = totalTime
       }
     })
-    println(s"Total mb: $totalMb and Total time: $totalTime")
-    println(s"Average mb: ${totalMb / 1000} and Average time: ${totalTime / 1000}")
-    println(s"Initial Total mb: $initialTotalMb and Initial Total time: $initialTotalTime")
+    println(s"Total mb: $totalMb and Total linkStartTime: $totalTime")
+    println(s"Average mb: ${totalMb / 1000} and Average linkStartTime: ${totalTime / 1000}")
+    println(s"Initial Total mb: $initialTotalMb and Initial Total linkStartTime: $initialTotalTime")
   }
 }

@@ -272,7 +272,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
             writer.write(ExcerptData.csvHeader)
             writer.write("\n")
 
-            ProfilingUtils.timed("Writing skims for time periods for all pathTypes", x => logger.info(x)) {
+            ProfilingUtils.timed("Writing skims for linkStartTime periods for all pathTypes", x => logger.info(x)) {
               rows.foreach { case ODRow(origin, destination) =>
                 existingSkims.get((origin.id, destination.id)) match {
                   case Some(skims) =>

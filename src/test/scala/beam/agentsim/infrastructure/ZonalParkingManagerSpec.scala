@@ -391,7 +391,7 @@ class ZonalParkingManagerSpec
     }
   }
 
-  describe("ZonalParkingManager with time restrictions") {
+  describe("ZonalParkingManager with linkStartTime restrictions") {
     it("should return a stall from the single available zone (index=2)") {
       val parkingDescription: Iterator[String] =
         """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,timeRestrictions,reservedFor,parkingZoneId

@@ -128,7 +128,7 @@ class JDEQSimRunner(
         logger.info(s"PhysSim iteration $currentPhysSimIter finished")
         maybePickUpDropOffHolder.foreach { holder =>
           logger.info(
-            s"During PhysSim simulation by PickUpDropOffHolder ${holder.linkTravelTimeAnalyzed} link analyzed, ${holder.linkTravelTimeAffected} links travel time changed."
+            s"During PhysSim simulation by PickUpDropOffHolder ${holder.linkTravelTimeAnalyzed} link analyzed, ${holder.linkTravelTimeAffected} links travel linkStartTime changed."
           )
         }
       }
@@ -146,7 +146,7 @@ class JDEQSimRunner(
             legHistogram,
             controlerIO,
             s"$currentPhysSimIter.physsimTripHistogram",
-            "time (binSize=<?> sec)",
+            "linkStartTime (binSize=<?> sec)",
             mode,
             agentSimIterationNumber,
             beamConfig.beam.outputs.stats.binSize

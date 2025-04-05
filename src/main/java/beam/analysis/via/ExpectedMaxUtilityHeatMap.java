@@ -86,7 +86,7 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
 
     private void printColumnHeaders() {
         try {
-            bufferedWriter.append("time");
+            bufferedWriter.append("linkStartTime");
             bufferedWriter.append(SEPERATOR);
             bufferedWriter.append("x");
             bufferedWriter.append(SEPERATOR);
@@ -102,7 +102,7 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
     public static OutputDataDescriptor outputDataDescriptor() {
         return OutputDataDescriptorObject.apply("ExpectedMaxUtilityHeatMap", "expectedMaxUtilityHeatMap.csv", true,
                 String.join("\n"
-                        , "time | Time of mode choice event"
+                        , "linkStartTime | Time of mode choice event"
                         , "x | X part of location of mode choice event"
                         , "y | Y part of location of mode choice event"
                         , "expectedMaximumUtility | expectedMaximumUtility of mode choice"

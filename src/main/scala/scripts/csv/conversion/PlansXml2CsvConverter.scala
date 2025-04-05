@@ -13,7 +13,7 @@ object PlansXml2CsvConverter extends Xml2CsvFileConverter {
       "planId",
       "planElementType",
       "activityIndex",
-      "activityType",
+      "parkingActivityType",
       "locationX",
       "locationY",
       "endTime",

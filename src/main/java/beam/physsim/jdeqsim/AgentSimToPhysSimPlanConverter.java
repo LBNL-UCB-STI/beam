@@ -166,7 +166,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private void setupActorsAndRunPhysSim(IterationEndsEvent iterationEndsEvent) {
         // I don't use single class `UpdateTravelTime` here and make decision in `BeamRouter` because
         // below we have `linkStatsGraph.notifyIterationEnds` call which internally will call `BeamCalcLinkStats.addData`
-        // which may change an internal state of travel time calculator (and it happens concurrently in CompletableFuture)
+        // which may change an internal state of travel linkStartTime calculator (and it happens concurrently in CompletableFuture)
         //################################################################################################################
         Collection<? extends Link> links = agentSimScenario.getNetwork().getLinks().values();
         int maxHour = (int) TimeUnit.SECONDS.toHours(agentSimScenario.getConfig().travelTimeCalculator().getMaxTime()) + 1;
@@ -191,7 +191,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 SimulationResult result = sim.run(prevTravelTime);
                 travelTimeFromPhysSim = result.travelTime();
                 volumesAnalyzer = result.volumesAnalyzer().getOrElse(this::dummyVolumesAnalyzer);
-                // Safe travel time to reuse it on the next PhysSim iteration
+                // Safe travel linkStartTime to reuse it on the next PhysSim iteration
                 prevTravelTime = travelTimeFromPhysSim;
 
                 travelTimeMap = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(links,
@@ -258,7 +258,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
 
         int lastIteration = beamConfig.matsim().modules().controler().lastIteration();
-        // We write travel time map on 0-th iteration or (iterationNumber + 1) % writeEventsInterval because this travel time will be used in the next iteration
+        // We write travel linkStartTime map on 0-th iteration or (iterationNumber + 1) % writeEventsInterval because this travel linkStartTime will be used in the next iteration
         // It's needed to be in sync with `RouteDumper` and allow us to reproduce routes calculation
         if ((iterationNumber == lastIteration) || beamConfig.beam().outputs().writeEventsInterval() > 0 &&
                 iterationNumber % beamConfig.beam().outputs().writeEventsInterval() == 0) {
@@ -268,7 +268,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                     oos.writeObject(travelTimeMap);
                 }
             } catch (Exception ex) {
-                log.error("Can't write travel time map", ex);
+                log.error("Can't write travel linkStartTime map", ex);
             }
         }
 
@@ -515,7 +515,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
      * @param pte                PathTraversalEvent
      * @param connectedLeg       the previous leg that is directly connected to the current one (no activity/delay between them).
      *                           If it is provided then the previous leg is combined with the current PTE
-     * @param departureTimeShift a time sift to
+     * @param departureTimeShift a linkStartTime sift to
      * @return
      */
     private Leg createLeg(PathTraversalEvent pte, Leg connectedLeg, Integer departureTimeShift) {
@@ -531,7 +531,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
 
         List<Object> objects = pte.linkIdsJava();
-        // most of the time the last link of previous leg is the first link of current leg - we are avoiding this
+        // most of the linkStartTime the last link of previous leg is the first link of current leg - we are avoiding this
         boolean sameLinkAtTheEnd;
         try {
             sameLinkAtTheEnd = !linkIds.isEmpty()

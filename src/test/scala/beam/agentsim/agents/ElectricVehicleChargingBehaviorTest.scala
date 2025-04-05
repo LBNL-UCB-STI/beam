@@ -424,7 +424,7 @@ class ElectricVehicleChargingBehaviorTest
       .parseString(
         s"""$rideHailConfig
            |beam.agentsim.agents.plans.inputPlansFilePath = $filesPath/populationWalk.xml"
-           |beam.agentsim.taz.parkingFilePath = $filesPath/taz-parking-ride-hail-driving-time-cost.csv"
+           |beam.agentsim.taz.parkingFilePath = $filesPath/taz-parking-ride-hail-driving-linkStartTime-cost.csv"
            |# 15 Km range
            |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath/vehicleTypes-low-capacity.csv"
            |beam.agentsim.agents.rideHail.charging.multinomialLogit.params.drivingTimeMultiplier = -0.01666667 # default
@@ -530,7 +530,7 @@ class ElectricVehicleChargingBehaviorTest
     val config = ConfigFactory
       .parseString(
         s"""$rideHailConfig
-           |beam.agentsim.taz.parkingFilePath = $filesPath/taz-parking-ride-hail-charging-time-cost.csv"
+           |beam.agentsim.taz.parkingFilePath = $filesPath/taz-parking-ride-hail-charging-linkStartTime-cost.csv"
            |# 5 Km range
            |beam.agentsim.agents.vehicles.vehicleTypesFilePath =  $filesPath/vehicleTypes-high-capacity-low-range.csv"
            |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_intercept = 0

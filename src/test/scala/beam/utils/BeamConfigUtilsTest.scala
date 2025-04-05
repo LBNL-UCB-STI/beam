@@ -128,7 +128,7 @@ class BeamConfigUtilsTest extends AnyWordSpecLike with Matchers {
       )
     }
 
-    "ignore files if they appears more than one time in includes " in {
+    "ignore files if they appears more than one linkStartTime in includes " in {
       val filesPaths = Array(
         "test/test2/supertest/file0.ff",
         "test/test2/ttt/file1.fff",

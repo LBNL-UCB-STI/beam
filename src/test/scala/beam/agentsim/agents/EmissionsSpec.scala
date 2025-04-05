@@ -92,7 +92,7 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
   }
 
   describe("BeamVehicle function startTimeAndDurationToMultipleIntervals") {
-    it("be able to convert start time and duration to multiple intervals") {
+    it("be able to convert start linkStartTime and duration to multiple intervals") {
       def hr_to_secs(hours: Double): Int = (hours * 3600).toInt
 
       BeamVehicle.startTimeAndDurationToMultipleIntervals(hr_to_secs(1.1), hr_to_secs(0.7)) should be(
@@ -115,7 +115,7 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
 
   describe("When BEAM run with emissions generation only for RH") {
     it(
-      "expected for emissions be generated for each PTE link and for eny IDLE time between Shift events and PT events"
+      "expected for emissions be generated for each PTE link and for eny Idle linkStartTime between Shift events and PT events"
     ) {
       val rhWithEmissions = mutable.ListBuffer[PathTraversalEvent]()
 
@@ -185,7 +185,7 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
           )
         )
 
-      vehicleIdleLinkHour shouldNot be(empty) withClue "There should be IDLE time of RH vehicles."
+      vehicleIdleLinkHour shouldNot be(empty) withClue "There should be Idle linkStartTime of RH vehicles."
 
       val skimsIDLEKeys =
         skimsEmissions.keys
@@ -194,7 +194,7 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
           .toSet
 
       vehicleIdleLinkHour.foreach { case (linkId, hr) =>
-        assert(skimsIDLEKeys.contains((linkId, hr)), "All IDLE time of RH vehicles should be in skims.")
+        assert(skimsIDLEKeys.contains((linkId, hr)), "All Idle linkStartTime of RH vehicles should be in skims.")
       }
     }
   }

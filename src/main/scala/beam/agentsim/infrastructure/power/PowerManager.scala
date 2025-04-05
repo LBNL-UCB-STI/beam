@@ -63,9 +63,9 @@ class PowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: Bea
   /**
     * Obtains physical bounds from the grid
     *
-    * @param currentTime current time
+    * @param currentTime current linkStartTime
     *  @param estimatedLoad map required power per zone
-    * @return tuple of PhysicalBounds and Int (next time)
+    * @return tuple of PhysicalBounds and Int (next linkStartTime)
     */
   def obtainPowerPhysicalBounds(
     currentTime: Int,
@@ -103,7 +103,7 @@ class PowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: Bea
         }.toMap
       }
       .getOrElse {
-        logger.debug("Not connected to grid, falling to default physical bounds at time {}...", currentTime)
+        logger.debug("Not connected to grid, falling to default physical bounds at linkStartTime {}...", currentTime)
         Map.empty[Id[ParkingZoneId], ZonalPowerLimit]
       }
   }

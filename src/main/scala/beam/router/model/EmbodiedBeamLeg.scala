@@ -53,7 +53,7 @@ object EmbodiedBeamLeg {
     var runningStartTime = newStartTime
     for (leg <- legs) yield {
       val newLeg = {
-        // we cannot change start time of legs that have schedule
+        // we cannot change start linkStartTime of legs that have schedule
         if (leg.beamLeg.mode.isTransit) leg
         else leg.copy(beamLeg = leg.beamLeg.updateStartTime(runningStartTime))
       }

@@ -329,7 +329,7 @@ class SimpleScenarioGenerator(
                         )
                         val timeLeavingHomeSeconds = drawTimeLeavingHome(timeLeavingHomeRange)
 
-                        // Create Home Activity: end time is when a person leaves a home
+                        // Create Home Activity: end linkStartTime is when a person leaves a home
                         val leavingHomeActivity = planElementTemplate.copy(
                           personId = createdPerson.personId,
                           planElementType = PlanElement.Activity,
@@ -376,7 +376,7 @@ class SimpleScenarioGenerator(
                             planElementIndex = 4
                           )
 
-                        // Create Home Activity: end time not defined
+                        // Create Home Activity: end linkStartTime not defined
                         val homeActivity = planElementTemplate.copy(
                           personId = createdPerson.personId,
                           planElementType = PlanElement.Activity,

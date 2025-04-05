@@ -79,10 +79,10 @@ object BeamOutputDataDescriptionGenerator {
     CarTripStatsFromPathTraversalEventHandler.outputDataDescriptor,
     CarTripStatsFromPathTraversalEventHandler.outputDataDescriptor("CarSpeed", "speed"),
     CarTripStatsFromPathTraversalEventHandler.outputDataDescriptor("CarTravelDistance", "travel distance"),
-    CarTripStatsFromPathTraversalEventHandler.outputDataDescriptor("CarTravelTime", "travel time"),
+    CarTripStatsFromPathTraversalEventHandler.outputDataDescriptor("CarTravelTime", "travel linkStartTime"),
     BeamOutputDataDescriptionGenerator.outputDataDescriptor,
     CarTripStatsFromPathTraversalEventHandler.outputDataDescriptor("FreeFlowCarSpeed", "free flow speed"),
-    CarTripStatsFromPathTraversalEventHandler.outputDataDescriptor("FreeFlowCarTravelTime", "free flow travel time"),
+    CarTripStatsFromPathTraversalEventHandler.outputDataDescriptor("FreeFlowCarTravelTime", "free flow travel linkStartTime"),
     beam.utils.csv.writers.HouseholdsCsvWriter.outputDataDescriptor,
     beam.analysis.ActivityTypeAnalysis.outputDataDescriptorIteration,
     beam.analysis.cartraveltime.CarTripStatsFromPathTraversalEventHandler.detailedOutputDataDescriptor("personal"),
@@ -182,7 +182,7 @@ object BeamOutputDataDescriptionGenerator {
           iteration             | Iteration number
           vehicleType           | Vehicle type which stats this tables contains
           vehicleMilesTraveled  | Total distance that all the vehicles of this type travelled
-          vehicleHoursTraveled  | Total time that all the vehicles of this type travelled
+          vehicleHoursTraveled  | Total linkStartTime that all the vehicles of this type travelled
           numberOfVehicles      | Total number of vehicles of this type
         """
     )
@@ -211,7 +211,7 @@ object ScoreStatsOutputs extends OutputDataDescriptor {
         this.getClass.getSimpleName.dropRight(1),
         relativePath,
         "avg. EXECUTED",
-        "Average of the total execution time for the given iteration"
+        "Average of the total execution linkStartTime for the given iteration"
       )
     )
     list.add(
@@ -219,7 +219,7 @@ object ScoreStatsOutputs extends OutputDataDescriptor {
         this.getClass.getSimpleName.dropRight(1),
         relativePath,
         "avg. WORST",
-        "Average of worst case time complexities for the given iteration"
+        "Average of worst case linkStartTime complexities for the given iteration"
       )
     )
     list.add(
@@ -227,7 +227,7 @@ object ScoreStatsOutputs extends OutputDataDescriptor {
         this.getClass.getSimpleName.dropRight(1),
         relativePath,
         "avg. AVG",
-        "Average of average case time complexities for the given iteration"
+        "Average of average case linkStartTime complexities for the given iteration"
       )
     )
     list.add(
@@ -235,7 +235,7 @@ object ScoreStatsOutputs extends OutputDataDescriptor {
         this.getClass.getSimpleName.dropRight(1),
         relativePath,
         "avg. BEST",
-        "Average of best case time complexities for the given iteration"
+        "Average of best case linkStartTime complexities for the given iteration"
       )
     )
     list
@@ -264,7 +264,7 @@ object StopWatchOutputs extends OutputDataDescriptor {
         this.getClass.getSimpleName.dropRight(1),
         relativePath,
         "BEGIN iteration",
-        "Begin time of the iteration"
+        "Begin linkStartTime of the iteration"
       )
     )
     list.add(
@@ -597,7 +597,7 @@ object SummaryStatsOutputs extends OutputDataDescriptor {
         this.getClass.getSimpleName.dropRight(1),
         relativePath,
         "totalTravelTime",
-        "Total time taken by the passenger to travel from source to destination"
+        "Total linkStartTime taken by the passenger to travel from source to destination"
       )
     )
     list.add(
@@ -789,7 +789,7 @@ object EventOutputs extends OutputDataDescriptor {
     )
     list.add(OutputDataDescription(this.getClass.getSimpleName.dropRight(1), relativePath, "vehicle", "vehicle id"))
     list.add(
-      OutputDataDescription(this.getClass.getSimpleName.dropRight(1), relativePath, "time", "Start time of the vehicle")
+      OutputDataDescription(this.getClass.getSimpleName.dropRight(1), relativePath, "linkStartTime", "Start linkStartTime of the vehicle")
     )
     list.add(OutputDataDescription(this.getClass.getSimpleName.dropRight(1), relativePath, "type", "Type of the event"))
     list.add(
@@ -974,7 +974,7 @@ object EventOutputs extends OutputDataDescriptor {
         this.getClass.getSimpleName.dropRight(1),
         relativePath,
         "departure_time",
-        "Departure time of the vehicle"
+        "Departure linkStartTime of the vehicle"
       )
     )
     list.add(
@@ -982,7 +982,7 @@ object EventOutputs extends OutputDataDescriptor {
         this.getClass.getSimpleName.dropRight(1),
         relativePath,
         "arrival_time",
-        "Arrival time of the vehicle"
+        "Arrival linkStartTime of the vehicle"
       )
     )
     list.add(
@@ -1070,8 +1070,8 @@ object LegHistogramOutputs extends OutputDataDescriptor {
     val outputDirPath = ioController.getOutputPath
     val relativePath = outputFilePath.replace(outputDirPath, "")
     val list = new java.util.ArrayList[OutputDataDescription]
-    list.add(OutputDataDescription(this.getClass.getSimpleName.dropRight(1), relativePath, "time", "Time"))
-    list.add(OutputDataDescription(this.getClass.getSimpleName.dropRight(1), relativePath, "time", "Time"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName.dropRight(1), relativePath, "linkStartTime", "Time"))
+    list.add(OutputDataDescription(this.getClass.getSimpleName.dropRight(1), relativePath, "linkStartTime", "Time"))
     list.add(
       OutputDataDescription(
         this.getClass.getSimpleName.dropRight(1),

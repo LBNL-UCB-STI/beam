@@ -58,7 +58,7 @@ object LeavingParkingEvent {
     if (parkingDepartureTime >= stall.getParkingTime) {
       parkingDepartureTime - stall.getParkingTime
     } else {
-      0.0 // Return 0 if departure time is before arrival time
+      0.0 // Return 0 if departure linkStartTime is before arrival linkStartTime
     }
   }
 

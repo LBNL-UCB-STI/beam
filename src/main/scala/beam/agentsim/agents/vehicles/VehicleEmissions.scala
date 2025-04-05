@@ -8,6 +8,7 @@ import beam.agentsim.events.{LeavingParkingEvent, PathTraversalEvent}
 import beam.router.skim.event.EmissionsSkimmerEvent
 import beam.sim.BeamServices
 import beam.sim.common.DoubleTypedRange
+import beam.sim.config.BeamConfig
 import beam.utils.BeamVehicleUtils
 import beam.utils.BeamVehicleUtils.convertRecordStringToDoubleTypedRange
 import com.typesafe.scalalogging.LazyLogging
@@ -22,6 +23,8 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
+
+case class OperationStatus(time: Double, isTraveling: Boolean, duration: Option[Double])
 
 class VehicleEmissions(
   vehicleTypesBasePaths: IndexedSeq[String],
@@ -40,6 +43,9 @@ class VehicleEmissions(
     vehicleTypesBasePaths,
     emissionsRateFilePathsByVehicleType = vehicleTypes.values.map(x => (x, x.emissionsRatesFile)).toIndexedSeq
   )
+
+  private lazy val vehicleOperationTime: mutable.HashMap[Id[BeamVehicle], OperationStatus] =
+    mutable.HashMap.empty[Id[BeamVehicle], OperationStatus]
 
   private lazy val linkIdToGradePercentMap =
     BeamVehicleUtils.loadLinkIdToGradeMapFromCSV(csvParser, linkToGradePercentFilePath)
@@ -60,6 +66,19 @@ class VehicleEmissions(
       maybeEmissionsRateFilter
     }
 
+    vehicleActivityData.headOption.foreach { data =>
+      val startTime = data.activityStartTime.getOrElse(0.0)
+      val isNotParking = data.parkingActivityType.isEmpty
+      val op = vehicleOperationTime.getOrElseUpdate(data.vehicleId, OperationStatus(startTime, isNotParking, None))
+      if (op.duration.nonEmpty && data.parkingActivityType.isEmpty) {
+        // remove duration when traveling and update time
+        vehicleOperationTime.update(data.vehicleId, op.copy(time = startTime, duration = None))
+      } else if (op.duration.isEmpty && data.parkingActivityType.nonEmpty && startTime > op.time) {
+        // calculate duration when parked after a travel
+        vehicleOperationTime.update(data.vehicleId, op.copy(duration = Some(startTime - op.time)))
+      }
+    }
+
     val emissionsProfiles = for {
       process              <- identifyProcesses(vehicleActivityData, vehicleActivity)
       data                 <- vehicleActivityData
@@ -72,7 +91,7 @@ class VehicleEmissions(
         // Create and process EmissionsSkimmerEvent
         beamServices.matsimServices.getEvents.processEvent(
           EmissionsSkimmerEvent(
-            time = data.time,
+            time = data.linkStartTime,
             linkId = data.linkId,
             zone = data.taz.map(_.tazId.toString).getOrElse(""),
             vehicleType = vehicleType.id.toString,
@@ -149,7 +168,7 @@ object VehicleEmissions extends LazyLogging {
         Map[
           DoubleTypedRange, // weight
           Map[
-            DoubleTypedRange, // soak time
+            DoubleTypedRange, // soak linkStartTime
             Map[
               String, // county
               Map[
@@ -236,7 +255,7 @@ object VehicleEmissions extends LazyLogging {
 
   object EmissionsProfile extends Enumeration {
     type EmissionsProcess = Value
-    val RUNEX, IDLEX, STREX, HOTSOAK, DIURN, RUNLOSS, PMTW, PMBW = Value
+    val RUNEX, IDLEX, EXTIDLEX, STREX, HOTSOAK, DIURN, RUNLOSS, PMTW, PMBW, PRDUST = Value
 
     def init(): EmissionsProfile = EmissionsProfile()
 
@@ -262,25 +281,46 @@ object VehicleEmissions extends LazyLogging {
       if (data.isEmpty)
         return ValueSet.empty
 
-      val headActivity: Option[String] = data.headOption.flatMap(_.activityType).map(_.toLowerCase)
+      val headActivity: Option[String] = data.headOption.flatMap(_.parkingActivityType).map(_.toLowerCase)
       val averageSpeed: Double = data.headOption.flatMap(_.averageSpeed).getOrElse(0.0)
+      val travelTime: Double = data.headOption.flatMap(_.linkTravelTime).getOrElse(0.0)
 
       val emissionProcesses = {
         EmissionsProfile.values.flatMap {
-          // IDLE activity should be the first element of VehicleActivity data sequence
-          // the type is PathTraversalEvent because there is no difference, IDLE activity happens between other events
-          case process @ IDLEX if vehicleActivity == classOf[PathTraversalEvent] && averageSpeed == 0 =>
-            Some(process)
-          case process @ (RUNEX | PMBW | PMTW | RUNLOSS)
+          /**
+            * Idle activity should be the first element of VehicleActivity data sequence
+            * the type is PathTraversalEvent because there is no difference, Idle activity happens between other events
+            *
+            * Idle Exhaust (IDLEX) emissions refer to the emissions during extended idling events (i.e., a continuous
+            * segment of vehicle activity that meets three criteria: all instantaneous vehicle speeds being lower
+            * than 5 mph, the total distance of less than 1 mile, and the total duration of more than 5 minutes)
+            * by heavy duty trucks. Extended idle may occur during loading or unloading goods, or to power accessories.
+            * Idle exhaust is calculated only for heavy-duty trucks. For light duty vehicles, the idle events during
+            * normal vehicle operation are already accounted for, i.e. RUNEX emission rates are based on driving
+            * cycles that include normal idling events. IDLEX emission rates do not vary by temperature and humidity
+            * and are not related to speed bins.
+            * https://ww2.arb.ca.gov/sites/default/files/2021-03/emfac2021_volume_2_pl_handbook.pdf
+            */
+          case process @ IDLEX =>
+            val was_moving = vehicleActivity == classOf[PathTraversalEvent]
+            val had_low_speed = was_moving && averageSpeed < 2.24 && travelTime > 300
+            val was_loading_unloading = headActivity.exists(FreightRequestType.isLoadingUnloading)
+            val was_at_warehouse = headActivity.exists(FreightRequestType.isWarehouse)
+            val was_parked = vehicleActivity == classOf[LeavingParkingEvent]
+            if ((was_moving && had_low_speed) || was_parked && (was_loading_unloading || was_at_warehouse))
+              Some(process)
+            else None
+
+          case process @ EXTIDLEX =>
+            // TODO In the future we will need to look at whether vehicle is hotelling
+            val was_hotelling = false
+            val was_parked = vehicleActivity == classOf[LeavingParkingEvent]
+            if (was_parked && was_hotelling) Some(process) else None
+
+          case process @ (RUNEX | PMBW | PMTW | RUNLOSS | PRDUST)
               if vehicleActivity == classOf[PathTraversalEvent] && averageSpeed > 0.0 =>
             Some(process)
-          // TODO In the future we will need to look at whether vehicle is hotelling
-          // If vehicle is loading or unloading
-          case process @ IDLEX
-              if vehicleActivity == classOf[LeavingParkingEvent] && headActivity.contains(
-                FreightRequestType.Loading.toString.toLowerCase()
-              ) =>
-            Some(process)
+
           case process @ (STREX | DIURN | HOTSOAK | RUNLOSS) if vehicleActivity == classOf[LeavingParkingEvent] =>
             Some(process)
           case _ => None
@@ -298,20 +338,21 @@ object VehicleEmissions extends LazyLogging {
 
       // Idle Exhaust Emissions (IDLEX) that come out of the vehicle tailpipe while it is operating but not traveling
       // any significant distance. This process captures emissions from heavy-duty vehicles that idle for
-      // extended periods of time while loading or unloading goods. Idle exhaust is calculated only
+      // extended periods of linkStartTime while loading or unloading goods. Idle exhaust is calculated only
       // for heavy-duty trucks.
       // TODO Embed it in LeavingParkingEvent when 1) it is freight Load/Unload 2) overnight parking
       // xNumber of Idle Hours (xParking Hour) => gram/veh-idle hour
-      case "hotelling" | "idle" | "idlex" => Some(IDLEX)
+      case "idle" | "idling" | "idlex" | "warehouse" | "loading" | "unloading" => Some(IDLEX)
+      case "hotelling" | "hoteling" | "overnight" | "idlex_ext"                => Some(EXTIDLEX)
 
       // Start Exhaust Tailpipe Emissions (STREX) that occur when starting a vehicle. These emissions are independent
-      // of running exhaust emissions and represent the emissions occurring during the initial time period when
+      // of running exhaust emissions and represent the emissions occurring during the initial linkStartTime period when
       // a vehicle’s emissions after treatment system is warming up. The magnitude of these emissions is dependent
       // on how long the vehicle has been sitting prior to starting. Please note that STREX is defined differently
       // for heavy-duty diesel trucks than for other vehicles.
       // More details can be found in the EMFAC2014 Technical Support Document.
       // TODO Embed it in LeavingParkingEvent
-      // xNumber of starts per Soak time => gram/veh-start
+      // xNumber of starts per Soak linkStartTime => gram/veh-start
       case "start" | "strex" => Some(STREX)
 
       // Diurnal Evaporative HC Emissions (DIURN) that occur when rising ambient temperatures cause fuel evaporation
@@ -343,13 +384,27 @@ object VehicleEmissions extends LazyLogging {
       // xVMT by speed bin => gram/veh-mile
       case "brakewear" | "pmbw" => Some(PMBW)
 
+      // Paved Road Dust Particulate Matter Emissions (PRDUST) calculated using EPA AP-42 methodology.
+      // Based on silt loading, vehicle weight, precipitation, and road type.
+      // E = k * (SL^0.91) * (W^1.02) * (1 - P/N/4) with PM2.5/PM10 fractions applied.
+      // xVMT => gram/veh-mile
+      case "dust" | "road_dust" | "paved_road_dust" => Some(PRDUST)
+
       // if process is not recognized then RUNEX emission will be used
       case _ =>
         logger.warn(s"Unrecognized emission process: $process")
         None
     }
 
-    val calculationMap: Map[EmissionsProcess, (Emissions, BeamVehicle.VehicleActivityData) => Emissions] = Map(
+    val calculationMap: Map[
+      EmissionsProcess,
+      (
+        Emissions,
+        BeamVehicle.VehicleActivityData,
+        Map[Id[BeamVehicle], OperationStatus],
+        BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
+      ) => Emissions
+    ] = Map(
       /**
         * Calculate Running Exhaust Emissions (RUNEX)
         * VMT by speed bin => gram/veh-mile
@@ -357,9 +412,15 @@ object VehicleEmissions extends LazyLogging {
         * ratesBySpeedBin Emission rate by speed bin (grams per vehicle-mile)
         * @return Total emissions in grams
         */
-      RUNEX -> { (ratesBySpeedBin: Emissions, data: BeamVehicle.VehicleActivityData) =>
-        val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
-        ratesBySpeedBin * vehicleMilesTraveledInMiles
+      RUNEX -> {
+        (
+          ratesBySpeedBin: Emissions,
+          data: BeamVehicle.VehicleActivityData,
+          _: Map[Id[BeamVehicle], OperationStatus],
+          _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
+        ) =>
+          val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
+          ratesBySpeedBin * vehicleMilesTraveledInMiles
       },
       /**
         * Calculate Idle Exhaust Emissions (IDLEX)
@@ -368,21 +429,57 @@ object VehicleEmissions extends LazyLogging {
         * rates Emission rate (grams per vehicle-idle hour)
         * @return Total emissions in grams
         */
-      IDLEX -> { (rates: Emissions, data: BeamVehicle.VehicleActivityData) =>
-        val vehicleIdleInHours = data.parkingDuration.map(_ / 3600.0).getOrElse(0.0)
-        rates * vehicleIdleInHours
+      IDLEX -> {
+        (
+          rates: Emissions,
+          data: BeamVehicle.VehicleActivityData,
+          vehicleOperationTime: Map[Id[BeamVehicle], OperationStatus],
+          emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
+        ) =>
+          val vehicleSlowMovingInHours = data.linkTravelTime.map(_ / 3600.0).getOrElse(0.0)
+          val vehicleStoppedInHours = data.parkingDuration.map(_ / 3600.0).getOrElse(0.0)
+          val operationInHours = vehicleOperationTime
+            .get(data.vehicleId)
+            .flatMap(_.duration)
+            .map(_ / 3600.0)
+            .getOrElse(0.0) + vehicleSlowMovingInHours + vehicleStoppedInHours
+
+          rates * operationInHours * emissionsConfig.workday_idle
+      },
+      /**
+        * Calculate Idle Exhaust Emissions (EXTIDLEX)
+        * Number of Idle Hours (Parking Hours) => gram/veh-idle hour
+        * vih Vehicle Idle Hours (VIH)
+        * rates Emission rate (grams per vehicle-idle hour)
+        * @return Total emissions in grams
+        */
+      EXTIDLEX -> {
+        (
+          rates: Emissions,
+          data: BeamVehicle.VehicleActivityData,
+          _: Map[Id[BeamVehicle], OperationStatus],
+          emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
+        ) =>
+          val vehicleIdleInHours = data.parkingDuration.map(_ / 3600.0).getOrElse(0.0)
+          rates * vehicleIdleInHours
       },
       /**
         * Calculate Start Exhaust Emissions (STREX)
-        * Number of starts per Soak time => gram/veh-start
+        * Number of starts per Soak linkStartTime => gram/veh-start
         * vst Vehicle Starts (VST)
-        * ratesBySoakTime Emission rate by soak time (grams per vehicle-start)
+        * ratesBySoakTime Emission rate by soak linkStartTime (grams per vehicle-start)
         * @return Total emissions in grams
         */
       // FIXME we might underestimate STREX: Ridehail vehicles do not park, they idle or stop engine while waiting
-      STREX -> { (ratesBySoakTime: Emissions, _: BeamVehicle.VehicleActivityData) =>
-        val numberOfVehicleStartTimes = 1 // We calculate it for 1 leave parking event
-        ratesBySoakTime * numberOfVehicleStartTimes
+      STREX -> {
+        (
+          ratesBySoakTime: Emissions,
+          _: BeamVehicle.VehicleActivityData,
+          _: Map[Id[BeamVehicle], OperationStatus],
+          emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
+        ) =>
+          val numberOfVehicleStartTimes = 1 // We calculate it for 1 leave parking event
+          ratesBySoakTime * numberOfVehicleStartTimes
       },
       /**
         * Calculate Diurnal Evaporative Emissions (DIURN)
@@ -392,9 +489,15 @@ object VehicleEmissions extends LazyLogging {
         * @return Total emissions in grams
         */
       // FIXME we might underestimate DIURN: Ridehail vehicles do not park, they idle or stop engine while waiting
-      DIURN -> { (rates: Emissions, data: BeamVehicle.VehicleActivityData) =>
-        val vehicleParkingInHours = data.parkingDuration.map(_ / 3600.0).getOrElse(0.0)
-        rates * vehicleParkingInHours
+      DIURN -> {
+        (
+          rates: Emissions,
+          data: BeamVehicle.VehicleActivityData,
+          _: Map[Id[BeamVehicle], OperationStatus],
+          emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
+        ) =>
+          val vehicleParkingInHours = data.parkingDuration.map(_ / 3600.0).getOrElse(0.0)
+          rates * vehicleParkingInHours
       },
       /**
         * Calculate Hot Soak Emissions (HOTSOAK)
@@ -404,9 +507,15 @@ object VehicleEmissions extends LazyLogging {
         * @return Total emissions in grams
         */
       // FIXME we might underestimate HOTSOAK: Ridehail vehicles do not park, idle or stop engine while waiting
-      HOTSOAK -> { (rates: Emissions, _: BeamVehicle.VehicleActivityData) =>
-        val numberOfVehicleStartTimes = 1 // We calculate it for 1 leave parking event
-        rates * numberOfVehicleStartTimes
+      HOTSOAK -> {
+        (
+          rates: Emissions,
+          _: BeamVehicle.VehicleActivityData,
+          _: Map[Id[BeamVehicle], OperationStatus],
+          emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
+        ) =>
+          val numberOfVehicleStartTimes = 1 // We calculate it for 1 leave parking event
+          rates * numberOfVehicleStartTimes
       },
       /**
         * Calculate Running Loss Evaporative Emissions (RUNLOSS)
@@ -415,10 +524,16 @@ object VehicleEmissions extends LazyLogging {
         * rates Emission rate (grams per vehicle-hour)
         * @return Total emissions in grams
         */
-      RUNLOSS -> { (rates: Emissions, data: BeamVehicle.VehicleActivityData) =>
-        val vehicleHoursTraveledInHours =
-          data.linkTravelTime.map(_ / 3600.0).orElse(data.parkingDuration.map(_ / 3600.0)).getOrElse(0.0)
-        rates * vehicleHoursTraveledInHours
+      RUNLOSS -> {
+        (
+          rates: Emissions,
+          data: BeamVehicle.VehicleActivityData,
+          _: Map[Id[BeamVehicle], OperationStatus],
+          emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
+        ) =>
+          val vehicleHoursTraveledInHours =
+            data.linkTravelTime.map(_ / 3600.0).orElse(data.parkingDuration.map(_ / 3600.0)).getOrElse(0.0)
+          rates * vehicleHoursTraveledInHours
       },
       /**
         * Calculate Tire Wear Particulate Matter Emissions (PMTW)
@@ -427,9 +542,15 @@ object VehicleEmissions extends LazyLogging {
         * rates Emission rate (grams per vehicle-mile)
         * @return Total emissions in grams
         */
-      PMTW -> { (rates: Emissions, data: BeamVehicle.VehicleActivityData) =>
-        val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
-        rates * vehicleMilesTraveledInMiles
+      PMTW -> {
+        (
+          rates: Emissions,
+          data: BeamVehicle.VehicleActivityData,
+          _: Map[Id[BeamVehicle], OperationStatus],
+          emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
+        ) =>
+          val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
+          rates * vehicleMilesTraveledInMiles
       },
       /**
         * Calculate Brake Wear Particulate Matter Emissions (PMBW)
@@ -438,9 +559,32 @@ object VehicleEmissions extends LazyLogging {
         * ratesBySpeedBin Emission rate by speed bin (grams per vehicle-mile)
         * @return Total emissions in grams
         */
-      PMBW -> { (ratesBySpeedBin: Emissions, data: BeamVehicle.VehicleActivityData) =>
-        val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
-        ratesBySpeedBin * vehicleMilesTraveledInMiles
+      PMBW -> {
+        (
+          ratesBySpeedBin: Emissions,
+          data: BeamVehicle.VehicleActivityData,
+          _: Map[Id[BeamVehicle], OperationStatus],
+          emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
+        ) =>
+          val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
+          ratesBySpeedBin * vehicleMilesTraveledInMiles
+      },
+      /**
+        * Calculate Paved Road Dust Particulate Matter Emissions (PRDUST)
+        * VMT => gram/veh-mile
+        * vmt Vehicle Miles Traveled (VMT)
+        * rates Emission rate (grams per vehicle-mile)
+        * @return Total emissions in grams
+        */
+      PRDUST -> {
+        (
+          rates: Emissions,
+          data: BeamVehicle.VehicleActivityData,
+          _: Map[Id[BeamVehicle], OperationStatus],
+          emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
+        ) =>
+          val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
+          rates * vehicleMilesTraveledInMiles
       }
     )
   }

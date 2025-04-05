@@ -38,7 +38,7 @@ class DrivesVehicleTest extends AnyFunSuite {
         linkTravelTime = linkTravelTime,
         transitStops = None,
         startPoint = SpaceTime.zero,
-        endPoint = SpaceTime.zero.copy(time = 9), // We need endPoint.time - startPoint.time == linkTravelTime.tail.sum
+        endPoint = SpaceTime.zero.copy(time = 9), // We need endPoint.linkStartTime - startPoint.linkStartTime == linkTravelTime.tail.sum
         distanceInM = 10.0
       )
     )
@@ -162,7 +162,7 @@ class DrivesVehicleTest extends AnyFunSuite {
     val path = leg.travelPath
     if (path.linkTravelTime.nonEmpty & path.linkIds.size > 1) {
       // FIXME once done with debugging, make this code faster
-      // We don't need the travel time for the last link, so we drop it (dropRight(1))
+      // We don't need the travel linkStartTime for the last link, so we drop it (dropRight(1))
       val avgTravelTimeWithoutLast = path.linkTravelTime.dropRight(1)
       val links = path.linkIds
       val linksWithTime = links.sliding(2).zip(avgTravelTimeWithoutLast.iterator)

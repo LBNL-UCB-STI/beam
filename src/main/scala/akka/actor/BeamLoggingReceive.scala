@@ -15,7 +15,7 @@ object BeamLoggingReceive {
 
   /**
     * Wrap a Receive partial function in a logging enclosure, which sends a
-    * debug message to the event bus each time before a message is matched.
+    * debug message to the event bus each linkStartTime before a message is matched.
     * This includes messages which are not handled.
     *
     * <pre><code>
@@ -31,7 +31,7 @@ object BeamLoggingReceive {
 
   /**
     * Wrap a Receive partial function in a logging enclosure, which sends a
-    * message with given log level to the event bus each time before a message is matched.
+    * message with given log level to the event bus each linkStartTime before a message is matched.
     * This includes messages which are not handled.
     */
   def apply(logLevel: LogLevel)(r: Receive)(implicit context: ActorContext): Receive = withLabel(null, logLevel)(r)

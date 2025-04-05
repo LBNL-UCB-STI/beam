@@ -19,7 +19,7 @@ import org.supercsv.prefs.CsvPreference
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
-class DummyEvent(attribs: java.util.Map[String, String]) extends Event(attribs.get("time").toDouble) {
+class DummyEvent(attribs: java.util.Map[String, String]) extends Event(attribs.get("linkStartTime").toDouble) {
   override def getEventType: String = attribs.get("type")
 
   override def getAttributes: util.Map[String, String] = attribs

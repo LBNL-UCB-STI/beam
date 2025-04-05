@@ -112,7 +112,7 @@ def run_spm_federate(cfed, spm: SitePowerManager):
                 # ****** SPMC SECTION ******
                 for taz_id, parking_zone_id, charging_events in grouped_events:
                     # INITIALIZING SPMC ONCE, USING THE INITIALIZING EVENTS. THESE EVENTS DO NOT CONTAIN: "vehicleId"
-                    # Initializing does not happen at every time step
+                    # Initializing does not happen at every linkStartTime step
                     spm.init_an_spmc(taz_id, parking_zone_id, charging_events)
 
                     # FILTERING OUT CHARGING EVENTS FROM INITIALIZING EVENTS
@@ -134,10 +134,10 @@ def run_spm_federate(cfed, spm: SitePowerManager):
                 # b- UPDATE updated_power_limits_from_derms HERE FOR EVERY parking_zone_id
                 # For a and b, to keep default value for a certain parking_zone_id, you can remove it from the dict
             else:
-                # print_err("[time:" + str(t) + "] The JSON message is empty")
+                # print_err("[linkStartTime:" + str(t) + "] The JSON message is empty")
                 pass
         else:
-            # print_err("[time:" + str(t) + "] SPM Controller received empty message from BEAM!")
+            # print_err("[linkStartTime:" + str(t) + "] SPM Controller received empty message from BEAM!")
             pass
         h.helicsPublicationPublishString(pubs_control, json.dumps(power_commands_list, separators=(',', ':')))
         if len(power_commands_list) > 0:

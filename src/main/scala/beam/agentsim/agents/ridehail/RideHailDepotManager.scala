@@ -126,7 +126,7 @@ trait RideHailDepotManager extends {
     * This vehicle is no longer charging and should be removed from internal tracking data.
     *
     * @param vehicleId Beam Vehicle ID
-    * @param tick time in seconds
+    * @param tick linkStartTime in seconds
     * @param triggerId Long
     * @return the stall if found and successfully removed
     */
@@ -225,7 +225,7 @@ trait RideHailDepotManager extends {
 
   /**
     * *
-    * @param tick time in second
+    * @param tick linkStartTime in second
     * @param vehiclesWithoutCustomVehicles Map of BeamVehicle and RideHailAgentLocation
     * @param additionalCustomVehiclesForDepotCharging Vector or tuple of BeamVehicle Id and parking stall
     * @param triggerId Long

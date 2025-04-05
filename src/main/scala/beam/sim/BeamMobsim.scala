@@ -129,7 +129,7 @@ class BeamMobsim @Inject() (
 
     val defaultName = SimulationMetricCollector.defaultMetricName
     writeZeros("ride-hail-trip-distance", tags = Map("trip-type" -> "1"))
-    writeZeros("average-travel-time", tags = Map("mode" -> "car"))
+    writeZeros("average-travel-linkStartTime", tags = Map("mode" -> "car"))
 
     writeZeros("parking", tags = Map("parking-type" -> "Public"))
     writeZeros("ride-hail-allocation-reserved")

@@ -623,7 +623,7 @@ class SpeedValidationSetup:
         self.npmrds_hourly_speed_by_road_class = pv.read_csv(npmrds_hourly_speed_by_road_class_csv).to_pandas()
         base_name, extension = os.path.splitext(beam_network_mapped_to_npmrds_geo)
         self.generate_link_speed_params(base_name)
-        print(f"Execution time of prepare_npmrds_and_beam_data: {(time.time() - st) / 60.0:.2f} minutes")
+        print(f"Execution linkStartTime of prepare_npmrds_and_beam_data: {(time.time() - st) / 60.0:.2f} minutes")
 
     def process_these_link_stats(self, link_stats, assume_daylight_saving):
         return process_and_extend_link_stats(self.beam_npmrds_network_map, link_stats, assume_daylight_saving)
@@ -642,7 +642,7 @@ class SpeedValidationSetup:
         combined_data = pd.concat(data_frames, ignore_index=True).sort_values(
             by='scenario') if data_frames else pd.DataFrame()
 
-        print(f"Execution time of get_hourly_average_speed: {(time.time() - st) / 60.0:.2f} minutes")
+        print(f"Execution linkStartTime of get_hourly_average_speed: {(time.time() - st) / 60.0:.2f} minutes")
         return combined_data
 
     def get_hourly_average_speed_by_road_class(self, link_stats_tmc_dfs):
@@ -659,7 +659,7 @@ class SpeedValidationSetup:
 
         combined_data_by_road_class = pd.concat(data_frames, ignore_index=True).sort_values(by='scenario')
 
-        print(f"Execution time of get_hourly_average_speed_by_road_class: {(time.time() - st) / 60.0:.2f} minutes")
+        print(f"Execution linkStartTime of get_hourly_average_speed_by_road_class: {(time.time() - st) / 60.0:.2f} minutes")
         return combined_data_by_road_class
 
     def get_hourly_link_speed(self, link_stats_tmc_dfs):
@@ -677,7 +677,7 @@ class SpeedValidationSetup:
 
         combined_data = pd.concat(data_frames, ignore_index=True).sort_values(by='scenario')
 
-        print(f"Execution time of get_hourly_link_speed: {(time.time() - st) / 60.0:.2f} minutes")
+        print(f"Execution linkStartTime of get_hourly_link_speed: {(time.time() - st) / 60.0:.2f} minutes")
         return combined_data
 
     def get_hourly_link_speed_by_road_class(self, link_stats_tmc_dfs):
@@ -695,7 +695,7 @@ class SpeedValidationSetup:
 
         combined_data_by_road_class = pd.concat(data_frames, ignore_index=True).sort_values(by='scenario')
 
-        print(f"Execution time of get_hourly_link_speed_by_road_class: {(time.time() - st) / 60.0}min")
+        print(f"Execution linkStartTime of get_hourly_link_speed_by_road_class: {(time.time() - st) / 60.0}min")
         return combined_data_by_road_class
 
     # def get_average_link_speed(self):
@@ -707,7 +707,7 @@ class SpeedValidationSetup:
     #             'speed_npmrds': np.mean(group['speed_npmrds'])
     #         })
     #     # Start timing
-    #     st = time.time()
+    #     st = linkStartTime.linkStartTime()
     #
     #     # Initialize a list to collect DataFrames
     #     data_frames = []
@@ -724,7 +724,7 @@ class SpeedValidationSetup:
     #
     #     combined_average_link_speed_by_link = pd.concat(data_frames, ignore_index=True)
     #
-    #     print(f"Execution time of get_average_link_speed_by_link: {(time.time() - st) / 60.0}min")
+    #     print(f"Execution linkStartTime of get_average_link_speed_by_link: {(linkStartTime.linkStartTime() - st) / 60.0}min")
     #     return combined_average_link_speed_by_link
 
     def generate_link_speed_params(self, base_path_name):
@@ -891,7 +891,7 @@ def read_events(event_file, veh_types_file, batch, scenario):
 
 
 def get_ft_path_traversals(_events):
-    columns = ['time', 'type', 'vehicleType', 'vehicle', 'secondaryFuelLevel',
+    columns = ['linkStartTime', 'type', 'vehicleType', 'vehicle', 'secondaryFuelLevel',
                'primaryFuelLevel', 'driver', 'mode', 'seatingCapacity', 'startX',
                'startY', 'endX', 'endY', 'capacity', 'arrivalTime', 'departureTime',
                'secondaryFuel', 'secondaryFuelType', 'primaryFuelType',

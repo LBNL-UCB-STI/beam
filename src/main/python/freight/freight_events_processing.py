@@ -111,7 +111,7 @@ def read_events_file(full_filename, run_name):
 
     chunks = pd.read_csv(full_filename, sep=",", header=0,
                          compression='gzip' if full_filename.endswith('.gz') else None,
-                         usecols=["time", "type", "vehicleType", "vehicle", "actType", "arrivalTime", "departureTime",
+                         usecols=["linkStartTime", "type", "vehicleType", "vehicle", "actType", "arrivalTime", "departureTime",
                                   "length", "primaryFuelType", "primaryFuelLevel", "primaryFuel", "secondaryFuelType",
                                   "secondaryFuelLevel", "secondaryFuel"],
                          dtype=dtypes,

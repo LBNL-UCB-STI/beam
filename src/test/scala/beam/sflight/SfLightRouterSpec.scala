@@ -152,7 +152,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       assert(rideHailTransitOption.legs.count(l => l.beamLeg.mode == CAR) == 2, "Access and egress by car")
     }
 
-    "respond with fast travel time for a fast bike" in {
+    "respond with fast travel linkStartTime for a fast bike" in {
       val fastBike = beamScenario.vehicleTypes(Id.create("FAST-BIKE", classOf[BeamVehicleType]))
       val expectedSpeed = 20
       assume(fastBike.maxVelocity.get == expectedSpeed)

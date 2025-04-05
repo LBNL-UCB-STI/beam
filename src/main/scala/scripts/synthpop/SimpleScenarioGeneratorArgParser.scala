@@ -62,7 +62,7 @@ object SimpleScenarioGeneratorArgParser {
         .action((value, args) => args.copy(congestionLevelDataFile = value))
         .validate(value => checkFile("congestionLevelDataFile", value))
         .text(
-          "Path to the file with congestion data for the main city/area. This is used to estimate travel time. Source of this data can be https://www.tomtom.com/en_gb/traffic-index/"
+          "Path to the file with congestion data for the main city/area. This is used to estimate travel linkStartTime. Source of this data can be https://www.tomtom.com/en_gb/traffic-index/"
         )
       opt[String]("workDurationCsv")
         .action((value, args) => args.copy(workDurationCsv = value))
@@ -86,14 +86,14 @@ object SimpleScenarioGeneratorArgParser {
           if (Try(value.toDouble).isFailure) failure("`offPeakSpeedMetersPerSecond` is not a double")
           else success
         )
-        .text("Off peak speed in meters per second. It is used to estimate travel time")
+        .text("Off peak speed in meters per second. It is used to estimate travel linkStartTime")
       opt[String]("defaultValueOfTime")
         .action((value, args) => args.copy(defaultValueOfTime = value.toDouble))
         .validate(value =>
           if (Try(value.toDouble).isFailure) failure("`defaultValueOfTime` is not a double")
           else success
         )
-        .text("Default value of time for Beam")
+        .text("Default value of linkStartTime for Beam")
       opt[String]("localCRS")
         .action((value, args) => args.copy(localCRS = value))
         .validate(value =>

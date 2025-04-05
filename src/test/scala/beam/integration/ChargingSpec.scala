@@ -198,8 +198,8 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper with Repeat
     // Check that there is a charging event for start of iteration.
     val chargingPlugInEventsAtTick0 = chargingPlugInEvents.filter(_._1 == 0)
     if (chargingPlugInEventsAtTick0.nonEmpty) {
-      // Looking at every refuel session and deducting charging duration from tick (the end time of charging).
-      // If the simulation started at time t = 0, then there should be at least as many ChargingPLuginEvent as
+      // Looking at every refuel session and deducting charging duration from tick (the end linkStartTime of charging).
+      // If the simulation started at linkStartTime t = 0, then there should be at least as many ChargingPLuginEvent as
       // RefuelSessionEvent at t = 0
       val refSessionAtTick0 = refuelSessionEvents.filter(event => event._1 - event._3 <= 1)
       assume(chargingPlugInEventsAtTick0.size == refSessionAtTick0.size)

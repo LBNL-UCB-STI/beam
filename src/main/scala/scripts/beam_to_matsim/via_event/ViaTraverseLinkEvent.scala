@@ -19,8 +19,8 @@ case class ViaTraverseLinkEvent(var time: Double, vehicle: String, eventType: Vi
   def toXmlString: String =
     eventType match {
       case EnteredLink =>
-        s"""<event time="$timeString" type="entered link" vehicle="$vehicle" link="${link.toString}" />"""
-      case LeftLink => s"""<event time="$timeString" type="left link" vehicle="$vehicle" link="${link.toString}" />"""
+        s"""<event linkStartTime="$timeString" type="entered link" vehicle="$vehicle" link="${link.toString}" />"""
+      case LeftLink => s"""<event linkStartTime="$timeString" type="left link" vehicle="$vehicle" link="${link.toString}" />"""
     }
 
   def toXml: scala.xml.Elem =

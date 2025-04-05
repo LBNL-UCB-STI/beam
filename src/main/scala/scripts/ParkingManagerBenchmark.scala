@@ -91,7 +91,7 @@ object ParkingManagerBenchmark extends StrictLogging {
         |parallel-parking-manager-dispatcher {
         |  executor = "thread-pool-executor"
         |  thread-pool-executor {
-        |    keep-alive-time = 120s
+        |    keep-alive-linkStartTime = 120s
         |    core-pool-size-max = 64
         |  }
         |  throughput = 10

@@ -151,7 +151,7 @@ object EmissionsSkimmer extends LazyLogging {
         ${ROG.toString}           | Reactive organic gases emissions rate
         ${SOx.toString}           | Sulfur oxides emissions rate
         ${TOG.toString}           | Total organic gases emissions rate
-        travelTimeInSecond  | Average travel time in second
+        travelTimeInSecond  | Average travel linkStartTime in second
         energyConsumption | Energy consumption in joule
         parkingDuration | Parking duration in seconds
         observations  | Number of events
@@ -179,7 +179,7 @@ object EmissionsSkimmer extends LazyLogging {
         ${ROG.toString}           | Average (over last n iterations) reactive organic gases emissions rate
         ${SOx.toString}           | Average (over last n iterations) sulfur oxides emissions rate
         ${TOG.toString}           | Average (over last n iterations) total organic gases emissions rate
-        travelTimeInSecond  | Average (over last n iterations) travel time
+        travelTimeInSecond  | Average (over last n iterations) travel linkStartTime
         energyConsumption | Average (over last n iterations) energy consumption
         parkingDuration | Parking (over last n iterations) duration
         observations  | Average (over last n iterations) number of events

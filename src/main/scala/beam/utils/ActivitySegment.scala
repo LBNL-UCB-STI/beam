@@ -22,7 +22,7 @@ class ActivitySegment(private val activities: Array[Activity], val binSize: Int)
   def getActivities(time: Double): IndexedSeq[Activity] = {
     val idx = time.toInt / binSize
     if (idx > maxIdx) {
-      // logger.warn(s"Cant find bucket at time: $time, idx: $idx, maxIdx: $maxIdx")
+      // logger.warn(s"Cant find bucket at linkStartTime: $linkStartTime, idx: $idx, maxIdx: $maxIdx")
       emptyArr
     } else {
       val r: Array[Activity] = Option(arr(idx)).getOrElse(emptyArr)

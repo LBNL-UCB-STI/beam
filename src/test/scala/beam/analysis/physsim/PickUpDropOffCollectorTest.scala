@@ -81,7 +81,7 @@ class PickUpDropOffCollectorTest extends AnyFunSuite with Matchers {
       def prepare_test_data(path):
           events = pd.read_csv(path)
           print('events types:', events['type'].unique())
-          events = events[events['time'] > 0]
+          events = events[events['linkStartTime'] > 0]
 
           ptes = events[(events['type'] == 'PathTraversal') & (events['mode'] == 'car')]
           print('vehicle types', ptes['vehicleType'].unique())
@@ -152,19 +152,19 @@ class PickUpDropOffCollectorTest extends AnyFunSuite with Matchers {
           def analyze_person_enters_left_vehicle(df):
               for index, row in df[(df['type'] == 'PersonEntersVehicle') | (df['type'] == 'PersonLeavesVehicle')].iterrows():
                   vehicle = row['vehicle']
-                  time = row['time']
+                  linkStartTime = row['linkStartTime']
                   time_to_pick_up_drop_off = vehicle_to_time_to_pick_up_drop_off.get(vehicle)
-                  (pick_up, drop_off) = time_to_pick_up_drop_off.get(time, (None,None))
+                  (pick_up, drop_off) = time_to_pick_up_drop_off.get(linkStartTime, (None,None))
                   if row['type'] == 'PersonEntersVehicle':
                       if pick_up is None:
-                          print('missing pick up for time {} for vehicle {}'.format(time, vehicle))
+                          print('missing pick up for linkStartTime {} for vehicle {}'.format(linkStartTime, vehicle))
                       else:
-                          add_link_to_pickup_dropoff(pick_up, pick_up = time)
+                          add_link_to_pickup_dropoff(pick_up, pick_up = linkStartTime)
                   elif row['type'] == 'PersonLeavesVehicle':
                       if drop_off is None:
-                          print('missing drop off for time {} for vehicle {}'.format(time, vehicle))
+                          print('missing drop off for linkStartTime {} for vehicle {}'.format(linkStartTime, vehicle))
                       else:
-                          add_link_to_pickup_dropoff(drop_off, drop_off = time)
+                          add_link_to_pickup_dropoff(drop_off, drop_off = linkStartTime)
 
           analyze_person_enters_left_vehicle(rh_cav_events)
 

@@ -183,8 +183,8 @@ class PhysSim(
       .toList
       .sortBy { case (k, _) => k }
     logger.info(s"Diff in eventTypeToNumberOfMessages map: \n${diffMap.mkString("\n")}")
-    logger.info(s"Car travel time stats at iteration ${prevResult.iteration}: ${prevResult.carTravelTimeStats}")
-    logger.info(s"Car travel time stats at iteration ${currentResult.iteration}: ${currentResult.carTravelTimeStats}")
+    logger.info(s"Car travel linkStartTime stats at iteration ${prevResult.iteration}: ${prevResult.carTravelTimeStats}")
+    logger.info(s"Car travel linkStartTime stats at iteration ${currentResult.iteration}: ${currentResult.carTravelTimeStats}")
   }
 
   private def getCarPeople(population: Population): Vector[Person] = {

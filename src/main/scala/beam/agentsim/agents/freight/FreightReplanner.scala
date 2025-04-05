@@ -226,7 +226,7 @@ class FreightReplanner(
 
     solution.routes.foreach(route =>
       logger.debug(
-        "Found route for vehicle {}, start time {}, number of services: {}",
+        "Found route for vehicle {}, start linkStartTime {}, number of services: {}",
         route.vehicle.id,
         route.startTime,
         route.activities.size

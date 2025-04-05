@@ -27,7 +27,7 @@ object PhyssimCalcLinkSpeedStatsObject extends OutputDataDescriptor {
           getClass.getSimpleName,
           freeSpeedDistRelativePath,
           "Bin",
-          "A given time slot within a day"
+          "A given linkStartTime slot within a day"
         )
       )
     list
@@ -36,7 +36,7 @@ object PhyssimCalcLinkSpeedStatsObject extends OutputDataDescriptor {
           getClass.getSimpleName,
           freeSpeedDistRelativePath,
           "AverageLinkSpeed",
-          "The average speed at which a vehicle can travel across the network during the given time bin"
+          "The average speed at which a vehicle can travel across the network during the given linkStartTime bin"
         )
       )
     list

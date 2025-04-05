@@ -67,7 +67,7 @@ object Skims {
   object SkimType extends Enumeration {
     val OD_SKIMMER: router.skim.Skims.SkimType.Value = Value("od-skimmer")
     val TAZ_SKIMMER: skim.Skims.SkimType.Value = Value("taz-skimmer")
-    val DT_SKIMMER: skim.Skims.SkimType.Value = Value("drive-time-skimmer")
+    val DT_SKIMMER: skim.Skims.SkimType.Value = Value("drive-linkStartTime-skimmer")
     val TC_SKIMMER: skim.Skims.SkimType.Value = Value("transit-crowding-skimmer")
     val RH_SKIMMER: skim.Skims.SkimType.Value = Value("ridehail-skimmer")
     val OD_VEHICLE_TYPE_SKIMMER: router.skim.Skims.SkimType.Value = Value("od-vehicle-type-skimmer")

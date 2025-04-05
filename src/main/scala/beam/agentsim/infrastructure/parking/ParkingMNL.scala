@@ -79,7 +79,7 @@ object ParkingMNL {
       case WalkingEgressCost                     => "dist"
       case RangeAnxietyCost                      => "anx"
       case InsufficientRangeCost                 => "range"
-      case DrivingTimeCost                       => "time"
+      case DrivingTimeCost                       => "linkStartTime"
       case QueueingTimeCost                      => "queue"
       case ChargingTimeCost                      => "charge"
       case HomeActivityPrefersResidentialParking => "home"

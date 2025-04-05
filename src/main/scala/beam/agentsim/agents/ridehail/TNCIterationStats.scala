@@ -32,7 +32,7 @@ case class TNCIterationStats(
   /**
     * for all vehicles to reposition, group them by TAZ (k vehicles for a TAZ)
     * 1.) find all TAZ in radius
-    * 2.) score them according to total waiting time
+    * 2.) score them according to total waiting linkStartTime
     * 3.) take top 3 and assign according to weights more or less to them
     * 4.)
     *
@@ -323,8 +323,8 @@ case class TNCIterationStats(
   }
 
   // go through vehicles
-  // those vehicles, which are located in areas with high number of idling time in future from now, should be moved
-  // the longer the waiting time in future, the l
+  // those vehicles, which are located in areas with high number of idling linkStartTime in future from now, should be moved
+  // the longer the waiting linkStartTime in future, the l
   // just look at smaller repositioning
   def getVehiclesWhichAreBiggestCandidatesForIdling(
     idleVehicles: Vector[RideHailAgentLocation],

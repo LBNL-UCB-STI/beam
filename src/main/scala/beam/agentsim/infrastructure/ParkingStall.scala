@@ -27,7 +27,7 @@ case class ParkingStall(
 ) {
   private var parkingTime: Double = 0.0
 
-  // To set parking arrival time
+  // To set parking arrival linkStartTime
   def setParkingTime(arrivalTime: Double): Unit = {
     parkingTime = arrivalTime
   }

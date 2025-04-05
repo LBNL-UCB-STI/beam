@@ -17,7 +17,7 @@ case class OutputPlanElement(
     "personId"         -> personId,
     "planElement"      -> planElement.toString,
     "planElementIndex" -> planElementIndex,
-    "activityType"     -> activityType.getOrElse(""),
+    "parkingActivityType"     -> activityType.getOrElse(""),
     "x"                -> x.orNull,
     "y"                -> y.orNull,
     "endTime"          -> endTime.orNull,
@@ -28,5 +28,5 @@ case class OutputPlanElement(
 object OutputPlanElement {
 
   val headers: Seq[String] =
-    Seq("tripId", "personId", "planElement", "planElementIndex", "activityType", "x", "y", "endTime", "mode")
+    Seq("tripId", "personId", "planElement", "planElementIndex", "parkingActivityType", "x", "y", "endTime", "mode")
 }

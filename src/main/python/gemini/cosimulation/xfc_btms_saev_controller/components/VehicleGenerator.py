@@ -10,7 +10,7 @@ class VehicleGenerator:
 
         # find out which vehicles are in the simulation, and map them with their vehicleTypes.
         # this is only saved in RefuelSessionEvents, but a charging session starts with a PlugInEvent, which is why need to create this map.
-        self.SimRes     = pd.read_csv(path_Sim, dtype = dtype_Sim, index_col= "time") # save length of pd dataframe, time is set as index!
+        self.SimRes     = pd.read_csv(path_Sim, dtype = dtype_Sim, index_col= "linkStartTime") # save length of pd dataframe, linkStartTime is set as index!
         self.SimRes     = self.SimRes.sort_index()  # make sure that inputs are ascending
         length     = len(self.SimRes)     # save length of pd dataframe
 
@@ -56,10 +56,10 @@ class VehicleGenerator:
         
         #for desired end and desired energy, we need to find the corresponding RefuelSessionEvent
         # this is after ChargingPlugInEvent.
-        # therfore: time must be greater equals than VehicleArrival Time, type must be RefuelSessionEvent, VehicleId must be the same. Furthermore, this must be the first entry. 
+        # therfore: linkStartTime must be greater equals than VehicleArrival Time, type must be RefuelSessionEvent, VehicleId must be the same. Furthermore, this must be the first entry.
         try:
             RefuelSessionEvent = self.SimRes[np.logical_and(np.logical_and(self.SimRes.index >= VehicleArrival, self.SimRes.type == "RefuelSessionEvent"), self.SimRes.vehicle == VehicleId)].iloc[0] # select first row
-            VehicleDesEnd       = RefuelSessionEvent.name # this is the time at which refuel session event is finished
+            VehicleDesEnd       = RefuelSessionEvent.name # this is the linkStartTime at which refuel session event is finished
             VehicleDesEngy      = RefuelSessionEvent.fuel / 3.6e6 + VehicleEngy # this is the desired state of energy at the end of the charging event
             BeamDesignatedParkingZoneId = RefuelSessionEvent.parkingZoneId
         except: # if we are at the end of the file, we don't want errors from events which aren't finished.

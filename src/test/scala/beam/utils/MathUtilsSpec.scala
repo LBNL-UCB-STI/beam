@@ -11,7 +11,7 @@ import scala.util.Random
 class MathUtilsSpec extends AnyWordSpecLike with Matchers {
   "round uniformly" when {
     "receive a positive double value" should {
-      "round it to the closest integer most of the time (proportionally to the fraction)" in {
+      "round it to the closest integer most of the linkStartTime (proportionally to the fraction)" in {
         val rnd = new Random(1777)
         val rounded = (1 to 1000) map (_ => MathUtils.roundUniformly(1.1, rnd))
         rounded.count(_ == 1) should be > 880
@@ -19,7 +19,7 @@ class MathUtilsSpec extends AnyWordSpecLike with Matchers {
       }
     }
     "receive a negative double value" should {
-      "round it to the closest integer most of the time (proportionally to the fraction)" in {
+      "round it to the closest integer most of the linkStartTime (proportionally to the fraction)" in {
         val rnd = new Random(6134444)
         val rounded = (1 to 1000) map (_ => MathUtils.roundUniformly(-1.65, rnd))
         rounded.count(_ == -1) should be < 400

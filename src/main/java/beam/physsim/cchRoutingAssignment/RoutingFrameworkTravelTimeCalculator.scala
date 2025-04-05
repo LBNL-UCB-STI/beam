@@ -106,7 +106,7 @@ class RoutingFrameworkTravelTimeCalculator(
     val (linksFailedToResolve, linkId2TravelTimeByHour) =
       fillLink2TravelTimeByHour(links, hour2Way2TravelTimes, maxHour)
 
-    logger.info("Total links: {}, failed to assign travel time: {}", totalNumberOfLinks, linksFailedToResolve)
+    logger.info("Total links: {}, failed to assign travel linkStartTime: {}", totalNumberOfLinks, linksFailedToResolve)
 
     logger.info("Created travel times in {} ms", travelTimeCalculationStopWatch.getTime)
 

@@ -38,7 +38,7 @@ case class RideHailRequest(
 
   override def toString: String =
     s"RideHailRequest(id: $requestId, type: $requestType, customer: ${customer.personId}, pickup: $pickUpLocationUTM" +
-    s", time: $departAt, dest: $destinationUTM, asPooled: $asPooled)"
+    s", linkStartTime: $departAt, dest: $destinationUTM, asPooled: $asPooled)"
 }
 
 object RideHailRequest {

@@ -218,7 +218,7 @@ object BeamHelicsInterface extends StrictLogging {
         var msgReceived: Option[List[Map[String, Any]]] = None
         if (currentBin < tick / simulationStep) {
           currentBin = tick / simulationStep
-          log(s"Publishing message to the ${dataOutStreamPointMaybe.getOrElse("NA")} at time $tick.")
+          log(s"Publishing message to the ${dataOutStreamPointMaybe.getOrElse("NA")} at linkStartTime $tick.")
           publishJSON(msgToPublish)
           sync(tick) // SYNC
           log(s"publishNestedJSON $msgToPublish.")
@@ -269,17 +269,17 @@ object BeamHelicsInterface extends StrictLogging {
     }
 
     /**
-      * Requests a co-simulation time and wait until it is awarded. The HELICS broker doesn't aware the requested time
+      * Requests a co-simulation linkStartTime and wait until it is awarded. The HELICS broker doesn't aware the requested linkStartTime
       * until all the federates in co-simulation are synchronized
       *
-      * @param time the requested time
-      * @return the awarded time
+      * @param time the requested linkStartTime
+      * @return the awarded linkStartTime
       */
     def sync(time: Int): Double = {
       var currentTime = -1.0
-      logger.debug(s"requesting the time $time from the broker")
+      logger.debug(s"requesting the linkStartTime $time from the broker")
       while (currentTime < time) currentTime = helics.helicsFederateRequestTime(fedComb, time)
-      logger.debug(s"the time $time granted was $currentTime")
+      logger.debug(s"the linkStartTime $time granted was $currentTime")
       currentTime
     }
 

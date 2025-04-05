@@ -6,7 +6,7 @@ import components
 import numpy as np
 
 class ChaDepParent:
-    # TODO get rid of SimBroker and exchange with actual time t_act
+    # TODO get rid of SimBroker and exchange with actual linkStartTime t_act
     def __init__(self, ChargingStationId, ResultWriter: ResultWriter, SimBroker: SimBroker, ChBaMaxPower, ChBaParkingZoneId, ChBaNum: int, BtmsSize = 100, BtmsC = 1, BtmsMaxSoc = 1.0, BtmsMinSOC = 0.0, BtmsSoc0 = 0.50, calcBtmsGridProp = False, GridPowerMax_Nom = 1 , GridPowerLower = -1, GridPowerUpper = 1):
 
         '''ChargingStationIdentity'''
@@ -50,7 +50,7 @@ class ChaDepParent:
         if calcBtmsGridProp:
             self.GridPowerMax_Nom   = 0.35*sum(ChBaMaxPower)    # empirical formula (check with literature)
         else:
-            self.GridPowerMax_Nom   = GridPowerMax_Nom          # maximum power withdrawal from grid, nominal value (can be time-varying)
+            self.GridPowerMax_Nom   = GridPowerMax_Nom          # maximum power withdrawal from grid, nominal value (can be linkStartTime-varying)
         self.GridPowerLower         = 0                         # will be assigned for each step through DERMS
         self.GridPowerUpper         = self.GridPowerMax_Nom     # will be assigned for each step through DERMS
 
@@ -69,7 +69,7 @@ class ChaDepParent:
         '''Rating Metric'''
         #variables
         self.EnergyLagSum           = 0                 # sum of energy lags as rating metric
-        self.TimeLagSum             = 0                 # sum of time lags of vehicles as rating metric
+        self.TimeLagSum             = 0                 # sum of linkStartTime lags of vehicles as rating metric
 
         ''' Control Output Results'''
         # control output should be saved to these variables after each step
@@ -322,7 +322,7 @@ class ChaDepParent:
         #self.BtmsEn = self.BtmsSize * CesSoc
 
     def updateVehicleStatesAndWriteStates(self, ChBaPower, timestep):
-        # reset energy and time lag
+        # reset energy and linkStartTime lag
         self.EnergyLagSum = 0
         self.TimeLagSum = 0
 
@@ -331,12 +331,12 @@ class ChaDepParent:
                 # calculate maximum charging power possible in period under energy conservation
                 possiblePower = self.ChBaVehicles[i].getMaxChargingPower(
                     timestep)
-                # save vehicle state of current time step
+                # save vehicle state of current linkStartTime step
                 self.ResultWriter.updateVehicleStates(
                     t_act=self.SimBroker.t_act, vehicle=self.ChBaVehicles[i], ChargingStationId=self.ChargingStationId, QueueOrBay=False, ChargingPower=ChBaPower[i], possiblePower=possiblePower)
                 # add energy to the vehicle - this is the state for t_act + timestep
                 self.ChBaVehicles[i].addPower(ChBaPower[i], timestep)
-                # update energy and time lag for the next time step
+                # update energy and linkStartTime lag for the next linkStartTime step
                 self.EnergyLagSum += self.ChBaVehicles[i].updateEnergyLag(
                     self.SimBroker.t_act + timestep)
                 self.TimeLagSum += self.ChBaVehicles[i].updateTimeLag(
@@ -346,10 +346,10 @@ class ChaDepParent:
             # calculate maximum charging power possible in period under energy conservation
             possiblePower = self.ChBaVehicles[i].getMaxChargingPower(
                 timestep)
-            # save vehicle state of current time step
+            # save vehicle state of current linkStartTime step
             self.ResultWriter.updateVehicleStates(
                 t_act=self.SimBroker.t_act, vehicle=self.ChBaVehicles[i], ChargingStationId=self.ChargingStationId, QueueOrBay=False, ChargingPower=ChBaPower[i], possiblePower=possiblePower)
-            # update energy and time lag
+            # update energy and linkStartTime lag
             self.EnergyLagSum += x.updateEnergyLag(
                 self.SimBroker.t_act + timestep)
             self.TimeLagSum += self.ChBaVehicles[i].updateTimeLag(
@@ -406,7 +406,7 @@ class ChaDepParent:
         # Vehicles
         self.updateVehicleStatesAndWriteStates(self.ChBaPower, timestep)
 
-        '''determine power desire for next time step
+        '''determine power desire for next linkStartTime step
                 this must be done after Vehicle and BTMS states are updated, so that charging curves can be taken into account'''
         PowerDesire = 0
         for i in range(0,len(self.ChBaVehicles)):

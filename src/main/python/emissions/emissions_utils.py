@@ -1494,7 +1494,7 @@ def fast_df_to_gzip(df, output_file, compression_level=5, chunksize=100000):
     :param df: pandas DataFrame to write
     :param output_file: path to the output .csv.gz file
     :param compression_level: gzip compression level (1-9, 9 being highest)
-    :param chunksize: number of rows to write at a time
+    :param chunksize: number of rows to write at a linkStartTime
     """
     total_rows = len(df)
 

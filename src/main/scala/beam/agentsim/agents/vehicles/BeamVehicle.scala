@@ -79,7 +79,7 @@ class BeamVehicle(
 
   /**
     * The [[beam.agentsim.agents.PersonAgent]] who is currently driving the vehicle (or None ==> it is idle).
-    * Effectively, this is the main controller of the vehicle in space and time in the scenario environment;
+    * Effectively, this is the main controller of the vehicle in space and linkStartTime in the scenario environment;
     * whereas, the manager is ultimately responsible for assignment and (for now) ownership
     * of the vehicle as a physical property.
     */
@@ -107,7 +107,7 @@ class BeamVehicle(
   private var waitingToChargeInternal: Boolean = false
   private var waitingToChargeTick: Option[Int] = None
 
-  // last time the vehicle stopped activity
+  // last linkStartTime the vehicle stopped activity
   private var lastIDLEStartTime: Option[Int] = None
   // last link visited in latest Leg/Parking, latest location of vehicle
   private var lastLinkVisited: Option[Int] = None
@@ -148,7 +148,7 @@ class BeamVehicle(
       // This is _always_ a programming error.
       // A BeamVehicle is only a data structure, not an Actor.
       // It must be ensured externally, by other means, that only one agent can access
-      // it at any time, e.g. by using a ResourceManager etc.
+      // it at any linkStartTime, e.g. by using a ResourceManager etc.
       // Also, this exception is only a "best effort" error detection.
       // Technically, it can also happen that it is _not_ thrown in the failure case,
       // as this method is not synchronized.
@@ -628,8 +628,10 @@ object BeamVehicle {
   }
 
   case class VehicleActivityData(
-    time: Double,
+    activityStartTime: Option[Double] = None,
+    linkStartTime: Double,
     linkId: Int,
+    vehicleId: Id[BeamVehicle],
     vehicleType: BeamVehicleType,
     payloadInKg: Option[Double],
     linkNumberOfLanes: Option[Int],
@@ -638,7 +640,7 @@ object BeamVehicle {
     taz: Option[TAZ] = None,
     parkingDuration: Option[Double] = None,
     parkingType: Option[ParkingType] = None,
-    activityType: Option[String],
+    parkingActivityType: Option[String],
     linkTravelTime: Option[Double] = None
   ) {
     var primaryEnergyConsumed: Double = 0.0
@@ -652,17 +654,14 @@ object BeamVehicle {
     * If the activity is a ParkingStall, it generates a dummy VehicleActivityData with placeholder values.
     *
     * @param activity Either a BeamLeg or a ParkingStall
-    * @param theVehicleType The type of the vehicle
-    * @param payloadInKg Optional payload weight in kilograms
-    * @param networkHelper The transport network instance
-    * @param vehicleEnergy Vehicle energy
-    * @param tazTreeMap Taz Map
+    * @param beamVehicle Beam Vehicle
+    * @param payloadInKg Optional payload weight in kilograms p
     * @return Indexed sequence of VehicleActivityData
     */
   def collectVehicleActivityData(
     time: Double,
     activity: Either[BeamLeg, Link],
-    theVehicleType: BeamVehicleType,
+    beamVehicle: BeamVehicle,
     payloadInKg: Option[Double],
     parkingStall: Option[ParkingStall],
     beamServices: BeamServices
@@ -679,10 +678,9 @@ object BeamVehicle {
         } else {
           val linkIds = beamLeg.travelPath.linkIds.drop(1)
           val linkTravelTimes: IndexedSeq[Double] = beamLeg.travelPath.linkTravelTime.drop(1)
-          var totalTravelTime: Double = 0.0
+          var relativeTravelTime: Double = linkTravelTimes.sum
           linkIds.zipWithIndex.map { case (id, idx) =>
             val travelTime = linkTravelTimes(idx)
-            totalTravelTime += travelTime
             val currentLink: Option[Link] = beamServices.networkHelper.getLink(id)
             val averageSpeed =
               try {
@@ -690,10 +688,12 @@ object BeamVehicle {
               } catch {
                 case _: Exception => 0.0
               }
-            VehicleActivityData(
-              time = time - totalTravelTime,
+            val vehicleActivityData = VehicleActivityData(
+              activityStartTime = Some(time),
+              linkStartTime = time - relativeTravelTime,
               linkId = id,
-              vehicleType = theVehicleType,
+              vehicleId = beamVehicle.id,
+              vehicleType = beamVehicle.beamVehicleType,
               payloadInKg = payloadInKg,
               linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt),
               linkLength = currentLink.map(_.getLength),
@@ -701,17 +701,21 @@ object BeamVehicle {
               taz = currentLink.flatMap(link => beamServices.beamScenario.tazTreeMap.getTAZfromLink(link.getId)),
               parkingDuration = parkingDuration,
               parkingType = parkingType,
-              activityType = activityType,
+              parkingActivityType = activityType,
               linkTravelTime = Some(travelTime)
             )
+            relativeTravelTime -= travelTime
+            vehicleActivityData
           }
         }
       case Right(link) =>
         IndexedSeq(
           VehicleActivityData(
-            time = parkingDuration.map(duration => time - duration).getOrElse(time),
+            activityStartTime = Some(time),
+            linkStartTime = parkingDuration.map(duration => time - duration).getOrElse(time),
             linkId = link.getId.toString.toInt,
-            vehicleType = theVehicleType,
+            vehicleId = beamVehicle.id,
+            vehicleType = beamVehicle.beamVehicleType,
             payloadInKg = payloadInKg,
             linkNumberOfLanes = Some(link.getNumberOfLanes.toInt),
             linkLength = Some(link.getLength),
@@ -719,7 +723,7 @@ object BeamVehicle {
             taz = beamServices.beamScenario.tazTreeMap.getTAZfromLink(link.getId),
             parkingDuration = parkingDuration,
             parkingType = parkingType,
-            activityType = activityType,
+            parkingActivityType = activityType,
             linkTravelTime = None
           )
         )
@@ -728,111 +732,37 @@ object BeamVehicle {
 
   /*
  To fix emissions calculations:
- - for first link from PathTraversal event
-   */
-  def addFirstLinkActivityForEmissions(
-    tick: Int,
-    vehicleActivityData: IndexedSeq[BeamVehicle.VehicleActivityData],
-    theVehicleType: BeamVehicleType,
-    payloadInKg: Option[Double],
-    currentLeg: BeamLeg,
-    parkingStall: Option[ParkingStall],
-    beamServices: BeamServices
-  ): IndexedSeq[BeamVehicle.VehicleActivityData] = {
-
-    currentLeg.travelPath.linkIds.headOption match {
-      case None => vehicleActivityData
-
-      case Some(linkId) =>
-        val parkingDuration: Option[Double] = parkingStall.map { stall =>
-          if (tick - stall.getParkingTime < 0) 0.0 else tick - stall.getParkingTime
-        }
-        val parkingType: Option[ParkingType] = parkingStall.map(_.parkingType)
-        val activityType: Option[String] = parkingStall.map(_.activityType)
-        val linkTravelTime: Double = currentLeg.travelPath.linkTravelTime.head
-        val currentLink: Option[Link] = beamServices.networkHelper.getLink(linkId)
-        val averageSpeed =
-          try { if (linkTravelTime > 0) currentLink.map(_.getLength).getOrElse(0.0) / linkTravelTime else 0 }
-          catch { case _: Exception => 0.0 }
-
-        val firstLinkActivity = VehicleActivityData(
-          time = tick - linkTravelTime,
-          linkId = linkId,
-          vehicleType = theVehicleType,
-          payloadInKg = payloadInKg,
-          linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt),
-          linkLength = currentLink.map(_.getLength),
-          averageSpeed = Some(averageSpeed),
-          taz = currentLink.flatMap(link => beamServices.beamScenario.tazTreeMap.getTAZfromLink(link.getId)),
-          parkingDuration = parkingDuration,
-          parkingType = parkingType,
-          activityType = activityType,
-          linkTravelTime = Some(linkTravelTime)
-        )
-
-        firstLinkActivity +: vehicleActivityData
-    }
-  }
-
-  def startTimeAndDurationToMultipleIntervals(
-    startTimeSeconds: Double,
-    durationInSeconds: Double
-  ): Iterable[(Double, Double)] = {
-    val startInHours: Double = startTimeSeconds / 3600.0
-    val closestHour: Double = math.ceil(startInHours)
-    val leftToNextHourSeconds = closestHour * 3600 - startTimeSeconds
-    val durationLeft = durationInSeconds - leftToNextHourSeconds
-
-    if (durationLeft <= 0) {
-      Seq((startTimeSeconds, durationInSeconds))
-    } else if (durationLeft <= 3600) {
-      Seq((startTimeSeconds, leftToNextHourSeconds), (closestHour * 3600, durationLeft))
-    } else {
-      val wholeHoursLeft = math.floor(durationLeft / 3600).toInt
-      val durationSecondsLeft = durationLeft - wholeHoursLeft * 3600
-      val middlePairs = (0 until wholeHoursLeft).map(hr => (closestHour * 3600.0 + hr * 3600.0, 3600.0))
-      (
-        startTimeSeconds,
-        leftToNextHourSeconds
-      ) +: middlePairs :+ (closestHour * 3600.0 + wholeHoursLeft * 3600.0, durationSecondsLeft)
-    }
-  }
-
-  /*
- To fix emissions calculations:
- - for possible IDLE vehicle time between shift start event and PathTraversal event
- - for possible IDLE vehicle time between driver enters vehicle and PathTraversal event
+ - for possible Idle vehicle linkStartTime between shift start event and PathTraversal event
+ - for possible Idle vehicle linkStartTime between driver enters vehicle and PathTraversal event
    */
   def getIDLEActivityForEmissions(
     tick: Int,
     beamVehicle: BeamVehicle,
     beamServices: BeamServices
-  ): IndexedSeq[BeamVehicle.VehicleActivityData] = {
+  ): Option[BeamVehicle.VehicleActivityData] = {
     (beamVehicle.lastLinkVisited, beamVehicle.lastIDLEStartTime) match {
       case (Some(linkId), Some(idleStartTime)) if tick - idleStartTime > 0 =>
         val currentLink: Option[Link] = beamServices.networkHelper.getLink(linkId)
         val totalDurationSeconds = (tick - idleStartTime).toDouble
-        val startTimeToDurationPairs = startTimeAndDurationToMultipleIntervals(idleStartTime, totalDurationSeconds)
-        val vads = startTimeToDurationPairs.map { case (startTime, duration) =>
+        Some(
           VehicleActivityData(
-            time = startTime,
+            activityStartTime = Some(idleStartTime),
+            linkStartTime = idleStartTime,
             linkId = linkId,
+            vehicleId = beamVehicle.id,
             vehicleType = beamVehicle.beamVehicleType,
             payloadInKg = None,
             linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt),
             linkLength = currentLink.map(_.getLength),
             averageSpeed = None,
             taz = currentLink.flatMap(link => beamServices.beamScenario.tazTreeMap.getTAZfromLink(link.getId)),
-            parkingDuration = Some(duration),
+            parkingDuration = Some(totalDurationSeconds),
             parkingType = Some(ParkingType.Public),
-            activityType = Some(ParkingActivityType.IDLE.toString),
+            parkingActivityType = Some(ParkingActivityType.Idle.toString),
             linkTravelTime = None
           )
-        }
-        vads.toIndexedSeq
-
-      case _ => IndexedSeq.empty[BeamVehicle.VehicleActivityData]
+        )
+      case _ => None
     }
   }
-
 }

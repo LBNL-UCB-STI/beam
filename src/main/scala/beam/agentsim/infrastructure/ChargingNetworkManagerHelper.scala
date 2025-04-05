@@ -33,25 +33,25 @@ trait ChargingNetworkManagerHelper extends {
     (cycle.endTime - cycle.startTime) >= cycle.maxDuration
 
   /**
-    * Get current time bin
+    * Get current linkStartTime bin
     *
-    * @param tick time
+    * @param tick linkStartTime
     * @return
     */
   protected def currentTimeBin(tick: Int): Int = cnmConfig.timeStepInSeconds * (tick / cnmConfig.timeStepInSeconds)
 
   /**
-    * get next time bin
+    * get next linkStartTime bin
     *
-    * @param tick time
+    * @param tick linkStartTime
     * @return
     */
   protected def nextTimeBin(tick: Int): Int = currentTimeBin(tick) + cnmConfig.timeStepInSeconds
 
   /**
     * @param chargingVehicle the vehicle being charged
-    * @param startTime the start time
-    * @param endTime the end time
+    * @param startTime the start linkStartTime
+    * @param endTime the end linkStartTime
     * @param interruptCharging True if the charging should be interrupted
     * @return
     */
@@ -97,7 +97,7 @@ trait ChargingNetworkManagerHelper extends {
   /**
     * Connect the vehicle
     *
-    * @param tick            current time
+    * @param tick            current linkStartTime
     * @param chargingVehicle charging vehicle information
     */
   protected def handleStartCharging(tick: Int, chargingVehicle: ChargingVehicle): Unit = {
@@ -108,14 +108,14 @@ trait ChargingNetworkManagerHelper extends {
     log.debug(s"Starting charging for vehicle $vehicle at $tick")
     processStartChargingEvent(tick, chargingVehicle)
     // we need to interrupt charging here in order to charge vehicle from tick to timeBin(tick)
-    // from timeBin(tick) to the next time bin it will be processed while processing PlanEnergyDispatchTrigger
+    // from timeBin(tick) to the next linkStartTime bin it will be processed while processing PlanEnergyDispatchTrigger
     dispatchEnergyAndProcessChargingCycle(chargingVehicle, tick, nextTick, interruptCharging = true)
   }
 
   /**
     * Disconnect the vehicle
     *
-    * @param tick            current time
+    * @param tick            current linkStartTime
     * @param chargingVehicle charging vehicle information
     * @return true if EndingRefuelSession is sent to the agent
     */
@@ -151,7 +151,7 @@ trait ChargingNetworkManagerHelper extends {
   /**
     * process the event ChargingPlugInEvent
     *
-    * @param currentTick     current time
+    * @param currentTick     current linkStartTime
     * @param chargingVehicle vehicle charging information
     */
   private def processStartChargingEvent(currentTick: Int, chargingVehicle: ChargingVehicle): Unit = {
@@ -171,7 +171,7 @@ trait ChargingNetworkManagerHelper extends {
   /**
     * Calculates the duration of the refuel session, the provided energy and throws corresponding events
     *
-    * @param currentTick     current time
+    * @param currentTick     current linkStartTime
     * @param chargingVehicle vehicle charging information
     */
   def processEndChargingEvents(currentTick: Int, chargingVehicle: ChargingVehicle): Unit = {
@@ -180,7 +180,7 @@ trait ChargingNetworkManagerHelper extends {
     val stall = chargingVehicle.stall
     val addedFuelLevel = vehicle.primaryFuelLevelInJoules - chargingVehicle.arrivalFuelLevel
     log.debug(
-      s"Vehicle ${chargingVehicle.vehicle} was disconnected at time {} with {} J delivered during {} sec",
+      s"Vehicle ${chargingVehicle.vehicle} was disconnected at linkStartTime {} with {} J delivered during {} sec",
       currentTick,
       addedFuelLevel,
       totDuration

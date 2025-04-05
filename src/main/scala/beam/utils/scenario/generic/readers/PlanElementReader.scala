@@ -51,7 +51,7 @@ object CsvPlanElementReader extends PlanElementReader {
     val planIndex = getIfNotNull(rec, "planIndex").toInt
     val planElementType = getIfNotNull(rec, "planElementType")
     val planElementIndex = getIfNotNull(rec, "planElementIndex").toInt
-    val activityType = Option(rec.get("activityType"))
+    val activityType = Option(rec.get("parkingActivityType"))
     val linkIds =
       Option(rec.get("legRouteLinks")).map(_.split(ArrayItemSeparator).map(_.trim)).getOrElse(Array.empty[String])
     PlanElement(

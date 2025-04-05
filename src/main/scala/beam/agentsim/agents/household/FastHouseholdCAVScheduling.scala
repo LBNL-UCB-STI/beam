@@ -199,7 +199,7 @@ class FastHouseholdCAVScheduling(
             curReq
               .copy(serviceTime = serviceTime, pickupRequest = Some(pickupReq), vehicleOccupancy = Some(newOccupancy))
           )
-          // it includes the waiting time
+          // it includes the waiting linkStartTime
           val cavTripTravelTime = computeSharedTravelTime(newHouseholdSchedule.slice(index, newHouseholdSchedule.size))
           val newTotalTravelTime = newHouseholdScheduleCost.totalTravelTime -
             newHouseholdScheduleCost.tripTravelTime(curReq.trip) + cavTripTravelTime
@@ -498,7 +498,7 @@ object HouseholdTripsHelper {
       break
     } else if (nextTripStartTime.isDefined && arrivalTime > nextTripStartTime.seconds().toInt) {
       logger.warn(
-        "The necessary travel time to arrive to the next activity is beyond the end time of the same activity"
+        "The necessary travel linkStartTime to arrive to the next activity is beyond the end linkStartTime of the same activity"
       )
       break
     }

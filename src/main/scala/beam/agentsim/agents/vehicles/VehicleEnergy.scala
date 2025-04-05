@@ -110,7 +110,7 @@ class VehicleEnergy(
     //instead of having to iterate
     //2.)Could keep the future in the calling method if you use
     //Future.sequence and Option.option2Iterable followed by a flatMap(_.headOption),
-    //but that gets complicated and these SHOULD already be loaded by the time they are needed.
+    //but that gets complicated and these SHOULD already be loaded by the linkStartTime they are needed.
     //If that changes then go ahead and map through the collections
     import scala.concurrent.duration._
     val consumptionRateFilter = Await.result(consumptionRateFilterFuture, 1.minute)

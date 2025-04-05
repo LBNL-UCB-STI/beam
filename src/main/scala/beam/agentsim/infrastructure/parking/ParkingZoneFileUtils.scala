@@ -407,7 +407,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
           val to = hour2.toInt * 3600 + Option(minute2).map(_.toInt).getOrElse(0) * 60
           Some(category -> Range(from, to))
         case _ =>
-          logger.error(s"Cannot parse time restriction data: $timeRestrictionString")
+          logger.error(s"Cannot parse linkStartTime restriction data: $timeRestrictionString")
           None
       }
     }

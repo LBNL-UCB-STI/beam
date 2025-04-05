@@ -27,7 +27,7 @@ class InverseSquareDistanceRepositioningFactor(
   val h3taz: H3TAZ = beamServices.beamScenario.h3taz
 
   // When we have all activities, we can make `sensitivityOfRepositioningToDemand` in the range from [0, 1] to make it easer to calibrate
-  // If sensitivityOfRepositioningToDemand = 1, it means all vehicles reposition all the time
+  // If sensitivityOfRepositioningToDemand = 1, it means all vehicles reposition all the linkStartTime
   // sensitivityOfRepositioningToDemand = 0, means no one reposition
   private def cfg =
     rideHailManager.managerConfig.repositioningManager.inverseSquareDistanceRepositioningFactor
@@ -171,7 +171,7 @@ class InverseSquareDistanceRepositioningFactor(
   }
 
   private def createHexClusters(tick: Int): Array[ClusterInfo] = {
-    // Build clusters for every time bin. Number of clusters is configured
+    // Build clusters for every linkStartTime bin. Number of clusters is configured
     getTimeBins(tick).flatMap(timeBinToActivities.get).flatMap { acts =>
       if (acts.isEmpty)
         Array.empty[ClusterInfo]

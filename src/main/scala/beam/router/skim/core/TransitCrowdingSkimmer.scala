@@ -114,7 +114,7 @@ object TransitCrowdingSkimmer extends LazyLogging {
         numberOfPassengers  | Number of the passengers in the vehicle
         capacity            | Passenger capacity of the vehicle
         observations        | Always 1
-        duration            | Travel time between current stops
+        duration            | Travel linkStartTime between current stops
         iterations          | Always 1
         """
     )
@@ -131,7 +131,7 @@ object TransitCrowdingSkimmer extends LazyLogging {
         numberOfPassengers  | Average number of the passengers in the vehicle
         capacity            | Average passenger capacity of the vehicle
         observations        | Always 1
-        duration            | Average travel time between current stops
+        duration            | Average travel linkStartTime between current stops
         iterations          | Number of iterations
         """
     )

@@ -179,7 +179,7 @@ class TravelTimeGoogleStatisticImpl(
 
   private def getAppropriateEvents(events: Seq[PathTraversalEvent], numEventsPerHour: Int): Seq[PathTraversalEvent] = {
     val chosenEvents = Random.shuffle(events).take(numEventsPerHour)
-    // Use the same events, but with departure time on 3am
+    // Use the same events, but with departure linkStartTime on 3am
     val offPeakEvents = if (cfg.offPeakEnabled) {
       chosenEvents.map(pte => pte.copy(departureTime = TimeUnit.HOURS.toSeconds(3).toInt))
     } else {
