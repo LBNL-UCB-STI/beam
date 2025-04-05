@@ -356,7 +356,7 @@ def plot_activities_ends_vs_bench(s3url, iteration, ax, ax2=None, title="Activit
                             for df in pd.read_csv(events_file_path, low_memory=False, chunksize=chunksize)])
         except HTTPError:
             raise NameError('can not download file by url:', events_file_path)
-        df['hour'] = (df['linkStartTime'] / 3600).astype(int)
+        df['hour'] = (df['time'] / 3600).astype(int)
         print("activity ends loading took %s seconds" % (time.time() - start_time))
         return df
 
@@ -482,14 +482,14 @@ def read_nyc_ridership_counts_absolute_numbers_for_mta_comparison(s3url, iterati
     s3path = get_output_path_from_s3_url(s3url)
 
     events_file_path = "{0}/ITERS/it.{1}/{1}.events.csv.gz".format(s3path, iteration)
-    columns = ['type', 'person', 'vehicle', 'vehicleType', 'links', 'linkStartTime', 'driver']
+    columns = ['type', 'person', 'vehicle', 'vehicleType', 'links', 'time', 'driver']
     pte = pd.concat([df[(df['type'] == 'PersonEntersVehicle') | (df['type'] == 'PathTraversal')][columns]
                      for df in pd.read_csv(events_file_path, chunksize=100000, low_memory=False)])
 
     print('read pev and pt events of shape:', pte.shape)
 
-    pev = pte[(pte['type'] == 'PersonEntersVehicle')][['type', 'person', 'vehicle', 'linkStartTime']]
-    pte = pte[(pte['type'] == 'PathTraversal')][['type', 'vehicle', 'vehicleType', 'links', 'linkStartTime', 'driver']]
+    pev = pte[(pte['type'] == 'PersonEntersVehicle')][['type', 'person', 'vehicle', 'time']]
+    pte = pte[(pte['type'] == 'PathTraversal')][['type', 'vehicle', 'vehicleType', 'links', 'time', 'driver']]
 
     walk_transit_modes = {'BUS-DEFAULT', 'RAIL-DEFAULT', 'SUBWAY-DEFAULT'}
     drivers = set(pte[pte['vehicleType'].isin(walk_transit_modes)]['driver'])
@@ -519,14 +519,14 @@ def read_nyc_ridership_counts_absolute_numbers_for_mta_comparison(s3url, iterati
     vehicle_info = pte.groupby('vehicle')[['vehicleType', 'gtfsAgency']].first().reset_index()
 
     pev_advanced = pd.merge(pev, vehicle_info, on='vehicle')
-    pev_advanced = pev_advanced.sort_values('linkStartTime', ignore_index=True)
+    pev_advanced = pev_advanced.sort_values('time', ignore_index=True)
 
     gtfs_agency_to_count = pev_advanced.groupby('gtfsAgency')['person'].count()
 
     # calculate car
     car_mode = {'Car', 'Car-rh-only', 'PHEV', 'BUS-DEFAULT'}
     car_mta_related = pte[(pte['vehicleType'].isin(car_mode)) &
-                          (pte['carMtaRelated'])]['linkStartTime'].count()
+                          (pte['carMtaRelated'])]['time'].count()
     transit_car_to_count = gtfs_agency_to_count.append(pd.Series([car_mta_related], index=['Car']))
 
     # calculate subway
@@ -650,14 +650,14 @@ def read_bus_ridership_by_route_and_hour(s3url, gtfs_trip_id_to_route_id=None, i
     s3path = get_output_path_from_s3_url(s3url)
 
     events_file_path = "{0}/ITERS/it.{1}/{1}.events.csv.gz".format(s3path, iteration)
-    columns = ['type', 'person', 'vehicle', 'vehicleType', 'linkStartTime', 'driver']
+    columns = ['type', 'person', 'vehicle', 'vehicleType', 'time', 'driver']
     pte = pd.concat([df[(df['type'] == 'PersonEntersVehicle') | (df['type'] == 'PathTraversal')][columns]
                      for df in pd.read_csv(events_file_path, chunksize=100000, low_memory=False)])
 
     print('read PEV and PT events of shape:', pte.shape)
 
-    pev = pte[(pte['type'] == 'PersonEntersVehicle')][['person', 'vehicle', 'linkStartTime']]
-    pev['hour'] = pev['linkStartTime'] // 3600
+    pev = pte[(pte['type'] == 'PersonEntersVehicle')][['person', 'vehicle', 'time']]
+    pev['hour'] = pev['time'] // 3600
 
     pte = pte[(pte['type'] == 'PathTraversal') & (pte['vehicleType'] == 'BUS-DEFAULT')]
     drivers = set(pte['driver'])

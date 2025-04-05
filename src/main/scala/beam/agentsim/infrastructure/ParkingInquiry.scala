@@ -21,7 +21,7 @@ import scala.collection.immutable
   * @param activityType    the activity that the agent will partake in after parking
   * @param beamVehicle     an optional vehicle type (if applicable)
   * @param remainingTripData if vehicle can charge, this has the remaining range/tour distance data
-  * @param valueOfTime     the value of linkStartTime for the requestor
+  * @param valueOfTime     the value of time for the requestor
   * @param parkingDuration the duration an agent is parking for
   * @param reserveStall    whether or not we reserve a stall when we send this inquiry. used when simply requesting a cost estimate for parking.
   * @param requestId       a unique ID generated for this inquiry
@@ -70,7 +70,7 @@ object ParkingInquiry extends LazyLogging {
     case object Home extends ParkingActivityType
     case object Work extends ParkingActivityType
     case object EnRoute extends ParkingActivityType
-    case object Idle extends ParkingActivityType
+    case object IDLE extends ParkingActivityType
   }
 
   def activityTypeStringToEnum(activityType: String): ParkingActivityType = {
@@ -79,7 +79,7 @@ object ParkingInquiry extends LazyLogging {
       case "work"                                     => ParkingActivityType.Work
       case "charge"                                   => ParkingActivityType.Charge
       case "wherever"                                 => ParkingActivityType.Wherever
-      case "idle"                                     => ParkingActivityType.Idle
+      case "idle"                                     => ParkingActivityType.IDLE
       case otherType if otherType.contains("enroute") => ParkingActivityType.Charge
       case otherType if otherType.contains("home")    => ParkingActivityType.Home
       case otherType if otherType.contains("work")    => ParkingActivityType.Work

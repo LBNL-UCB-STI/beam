@@ -4,7 +4,7 @@ import sys
 
 
 events1 = ["RefuelSessionEvent", "ChargingPlugInEvent", "ChargingPlugOutEvent", "actstart"]
-columns1 = ["vehicle", "linkStartTime", "type", "parkingTaz", "chargingPointType", "parkingType", "locationY", "locationX",
+columns1 = ["vehicle", "time", "type", "parkingTaz", "chargingPointType", "parkingType", "locationY", "locationX",
             "duration", "vehicleType", "person", "fuel", "parkingZoneId", "pricingModel", "actType"]
 events2 = ["PathTraversal", "ModeChoice"]
 columns2 = []

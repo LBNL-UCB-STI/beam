@@ -143,7 +143,7 @@ class RideHailMaster(
     val subscribedTo = subscription.collect(rideHailManagers)
     if (subscribedTo.isEmpty) {
       // Goods delivery manager never sends ride-hail inquiry. (Because it doesn't have choose-mode stage)
-      // It reserves a ride-hail vehicle immediately when it's linkStartTime to deliver a package.
+      // It reserves a ride-hail vehicle immediately when it's time to deliver a package.
       rideHailManagers.values.filter(_.supportedModes.nonEmpty)
     } else subscribedTo
   }
@@ -221,7 +221,7 @@ class RideHailMaster(
     passenger: PersonIdWithActorRef,
     proposal: Option[TravelProposal]
   ): Double = {
-    // TODO: add walking linkStartTime once walk-to-point service is implemented
+    // TODO: add walking time once walk-to-point service is implemented
     proposal match {
       case Some(proposal) =>
         val wait = proposal.maxWaitingTimeInSec

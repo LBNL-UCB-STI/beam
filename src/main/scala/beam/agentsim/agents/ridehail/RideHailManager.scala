@@ -376,7 +376,7 @@ class RideHailManager(
 
   beamServices.beamRouter ! GetTravelTime
   beamServices.beamRouter ! GetMatSimNetwork
-  //TODO improve search to take into account linkStartTime when available
+  //TODO improve search to take into account time when available
   private val pendingModifyPassengerScheduleAcks = mutable.HashMap[Int, RideHailResponse]()
   private var numPendingRoutingRequestsForReservations = 0
 
@@ -642,7 +642,7 @@ class RideHailManager(
         val walkFromDropoffRequest = RoutingRequest(
           originUTM = dropoffStop,
           destinationUTM = inquiry.destinationUTM,
-          departureTime = inquiry.departAt, //walk routes are hardly depends on departure linkStartTime
+          departureTime = inquiry.departAt, //walk routes are hardly depends on departure time
           withTransit = false,
           personId = Some(inquiry.customer.personId),
           streetVehicles = Vector(bodyVehicle.copy(locationUTM = bodyVehicle.locationUTM.copy(loc = dropoffStop))),
@@ -1345,7 +1345,7 @@ class RideHailManager(
       respondWithDriverNotFound(inquiry)
       return
     }
-    // Adjust depart linkStartTime to account for delay from batch processing on a timeout, provides a more accurate quote
+    // Adjust depart time to account for delay from batch processing on a timeout, provides a more accurate quote
     val timeUntilNextDispatch = if (processBufferedRequestsOnTimeout) {
       val timeoutInterval =
         managerConfig.allocationManager.requestBufferTimeoutInSeconds
@@ -2035,7 +2035,7 @@ class RideHailManager(
       handleNotifyVehicleDoneRefuelingAndOutOfService(notifyMessage)
     }
     cachedNotifyVehicleDoneRefuelingAndOffline.clear()
-    log.debug("Elapsed planning linkStartTime = {}", (System.nanoTime() - currentlyProcessingTimeoutWallStartTime) / 1e6)
+    log.debug("Elapsed planning time = {}", (System.nanoTime() - currentlyProcessingTimeoutWallStartTime) / 1e6)
     currentlyProcessingTimeoutTrigger = None
     doNotUseInAllocation.clear()
     unstashAll()

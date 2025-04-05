@@ -646,7 +646,7 @@ class UrbanSimScenarioLoader(
           val coord = utmCoord(planInfo.activityLocationX.get, planInfo.activityLocationY.get, fromExistingPlans = true)
           val activityType = planInfo.activityType.getOrElse(
             throw new IllegalStateException(
-              s"planElement is `activity`, but `parkingActivityType` is None. planInfo: $planInfo"
+              s"planElement is `activity`, but `activityType` is None. planInfo: $planInfo"
             )
           )
           val act = PopulationUtils.createAndAddActivityFromCoord(plan, activityType, coord)

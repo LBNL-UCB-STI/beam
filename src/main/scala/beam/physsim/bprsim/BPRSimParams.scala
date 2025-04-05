@@ -6,8 +6,8 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
 
 /**
-  * @param simEndTime phys simulation end linkStartTime
-  * @param travelTimeFunction function that calculates travel linkStartTime at a given linkStartTime, link, CACC share, volume
+  * @param simEndTime phys simulation end time
+  * @param travelTimeFunction function that calculates travel time at a given time, link, CACC share, volume
   *                           and number of double parked vehicles on the link
   * @author Dmitry Openkov
   */

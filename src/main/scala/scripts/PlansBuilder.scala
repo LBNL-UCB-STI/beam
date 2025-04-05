@@ -100,7 +100,7 @@ object PlansBuilder {
             node.getX.toString, //coord.x
             node.getY.toString, //coord.y
             (rand.nextDouble() * 23).toString
-          ) //linkStartTime
+          ) //time
 
           val hhIdStr = row(1)
           resHHMap.get(hhIdStr) match {

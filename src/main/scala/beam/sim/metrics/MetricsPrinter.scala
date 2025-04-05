@@ -96,7 +96,7 @@
 //      val max = hs.max
 //
 //      s"""
-//         | ${e.name} -> count: $num; average linkStartTime: ${ttime / num} [ms]; max linkStartTime: $max [ms]; total linkStartTime: ${ttime / 1000} [s]""".stripMargin
+//         | ${e.name} -> count: $num; average time: ${ttime / num} [ms]; max time: $max [ms]; total time: ${ttime / 1000} [s]""".stripMargin
 //    }
 //  }
 //

@@ -28,7 +28,7 @@ class MessageLogger(iterationNumber: Int, controllerIO: OutputDirectoryHierarchy
 
   /**
     * We put in this var a cancellable for scheduled CloseWriterMsg so that we could close our writer
-    * if we don't receive messages for a long linkStartTime (the simulation got stuck)
+    * if we don't receive messages for a long time (the simulation got stuck)
     */
   private var closeWriterCancellable: Cancellable =
     context.system.scheduler.scheduleOnce(24.hours, self, CloseWriterMsg)(context.system.dispatcher)

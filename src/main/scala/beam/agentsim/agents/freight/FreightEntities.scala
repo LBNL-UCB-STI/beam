@@ -19,10 +19,7 @@ object FreightRequestType extends Enum[FreightRequestType] {
 
   case object Unloading extends FreightRequestType
   case object Loading extends FreightRequestType
-  case object Warehouse extends FreightRequestType
 
-  def isLoadingUnloading(value: String): Boolean = value.toLowerCase().contains(Loading.toString.toLowerCase())
-  def isWarehouse(value: String): Boolean = value.toLowerCase().contains(Warehouse.toString.toLowerCase())
 }
 
 case class FreightTour(

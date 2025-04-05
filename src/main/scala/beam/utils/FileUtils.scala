@@ -117,7 +117,7 @@ object FileUtils extends LazyLogging {
     * Read file with a given path or creates one if file is missing. It also creates a lock file at the same dir
     * that indicates that file is being created.
     * @param path the file path
-    * @param atMost wait at most this linkStartTime before starting reading the file
+    * @param atMost wait at most this time before starting reading the file
     * @param reader the file reader
     * @param writer the file writer
     * @tparam T type of the entity that is read from the file
@@ -383,7 +383,7 @@ object FileUtils extends LazyLogging {
     * Reads files in parallel and returns all the loaded records as Iterable
     * @param dir the directory where the files reside
     * @param fileNamePattern glob file pattern
-    * @param atMost the expected linkStartTime interval for file reading
+    * @param atMost the expected time interval for file reading
     * @param loader the function that actually read data from the reader
     * @tparam X the record type
     * @tparam M the container type
@@ -400,7 +400,7 @@ object FileUtils extends LazyLogging {
     * Reads files in parallel and returns loaded data as a map containing each loaded file data as values
     * @param dir the directory where the files reside
     * @param fileNamePattern glob file pattern
-    * @param atMost the expected linkStartTime interval for file reading
+    * @param atMost the expected time interval for file reading
     * @param loader the function that actually read data from the reader
     * @tparam Key the return map key
     * @tparam Value the return map value
@@ -432,7 +432,7 @@ object FileUtils extends LazyLogging {
     * @param outputDir the ouput dir
     * @param fileNamePattern the file name pattern. It must contains $i which is substituted with the part number
     * @param numberOfParts the number of parts
-    * @param atMost the expected linkStartTime interval for file writing
+    * @param atMost the expected time interval for file writing
     * @param saver the function that saves data to the provided writer.
     *              It takes part number (starting from 1), path to file and buffered writer as an input
     */

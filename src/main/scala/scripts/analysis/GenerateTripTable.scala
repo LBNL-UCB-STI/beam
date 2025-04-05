@@ -45,7 +45,7 @@ object GenerateTripTable {
       "",
       "personId",
       "legId",
-      "linkStartTime",
+      "time",
       "mode",
       "numberOfReplannings",
       "legDurationBasedOnActEndActStart",
@@ -67,7 +67,7 @@ object GenerateTripTable {
       val eventType = attributes.get("type")
       val personId = attributes.get("person")
       val vehicleId = attributes.get("vehicle")
-      val time = attributes.get("linkStartTime").toDouble
+      val time = attributes.get("time").toDouble
 
       if (count % 10000 == 0)
         println(s"processing row $count")

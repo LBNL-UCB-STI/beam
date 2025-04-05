@@ -80,7 +80,7 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     val personId = getIfNotNull(rec, "personId").toString
     val planElement = getIfNotNull(rec, "planElement").toString
     val planElementIndex = getIfNotNull(rec, "planElementIndex").asInstanceOf[Long].toInt
-    val activityType = Option(rec.get("parkingActivityType")).map(_.toString)
+    val activityType = Option(rec.get("activityType")).map(_.toString)
     val x = Option(rec.get("x")).map(_.asInstanceOf[Double])
     val y = Option(rec.get("y")).map(_.asInstanceOf[Double])
     val endTime = Option(rec.get("endTime")).map(_.asInstanceOf[Double])

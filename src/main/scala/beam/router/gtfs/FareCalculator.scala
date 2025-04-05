@@ -158,7 +158,7 @@ object FareCalculator {
     *                         1: Passenger may transfer once.
     *                         2: Passenger may transfer twice.
     *                  Int.MaxValue/(empty in gtfs): If this field is empty, unlimited transfers are permitted.
-    * @param transferDuration Specifies the length of linkStartTime in seconds before a transfer expires.
+    * @param transferDuration Specifies the length of time in seconds before a transfer expires.
     */
   case class BeamFare(
     fareId: String,

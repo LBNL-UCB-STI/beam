@@ -161,7 +161,7 @@ object InfluxDbSimulationMetricCollector {
     delta: Long
   ): Long = {
     // See https://github.com/influxdata/influxdb/issues/2055
-    // Points in a series can not have the same exact linkStartTime (down to nanosecond). A series is defined by the measurement and tagset.
+    // Points in a series can not have the same exact time (down to nanosecond). A series is defined by the measurement and tagset.
     // We store the last seen `tsNano` and add up `step` in case if it is already there
 
     val mappingFunction = new java.util.function.BiFunction[String, Long, Long]() {

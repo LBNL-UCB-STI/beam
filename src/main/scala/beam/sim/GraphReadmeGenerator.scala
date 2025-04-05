@@ -15,7 +15,7 @@ object GraphReadmeGenerator extends LazyLogging {
   private val content =
     """averageCarSpeed.png - Average car speeds in meters per second, grouped by car type, per iteration.
       |
-      |averageCarTravelTimes.png - Average travel linkStartTime, using car, in minutes, including or excluding walk.
+      |averageCarTravelTimes.png - Average travel time, using car, in minutes, including or excluding walk.
       |
       |delayAveragePerKilometer.png - Average delay intensity, in seconds per kilometer, per iteration.
       |
@@ -37,7 +37,7 @@ object GraphReadmeGenerator extends LazyLogging {
       |
       |scorestats.png - Average agent plans' utility scores.
       |
-      |stopwatch.png - Computation linkStartTime distribution per iteration.
+      |stopwatch.png - Computation time distribution per iteration.
       """.stripMargin
 
   def generateGraphReadme(rootFolder: String): Unit = {

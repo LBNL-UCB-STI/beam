@@ -22,7 +22,7 @@ object PersonTravelTimeAnalysisObject extends OutputDataDescriptor {
           getClass.getSimpleName,
           relativePath,
           "Hour,*",
-          "Average linkStartTime taken to travel by the chosen mode during the given hour of the day"
+          "Average time taken to travel by the chosen mode during the given hour of the day"
         )
       )
     list

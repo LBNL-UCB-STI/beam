@@ -36,7 +36,7 @@ case class AttributesOfIndividual(
   val subwayTransit: Set[BeamMode] = Set(BeamMode.SUBWAY, BeamMode.WALK)
 
   // Get Value of Travel Time for a specific leg of a travel alternative:
-  // If it is a car leg, we use link-specific multipliers, otherwise we just look at the entire leg travel linkStartTime and mode
+  // If it is a car leg, we use link-specific multipliers, otherwise we just look at the entire leg travel time and mode
 
   def getGeneralizedTimeOfLinkForMNL(
     IdAndTT: (LinkId, Int),

@@ -50,7 +50,7 @@ class TimeDependentRoutingSpec
 
   override def outputDirPath: String = TestConfigUtils.testOutputDir
 
-  "A linkStartTime-dependent router" must {
+  "A time-dependent router" must {
     val origin = new BeamRouter.Location(166321.9, 1568.87)
     val destination = new BeamRouter.Location(167138.4, 1117)
     val time = 3000
@@ -77,7 +77,7 @@ class TimeDependentRoutingSpec
       )
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.head.beamLegs.head.duration == 144)
-      // R5 travel linkStartTime, but less than what's in R5's routing response (see vv),
+      // R5 travel time, but less than what's in R5's routing response (see vv),
       // presumably because the first/last edge are not travelled (in R5, trip starts on a "split")
     }
 
@@ -103,7 +103,7 @@ class TimeDependentRoutingSpec
       )
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.head.beamLegs.head.duration == 271)
-      // R5 travel linkStartTime, but less than what's in R5's routing response (see vv),
+      // R5 travel time, but less than what's in R5's routing response (see vv),
       // presumably because the first/last edge are not travelled (in R5, trip starts on a "split")
     }
 
@@ -129,7 +129,7 @@ class TimeDependentRoutingSpec
       )
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.head.beamLegs.head.duration == 564)
-      // R5 travel linkStartTime, but less than what's in R5's routing response (see vv),
+      // R5 travel time, but less than what's in R5's routing response (see vv),
       // presumably because the first/last edge are not travelled (in R5, trip starts on a "split")
     }
 
@@ -221,7 +221,7 @@ class TimeDependentRoutingSpec
       def estimatedTotalTravelTime = carOption.totalTravelTimeInSecs
       val longerTravelTimes = (_: Int, _: Int) => 2000
       def experiencedTotalTravelTime = (carOption.legs(0).beamLeg.travelPath.linkIds.size - 2) * 2000
-      // This ^^ is the travel linkStartTime which I am now reporting to the TravelTimeCalculator, 2000 per fully-traversed link
+      // This ^^ is the travel time which I am now reporting to the TravelTimeCalculator, 2000 per fully-traversed link
 
       def gap = estimatedTotalTravelTime - experiencedTotalTravelTime
 

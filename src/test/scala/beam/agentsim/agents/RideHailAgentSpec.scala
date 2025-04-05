@@ -190,7 +190,7 @@ class RideHailAgentSpec
 
       var trigger = moveTo30000(scheduler, rideHailAgent)
 
-      // Now I want to interrupt the agent, and it will say that for any point in linkStartTime after 28800,
+      // Now I want to interrupt the agent, and it will say that for any point in time after 28800,
       // I can tell it whatever I want. Even though it is already 30000 for me.
 
       rideHailAgent ! Interrupt(1, 30000, 0, BeamVehicle.createId("Empty", None))
@@ -276,7 +276,7 @@ class RideHailAgentSpec
 
       var trigger = moveTo30000(scheduler, rideHailAgent)
 
-      // Now I want to interrupt the agent, and it will say that for any point in linkStartTime after 28800,
+      // Now I want to interrupt the agent, and it will say that for any point in time after 28800,
       // I can tell it whatever I want. Even though it is already 30000 for me.
 
       rideHailAgent ! Interrupt(1, 30000, 0, BeamVehicle.createId("Empty", None))

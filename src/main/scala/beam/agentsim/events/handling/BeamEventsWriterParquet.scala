@@ -162,7 +162,7 @@ class BeamEventsWriterParquet(
     "primaryFuelLevel"         -> PDouble, //4.68E10, 2.9988773541008E10, 2.99846622776E10
     "locationY"                -> PDouble, //37.8001929, 37.7832913, 37.738846999998344
     "secondaryFuel"            -> PDouble, //0.0
-    "linkStartTime"                     -> PDouble, //0.0, 14700.0, 14880.0
+    "time"                     -> PDouble, //0.0, 14700.0, 14880.0
     "duration"                 -> PDouble, //0.0, 1101.0, 0.0
     "endY"                     -> PDouble, //38.001, 37.7440583, 37.7424152
     "endX"                     -> PDouble, //-122.001, -122.4208899, -122.421952

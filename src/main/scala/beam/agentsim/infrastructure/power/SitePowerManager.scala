@@ -126,10 +126,10 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
   }
 
   /**
-    * This method adds hour**(hour - 1) to initial departure linkStartTime estimate
+    * This method adds hour**(hour - 1) to initial departure time estimate
     *
-    * @param currentTime                  linkStartTime of simulation
-    * @param initialDepartureTimeEstimate initial estimate of departure linkStartTime estimate
+    * @param currentTime                  time of simulation
+    * @param initialDepartureTimeEstimate initial estimate of departure time estimate
     * @return
     */
   private def estimateDepartureTime(currentTime: Int, initialDepartureTimeEstimate: Int): Int = {
@@ -288,7 +288,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
   /**
     * Collect rough power demand per vehicle
     *
-    * @param time                          start linkStartTime of charging cycle
+    * @param time                          start time of charging cycle
     * @param duration                      duration of charging cycle
     * @param energyToChargeIfUnconstrained the energy to charge
     * @param station                       the station where vehicle is charging
@@ -300,7 +300,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
     station: ChargingStation
   ): Unit = {
     val requiredLoad = if (duration == 0) 0.0 else (energyToChargeIfUnconstrained / 3.6e+6) / (duration / 3600.0)
-    // Keep track of previous linkStartTime bin load
+    // Keep track of previous time bin load
     temporaryLoadEstimate.synchronized {
       val requiredLoadAcc = temporaryLoadEstimate.getOrElse(station, 0.0) + requiredLoad
       temporaryLoadEstimate.put(station, requiredLoadAcc)

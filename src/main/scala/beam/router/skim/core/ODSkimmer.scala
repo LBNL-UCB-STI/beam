@@ -569,8 +569,8 @@ object ODSkimmer extends LazyLogging {
         rideHailName                      | Ride-hail manager name if trip is a ride-hail(-pooled) trip or empty otherwise
         origTaz                           | TAZ id of trip origin
         destTaz                           | TAZ id of trip destination
-        travelTimeInS                     | Average travel linkStartTime in seconds
-        generalizedTimeInS                | Average generalized travel linkStartTime in seconds
+        travelTimeInS                     | Average travel time in seconds
+        generalizedTimeInS                | Average generalized travel time in seconds
         cost                              | Average trip total cost
         generalizedCost                   | Average trip generalized cost
         distanceInM                       | Average trip distance in meters
@@ -591,8 +591,8 @@ object ODSkimmer extends LazyLogging {
         rideHailName                      | Ride-hail manager name if trip is a ride-hail(-pooled) trip or empty otherwise
         origTaz                           | TAZ id of trip origin
         destTaz                           | TAZ id of trip destination
-        travelTimeInS                     | Average (over last n iterations) travel linkStartTime in seconds
-        generalizedTimeInS                | Average generalized travel linkStartTime in seconds
+        travelTimeInS                     | Average (over last n iterations) travel time in seconds
+        generalizedTimeInS                | Average generalized travel time in seconds
         cost                              | Average trip total cost
         generalizedCost                   | Average trip generalized cost
         distanceInM                       | Average trip distance in meters

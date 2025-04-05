@@ -135,7 +135,7 @@ class PickUpDropOffCollector(vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleT
             case Some(link) => addLinkPickUp(link, personPickUp.time)
             case None =>
               logger.error(
-                s"Missing vehicle pick up point from PathTraversals for vehicle ${personPickUp.vehicleId} at linkStartTime ${personPickUp.time}. All data: $vehiclePickUpsDropOffs"
+                s"Missing vehicle pick up point from PathTraversals for vehicle ${personPickUp.vehicleId} at time ${personPickUp.time}. All data: $vehiclePickUpsDropOffs"
               )
           }
         case None =>
@@ -149,7 +149,7 @@ class PickUpDropOffCollector(vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleT
             case Some(link) => addLinkDropOff(link, personDropOff.time)
             case None =>
               logger.error(
-                s"Missing vehicle drop off point from PathTraversals for vehicle ${personDropOff.vehicleId} at linkStartTime ${personDropOff.time}. All data: $vehiclePickUpsDropOffs"
+                s"Missing vehicle drop off point from PathTraversals for vehicle ${personDropOff.vehicleId} at time ${personDropOff.time}. All data: $vehiclePickUpsDropOffs"
               )
           }
         case None =>

@@ -149,13 +149,13 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
             }
             if (workerParams.beamConfig.beam.outputs.displayPerformanceTimings) {
               log.info(
-                "Receiving {} per seconds of RoutingRequest with first message linkStartTime set to {} for the next round",
+                "Receiving {} per seconds of RoutingRequest with first message time set to {} for the next round",
                 rate,
                 firstMsgTime
               )
             } else {
               log.debug(
-                "Receiving {} per seconds of RoutingRequest with first message linkStartTime set to {} for the next round",
+                "Receiving {} per seconds of RoutingRequest with first message time set to {} for the next round",
                 rate,
                 firstMsgTime
               )
@@ -171,7 +171,7 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
       msgs = msgs + 1
       if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
       val eventualResponse = Future {
-        latency("request-router-linkStartTime", Metrics.RegularLevel) {
+        latency("request-router-time", Metrics.RegularLevel) {
           if (!request.withTransit && (carRouter == "staticGH" || carRouter == "quasiDynamicGH")) {
             // run graphHopper for only cars
             val ghCarResponse = calcCarGhRoute(request)
@@ -246,7 +246,7 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
         newTravelTime,
         workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
       )
-      log.info("{} UpdateTravelTimeLocal. Set new travel linkStartTime", getNameAndHashCode)
+      log.info("{} UpdateTravelTimeLocal. Set new travel time", getNameAndHashCode)
       askForMoreWork()
 
     case UpdateTravelTimeRemote(map) =>
@@ -271,7 +271,7 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
         workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
       )
       log.info(
-        "{} UpdateTravelTimeRemote. Set new travel linkStartTime from map with size {}",
+        "{} UpdateTravelTimeRemote. Set new travel time from map with size {}",
         getNameAndHashCode,
         map.keySet().size()
       )

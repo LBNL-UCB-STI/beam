@@ -245,7 +245,7 @@ class BeamScenarioLoader(
     }
     val activityType = planElement.activityType.getOrElse(
       throw new IllegalStateException(
-        s"planElement is `activity`, but `parkingActivityType` is None. planInfo: $planElement"
+        s"planElement is `activity`, but `activityType` is None. planInfo: $planElement"
       )
     )
     val act = PopulationUtils.createAndAddActivityFromCoord(currentPlan, activityType, coord)

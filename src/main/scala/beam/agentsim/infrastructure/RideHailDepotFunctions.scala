@@ -174,9 +174,9 @@ class RideHailDepotFunctions(
   }
 
   /**
-    * Estimates the amount of linkStartTime a vehicle will spend waiting for its turn to charge. The estimate is an average wait linkStartTime
-    * calculated as the sum of all remaining linkStartTime needed to for actively charging vehicles (if all plugs are in use, otherwise this is zero)
-    * plus the linkStartTime needed to charge all vehicles in the current queue, all divided by the number of plugs (of the same plug type) in this depot.
+    * Estimates the amount of time a vehicle will spend waiting for its turn to charge. The estimate is an average wait time
+    * calculated as the sum of all remaining time needed to for actively charging vehicles (if all plugs are in use, otherwise this is zero)
+    * plus the time needed to charge all vehicles in the current queue, all divided by the number of plugs (of the same plug type) in this depot.
     *
     * @param parkingZone the zone for which an estimate is desired
     * @param tick Int

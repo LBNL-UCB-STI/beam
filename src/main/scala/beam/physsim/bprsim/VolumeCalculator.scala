@@ -7,7 +7,7 @@ import scala.collection.mutable
 
 /**
   * Not thread-safe
-  * @param timeWindow the linkStartTime interval in seconds during which the number of events is counted
+  * @param timeWindow the time interval in seconds during which the number of events is counted
   * @author Dmitry Openkov
   */
 class VolumeCalculator(val timeWindow: Int) {
@@ -21,7 +21,7 @@ class VolumeCalculator(val timeWindow: Int) {
 
   /**
     * @param linkId the link id
-    * @param time the simulation linkStartTime
+    * @param time the simulation time
     * @return inFlow volume (current number of in flow vehicles per hour) and CACC share
     */
   def getVolumeAndCACCShare(linkId: Id[Link], time: Double): (Double, Double) = {
@@ -36,18 +36,18 @@ class VolumeCalculator(val timeWindow: Int) {
 }
 
 /**
-  * It holds number of events for a particular linkStartTime interval
-  * @param length number of linkStartTime intervals that holds number of entered vehicles
-  * @param countIntervalLength the length of linkStartTime interval in seconds
+  * It holds number of events for a particular time interval
+  * @param length number of time intervals that holds number of entered vehicles
+  * @param countIntervalLength the length of time interval in seconds
   * @param arrayOfZeros just shared array of zeros of length equals length for quick backend reset
   */
 class EventHolder(length: Int, countIntervalLength: Int, arrayOfZeros: Array[Long]) {
 
   /**
     * This contains Int's: the high integer is the number of CACC enabled vehicles, the low integer is the number of regular
-    * vehicles at that linkStartTime interval which is corresponds to the index of the element.
+    * vehicles at that time interval which is corresponds to the index of the element.
     * This complicated structure is done for performance reasons.
-    * We could replace this array of Int's with a Map: linkStartTime interval -> Pair of numbers of vehicles,
+    * We could replace this array of Int's with a Map: time interval -> Pair of numbers of vehicles,
     * but this gives additional GC pauses.
     */
   private val backend = new Array[Long](length)
@@ -86,9 +86,9 @@ class EventHolder(length: Int, countIntervalLength: Int, arrayOfZeros: Array[Lon
   }
 
   /**
-    * @param time the sim linkStartTime
+    * @param time the sim time
     * @return number of events (low integer is number of regular vehicles, high integer is number of CACC vehicles)
-    *         and linkStartTime interval in seconds during which this happens
+    *         and time interval in seconds during which this happens
     */
   def numberOfEventsWithLength(time: Double): (Long, Int) = {
     val interval = toInterval(time)

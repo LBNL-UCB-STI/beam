@@ -24,7 +24,7 @@ class ControlWrapperDummy():
         # for vehicleID:
         #     energy_used = updated energy - arrival energy or departure energy - arrival energy
 
-        # update also decision on how to charge/discharge BTMS in the last linkStartTime period.
+        # update also decision on how to charge/discharge BTMS in the last time period. 
         pass
 
     def step (self, timestep):

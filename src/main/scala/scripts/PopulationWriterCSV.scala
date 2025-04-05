@@ -31,7 +31,7 @@ class PopulationWriterCSV(
   val handler: PopulationWriterHandler = new PopulationWriterHandler {
 
     override def writeHeaderAndStartElement(out: BufferedWriter): Unit =
-      out.write("id,type,x,y,end.linkStartTime,customAttributes\n")
+      out.write("id,type,x,y,end.time,customAttributes\n")
 
     override def writeSeparator(out: BufferedWriter): Unit = out.flush()
 

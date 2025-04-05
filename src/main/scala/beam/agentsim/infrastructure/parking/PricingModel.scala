@@ -95,7 +95,7 @@ object PricingModel {
       case Success(valueInt) =>
         if (valueInt < 0)
           throw new IllegalArgumentException(
-            s"negative linkStartTime interval of $valueInt not allowed for PricingModel"
+            s"negative time interval of $valueInt not allowed for PricingModel"
           )
         else valueInt
     }

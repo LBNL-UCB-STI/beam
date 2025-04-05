@@ -76,7 +76,7 @@ class ModeChoiceLCCM(
       val modeChoiceInputData = bestInGroup.map { alt =>
         val theParams = Map(
           "cost" -> alt.cost,
-          "linkStartTime" -> (alt.walkTime + alt.bikeTime + alt.vehicleTime + alt.waitTime)
+          "time" -> (alt.walkTime + alt.bikeTime + alt.vehicleTime + alt.waitTime)
         )
         (alt.mode, theParams)
       }.toMap
@@ -165,7 +165,7 @@ class ModeChoiceLCCM(
     val modeChoiceInputData = bestInGroup.map { alt =>
       val theParams = Map(
         "cost" -> alt.cost,
-        "linkStartTime" -> (alt.walkTime + alt.bikeTime + alt.vehicleTime + alt.waitTime)
+        "time" -> (alt.walkTime + alt.bikeTime + alt.vehicleTime + alt.waitTime)
       )
       (alt.mode, theParams)
     }.toMap
@@ -223,7 +223,7 @@ class ModeChoiceLCCM(
           case _ =>
             altAndIdx._1.costEstimate
         }
-        //TODO verify wait linkStartTime is correct, look at transit and ride_hail in particular
+        //TODO verify wait time is correct, look at transit and ride_hail in particular
         val walkTime = altAndIdx._1.legs.view
           .filter(_.beamLeg.mode == WALK)
           .map(_.beamLeg.duration)
@@ -253,7 +253,7 @@ class ModeChoiceLCCM(
     val groupedByMode: Map[BeamMode, Seq[ModeChoiceData]] =
       modeChoiceAlternatives.groupBy(_.mode)
     val bestInGroup = groupedByMode.map { case (_, alts) =>
-      // Which dominates at $18/hr for total linkStartTime
+      // Which dominates at $18/hr for total time
       alts
         .map { alt =>
           (
@@ -274,7 +274,7 @@ class ModeChoiceLCCM(
     cost: Double,
     time: Double
   ): Double = {
-    val theParams = Map("cost" -> cost, "linkStartTime" -> time)
+    val theParams = Map("cost" -> cost, "time" -> time)
     lccm
       .modeChoiceModels(tourType)(conditionedOnModalityStyle)
       ._2

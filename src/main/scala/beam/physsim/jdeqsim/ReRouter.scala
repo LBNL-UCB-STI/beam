@@ -42,10 +42,10 @@ class ReRouter(val workerParams: R5Parameters, val beamServices: BeamServices) e
         updatePlans(oldTravelTimes, newTravelTimes, result)
         // We're assuming this should go down
         logger.info(
-          s"Old total travel linkStartTime for rerouted people: ${Statistics(oldTravelTimes.map(x => x / 60).toArray)}"
+          s"Old total travel time for rerouted people: ${Statistics(oldTravelTimes.map(x => x / 60).toArray)}"
         )
         logger.info(
-          s"New total travel linkStartTime for rerouted people: ${Statistics(newTravelTimes.map(x => x / 60).toArray)}"
+          s"New total travel time for rerouted people: ${Statistics(newTravelTimes.map(x => x / 60).toArray)}"
         )
       }
       Statistics(newTravelTimes.map(x => x / 60).toArray)

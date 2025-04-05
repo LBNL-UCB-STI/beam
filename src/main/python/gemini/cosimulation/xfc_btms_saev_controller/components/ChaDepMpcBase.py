@@ -24,9 +24,9 @@ class ChaDepMpcBase(ChaDepParent):
 
         '''additional variables for MPC:'''
         #variables for storing data
-        self.PredictionTime         = []    # linkStartTime vector
+        self.PredictionTime         = []    # time vector
         self.PredictionPower        = []    # predicted, unconstrained power
-        self.PredictionTimeLag      = []    # associated linkStartTime lag vector
+        self.PredictionTimeLag      = []    # associated time lag vector
         self.PredictionEnergyLag    = []    # associated energy lag vector
         self.power_sum_original     = []    # predicted, unconstrained power, with no noise applied
         self.PredictionGridUpper    = []    # TODO used so far?
@@ -59,10 +59,10 @@ class ChaDepMpcBase(ChaDepParent):
         # open a VehicleGenerator for this:
         VehicleGenerator = components.VehicleGenerator(path_BeamPredictionFile, dtype, path_DataBase)
         
-        # open lists for power and linkStartTime
+        # open lists for power and time
         time = []
         power_sum = []
-        # calculate also linkStartTime lag and energy lag as reference values
+        # calculate also time lag and energy lag as reference values
         time_lag = []
         energy_lag = []
 
@@ -86,7 +86,7 @@ class ChaDepMpcBase(ChaDepParent):
             #save result in vectors
             time.append(PredBroker.t_act)
             power_sum.append(sum(power_i))
-            # calculate linkStartTime lag and energy lag
+            # calculate time lag and energy lag
             time_lag.append(sum([x.updateTimeLag(PredBroker.t_act) for x in ChBaVehicles]))
             energy_lag.append(sum([x.updateEnergyLag(PredBroker.t_act) for x in ChBaVehicles]))
             #release vehicles which are full
@@ -124,7 +124,7 @@ class ChaDepMpcBase(ChaDepParent):
         
         #save results to csv-file
         dict = {
-            'linkStartTime': time,
+            'time': time,
             'Power_original': self.power_sum_original,
             'Power_noise': self.PredictionPower,
             'TimeLag': self.PredictionTimeLag,
@@ -210,7 +210,7 @@ class ChaDepMpcBase(ChaDepParent):
         cost = prob.value
         time_x = time.tolist()
         time_x.append(time[-1]+timestep)
-        time_x = np.array(time_x) # time_x is the linkStartTime vector for states, linkStartTime the linkStartTime vector for control inputs
+        time_x = np.array(time_x) # time_x is the time vector for states, time the time vector for control inputs
 
         self.determinedBtmsSize = btms_size
         self.BtmsSize = btms_size
@@ -224,7 +224,7 @@ class ChaDepMpcBase(ChaDepParent):
         param_vec[2] = b
         param_vec[3] = c
         dict = {
-            'linkStartTime': time,
+            'time': time,
             'time_x': time_x,
             'P_Grid': P_Grid,
             'P_BTMS': P_BTMS,
@@ -255,7 +255,7 @@ class ChaDepMpcBase(ChaDepParent):
         t_wait = cp.Variable((1,T))
         n = cp.Variable((2,T))
         
-        # define disturbance i_power for the needed linkStartTime period, which is the charging power demand
+        # define disturbance i_power for the needed time period, which is the charging power demand
         time = np.array(self.PredictionTime)
         power = np.array(self.PredictionPower)
         idx = np.logical_and(time >=t_act, time <= t_act + T*timestep)
@@ -265,7 +265,7 @@ class ChaDepMpcBase(ChaDepParent):
             logging.warning("length of i_power is not equal to T, i_power: %s, T: %s" % (len(i_power), T))
             raise ValueError("length T and length of vector i_power are unequal, T: %s, i_power: %s" % (T, len(i_power)))
 
-        #create array for cost-function parameter d, if wait linkStartTime cost is not flexible (given as an array)
+        #create array for cost-function parameter d, if wait time cost is not flexible (given as an array)
         if type(d_param) != list:
             d = []
             for i in range(len(i_power)+1):
@@ -295,13 +295,13 @@ class ChaDepMpcBase(ChaDepParent):
                        u[2, k] >= 0,
                        # discharge power always negative
                        u[3, k] <= 0,
-                       # wait linkStartTime
+                       # wait time
                        t_wait[0, k] >= ts * (n[0, k] + n[1, k]),
-                       # wait linkStartTime due to already shifted energy
+                       # wait time due to already shifted energy
                        n[0, k] >= x[1, k]/(P_ChargeAvg * ts),
-                       # wait linkStartTime due to newly shifted energy
+                       # wait time due to newly shifted energy
                        n[1, k] >= u[4, k] / P_ChargeAvg,
-                       # wait linkStartTime due to newly shifted energy is always positive
+                       # wait time due to newly shifted energy is always positive
                        n[1, k] >= 0,
                        ]
 
@@ -329,7 +329,7 @@ class ChaDepMpcBase(ChaDepParent):
         
         # define cost-funciton
         cost = a * (p_gridSlack - P_free)           # demand charge
-        for k in range(T):                          # cost of btms degradation, cost of energy loss, cost of waiting linkStartTime
+        for k in range(T):                          # cost of btms degradation, cost of energy loss, cost of waiting time
             cost += (b+c) * u[2,k] * ts + c * u[3,k] * ts + d[k] * t_wait[0,k]
 
         time_end1 = time_module.time() # timewatch
@@ -342,7 +342,7 @@ class ChaDepMpcBase(ChaDepParent):
         time_end2=time_module.time()    # timewatch
 
         # logging additional solver stats
-        logging.info("self tracked times: setup linkStartTime: %s, solve linkStartTime: %s, total action linkStartTime: %s" % (time_end1-time_start, time_end2-time_end1, time_end2-time_start))
+        logging.info("self tracked times: setup time: %s, solve time: %s, total action time: %s" % (time_end1-time_start, time_end2-time_end1, time_end2-time_start))
 
         # unpack results
         P_Grid = u[0,:].value
@@ -360,13 +360,13 @@ class ChaDepMpcBase(ChaDepParent):
         cost = prob.value
         time_x = time.tolist()
         time_x.append(time[-1]+timestep)
-        time_x = np.array(time_x)       # time_x is the linkStartTime vector for states, linkStartTime the linkStartTime vector for control inputs, time_x is one entry longer
+        time_x = np.array(time_x)       # time_x is the time vector for states, time the time vector for control inputs, time_x is one entry longer
 
         # save important values to object
         self.P_GridMaxPlanning = max(P_Grid)
         self.E_BtmsLower        = []
         self.E_BtmsUpper        = []
-        for repeat in range(2): # double the E_BTMSLower and Upper vector length to have sufficient long prediction vectors for the last linkStartTime steps.
+        for repeat in range(2): # double the E_BTMSLower and Upper vector length to have sufficient long prediction vectors for the last time steps.
             for i in range(T+1):
                 self.E_BtmsLower.append(max([0            , E_BTMS[i] - beta * self.BtmsSize]))
                 self.E_BtmsUpper.append(min([self.BtmsSize, E_BTMS[i] + beta * self.BtmsSize]))
@@ -382,7 +382,7 @@ class ChaDepMpcBase(ChaDepParent):
         param_vec[2] = b
         param_vec[3] = c
         dict = {
-            'linkStartTime': time,
+            'time': time,
             'time_x': time_x,
             'P_Grid': P_Grid,
             'P_BTMS': P_BTMS,
@@ -554,7 +554,7 @@ class ChaDepMpcBase(ChaDepParent):
         self.updateVehicleStatesAndWriteStates(self.ChBaPower, timestep)
         logging.debug("vehicle states updated for charging station {}".format(self.ChargingStationId))
 
-        '''determine power desire for next linkStartTime step'''
+        '''determine power desire for next time step'''
         PowerDesire = 0
         for i in range(0, len(self.ChBaVehicles)):
             if isinstance(self.ChBaVehicles[i], components.Vehicle):

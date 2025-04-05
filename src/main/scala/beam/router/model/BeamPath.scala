@@ -8,7 +8,7 @@ import beam.router.model.RoutingModel.TransitStopsInfo
   * @param transitStops start and end stop if this path is transit (partial) route
   *
   * IMPORTANT NOTE: Convention is that a BeamPath starts at the **end** of the first link and ends at the end of the last link.
-  * We therefore ignore the first link in estimating travel linkStartTime.
+  * We therefore ignore the first link in estimating travel time.
   */
 case class BeamPath(
   linkIds: Array[Int],
@@ -38,7 +38,7 @@ case class BeamPath(
       math.round(linkTravelTime.tail.sum).toInt - (endPoint.time - startPoint.time)
     ) > 2
   ) {
-    throw new IllegalStateException("Total travel linkStartTime and total sum by edges are not same")
+    throw new IllegalStateException("Total travel time and total sum by edges are not same")
   }
 
   def toShortString: String = {

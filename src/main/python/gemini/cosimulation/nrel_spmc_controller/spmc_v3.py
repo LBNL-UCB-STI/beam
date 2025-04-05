@@ -10,7 +10,7 @@ class SPM_Control():
                  num_ess=None, ess_size=None, max_power_ess=None, min_power_ess=None):
         
         if time_step_mins is None:
-            self.time_step_mins = 1               # default linkStartTime step: 1 minutes
+            self.time_step_mins = 1               # default time step: 1 minutes
         else:
             self.time_step_mins = time_step_mins  
             
@@ -96,7 +96,7 @@ class SPM_Control():
                 if i*self.time_step_mins >= t_dep[k]-self.time_step_mins:
                     m.Equation( 0 == p_evse[i + k*T] )
                 
-                ### summation of all EVSE power at each linkStartTime step i
+                ### summation of all EVSE power at each time step i
                 tmp = tmp + p_evse[i + k*T]
                 
                 ### EVSE energy calculation

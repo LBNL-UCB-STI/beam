@@ -123,7 +123,7 @@ object RideHailSkimmer extends LazyLogging {
         reservationType           | Reservation type (solo or pooled) this statistic applies to
         wheelchairRequired        | Boolean value indicating whether or not a wheelchair is required
         serviceName               | Service name this statistic applies to
-        waitTime                  | Average waiting linkStartTime
+        waitTime                  | Average waiting time
         costPerMile               | Average cost per mile
         unmatchedRequestsPercent  | Average unmatched request percent
         accessibleVehiclesPercent | Average percent of wheelchair accessible vehicles
@@ -140,7 +140,7 @@ object RideHailSkimmer extends LazyLogging {
         reservationType           | Reservation type (solo or pooled) this statistic applies to
         wheelchairRequired        | Boolean value indicating whether or not a wheelchair is required
         serviceName               | Service name this statistic applies to
-        waitTime                  | Average (over last n iterations) waiting linkStartTime
+        waitTime                  | Average (over last n iterations) waiting time
         costPerMile               | Average (over last n iterations) cost per mile
         unmatchedRequestsPercent  | Average (over last n iterations) unmatched request percent
         accessibleVehiclesPercent | Average (over last n iterations) percent of wheelchair accessible vehicles

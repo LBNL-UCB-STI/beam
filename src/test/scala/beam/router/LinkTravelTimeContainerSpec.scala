@@ -14,7 +14,7 @@ import org.mockito.Mockito.{mock, when}
 class LinkTravelTimeContainerSpec extends AnyWordSpecLike with Matchers {
   "LinkTravelTimeContainer" when {
     "provided with a valid linkstats file" should {
-      "read travel linkStartTime correctly" in {
+      "read travel time correctly" in {
         val container = new LinkTravelTimeContainer("test/test-resources/beam/router/0.linkstats.csv.gz", 3600, 30)
         val link = mock(classOf[Link])
         when(link.getId).thenReturn(Id.createLinkId(233))

@@ -710,7 +710,7 @@ class RideHailAgent(
       }
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       // This is a message from another agent, the ride-hailing manager. It is responsible for "keeping the trigger",
-      // i.e. for what linkStartTime it is.
+      // i.e. for what time it is.
       if (data.passengerSchedule.schedule.isEmpty) {
         log.debug("updating Passenger schedule - vehicleId({}): {}", id, updatedPassengerSchedule)
         val triggerToSchedule =

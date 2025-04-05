@@ -137,7 +137,7 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
       householdRank               | Person rank
       excludedModes               | Modes that are forbidden for the person
       rideHailServiceSubscription | List of ride-hail services that person has subscription to
-      valueOfTime                 | Value of linkStartTime in dollar per hour
+      valueOfTime                 | Value of time in dollar per hour
         """
     )
 }

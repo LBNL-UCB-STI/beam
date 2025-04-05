@@ -149,7 +149,7 @@ object RouteDumper {
     val record = new GenericData.Record(spaceTimeSchema)
     record.put("loc_x", spaceTime.loc.getX)
     record.put("loc_y", spaceTime.loc.getY)
-    record.put("linkStartTime", spaceTime.time)
+    record.put("time", spaceTime.time)
     record
   }
 
@@ -457,7 +457,7 @@ object RouteDumper {
     val fields = List(
       new Schema.Field("loc_x", nullable[Double], "loc_x", null.asInstanceOf[Any]),
       new Schema.Field("loc_y", nullable[Double], "loc_y", null.asInstanceOf[Any]),
-      new Schema.Field("linkStartTime", nullable[Int], "linkStartTime", null.asInstanceOf[Any])
+      new Schema.Field("time", nullable[Int], "time", null.asInstanceOf[Any])
     )
     Schema.createRecord("SpaceTimeSchema", "", "", false, fields.asJava)
   }

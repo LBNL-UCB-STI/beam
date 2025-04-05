@@ -17,7 +17,7 @@ case class ActivityTime(activity: String, time: Int)
 
 class ActivityTypeAnalysis(maxTime: Int) extends GraphAnalysis with ExponentialLazyLogging {
 
-  private val activityTypeFileBaseName = "parkingActivityType"
+  private val activityTypeFileBaseName = "activityType"
 
   private val hourlyActivityType = mutable.Map[String, ActivityTime]()
   private val hourlyActivityCount = mutable.TreeMap[Int, mutable.Map[String, Int]]()
@@ -127,13 +127,13 @@ class ActivityTypeAnalysis(maxTime: Int) extends GraphAnalysis with ExponentialL
 object ActivityTypeAnalysis {
 
   def outputDataDescriptor: OutputDataDescriptor =
-    OutputDataDescriptorObject("ActivityTypeAnalysis", "parkingActivityType.csv")(
+    OutputDataDescriptorObject("ActivityTypeAnalysis", "activityType.csv")(
       """Iteration | iteration number                           
         Activity types | List of number of activities at that iteration"""
     )
 
   def outputDataDescriptorIteration: OutputDataDescriptor =
-    OutputDataDescriptorObject("ActivityTypeAnalysis", "parkingActivityType.csv", iterationLevel = true)(
+    OutputDataDescriptorObject("ActivityTypeAnalysis", "activityType.csv", iterationLevel = true)(
       """Hour | Hour of the day
         Activity types | List of number of activities at that hour"""
     )

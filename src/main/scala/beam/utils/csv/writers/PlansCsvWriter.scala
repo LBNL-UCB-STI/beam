@@ -19,7 +19,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
     "planSelected",
     "planElementType",
     "planElementIndex",
-    "parkingActivityType",
+    "activityType",
     "activityLocationX",
     "activityLocationY",
     "activityEndTime",
@@ -179,17 +179,17 @@ object PlansCsvWriter extends ScenarioCsvWriter {
       planSelected        | Boolean value indicating if the plan is selected
       planElementType     | Activity or Leg
       planElementIndex    | Index of the plan element
-      parkingActivityType        | Activity type (Work, Home, Shopping etc)
+      activityType        | Activity type (Work, Home, Shopping etc)
       activityLocationX   | X part of activity location coordinate
       activityLocationY   | Y part of activity location coordinate
-      activityEndTime     | Activity end linkStartTime
+      activityEndTime     | Activity end time
       legMode             | Leg mode
-      legDepartureTime    | Leg departure linkStartTime
-      legTravelTime       | Leg travel linkStartTime
+      legDepartureTime    | Leg departure time
+      legTravelTime       | Leg travel time
       legRouteType        | Identifier describing the type of this leg route uniquely.
       legRouteStartLink   | Leg route start link id
       legRouteEndLink     | Leg route end link id
-      legRouteTravelTime  | Leg route travel linkStartTime (equals to leg travel linkStartTime)
+      legRouteTravelTime  | Leg route travel time (equals to leg travel time)
       legRouteDistance    | Leg route distance
       legRouteLinks       | List of leg route link ids
       """

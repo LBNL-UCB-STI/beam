@@ -60,7 +60,7 @@ object SkimsUtils extends LazyLogging {
   val walkSpeedMeterPerSec: Double = 1.38
   // 940.6 Traffic Signal Spacing, Minor is 1,320 ft => 402.336 meters
   val trafficSignalSpacing: Double = 402.336
-  // average waiting linkStartTime at an intersection is 17.25 seconds
+  // average waiting time at an intersection is 17.25 seconds
   // source: https://pumas.nasa.gov/files/01_06_00_1.pdf
   val waitingTimeAtAnIntersection: Double = 17.25
 

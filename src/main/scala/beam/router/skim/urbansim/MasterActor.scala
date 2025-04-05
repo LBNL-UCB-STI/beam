@@ -38,7 +38,7 @@ class MasterActor(
   private var currentTime: Int = 0
 
   log.info(
-    s"Total number of OD pairs: ${ODs.length}, number of request linkStartTime entries: ${requestTimes.length}, maxWorkers: $maxWorkers"
+    s"Total number of OD pairs: ${ODs.length}, number of request time entries: ${requestTimes.length}, maxWorkers: $maxWorkers"
   )
 
   private var workers: Set[ActorRef] = Set.empty
@@ -216,7 +216,7 @@ class MasterActor(
     lazy val avgRoutePerSecond = (nSuccessRoutes + nFailedRoutes).toDouble / dtInSeconds
     log.info(
       s"""nRouteSent: $nRouteSent out of $maxRequestsNumber (${(nRouteSent.toFloat / maxRequestsNumber * 100).toInt}%), nSuccessRoutes: $nSuccessRoutes, nFailedRoutes: $nFailedRoutes, nSkimEvents: $nSkimEvents
-         |AVG route per second: $avgRoutePerSecond, elapsed linkStartTime: $dtInSeconds seconds
+         |AVG route per second: $avgRoutePerSecond, elapsed time: $dtInSeconds seconds
          |Current number of workers: ${workers.size}""".stripMargin
     )
   }

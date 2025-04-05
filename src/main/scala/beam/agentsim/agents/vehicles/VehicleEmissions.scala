@@ -168,7 +168,7 @@ object VehicleEmissions extends LazyLogging {
         Map[
           DoubleTypedRange, // weight
           Map[
-            DoubleTypedRange, // soak linkStartTime
+            DoubleTypedRange, // soak time
             Map[
               String, // county
               Map[
@@ -288,8 +288,8 @@ object VehicleEmissions extends LazyLogging {
       val emissionProcesses = {
         EmissionsProfile.values.flatMap {
           /**
-            * Idle activity should be the first element of VehicleActivity data sequence
-            * the type is PathTraversalEvent because there is no difference, Idle activity happens between other events
+            * IDLE activity should be the first element of VehicleActivity data sequence
+            * the type is PathTraversalEvent because there is no difference, IDLE activity happens between other events
             *
             * Idle Exhaust (IDLEX) emissions refer to the emissions during extended idling events (i.e., a continuous
             * segment of vehicle activity that meets three criteria: all instantaneous vehicle speeds being lower
@@ -338,7 +338,7 @@ object VehicleEmissions extends LazyLogging {
 
       // Idle Exhaust Emissions (IDLEX) that come out of the vehicle tailpipe while it is operating but not traveling
       // any significant distance. This process captures emissions from heavy-duty vehicles that idle for
-      // extended periods of linkStartTime while loading or unloading goods. Idle exhaust is calculated only
+      // extended periods of time while loading or unloading goods. Idle exhaust is calculated only
       // for heavy-duty trucks.
       // TODO Embed it in LeavingParkingEvent when 1) it is freight Load/Unload 2) overnight parking
       // xNumber of Idle Hours (xParking Hour) => gram/veh-idle hour
@@ -346,13 +346,13 @@ object VehicleEmissions extends LazyLogging {
       case "hotelling" | "hoteling" | "overnight" | "idlex_ext"                => Some(EXTIDLEX)
 
       // Start Exhaust Tailpipe Emissions (STREX) that occur when starting a vehicle. These emissions are independent
-      // of running exhaust emissions and represent the emissions occurring during the initial linkStartTime period when
+      // of running exhaust emissions and represent the emissions occurring during the initial time period when
       // a vehicle’s emissions after treatment system is warming up. The magnitude of these emissions is dependent
       // on how long the vehicle has been sitting prior to starting. Please note that STREX is defined differently
       // for heavy-duty diesel trucks than for other vehicles.
       // More details can be found in the EMFAC2014 Technical Support Document.
       // TODO Embed it in LeavingParkingEvent
-      // xNumber of starts per Soak linkStartTime => gram/veh-start
+      // xNumber of starts per Soak time => gram/veh-start
       case "start" | "strex" => Some(STREX)
 
       // Diurnal Evaporative HC Emissions (DIURN) that occur when rising ambient temperatures cause fuel evaporation
@@ -465,9 +465,9 @@ object VehicleEmissions extends LazyLogging {
       },
       /**
         * Calculate Start Exhaust Emissions (STREX)
-        * Number of starts per Soak linkStartTime => gram/veh-start
+        * Number of starts per Soak time => gram/veh-start
         * vst Vehicle Starts (VST)
-        * ratesBySoakTime Emission rate by soak linkStartTime (grams per vehicle-start)
+        * ratesBySoakTime Emission rate by soak time (grams per vehicle-start)
         * @return Total emissions in grams
         */
       // FIXME we might underestimate STREX: Ridehail vehicles do not park, they idle or stop engine while waiting

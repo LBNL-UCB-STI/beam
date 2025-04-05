@@ -12,7 +12,7 @@ import org.matsim.core.controler.events.IterationEndsEvent
 import scala.collection.mutable
 
 /**
-  * Analyzes the average travel linkStartTime by car mode for every iteration (including walk)
+  * Analyzes the average travel time by car mode for every iteration (including walk)
   * @param beamConfig Beam config instance
   */
 class PersonAverageTravelTimeAnalysis @Inject() (
@@ -50,8 +50,8 @@ class PersonAverageTravelTimeAnalysis @Inject() (
   // Stores the total travel times for each person during the iteration (car only)
   val personTotalCarTravelTimes: mutable.HashMap[String, List[Double]] = mutable.HashMap.empty[String, List[Double]]
 
-  // Stores the cumulative walk linkStartTime (to/from car) for the respective departure of the person
-  // this is then added to the travel linkStartTime to get including walk times graph
+  // Stores the cumulative walk time (to/from car) for the respective departure of the person
+  // this is then added to the travel time to get including walk times graph
   val personTravelTimeIncludingWalkForCurrentDeparture: mutable.HashMap[String, Double] =
     mutable.HashMap.empty[String, Double]
 
@@ -67,7 +67,7 @@ class PersonAverageTravelTimeAnalysis @Inject() (
   val averageCarTravelTimesForAllIterations: mutable.HashMap[Int, Double] = mutable.HashMap.empty[Int, Double]
 
   /**
-    * Processes the required events to compute the average travel linkStartTime.
+    * Processes the required events to compute the average travel time.
     * @param event instance of event
     */
   override def processStats(event: Event): Unit = {
@@ -106,9 +106,9 @@ class PersonAverageTravelTimeAnalysis @Inject() (
           personWalksTowardsCar.remove(personId)
           // Person now entered his car
           personEntersCar.put(personId, pev)
-          // calculate the person walk linkStartTime and add it to the cumulative walk times
+          // calculate the person walk time and add it to the cumulative walk times
           val walkTime = pev.getTime - walkEvent.getTime
-          // add walk linkStartTime to the including walk cumulative linkStartTime for this departure
+          // add walk time to the including walk cumulative time for this departure
           val updatedTime = personTravelTimeIncludingWalkForCurrentDeparture.getOrElse(personId, 0.0) + walkTime
           personTravelTimeIncludingWalkForCurrentDeparture.put(personId, updatedTime)
         case None =>
@@ -130,11 +130,11 @@ class PersonAverageTravelTimeAnalysis @Inject() (
           personEntersCar.remove(personId)
           // Person now got down his car
           personLeavesCar.put(personId, plv)
-          // calculate the person travel linkStartTime by his car and add it to the cumulative car travel times
+          // calculate the person travel time by his car and add it to the cumulative car travel times
           val travelTime = plv.getTime - pev.getTime
           val updatedTravelTimes = personTotalCarTravelTimes.getOrElse(personId, List.empty[Double]) :+ travelTime
           personTotalCarTravelTimes.put(personId, updatedTravelTimes)
-          // add walk linkStartTime to the including walk cumulative linkStartTime for this departure
+          // add walk time to the including walk cumulative time for this departure
           val updatedTime = personTravelTimeIncludingWalkForCurrentDeparture.getOrElse(personId, 0.0) + travelTime
           personTravelTimeIncludingWalkForCurrentDeparture.put(personId, updatedTime)
         case None =>
@@ -147,9 +147,9 @@ class PersonAverageTravelTimeAnalysis @Inject() (
           personLeavesCar.remove(personId)
           // Person now walked away from his car
           personWalksAwayFromCar.put(personId, plv)
-          // calculate the person walk linkStartTime and add it to the cumulative walk times
+          // calculate the person walk time and add it to the cumulative walk times
           val walkTime = plv.getTime - leftCarEvent.getTime
-          // add walk linkStartTime to the including walk cumulative linkStartTime for this departure
+          // add walk time to the including walk cumulative time for this departure
           val updatedTime = personTravelTimeIncludingWalkForCurrentDeparture.getOrElse(personId, 0.0) + walkTime
           personTravelTimeIncludingWalkForCurrentDeparture.put(personId, updatedTime)
         case None =>
@@ -180,7 +180,7 @@ class PersonAverageTravelTimeAnalysis @Inject() (
         personWalksAwayFromCar.remove(personId)
         // Stop tracking the departure of this person
         personCarDepartures.remove(personId)
-        // add including walk cumulative linkStartTime of the current depature - arrival to total list
+        // add including walk cumulative time of the current depature - arrival to total list
         val updatedTime = personTotalTravelTimesIncludingWalk.getOrElse(
           personId,
           List.empty[Double]
@@ -201,12 +201,12 @@ class PersonAverageTravelTimeAnalysis @Inject() (
     // Total travel times of all people (car mode only) including walk to/from the car before/after travel
     val totalTravelTimesIncludingWalk =
       personTotalCarTravelTimes.values.toList.flatten ++ personTotalTravelTimesIncludingWalk.values.flatten
-    // Tracks the average travel linkStartTime (including walk) for each iteration
+    // Tracks the average travel time (including walk) for each iteration
     averageCarTravelTimesIncludingWalkForAllIterations.put(
       event.getIteration,
       getAverageTravelTimeInMinutes(totalTravelTimesIncludingWalk)
     )
-    // Tracks the average travel linkStartTime for each iteration
+    // Tracks the average travel time for each iteration
     averageCarTravelTimesForAllIterations.put(
       event.getIteration,
       getAverageTravelTimeInMinutes(personTotalCarTravelTimes.values.toList.flatten)
@@ -231,15 +231,15 @@ class PersonAverageTravelTimeAnalysis @Inject() (
     data: mutable.HashMap[Int, Double],
     title: String
   ): XYSeries = {
-    // Compute average travel linkStartTime of all people during the current iteration
+    // Compute average travel time of all people during the current iteration
     val items: Array[XYDataItem] = data.toArray.map(i => new XYDataItem(i._1, i._2))
     GraphUtils.createXYSeries(title, "", "", items)
   }
 
   /**
-    * Computes the average travel linkStartTime (in minutes) from the total travel times.
+    * Computes the average travel time (in minutes) from the total travel times.
     * @param totalTravelTimes Total travel times recorded by all people during the current iteration
-    * @return average travel linkStartTime (in minutes)
+    * @return average travel time (in minutes)
     */
   private def getAverageTravelTimeInMinutes(totalTravelTimes: List[Double]) = {
     try {

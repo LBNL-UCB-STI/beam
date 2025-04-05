@@ -49,9 +49,9 @@ class RideHailReservationConfirmationEvent(
   val reservationType: RideHailReservationType,
   val reservationErrorCodeOpt: Option[ReservationErrorCode],
   val reservationTime: Int,
-  /* This represents the linkStartTime when the reservation was made, not when it was confirmed. They are usually the same */
+  /* This represents the time when the reservation was made, not when it was confirmed. They are usually the same */
   val requestedPickUpTime: Int,
-  /*  In BEAM this currently is always same as the reservationTime, but in future we could implement the ability to reserve a ride well ahead of linkStartTime */
+  /*  In BEAM this currently is always same as the reservationTime, but in future we could implement the ability to reserve a ride well ahead of time */
   val quotedWaitTimeOpt: Option[Int],
   /*  Most (but not all) reservations begin with a price/wait quote, this records this */
   val pickUpLocationWgs: Coord, /* Same CRS as in PathTraversalEvent */

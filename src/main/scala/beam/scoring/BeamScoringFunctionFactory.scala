@@ -108,8 +108,8 @@ class BeamScoringFunctionFactory @Inject() (
           case leavingParkingEvent: LeavingParkingEvent =>
             leavingParkingEventScore += leavingParkingEvent.score
           case e: PersonArrivalEvent =>
-            // Here we modify the last leg of the trip (the dummy walk leg) to have the right arrival linkStartTime
-            // This will therefore now accounts for dynamic delays or difference between quoted ride hail trip linkStartTime and actual
+            // Here we modify the last leg of the trip (the dummy walk leg) to have the right arrival time
+            // This will therefore now accounts for dynamic delays or difference between quoted ride hail trip time and actual
             val bodyVehicleId = trips.head.legs.head.beamVehicleId
             val bodyVehicleTypeId = trips.head.legs.head.beamVehicleTypeId
             @SuppressWarnings(Array("UnsafeTraversableMethods"))
@@ -227,7 +227,7 @@ class BeamScoringFunctionFactory @Inject() (
         attributes: AttributesOfIndividual,
         modeChoiceMultinomialLogit: ModeChoiceMultinomialLogit
       ): Unit = {
-        // Consider only trips that start between the given linkStartTime range (specified in the scenario config)
+        // Consider only trips that start between the given time range (specified in the scenario config)
         val startTime = beamConfig.beam.outputs.generalizedLinkStats.startTime
         val endTime = beamConfig.beam.outputs.generalizedLinkStats.endTime
         val filteredTrips = trips filter { t =>

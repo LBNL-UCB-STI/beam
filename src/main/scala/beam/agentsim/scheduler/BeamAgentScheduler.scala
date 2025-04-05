@@ -130,7 +130,7 @@ class BeamAgentScheduler(
   val stuckFinder: StuckFinder
 ) extends LoggingMessageActor
     with ActorLogging {
-  // Used to set a limit on the total linkStartTime to process messages (we want this to be quite large).
+  // Used to set a limit on the total time to process messages (we want this to be quite large).
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   private var started = false
@@ -279,7 +279,7 @@ class BeamAgentScheduler(
         val currentDelayMillis = System.currentTimeMillis() - nowUpdateTime
         if (currentDelayMillis > stuckThresholdMin * 60000L) {
           log.error(
-            "Forcibly terminating beam because of too long update delay: {} at simulation linkStartTime {}",
+            "Forcibly terminating beam because of too long update delay: {} at simulation time {}",
             currentDelayMillis,
             nowInSeconds
           )
@@ -316,7 +316,7 @@ class BeamAgentScheduler(
               case RideHailManagerStuckDetectionLog(Some(tick), true)
                   if tick == nowInSeconds => // still stuck, no need to print state again
               case RideHailManagerStuckDetectionLog(Some(tick), false) if tick == nowInSeconds =>
-                // the linkStartTime has not changed since set last monitor timeout and RidehailManager still blocking scheduler -> log state and try to remove stuckness
+                // the time has not changed since set last monitor timeout and RidehailManager still blocking scheduler -> log state and try to remove stuckness
                 rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(Some(nowInSeconds), true)
                 x.agent ! LogActorState
 //                x.agent ! RecoverFromStuckness(x.triggerWithId.trigger.tick)
@@ -511,7 +511,7 @@ class BeamAgentScheduler(
           }
         }
 
-        // In BeamMobsim all rideHailAgents receive a 'Finish' message. If we also send a message from here to rideHailAgent, dead letter is reported, as at the linkStartTime the second
+        // In BeamMobsim all rideHailAgents receive a 'Finish' message. If we also send a message from here to rideHailAgent, dead letter is reported, as at the time the second
         // Finish is sent to rideHailAgent, it is already stopped.
         triggerQueue.asScala.foreach(scheduledTrigger =>
           if (!scheduledTrigger.agent.path.toString.contains("rideHailAgent"))

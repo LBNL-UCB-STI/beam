@@ -80,7 +80,7 @@ object HelicsMultiFederateTest extends App {
 
   val numberOfFederates = spmConfig.numberOfFederates
   println("")
-  println(s"$numberOfSteps steps with $numberOfFederates federates with linkStartTime bin size $timeBinSize.")
+  println(s"$numberOfSteps steps with $numberOfFederates federates with time bin size $timeBinSize.")
 
   val messageLen = BeamHelicsInterface.messageToJsonString(getMessageToSend).length
   val dataSpeed = (messageLen.toDouble / elapsedSecs * numberOfFederates * numberOfSteps).toLong

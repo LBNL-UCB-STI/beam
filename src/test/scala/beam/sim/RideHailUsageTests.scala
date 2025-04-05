@@ -56,7 +56,7 @@ class RideHailUsageTests extends AnyFlatSpec with Matchers with BeamHelper with 
 
     def getTimeDuration(event: Event) = {
       val attributes = event.getAttributes
-      (attributes.get("linkStartTime").toFloat, attributes.get("duration").toFloat)
+      (attributes.get("time").toFloat, attributes.get("duration").toFloat)
     }
 
     val firstEventEndOfCharging = refuelSessionEvents.headOption

@@ -32,7 +32,7 @@ class ParkingStallSamplingTestSpec extends AnyWordSpec with Matchers {
         }
       }
       "80% availability" should {
-        "place stall on the closest link most of the linkStartTime" in new ParkingStallSamplingTestSpec.SquareTAZWorld {
+        "place stall on the closest link most of the time" in new ParkingStallSamplingTestSpec.SquareTAZWorld {
           val availabilityRatio: Double = 0.8
           val distances = (1 to 100).map { x =>
             val result: Coord = ParkingStallSampling.linkBasedSampling(
@@ -46,7 +46,7 @@ class ParkingStallSamplingTestSpec extends AnyWordSpec with Matchers {
             )
             distance(agent, result)
           }
-          // Should create a stall on the closest point (100m away) most of the linkStartTime, rarely create one really far away
+          // Should create a stall on the closest point (100m away) most of the time, rarely create one really far away
           val numberOfTimesAtClosestLink = distances.count(_ == 100.0)
           numberOfTimesAtClosestLink should be >= 50
           val numberOfTimesAtFartherLinks = distances.count(x => (x != 100.0) & (x != 150.0))

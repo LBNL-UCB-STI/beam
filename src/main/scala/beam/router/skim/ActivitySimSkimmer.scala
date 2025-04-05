@@ -172,7 +172,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       writer.write(ExcerptData.csvHeader)
       writer.write("\n")
 
-      ProfilingUtils.timed("Writing skims for linkStartTime periods for all pathTypes", x => logger.info(x)) {
+      ProfilingUtils.timed("Writing skims for time periods for all pathTypes", x => logger.info(x)) {
         pathTypes.foreach { pathType =>
           origins.foreach { origin =>
             destinations.foreach { destination =>
@@ -607,14 +607,14 @@ object ActivitySimSkimmer extends LazyLogging {
         pathType            | See all the possible path types with descriptions https://activitysim.github.io/activitysim/v1.0.4/howitworks.html#skims
         origin              | Id of the origin geo unit
         destination         | Id of the destination geo unit
-        TIME_minutes        | Travel linkStartTime in minutes
-        TOTIVT_IVT_minutes  | Total in-vehicle linkStartTime (IVT) in minutes
+        TIME_minutes        | Travel time in minutes
+        TOTIVT_IVT_minutes  | Total in-vehicle time (IVT) in minutes
         VTOLL_FAR           | Fare
         DIST_meters         | Travel distance in meters
-        WACC_minutes        | Walk access linkStartTime in minutes
-        WAUX_minutes        | Walk other linkStartTime in minutes
-        WEGR_minutes        | Walk egress linkStartTime in minutes
-        DTIM_minutes        | Drive linkStartTime in minutes
+        WACC_minutes        | Walk access time in minutes
+        WAUX_minutes        | Walk other time in minutes
+        WEGR_minutes        | Walk egress time in minutes
+        DTIM_minutes        | Drive time in minutes
         DDIST_meters        | Drive distance in meters
         KEYIVT_minutes      | Light rail IVT
         FERRYIVT_minutes    | Ferry IVT

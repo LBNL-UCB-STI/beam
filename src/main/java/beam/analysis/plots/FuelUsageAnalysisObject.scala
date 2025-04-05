@@ -36,7 +36,7 @@ object FuelUsageAnalysisObject extends OutputDataDescriptor {
           getClass.getSimpleName,
           relativePath,
           "Bin_*",
-          "Energy consumed by the vehicle while travelling by the chosen mode within the given linkStartTime bin"
+          "Energy consumed by the vehicle while travelling by the chosen mode within the given time bin"
         )
       )
     list

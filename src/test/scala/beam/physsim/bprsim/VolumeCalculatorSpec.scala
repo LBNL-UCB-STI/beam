@@ -51,7 +51,7 @@ class VolumeCalculatorSpec extends AnyWordSpecLike with Matchers {
       vc.vehicleEntered(link1, 10.0, isCACC = false)
       vc.getVolumeAndCACCShare(link1, 10.0) should be(2520.0, 0)
     }
-    "work correctly with a larger linkStartTime window" in {
+    "work correctly with a larger time window" in {
       val vc = new VolumeCalculator(60)
       val link1 = Id.createLinkId(1)
       vc.vehicleEntered(link1, 1.0, isCACC = false)

@@ -4,7 +4,7 @@ class Vehicle:
     def __init__(self, VehicleId, VehicleType, VehicleArrival, VehicleDesEnd, VehicleEngy, VehicleDesEngy, VehicleMaxEngy, VehicleMaxPower, ParkingZoneId = False): # the first inputs are from Beam, the last from the vehicle file
         self.VehicleId      = VehicleId                     # vehicle id
         self.VehicleType    = VehicleType                   # vehicle type
-        self.VehicleArrival = VehicleArrival                # arrival linkStartTime of vehicles
+        self.VehicleArrival = VehicleArrival                # arrival time of vehicles
         self.VehicleDesEnd  = VehicleDesEnd                 # desired end times of charging
         self.VehicleEngy    = VehicleEngy                   # Energy State of vehicles [kWh]
         self.VehicleEngy_Arrival = VehicleEngy              # Energy at Arrival, needed for calculation of Energy Lag
@@ -14,7 +14,7 @@ class Vehicle:
         self.VehicleMaxPower= VehicleMaxPower               # maximal charging power of vehicles
         self.ChargingDesire = 0                             # charging desire of vehicle, assigned during control steps
         self.EnergyLag      = 0                             # energy lag (rating metric)
-        self.TimeLag        = 0                             # linkStartTime lag (rating metric)
+        self.TimeLag        = 0                             # time lag (rating metric)
         if not ParkingZoneId == False:
             self.BeamDesignatedParkingZoneId = ParkingZoneId    # ParkingZoneId, used in prediction generation of MPC controller.
     
@@ -78,7 +78,7 @@ class Vehicle:
     def getChargingTrajectoryUpper(self,t_act, timestep, N):
         # the prediction horizon is N, but we need N+1 values for stocks (inital value + N steps)
 
-        # determine upper bound of vehicle energy level charging trajectory. Normalized to energy power level at linkStartTime 0
+        # determine upper bound of vehicle energy level charging trajectory. Normalized to energy power level at time 0
         v = self.copy()
         traj = [0.0]
         E0 = v.VehicleEngy
@@ -98,12 +98,12 @@ class Vehicle:
         v.VehicleEngy_Arrival = v.VehicleEngy
         v.VehicleEngy = v.VehicleDesEngy
 
-        # if we are already over the desired end linkStartTime, we just have to charge with maximal power
+        # if we are already over the desired end time, we just have to charge with maximal power
         if t_act >= v.VehicleDesEnd:
             traj_lower = self.getChargingTrajectoryUpper(t_act, timestep, N)
             traj_upper = traj_lower.copy()
         else:
-            traj_lower = [] #trajectory is inversed if we go back in linkStartTime
+            traj_lower = [] #trajectory is inversed if we go back in time
             k = int(np.ceil((self.VehicleDesEnd - t_act)/timestep)) # number of timestep from end to charging to beginning, must go back this steps
 
             if k < N: # if prediction horizon is larger then desired charging duration
@@ -121,7 +121,7 @@ class Vehicle:
                 for i in range(k): #decharging for k+1 steps, with +1 steps to also note the last charge.
                     traj_lower.append(v.VehicleEngy)
                     power = v.getMaxChargingPower(timestep, inverse=True)
-                    # we do assume here that the function power = f(energy) is decreasing with increasing energy level, meaning that if we "charge backwards in linkStartTime" we always take a lower charging power than it would be possible. If we wanna do this with a better approximation, we should increase the discretization rate to keep the error lower, and then synthezise from that function the lower charging trajectory.
+                    # we do assume here that the function power = f(energy) is decreasing with increasing energy level, meaning that if we "charge backwards in time" we always take a lower charging power than it would be possible. If we wanna do this with a better approximation, we should increase the discretization rate to keep the error lower, and then synthezise from that function the lower charging trajectory.
                     v.addPower( -1 * power, timestep)
                     # reverse the list
                 traj_lower.append(v.VehicleEngy) # add last energy level

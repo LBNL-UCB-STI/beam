@@ -75,7 +75,7 @@ class StartLegSimEvent(time: Double, priority: Int, person: Person, isCACC: Bool
         // if empty leg, then end leg, else simulate leg
         if (emptyLeg) {
           // move to first link in next leg and schedule an end leg message
-          // duration of leg = 0 (departure and arrival linkStartTime is the same)
+          // duration of leg = 0 (departure and arrival time is the same)
           new EndLegSimEvent(immidiateTime, PRIORITY_ARRIVAL_MESSAGE, person, isCACC, legIdx, linkIdx)
         } else {
           // car trying to enter traffic
@@ -128,7 +128,7 @@ class EndLegSimEvent(
         if (nextActivity.getEndTime.isDefined)
           nextActivity.getEndTime.seconds() - leg.getAttributes.getAttribute("event_time").asInstanceOf[Double]
         else
-          // if the activity during double-parking has no end linkStartTime then we consider double-parking lasts 12 hours
+          // if the activity during double-parking has no end time then we consider double-parking lasts 12 hours
           // this shouldn't happen because double-parking may be only at loading/unloading freight vehicles
           3600 * 12
       params.doubleParkingCounter.addTemporalEvent(activityLinkId, time, time + doubleParkingDuration)
@@ -158,7 +158,7 @@ class EnteringLinkSimEvent(time: Double, priority: Int, person: Person, isCACC: 
     params.volumeCalculator.vehicleEntered(linkId, time, isCACC)
 
     val link = scenario.getNetwork.getLinks.get(linkId)
-    // calculate linkStartTime, when the car reaches the end of the link
+    // calculate time, when the car reaches the end of the link
     val (volume: Double, caccShare: Double) = params.volumeCalculator.getVolumeAndCACCShare(linkId, time)
     val numberOfDoubleParked = params.doubleParkingCounter.getEventCount(linkId, time)
     val linkTravelTime = params.config.travelTimeFunction(time, link, caccShare, volume, numberOfDoubleParked)

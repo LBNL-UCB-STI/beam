@@ -42,8 +42,8 @@ for t in range(0, iterations):
     h.helicsFederateInfoSetCoreInitString(fedinfo, fedinitstring)
 
     # Set the message interval (timedelta) for federate. Note th#
-    # HELICS minimum message linkStartTime interval is 1 ns and by default
-    # it uses a linkStartTime delta of 1 second. What is provided to the
+    # HELICS minimum message time interval is 1 ns and by default
+    # it uses a time delta of 1 second. What is provided to the
     # setTimedelta routine is a multiplier for the default timedelta.
 
     # Set one second message interval #
@@ -81,7 +81,7 @@ for t in range(0, iterations):
 
         #if h.helicsInputIsUpdated(sub):
         rec_value = h.helicsInputGetString(sub)
-        print("GRID: Received {} at linkStartTime {}".format(beamFederateName, currenttime))
+        print("GRID: Received {} at time {}".format(beamFederateName, currenttime))
         received_data = json.loads(rec_value)
         print("")
         print("****************************************************")
@@ -103,7 +103,7 @@ for t in range(0, iterations):
         data_to_send = json.dumps(received_data, separators=(',', ':'))
         h.helicsPublicationPublishString(pub, data_to_send)
         h.helicsPublicationPublishDouble(pub, 22.0)
-        print("GRID: Sending {} at linkStartTime {} to CNMFederate".format(dataOuputStreamPoint, currenttime))
+        print("GRID: Sending {} at time {} to CNMFederate".format(dataOuputStreamPoint, currenttime))
 
 
     h.helicsFederateFinalize(cfed)

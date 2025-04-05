@@ -156,7 +156,7 @@ class ModeChoiceAlternativesCollector(beamServices: BeamServices)
         "vehicleMode",
         "vehicleType",
         "vehicleId",
-        "linkStartTime",
+        "time",
         "links",
         "linksTravelTime",
         "transit",

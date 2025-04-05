@@ -52,7 +52,7 @@ object TravelTimeAndDistanceCalculatorApp extends App with BeamHelper {
       else failure(s"$file does not exist")
 
     OParser.sequence(
-      programName("travel-linkStartTime-and-distance-calculator"),
+      programName("travel-time-and-distance-calculator"),
       opt[Int]("departureTime").required().text("0"),
       opt[File]("configPath")
         .required()

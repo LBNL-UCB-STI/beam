@@ -163,7 +163,7 @@ object DrivesVehicle {
       val linkTravelTime = path.linkTravelTime
       var i: Int = 0
       var curTime = leg.startTime
-      // `links.length - 1` because we don't need the travel linkStartTime for the last link
+      // `links.length - 1` because we don't need the travel time for the last link
       while (i < links.length - 1) {
         val from = links(i)
         val to = links(i + 1)
@@ -405,7 +405,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
               .drop(data.currentLegPassengerScheduleIndex + 1)
               .head
           val startLegTriggerTick = if (nextLeg.startTime < tick) {
-            logger.warn(s"Start linkStartTime of next leg ${nextLeg.startTime} was less than current tick $tick.")
+            logger.warn(s"Start time of next leg ${nextLeg.startTime} was less than current tick $tick.")
             tick
           } else {
             nextLeg.startTime
@@ -448,7 +448,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                       .seconds() <= (tick + beamConfig.beam.agentsim.schedulerParallelismWindow)
                   } {
                     log.warning(
-                      s"Vehicle {} needs to depart at linkStartTime {} but agent {} sends a plug request at tick {} for stall $stall",
+                      s"Vehicle {} needs to depart at time {} but agent {} sends a plug request at tick {} for stall $stall",
                       currentBeamVehicle.id,
                       nextActivityEndTime,
                       id,

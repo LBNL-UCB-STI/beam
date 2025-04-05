@@ -79,7 +79,7 @@ class BeamVehicle(
 
   /**
     * The [[beam.agentsim.agents.PersonAgent]] who is currently driving the vehicle (or None ==> it is idle).
-    * Effectively, this is the main controller of the vehicle in space and linkStartTime in the scenario environment;
+    * Effectively, this is the main controller of the vehicle in space and time in the scenario environment;
     * whereas, the manager is ultimately responsible for assignment and (for now) ownership
     * of the vehicle as a physical property.
     */
@@ -107,7 +107,7 @@ class BeamVehicle(
   private var waitingToChargeInternal: Boolean = false
   private var waitingToChargeTick: Option[Int] = None
 
-  // last linkStartTime the vehicle stopped activity
+  // last time the vehicle stopped activity
   private var lastIDLEStartTime: Option[Int] = None
   // last link visited in latest Leg/Parking, latest location of vehicle
   private var lastLinkVisited: Option[Int] = None
@@ -148,7 +148,7 @@ class BeamVehicle(
       // This is _always_ a programming error.
       // A BeamVehicle is only a data structure, not an Actor.
       // It must be ensured externally, by other means, that only one agent can access
-      // it at any linkStartTime, e.g. by using a ResourceManager etc.
+      // it at any time, e.g. by using a ResourceManager etc.
       // Also, this exception is only a "best effort" error detection.
       // Technically, it can also happen that it is _not_ thrown in the failure case,
       // as this method is not synchronized.
@@ -655,7 +655,7 @@ object BeamVehicle {
     *
     * @param activity Either a BeamLeg or a ParkingStall
     * @param beamVehicle Beam Vehicle
-    * @param payloadInKg Optional payload weight in kilograms p
+    * @param payloadInKg Optional payload weight in kilograms
     * @return Indexed sequence of VehicleActivityData
     */
   def collectVehicleActivityData(
@@ -732,8 +732,8 @@ object BeamVehicle {
 
   /*
  To fix emissions calculations:
- - for possible Idle vehicle linkStartTime between shift start event and PathTraversal event
- - for possible Idle vehicle linkStartTime between driver enters vehicle and PathTraversal event
+ - for possible IDLE vehicle time between shift start event and PathTraversal event
+ - for possible IDLE vehicle time between driver enters vehicle and PathTraversal event
    */
   def getIDLEActivityForEmissions(
     tick: Int,

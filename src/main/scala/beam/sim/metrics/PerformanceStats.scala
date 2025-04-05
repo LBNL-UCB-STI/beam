@@ -28,6 +28,6 @@ class PerformanceStats {
   }
 
   override def toString: String =
-    s"$numberOfStats (average linkStartTime: $avgSec [sec]; total linkStartTime: $totalSec [sec])"
+    s"$numberOfStats (average time: $avgSec [sec]; total time: $totalSec [sec])"
 
 }

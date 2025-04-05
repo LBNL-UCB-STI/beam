@@ -237,7 +237,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     * @param vehicleType type of the beam vehicle
     * @param initialLocationX x-coordinate of the initial location of the ride hail vehicle
     * @param initialLocationY y-coordinate of the initial location of the ride hail vehicle
-    * @param shiftsStr linkStartTime shifts for the vehicle , usually a stringified collection of linkStartTime ranges
+    * @param shiftsStr time shifts for the vehicle , usually a stringified collection of time ranges
     * @param geofenceX geo fence values
     * @param geofenceY geo fence values
     * @param geofenceRadius geo fence values
@@ -479,7 +479,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
           getClass.getSimpleName.dropRight(1),
           relativePath,
           "shifts",
-          "Time shifts for the vehicle , usually a stringified collection of linkStartTime ranges"
+          "Time shifts for the vehicle , usually a stringified collection of time ranges"
         )
       )
     list

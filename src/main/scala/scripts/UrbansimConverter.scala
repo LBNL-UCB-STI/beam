@@ -83,7 +83,7 @@ object UrbansimConverter {
       "personId"         -> planElement.personId,
       "planElement"      -> planElement.planElementType,
       "planElementIndex" -> planElement.planElementIndex,
-      "parkingActivityType"     -> planElement.activityType.getOrElse(""),
+      "activityType"     -> planElement.activityType.getOrElse(""),
       "x"                -> planElement.activityLocationX.getOrElse(null),
       "y"                -> planElement.activityLocationY.getOrElse(null),
       "endTime"          -> planElement.legDepartureTime.getOrElse(null),

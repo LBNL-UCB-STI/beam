@@ -141,7 +141,7 @@ class AbstractSPMC:
             # MJ: Should be in minutes of day. What is the unit of this?
             data_for_spmc.desired_departure_time.append(int(charging_event['departureTime']))
             # MJ: I assume that this is remaining energy to be delivered to each EV
-            # and updated each linkStartTime,right?
+            # and updated each time,right?
             data_for_spmc.desired_fuel_level_in_k_wh.append(int(charging_event['desiredFuelLevelInJoules']) / 3600000)
             # MJ: I assume that this is the EV charging power
             data_for_spmc.max_power_in_kw.append(float(charging_event['maxPowerInKW']))
@@ -169,7 +169,7 @@ class ControlledSPMC(AbstractSPMC):
         print2(self.site_prefix_logging + " Initialized!")
 
     def run_model(self, t, vehicles, data_for_spmc):
-        t_dep = [(tt - t) / 60.0 for tt in data_for_spmc.desired_departure_time] # departure linkStartTime in minute from the current linkStartTime
+        t_dep = [(tt - t) / 60.0 for tt in data_for_spmc.desired_departure_time] # departure time in minute from the current time
         e_req = data_for_spmc.desired_fuel_level_in_k_wh # energy remaining for each EV
         p_max_site = self.site_power
         if data_for_spmc.updated_power_limits_from_derms is not None:
@@ -197,7 +197,7 @@ class ControlledSPMC(AbstractSPMC):
         spmc_commands = []
         for vehicle in vehicles:
             spmc_commands = spmc_commands + [{
-                'linkStartTime': str(t),
+                'time': str(t),
                 'tazId': str(self.taz_id),
                 'siteId': str(self.site_id),
                 'vehicleId': vehicle['vehicleId'],
@@ -241,7 +241,7 @@ class RudimentarySPMC(AbstractSPMC):
         spmc_commands = []
         for vehicle in vehicles:
             spmc_commands = spmc_commands + [{
-                'linkStartTime': str(t),
+                'time': str(t),
                 'tazId': str(self.taz_id),
                 'siteId': str(self.site_id),
                 'vehicleId': vehicle['vehicleId'],
@@ -276,13 +276,13 @@ class RideHailSPMC(AbstractSPMC):
         path_beam_prediction_file = ''  # path to a former run of the same simulation to obtain predictions.
         # the beam result file should be reduced before to only contain the relevant data
         dtype_predictions = {
-            'linkStartTime': 'int64', 'type': 'category', 'vehicle': 'int64', 'parkingTaz': 'category',
+            'time': 'int64', 'type': 'category', 'vehicle': 'int64', 'parkingTaz': 'category',
             'chargingPointType': 'category', 'primaryFuelLevel': 'float64', 'mode': 'category',
             'currentTourMode': 'category', 'vehicle_type': 'category', 'arrival_time': 'float64',
             'departureTime': 'float64', 'linkTravelTime': 'string', 'primaryFuelType': 'category',
             'parkingZoneId': 'category', 'duration': 'float64'
         }  # dictionary containing the data types in the beam prediction file
-        # maximum linkStartTime up to which we simulate (for predicting in MPC)
+        # maximum time up to which we simulate (for predicting in MPC)
         t_max = int(self.config_for_spmc.simulation_duration - self.config_for_spmc.time_step)
         self.depotController = components.GeminiWrapper.ControlWrapper(
             init_mpc, t_start, timestep_interval, result_directory, ride_hail_depot_id, ch_ba_max_power,
@@ -308,7 +308,7 @@ class RideHailSPMC(AbstractSPMC):
 
         # synchronize vehicles which are at station: Remove vehicles which are not in the vehicle_id
         # list from BEAM anymore
-        # Julius @ HL can you please add the actual linkStartTime here?
+        # Julius @ HL can you please add the actual time here?
         self.log("Optimizing EVSE setpoints by the ride-hail SPM Controller")
         # TODO uncomment
         self.depotController.synchronizeVehiclesAtStation(vehicleIdsAtStation=data_for_spmc.vehicle_id, t_act=t)
@@ -331,12 +331,12 @@ class RideHailSPMC(AbstractSPMC):
                                              VehicleMaxEngy=data_for_spmc.battery_capacity_in_k_wh[i],
                                              VehicleMaxPower=data_for_spmc.max_power_in_kw[i],
                                              # this doesn't change within one charging session
-                                             t_act=int(t))  # Julius @ HL can you provide the actual linkStartTime
+                                             t_act=int(t))  # Julius @ HL can you provide the actual time
         #
         # # OBTAIN CONTROL COMMANDS
         vehicles, power, release = self.depotController.step(
             timestep=int(self.config_for_spmc.time_step),  # julius @ HL can you provide the timestep,
-            t_act=int(t),  # julius @ HL can you provide the actual linkStartTime)
+            t_act=int(t),  # julius @ HL can you provide the actual time)
             GridPowerUpper=1e10,  # Update from DERMS, for the first we turn this off with a big number
             GridPowerLower=-1e10,  # Update from DERMS, for the first we turn this off with a big number
             BtmsEnergy=0,  # Update from PyDSS, for first this is deactivated in components.ChaDepParent
@@ -346,7 +346,7 @@ class RideHailSPMC(AbstractSPMC):
         spmc_commands = []
         for i in range(0, len(vehicles)):
             spmc_commands = spmc_commands + [{
-                'linkStartTime': str(t),
+                'time': str(t),
                 'tazId': str(self.taz_id),
                 'siteId': str(self.site_id),
                 'vehicleId': str(vehicles[i]),

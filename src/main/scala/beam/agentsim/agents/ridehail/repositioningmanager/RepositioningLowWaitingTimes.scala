@@ -65,7 +65,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
         //tncIterationStats.printMap()
 
         if (tick > 0 && maxNumberOfVehiclesToReposition <= 0) {
-          // ignoring tick 0, as no vehicles checked in at that linkStartTime
+          // ignoring tick 0, as no vehicles checked in at that time
           logger.error(
             "Using RepositioningLowWaitingTimes allocation Manager but percentageOfVehiclesToReposition results in 0 respositioning - use Default Manager if not repositioning needed"
           )

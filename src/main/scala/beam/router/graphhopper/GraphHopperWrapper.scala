@@ -119,7 +119,7 @@ abstract class GraphHopperWrapper(
     val allLinkTravelTimes = getLinkTravelTimes(responsePath, totalTravelTime)
 
     val linkTravelTimes: IndexedSeq[Double] = allLinkTravelTimes
-      // TODO ask why GH is producing negative travel linkStartTime
+      // TODO ask why GH is producing negative travel time
       //          .map { x =>
       //            require(x > 0, "GOING BACK IN TIME")
       //            x
@@ -133,7 +133,7 @@ abstract class GraphHopperWrapper(
       }
     }
 
-    // got NaN speed if travel linkStartTime equals to 0
+    // got NaN speed if travel time equals to 0
     if (ghLinkIds.size < 2 || (totalTravelTime - linkTravelTimes.head.toInt) == 0) {
       None
     } else {

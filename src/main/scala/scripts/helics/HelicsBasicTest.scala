@@ -40,7 +40,7 @@ object HelicsBasicTest extends App {
     if (timeToSync > 0) {
       var currentTime = -1.0
       while (currentTime < timeToSync) currentTime = helics.helicsFederateRequestTime(fedComb, timeToSync)
-      println("Message published and linkStartTime synced.")
+      println("Message published and time synced.")
     } else {
       println("Message published.")
     }

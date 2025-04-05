@@ -32,7 +32,7 @@ object RepositioningAnalyzer extends LazyLogging {
 //    val personId = getIfNotNull(rec, "personId")
 //    val planElement = getIfNotNull(rec, "planElementType")
 //    val planElementIndex = getIfNotNull(rec, "planElementIndex").toInt
-//    val parkingActivityType = Option(rec.get("parkingActivityType"))
+//    val activityType = Option(rec.get("activityType"))
 //    val x = Option(rec.get("activityLocationX")).map(_.toDouble)
 //    val y = Option(rec.get("activityLocationY")).map(_.toDouble)
 //    val endTime = Option(rec.get("activityEndTime")).map(_.toDouble)
@@ -41,7 +41,7 @@ object RepositioningAnalyzer extends LazyLogging {
 //      personId = PersonId(personId),
 //      planElementType = planElement,
 //      planElementIndex = planElementIndex,
-//      parkingActivityType = parkingActivityType,
+//      activityType = activityType,
 //      activityLocationX = x,
 //      activityLocationY = y,
 //      activityEndTime = endTime,
@@ -191,7 +191,7 @@ object RepositioningAnalyzer extends LazyLogging {
         IOUtils.getBufferedWriter(
           s"$basePath/per_hour_location_$accInPath.csvh"
         )
-      writer.write("hour,vehicle_id,x,y,linkStartTime,num_of_passengers")
+      writer.write("hour,vehicle_id,x,y,time,num_of_passengers")
       writer.write("\n")
 
       (0 to hourToLoc.keys.max).foreach { h =>
@@ -231,7 +231,7 @@ object RepositioningAnalyzer extends LazyLogging {
       IOUtils.getBufferedWriter(
         s"$basePath/vehicle_location.csvh"
       )
-    writer.write("hour,vehicle_id,x,y,linkStartTime,num_of_passengers")
+    writer.write("hour,vehicle_id,x,y,time,num_of_passengers")
     writer.write("\n")
     withHour.foreach { case (h, vehicleLocation) =>
       writeAsString(h)

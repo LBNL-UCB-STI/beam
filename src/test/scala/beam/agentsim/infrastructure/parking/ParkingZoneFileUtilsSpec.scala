@@ -64,7 +64,7 @@ class ParkingZoneFileUtilsSpec extends AnyWordSpec with Matchers {
         "a row contains all valid entries, using some empty columns where optional" ignore {
           "construct a ParkingZone collection and random lookup tree" in new ParkingZoneFileUtilsSpec.PositiveTestData {}
         }
-        "linkStartTime restriction" should {
+        "time restriction" should {
           "be parsed" in new PositiveTestData {
             val result: ParkingZoneFileUtils.ParkingLoadingAccumulator =
               ParkingZoneFileUtils.fromIterator(timeRestrictionData, None, None)
@@ -152,7 +152,7 @@ class ParkingZoneFileUtilsSpec extends AnyWordSpec with Matchers {
     }
 
     "Time restriction parser" when {
-      "parses linkStartTime restriction" should {
+      "parses time restriction" should {
         "extract correct values" in {
           val restrictions = ParkingZoneFileUtils.parseTimeRestrictions("Car|1-12;Class456Vocational|13:30-17")
           restrictions should be(

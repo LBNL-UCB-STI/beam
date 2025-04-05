@@ -47,7 +47,7 @@ object EventReplayer extends BeamHelper {
     val avg = total.toDouble / maxIter
 
     println(
-      s"DelayMetricAnalysis processed ${events.size}. Total linkStartTime $total ms, average $avg ms, number of iterations $maxIter"
+      s"DelayMetricAnalysis processed ${events.size}. Total time $total ms, average $avg ms, number of iterations $maxIter"
     )
   }
 

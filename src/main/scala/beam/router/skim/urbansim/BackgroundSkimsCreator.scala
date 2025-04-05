@@ -153,10 +153,10 @@ class BackgroundSkimsCreator(
 
   def stop(): Unit = {
     masterActorRef ! MasterActor.Request.Stop
-    logger.info(s"Routes execution linkStartTime: ${odRequester.requestsExecutionTime.toShortString}")
+    logger.info(s"Routes execution time: ${odRequester.requestsExecutionTime.toShortString}")
     if (maybeODRouter.nonEmpty) {
       val execInfo = maybeODRouter.map(_.totalRouteExecutionInfo.toString()).getOrElse("")
-      logger.info(s"Routes execution linkStartTime detailed: $execInfo")
+      logger.info(s"Routes execution time detailed: $execInfo")
     }
   }
 
@@ -307,13 +307,13 @@ case class RouteExecutionInfo(
   val nanosToSec = 0.000000001
 
   def toShortString: String =
-    s"total execution linkStartTime in seconds: ${(r5ExecutionTime + ghCarExecutionDuration + ghWalkExecutionDuration) * nanosToSec}"
+    s"total execution time in seconds: ${(r5ExecutionTime + ghCarExecutionDuration + ghWalkExecutionDuration) * nanosToSec}"
 
   override def toString: String =
     toShortString +
-    s"\nr5 execution linkStartTime in seconds | number of responses: ${r5ExecutionTime * nanosToSec} | $r5Responses " +
-    s"\ngh car route execution linkStartTime in seconds | number of responses: ${ghCarExecutionDuration * nanosToSec} | $ghCarResponses" +
-    s"\ngh walk route execution linkStartTime in seconds | number of responses: ${ghWalkExecutionDuration * nanosToSec} | $ghWalkResponses"
+    s"\nr5 execution time in seconds | number of responses: ${r5ExecutionTime * nanosToSec} | $r5Responses " +
+    s"\ngh car route execution time in seconds | number of responses: ${ghCarExecutionDuration * nanosToSec} | $ghCarResponses" +
+    s"\ngh walk route execution time in seconds | number of responses: ${ghWalkExecutionDuration * nanosToSec} | $ghWalkResponses"
 }
 
 object RouteExecutionInfo {

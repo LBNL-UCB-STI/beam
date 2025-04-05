@@ -13,7 +13,7 @@ abstract class AbstractBeamTimeDetails(val weighting: Weighting, name: String, v
     extends AbstractPathDetailsBuilder(name) {
 
   private var prevEdgeId = -1
-  // will include the turn linkStartTime penalty
+  // will include the turn time penalty
   private var time = 0.0d
 
   override def isEdgeDifferentToLastEdge(edge: EdgeIteratorState): Boolean = {

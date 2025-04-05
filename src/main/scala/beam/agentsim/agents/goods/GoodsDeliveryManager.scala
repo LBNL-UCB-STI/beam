@@ -130,7 +130,7 @@ private class GoodsDeliveryManager(
         )
       )
     // RIDE HAIL DELAY
-    // this means ride hail manager is taking linkStartTime to assign and we should complete our
+    // this means ride hail manager is taking time to assign and we should complete our
     // current trigger and wait to be re-triggered by the manager
     case DelayedRideHailResponse(triggerId) =>
       scheduler ! CompletionNotice(triggerId, Vector())

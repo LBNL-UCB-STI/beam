@@ -33,7 +33,7 @@ object RideHailWaitingAnalysisObject extends OutputDataDescriptor {
           getClass.getSimpleName,
           rideHailWaitingStatsRelativePath,
           "Waiting Time",
-          "The linkStartTime spent by a passenger waiting for a ride hail"
+          "The time spent by a passenger waiting for a ride hail"
         )
       )
     list

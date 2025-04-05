@@ -426,13 +426,13 @@ class CarTripStatsFromPathTraversalEventHandler(
     carType: CarType,
     carRideStatistics: IterationCarTripStats
   ): Unit = {
-    // Write car travel linkStartTime stats to CSV
+    // Write car travel time stats to CSV
     writeStats(travelTimeStatsWriter, carType, event.getIteration, carRideStatistics.travelTime.stats)
     // Write car travel distance stats to CSV
     writeStats(travelDistanceStatsWriter, carType, event.getIteration, carRideStatistics.distance.stats)
     // Write car travel speed stats to CSV
     writeStats(travelSpeedStatsWriter, carType, event.getIteration, carRideStatistics.speed.stats)
-    // Write free flow car travel linkStartTime stats to CSV
+    // Write free flow car travel time stats to CSV
     writeStats(freeFlowTravelTimeStatsWriter, carType, event.getIteration, carRideStatistics.freeFlowTravelTime.stats)
     // Write free flow car speed stats to CSV
     writeStats(freeFlowTravelSpeedStatsWriter, carType, event.getIteration, carRideStatistics.freeFlowSpeed.stats)
@@ -544,7 +544,7 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
       }
       val travelTime =
         ((driving.arrivalTime - driving.departureTime) + (parking.arrivalTime - parking.departureTime)).toDouble
-      // add the computed travel linkStartTime to the list of travel times tracked during the hour
+      // add the computed travel time to the list of travel times tracked during the hour
       val length = driving.legLength + parking.legLength
 
       // We start driving in the very end of the first link => so we we didn't actually travel that link, so we should drop it for both driving and parking
@@ -661,10 +661,10 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
     )(s"""
         vehicle_id | If of the vehicle that made this trip
         carType | Car type ($carType)
-        travel_time | Trip travel linkStartTime
+        travel_time | Trip travel time
         distance | Trip distance
-        free_flow_travel_time | Travel linkStartTime if the vehicle would go freely
-        departure_time | Departure linkStartTime
+        free_flow_travel_time | Travel time if the vehicle would go freely
+        departure_time | Departure time
         start_x | X part of start location
         start_y | Y part of start location
         end_x | X part of end location

@@ -231,7 +231,7 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
       maybeOrigTazId = Some(pickupTazId),
       maybeDestTazId = Some(dropOffTazId)
     )
-    // we consider the linkStartTime to travel to the customer and the linkStartTime before the vehicle is actually ready (due to
+    // we consider the time to travel to the customer and the time before the vehicle is actually ready (due to
     // already moving or dropping off a customer, etc.)
     val extra = Math.max(rideHailAgentLocation.latestUpdatedLocationUTM.time - customerRequestTime, 0)
     val totalWaitTime = skimTimeAndDistanceToCustomer.time + extra
@@ -403,9 +403,9 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
   /**
     * This will go through all in-motion vehicles (i.e. all vehicles in inService and refueling spatial indices)
     * and update the location of the agent in that spatial index based on where they are in the current beamLeg at
-    * linkStartTime tick.
+    * time tick.
     *
-    * @param tick linkStartTime in seconds
+    * @param tick time in seconds
     */
   def updateSpatialIndicesForMovingVehiclesToNewTick(tick: Int): Unit = {
     if (tick > latestSpatialIndexUpdateTick) {
@@ -844,7 +844,7 @@ object RideHailManagerHelper {
       * Returns the current location of the RideHailAgent based on the currentTick parameter. This accounts for where the
       * agent would be along the route if the currentTick is between the start and end times of the BeamLeg currently underway.
       *
-      * @param currentTick linkStartTime in seconds
+      * @param currentTick time in seconds
       * @param beamServices BeamServices
       * @return
       */

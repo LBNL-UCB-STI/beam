@@ -242,7 +242,7 @@ class IterationsPassengerPerTripTests extends AnyWordSpecLike with Matchers with
   }
 
   private def createPathTraversalEvent(hour: Double, numberOfPassengers: Int, id: String = ""): PathTraversalEvent = {
-    // the only fields we care for testing this are linkStartTime: Double and numberOfPassengers: Int
+    // the only fields we care for testing this are time: Double and numberOfPassengers: Int
     val idv = if (id != "") Id.create(id, classOf[BeamVehicle]) else mock(classOf[VehicleId])
     new PathTraversalEvent(
       hour * IGraphPassengerPerTrip.SECONDS_IN_HOUR,

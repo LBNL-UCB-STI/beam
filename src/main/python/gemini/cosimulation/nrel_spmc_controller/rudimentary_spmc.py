@@ -7,12 +7,12 @@ import numpy as np
 #=========================================================
 class SPM_Control():
     def __init__(self, time_step_mins, max_power_evse, min_power_evse):
-        self.time_step_mins = time_step_mins     # linkStartTime step: 1 minutes
+        self.time_step_mins = time_step_mins     # time step: 1 minutes
         
         self.max_power_evse   = max_power_evse
         self.min_power_evse   = min_power_evse
         
-        self.time_horizon    = 0      # total linkStartTime horizon in min
+        self.time_horizon    = 0      # total time horizon in min
 
     def get_evse_setpoint(self, t_dep, energy_req, min_power, max_power):
         N = len(t_dep)      # number of plugged EV

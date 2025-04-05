@@ -33,7 +33,7 @@ object Reader {
         case Some(pteSeqHead) =>
           pteSeq.drop(1).foldLeft(pteSeqHead) {
             case (prevPTE, currPTE) if prevPTE.linkIds.nonEmpty && currPTE.linkIds.nonEmpty =>
-              // if they overlap each other in case of linkStartTime
+              // if they overlap each other in case of time
               val timeDiff = currPTE.time - prevPTE.arrivalTime
               if (timeDiff < 0) prevPTE.adjustTime(timeDiff)
 

@@ -8,7 +8,7 @@ import beam.sim.common.GeoUtils
 import beam.utils.{NetworkHelper, TravelTimeUtils}
 
 /**
-  * @param startTime  linkStartTime in seconds from base midnight
+  * @param startTime  time in seconds from base midnight
   * @param mode       BeamMode
   * @param duration   period in seconds
   * @param travelPath BeamPath

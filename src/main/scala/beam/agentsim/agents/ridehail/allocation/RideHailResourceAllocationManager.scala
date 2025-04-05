@@ -32,10 +32,10 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
    * calculate a route and ultimately a travel proposal that assumes a single occupant ride.
    *
    * If the allocation manager has pooling enabled as an option, then this method should also return
-   * Some(poolingInfo) which contains simple multipliers to quote the average travel linkStartTime increase
+   * Some(poolingInfo) which contains simple multipliers to quote the average travel time increase
    * and price decrease that the customer would pay to elect for a pooled ride. You should use an average
-   * travel linkStartTime increase here and not a maximum increase in order to allow the passengers make long-term
-   * rational choices about mode that reflect the true travel linkStartTime cost of pooling.
+   * travel time increase here and not a maximum increase in order to allow the passengers make long-term
+   * rational choices about mode that reflect the true travel time cost of pooling.
    */
   def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
     rideHailManager.rideHailManagerHelper.getClosestIdleVehiclesWithinRadiusByETA(
@@ -316,7 +316,7 @@ object RideHailResourceAllocationManager {
  * An InquiryResponse is how we respond to customer inquiries. This looks similar to AllocationResponse
  * except for a couple of difference:
  * 1) InquiryResponses are always assumed to contain a plan for a single occupant
- * ride hail trip plus PoolingInfo which gives relative linkStartTime and cost estimate for a companion pooled ride quote.
+ * ride hail trip plus PoolingInfo which gives relative time and cost estimate for a companion pooled ride quote.
  * 2) InquiryResponses are therefore one to one, response -> inquiry... whereas AllocationResponse
  * can be one to many... i.e. one vehicle is assigned to many customers.
  */

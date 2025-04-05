@@ -198,7 +198,7 @@ case class ODRouterR5GHForActivitySimSkims(
         case Some(carGraphHopper) => Some(carGraphHopper.calcRoute(carRequest))
         case None =>
           logger.error(
-            s"Request departure linkStartTime ${carRequest.departureTime} was not expected. GH route calculation cancelled."
+            s"Request departure time ${carRequest.departureTime} was not expected. GH route calculation cancelled."
           )
           None
       }

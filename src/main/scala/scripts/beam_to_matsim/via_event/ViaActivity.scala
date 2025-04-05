@@ -13,8 +13,8 @@ object ViaActivity {
     new ViaActivity(time, person, link, ActionEnd, actionName)
 }
 
-//<event linkStartTime="19285.0" type="actend"     person="2371" link="s185044"    actType="home"  />
-//<event linkStartTime="20055.0" type="actstart"   person="7237" link="sss383289"  actType="work"  />
+//<event time="19285.0" type="actend"     person="2371" link="s185044"    actType="home"  />
+//<event time="20055.0" type="actstart"   person="7237" link="sss383289"  actType="work"  />
 
 case class ViaActivity(
   var time: Double,
@@ -27,9 +27,9 @@ case class ViaActivity(
   def toXmlString: String =
     eventType match {
       case ActionStart =>
-        s"""<event linkStartTime="$timeString" type="actstart" person="$person" link="${link.toString}" actType="$actionName" />"""
+        s"""<event time="$timeString" type="actstart" person="$person" link="${link.toString}" actType="$actionName" />"""
       case ActionEnd =>
-        s"""<event linkStartTime="$timeString" type="actend" person="$person" link="${link.toString}" actType="$actionName" />"""
+        s"""<event time="$timeString" type="actend" person="$person" link="${link.toString}" actType="$actionName" />"""
     }
 
   def toXml: scala.xml.Elem =

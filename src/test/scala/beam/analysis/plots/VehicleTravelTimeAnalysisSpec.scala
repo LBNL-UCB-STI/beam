@@ -12,7 +12,7 @@ class VehicleTravelTimeAnalysisSpec extends GenericAnalysisSpec with Matchers {
     runAnalysis(new VehicleTravelTimeAnalysis(scenario, beamServices.networkHelper, vehicleTypes))
   }
 
-  "Vehicle travel linkStartTime analyser " must {
+  "Vehicle travel time analyser " must {
     "calculate vehicle hours traveled by mode " in {
       summaryStats.get("vehicleHoursTraveled_walk") should not be 0
       summaryStats.get("vehicleHoursTraveled_car") should not be 0

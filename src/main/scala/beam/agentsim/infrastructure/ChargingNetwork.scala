@@ -259,7 +259,7 @@ object ChargingNetwork extends LazyLogging {
     /**
       * add vehicle to connected list and connect to charging point
       *
-      * @param tick    current linkStartTime
+      * @param tick    current time
       * @param vehicle vehicle to connect
       * @return status of connection
       */
@@ -292,8 +292,8 @@ object ChargingNetwork extends LazyLogging {
           //in this case the vehicle is already connected to the station
           if (!chargingVehicle.isJustConnectedAfterWaitingLine || chargingVehicle.chargingStation != this) {
             logger.error(
-              s"Something is broken! Trying to connect a vehicle already connected at linkStartTime $tick: vehicle $vehicle - " +
-              s"parkingActivityType $activityType - stall $stall - personId $personId - chargingInfo $chargingVehicle"
+              s"Something is broken! Trying to connect a vehicle already connected at time $tick: vehicle $vehicle - " +
+              s"activityType $activityType - stall $stall - personId $personId - chargingInfo $chargingVehicle"
             )
           }
           chargingVehicle
@@ -318,8 +318,8 @@ object ChargingNetwork extends LazyLogging {
             chargingVehicle.updateStatus(Connected, tick)
           } else {
             logger.info(
-              s"Vehicle at waiting line, linkStartTime $tick: vehicle $vehicle - " +
-              s"parkingActivityType $activityType - stall $stall - personId $personId - chargingInfo $chargingVehicle"
+              s"Vehicle at waiting line, time $tick: vehicle $vehicle - " +
+              s"activityType $activityType - stall $stall - personId $personId - chargingInfo $chargingVehicle"
             )
             vehiclesWaitingInLineInternal.enqueue(chargingVehicle)
             chargingVehicle.updateStatus(WaitingAtStation, tick)
@@ -517,14 +517,14 @@ object ChargingNetwork extends LazyLogging {
         case _ =>
           logger.debug(
             "Either Vehicle {} at Stall: {} had been disconnected before the charging cycle." +
-            "last charging cycle end linkStartTime was {} while the current charging cycle end linkStartTime is {}",
+            "last charging cycle end time was {} while the current charging cycle end time is {}",
             vehicle.id,
             stall,
             chargingSessions.lastOption.map(_.endTime).getOrElse(-1),
             newCycle.endTime
           )
           logger.debug(
-            "Or the unplug request event for Vehicle {} arrived after it finished charging at linkStartTime {}",
+            "Or the unplug request event for Vehicle {} arrived after it finished charging at time {}",
             vehicle.id,
             newCycle.endTime
           )

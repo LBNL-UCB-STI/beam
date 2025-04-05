@@ -15,7 +15,7 @@ import scala.collection.mutable.ArrayBuffer
   */
 private[bprsim] class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val myLinks: Set[Id[Link]]) {
   private val queue = mutable.PriorityQueue.empty[SimEvent](BPRSimulation.simEventOrdering)
-  // we need to use linkStartTime window at least twice as much as syncInterval
+  // we need to use time window at least twice as much as syncInterval
   // in order to keep events for the subsequent sim steps
   private val timeWindow = Math.max(config.inFlowAggregationTimeWindow, config.syncInterval * 2)
   private val params = BPRSimParams(config, new VolumeCalculator(timeWindow), new TemporalEventCounter[Id[Link]](30))

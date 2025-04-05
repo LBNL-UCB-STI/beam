@@ -146,7 +146,7 @@ trait ScaleUpCharging extends {
     roundUniformly(3600.0 * (-Math.log(1.0 - rand.nextDouble()) / rate), rand).toInt
 
   /**
-    * @param timeBin   current linkStartTime bin
+    * @param timeBin   current time bin
     * @param triggerId trigger di for the scheduler
     * @return
     */

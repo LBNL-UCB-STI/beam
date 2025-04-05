@@ -18,14 +18,14 @@ class TAZSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: BeamConf
   override protected val skimType: Skims.SkimType.Value = Skims.SkimType.TAZ_SKIMMER
   override protected val skimFileBaseName: String = config.taz_skimmer.fileBaseName
 
-  override protected val skimFileHeader: String = "linkStartTime,geoId,actor,key,value,observations,iterations"
+  override protected val skimFileHeader: String = "time,geoId,actor,key,value,observations,iterations"
 
   override def fromCsv(
     line: scala.collection.Map[String, String]
   ): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
     (
       TAZSkimmerKey(
-        line("linkStartTime").toInt,
+        line("time").toInt,
         line("geoId"),
         line("actor"),
         line("key")
@@ -90,7 +90,7 @@ object TAZSkimmer extends LazyLogging {
   def tazSkimOutputDataDescriptor: OutputDataDescriptor =
     OutputDataDescriptorObject("TAZSkimmer", "skimsTAZ.csv.gz", iterationLevel = true)(
       """
-        linkStartTime          | Time of event
+        time          | Time of event
         geoId         | Id of geo unit
         actor         | Beam actor name
         key           | Statistic name
@@ -103,7 +103,7 @@ object TAZSkimmer extends LazyLogging {
   def aggregatedTazSkimOutputDataDescriptor: OutputDataDescriptor =
     OutputDataDescriptorObject("TAZSkimmer", "skimsTAZ_Aggregated.csv.gz", iterationLevel = true)(
       """
-        linkStartTime          | Time of event
+        time          | Time of event
         geoId         | Id of geo unit
         actor         | Beam actor name
         key           | Statistic name

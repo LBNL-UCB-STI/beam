@@ -73,7 +73,7 @@ object VisualizingApp extends StrictLogging {
       closable.close()
     }
     val endTime = LocalDateTime.now()
-    logger.info(s"Exiting, execution linkStartTime = ${SECONDS.between(startTime, endTime)} seconds, data written to $output")
+    logger.info(s"Exiting, execution time = ${SECONDS.between(startTime, endTime)} seconds, data written to $output")
   }
 
   private def appropriateProcessor(diagramType: DiagramType): (Iterator[RowData], Path) => Unit =

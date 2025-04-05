@@ -106,7 +106,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
       var minY: Double = Double.MaxValue
       var maxY: Double = Double.MinValue
 
-      // TODO: optimize performance by not creating each linkStartTime again!!! e.g. renew quadtree hourly
+      // TODO: optimize performance by not creating each time again!!! e.g. renew quadtree hourly
 
       val selectedActivities: ArrayBuffer[Activity] = ArrayBuffer[Activity]()
 
@@ -152,7 +152,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
     val quad = quadTree.values().asScala.map { activity =>
       val coord = activity.getCoord
       Map(
-        "linkStartTime"     -> tick.toString,
+        "time"     -> tick.toString,
         "x"        -> coord.getX.toString,
         "y"        -> coord.getY.toString,
         "activity" -> activity.getType
@@ -173,7 +173,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         case None => (0, 0)
       }
       Map(
-        "linkStartTime" -> tick.toString,
+        "time" -> tick.toString,
         "x1"   -> x.toString,
         "y1"   -> y.toString,
         "x2"   -> vehicleIdCoord._2.getX.toString,
@@ -185,8 +185,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
     val quadFileName = ioController.getIterationFilename(iterationNumber, RandomRepositioning.QUAD_OUTPUT_FILE)
     val coordFileName = ioController.getIterationFilename(iterationNumber, RandomRepositioning.COORD_OUTPUT_FILE)
 
-    writeCSV(quadFileName, Seq("linkStartTime", "x", "y", "activity"), quad)
-    writeCSV(coordFileName, Seq("linkStartTime", "x1", "y1", "x2", "y2"), coord)
+    writeCSV(quadFileName, Seq("time", "x", "y", "activity"), quad)
+    writeCSV(coordFileName, Seq("time", "x1", "y1", "x2", "y2"), coord)
 
   }
 

@@ -81,7 +81,7 @@ object NewYorkRouteDebugging {
         val diffS = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - s)
         val avg = idx.toDouble / diffS
         println(
-          s"Done $idx out of ${requests.length}. Total linkStartTime: ${diffS} seconds, AVG per second: ${avg}," +
+          s"Done $idx out of ${requests.length}. Total time: ${diffS} seconds, AVG per second: ${avg}," +
           s" withSubwayTransit1: ${withSubwayTransit1} and withSubwayTransit2: $withSubwayTransit2"
         )
       }

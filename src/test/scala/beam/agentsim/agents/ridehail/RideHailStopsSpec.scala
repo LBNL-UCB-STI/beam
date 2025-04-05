@@ -93,7 +93,7 @@ class RideHailStopsSpec extends AnyWordSpecLike with Matchers with BeamHelper {
 
           // actStart at the end of the current trip
           val maybeActStart = getEventAfter(rhPte, "actstart", "person", rider)
-          maybeActStart should not be empty withClue f"Expected to have an ActStart event for a person some linkStartTime after RH departure. Person: $rider"
+          maybeActStart should not be empty withClue f"Expected to have an ActStart event for a person some time after RH departure. Person: $rider"
           val nextActStart = maybeActStart.get
           val nextActStartLink = nextActStart.getAttributes.get("link")
 

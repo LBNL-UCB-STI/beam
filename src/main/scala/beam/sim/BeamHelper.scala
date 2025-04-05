@@ -708,7 +708,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     if (beamScenario.beamConfig.beam.agentsim.snapLocationAndRemoveInvalidInputs) {
       logger.info(s"""
       |The parameter `beam.agentsim.snapLocationAndRemoveInvalidInputs` is enabled.
-      |This may take some linkStartTime to finish depending on the size of population/households.""".stripMargin)
+      |This may take some time to finish depending on the size of population/households.""".stripMargin)
 
       val beforeHouseholdsCount = scenario.getHouseholds.getHouseholds.size()
       val beforePopulationCount = scenario.getPopulation.getPersons.size()

@@ -1036,14 +1036,14 @@ trait ChoosesMode {
     val walkToRideHailStop = tncAccessLeg.find(_.is(WALK))
     val accessLegWaitingTime =
       walkToRideHailStop.fold(timeToCustomer)(leg => math.max(timeToCustomer - leg.beamLeg.duration, 0))
-    // Replacing drive access leg with TNC changes the travel linkStartTime.
+    // Replacing drive access leg with TNC changes the travel time.
     val extraWaitTimeBuffer = driveTransitTrip.legs.head.beamLeg.endTime - _currentTick.get -
       accessLegDurationWithoutWaiting - accessLegWaitingTime
     if (extraWaitTimeBuffer < 300) {
-      // We filter out all options that don't allow at least 5 minutes of linkStartTime for unexpected waiting
+      // We filter out all options that don't allow at least 5 minutes of time for unexpected waiting
       None
     } else {
-      // Travel linkStartTime usually decreases, adjust for this but add a buffer to the wait linkStartTime to account for uncertainty in actual wait linkStartTime
+      // Travel time usually decreases, adjust for this but add a buffer to the wait time to account for uncertainty in actual wait time
       val startTimeAdjustment =
         driveTransitTrip.legs.head.beamLeg.endTime - accessLegDurationWithoutWaiting - accessLegWaitingTime
       val startTimeBufferForWaiting = clamp(timeToCustomer * 1.5, 300, extraWaitTimeBuffer)
@@ -2069,7 +2069,7 @@ trait ChoosesMode {
     val startTimeUpdated =
       if (trip.tripClassifier.isTransit && trip.legs.head.beamLeg.startTime > tick) {
         //we need to start trip as soon as our activity finishes (current tick) in order to
-        //correctly show waiting linkStartTime for the transit in the OD skims
+        //correctly show waiting time for the transit in the OD skims
         val legStartTime = Math.max(tick, currentActivityEndTime)
         trip.updatePersonalLegsStartTime(legStartTime.toInt)
       } else {
@@ -2208,7 +2208,7 @@ trait ChoosesMode {
         }
 
         // If you dont have mode pre-chosen, you can only use personal vehicles on vehicle based tours -- if you're
-        // on a walk based tour, you can use shared vehicles all the linkStartTime and personal vehicles for access/egress
+        // on a walk based tour, you can use shared vehicles all the time and personal vehicles for access/egress
         val availableStreetVehiclesGivenTourMode = availableVehicles.flatMap { vehicleOrToken =>
           val isPersonalVehicle = {
             !vehicleOrToken.vehicle.isSharedVehicle &&

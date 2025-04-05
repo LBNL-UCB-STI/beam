@@ -16,7 +16,7 @@ object DoubleParking {
       * This function calculates the new link capacity if some vehicles are double parked on the link.
       * If there's no double parked vehicles (numberOfDoubleParking == 0) then capacity is considered unchanged and
       * this function is not called.
-      * @param time linkStartTime of the day
+      * @param time time of the day
       * @param link the link
       * @param numberOfDoubleParked number of double parked vehicles
       * @param capacity current link capacity that is calculated basing on other factors

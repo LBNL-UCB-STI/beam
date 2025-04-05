@@ -34,7 +34,7 @@ class VehicleChargingAnalysis extends GraphAnalysis with ExponentialLazyLogging 
         if (orphanedPlugOutEvents.contains(vehicle)) {
           val timeOfOrphanedEvent = orphanedPlugOutEvents.remove(vehicle)
           logger.warn(
-            f"Found ChargingPlugInEvent at linkStartTime ${pluginEvent.getTime.toInt} for vehicle $vehicle " +
+            f"Found ChargingPlugInEvent at time ${pluginEvent.getTime.toInt} for vehicle $vehicle " +
             f"after previous unmatched ChargingPlugOutEvent at ${timeOfOrphanedEvent.get}"
           )
         }
@@ -59,7 +59,7 @@ class VehicleChargingAnalysis extends GraphAnalysis with ExponentialLazyLogging 
           case None =>
             logger.warn(
               f"Found ChargingPlugOutEvent without ChargingPlugInEvent for vehicle $vehicle " +
-              f"at linkStartTime ${plugoutEvent.getTime.toInt}"
+              f"at time ${plugoutEvent.getTime.toInt}"
             )
             orphanedPlugOutEvents.update(vehicle, plugoutEvent.getTime.toInt)
         }

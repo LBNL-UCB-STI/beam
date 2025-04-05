@@ -272,7 +272,7 @@ object ParkingZoneSearch {
     * @param parkingType the parking type (Residential, Workplace, Public)
     * @param chargingPointType the charging point type
     * @param pricingModel the pricing model
-    * @param timeRestrictions the linkStartTime restrictions
+    * @param timeRestrictions the time restrictions
     */
   case class ParkingZoneInfo(
     parkingType: ParkingType,

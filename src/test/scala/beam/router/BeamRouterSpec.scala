@@ -53,7 +53,7 @@ class BeamRouterSpec extends AnyFlatSpec with BeamScenarioForTest {
       )
     assert(
       updatedRoutingResponse.itineraries.head.beamLegs.head.duration == updatedDuration,
-      "replacing car travel linkStartTime did not work"
+      "replacing car travel time did not work"
     )
   }
 
