@@ -110,6 +110,7 @@ object ChoosesParking {
     val (loading, unloading) = requestType match {
       case FreightRequestType.Unloading => (0, 1)
       case FreightRequestType.Loading   => (1, 0)
+      case FreightRequestType.Warehouse => (0, 0)
     }
     val costPerMile = trip
       .map { trip =>
@@ -242,12 +243,12 @@ trait ChoosesParking extends {
   private def isRefuelAtDestinationNeeded(vehicle: BeamVehicle, activityType: String): Boolean = {
     val conf = beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination
     if (vehicle.isEV) {
-      ParkingInquiry.activityTypeStringToEnum(activityType) match {
+      ParkingActivityType.fromString(activityType) match {
         case ParkingActivityType.Home =>
           vehicle.isRefuelNeeded(conf.home.refuelRequiredThresholdInMeters, conf.home.noRefuelThresholdInMeters)
-        case ParkingActivityType.Work =>
+        case ParkingActivityType.Working =>
           vehicle.isRefuelNeeded(conf.work.refuelRequiredThresholdInMeters, conf.work.noRefuelThresholdInMeters)
-        case ParkingActivityType.Wherever =>
+        case ParkingActivityType.Miscellaneous =>
           vehicle.isRefuelNeeded(
             conf.secondary.refuelRequiredThresholdInMeters,
             conf.secondary.noRefuelThresholdInMeters

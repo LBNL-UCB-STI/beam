@@ -69,10 +69,6 @@ class BeamVehicle(
 
   private val emissionsProfileInGramInternal: EmissionsProfile = EmissionsProfile.init()
 
-  private def emissionsProfileInGram: EmissionsProfile = emissionsRWLock.read {
-    emissionsProfileInGramInternal
-  }
-
   private val mustBeDrivenHomeInternal: AtomicBoolean = new AtomicBoolean(false)
   def isMustBeDrivenHome: Boolean = mustBeDrivenHomeInternal.get()
   def setMustBeDrivenHome(value: Boolean): Unit = mustBeDrivenHomeInternal.set(value)
@@ -315,7 +311,7 @@ class BeamVehicle(
     vehicleActivity: Class[E],
     beamServices: BeamServices
   ): Option[EmissionsProfile] = {
-    val emissionsConfig = beamServices.beamConfig.beam.exchange.output.emissions
+    val emissionsConfig = beamServices.beamConfig.beam.agentsim.agents.vehicles.emissions
 
     if (emissionsConfig.events || emissionsConfig.skims) {
       val emissionsMaybe = beamServices.beamScenario.vehicleEmissions.getEmissionsProfileInGram(
@@ -628,7 +624,7 @@ object BeamVehicle {
   }
 
   case class VehicleActivityData(
-    activityStartTime: Option[Double] = None,
+    activityStartTime: Double,
     linkStartTime: Double,
     linkId: Int,
     vehicleId: Id[BeamVehicle],
@@ -640,7 +636,7 @@ object BeamVehicle {
     taz: Option[TAZ] = None,
     parkingDuration: Option[Double] = None,
     parkingType: Option[ParkingType] = None,
-    parkingActivityType: Option[String],
+    parkingActivityType: Option[ParkingActivityType] = None,
     linkTravelTime: Option[Double] = None
   ) {
     var primaryEnergyConsumed: Double = 0.0
@@ -670,7 +666,6 @@ object BeamVehicle {
       if (time - stall.getParkingTime < 0) 0.0 else time - stall.getParkingTime
     }
     val parkingType: Option[ParkingType] = parkingStall.map(_.parkingType)
-    val activityType: Option[String] = parkingStall.map(_.activityType)
     activity match {
       case Left(beamLeg) =>
         if (beamLeg.mode.isTransit & !Modes.isOnStreetTransit(beamLeg.mode)) {
@@ -689,7 +684,7 @@ object BeamVehicle {
                 case _: Exception => 0.0
               }
             val vehicleActivityData = VehicleActivityData(
-              activityStartTime = Some(time),
+              activityStartTime = time,
               linkStartTime = time - relativeTravelTime,
               linkId = id,
               vehicleId = beamVehicle.id,
@@ -701,7 +696,7 @@ object BeamVehicle {
               taz = currentLink.flatMap(link => beamServices.beamScenario.tazTreeMap.getTAZfromLink(link.getId)),
               parkingDuration = parkingDuration,
               parkingType = parkingType,
-              parkingActivityType = activityType,
+              parkingActivityType = parkingStall.map(_.activityType),
               linkTravelTime = Some(travelTime)
             )
             relativeTravelTime -= travelTime
@@ -711,7 +706,7 @@ object BeamVehicle {
       case Right(link) =>
         IndexedSeq(
           VehicleActivityData(
-            activityStartTime = Some(time),
+            activityStartTime = time,
             linkStartTime = parkingDuration.map(duration => time - duration).getOrElse(time),
             linkId = link.getId.toString.toInt,
             vehicleId = beamVehicle.id,
@@ -723,7 +718,7 @@ object BeamVehicle {
             taz = beamServices.beamScenario.tazTreeMap.getTAZfromLink(link.getId),
             parkingDuration = parkingDuration,
             parkingType = parkingType,
-            parkingActivityType = activityType,
+            parkingActivityType = parkingStall.map(_.activityType),
             linkTravelTime = None
           )
         )
@@ -735,18 +730,18 @@ object BeamVehicle {
  - for possible IDLE vehicle time between shift start event and PathTraversal event
  - for possible IDLE vehicle time between driver enters vehicle and PathTraversal event
    */
-  def getIDLEActivityForEmissions(
+  def getRideHailIdlingActivityForEmissions(
     tick: Int,
     beamVehicle: BeamVehicle,
     beamServices: BeamServices
   ): Option[BeamVehicle.VehicleActivityData] = {
     (beamVehicle.lastLinkVisited, beamVehicle.lastIDLEStartTime) match {
-      case (Some(linkId), Some(idleStartTime)) if tick - idleStartTime > 0 =>
+      case (Some(linkId), Some(idleStartTime)) if tick - idleStartTime > 0 && beamVehicle.isRideHail =>
         val currentLink: Option[Link] = beamServices.networkHelper.getLink(linkId)
         val totalDurationSeconds = (tick - idleStartTime).toDouble
         Some(
           VehicleActivityData(
-            activityStartTime = Some(idleStartTime),
+            activityStartTime = idleStartTime,
             linkStartTime = idleStartTime,
             linkId = linkId,
             vehicleId = beamVehicle.id,
@@ -758,7 +753,7 @@ object BeamVehicle {
             taz = currentLink.flatMap(link => beamServices.beamScenario.tazTreeMap.getTAZfromLink(link.getId)),
             parkingDuration = Some(totalDurationSeconds),
             parkingType = Some(ParkingType.Public),
-            parkingActivityType = Some(ParkingActivityType.Idle.toString),
+            parkingActivityType = Some(ParkingActivityType.Idling),
             linkTravelTime = None
           )
         )

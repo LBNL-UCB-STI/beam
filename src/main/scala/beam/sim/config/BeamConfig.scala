@@ -1212,54 +1212,35 @@ object BeamConfig {
           }
                 
           case class Emissions(
-            events                : scala.Boolean,
-            extended_idle         : BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.ExtendedIdle,
-            pollutantsToFilterOut : scala.Option[scala.List[java.lang.String]],
-            skims                 : scala.Boolean,
-            workday_idle          : BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.WorkdayIdle
+            events                  : scala.Boolean,
+            pollutantsToFilterOut   : scala.Option[scala.List[java.lang.String]],
+            skims                   : scala.Boolean,
+            workdayIdleTimeFraction : scala.Option[BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.WorkdayIdleTimeFraction]
           )
           object Emissions {
-            case class ExtendedIdle(
+            case class WorkdayIdleTimeFraction(
+              bus      : scala.Double,
               class456 : scala.Double,
               class78t : scala.Double,
-              class78v : scala.Double,
-              transit  : scala.Double
+              class78v : scala.Double
             )
-            object ExtendedIdle {
-              def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.ExtendedIdle = {
-                BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.ExtendedIdle(
-                  class456 = if(c.hasPathOrNull("class456")) c.getDouble("class456") else 2.42,
-                  class78t = if(c.hasPathOrNull("class78t")) c.getDouble("class78t") else 8.05,
-                  class78v = if(c.hasPathOrNull("class78v")) c.getDouble("class78v") else 1.40,
-                  transit  = if(c.hasPathOrNull("transit")) c.getDouble("transit") else 4.85
-                )
-              }
-            }
-                  
-            case class WorkdayIdle(
-              class456 : scala.Double,
-              class78t : scala.Double,
-              class78v : scala.Double,
-              transit  : scala.Double
-            )
-            object WorkdayIdle {
-              def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.WorkdayIdle = {
-                BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.WorkdayIdle(
-                  class456 = if(c.hasPathOrNull("class456")) c.getDouble("class456") else 33.27,
-                  class78t = if(c.hasPathOrNull("class78t")) c.getDouble("class78t") else 12.81,
-                  class78v = if(c.hasPathOrNull("class78v")) c.getDouble("class78v") else 31.29,
-                  transit  = if(c.hasPathOrNull("transit")) c.getDouble("transit") else 35.54
+            object WorkdayIdleTimeFraction {
+              def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.WorkdayIdleTimeFraction = {
+                BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.WorkdayIdleTimeFraction(
+                  bus      = if(c.hasPathOrNull("bus")) c.getDouble("bus") else 0.3554,
+                  class456 = if(c.hasPathOrNull("class456")) c.getDouble("class456") else 0.3327,
+                  class78t = if(c.hasPathOrNull("class78t")) c.getDouble("class78t") else 0.1281,
+                  class78v = if(c.hasPathOrNull("class78v")) c.getDouble("class78v") else 0.3129
                 )
               }
             }
                   
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions = {
               BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions(
-                events                = c.hasPathOrNull("events") && c.getBoolean("events"),
-                extended_idle         = BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.ExtendedIdle(if(c.hasPathOrNull("extended_idle")) c.getConfig("extended_idle") else com.typesafe.config.ConfigFactory.parseString("extended_idle{}")),
-                pollutantsToFilterOut = if(c.hasPathOrNull("pollutantsToFilterOut")) scala.Some($_L$_str(c.getList("pollutantsToFilterOut"))) else None,
-                skims                 = c.hasPathOrNull("skims") && c.getBoolean("skims"),
-                workday_idle          = BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.WorkdayIdle(if(c.hasPathOrNull("workday_idle")) c.getConfig("workday_idle") else com.typesafe.config.ConfigFactory.parseString("workday_idle{}"))
+                events                  = c.hasPathOrNull("events") && c.getBoolean("events"),
+                pollutantsToFilterOut   = if(c.hasPathOrNull("pollutantsToFilterOut")) scala.Some($_L$_str(c.getList("pollutantsToFilterOut"))) else None,
+                skims                   = !c.hasPathOrNull("skims") || c.getBoolean("skims"),
+                workdayIdleTimeFraction = if(c.hasPathOrNull("workdayIdleTimeFraction")) scala.Some(BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.WorkdayIdleTimeFraction(c.getConfig("workdayIdleTimeFraction"))) else None
               )
             }
           }
@@ -2332,7 +2313,7 @@ object BeamConfig {
       object Events {
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Events = {
           BeamConfig.Beam.Physsim.Events(
-            eventsToWrite     = if(c.hasPathOrNull("eventsToWrite")) c.getString("eventsToWrite") else "PersonArrivalEvent,PersonDepartureEvent,ActivityEndEvent,ActivityStartEvent,PersonEntersVehicleEvent,PersonLeavesVehicleEvent,ModeChoiceEvent,PathTraversalEvent,ReserveRideHailEvent,ReplanningEvent,RefuelSessionEvent,ChargingPlugInEvent,ChargingPlugOutEvent,ParkingEvent,LeavingParkingEvent,PersonCostEvent,TeleportationEvent",
+            eventsToWrite     = if(c.hasPathOrNull("eventsToWrite")) c.getString("eventsToWrite") else "PersonArrivalEvent,PersonDepartureEvent,ActivityEndEvent,ActivityStartEvent,PersonEntersVehicleEvent,PersonLeavesVehicleEvent,ModeChoiceEvent,PathTraversalEvent,ReserveRideHailEvent,ReplanningEvent,RefuelSessionEvent,ChargingPlugInEvent,ChargingPlugOutEvent,ParkingEvent,LeavingParkingEvent,PersonCostEvent,TeleportationEvent,ShiftEvent",
             fileOutputFormats = if(c.hasPathOrNull("fileOutputFormats")) c.getString("fileOutputFormats") else "csv"
           )
         }

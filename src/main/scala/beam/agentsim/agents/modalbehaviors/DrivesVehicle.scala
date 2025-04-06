@@ -344,7 +344,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       }
 
       currentBeamVehicle.setLastVehicleLink(currentLeg.travelPath.linkIds.headOption)
-      val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivityForEmissions(
+      val maybeIDLEVehicleActivity = BeamVehicle.getRideHailIdlingActivityForEmissions(
         currentLeg.startTime,
         currentBeamVehicle,
         beamServices
@@ -356,7 +356,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
 
       val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
         maybeIDLEVehicleActivity.toIndexedSeq,
-        classOf[PathTraversalEvent],
+        classOf[LeavingParkingEvent],
         beamServices
       )
       val emissionsProfilePTE = currentBeamVehicle.emitEmissions(
@@ -366,6 +366,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       )
       val emissionsProfile = EmissionsProfile.join(emissionsProfilePTE, emissionsProfileIDLE)
       val numberOfPassengers: Int = calculateNumberOfPassengersBasedOnCurrentTripMode(data, currentLeg, riders)
+      if (id.toString.startsWith("rideHail")) {
+        logger.error("[DrivesVehicle] RH here! => " + id.toString)
+      }
       val pte = PathTraversalEvent(
         tick,
         currentVehicleUnderControl,
@@ -583,7 +586,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           beamServices
         )
         val fuelConsumed = currentBeamVehicle.useFuel(partiallyCompletedBeamLeg, vehicleActivityData, beamScenario)
-        val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivityForEmissions(
+        val maybeIDLEVehicleActivity = BeamVehicle.getRideHailIdlingActivityForEmissions(
           currentLeg.startTime,
           currentBeamVehicle,
           beamServices
@@ -609,6 +612,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         tollsAccumulated += tollOnCurrentLeg
         val numberOfPassengers: Int =
           calculateNumberOfPassengersBasedOnCurrentTripMode(data, partiallyCompletedBeamLeg, riders)
+        if (id.toString.startsWith("rideHail")) {
+          logger.error("[DrivesVehicle] RH here! => " + id.toString)
+        }
         val pte = PathTraversalEvent(
           updatedStopTick,
           currentVehicleUnderControl,
@@ -1014,7 +1020,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       case Some(vehicle) if inquiry.reserveStall =>
         vehicle.isEV && List(DestinationCharging, EnRouteCharging).contains(inquiry.searchMode)
       // If non vehicle has been specified, then verify if the request is a charge request
-      case _ => inquiry.parkingActivityType == ParkingActivityType.Charge
+      case _ => inquiry.parkingActivityType == ParkingActivityType.Charging
     }
 
     if (isChargingRequest)

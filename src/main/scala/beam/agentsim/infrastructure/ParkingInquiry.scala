@@ -3,8 +3,8 @@ package beam.agentsim.infrastructure
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.ParkingInquiry.{activityTypeStringToEnum, ParkingActivityType, ParkingSearchMode}
-import beam.agentsim.infrastructure.parking.ParkingMNL
+import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
+import beam.agentsim.infrastructure.parking.{ParkingMNL, ParkingType}
 import beam.agentsim.scheduler.HasTriggerId
 import beam.utils.ParkingManagerIdGenerator
 import com.typesafe.scalalogging.LazyLogging
@@ -42,7 +42,7 @@ case class ParkingInquiry(
   originUtm: Option[SpaceTime] = None,
   triggerId: Long
 ) extends HasTriggerId {
-  val parkingActivityType: ParkingActivityType = activityTypeStringToEnum(activityType)
+  val parkingActivityType: ParkingActivityType = ParkingActivityType.fromString(activityType)
 
   val departureLocation: Option[Coord] = searchMode match {
     case ParkingSearchMode.EnRouteCharging => beamVehicle.map(_.spaceTime).orElse(originUtm).map(_.loc)
@@ -65,28 +65,36 @@ object ParkingInquiry extends LazyLogging {
 
   object ParkingActivityType extends Enum[ParkingActivityType] {
     val values: immutable.IndexedSeq[ParkingActivityType] = findValues
-    case object Charge extends ParkingActivityType
-    case object Wherever extends ParkingActivityType
+    case object Charging extends ParkingActivityType
+    case object Miscellaneous extends ParkingActivityType
     case object Home extends ParkingActivityType
-    case object Work extends ParkingActivityType
-    case object EnRoute extends ParkingActivityType
-    case object IDLE extends ParkingActivityType
-  }
+    case object Working extends ParkingActivityType
+    case object Idling extends ParkingActivityType
+    case object Hotelling extends ParkingActivityType
+    case object LoadingUnloading extends ParkingActivityType
+    case object Warehousing extends ParkingActivityType
 
-  def activityTypeStringToEnum(activityType: String): ParkingActivityType = {
-    activityType.toLowerCase match {
-      case "home"                                     => ParkingActivityType.Home
-      case "work"                                     => ParkingActivityType.Work
-      case "charge"                                   => ParkingActivityType.Charge
-      case "wherever"                                 => ParkingActivityType.Wherever
-      case "idle"                                     => ParkingActivityType.IDLE
-      case otherType if otherType.contains("enroute") => ParkingActivityType.Charge
-      case otherType if otherType.contains("home")    => ParkingActivityType.Home
-      case otherType if otherType.contains("work")    => ParkingActivityType.Work
-      case otherType =>
-        logger.debug(s"This Parking Activity Type ($otherType) has not been defined")
-        ParkingActivityType.Wherever
+    def fromString(activityType: String): ParkingActivityType = {
+      activityType.toLowerCase match {
+        case "home" | "residential"                     => ParkingActivityType.Home
+        case "work" | "workplace"                       => ParkingActivityType.Working
+        case "charge" | "charging"                      => ParkingActivityType.Charging
+        case "wherever" | "public" | "miscellaneous"    => ParkingActivityType.Miscellaneous
+        case "idle" | "idling" | "hotelling"            => ParkingActivityType.Idling
+        case "hotelling" | "overnight"                  => ParkingActivityType.Hotelling
+        case "commercial" | "loading" | "unloading"     => ParkingActivityType.LoadingUnloading
+        case "depot" | "warehouse" | "warehousing"      => ParkingActivityType.Warehousing
+        case otherType if otherType.contains("enroute") => ParkingActivityType.Charging
+        case otherType if otherType.contains("home")    => ParkingActivityType.Home
+        case otherType if otherType.contains("work")    => ParkingActivityType.Working
+        case otherType if otherType.contains("loading") => ParkingActivityType.LoadingUnloading
+        case otherType =>
+          logger.debug(s"This Parking Activity Type ($otherType) has not been defined")
+          ParkingActivityType.Miscellaneous
+      }
     }
+
+    def fromParkingType(parkingType: ParkingType): ParkingActivityType = fromString(parkingType.toString)
   }
 
   def init(

@@ -1,10 +1,16 @@
 package beam.agentsim.agents.vehicles
 
-import beam.agentsim.agents.freight.FreightRequestType
+import beam.agentsim.agents.vehicles.VehicleCategory.{
+  Class456Vocational,
+  Class78Tractor,
+  Class78Vocational,
+  MediumDutyPassenger
+}
 import beam.agentsim.agents.vehicles.VehicleEmissions.Emissions.{formatName, EmissionType}
 import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsProfile.EmissionsProcess
 import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsRateFilterStore.EmissionsRateFilter
 import beam.agentsim.events.{LeavingParkingEvent, PathTraversalEvent}
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType._
 import beam.router.skim.event.EmissionsSkimmerEvent
 import beam.sim.BeamServices
 import beam.sim.common.DoubleTypedRange
@@ -67,7 +73,7 @@ class VehicleEmissions(
     }
 
     vehicleActivityData.headOption.foreach { data =>
-      val startTime = data.activityStartTime.getOrElse(0.0)
+      val startTime = data.activityStartTime
       val isNotParking = data.parkingActivityType.isEmpty
       val op = vehicleOperationTime.getOrElseUpdate(data.vehicleId, OperationStatus(startTime, isNotParking, None))
       if (op.duration.nonEmpty && data.parkingActivityType.isEmpty) {
@@ -80,8 +86,8 @@ class VehicleEmissions(
     }
 
     val emissionsProfiles = for {
-      process              <- identifyProcesses(vehicleActivityData, vehicleActivity)
       data                 <- vehicleActivityData
+      process              <- identifyProcesses(data, vehicleActivity)
       emissionsRatesFilter <- getEmissionsRatesFilter(data.vehicleType)
       rates                <- getRatesUsing(emissionsRatesFilter, data, process).orElse(fallBack.flatMap(_.values.get(process)))
     } yield {
@@ -221,7 +227,7 @@ object VehicleEmissions extends LazyLogging {
 
   object Emissions extends Enumeration {
     type EmissionType = Value
-    val CH4, CO, CO2, HC, NH3, NOx, PM, PM10, PM2_5, ROG, SOx, TOG = Value
+    val CH4, CO, CO2, HC, NH3, NOx, PM, PM10, PM2_5, ROG, SOx, TOG, BC, BCm, BCh = Value
 
     var filter: Option[List[EmissionType]] = None
 
@@ -260,9 +266,11 @@ object VehicleEmissions extends LazyLogging {
 
   object EmissionsProfile extends Enumeration {
     type EmissionsProcess = Value
-    val RUNEX, IDLEX, EXTIDLEX, STREX, HOTSOAK, DIURN, RUNLOSS, PMTW, PMBW, PRDUST = Value
+    val RUNEX, IDLEX, STREX, HOTSOAK, DIURN, RUNLOSS, PMTW, PMBW, PRDUST = Value
 
     def init(): EmissionsProfile = EmissionsProfile()
+
+    def apply(values: (EmissionsProcess, Emissions)*): EmissionsProfile = new EmissionsProfile(values.toMap)
 
     def join(
       emissionsProfile1: Option[EmissionsProfile],
@@ -276,19 +284,32 @@ object VehicleEmissions extends LazyLogging {
       }
     }
 
-    def apply(values: (EmissionsProcess, Emissions)*): EmissionsProfile = new EmissionsProfile(values.toMap)
+    private def isIdlingDriving(
+      data: BeamVehicle.VehicleActivityData,
+      vehicleActivity: Class[_ <: org.matsim.api.core.v01.events.Event]
+    ): Boolean = {
+      val averageSpeed: Double = data.averageSpeed.getOrElse(0.0)
+      val travelTime: Double = data.linkTravelTime.getOrElse(0.0)
+      vehicleActivity == classOf[PathTraversalEvent] && averageSpeed < 2.24 && travelTime > 300
+    }
+
+    private def isIdlingParking(
+      data: BeamVehicle.VehicleActivityData,
+      vehicleActivity: Class[_ <: org.matsim.api.core.v01.events.Event]
+    ): Boolean = {
+      vehicleActivity == classOf[LeavingParkingEvent] && data.parkingActivityType.exists(
+        List(LoadingUnloading, Warehousing, Hotelling).contains
+      )
+    }
 
     def identifyProcesses(
-      data: IndexedSeq[BeamVehicle.VehicleActivityData],
-      vehicleActivity: Class[_ <: org.matsim.api.core.v01.events.Event]
+      data: BeamVehicle.VehicleActivityData,
+      event: Class[_ <: org.matsim.api.core.v01.events.Event]
     ): ValueSet = {
-      // TODO uncomment once commercial deployment are deployed
-      if (data.isEmpty)
-        return ValueSet.empty
-
-      val headActivity: Option[String] = data.headOption.flatMap(_.parkingActivityType).map(_.toLowerCase)
-      val averageSpeed: Double = data.headOption.flatMap(_.averageSpeed).getOrElse(0.0)
-      val travelTime: Double = data.headOption.flatMap(_.linkTravelTime).getOrElse(0.0)
+      val isIdlingCategory = data.vehicleType.vehicleCategory match {
+        case MediumDutyPassenger | Class456Vocational | Class78Vocational | Class78Tractor => true
+        case _                                                                             => false
+      }
 
       val emissionProcesses = {
         EmissionsProfile.values.flatMap {
@@ -306,29 +327,14 @@ object VehicleEmissions extends LazyLogging {
             * and are not related to speed bins.
             * https://ww2.arb.ca.gov/sites/default/files/2021-03/emfac2021_volume_2_pl_handbook.pdf
             */
-          case process @ IDLEX =>
-            val was_moving = vehicleActivity == classOf[PathTraversalEvent]
-            val had_low_speed = was_moving && averageSpeed < 2.24 && travelTime > 300
-            val was_loading_unloading = headActivity.exists(FreightRequestType.isLoadingUnloading)
-            val was_at_warehouse = headActivity.exists(FreightRequestType.isWarehouse)
-            val was_parked = vehicleActivity == classOf[LeavingParkingEvent]
-            if ((was_moving && had_low_speed) || was_parked && (was_loading_unloading || was_at_warehouse))
-              Some(process)
-            else None
-
-          case process @ EXTIDLEX =>
-            // TODO In the future we will need to look at whether vehicle is hotelling
-            val was_hotelling = false
-            val was_parked = vehicleActivity == classOf[LeavingParkingEvent]
-            if (was_parked && was_hotelling) Some(process) else None
-
-          case process @ (RUNEX | PMBW | PMTW | RUNLOSS | PRDUST)
-              if vehicleActivity == classOf[PathTraversalEvent] && averageSpeed > 0.0 =>
+          case process @ IDLEX if isIdlingCategory && (isIdlingDriving(data, event) || isIdlingParking(data, event)) =>
             Some(process)
 
-          case process @ (STREX | DIURN | HOTSOAK | RUNLOSS) if vehicleActivity == classOf[LeavingParkingEvent] =>
+          case process @ (RUNEX | PMBW | PMTW | RUNLOSS | PRDUST) if event == classOf[PathTraversalEvent] =>
             Some(process)
-          case _ => None
+
+          case process @ (STREX | DIURN | HOTSOAK | RUNLOSS) if event == classOf[LeavingParkingEvent] => Some(process)
+          case _                                                                                      => None
         }
       }
 
@@ -347,8 +353,7 @@ object VehicleEmissions extends LazyLogging {
       // for heavy-duty trucks.
       // TODO Embed it in LeavingParkingEvent when 1) it is freight Load/Unload 2) overnight parking
       // xNumber of Idle Hours (xParking Hour) => gram/veh-idle hour
-      case "idle" | "idling" | "idlex" | "warehouse" | "loading" | "unloading" => Some(IDLEX)
-      case "hotelling" | "hoteling" | "overnight" | "idlex_ext"                => Some(EXTIDLEX)
+      case "idling" | "idlex" | "extidlex" | "warehouse" | "loading" | "unloading" | "hotelling" => Some(IDLEX)
 
       // Start Exhaust Tailpipe Emissions (STREX) that occur when starting a vehicle. These emissions are independent
       // of running exhaust emissions and represent the emissions occurring during the initial time period when
@@ -401,6 +406,24 @@ object VehicleEmissions extends LazyLogging {
         None
     }
 
+    private val workdayIdleFactor: Map[
+      VehicleCategory.VehicleCategory,
+      (BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions) => Double
+    ] = Map(
+      MediumDutyPassenger -> { (emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions) =>
+        emissionsConfig.workdayIdleTimeFraction.map(_.bus).getOrElse(0.0)
+      },
+      Class456Vocational -> { (emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions) =>
+        emissionsConfig.workdayIdleTimeFraction.map(_.class456).getOrElse(0.0)
+      },
+      Class78Vocational -> { (emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions) =>
+        emissionsConfig.workdayIdleTimeFraction.map(_.class78v).getOrElse(0.0)
+      },
+      Class78Tractor -> { (emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions) =>
+        emissionsConfig.workdayIdleTimeFraction.map(_.class78t).getOrElse(0.0)
+      }
+    )
+
     val calculationMap: Map[
       EmissionsProcess,
       (
@@ -441,32 +464,28 @@ object VehicleEmissions extends LazyLogging {
           vehicleOperationTime: mutable.HashMap[Id[BeamVehicle], OperationStatus],
           emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
-          val vehicleSlowMovingInHours = data.linkTravelTime.map(_ / 3600.0).getOrElse(0.0)
-          val vehicleStoppedInHours = data.parkingDuration.map(_ / 3600.0).getOrElse(0.0)
-          val operationInHours = vehicleOperationTime
-            .get(data.vehicleId)
-            .flatMap(_.duration)
-            .map(_ / 3600.0)
-            .getOrElse(0.0) + vehicleSlowMovingInHours + vehicleStoppedInHours
-
-          rates * operationInHours * emissionsConfig.workday_idle()
-      },
-      /**
-        * Calculate Idle Exhaust Emissions (EXTIDLEX)
-        * Number of Idle Hours (Parking Hours) => gram/veh-idle hour
-        * vih Vehicle Idle Hours (VIH)
-        * rates Emission rate (grams per vehicle-idle hour)
-        * @return Total emissions in grams
-        */
-      EXTIDLEX -> {
-        (
-          rates: Emissions,
-          data: BeamVehicle.VehicleActivityData,
-          _: mutable.HashMap[Id[BeamVehicle], OperationStatus],
-          emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
-        ) =>
-          val vehicleIdleInHours = data.parkingDuration.map(_ / 3600.0).getOrElse(0.0)
-          rates * vehicleIdleInHours
+          val idlingHours: Double =
+            data.parkingActivityType match {
+              case Some(Hotelling) =>
+                val vehicleParkingInHours = data.parkingDuration.map(_ / 3600.0).getOrElse(0.0)
+                vehicleParkingInHours
+              case _ =>
+                val workingIdleFactorMaybe =
+                  workdayIdleFactor.get(data.vehicleType.vehicleCategory).map(_(emissionsConfig))
+                val operationInHoursMaybe = if (data.linkTravelTime.nonEmpty) {
+                  val linkTravelTime = data.linkTravelTime.map(_ / 3600.0).getOrElse(0.0)
+                  Some((data.linkStartTime - data.activityStartTime) + linkTravelTime)
+                } else if (data.parkingDuration.nonEmpty) {
+                  val travelingTime = vehicleOperationTime.get(data.vehicleId).flatMap(_.duration).map(_ / 3600.0)
+                  val parkingDuration = data.parkingDuration.map(_ / 3600.0).getOrElse(0.0)
+                  Some(parkingDuration + travelingTime.getOrElse(0.0))
+                } else {
+                  Some(0.0)
+                }
+                val portionOfIdlingHours = operationInHoursMaybe.getOrElse(0.0) * workingIdleFactorMaybe.getOrElse(0.0)
+                portionOfIdlingHours
+            }
+          rates * idlingHours
       },
       /**
         * Calculate Start Exhaust Emissions (STREX)
@@ -481,7 +500,7 @@ object VehicleEmissions extends LazyLogging {
           ratesBySoakTime: Emissions,
           _: BeamVehicle.VehicleActivityData,
           _: mutable.HashMap[Id[BeamVehicle], OperationStatus],
-          emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
+          _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
           val numberOfVehicleStartTimes = 1 // We calculate it for 1 leave parking event
           ratesBySoakTime * numberOfVehicleStartTimes
@@ -499,7 +518,7 @@ object VehicleEmissions extends LazyLogging {
           rates: Emissions,
           data: BeamVehicle.VehicleActivityData,
           _: mutable.HashMap[Id[BeamVehicle], OperationStatus],
-          emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
+          _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
           val vehicleParkingInHours = data.parkingDuration.map(_ / 3600.0).getOrElse(0.0)
           rates * vehicleParkingInHours
@@ -517,7 +536,7 @@ object VehicleEmissions extends LazyLogging {
           rates: Emissions,
           _: BeamVehicle.VehicleActivityData,
           _: mutable.HashMap[Id[BeamVehicle], OperationStatus],
-          emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
+          _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
           val numberOfVehicleStartTimes = 1 // We calculate it for 1 leave parking event
           rates * numberOfVehicleStartTimes
@@ -534,7 +553,7 @@ object VehicleEmissions extends LazyLogging {
           rates: Emissions,
           data: BeamVehicle.VehicleActivityData,
           _: mutable.HashMap[Id[BeamVehicle], OperationStatus],
-          emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
+          _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
           val vehicleHoursTraveledInHours =
             data.linkTravelTime.map(_ / 3600.0).orElse(data.parkingDuration.map(_ / 3600.0)).getOrElse(0.0)
@@ -552,7 +571,7 @@ object VehicleEmissions extends LazyLogging {
           rates: Emissions,
           data: BeamVehicle.VehicleActivityData,
           _: mutable.HashMap[Id[BeamVehicle], OperationStatus],
-          emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
+          _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
           val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
           rates * vehicleMilesTraveledInMiles
@@ -569,7 +588,7 @@ object VehicleEmissions extends LazyLogging {
           ratesBySpeedBin: Emissions,
           data: BeamVehicle.VehicleActivityData,
           _: mutable.HashMap[Id[BeamVehicle], OperationStatus],
-          emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
+          _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
           val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
           ratesBySpeedBin * vehicleMilesTraveledInMiles
@@ -586,7 +605,7 @@ object VehicleEmissions extends LazyLogging {
           rates: Emissions,
           data: BeamVehicle.VehicleActivityData,
           _: mutable.HashMap[Id[BeamVehicle], OperationStatus],
-          emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
+          _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
           val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
           rates * vehicleMilesTraveledInMiles
@@ -638,6 +657,9 @@ object VehicleEmissions extends LazyLogging {
     private val rateROGHeader = "rate_rog_gram_float"
     private val rateSOxHeader = "rate_sox_gram_float"
     private val rateTOGHeader = "rate_tog_gram_float"
+    private val rateBCHeader = "rate_bc_gram_float"
+    private val rateBCmHeader = "rate_bcm_gram_float"
+    private val rateBChHeader = "rate_bch_gram_float"
 
     private val emissionRateFiltersByVehicleType
       : Map[BeamVehicleType, Future[EmissionsRateFilterStore.EmissionsRateFilter]] =
@@ -738,7 +760,10 @@ object VehicleEmissions extends LazyLogging {
                 Emissions.PM2_5 -> readRateCheckIfNull(ratePM2_5Header),
                 Emissions.ROG   -> readRateCheckIfNull(rateROGHeader),
                 Emissions.SOx   -> readRateCheckIfNull(rateSOxHeader),
-                Emissions.TOG   -> readRateCheckIfNull(rateTOGHeader)
+                Emissions.TOG   -> readRateCheckIfNull(rateTOGHeader),
+                Emissions.BC    -> readRateCheckIfNull(rateBCHeader),
+                Emissions.BCm   -> readRateCheckIfNull(rateBCmHeader),
+                Emissions.BCh   -> readRateCheckIfNull(rateBChHeader)
               ).filter(_._2 != 0.0): _*
             )
             if (ratesInGramsPerMile.notValid) {

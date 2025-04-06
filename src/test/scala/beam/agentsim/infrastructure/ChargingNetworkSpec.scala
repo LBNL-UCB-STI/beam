@@ -7,6 +7,7 @@ import beam.agentsim.agents.BeamvilleFixtures
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType.Charging
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure.charging.ChargingPointType.CustomChargingPoint
 import beam.agentsim.infrastructure.charging.ElectricCurrentType
@@ -112,7 +113,7 @@ class ChargingNetworkSpec
             Some(xfcChargingPoint),
             Some(FlatFee(56.78)),
             ParkingType.Workplace,
-            "charge",
+            Charging,
             VehicleManager.AnyManager
           )
         val response1 = chargingNetwork.processParkingInquiry(firstInquiry)

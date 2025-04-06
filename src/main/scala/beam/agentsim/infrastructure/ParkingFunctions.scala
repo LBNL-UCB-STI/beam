@@ -171,7 +171,7 @@ class ParkingFunctions(
       val availability = if (
         (parkingZone.reservedFor.managerType == VehicleManager.TypeEnum.Household) ||
         (inquiry.parkingActivityType == ParkingActivityType.Home && parkingZone.parkingType == ParkingType.Residential) ||
-        (inquiry.parkingActivityType == ParkingActivityType.Work && parkingZone.parkingType == ParkingType.Workplace)
+        (inquiry.parkingActivityType == ParkingActivityType.Working && parkingZone.parkingType == ParkingType.Workplace)
       ) {
         1.0
       } else { parkingZone.availability }
@@ -233,16 +233,16 @@ class ParkingFunctions(
       Set(ParkingType.Public)
     } else if (inquiry.searchMode == ParkingSearchMode.Init) {
       inquiry.parkingActivityType match {
-        case ParkingActivityType.Home => Set(ParkingType.Residential)
-        case ParkingActivityType.Work => Set(ParkingType.Workplace)
-        case _                        => Set(ParkingType.Public)
+        case ParkingActivityType.Home    => Set(ParkingType.Residential)
+        case ParkingActivityType.Working => Set(ParkingType.Workplace)
+        case _                           => Set(ParkingType.Public)
       }
     } else {
       inquiry.parkingActivityType match {
-        case ParkingActivityType.Home   => Set(ParkingType.Residential, ParkingType.Public)
-        case ParkingActivityType.Work   => Set(ParkingType.Workplace, ParkingType.Public)
-        case ParkingActivityType.Charge => Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
-        case _                          => Set(ParkingType.Public)
+        case ParkingActivityType.Home     => Set(ParkingType.Residential, ParkingType.Public)
+        case ParkingActivityType.Working  => Set(ParkingType.Workplace, ParkingType.Public)
+        case ParkingActivityType.Charging => Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
+        case _                            => Set(ParkingType.Public)
       }
     }
   }

@@ -23,6 +23,7 @@ case class ParkingEvent(
   parkingType: ParkingType,
   pricingModel: Option[PricingModel],
   chargingPointType: Option[ChargingPointType],
+  linkIds: IndexedSeq[Int],
   parkingZoneId: Id[ParkingZoneId]
 ) extends Event(time)
     with ScalaEvent
@@ -56,7 +57,7 @@ case class ParkingEvent(
     attr.put(ATTRIBUTE_CHARGING_TYPE, chargingPointString)
     attr.put(ATTRIBUTE_PARKING_TAZ, tazId.toString)
     attr.put(ATTRIBUTE_PARKING_ZONE_ID, parkingZoneId.toString)
-
+    attr.put(ATTRIBUTE_LINK_IDS, linkIds.mkString(","))
     attr
   }
 }
@@ -74,6 +75,7 @@ object ParkingEvent {
   val ATTRIBUTE_CHARGING_TYPE: String = "chargingPointType"
   val ATTRIBUTE_PARKING_TAZ: String = "parkingTaz"
   val ATTRIBUTE_PARKING_ZONE_ID: String = "parkingZoneId"
+  val ATTRIBUTE_LINK_IDS: String = "links"
 
   def apply(
     time: Double,
@@ -92,6 +94,7 @@ object ParkingEvent {
       parkingType = stall.parkingType,
       pricingModel = stall.pricingModel,
       chargingPointType = stall.chargingPointType,
+      stall.link.map(_.getId.toString.toInt).toIndexedSeq,
       parkingZoneId = stall.parkingZoneId
     )
   }
@@ -110,6 +113,8 @@ object ParkingEvent {
       attr.get(ATTRIBUTE_PRICING_MODEL).flatMap(PricingModel(_, attr.getOrElse(ATTRIBUTE_COST, "0")))
     val chargingPointType: Option[ChargingPointType] = attr.get(ATTRIBUTE_CHARGING_TYPE).flatMap(ChargingPointType(_))
     val parkingZoneId = Id.create(attr(ATTRIBUTE_PARKING_ZONE_ID), classOf[ParkingZoneId])
+    val linkIdsAsStr = Option(attr(ATTRIBUTE_LINK_IDS)).getOrElse("")
+    val linkIds: IndexedSeq[Int] = if (linkIdsAsStr == "") IndexedSeq.empty else linkIdsAsStr.split(",").map(_.toInt)
     new ParkingEvent(
       time,
       driverId,
@@ -119,6 +124,7 @@ object ParkingEvent {
       parkingType,
       pricingModel,
       chargingPointType,
+      linkIds,
       parkingZoneId
     )
   }
