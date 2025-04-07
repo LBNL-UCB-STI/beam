@@ -60,24 +60,18 @@ class VehicleEmissions(
   def getEmissionsProfileInGram(
     vehicleActivityData: IndexedSeq[BeamVehicle.VehicleActivityData],
     vehicleActivity: Class[_ <: org.matsim.api.core.v01.events.Event],
-    vehicleType: BeamVehicleType,
     beamServices: BeamServices
   ): Option[EmissionsProfile] = {
-    val fallBack = vehicleType.emissionsRatesInGramsPerMile
-    def getEmissionsRatesFilter(vehicleType: BeamVehicleType): Option[EmissionsRateFilter] = {
-      val emissionsRatesFilterFuture: Option[Future[EmissionsRateFilter]] =
-        emissionsRatesFilterStore.getEmissionsRateFilterFor(vehicleType)
-      val maybeEmissionsRateFilter = emissionsRatesFilterFuture.map(future => Await.result(future, 1.minute))
-      maybeEmissionsRateFilter
-    }
-
     val emissionsProfiles = for {
-      data                 <- vehicleActivityData
-      process              <- identifyProcesses(data, vehicleActivity)
-      emissionsRatesFilter <- getEmissionsRatesFilter(data.vehicleType)
-      rates                <- getRatesUsing(emissionsRatesFilter, data, process).orElse(fallBack.flatMap(_.values.get(process)))
-    } yield {
+      data <- vehicleActivityData
+      EmissionsProcessAndRatesStore(process, ratesStore) <- identifyProcesses(
+        data,
+        vehicleActivity,
+        emissionsRatesFilterStore
+      )
+      rates <- getRatesUsing(data, process, ratesStore)
 
+    } yield {
       val emissions = calculationMap(process)(
         rates,
         data,
@@ -91,7 +85,7 @@ class VehicleEmissions(
             time = data.linkStartTime,
             linkId = data.linkId,
             zone = data.taz.map(_.tazId.toString).getOrElse(""),
-            vehicleType = vehicleType.id.toString,
+            vehicleType = data.vehicleType.id.toString,
             emissions = emissions,
             emissionsProcess = process,
             travelTime = data.linkTravelTime.getOrElse(0.0),
@@ -123,9 +117,9 @@ class VehicleEmissions(
   }
 
   private def getRatesUsing(
-    emissionRateFilter: EmissionsRateFilterStore.EmissionsRateFilter,
     data: BeamVehicle.VehicleActivityData,
-    process: EmissionsProcess
+    process: EmissionsProcess,
+    ratesStore: EmissionsRateFilter
   ): Option[Emissions] = {
     val speedInMilesPerHour =
       data.averageSpeed.map(BeamVehicleUtils.convertFromMetersPerSecondToMilesPerHour).getOrElse(0.0)
@@ -134,12 +128,9 @@ class VehicleEmissions(
     val gradePercent = linkIdToGradePercentMap.getOrElse(data.linkId, 0.0)
     val county = data.taz.flatMap(_.county).getOrElse("")
 
-    for {
-      (_, gradeFilter) <- findInterval(
-        emissionRateFilter,
-        speedInMilesPerHour,
-        !List(RUNEX, PMBW).contains(process)
-      )
+    val ratesMaybe = for {
+        (_, speedFilter)     <- findInterval(ratesStore, data.linkCategory)
+      (_, gradeFilter)    <- findInterval(ratesStore, speedInMilesPerHour, !List(RUNEX, PMBW).contains(process))
       (_, weightFilter)   <- findInterval(gradeFilter, gradePercent)
       (_, soakTimeFilter) <- findInterval(weightFilter, weightKg)
       (_, countyFilter) <- findInterval(
@@ -148,29 +139,36 @@ class VehicleEmissions(
         !List(STREX).contains(process)
       )
       (_, processFilter) <- countyFilter.find(_._1 == county.trim.toLowerCase)
-      rate               <- processFilter.get(process.toString)
-    } yield rate
+      rates              <- processFilter.get(process.toString)
+    } yield rates
+
+    ratesMaybe.orElse(data.vehicleType.emissionsRatesInGramsPerMile.flatMap(_.values.get(process)))
   }
 }
 
 object VehicleEmissions extends LazyLogging {
 
+  case class EmissionsProcessAndRatesStore(process: EmissionsProcess, ratesStore: EmissionsRateFilter)
+
   object EmissionsRateFilterStore {
 
     // speed -> (gradePercent -> (weight -> (soakTime -> (county -> (emissionProcess -> rate)))))
     type EmissionsRateFilter = Map[
-      DoubleTypedRange, // speed
+      String, // road category
       Map[
-        DoubleTypedRange, // grade percent
+        DoubleTypedRange, // speed
         Map[
-          DoubleTypedRange, // weight
+          DoubleTypedRange, // grade percent
           Map[
-            DoubleTypedRange, // soak time
+            DoubleTypedRange, // weight
             Map[
-              String, // county
+              DoubleTypedRange, // soak time
               Map[
-                String, // emissionProcess
-                Emissions // rate
+                String, // county
+                Map[
+                  String, // emissionProcess
+                  Emissions // rate
+                ]
               ]
             ]
           ]
@@ -288,53 +286,43 @@ object VehicleEmissions extends LazyLogging {
       )
     }
 
-    private def getOperationDurationUpdateOperationTime(
-      operationTime: TrieMap[Id[BeamVehicle], Double],
-      data: BeamVehicle.VehicleActivityData,
-      currentDuration: Double
-    ): Double = {
-      val opDuration = data.linkStartTime - operationTime.getOrElseUpdate(data.vehicleId, data.activityStartTime)
-      operationTime.update(data.vehicleId, data.linkStartTime + currentDuration)
-      opDuration
-    }
-
     def identifyProcesses(
       data: BeamVehicle.VehicleActivityData,
-      event: Class[_ <: org.matsim.api.core.v01.events.Event]
-    ): ValueSet = {
-      val isIdlingCategory = data.vehicleType.vehicleCategory match {
-        case MediumDutyPassenger | Class456Vocational | Class78Vocational | Class78Tractor => true
-        case _                                                                             => false
+      event: Class[_ <: org.matsim.api.core.v01.events.Event],
+      emissionsRatesFilterStore: EmissionsRateFilterStore
+    ): IndexedSeq[EmissionsProcessAndRatesStore] = {
+      emissionsRatesFilterStore
+        .getEmissionsRateFilterFor(data.vehicleType)
+        .map(future => Await.result(future, 1.minute)) match {
+        case Some(rateFilter) =>
+          EmissionsProfile.values.flatMap {
+            /**
+              * IDLE activity should be the first element of VehicleActivity data sequence
+              * the type is PathTraversalEvent because there is no difference, IDLE activity happens between other events
+              *
+              * Idle Exhaust (IDLEX) emissions refer to the emissions during extended idling events (i.e., a continuous
+              * segment of vehicle activity that meets three criteria: all instantaneous vehicle speeds being lower
+              * than 5 mph, the total distance of less than 1 mile, and the total duration of more than 5 minutes)
+              * by heavy duty trucks. Extended idle may occur during loading or unloading goods, or to power accessories.
+              * Idle exhaust is calculated only for heavy-duty trucks. For light duty vehicles, the idle events during
+              * normal vehicle operation are already accounted for, i.e. RUNEX emission rates are based on driving
+              * cycles that include normal idling events. IDLEX emission rates do not vary by temperature and humidity
+              * and are not related to speed bins.
+              * https://ww2.arb.ca.gov/sites/default/files/2021-03/emfac2021_volume_2_pl_handbook.pdf
+              */
+            case process @ IDLEX if isIdlingDriving(data, event) || isIdlingParking(data, event) =>
+              Some(EmissionsProcessAndRatesStore(process, rateFilter))
+
+            case process @ (RUNEX | PMBW | PMTW | RUNLOSS | PRDUST) if event == classOf[PathTraversalEvent] =>
+              Some(EmissionsProcessAndRatesStore(process, rateFilter))
+
+            case process @ (STREX | DIURN | HOTSOAK | RUNLOSS) if event == classOf[LeavingParkingEvent] =>
+              Some(EmissionsProcessAndRatesStore(process, rateFilter))
+
+            case _ => None
+          }.toIndexedSeq
+        case _ => IndexedSeq.empty
       }
-
-      val emissionProcesses = {
-        EmissionsProfile.values.flatMap {
-          /**
-            * IDLE activity should be the first element of VehicleActivity data sequence
-            * the type is PathTraversalEvent because there is no difference, IDLE activity happens between other events
-            *
-            * Idle Exhaust (IDLEX) emissions refer to the emissions during extended idling events (i.e., a continuous
-            * segment of vehicle activity that meets three criteria: all instantaneous vehicle speeds being lower
-            * than 5 mph, the total distance of less than 1 mile, and the total duration of more than 5 minutes)
-            * by heavy duty trucks. Extended idle may occur during loading or unloading goods, or to power accessories.
-            * Idle exhaust is calculated only for heavy-duty trucks. For light duty vehicles, the idle events during
-            * normal vehicle operation are already accounted for, i.e. RUNEX emission rates are based on driving
-            * cycles that include normal idling events. IDLEX emission rates do not vary by temperature and humidity
-            * and are not related to speed bins.
-            * https://ww2.arb.ca.gov/sites/default/files/2021-03/emfac2021_volume_2_pl_handbook.pdf
-            */
-          case process @ IDLEX if isIdlingCategory && (isIdlingDriving(data, event) || isIdlingParking(data, event)) =>
-            Some(process)
-
-          case process @ (RUNEX | PMBW | PMTW | RUNLOSS | PRDUST) if event == classOf[PathTraversalEvent] =>
-            Some(process)
-
-          case process @ (STREX | DIURN | HOTSOAK | RUNLOSS) if event == classOf[LeavingParkingEvent] => Some(process)
-          case _                                                                                      => None
-        }
-      }
-
-      emissionProcesses
     }
 
     def fromString(process: String): Option[EmissionsProcess] = process.toLowerCase match {
@@ -638,6 +626,7 @@ object VehicleEmissions extends LazyLogging {
     private val weightBinHeader = "mass_kg_float_bins"
     private val soakTimeBinHeader = "time_minutes_float_bins"
     private val countyBinHeader = "county"
+    private val roadCategoryHeader = "road_category"
     /*
     Emissions Processes:
     RUNEX - Running Exhaust: Emissions from vehicle tailpipe while traveling on the road
@@ -715,10 +704,11 @@ object VehicleEmissions extends LazyLogging {
       csvParser: CsvParser
     ): EmissionsRateFilterStore.EmissionsRateFilter = {
 
-      val currentRateFilter = mutable.Map.empty[DoubleTypedRange, mutable.Map[DoubleTypedRange, mutable.Map[
-        DoubleTypedRange,
-        mutable.Map[DoubleTypedRange, mutable.Map[String, mutable.Map[String, Emissions]]]
-      ]]]
+      val currentRateFilter =
+        mutable.Map.empty[String, mutable.Map[DoubleTypedRange, mutable.Map[DoubleTypedRange, mutable.Map[
+          DoubleTypedRange,
+          mutable.Map[DoubleTypedRange, mutable.Map[String, mutable.Map[String, Emissions]]]
+        ]]]]
 
       var rowCount = 0
       log.info(s"Loading emission rates from file: $file")
@@ -728,6 +718,8 @@ object VehicleEmissions extends LazyLogging {
           .foreach(csvRecord => {
             rowCount += 1
 
+            // Road Category as defined in OpenStreetMap
+            val roadCategory: String = getString(csvRecord, roadCategoryHeader, "")
             // Speed Bin in MPH
             val speedInMilesPerHourBin: DoubleTypedRange =
               convertRecordStringToDoubleTypedRange(getString(csvRecord, speedBinHeader, "[0,200]"))
@@ -786,63 +778,78 @@ object VehicleEmissions extends LazyLogging {
                 "Erroring early to bring attention and get it fixed."
               )
             }
-
-            currentRateFilter.get(speedInMilesPerHourBin) match {
-              case Some(gradePercentFilter) =>
-                gradePercentFilter.get(gradePercentBin) match {
-                  case Some(weightKgFilter) =>
-                    weightKgFilter.get(weightKgBin) match {
-                      case Some(soakTimeFilter) =>
-                        soakTimeFilter.get(soakTimeBin) match {
-                          case Some(countyFilter) =>
-                            countyFilter.get(county) match {
-                              case Some(emissionsProcessFilter) =>
-                                emissionsProcessFilter.get(emissionProcess) match {
-                                  case Some(existingRates) =>
-                                    log.error(
-                                      "Two emission rates found for the same bin combination: " +
-                                      "County = {}; Speed In Miles Per Hour Bin = {}; " +
-                                      "Grade Percent Bin = {}; Weight kg Bin = {}; Soak Time Bin = {}. " +
-                                      s"Keeping first rate of $existingRates and ignoring new rate of $ratesInGramsPerMile.",
-                                      county,
-                                      speedInMilesPerHourBin,
-                                      gradePercentBin,
-                                      weightKgBin,
-                                      soakTimeBin
-                                    )
+            // roadCategory
+            currentRateFilter.get(roadCategory) match {
+              case Some(speedInMilesPerHourFilter) =>
+                speedInMilesPerHourFilter.get(speedInMilesPerHourBin) match {
+                  case Some(gradePercentFilter) =>
+                    gradePercentFilter.get(gradePercentBin) match {
+                      case Some(weightKgFilter) =>
+                        weightKgFilter.get(weightKgBin) match {
+                          case Some(soakTimeFilter) =>
+                            soakTimeFilter.get(soakTimeBin) match {
+                              case Some(countyFilter) =>
+                                countyFilter.get(county) match {
+                                  case Some(emissionsProcessFilter) =>
+                                    emissionsProcessFilter.get(emissionProcess) match {
+                                      case Some(existingRates) =>
+                                        log.error(
+                                          "Two emission rates found for the same bin combination: " +
+                                          "County = {}; Speed In Miles Per Hour Bin = {}; " +
+                                          "Grade Percent Bin = {}; Weight kg Bin = {}; Soak Time Bin = {}. " +
+                                          s"Keeping first rate of $existingRates and ignoring new rate of $ratesInGramsPerMile.",
+                                          county,
+                                          speedInMilesPerHourBin,
+                                          gradePercentBin,
+                                          weightKgBin,
+                                          soakTimeBin
+                                        )
+                                      case None =>
+                                        emissionsProcessFilter += emissionProcess -> ratesInGramsPerMile
+                                    }
                                   case None =>
-                                    emissionsProcessFilter += emissionProcess -> ratesInGramsPerMile
+                                    countyFilter += county -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
                                 }
                               case None =>
-                                countyFilter += county -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
+                                soakTimeFilter += soakTimeBin -> mutable.Map(
+                                  county -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
+                                )
                             }
                           case None =>
-                            soakTimeFilter += soakTimeBin -> mutable.Map(
-                              county -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
+                            weightKgFilter += weightKgBin -> mutable.Map(
+                              soakTimeBin -> mutable.Map(
+                                county -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
+                              )
                             )
                         }
                       case None =>
-                        weightKgFilter += weightKgBin -> mutable.Map(
-                          soakTimeBin -> mutable.Map(
-                            county -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
+                        gradePercentFilter += gradePercentBin -> mutable.Map(
+                          weightKgBin -> mutable.Map(
+                            soakTimeBin -> mutable.Map(
+                              county -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
+                            )
                           )
                         )
                     }
                   case None =>
-                    gradePercentFilter += gradePercentBin -> mutable.Map(
-                      weightKgBin -> mutable.Map(
-                        soakTimeBin -> mutable.Map(
-                          county -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
+                    currentRateFilter += speedInMilesPerHourBin -> mutable.Map(
+                      gradePercentBin -> mutable.Map(
+                        weightKgBin -> mutable.Map(
+                          soakTimeBin -> mutable.Map(
+                            county -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
+                          )
                         )
                       )
                     )
                 }
               case None =>
-                currentRateFilter += speedInMilesPerHourBin -> mutable.Map(
-                  gradePercentBin -> mutable.Map(
-                    weightKgBin -> mutable.Map(
-                      soakTimeBin -> mutable.Map(
-                        county -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
+                currentRateFilter += roadCategory -> mutable.Map(
+                  speedInMilesPerHourBin -> mutable.Map(
+                    gradePercentBin -> mutable.Map(
+                      weightKgBin -> mutable.Map(
+                        soakTimeBin -> mutable.Map(
+                          county -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
+                        )
                       )
                     )
                   )
@@ -853,12 +860,14 @@ object VehicleEmissions extends LazyLogging {
 
       log.info(s"Finished loading emission rates. Total number of emissions entries: $rowCount")
 
-      currentRateFilter.toMap.map { case (speedInMilesPerHourBin, gradePercentMap) =>
-        speedInMilesPerHourBin -> gradePercentMap.toMap.map { case (gradePercentBin, weightMap) =>
-          gradePercentBin -> weightMap.toMap.map { case (weightKgBin, soakTimeMap) =>
-            weightKgBin -> soakTimeMap.toMap.map { case (soakTimeBin, countyMap) =>
-              soakTimeBin -> countyMap.toMap.map { case (county, emissionsProcessMap) =>
-                county -> emissionsProcessMap.toMap
+      currentRateFilter.toMap.map { case (roadCategory, speedInMilesPerHourMap) =>
+        roadCategory -> speedInMilesPerHourMap.toMap.map { case (speedInMilesPerHourBin, gradePercentMap) =>
+          speedInMilesPerHourBin -> gradePercentMap.toMap.map { case (gradePercentBin, weightMap) =>
+            gradePercentBin -> weightMap.toMap.map { case (weightKgBin, soakTimeMap) =>
+              weightKgBin -> soakTimeMap.toMap.map { case (soakTimeBin, countyMap) =>
+                soakTimeBin -> countyMap.toMap.map { case (county, emissionsProcessMap) =>
+                  county -> emissionsProcessMap.toMap
+                }
               }
             }
           }

@@ -317,7 +317,6 @@ class BeamVehicle(
       val emissionsMaybe = beamServices.beamScenario.vehicleEmissions.getEmissionsProfileInGram(
         vehicleActivityData,
         vehicleActivity,
-        beamVehicleType,
         beamServices
       )
 
