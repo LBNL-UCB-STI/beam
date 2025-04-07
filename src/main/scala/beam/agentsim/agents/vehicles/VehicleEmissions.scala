@@ -29,8 +29,7 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
-
-case class OperationStatus(time: Double, isTraveling: Boolean, duration: Option[Double])
+import scala.collection.concurrent.TrieMap
 
 class VehicleEmissions(
   vehicleTypesBasePaths: IndexedSeq[String],
@@ -50,8 +49,8 @@ class VehicleEmissions(
     emissionsRateFilePathsByVehicleType = vehicleTypes.values.map(x => (x, x.emissionsRatesFile)).toIndexedSeq
   )
 
-  private lazy val vehicleOperationTime: mutable.HashMap[Id[BeamVehicle], OperationStatus] =
-    mutable.HashMap.empty[Id[BeamVehicle], OperationStatus]
+  private lazy val vehicleOperationTimeTrieMap: TrieMap[Id[BeamVehicle], Double] =
+    TrieMap.empty[Id[BeamVehicle], Double]
 
   private lazy val linkIdToGradePercentMap =
     BeamVehicleUtils.loadLinkIdToGradeMapFromCSV(csvParser, linkToGradePercentFilePath)
@@ -72,19 +71,6 @@ class VehicleEmissions(
       maybeEmissionsRateFilter
     }
 
-    vehicleActivityData.headOption.foreach { data =>
-      val startTime = data.activityStartTime
-      val isNotParking = data.parkingActivityType.isEmpty
-      val op = vehicleOperationTime.getOrElseUpdate(data.vehicleId, OperationStatus(startTime, isNotParking, None))
-      if (op.duration.nonEmpty && data.parkingActivityType.isEmpty) {
-        // remove duration when traveling and update time
-        vehicleOperationTime.update(data.vehicleId, op.copy(time = startTime, duration = None))
-      } else if (op.duration.isEmpty && data.parkingActivityType.nonEmpty && startTime > op.time) {
-        // calculate duration when parked after a travel
-        vehicleOperationTime.update(data.vehicleId, op.copy(duration = Some(startTime - op.time)))
-      }
-    }
-
     val emissionsProfiles = for {
       data                 <- vehicleActivityData
       process              <- identifyProcesses(data, vehicleActivity)
@@ -95,7 +81,7 @@ class VehicleEmissions(
       val emissions = calculationMap(process)(
         rates,
         data,
-        vehicleOperationTime,
+        vehicleOperationTimeTrieMap,
         beamServices.beamConfig.beam.agentsim.agents.vehicles.emissions
       )
       if (beamServices.beamConfig.beam.agentsim.agents.vehicles.emissions.skims) {
@@ -302,6 +288,16 @@ object VehicleEmissions extends LazyLogging {
       )
     }
 
+    private def getOperationDurationUpdateOperationTime(
+      operationTime: TrieMap[Id[BeamVehicle], Double],
+      data: BeamVehicle.VehicleActivityData,
+      currentDuration: Double
+    ): Double = {
+      val opDuration = data.linkStartTime - operationTime.getOrElseUpdate(data.vehicleId, data.activityStartTime)
+      operationTime.update(data.vehicleId, data.linkStartTime + currentDuration)
+      opDuration
+    }
+
     def identifyProcesses(
       data: BeamVehicle.VehicleActivityData,
       event: Class[_ <: org.matsim.api.core.v01.events.Event]
@@ -429,7 +425,7 @@ object VehicleEmissions extends LazyLogging {
       (
         Emissions,
         BeamVehicle.VehicleActivityData,
-        mutable.HashMap[Id[BeamVehicle], OperationStatus],
+        TrieMap[Id[BeamVehicle], Double],
         BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
       ) => Emissions
     ] = Map(
@@ -444,10 +440,12 @@ object VehicleEmissions extends LazyLogging {
         (
           ratesBySpeedBin: Emissions,
           data: BeamVehicle.VehicleActivityData,
-          _: mutable.HashMap[Id[BeamVehicle], OperationStatus],
+          operationTimeMap: TrieMap[Id[BeamVehicle], Double],
           _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
+          operationTimeMap.getOrElseUpdate(data.vehicleId, data.activityStartTime)
           val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
+
           ratesBySpeedBin * vehicleMilesTraveledInMiles
       },
       /**
@@ -461,30 +459,32 @@ object VehicleEmissions extends LazyLogging {
         (
           rates: Emissions,
           data: BeamVehicle.VehicleActivityData,
-          vehicleOperationTime: mutable.HashMap[Id[BeamVehicle], OperationStatus],
+          operationTimeMap: TrieMap[Id[BeamVehicle], Double],
           emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
           val idlingHours: Double =
             data.parkingActivityType match {
+
               case Some(Hotelling) =>
-                val vehicleParkingInHours = data.parkingDuration.map(_ / 3600.0).getOrElse(0.0)
-                vehicleParkingInHours
+                val vehicleParkingInSec = data.parkingDuration.getOrElse(0.0)
+                val operationDurationInSec =
+                  data.linkStartTime - operationTimeMap.getOrElseUpdate(data.vehicleId, data.activityStartTime)
+                operationTimeMap.update(data.vehicleId, data.linkStartTime + vehicleParkingInSec)
+                val hotellingInHours = (vehicleParkingInSec + operationDurationInSec) / 3600.0
+                hotellingInHours
+
               case _ =>
+                val vehicleDurationInSec = data.linkTravelTime.getOrElse(0.0).max(data.parkingDuration.getOrElse(0.0))
+                val operationDurationInSec =
+                  data.linkStartTime - operationTimeMap.getOrElseUpdate(data.vehicleId, data.activityStartTime)
+                operationTimeMap.update(data.vehicleId, data.linkStartTime + vehicleDurationInSec)
                 val workingIdleFactorMaybe =
-                  workdayIdleFactor.get(data.vehicleType.vehicleCategory).map(_(emissionsConfig))
-                val operationInHoursMaybe = if (data.linkTravelTime.nonEmpty) {
-                  val linkTravelTime = data.linkTravelTime.map(_ / 3600.0).getOrElse(0.0)
-                  Some((data.linkStartTime - data.activityStartTime) + linkTravelTime)
-                } else if (data.parkingDuration.nonEmpty) {
-                  val travelingTime = vehicleOperationTime.get(data.vehicleId).flatMap(_.duration).map(_ / 3600.0)
-                  val parkingDuration = data.parkingDuration.map(_ / 3600.0).getOrElse(0.0)
-                  Some(parkingDuration + travelingTime.getOrElse(0.0))
-                } else {
-                  Some(0.0)
-                }
-                val portionOfIdlingHours = operationInHoursMaybe.getOrElse(0.0) * workingIdleFactorMaybe.getOrElse(0.0)
+                  workdayIdleFactor.get(data.vehicleType.vehicleCategory).map(_(emissionsConfig)).getOrElse(0.0)
+                val portionOfIdlingHours =
+                  ((operationDurationInSec + vehicleDurationInSec) / 3600.0) * workingIdleFactorMaybe
                 portionOfIdlingHours
             }
+
           rates * idlingHours
       },
       /**
@@ -498,11 +498,13 @@ object VehicleEmissions extends LazyLogging {
       STREX -> {
         (
           ratesBySoakTime: Emissions,
-          _: BeamVehicle.VehicleActivityData,
-          _: mutable.HashMap[Id[BeamVehicle], OperationStatus],
+          data: BeamVehicle.VehicleActivityData,
+          operationTimeMap: TrieMap[Id[BeamVehicle], Double],
           _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
+          operationTimeMap.getOrElseUpdate(data.vehicleId, data.activityStartTime)
           val numberOfVehicleStartTimes = 1 // We calculate it for 1 leave parking event
+
           ratesBySoakTime * numberOfVehicleStartTimes
       },
       /**
@@ -517,10 +519,12 @@ object VehicleEmissions extends LazyLogging {
         (
           rates: Emissions,
           data: BeamVehicle.VehicleActivityData,
-          _: mutable.HashMap[Id[BeamVehicle], OperationStatus],
+          operationTimeMap: TrieMap[Id[BeamVehicle], Double],
           _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
+          operationTimeMap.getOrElseUpdate(data.vehicleId, data.activityStartTime)
           val vehicleParkingInHours = data.parkingDuration.map(_ / 3600.0).getOrElse(0.0)
+
           rates * vehicleParkingInHours
       },
       /**
@@ -534,11 +538,13 @@ object VehicleEmissions extends LazyLogging {
       HOTSOAK -> {
         (
           rates: Emissions,
-          _: BeamVehicle.VehicleActivityData,
-          _: mutable.HashMap[Id[BeamVehicle], OperationStatus],
+          data: BeamVehicle.VehicleActivityData,
+          operationTimeMap: TrieMap[Id[BeamVehicle], Double],
           _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
+          operationTimeMap.getOrElseUpdate(data.vehicleId, data.activityStartTime)
           val numberOfVehicleStartTimes = 1 // We calculate it for 1 leave parking event
+
           rates * numberOfVehicleStartTimes
       },
       /**
@@ -552,11 +558,13 @@ object VehicleEmissions extends LazyLogging {
         (
           rates: Emissions,
           data: BeamVehicle.VehicleActivityData,
-          _: mutable.HashMap[Id[BeamVehicle], OperationStatus],
+          operationTimeMap: TrieMap[Id[BeamVehicle], Double],
           _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
+          operationTimeMap.getOrElseUpdate(data.vehicleId, data.activityStartTime)
           val vehicleHoursTraveledInHours =
             data.linkTravelTime.map(_ / 3600.0).orElse(data.parkingDuration.map(_ / 3600.0)).getOrElse(0.0)
+
           rates * vehicleHoursTraveledInHours
       },
       /**
@@ -570,10 +578,12 @@ object VehicleEmissions extends LazyLogging {
         (
           rates: Emissions,
           data: BeamVehicle.VehicleActivityData,
-          _: mutable.HashMap[Id[BeamVehicle], OperationStatus],
+          operationTimeMap: TrieMap[Id[BeamVehicle], Double],
           _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
+          operationTimeMap.getOrElseUpdate(data.vehicleId, data.activityStartTime)
           val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
+
           rates * vehicleMilesTraveledInMiles
       },
       /**
@@ -587,10 +597,12 @@ object VehicleEmissions extends LazyLogging {
         (
           ratesBySpeedBin: Emissions,
           data: BeamVehicle.VehicleActivityData,
-          _: mutable.HashMap[Id[BeamVehicle], OperationStatus],
+          operationTimeMap: TrieMap[Id[BeamVehicle], Double],
           _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
+          operationTimeMap.getOrElseUpdate(data.vehicleId, data.activityStartTime)
           val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
+
           ratesBySpeedBin * vehicleMilesTraveledInMiles
       },
       /**
@@ -604,10 +616,12 @@ object VehicleEmissions extends LazyLogging {
         (
           rates: Emissions,
           data: BeamVehicle.VehicleActivityData,
-          _: mutable.HashMap[Id[BeamVehicle], OperationStatus],
+          operationTimeMap: TrieMap[Id[BeamVehicle], Double],
           _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
+          operationTimeMap.getOrElseUpdate(data.vehicleId, data.activityStartTime)
           val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
+
           rates * vehicleMilesTraveledInMiles
       }
     )
