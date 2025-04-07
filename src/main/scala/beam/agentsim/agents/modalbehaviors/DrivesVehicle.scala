@@ -366,9 +366,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       )
       val emissionsProfile = EmissionsProfile.join(emissionsProfilePTE, emissionsProfileIDLE)
       val numberOfPassengers: Int = calculateNumberOfPassengersBasedOnCurrentTripMode(data, currentLeg, riders)
-      if (id.toString.startsWith("rideHail")) {
-        logger.error("[DrivesVehicle] RH here! => " + id.toString)
-      }
       val pte = PathTraversalEvent(
         tick,
         currentVehicleUnderControl,
@@ -612,9 +609,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         tollsAccumulated += tollOnCurrentLeg
         val numberOfPassengers: Int =
           calculateNumberOfPassengersBasedOnCurrentTripMode(data, partiallyCompletedBeamLeg, riders)
-        if (id.toString.startsWith("rideHail")) {
-          logger.error("[DrivesVehicle] RH here! => " + id.toString)
-        }
         val pte = PathTraversalEvent(
           updatedStopTick,
           currentVehicleUnderControl,

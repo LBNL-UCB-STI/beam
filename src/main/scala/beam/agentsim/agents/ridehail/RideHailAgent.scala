@@ -312,10 +312,6 @@ class RideHailAgent(
           classOf[LeavingParkingEvent],
           beamServices
         )
-        logger.error("myUnhandled state({}): {}", stateName, ev)
-        logger.error(
-          "[RideHailAgent] ShiftEvent => " + id.toString + " emissionsProfileIDLE => " + emissionsProfileIDLE
-        )
         eventsManager.processEvent(new ShiftEvent(actualLastTick, EndShift, id.toString, vehicle, emissionsProfileIDLE))
       }
       stop
@@ -474,12 +470,6 @@ class RideHailAgent(
           classOf[LeavingParkingEvent],
           beamServices
         )
-        logger.error(
-          s"NotifyVehicleDoneRefuelingAndOutOfServiceReply with trigger id $triggerId and vehicle ${vehicle.id}"
-        )
-        logger.error(
-          "[RideHailAgent] ShiftEvent => " + id.toString + " emissionsProfileIDLE => " + emissionsProfileIDLE
-        )
         eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle, emissionsProfileIDLE))
 
         currentBeamVehicle.resetLastVehicleLinkTime()
@@ -514,10 +504,6 @@ class RideHailAgent(
             beamServices
           )
           currentBeamVehicle.resetLastVehicleLinkTime()
-          logger.error(s"StartShiftTrigger with trigger id $triggerId and vehicle ${vehicle.id}")
-          logger.error(
-            "[RideHailAgent] ShiftEvent => " + id.toString + " emissionsProfileIDLE => " + emissionsProfileIDLE
-          )
           eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle, emissionsProfileIDLE))
           needsToEndShift = false
           isCurrentlyOnShift = false
@@ -658,10 +644,6 @@ class RideHailAgent(
         beamServices
       )
       currentBeamVehicle.resetLastVehicleLinkTime()
-      logger.error(s"state(RideHailAgent.Idle.EndShiftTrigger; Trigger ID: $triggerId; Vehicle ID: ${vehicle.id}")
-      logger.error(
-        "[RideHailAgent] ShiftEvent => " + id.toString + " emissionsProfileIDLE => " + emissionsProfileIDLE + " maybeIDLEVehicleActivity => " + maybeIDLEVehicleActivity
-      )
       eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle, emissionsProfileIDLE))
       isCurrentlyOnShift = false
       val newShiftToSchedule = if (data.remainingShifts.size < 1) {

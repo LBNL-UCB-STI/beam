@@ -95,21 +95,17 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
     it(
       "expected for emissions be generated for each PTE link and for eny IDLE time between Shift events and PT events"
     ) {
-      val rhWithEmissions = mutable.ListBuffer[LeavingParkingEvent]()
       val rhPTWithEmissions = mutable.ListBuffer[PathTraversalEvent]()
 
-      val lastVehicleShiftEvent = mutable.HashMap.empty[String, ShiftEvent]
-      val lastVehicleLeavingParkingEvent = mutable.HashMap.empty[String, LeavingParkingEvent]
-      val vehicleIdleLinkHour = mutable.HashMap.empty[String, Int]
+      case class EmissionsTuple(link: String, hour: Int)
 
-      def putIDLERecords(fromTick: Int, toTick: Int, linkId: Option[Int]): Unit = {
-        if (math.abs(toTick - fromTick) > 10) {
-          val startHr = math.floor(fromTick / 3600).toInt
-          val maxHr = math.ceil(toTick / 3600).toInt
-          (startHr to math.min(23, maxHr)).foreach { hr =>
-            vehicleIdleLinkHour(linkId.map(_.toString).getOrElse("")) = hr
-          }
-        }
+      val lastVehicleShiftEvent = mutable.HashMap.empty[String, ShiftEvent]
+      val lastVehiclePTEvent = mutable.HashMap.empty[String, PathTraversalEvent]
+      val emissionsProcessLinkHour = mutable.HashMap.empty[EmissionsTuple, Int]
+
+      def putRecords(fromTick: Int, linkId: Option[Int]): Unit = {
+        val key = EmissionsTuple(linkId.map(_.toString).getOrElse(""), math.floor(fromTick / 3600).toInt)
+        emissionsProcessLinkHour.put(key, emissionsProcessLinkHour.getOrElse(key, 0) + 1)
       }
 
       val outPath = runWithConfig(
@@ -120,24 +116,21 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
 
           case e: PathTraversalEvent if e.vehicleId.toString.startsWith("rideHail") && e.emissionsProfile.isDefined =>
             rhPTWithEmissions.append(e)
-
-          case e: LeavingParkingEvent if e.vehicleId.toString.startsWith("rideHail") && e.emissionsProfile.isDefined =>
-            rhWithEmissions.append(e)
             lastVehicleShiftEvent.remove(e.vehicleId.toString) match {
-              case Some(sh) => putIDLERecords(sh.tick.toInt, e.time.toInt, e.linkIds.headOption)
+              case Some(sh) => putRecords(sh.tick.toInt, e.linkIds.headOption)
               case None     => // Empty case with explicit empty comment
             }
-            lastVehicleLeavingParkingEvent.remove(e.vehicleId.toString) match {
+            lastVehiclePTEvent.remove(e.vehicleId.toString) match {
               case Some(pte) =>
-                putIDLERecords((pte.time + pte.parkingDuration).toInt, e.time.toInt, e.linkIds.headOption)
+                putRecords(pte.departureTime, e.linkIds.headOption)
               case None => // Empty case with explicit empty comment
             }
-            lastVehicleLeavingParkingEvent(e.vehicleId.toString) = e
+            lastVehiclePTEvent(e.vehicleId.toString) = e
 
           case sh: ShiftEvent if sh.shiftEventType == EndShift && sh.emissionsProfile.isDefined =>
-            lastVehicleLeavingParkingEvent.remove(sh.vehicle.id.toString) match {
+            lastVehiclePTEvent.remove(sh.vehicle.id.toString) match {
               case Some(pte) =>
-                putIDLERecords((pte.time + pte.parkingDuration).toInt, sh.tick.toInt, pte.linkIds.lastOption)
+                putRecords(pte.departureTime, pte.linkIds.lastOption)
               case None => // Empty case with explicit empty comment
             }
             lastVehicleShiftEvent(sh.vehicle.id.toString) = sh
@@ -159,30 +152,32 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
       val skimsEmissions: Map[EmissionsSkimmerKey, EmissionsSkimmerInternal] = readSkims(outPath, 0)
       skimsEmissions shouldNot be(empty) withClue "Emissions skims should be generated."
 
-      val notIDLESkimsLinks: Set[String] = skimsEmissions.keys
+      val notSkimsLinks: Set[String] = skimsEmissions.keys
         .filter(ek => ek.emissionsProcess != VehicleEmissions.EmissionsProfile.IDLEX)
         .map(_.linkId)
         .toSet
 
-      rhWithEmissions
+      rhPTWithEmissions
         .flatMap(pte => pte.linkIds)
         .foreach(linkId =>
           assert(
-            notIDLESkimsLinks.contains(linkId.toString),
+            notSkimsLinks.contains(linkId.toString),
             "All links from RH PathTraversal events should be in skims."
           )
         )
 
-      vehicleIdleLinkHour shouldNot be(empty) withClue "There should be IDLE time of RH vehicles."
+      emissionsProcessLinkHour shouldNot be(empty) withClue "There should be emissions processes of RH vehicles."
 
-      val skimsIDLEKeys =
+      val skimsKeys =
         skimsEmissions.keys
-          .filter(ek => ek.emissionsProcess == VehicleEmissions.EmissionsProfile.IDLEX)
           .map(ek => (ek.linkId, ek.hour))
           .toSet
 
-      vehicleIdleLinkHour.foreach { case (linkId, hr) =>
-        assert(skimsIDLEKeys.contains((linkId, hr)), "All IDLE time of RH vehicles should be in skims.")
+      emissionsProcessLinkHour.keys.foreach { emissionsTuple =>
+        assert(
+          skimsKeys.contains((emissionsTuple.link, emissionsTuple.hour)),
+          "All emissions processes of RH vehicles should be in skims."
+        )
       }
     }
   }

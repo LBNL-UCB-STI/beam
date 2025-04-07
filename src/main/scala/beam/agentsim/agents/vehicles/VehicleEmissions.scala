@@ -15,8 +15,8 @@ import beam.router.skim.event.EmissionsSkimmerEvent
 import beam.sim.BeamServices
 import beam.sim.common.DoubleTypedRange
 import beam.sim.config.BeamConfig
-import beam.utils.BeamVehicleUtils
 import beam.utils.BeamVehicleUtils.convertRecordStringToDoubleTypedRange
+import beam.utils.{BeamVehicleUtils, NetworkHelper}
 import com.typesafe.scalalogging.LazyLogging
 import com.univocity.parsers.common.record.Record
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
@@ -25,11 +25,11 @@ import org.matsim.core.utils.io.IOUtils
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
+import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
-import scala.collection.concurrent.TrieMap
 
 class VehicleEmissions(
   vehicleTypesBasePaths: IndexedSeq[String],
@@ -69,7 +69,7 @@ class VehicleEmissions(
         vehicleActivity,
         emissionsRatesFilterStore
       )
-      rates <- getRatesUsing(data, process, ratesStore)
+      rates <- getRatesUsing(data, process, ratesStore, beamServices.networkHelper)
 
     } yield {
       val emissions = calculationMap(process)(
@@ -101,17 +101,29 @@ class VehicleEmissions(
     if (emissionsProfiles.isEmpty) None else Some(EmissionsProfile(emissionsProfiles.toMap))
   }
 
+  private def findString[T](
+    map: Map[String, T],
+    value: String,
+    preferEmptyKey: Boolean = true
+  ): Option[(String, T)] = {
+    if (preferEmptyKey) {
+      map.find(_._1 == "").orElse(map.find(_._1 == value))
+    } else {
+      map.find(_._1 == value).orElse(map.find(_._1 == ""))
+    }
+  }
+
   private def findInterval[T](
     map: Map[DoubleTypedRange, T],
     value: Double,
-    getDefaultInterval: Boolean = true
+    preferWiderRanges: Boolean = true
   ): Option[(DoubleTypedRange, T)] = {
     val filteredMap = map.filter(_._1.has(value))
     if (filteredMap.isEmpty) {
       None
     } else {
       Some(filteredMap.maxBy { case (range, _) =>
-        (range.upperBound - range.lowerBound) * (if (getDefaultInterval) 1 else -1)
+        (range.upperBound - range.lowerBound) * (if (preferWiderRanges) 1 else -1)
       })
     }
   }
@@ -119,27 +131,34 @@ class VehicleEmissions(
   private def getRatesUsing(
     data: BeamVehicle.VehicleActivityData,
     process: EmissionsProcess,
-    ratesStore: EmissionsRateFilter
+    ratesStore: EmissionsRateFilter,
+    networkHelper: NetworkHelper
   ): Option[Emissions] = {
     val speedInMilesPerHour =
       data.averageSpeed.map(BeamVehicleUtils.convertFromMetersPerSecondToMilesPerHour).getOrElse(0.0)
     val weightKg = data.vehicleType.curbWeightInKg + data.payloadInKg.getOrElse(0.0)
     val soakTimeIntMinutes = data.parkingDuration.map(_ / 60.0).getOrElse(0.0)
     val gradePercent = linkIdToGradePercentMap.getOrElse(data.linkId, 0.0)
-    val county = data.taz.flatMap(_.county).getOrElse("")
+    val county = data.taz.flatMap(_.county).getOrElse("").trim.toLowerCase
+    val roadCategory =
+      networkHelper.getLink(data.linkId).map(_.getAttributes.getAttribute("type").toString.toLowerCase).getOrElse("")
 
     val ratesMaybe = for {
-        (_, speedFilter)     <- findInterval(ratesStore, data.linkCategory)
-      (_, gradeFilter)    <- findInterval(ratesStore, speedInMilesPerHour, !List(RUNEX, PMBW).contains(process))
+      (_, gradeFilter) <- findInterval(
+        ratesStore,
+        speedInMilesPerHour,
+        preferWiderRanges = !List(RUNEX, PMBW).contains(process)
+      )
       (_, weightFilter)   <- findInterval(gradeFilter, gradePercent)
       (_, soakTimeFilter) <- findInterval(weightFilter, weightKg)
       (_, countyFilter) <- findInterval(
         soakTimeFilter,
         soakTimeIntMinutes,
-        !List(STREX).contains(process)
+        preferWiderRanges = !List(STREX).contains(process)
       )
-      (_, processFilter) <- countyFilter.find(_._1 == county.trim.toLowerCase)
-      rates              <- processFilter.get(process.toString)
+      (_, roadCategoryFilter) <- findString(countyFilter, county, preferEmptyKey = false)
+      (_, processFilter)      <- findString(roadCategoryFilter, roadCategory, preferEmptyKey = process != PRDUST)
+      rates                   <- processFilter.get(process.toString)
     } yield rates
 
     ratesMaybe.orElse(data.vehicleType.emissionsRatesInGramsPerMile.flatMap(_.values.get(process)))
@@ -154,17 +173,17 @@ object VehicleEmissions extends LazyLogging {
 
     // speed -> (gradePercent -> (weight -> (soakTime -> (county -> (emissionProcess -> rate)))))
     type EmissionsRateFilter = Map[
-      String, // road category
+      DoubleTypedRange, // speed
       Map[
-        DoubleTypedRange, // speed
+        DoubleTypedRange, // grade percent
         Map[
-          DoubleTypedRange, // grade percent
+          DoubleTypedRange, // weight
           Map[
-            DoubleTypedRange, // weight
+            DoubleTypedRange, // soak time
             Map[
-              DoubleTypedRange, // soak time
+              String, // county
               Map[
-                String, // county
+                String, // road category
                 Map[
                   String, // emissionProcess
                   Emissions // rate
@@ -704,11 +723,10 @@ object VehicleEmissions extends LazyLogging {
       csvParser: CsvParser
     ): EmissionsRateFilterStore.EmissionsRateFilter = {
 
-      val currentRateFilter =
-        mutable.Map.empty[String, mutable.Map[DoubleTypedRange, mutable.Map[DoubleTypedRange, mutable.Map[
-          DoubleTypedRange,
-          mutable.Map[DoubleTypedRange, mutable.Map[String, mutable.Map[String, Emissions]]]
-        ]]]]
+      val currentRateFilter = mutable.Map.empty[DoubleTypedRange, mutable.Map[DoubleTypedRange, mutable.Map[
+        DoubleTypedRange,
+        mutable.Map[DoubleTypedRange, mutable.Map[String, mutable.Map[String, mutable.Map[String, Emissions]]]]
+      ]]]
 
       var rowCount = 0
       log.info(s"Loading emission rates from file: $file")
@@ -718,8 +736,6 @@ object VehicleEmissions extends LazyLogging {
           .foreach(csvRecord => {
             rowCount += 1
 
-            // Road Category as defined in OpenStreetMap
-            val roadCategory: String = getString(csvRecord, roadCategoryHeader, "")
             // Speed Bin in MPH
             val speedInMilesPerHourBin: DoubleTypedRange =
               convertRecordStringToDoubleTypedRange(getString(csvRecord, speedBinHeader, "[0,200]"))
@@ -734,6 +750,8 @@ object VehicleEmissions extends LazyLogging {
               convertRecordStringToDoubleTypedRange(getString(csvRecord, soakTimeBinHeader, "[0,216000]"))
             // Geographic area, None if not defined
             val county: String = getString(csvRecord, countyBinHeader, "")
+            // Road Category as defined in OpenStreetMap
+            val roadCategory: String = getString(csvRecord, roadCategoryHeader, "")
             // Emission process
             val emissionProcess: String =
               EmissionsProfile
@@ -778,18 +796,18 @@ object VehicleEmissions extends LazyLogging {
                 "Erroring early to bring attention and get it fixed."
               )
             }
-            // roadCategory
-            currentRateFilter.get(roadCategory) match {
-              case Some(speedInMilesPerHourFilter) =>
-                speedInMilesPerHourFilter.get(speedInMilesPerHourBin) match {
-                  case Some(gradePercentFilter) =>
-                    gradePercentFilter.get(gradePercentBin) match {
-                      case Some(weightKgFilter) =>
-                        weightKgFilter.get(weightKgBin) match {
-                          case Some(soakTimeFilter) =>
-                            soakTimeFilter.get(soakTimeBin) match {
-                              case Some(countyFilter) =>
-                                countyFilter.get(county) match {
+
+            currentRateFilter.get(speedInMilesPerHourBin) match {
+              case Some(gradePercentFilter) =>
+                gradePercentFilter.get(gradePercentBin) match {
+                  case Some(weightKgFilter) =>
+                    weightKgFilter.get(weightKgBin) match {
+                      case Some(soakTimeFilter) =>
+                        soakTimeFilter.get(soakTimeBin) match {
+                          case Some(countyFilter) =>
+                            countyFilter.get(county) match {
+                              case Some(roadCategoryFilter) =>
+                                roadCategoryFilter.get(roadCategory) match {
                                   case Some(emissionsProcessFilter) =>
                                     emissionsProcessFilter.get(emissionProcess) match {
                                       case Some(existingRates) =>
@@ -808,47 +826,49 @@ object VehicleEmissions extends LazyLogging {
                                         emissionsProcessFilter += emissionProcess -> ratesInGramsPerMile
                                     }
                                   case None =>
-                                    countyFilter += county -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
+                                    roadCategoryFilter += roadCategory -> mutable.Map(
+                                      emissionProcess -> ratesInGramsPerMile
+                                    )
                                 }
                               case None =>
-                                soakTimeFilter += soakTimeBin -> mutable.Map(
-                                  county -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
+                                countyFilter += county -> mutable.Map(
+                                  roadCategory -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
                                 )
                             }
                           case None =>
-                            weightKgFilter += weightKgBin -> mutable.Map(
-                              soakTimeBin -> mutable.Map(
-                                county -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
+                            soakTimeFilter += soakTimeBin -> mutable.Map(
+                              county -> mutable.Map(
+                                roadCategory -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
                               )
                             )
                         }
                       case None =>
-                        gradePercentFilter += gradePercentBin -> mutable.Map(
-                          weightKgBin -> mutable.Map(
-                            soakTimeBin -> mutable.Map(
-                              county -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
+                        weightKgFilter += weightKgBin -> mutable.Map(
+                          soakTimeBin -> mutable.Map(
+                            county -> mutable.Map(
+                              roadCategory -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
                             )
                           )
                         )
                     }
                   case None =>
-                    currentRateFilter += speedInMilesPerHourBin -> mutable.Map(
-                      gradePercentBin -> mutable.Map(
-                        weightKgBin -> mutable.Map(
-                          soakTimeBin -> mutable.Map(
-                            county -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
+                    gradePercentFilter += gradePercentBin -> mutable.Map(
+                      weightKgBin -> mutable.Map(
+                        soakTimeBin -> mutable.Map(
+                          county -> mutable.Map(
+                            roadCategory -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
                           )
                         )
                       )
                     )
                 }
               case None =>
-                currentRateFilter += roadCategory -> mutable.Map(
-                  speedInMilesPerHourBin -> mutable.Map(
-                    gradePercentBin -> mutable.Map(
-                      weightKgBin -> mutable.Map(
-                        soakTimeBin -> mutable.Map(
-                          county -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
+                currentRateFilter += speedInMilesPerHourBin -> mutable.Map(
+                  gradePercentBin -> mutable.Map(
+                    weightKgBin -> mutable.Map(
+                      soakTimeBin -> mutable.Map(
+                        county -> mutable.Map(
+                          roadCategory -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
                         )
                       )
                     )
@@ -865,8 +885,10 @@ object VehicleEmissions extends LazyLogging {
           speedInMilesPerHourBin -> gradePercentMap.toMap.map { case (gradePercentBin, weightMap) =>
             gradePercentBin -> weightMap.toMap.map { case (weightKgBin, soakTimeMap) =>
               weightKgBin -> soakTimeMap.toMap.map { case (soakTimeBin, countyMap) =>
-                soakTimeBin -> countyMap.toMap.map { case (county, emissionsProcessMap) =>
-                  county -> emissionsProcessMap.toMap
+                soakTimeBin -> countyMap.toMap.map { case (county, roadCategoryMap) =>
+                  county -> roadCategoryMap.toMap.map { case (roadCategory, emissionsProcessMap) =>
+                    roadCategory -> emissionsProcessMap
+                  }
                 }
               }
             }
