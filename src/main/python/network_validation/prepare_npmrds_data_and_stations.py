@@ -16,8 +16,8 @@ from python.utils.study_area_config import generate_network_name
 # To prepare data for a new study area, make sure to change the following configuration variables
 # Example of preparing SFBay data (9 counties + Santa Cruz and Yolo)
 study_area = "sfbay"
-batch = "2024-01-23"
-scenario = "2018_Baseline"
+batch = "20240123"
+scenario = "2018-Baseline-FC12-Bis2"
 config = get_area_config(study_area)
 config["network"]["graph_layers"]["residential"]["min_density_per_km2"] = 5500
 

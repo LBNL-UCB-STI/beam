@@ -193,7 +193,7 @@ class HouseholdFleetManager(
             requireVehicleCategoryAvailable match {
               case Some(requiredType) if vehicles.values.exists(_.beamVehicleType.vehicleCategory == requiredType) =>
                 logger.warn(s"Emergency vehicle generation for type $requiredType failed")
-              case Some(requiredType) =>
+              case Some(_) =>
                 logger.debug(s"Ignoring vehicle request because it isn't for the right category")
               case None =>
             }

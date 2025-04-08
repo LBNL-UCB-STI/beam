@@ -13,8 +13,8 @@ from python.utils.study_area_config import generate_network_name
 # beam run i.e. link stats and events file
 # study_area = "seattle"
 study_area = "sfbay"
-batch = "2024-01-23"
-scenario = "2018_Baseline"
+batch = "20240123"
+scenario = "2018-Baseline-FC12-Bis2"
 run_link_speed_validation = True
 run_network_speed_validation = True
 run_vmt_validation = False
