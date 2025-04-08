@@ -595,6 +595,10 @@ object BeamVehicle {
     vehicleId.toString.startsWith(idPrefixSharedTeleportationVehicle)
   }
 
+  def isEmergencyVehicle(vehicleId: Id[BeamVehicle]): Boolean = {
+    vehicleId.toString.contains("-emergency-")
+  }
+
   def noSpecialChars(theString: String): String =
     theString
       .replaceAll("[\\\\|\\\\^]+", ":")

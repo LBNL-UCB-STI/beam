@@ -34,5 +34,5 @@ class PlanMerger(modeMap: Map[String, String]) extends Merger[InputPlanElement, 
     )
   }
 
-  private def convertMode(inputMode: String): String = modeMap(inputMode)
+  private def convertMode(inputMode: String): String = modeMap.getOrElse(inputMode, inputMode)
 }

@@ -97,6 +97,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
     ExcerptData(
       timePeriodString = rec.get("timePeriod"),
       pathType = ActivitySimPathType.fromString(rec.get("pathType")).getOrElse(ActivitySimPathType.DRV_COM_WLK),
+      fleetName = rec.getOrDefault("fleetName", ""),
       originId = rec.get("origin"),
       destinationId = rec.get("destination"),
       weightedTotalTime = rec.get("TIME_minutes").toDouble,

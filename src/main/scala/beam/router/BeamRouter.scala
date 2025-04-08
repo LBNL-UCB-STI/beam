@@ -23,6 +23,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.scheduler.HasTriggerId
+import beam.router.BeamRouter.IntermodalUse.{Access, IntermodalUse}
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.gtfs.FareCalculator
@@ -483,6 +484,28 @@ object BeamRouter {
 
   case class UpdateTravelTimeRemote(linkIdToTravelTimePerHour: java.util.Map[String, Array[Double]])
 
+  object IntermodalUse {
+    sealed trait IntermodalUse extends Product with Serializable
+
+    def fromString(str: String): IntermodalUse = {
+      str.toLowerCase match {
+        case "access"            => Access
+        case "egress"            => Egress
+        case "accessandegress"   => AccessAndEgress
+        case "accessandoregress" => AccessAndOrEgress
+        case _                   => throw new IllegalArgumentException
+      }
+    }
+
+    case object Access extends IntermodalUse
+
+    case object Egress extends IntermodalUse
+    case object AccessAndEgress extends IntermodalUse
+
+    case object AccessAndOrEgress extends IntermodalUse
+
+  }
+
   /**
     * It is use to represent a request object
     *
@@ -513,14 +536,6 @@ object BeamRouter {
 
     val initiatedFrom: String = s"${fileName.value}:${line.value} ${fullName.value}"
   }
-
-  sealed trait IntermodalUse
-
-  case object Access extends IntermodalUse
-
-  case object Egress extends IntermodalUse
-
-  case object AccessAndEgress extends IntermodalUse
 
   /**
     * Message to respond a plan against a particular router request
