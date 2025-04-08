@@ -54,7 +54,7 @@ class CsvHouseholdReader(path: String) extends BaseCsvReader[InputHousehold](pat
       InputHousehold(
         householdId = record.get("household_id"),
         cars = Try(record.get("cars").toInt).getOrElse(record.get("auto_ownership").toInt),
-        income = record.get("income").toInt,
+        income = Math.round(record.get("income").toFloat),
         blockId = record.get("block_id").toLong
       )
     }
