@@ -39,6 +39,7 @@ def create_emfac_id(row):
     return f"{model_year_group_st}-{vehicle_class_st}-{fuel_st}"
 
 def prepare_emissions_data_for_mapping(area, scenario, work_dir, config):
+    mapping_config = config["mapping"]
     def categorize_model_year(year):
         # https://pubs.acs.org/doi/full/10.1021/acs.est.9b04763
         if year <= 1993: return '1993'
@@ -46,21 +47,21 @@ def prepare_emissions_data_for_mapping(area, scenario, work_dir, config):
         else: return '2018'
     def format_emissions_data(emfac_types: pd.DataFrame) -> pd.DataFrame:
         result_ft_df = emfac_types.copy()
-        result_ft_df['mappedClass'] = result_ft_df['vehicle_class'].map(config["class_mapping"]["emfac-ft"])
+        result_ft_df['mappedClass'] = result_ft_df['vehicle_class'].map(mapping_config["class"]["emfac-ft"])
         result_ft_df.dropna(subset=['mappedClass'], inplace=True)
-        result_ft_df['mappedFuel'] = result_ft_df['fuel'].map(config["fuel_mapping"]["emfac-ft"])
+        result_ft_df['mappedFuel'] = result_ft_df['fuel'].map(mapping_config["fuel"]["emfac-ft"])
         result_ft_df.dropna(subset=['mappedFuel'], inplace=True)
 
         result_pax_df = emfac_types.copy()
-        result_pax_df['mappedClass'] = result_pax_df['vehicle_class'].map(config["class_mapping"]["emfac-pax"])
+        result_pax_df['mappedClass'] = result_pax_df['vehicle_class'].map(mapping_config["class"]["emfac-pax"])
         result_pax_df.dropna(subset=['mappedClass'], inplace=True)
-        result_pax_df['mappedFuel'] = result_pax_df['fuel'].map(config["fuel_mapping"]["emfac-pax"])
+        result_pax_df['mappedFuel'] = result_pax_df['fuel'].map(mapping_config["fuel"]["emfac-pax"])
         result_pax_df.dropna(subset=['mappedFuel'], inplace=True)
 
         result_bus_df = emfac_types.copy()
-        result_bus_df['mappedClass'] = result_bus_df['vehicle_class'].map(config["class_mapping"]["emfac-bus"])
+        result_bus_df['mappedClass'] = result_bus_df['vehicle_class'].map(mapping_config["class"]["emfac-bus"])
         result_bus_df.dropna(subset=['mappedClass'], inplace=True)
-        result_bus_df['mappedFuel'] = result_bus_df['fuel'].map(config["fuel_mapping"]["emfac-bus"])
+        result_bus_df['mappedFuel'] = result_bus_df['fuel'].map(mapping_config["fuel"]["emfac-bus"])
         result_bus_df.dropna(subset=['mappedFuel'], inplace=True)
 
         result_df = pd.concat([result_ft_df, result_pax_df, result_bus_df])
@@ -112,7 +113,7 @@ def assign_emission_rates_to_vehicle_types(scenario, emissions_rates, emfac_pop,
         # Validate inputs
         result_df = vehicle_types.copy()
         result_df['fuel_key'] = result_df.apply(get_fuel_key, axis=1)
-        result_df['mappedFuel'] = result_df['fuel_key'].map(config["fuel_mapping"]["beam"])
+        result_df['mappedFuel'] = result_df['fuel_key'].map(config["mapping"]["fuel"]["beam"])
         na_count = result_df['mappedFuel'].isna().sum()
         if na_count > 0:
             logging.warning(f"{na_count} vehicle types could not be mapped to EMFAC fuel types")
@@ -405,7 +406,7 @@ def run():
     emfac_class_map = generate_emfac_beam_class_mapping(
         area, scenario, study_area_config["work_dir"], config, to_filter_out=[BeamClasses.CLASS_2B3_VOCATIONAL]
     )
-    config["class_mapping"]["emfac"] = emfac_class_map
+    config["mapping"]["class"]["emfac"] = emfac_class_map
     # Write Config file to keep track of runs
     # Write it onl after all modification to config are completed
     with open(os.path.join(study_area_config["work_dir"], f"emissions/{area}_emissions_config_{scenario}.json"), 'w') as f:

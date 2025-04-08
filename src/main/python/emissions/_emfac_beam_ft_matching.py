@@ -655,7 +655,7 @@ def generate_emfac_mapped_freight_fleet(emfac_vmt, freight_classes, work_dir, co
         emfac_vmt["mappedClass"].isin(freight_classes)
     ].copy()
 
-    fuel_class_alternative_mapping = config["fuel_mapping"]["alternatives"] | config["class_mapping"]["alternatives"]
+    fuel_class_alternative_mapping = config["mapping"]["fuel"]["alternatives"] | config["mapping"]["class"]["alternatives"]
 
     # Get mapping between EMFAC and freight vehicles
     mapping_results = emfac2freight_by_model_year_class_fuel(

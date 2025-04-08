@@ -344,9 +344,9 @@ sfbay_area_config = {
                 "include_nan": True
             },
             "emfac": {
-                "emfac_rates_by_model_year_file": f"emissions/emfac/imputed_MTC_emission_rate_agg_NH3_added_2018_2025_2030_2040_2050.csv",
-                "emfac_vmt_by_model_year_file": f"emissions/emfac/Default_Statewide_2018_2025_2030_2040_2050_Annual_vmt_20240612233346.csv",
-                "emfac_pop_by_model_year_file": f"emissions/emfac/Default_Statewide_2018_2025_2030_2040_2050_Annual_population_20240612233346.csv"
+                "emfac_rates_by_model_year_file": f"emissions/rates/emfac/imputed_MTC_emission_rate_agg_NH3_added_2018_2025_2030_2040_2050.csv",
+                "emfac_vmt_by_model_year_file": f"emissions/rates/emfac/Default_Statewide_2018_2025_2030_2040_2050_Annual_vmt_20240612233346.csv",
+                "emfac_pop_by_model_year_file": f"emissions/rates/emfac/Default_Statewide_2018_2025_2030_2040_2050_Annual_population_20240612233346.csv"
             },
             "black_carbon": {
                 "black_carbon_rates_file": f"emissions/black_carbon/emfac_bc_rate_three_ver_2018.csv",
@@ -356,94 +356,101 @@ sfbay_area_config = {
                 "silt_loading_file": f"emissions/road_dust/CA_input/silt_loading.csv",
             },
             "beam" : {
-                "carriers_file": f"beam-ft/2024-11-06/2018_Baseline/carriers--2018-Baseline.csv",
-                "payloads_file": f"beam-ft/2024-11-06/2018_Baseline/payloads--2018-Baseline.csv",
-                "ft_vehicle_types_file": f"vehicle-tech/ft-vehicletypes--20241106--2018-Baseline.csv",
-                "pax_vehicle_types_file": f"vehicle-tech/pax-vehicletypes--2018-Baseline.csv"
+                "carriers_file": f"beam-ft/20240123/2018-Baseline/carriers--2018-Baseline.csv",
+                "payloads_file": f"beam-ft/20240123/2018-Baseline/payloads--2018-Baseline.csv",
+                "ft_vehicle_types_file": f"vehicle-tech/vehicleTypes--frism--2018-Baseline.csv",
+                "pax_vehicles_file": f"beam-pax/vehicles--atlas--2018-Baseline.csv.gz",
+                "pax_vehicle_types_file": f"vehicle-tech/vehicleTypes--atlas--2018-Baseline.csv"
             },
-            "fuel_mapping": {
-                "beam": {
-                    "hydrogen": 'Elec', # From emission pov, BEAM's hydrogen cars shall be electric
-                    "electricity-only": 'Elec',
-                    "electricity-hybrid": 'Phe',
-                    "gasoline": 'Gas',
-                    "diesel": 'Dsl',
-                    "biodiesel": 'Dsl' # From emission pov, BEAM's biodiesel cars shall be diesel
+            "mapping": {
+                "fleet": {
+                    "ignore_beam_passenger_distribution": False,
+                    "ignore_beam_freight_distribution": False
                 },
-                "emfac-ft": {
-                    "Elec": 'Elec',
-                    "Phe": 'Phe',
-                    "Gas": 'Dsl',
-                    "Dsl": 'Dsl',
-                    "NG": 'Dsl' # EMFAC NG cars will be mapped to BEAM's diesel cars
+                "fuel": {
+                    "beam": {
+                        "hydrogen": 'Elec', # From emission pov, BEAM's hydrogen cars shall be electric
+                        "electricity-only": 'Elec',
+                        "electricity-hybrid": 'Phe',
+                        "gasoline": 'Gas',
+                        "diesel": 'Dsl',
+                        "biodiesel": 'Dsl' # From emission pov, BEAM's biodiesel cars shall be diesel
+                    },
+                    "emfac-ft": {
+                        "Elec": 'Elec',
+                        "Phe": 'Phe',
+                        "Gas": 'Dsl',
+                        "Dsl": 'Dsl',
+                        "NG": 'Dsl' # EMFAC NG cars will be mapped to BEAM's diesel cars
+                    },
+                    "emfac-pax": {
+                        "Elec": 'Elec',
+                        "Phe": 'Phe',
+                        "Gas": 'Gas',
+                        "Dsl": 'Gas',
+                        "NG": 'Gas' # EMFAC NG cars will be mapped to BEAM's diesel cars
+                    },
+                    "emfac-bus": {
+                        "Elec": 'Elec',
+                        "Phe": 'Phe',
+                        "Gas": 'Gas',
+                        "Dsl": 'Dsl',
+                        "NG": 'Dsl'
+                    },
+                    "alternatives": {
+                        "Elec": ['Elec', 'Phe'],
+                        'Phe': ['Phe', 'Elec'],
+                        "Gas": ['Gas', 'Dsl'],
+                        "Dsl": ['Dsl', 'Gas']
+                    }
                 },
-                "emfac-pax": {
-                    "Elec": 'Elec',
-                    "Phe": 'Phe',
-                    "Gas": 'Gas',
-                    "Dsl": 'Gas',
-                    "NG": 'Gas' # EMFAC NG cars will be mapped to BEAM's diesel cars
-                },
-                "emfac-bus": {
-                    "Elec": 'Elec',
-                    "Phe": 'Phe',
-                    "Gas": 'Gas',
-                    "Dsl": 'Dsl',
-                    "NG": 'Dsl'
-                },
-                "alternatives": {
-                    "Elec": ['Elec', 'Phe'],
-                    'Phe': ['Phe', 'Elec'],
-                    "Gas": ['Gas', 'Dsl'],
-                    "Dsl": ['Dsl', 'Gas']
-                }
-            },
-            "class_mapping": {
-                "emfac-ft": {
-                    "T6 CAIRP Class 4": "Class456Vocational",
-                    "T6 CAIRP Class 5": "Class456Vocational",
-                    "T6 CAIRP Class 6": "Class456Vocational",
-                    "T6 CAIRP Class 7": "Class78Tractor",
-                    "T6 Instate Delivery Class 4": "Class456Vocational",
-                    "T6 Instate Delivery Class 5": "Class456Vocational",
-                    "T6 Instate Delivery Class 6": "Class456Vocational",
-                    "T6 Instate Delivery Class 7": "Class78Vocational",
-                    "T6 Instate Other Class 4": "Class456Vocational",
-                    "T6 Instate Other Class 5": "Class456Vocational",
-                    "T6 Instate Other Class 6": "Class456Vocational",
-                    "T6 Instate Other Class 7": "Class78Vocational",
-                    "T6 Instate Tractor Class 6": "Class456Vocational",
-                    "T6 Instate Tractor Class 7": "Class78Tractor",
-                    "T6 OOS Class 4": "Class456Vocational",
-                    "T6 OOS Class 5": "Class456Vocational",
-                    "T6 OOS Class 6": "Class456Vocational",
-                    "T6 OOS Class 7": "Class78Vocational",
-                    "T7 CAIRP Class 8": "Class78Tractor",
-                    "T7 NNOOS Class 8": "Class78Vocational",
-                    "T7 NOOS Class 8": "Class78Vocational",
-                    "T7 Single Concrete/Transit Mix Class 8": "Class78Vocational",
-                    "T7 Single Dump Class 8": "Class78Vocational",
-                    "T7 Single Other Class 8": "Class78Vocational",
-                    "T7 Tractor Class 8": "Class78Tractor",
-                    "T7IS": "Class78Tractor"
-                },
-                "emfac-pax": {
-                    "LDA": "Car",
-                    "LDT1": "Car",
-                    "LDT2": "Car",
-                    "MCY": "Bike",
-                    "MDV": "Car"
-                },
-                "emfac-bus": {
-                    "UBUS": "MediumDutyPassenger"
-                },
-                "alternatives": {
-                    "Class456Vocational": ['Class456Vocational', 'Class78Vocational'],
-                    'Class78Vocational': ['Class78Vocational', 'Class456Vocational', 'Class78Tractor'],
-                    "Class78Tractor": ['Class78Tractor', 'Class78Vocational'],
-                    "Car": ['Car'],
-                    "Bike": ['Bike'],
-                    "MediumDutyPassenger": ['MediumDutyPassenger']
+                "class": {
+                    "emfac-ft": {
+                        "T6 CAIRP Class 4": "Class456Vocational",
+                        "T6 CAIRP Class 5": "Class456Vocational",
+                        "T6 CAIRP Class 6": "Class456Vocational",
+                        "T6 CAIRP Class 7": "Class78Tractor",
+                        "T6 Instate Delivery Class 4": "Class456Vocational",
+                        "T6 Instate Delivery Class 5": "Class456Vocational",
+                        "T6 Instate Delivery Class 6": "Class456Vocational",
+                        "T6 Instate Delivery Class 7": "Class78Vocational",
+                        "T6 Instate Other Class 4": "Class456Vocational",
+                        "T6 Instate Other Class 5": "Class456Vocational",
+                        "T6 Instate Other Class 6": "Class456Vocational",
+                        "T6 Instate Other Class 7": "Class78Vocational",
+                        "T6 Instate Tractor Class 6": "Class456Vocational",
+                        "T6 Instate Tractor Class 7": "Class78Tractor",
+                        "T6 OOS Class 4": "Class456Vocational",
+                        "T6 OOS Class 5": "Class456Vocational",
+                        "T6 OOS Class 6": "Class456Vocational",
+                        "T6 OOS Class 7": "Class78Vocational",
+                        "T7 CAIRP Class 8": "Class78Tractor",
+                        "T7 NNOOS Class 8": "Class78Vocational",
+                        "T7 NOOS Class 8": "Class78Vocational",
+                        "T7 Single Concrete/Transit Mix Class 8": "Class78Vocational",
+                        "T7 Single Dump Class 8": "Class78Vocational",
+                        "T7 Single Other Class 8": "Class78Vocational",
+                        "T7 Tractor Class 8": "Class78Tractor",
+                        "T7IS": "Class78Tractor"
+                    },
+                    "emfac-pax": {
+                        "LDA": "Car",
+                        "LDT1": "Car",
+                        "LDT2": "Car",
+                        "MCY": "Bike",
+                        "MDV": "Car"
+                    },
+                    "emfac-bus": {
+                        "UBUS": "MediumDutyPassenger"
+                    },
+                    "alternatives": {
+                        "Class456Vocational": ['Class456Vocational', 'Class78Vocational'],
+                        'Class78Vocational': ['Class78Vocational', 'Class456Vocational', 'Class78Tractor'],
+                        "Class78Tractor": ['Class78Tractor', 'Class78Vocational'],
+                        "Car": ['Car'],
+                        "Bike": ['Bike'],
+                        "MediumDutyPassenger": ['MediumDutyPassenger']
+                    }
                 }
             }
         }
