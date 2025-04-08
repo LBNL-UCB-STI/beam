@@ -73,6 +73,9 @@ def prepare_emissions_data_for_mapping(area, scenario, work_dir, config):
         result_df['emfacId'] = result_df.apply(create_emfac_id, axis=1)
         return result_df
 
+    emissions_input_path = os.path.join(work_dir, f"emissions")
+    emissions_output_dir =
+
     emfac_pop = process_emfac_population(area, scenario, work_dir, config, format_emissions_data)
     print("\n=== EMFAC Population ===\n")
     print(f"total_population: {emfac_pop["population"].sum() / 1_000_000:.1f}M")
@@ -391,9 +394,9 @@ def print_unmapped(df, mapped_col, col_to_be_mapped):
 def run():
     # Configuration parameters
     area = "sfbay"
-    run_batch = "2024-11-06"
+    run_batch = "20240123"
     run_batch_label = run_batch.replace("-", "")
-    scenario = "2018_Baseline"
+    scenario = "2018-Baseline"
     scenario_label = scenario.replace("_", "-")
 
     study_area_config = get_area_config(area)
@@ -409,7 +412,9 @@ def run():
     config["mapping"]["class"]["emfac"] = emfac_class_map
     # Write Config file to keep track of runs
     # Write it onl after all modification to config are completed
-    with open(os.path.join(study_area_config["work_dir"], f"emissions/{area}_emissions_config_{scenario}.json"), 'w') as f:
+    emissions_work_dir = os.path.join(study_area_config["work_dir"], f"emissions/{run_batch}")
+    os.makedirs(emissions_work_dir, exist_ok=True)
+    with open(os.path.join(study_area_config["work_dir"], f"{emissions_work_dir}/{area}_emissions_config_{scenario}.json"), 'w') as f:
         json.dump(study_area_config, f, indent=2)
 
     # #################################################################
