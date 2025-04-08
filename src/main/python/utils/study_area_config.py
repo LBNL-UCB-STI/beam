@@ -370,6 +370,18 @@ sfbay_area_config = {
                     "ignore_beam_passenger_distribution": False,
                     "ignore_beam_freight_distribution": False
                 },
+                "atlas":{
+                    "enable_atlas_crosswalk": True,
+                    "emfac": f"atlas/atlas-emfac-xwalk.csv",
+                    "beam": f"atlas/vehicle_type_mapping_baseline.csv",
+                    "alternatives": {
+                        "car": ['car'],
+                        "suv": ['suv', 'car', 'truck'],
+                        'truck': ['truck', 'suv', 'minvan'],
+                        'van': ['minvan', 'truck'],
+                        'minvan': ['minvan', 'truck', 'van']
+                    }
+                },
                 "fuel": {
                     "beam": {
                         "hydrogen": 'Elec', # From emission pov, BEAM's hydrogen cars shall be electric

@@ -155,7 +155,7 @@ def process_vehicle_types_probabilities_by_vehicle_category_and_income_group(veh
     return df
 
 
-def emfac2passenger_by_category_income(vehicle_types, car_emfac, ignore_beam_distribution):
+def emfac2passenger_by_category_income(vehicle_types, car_emfac, atlas_emfac, ignore_beam_distribution):
     """
     Merge passenger vehicle types with EMFAC vmt data.
 
@@ -275,6 +275,53 @@ def emfac2passenger_by_category_income(vehicle_types, car_emfac, ignore_beam_dis
     return df_merged
 
 
+def create_atlas_emfac_crosswalk(emfac_classes, work_dir, config):
+    """
+    Create a crosswalk between vehicleTypeId and EMFAC classes.
+
+    Args:
+
+
+    Returns:
+        pd.DataFrame: Crosswalk dataframe with vehicleTypeId, mappedEmfacClass, and proportion
+    """
+    if not config["enable_atlas_crosswalk"]:
+        return pd.DataFrame({})
+
+    # Read both CSV files
+    vehicle_df = pd.read_csv(str(os.path.join(work_dir, config["beam"])))
+    emfac_df = pd.read_csv(str(os.path.join(work_dir, config["emfac"])))
+
+    # Initialize an empty list to store results
+    results = []
+
+    # Process each vehicle type
+    for _, vehicle in vehicle_df.iterrows():
+        vehicle_id = vehicle['vehicleTypeId']
+        bodytype = vehicle['bodytype']
+
+        # Find matching row in emfac_df
+        emfac_row = emfac_df[emfac_df['bodytype'] == bodytype]
+
+        # Skip if no matching bodytype found
+        if emfac_row.empty:
+            continue
+
+        # For each EMFAC class, add a row if the proportion is not zero
+        for emfac_class in emfac_classes:
+            proportion = emfac_row[emfac_class].values[0]
+
+            # Only add non-zero proportions
+            if proportion > 0:
+                results.append({
+                    'vehicleTypeId': vehicle_id,
+                    'vehicle_class': emfac_class,
+                    'proportion': proportion
+                })
+
+    return pd.DataFrame(results)
+
+
 def generate_emfac_mapped_passenger_vehicle_types(emfac_vmt, car_class, bike_class, transit_class, filter_out_classes, work_dir, config, format_func):
     """
     Generate a passenger vehicle types with EMFAC mappings for different vehicle classes.
@@ -352,7 +399,10 @@ def generate_emfac_mapped_passenger_vehicle_types(emfac_vmt, car_class, bike_cla
     car_vehicle_types = vehicle_types[vehicle_types['mappedClass'].isin([car_class])].copy()
     processed_car_types = process_vehicle_types_probabilities_by_vehicle_category_and_income_group(car_vehicle_types)
     ignore_beam_passenger_distribution = config["mapping"]["fleet"]["ignore_beam_passenger_distribution"]
-    car_beam_emfac = emfac2passenger_by_category_income(processed_car_types, car_emfac, ignore_beam_passenger_distribution)
+    car_emfac_classes = car_emfac["vehicle_class"].unique()
+    atlas_emfac = create_atlas_emfac_crosswalk(car_emfac_classes, work_dir, config["mapping"]["atlas"])
+    car_beam_emfac = emfac2passenger_by_category_income(processed_car_types, car_emfac, atlas_emfac, ignore_beam_passenger_distribution)
+
 
     # Select only necessary columns from the result
     car_beam_emfac = car_beam_emfac[vehicle_types_filtered.columns.tolist() + ["emfacId"]]
