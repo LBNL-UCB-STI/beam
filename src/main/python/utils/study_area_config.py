@@ -362,7 +362,7 @@ sfbay_area_config = {
                 "carriers_file": f"beam-ft/20240123/2018-Baseline/carriers--2018-Baseline.csv",
                 "payloads_file": f"beam-ft/20240123/2018-Baseline/payloads--2018-Baseline.csv",
                 "ft_vehicle_types_file": f"vehicle-tech/vehicleTypes--frism--2018-Baseline.csv",
-                "pax_vehicles_file": f"beam-pax/vehicles--atlas--2023-Baseline.csv.gz",
+                "pax_vehicles_file": f"beam-pax/2023-Baseline/vehicles--atlas--2023-Baseline.csv.gz",
                 "pax_vehicle_types_file": f"vehicle-tech/vehicleTypes--atlas--2023-Baseline.csv"
             },
             "mapping": {

@@ -16,7 +16,8 @@ from _emfac_and_emissions_rates_processing import process_emfac_population
 from _emfac_and_emissions_rates_processing import process_emfac_vmt
 from _emfac_and_emissions_rates_processing import process_emissions_rates
 from _emfac_beam_ft_matching import generate_emfac_mapped_freight_fleet
-from _emfac_beam_pax_mapping import generate_emfac_mapped_passenger_fleet
+from _emfac_beam_pax_mapping import generate_emfac_mapped_passenger_vehicle_types
+from _emfac_beam_pax_mapping import generate_fleet_from_vehicle_types
 
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -158,7 +159,7 @@ def assign_emission_rates_to_vehicle_types(scenario, emissions_rates, emfac_pop,
             BeamClasses.get_freight_classes() + new_pax_vehicle_types["vehicleCategory"].unique().tolist())]
     else:
         # Generate passenger vehicle types
-        new_pax_vehicle_types, other_pax_vehicle_types = generate_emfac_mapped_passenger_fleet(
+        new_pax_vehicle_types, other_pax_vehicle_types = generate_emfac_mapped_passenger_vehicle_types(
             emfac_pop,
             car_class=BeamClasses.CLASS_CAR,
             bike_class=BeamClasses.CLASS_BIKE,
@@ -168,6 +169,16 @@ def assign_emission_rates_to_vehicle_types(scenario, emissions_rates, emfac_pop,
             config=config,
             format_func=format_beam_vehicle_types,
         )
+
+        pax_vehicles = generate_fleet_from_vehicle_types(
+            new_pax_vehicle_types,
+            car_class=BeamClasses.CLASS_CAR,
+            bike_class=BeamClasses.CLASS_BIKE,
+            work_dir=work_dir,
+            config=config
+        )
+        vehicles_output = os.path.join(work_dir, f"{config['beam']['pax_vehicles_file'].replace('.csv', '--TrAP.csv')}")
+        pax_vehicles.to_csv(vehicles_output, index=False)
 
     # Prepare for emissions rates processing
     vehtypes_with_emfac_id = pd.concat([new_ft_vehicle_types, new_pax_vehicle_types], ignore_index=True)
@@ -258,7 +269,7 @@ def generate_emfac_beam_class_mapping(_study_area, _scenario_name, _work_dir, _c
     mapping = {}
 
     table = csv.read_csv(
-        os.path.join(_work_dir, _config["emfac"]["emfac_pop_by_model_year_file"]),
+        os.path.join(_work_dir, _config["rates"]["emfac"]["emfac_pop_by_model_year_file"]),
         read_options=pa.csv.ReadOptions(use_threads=True)
     )
     df = table.to_pandas()
