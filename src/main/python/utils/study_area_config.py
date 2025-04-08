@@ -326,15 +326,15 @@ sfbay_area_config = {
     "freight": {
         "stops_data": "data/austin_cargo_operations.csv",
         "2018_Baseline" : {
-            "carriers_file": f"beam-ft/2024-11-06/2018_Baseline/carriers--2018-Baseline.csv",
-            "payloads_file": f"beam-ft/2024-11-06/2018_Baseline/payloads--2018-Baseline.csv",
-            "tours_file": f"beam-ft/2024-11-06/2018_Baseline/tours--2018-Baseline.csv",
+            "carriers_file": f"beam-ft/2024-11-06/2018-Baseline/carriers--2018-Baseline.csv",
+            "payloads_file": f"beam-ft/2024-11-06/2018-Baseline/payloads--2018-Baseline.csv",
+            "tours_file": f"beam-ft/2024-11-06/2018-Baseline/tours--2018-Baseline.csv",
             "ft_vehicle_types_file": f"vehicle-tech/ft-vehicletypes--20241106--2018-Baseline.csv"
         }
     },
 
     "emissions": {
-        "2018_Baseline" : {
+        "2018-Baseline" : {
             "filters": {
                 "season_month": "Annual",
                 "calendar_year": 2018,
@@ -359,8 +359,8 @@ sfbay_area_config = {
                 "carriers_file": f"beam-ft/20240123/2018-Baseline/carriers--2018-Baseline.csv",
                 "payloads_file": f"beam-ft/20240123/2018-Baseline/payloads--2018-Baseline.csv",
                 "ft_vehicle_types_file": f"vehicle-tech/vehicleTypes--frism--2018-Baseline.csv",
-                "pax_vehicles_file": f"beam-pax/vehicles--atlas--2018-Baseline.csv.gz",
-                "pax_vehicle_types_file": f"vehicle-tech/vehicleTypes--atlas--2018-Baseline.csv"
+                "pax_vehicles_file": f"beam-pax/vehicles--atlas--2023-Baseline.csv.gz",
+                "pax_vehicle_types_file": f"vehicle-tech/vehicleTypes--atlas--2023-Baseline.csv"
             },
             "mapping": {
                 "fleet": {
