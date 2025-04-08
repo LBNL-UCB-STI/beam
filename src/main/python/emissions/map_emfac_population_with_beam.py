@@ -170,6 +170,8 @@ def assign_emission_rates_to_vehicle_types(scenario, emissions_rates, emfac_pop,
             format_func=format_beam_vehicle_types,
         )
 
+    vehicles_output = os.path.join(work_dir, f"{config['beam']['pax_vehicles_file'].replace('.csv', '--TrAP.csv')}")
+    if not os.path.exists(vehicles_output):
         pax_vehicles = generate_fleet_from_vehicle_types(
             new_pax_vehicle_types,
             car_class=BeamClasses.CLASS_CAR,

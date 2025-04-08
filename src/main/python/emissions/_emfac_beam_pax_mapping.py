@@ -510,12 +510,16 @@ def generate_fleet_from_vehicle_types(mapped_vehicle_types, car_class, bike_clas
                     matches, weights = type_matches[original_type_id]
                 else:
                     # Filter vehicle types to only include those with matching oldVehicleTypeId
-                    matches = filtered_vehicle_types[
-                        filtered_vehicle_types['oldVehicleTypeId'] == original_type_id].copy()
+                    if 'oldVehicleTypeId' in filtered_vehicle_types.columns:
+                        matches = filtered_vehicle_types[
+                            filtered_vehicle_types['oldVehicleTypeId'] == original_type_id].copy()
+                    else:
+                        matches = filtered_vehicle_types[
+                            filtered_vehicle_types['vehicleTypeId'].str.contains(original_type_id, case=False)].copy()
 
                     if len(matches) == 0:
                         # If no direct match, use vehicle category
-                        category = vehicle_categories.get(original_type_id, car_class)
+                        category = vehicle_categories[original_type_id]
                         matches = category_filters[category].copy()
 
                     # Get weights for sampling
@@ -536,8 +540,8 @@ def generate_fleet_from_vehicle_types(mapped_vehicle_types, car_class, bike_clas
                 vehicles_df.at[idx, 'vehicleTypeId'] = sampled_row['vehicleTypeId']
 
                 # Update stateOfCharge based on fuel type
-                fuel_type = str(sampled_row.get('mappedFuel', ''))
-                if 'Elec' in fuel_type or 'Phe' in fuel_type:
+                fuel_type = str(sampled_row['primaryFuelType']).lower()
+                if 'electricity' in fuel_type:
                     vehicles_df.at[idx, 'stateOfCharge'] = 1
 
             pbar.update(end_idx - start_idx)
