@@ -73,9 +73,6 @@ def prepare_emissions_data_for_mapping(area, scenario, work_dir, config):
         result_df['emfacId'] = result_df.apply(create_emfac_id, axis=1)
         return result_df
 
-    emissions_input_path = os.path.join(work_dir, f"emissions")
-    emissions_output_dir =
-
     emfac_pop = process_emfac_population(area, scenario, work_dir, config, format_emissions_data)
     print("\n=== EMFAC Population ===\n")
     print(f"total_population: {emfac_pop["population"].sum() / 1_000_000:.1f}M")
@@ -249,7 +246,7 @@ def generate_emfac_beam_class_mapping(_study_area, _scenario_name, _work_dir, _c
     """
     _vehicle_class_output_file = os.path.join(
         _work_dir,
-        f"emissions/{_study_area}_vehicle_class_mapping_{_scenario_name}.json"
+        f"{_config["rates"]["output_dir"]}/{_study_area}_vehicle_class_mapping_{_scenario_name}.json"
     )
     # Check if the file already exists
     if os.path.exists(_vehicle_class_output_file):
@@ -401,6 +398,7 @@ def run():
 
     study_area_config = get_area_config(area)
     config = study_area_config["emissions"][scenario]
+    config["rates"]["output_dir"] = f"emissions/{run_batch}"
     beam_config = config["beam"]
     beam_config["carriers_file"] = f"beam-ft/{run_batch}/{scenario}/carriers--{scenario_label}.csv"
     beam_config["payloads_file"] = f"beam-ft/{run_batch}/{scenario}/payloads--{scenario_label}.csv"
@@ -412,7 +410,7 @@ def run():
     config["mapping"]["class"]["emfac"] = emfac_class_map
     # Write Config file to keep track of runs
     # Write it onl after all modification to config are completed
-    emissions_work_dir = os.path.join(study_area_config["work_dir"], f"emissions/{run_batch}")
+    emissions_work_dir = os.path.join(study_area_config["work_dir"], config["rates"]["output_dir"])
     os.makedirs(emissions_work_dir, exist_ok=True)
     with open(os.path.join(study_area_config["work_dir"], f"{emissions_work_dir}/{area}_emissions_config_{scenario}.json"), 'w') as f:
         json.dump(study_area_config, f, indent=2)
@@ -425,9 +423,11 @@ def run():
     print(f"  Scenario: {scenario}")
     print(f"{'='*50}\n")
 
-    emfac_pop, emfac_vmt, rates = prepare_emissions_data_for_mapping(area, scenario, study_area_config["work_dir"], config)
+    work_dir = study_area_config["work_dir"]
 
-    assign_emission_rates_to_vehicle_types(scenario, rates, emfac_pop, emfac_vmt, study_area_config["work_dir"], config)
+    emfac_pop, emfac_vmt, rates = prepare_emissions_data_for_mapping(area, scenario, work_dir, config)
+
+    assign_emission_rates_to_vehicle_types(scenario, rates, emfac_pop, emfac_vmt, work_dir, config)
 
     print(f"  DONE")
 

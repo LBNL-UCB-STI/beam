@@ -387,17 +387,14 @@ def process_emfac_rates(
 
     return emfac_rates
 
-def process_emfac_emissions(study_area, scenario_name, emissions_input_path, emissions_output_dir, config, format_func):
+def process_emfac_emissions(study_area, scenario_name, work_dir, config, format_func):
     # Get file paths
-    emfac_config = config["emfac"]
+    emfac_config = config["rates"]["emfac"]
     filters_config = config["filters"]
-    emfac_rates_by_model_year_file = os.path.join(
-        emissions_input_path,
-        emfac_config['emfac_rates_by_model_year_file']
-    )
+    emfac_rates_by_model_year_file = os.path.join(work_dir, emfac_config['emfac_rates_by_model_year_file'])
     emfac_emission_rate_output_file = os.path.join(
-        emissions_input_path,
-        f"{emissions_output_dir}/{study_area}_emfac_rates_{scenario_name}.csv"
+        work_dir,
+        f"{config["rates"]["output_dir"]}/{study_area}_emfac_rates_{scenario_name}.csv"
     )
 
     if os.path.exists(emfac_emission_rate_output_file):
@@ -419,17 +416,14 @@ def process_emfac_emissions(study_area, scenario_name, emissions_input_path, emi
     return emfac_rates
 
 
-def process_black_carbon(study_area, scenario_name, emissions_input_path, emissions_output_dir, config, format_func):
+def process_black_carbon(study_area, scenario_name, work_dir, config, format_func):
     # Get file paths
-    black_carbon_config = config["black_carbon"]
+    black_carbon_config = config["rates"]["black_carbon"]
     filters_config = config["filters"]
-    bc_rates_by_model_year_file = os.path.join(
-        emissions_input_path,
-        black_carbon_config['black_carbon_rates_file']
-    )
+    bc_rates_by_model_year_file = os.path.join(work_dir, black_carbon_config['black_carbon_rates_file'])
     bc_emission_rate_output_file = os.path.join(
-        emissions_input_path,
-        f"{emissions_output_dir}/{study_area}_black_carbon_rates_{scenario_name}.csv"
+        work_dir,
+        f"{config["rates"]["output_dir"]}/{study_area}_black_carbon_rates_{scenario_name}.csv"
     )
 
     if os.path.exists(bc_emission_rate_output_file):
@@ -452,7 +446,7 @@ def process_black_carbon(study_area, scenario_name, emissions_input_path, emissi
     return bc_rates
 
 
-def process_road_dust(study_area, scenario_name, emissions_input_path, emissions_output_dir, config, emfac_ids):
+def process_road_dust(study_area, scenario_name, work_dir, config, emfac_ids):
     """
     Process road dust emission rates for all EMFAC IDs.
 
@@ -466,15 +460,15 @@ def process_road_dust(study_area, scenario_name, emissions_input_path, emissions
     Returns:
         pd.DataFrame: Road dust emission rates for all EMFAC IDs
     """
-    road_dust_config = config["road_dust"]
+    road_dust_config = config["rates"]["road_dust"]
     filters_config = config["filters"]
 
     # Get road dust file paths
-    _rainy_days_file = os.path.join(emissions_input_path, road_dust_config['rainy_days_file'])
-    _silt_loading_file = os.path.join(emissions_input_path, road_dust_config['silt_loading_file'])
+    _rainy_days_file = os.path.join(work_dir, road_dust_config['rainy_days_file'])
+    _silt_loading_file = os.path.join(work_dir, road_dust_config['silt_loading_file'])
     road_dust_output_file = os.path.join(
-        emissions_input_path,
-        f"{emissions_output_dir}/{study_area}_paved_road_dust_rates_{scenario_name}.csv"
+        work_dir,
+        f"{config["rates"]["output_dir"]}/{study_area}_paved_road_dust_rates_{scenario_name}.csv"
     )
 
     # Check if the output file already exists
@@ -526,7 +520,7 @@ def process_road_dust(study_area, scenario_name, emissions_input_path, emissions
     return road_dust_rates
 
 
-def process_emissions_rates(_study_area, _scenario_name, emissions_input_path, config, format_func):
+def process_emissions_rates(_study_area, _scenario_name, _work_dir, config, format_func):
     """
     Process emissions rates for one or more scenarios based on the provided configuration.
 
@@ -541,7 +535,7 @@ def process_emissions_rates(_study_area, _scenario_name, emissions_input_path, c
         pd.DataFrame: Combined emissions rates for the scenario
     """
     # File paths for outputs
-    combined_rate_file = os.path.join(emissions_output_dir, f"{_study_area}_emissions_rates_{_scenario_name}.csv")
+    combined_rate_file = os.path.join(_work_dir, f"{config["rates"]["output_dir"]}/{_study_area}_emissions_rates_{_scenario_name}.csv")
 
     # Ensure output directory exists
     os.makedirs(os.path.dirname(combined_rate_file), exist_ok=True)
@@ -571,7 +565,7 @@ def process_emissions_rates(_study_area, _scenario_name, emissions_input_path, c
             # Process EMFAC emissions if configured
             if 'emfac' in config:
                 print(f"\nProcessing EMFAC emissions for scenario '{_scenario_name}'")
-                emfac_rates = process_emfac_emissions(_study_area, _scenario_name, emissions_input_path, emissions_output_dir, config, format_func)
+                emfac_rates = process_emfac_emissions(_study_area, _scenario_name, _work_dir, config, format_func)
                 if not emfac_rates.empty:
                     dfs.append(emfac_rates)
                     emfac_ids.update(emfac_rates["emfacId"].unique())
@@ -585,7 +579,7 @@ def process_emissions_rates(_study_area, _scenario_name, emissions_input_path, c
             # Process black carbon emissions if configured
             if 'black_carbon' in config:
                 print(f"\nProcessing Black Carbon emissions for scenario '{_scenario_name}'")
-                black_carbon_rates = process_black_carbon(_study_area, _scenario_name, emissions_input_path, emissions_output_dir, config, format_func)
+                black_carbon_rates = process_black_carbon(_study_area, _scenario_name, _work_dir, config, format_func)
                 if not black_carbon_rates.empty:
                     dfs.append(black_carbon_rates)
                     emfac_ids.update(black_carbon_rates["emfacId"].unique())
@@ -599,7 +593,7 @@ def process_emissions_rates(_study_area, _scenario_name, emissions_input_path, c
             # Process road dust emissions if configured
             if 'road_dust' in config:
                 print(f"\nProcessing Road Dust emissions for scenario '{_scenario_name}'")
-                road_dust_rates = process_road_dust(_study_area, _scenario_name, emissions_input_path, emissions_output_dir, config, emfac_ids)
+                road_dust_rates = process_road_dust(_study_area, _scenario_name, _work_dir, config, emfac_ids)
                 if not road_dust_rates.empty:
                     dfs.append(road_dust_rates)
                     print(f"Added {len(road_dust_rates)} Road Dust emission rows")
@@ -678,7 +672,7 @@ def process_emfac_population(_study_area, _scenario_name, _work_dir, config, for
     """
     _emfac_population_output_file = os.path.join(
         _work_dir,
-        f"emissions/{_study_area}_emfac_population_{_scenario_name}.csv"
+        f"{config["rates"]["output_dir"]}/{_study_area}_emfac_population_{_scenario_name}.csv"
     )
 
     # Ensure output directory exists
@@ -812,7 +806,7 @@ def process_emfac_vmt(_study_area, _scenario_name, _work_dir, config, format_fun
     """
     _emfac_vmt_output_file = os.path.join(
         _work_dir,
-        f"emissions/{_study_area}_emfac_vmt_{_scenario_name}.csv"
+        f"{config["rates"]["output_dir"]}/{_study_area}_emfac_vmt_{_scenario_name}.csv"
     )
 
     # Ensure output directory exists
