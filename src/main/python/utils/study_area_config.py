@@ -351,11 +351,11 @@ sfbay_area_config = {
                     "emfac_pop_by_model_year_file": f"emissions/rates/emfac/Default_Statewide_2018_2025_2030_2040_2050_Annual_population_20240612233346.csv"
                 },
                 "black_carbon": {
-                    "black_carbon_rates_file": f"emissions/black_carbon/emfac_bc_rate_three_ver_2018.csv",
+                    "black_carbon_rates_file": f"emissions/rates/black_carbon/emfac_bc_rate_three_ver_2018.csv",
                 },
                 "road_dust": {
-                    "rainy_days_file": f"emissions/road_dust/CA_input/rainy_days.csv",
-                    "silt_loading_file": f"emissions/road_dust/CA_input/silt_loading.csv",
+                    "rainy_days_file": f"emissions/rates/road_dust/CA_input/rainy_days.csv",
+                    "silt_loading_file": f"emissions/rates/road_dust/CA_input/silt_loading.csv",
                 }
             },
             "beam" : {

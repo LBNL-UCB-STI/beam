@@ -535,7 +535,8 @@ def process_emissions_rates(_study_area, _scenario_name, _work_dir, config, form
         pd.DataFrame: Combined emissions rates for the scenario
     """
     # File paths for outputs
-    combined_rate_file = os.path.join(_work_dir, f"{config["rates"]["output_dir"]}/{_study_area}_emissions_rates_{_scenario_name}.csv")
+    rates_config = config["rates"]
+    combined_rate_file = os.path.join(_work_dir, f"{rates_config["output_dir"]}/{_study_area}_emissions_rates_{_scenario_name}.csv")
 
     # Ensure output directory exists
     os.makedirs(os.path.dirname(combined_rate_file), exist_ok=True)
@@ -551,11 +552,11 @@ def process_emissions_rates(_study_area, _scenario_name, _work_dir, config, form
 
         # Track processing steps
         steps = []
-        if 'emfac' in config:
+        if 'emfac' in rates_config:
             steps.append('EMFAC emissions')
-        if 'black_carbon' in config:
+        if 'black_carbon' in rates_config:
             steps.append('Black Carbon emissions')
-        if 'road_dust' in config:
+        if 'road_dust' in rates_config:
             steps.append('Road Dust emissions')
 
         print(f"Will process: {', '.join(steps)}")
@@ -563,7 +564,7 @@ def process_emissions_rates(_study_area, _scenario_name, _work_dir, config, form
         # Use tqdm to show progress of processing steps
         with tqdm(total=len(steps), desc="Processing emission types") as pbar:
             # Process EMFAC emissions if configured
-            if 'emfac' in config:
+            if 'emfac' in rates_config:
                 print(f"\nProcessing EMFAC emissions for scenario '{_scenario_name}'")
                 emfac_rates = process_emfac_emissions(_study_area, _scenario_name, _work_dir, config, format_func)
                 if not emfac_rates.empty:
@@ -577,7 +578,7 @@ def process_emissions_rates(_study_area, _scenario_name, _work_dir, config, form
                 print(f"Skipping EMFAC processing for scenario '{_scenario_name}' as no config is provided.")
 
             # Process black carbon emissions if configured
-            if 'black_carbon' in config:
+            if 'black_carbon' in rates_config:
                 print(f"\nProcessing Black Carbon emissions for scenario '{_scenario_name}'")
                 black_carbon_rates = process_black_carbon(_study_area, _scenario_name, _work_dir, config, format_func)
                 if not black_carbon_rates.empty:
@@ -591,7 +592,7 @@ def process_emissions_rates(_study_area, _scenario_name, _work_dir, config, form
                 print(f"Skipping Black Carbon processing for scenario '{_scenario_name}' as no config is provided.")
 
             # Process road dust emissions if configured
-            if 'road_dust' in config:
+            if 'road_dust' in rates_config:
                 print(f"\nProcessing Road Dust emissions for scenario '{_scenario_name}'")
                 road_dust_rates = process_road_dust(_study_area, _scenario_name, _work_dir, config, emfac_ids)
                 if not road_dust_rates.empty:
@@ -690,7 +691,7 @@ def process_emfac_population(_study_area, _scenario_name, _work_dir, config, for
         air_basin_area = config["filters"]["sub_area"]
         _emfac_population_by_model_year_file = os.path.join(
             _work_dir,
-            config["emfac"]["emfac_pop_by_model_year_file"]
+            config["rates"]["emfac"]["emfac_pop_by_model_year_file"]
         )
 
         print(f"Reading population data from: {_emfac_population_by_model_year_file}")
@@ -824,7 +825,7 @@ def process_emfac_vmt(_study_area, _scenario_name, _work_dir, config, format_fun
         air_basin_area = config["filters"]["sub_area"]
         _emfac_vmt_by_model_year_file = os.path.join(
             _work_dir,
-            config["emfac"]["emfac_vmt_by_model_year_file"]
+            config["rates"]["emfac"]["emfac_vmt_by_model_year_file"]
         )
 
         print(f"Reading VMT data from: {_emfac_vmt_by_model_year_file}")

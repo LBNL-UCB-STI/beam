@@ -160,7 +160,7 @@ def assign_emission_rates_to_vehicle_types(scenario, emissions_rates, emfac_pop,
     else:
         # Generate passenger vehicle types
         new_pax_vehicle_types, other_pax_vehicle_types = generate_emfac_mapped_passenger_vehicle_types(
-            emfac_pop,
+            emfac_vmt,
             car_class=BeamClasses.CLASS_CAR,
             bike_class=BeamClasses.CLASS_BIKE,
             transit_class=BeamClasses.CLASS_MDP,
@@ -413,8 +413,8 @@ def run():
     beam_config = config["beam"]
     beam_config["carriers_file"] = f"beam-ft/{run_batch}/{scenario}/carriers--{scenario_label}.csv"
     beam_config["payloads_file"] = f"beam-ft/{run_batch}/{scenario}/payloads--{scenario_label}.csv"
-    beam_config["ft_vehicle_types_file"] = f"vehicle-tech/ft-vehicletypes--{run_batch_label}--{scenario_label}.csv"
-    beam_config["pax_vehicle_types_file"] = f"vehicle-tech/pax-vehicletypes--{scenario_label}.csv"
+    beam_config["ft_vehicle_types_file"] = f"vehicle-tech/vehicleTypes--frism--{scenario_label}.csv"
+    beam_config["pax_vehicle_types_file"] = f"vehicle-tech/vehicleTypes--atlas--2023-Baseline.csv"
     emfac_class_map = generate_emfac_beam_class_mapping(
         area, scenario, study_area_config["work_dir"], config, to_filter_out=[BeamClasses.CLASS_2B3_VOCATIONAL]
     )

@@ -3,6 +3,8 @@ import re
 import sys
 
 import pandas as pd
+import numpy as np
+from tqdm import tqdm
 
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -339,10 +341,10 @@ def generate_emfac_mapped_passenger_vehicle_types(emfac_vmt, car_class, bike_cla
     car_emfac = emfac_vmt[emfac_vmt["mappedClass"].isin([car_class])].copy()
 
     # Normalize bike vmt data
-    car_pop_sum = car_emfac['vmt'].sum()
+    car_pop_sum = car_emfac['total_vmt'].sum()
 
     if car_pop_sum > 0:
-        car_emfac['vmt_normalized'] = car_emfac['vmt'] / car_pop_sum
+        car_emfac['vmt_normalized'] = car_emfac['total_vmt'] / car_pop_sum
     else:
         car_emfac['vmt_normalized'] = 0.0
 
@@ -365,11 +367,11 @@ def generate_emfac_mapped_passenger_vehicle_types(emfac_vmt, car_class, bike_cla
     bike_emfac = emfac_vmt[emfac_vmt["mappedClass"].isin([bike_class])].copy()
 
     # Normalize bike vmt data
-    bike_pop_sum = bike_emfac['vmt'].sum()
+    bike_pop_sum = bike_emfac['total_vmt'].sum()
 
     # Add safeguard for division by zero
     if bike_pop_sum > 0:
-        bike_emfac['vmt_normalized'] = bike_emfac['vmt'] / bike_pop_sum
+        bike_emfac['vmt_normalized'] = bike_emfac['total_vmt'] / bike_pop_sum
     else:
         bike_emfac['vmt_normalized'] = 0.0  # Default value if no range
 
@@ -404,10 +406,10 @@ def generate_emfac_mapped_passenger_vehicle_types(emfac_vmt, car_class, bike_cla
     bus_emfac = emfac_vmt[emfac_vmt["mappedClass"] == transit_class].copy()
 
     # Normalize bus vmt data
-    bus_pop_sum = bus_emfac['vmt'].sum()
+    bus_pop_sum = bus_emfac['total_vmt'].sum()
 
     if bus_pop_sum > 0:
-        bus_emfac['vmt_normalized'] = bus_emfac['vmt'] / bus_pop_sum
+        bus_emfac['vmt_normalized'] = bus_emfac['total_vmt'] / bus_pop_sum
     else:
         bus_emfac['vmt_normalized'] = 1.0  # Default value if no range
 
@@ -443,12 +445,7 @@ def generate_fleet_from_vehicle_types(mapped_vehicle_types, car_class, bike_clas
     """
     Update vehicle.csv file by sampling from new vehicle types based on original vehicleTypeId.
 
-    This function:
-    1. Takes the mapped vehicle types data and a vehicle.csv file
-    2. For each vehicle in the CSV, first tries to find exact matches for the original vehicleTypeId
-    3. If no exact match found, samples a new vehicleTypeId from the same category
-       (car or bike) based on sampleProbabilityWithinCategory
-    4. Updates the stateOfCharge to 1 if the fuel type is electric or PHE
+    This function uses vectorized operations and batch processing for better performance.
 
     Args:
         mapped_vehicle_types (pd.DataFrame): DataFrame containing mapped vehicle types
@@ -463,7 +460,9 @@ def generate_fleet_from_vehicle_types(mapped_vehicle_types, car_class, bike_clas
     # Read the vehicle.csv file
     vehicles_file_path = os.path.join(work_dir, config["beam"]["pax_vehicles_file"])
     vehicles_df = pd.read_csv(vehicles_file_path)
+    total_vehicles = len(vehicles_df)
 
+    # Filter vehicle types to only cars and bikes
     car_bike_mask = mapped_vehicle_types['vehicleCategory'].isin([car_class, bike_class])
     filtered_vehicle_types = mapped_vehicle_types.loc[car_bike_mask].copy()
 
@@ -472,57 +471,75 @@ def generate_fleet_from_vehicle_types(mapped_vehicle_types, car_class, bike_clas
         filtered_vehicle_types['sampleProbabilityWithinCategory'], errors='coerce'
     ).fillna(0)
 
-    def determine_category(vehicle_type_id):
-        if isinstance(vehicle_type_id, str):
-            if 'BIKE' in vehicle_type_id.upper():
-                return bike_class
-            else:
-                return car_class
-        return car_class
-
-    # Process each vehicle in the CSV
-    updated_vehicles = []
-
-    for _, vehicle in vehicles_df.iterrows():
-        current_vehicle = vehicle.copy()
-        original_type_id = str(vehicle['vehicleTypeId'])
-
-        # Filter vehicle types to only include those in the same category
-        matches = filtered_vehicle_types[filtered_vehicle_types['oldVehicleTypeId'] == original_type_id].copy()
-
-        if len(matches) == 0:
-            category = determine_category(original_type_id)
-            category_fuel_mask = filtered_vehicle_types['vehicleCategory'] == category
-            matches = filtered_vehicle_types[category_fuel_mask].copy()
-
-        # Calculate weights for sampling
-        weights = matches['sampleProbabilityWithinCategory']
-
-        # Sample a new vehicle type
-        if weights.sum() > 0:
-            sampled_row = matches.sample(
-                n=1,
-                weights=weights,
-                replace=True
-            ).iloc[0]
+    # Precompute vehicle category mappings
+    vehicle_categories = {}
+    for vehicle_type_id in vehicles_df['vehicleTypeId'].unique():
+        if isinstance(vehicle_type_id, str) and 'BIKE' in vehicle_type_id.upper():
+            vehicle_categories[vehicle_type_id] = bike_class
         else:
-            # Fallback to uniform sampling if probabilities are all zero
-            sampled_row = matches.sample(n=1).iloc[0]
+            vehicle_categories[vehicle_type_id] = car_class
 
-        # Update vehicleTypeId to the sampled one
-        current_vehicle['oldVehicleTypeId'] = current_vehicle['vehicleTypeId']
-        current_vehicle['vehicleTypeId'] = sampled_row['vehicleTypeId']
+    # Create a dictionary to store matches by original type
+    type_matches = {}
 
-        # Update stateOfCharge based on fuel type
-        fuel_type = str(sampled_row.get('mappedFuel', ''))
-        if 'Elec' in fuel_type or 'Phe' in fuel_type:
-            current_vehicle['stateOfCharge'] = 1
-        else:
-            current_vehicle['stateOfCharge'] = ""
+    # Precompute category filters
+    category_filters = {
+        car_class: filtered_vehicle_types[filtered_vehicle_types['vehicleCategory'] == car_class],
+        bike_class: filtered_vehicle_types[filtered_vehicle_types['vehicleCategory'] == bike_class]
+    }
 
-        updated_vehicles.append(current_vehicle)
+    # Create new columns in the vehicles DataFrame
+    vehicles_df['oldVehicleTypeId'] = vehicles_df['vehicleTypeId']
+    vehicles_df['stateOfCharge'] = ""
 
-    # Create final DataFrame from the updated records
-    updated_df = pd.DataFrame(updated_vehicles)
+    # Process in batches with progress bar
+    batch_size = 1000
+    num_batches = (total_vehicles + batch_size - 1) // batch_size
 
-    return updated_df
+    with tqdm(total=total_vehicles, desc="Processing vehicles") as pbar:
+        for batch_idx in range(num_batches):
+            start_idx = batch_idx * batch_size
+            end_idx = min(start_idx + batch_size, total_vehicles)
+            batch = vehicles_df.iloc[start_idx:end_idx]
+
+            for idx, vehicle in batch.iterrows():
+                original_type_id = str(vehicle['vehicleTypeId'])
+
+                # Use cached matches if available
+                if original_type_id in type_matches:
+                    matches, weights = type_matches[original_type_id]
+                else:
+                    # Filter vehicle types to only include those with matching oldVehicleTypeId
+                    matches = filtered_vehicle_types[
+                        filtered_vehicle_types['oldVehicleTypeId'] == original_type_id].copy()
+
+                    if len(matches) == 0:
+                        # If no direct match, use vehicle category
+                        category = vehicle_categories.get(original_type_id, car_class)
+                        matches = category_filters[category].copy()
+
+                    # Get weights for sampling
+                    weights = matches['sampleProbabilityWithinCategory'].values
+
+                    # Cache the matches and weights
+                    type_matches[original_type_id] = (matches, weights)
+
+                # Sample a new vehicle type
+                if np.sum(weights) > 0:
+                    sampled_idx = np.random.choice(len(matches), p=weights / np.sum(weights))
+                else:
+                    sampled_idx = np.random.randint(0, len(matches))
+
+                sampled_row = matches.iloc[sampled_idx]
+
+                # Update vehicleTypeId to the sampled one
+                vehicles_df.at[idx, 'vehicleTypeId'] = sampled_row['vehicleTypeId']
+
+                # Update stateOfCharge based on fuel type
+                fuel_type = str(sampled_row.get('mappedFuel', ''))
+                if 'Elec' in fuel_type or 'Phe' in fuel_type:
+                    vehicles_df.at[idx, 'stateOfCharge'] = 1
+
+            pbar.update(end_idx - start_idx)
+
+    return vehicles_df
