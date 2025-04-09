@@ -15,7 +15,7 @@ import org.matsim.api.core.v01.events.Event
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 class BeamEventsWriterParquet(
   var outFileName: String,
@@ -36,17 +36,17 @@ class BeamEventsWriterParquet(
   val parquetWriter: ParquetWriter[GenericData.Record] = getWriter(schema, outFileName)
 
   def fieldDefaultValue(fieldName: String): Any = fieldNameToType.get(fieldName) match {
-    case Some(PDouble)  => 0.0
-    case Some(PInteger) => 0
-    case Some(PBoolean) => false
-    case _              => ""
+    case Some(PDouble)  => Double.NaN
+    case Some(PInteger) => null
+    case Some(PBoolean) => null
+    case _              => null
   }
 
   def fieldSchema(fieldName: String): Schema = fieldNameToType.get(fieldName) match {
     case Some(PDouble)  => Schema.create(Schema.Type.DOUBLE)
-    case Some(PInteger) => Schema.create(Schema.Type.INT)
-    case Some(PBoolean) => Schema.create(Schema.Type.BOOLEAN)
-    case _              => Schema.create(Schema.Type.STRING)
+    case Some(PInteger) => Schema.createUnion(Schema.create(Schema.Type.NULL), Schema.create(Schema.Type.INT))
+    case Some(PBoolean) => Schema.createUnion(Schema.create(Schema.Type.NULL), Schema.create(Schema.Type.BOOLEAN))
+    case _              => Schema.createUnion(Schema.create(Schema.Type.NULL), Schema.create(Schema.Type.STRING))
   }
 
   private def getColumnNames: Seq[String] = {
@@ -81,15 +81,19 @@ class BeamEventsWriterParquet(
       .withPageSize(ParquetWriter.DEFAULT_PAGE_SIZE)
       .withSchema(schema)
       .withConf(new Configuration())
-      .withCompressionCodec(CompressionCodecName.GZIP)
+      .withCompressionCodec(CompressionCodecName.ZSTD)
       .withValidation(false)
-      .withDictionaryEncoding(false)
+      .withDictionaryEncoding(true)
       .build()
   }
 
   override protected def writeEvent(event: Event): Unit = {
     val genericDataRecord = toGenericDataRecord(event, columnNames)
-    parquetWriter.write(genericDataRecord)
+    Try { parquetWriter.write(genericDataRecord) } match {
+      case Success(_) =>
+      case Failure(e) =>
+        logger.error(s"Failed to write event $event to parquet file", e)
+    }
   }
 
   override def closeFile(): Unit = {
