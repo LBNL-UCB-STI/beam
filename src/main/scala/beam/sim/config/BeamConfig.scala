@@ -1563,6 +1563,7 @@ object BeamConfig {
         }
 
         case class RideHailTransit(
+          intermodalUse: java.lang.String,
           modesToConsider: java.lang.String
         )
 
@@ -1570,6 +1571,8 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHailTransit = {
             BeamConfig.Beam.Agentsim.Agents.RideHailTransit(
+              intermodalUse =
+                if (c.hasPathOrNull("intermodalUse")) c.getString("intermodalUse") else "AccessAndOrEgress",
               modesToConsider = if (c.hasPathOrNull("modesToConsider")) c.getString("modesToConsider") else "MASS"
             )
           }
@@ -1605,6 +1608,7 @@ object BeamConfig {
             max_destination_choice_set_size: scala.Int,
             max_destination_distance_meters: scala.Double,
             mode_nest_scale_factor: scala.Double,
+            score_activities: scala.Boolean,
             trip_nest_scale_factor: scala.Double
           )
 
@@ -1631,6 +1635,7 @@ object BeamConfig {
                   else 32000,
                 mode_nest_scale_factor =
                   if (c.hasPathOrNull("mode_nest_scale_factor")) c.getDouble("mode_nest_scale_factor") else 1.0,
+                score_activities = !c.hasPathOrNull("score_activities") || c.getBoolean("score_activities"),
                 trip_nest_scale_factor =
                   if (c.hasPathOrNull("trip_nest_scale_factor")) c.getDouble("trip_nest_scale_factor") else 1.0
               )
@@ -4319,6 +4324,7 @@ object BeamConfig {
     }
 
     case class Router(
+      requestAllAvailableModes: scala.Boolean,
       skim: BeamConfig.Beam.Router.Skim
     )
 
@@ -4505,6 +4511,8 @@ object BeamConfig {
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router = {
         BeamConfig.Beam.Router(
+          requestAllAvailableModes =
+            c.hasPathOrNull("requestAllAvailableModes") && c.getBoolean("requestAllAvailableModes"),
           skim = BeamConfig.Beam.Router.Skim(
             if (c.hasPathOrNull("skim")) c.getConfig("skim")
             else com.typesafe.config.ConfigFactory.parseString("skim{}")
@@ -4639,9 +4647,9 @@ object BeamConfig {
             osmMapdbFile =
               if (c.hasPathOrNull("osmMapdbFile")) c.getString("osmMapdbFile")
               else "/test/input/beamville/r5/osm.mapdb",
-            suboptimalMinutes = if (c.hasPathOrNull("suboptimalMinutes")) c.getInt("suboptimalMinutes") else 0,
+            suboptimalMinutes = if (c.hasPathOrNull("suboptimalMinutes")) c.getInt("suboptimalMinutes") else 10,
             transitAlternativeList =
-              if (c.hasPathOrNull("transitAlternativeList")) c.getString("transitAlternativeList") else "OPTIMAL",
+              if (c.hasPathOrNull("transitAlternativeList")) c.getString("transitAlternativeList") else "SUBOPTIMAL",
             travelTimeNoiseFraction =
               if (c.hasPathOrNull("travelTimeNoiseFraction")) c.getDouble("travelTimeNoiseFraction") else 0.0
           )

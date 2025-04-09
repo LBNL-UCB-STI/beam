@@ -379,9 +379,13 @@ object TourModes {
                 )
               )
           case _ =>
+            val retainedVehicle = availableVehicles
+              .find(v => currentTourPersonalVehicle.find(availableVehicles.map(_.id).contains).contains(v.id))
+              .map(_.vehicle)
+
             outcome
               .getOrElseUpdate(Some(WALK_BASED), mutable.Map.empty[EmbodiedBeamTrip, Option[BeamVehicle]])
-              .update(trip, None)
+              .update(trip, retainedVehicle)
         }
       }
       outcome

@@ -1,31 +1,38 @@
 from validation_utils import *
 from pathlib import Path
+import sys
 
+# Get the absolute path to the directory containing this script
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(os.path.dirname(current_dir))
+sys.path.insert(0, parent_dir)
 
-work_dir = os.path.expanduser("~/Workspace/Simulation")
+from python.utils.study_area_config import get_area_config
+from python.utils.study_area_config import generate_network_name
+
 # beam run i.e. link stats and events file
 # study_area = "seattle"
 study_area = "sfbay"
+batch = "20240123"
+scenario = "2018-Baseline-FC12-Bis2"
+run_link_speed_validation = True
+run_network_speed_validation = True
+run_vmt_validation = False
 
-study_area_dir = os.path.join(work_dir, study_area)
 
-study_area_beam_network_dir = f"{study_area}_simple_no_local"
-beam_network_mapped_to_npmrds_geo = os.path.join(
-    study_area_dir,
-    'validation/beam',
-    study_area_beam_network_dir,
-    f'{study_area_beam_network_dir}_network_mapped_to_npmrds.geojson'
-)
+config = get_area_config(study_area)
+config["network"]["graph_layers"]["residential"]["min_density_per_km2"] = 5500
+study_area_dir = config["work_dir"]
+network_name = generate_network_name(config)
+network_dir = f'{config["work_dir"]}/network/{network_name}'
+run_dir = f"{config["work_dir"]}/beam-runs/{batch}/{scenario}"
 
 # run_dir = os.path.expanduser("~/Workspace/Simulation/seattle/beam/runs/2024-04-20/Baseline")
-batch = "2024-11-06"
 batch_label = batch.replace("-", "")
-scenario = "2018_Baseline"
 scenario_label = scenario.replace("_", "-")
-run_dir = study_area_dir + f"/beam-runs/{batch}/{scenario}/"
 link_stats = [
     LinkStats(scenario=f"{batch}_{scenario_label}", demand_fraction=0.1,
-              file_path=os.path.join(run_dir, "0.linkstats.csv.gz"))
+              file_path=os.path.join(run_dir, "3.linkstats.csv.gz"))
 ]
 vehicle_types_files = [(
     batch_label,
@@ -34,24 +41,18 @@ vehicle_types_files = [(
     study_area_dir + f"/beam-freight/{batch}/{scenario}/vehicle-tech/ft-vehicletypes--{batch_label}--{scenario_label}.csv"
 )]
 
-run_link_speed_validation = False
-run_network_speed_validation = False
-run_vmt_validation = False
+
 
 # validation data
 # npmrds_station_geo = study_area_dir + '/validation/npmrds/seattle_npmrds_station.geojson'
 # npmrds_data_csv = study_area_dir + '/validation/npmrds/seattle_npmrds_data.csv'
 # npmrds_hourly_speed_csv = study_area_dir + '/validation/npmrds/seattle_npmrds_hourly_speeds.csv'
 # npmrds_hourly_speed_by_road_class_csv = study_area_dir + '/validation/npmrds/' + study_area + '_npmrds_hourly_speed_by_road_class.csv'
-npmrds_station_geo = study_area_dir + '/validation/npmrds/' + study_area + '_npmrds_station.geojson'
-npmrds_data_csv = study_area_dir + '/validation/npmrds/' + study_area + '_npmrds_data.csv'
-npmrds_hourly_speed_csv = study_area_dir + '/validation/npmrds/' + study_area + '_npmrds_hourly_speeds.csv'
-npmrds_hourly_speed_by_road_class_csv = study_area_dir + '/validation/npmrds/' + study_area + '_npmrds_hourly_speed_by_road_class.csv'
 
 # ########## Initialize
-setup = SpeedValidationSetup(npmrds_hourly_speed_csv=npmrds_hourly_speed_csv,
-                             npmrds_hourly_speed_by_road_class_csv=npmrds_hourly_speed_by_road_class_csv,
-                             beam_network_mapped_to_npmrds_geo=beam_network_mapped_to_npmrds_geo)
+setup = SpeedValidationSetup(npmrds_hourly_speed_csv=f"{run_dir}/{study_area}_npmrds_hourly_speeds.csv",
+                             npmrds_hourly_speed_by_road_class_csv=f"{run_dir}/{study_area}_npmrds_hourly_speed_by_road_class.csv",
+                             beam_network_mapped_to_npmrds_geo=f"{run_dir}/{study_area}_network_mapped_to_npmrds.geojson")
 
 if run_link_speed_validation or run_network_speed_validation or run_vmt_validation:
     # The rest is automatically generated
@@ -71,27 +72,13 @@ else:
 # ########## Network-level speed validation
 # #########################################
 if run_network_speed_validation:
-    hourly_speed = setup.get_hourly_average_speed(processed_link_stats)
-
-    # Calculate average speed for the whole network
-    average_network_speed = hourly_speed.groupby('scenario')['speed'].mean()
-    print("Average network speed:")
-    print(average_network_speed)
-
-    # Plot hourly network speed
-    plt.figure()
-    sns.lineplot(x='hour', y='speed', hue='scenario', data=hourly_speed, errorbar=('ci', 95))
-    plt.ylim([0, 70])
-    plt.title("Network-level Speed Validation")
-    plt.savefig(plots_dir + '/' + study_area + '_beam_npmrds_network_speed_validation.png', dpi=200)
-    plt.show(block=False)
-
     hourly_speed_by_road_class = setup.get_hourly_average_speed_by_road_class(processed_link_stats)
+    hourly_speed_by_road_class_no_npmrds = hourly_speed_by_road_class[~hourly_speed_by_road_class['scenario'].str.contains("npmrds", case=False, na=False)]
 
     # plot hourly network speed by road class
     plt.figure()
     g = sns.relplot(x='hour', y='speed', hue='road_class', col='scenario', kind="line",
-                    data=hourly_speed_by_road_class,
+                    data=hourly_speed_by_road_class_no_npmrds,
                     errorbar=('ci', 95), facet_kws={'sharey': True, 'sharex': True})
     g.set_titles("{col_name}")
     g.fig.suptitle('Network-level Speed Validation by Road Class', fontsize=16, y=0.98)
@@ -103,7 +90,7 @@ if run_network_speed_validation:
     plt.savefig(plots_dir + '/' + study_area + '_beam_npmrds_network_speed_road_class_validation.png', dpi=200)
     plt.show(block=False)
 
-    hourly_speed_by_road_class.to_csv(
+    hourly_speed_by_road_class_no_npmrds.to_csv(
         output_dir + '/' + study_area + '_beam_npmrds_network_speed_road_class_validation.csv', index=False)
 # ######################################
 # ########## Link-level speed validation
@@ -145,35 +132,35 @@ if run_link_speed_validation:
 # average_link_speed.to_csv(output_dir + '/' + study_area + '_average_link_speed.csv', index=False)
 
 
-if run_vmt_validation:
-    pts = pd.DataFrame()
-    # Read vehicle types
-    for (batch, scenario, events_file, veh_types_file) in vehicle_types_files:
-        # Read and process freight events
-        run = read_events(
-            events_file,
-            veh_types_file,
-            batch,
-            scenario
-        )
-        pt = get_ft_path_traversals(run)
-        pts = pd.concat([pts, pt])
-
-    # Process baseline data
-    baseline_summary, baseline_summary_levels, baseline_summary_colors = process_ft_path_traversals(baseline_runs,
-                                                                                                    baseline_runs_name,
-                                                                                                    baseline_output_dir)
-
-    # Validate VMT
-    validation = validate_vmt(baseline_summary, WORK_DIR)
-
-    # Create plots
-    plot_results(
-        baseline_summary,
-        validation,
-        baseline_summary_colors,
-        baseline_output_dir,
-        "2024-08-07"
-    )
+# if run_vmt_validation:
+#     pts = pd.DataFrame()
+#     # Read vehicle types
+#     for (batch, scenario, events_file, veh_types_file) in vehicle_types_files:
+#         # Read and process freight events
+#         run = read_events(
+#             events_file,
+#             veh_types_file,
+#             batch,
+#             scenario
+#         )
+#         pt = get_ft_path_traversals(run)
+#         pts = pd.concat([pts, pt])
+#
+#     # Process baseline data
+#     baseline_summary, baseline_summary_levels, baseline_summary_colors = process_ft_path_traversals(baseline_runs,
+#                                                                                                     baseline_runs_name,
+#                                                                                                     baseline_output_dir)
+#
+#     # Validate VMT
+#     validation = validate_vmt(baseline_summary, WORK_DIR)
+#
+#     # Create plots
+#     plot_results(
+#         baseline_summary,
+#         validation,
+#         baseline_summary_colors,
+#         baseline_output_dir,
+#         "2024-08-07"
+#     )
 
 print("END")

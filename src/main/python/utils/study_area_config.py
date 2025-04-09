@@ -5,10 +5,37 @@ This file contains all the parameters needed to define a study area and its netw
 import os
 import osmnx as ox
 from osmnx import settings
+import pandas as pd
 
 #############################
 ########## Methods ##########
 #############################
+
+def get_fuel_key(row):
+    """
+    Derive the standardized fuel key from vehicle data row.
+
+    This function extracts the primary fuel type and adds a suffix
+    for electric vehicles based on whether they are pure electric
+    or hybrid vehicles.
+
+    Args:
+        row (pandas.Series): A row from a vehicle types DataFrame
+            containing 'primaryFuelType' and 'secondaryFuelType' columns
+
+    Returns:
+        str: A standardized fuel key string
+    """
+    # Get primary fuel and convert to lowercase
+    fuel = row['primaryFuelType'].lower()
+
+    # Special handling for electric vehicles
+    if fuel == "electricity":
+        # Check if it's a hybrid (has a secondary fuel) or pure electric
+        suffix = "only" if pd.isna(row['secondaryFuelType']) else "hybrid"
+        return f"{fuel}-{suffix}"
+
+    return fuel
 
 def generate_network_name(config: dict) -> str:
     """
@@ -19,7 +46,7 @@ def generate_network_name(config: dict) -> str:
     """
     # Get study area
     study_area = config["study_area"]
-    layers = config["graph_layers"]
+    layers = config["network"]["graph_layers"]
 
     # Get residential geographic level and density
     if "residential" in layers:
@@ -85,6 +112,78 @@ def get_area_config(area_name):
 ########## Settings #########
 #############################
 
+# Create a file named beam_classes.py
+
+class BeamClasses:
+    """
+    BEAM vehicle class definitions with flexible import options.
+
+    This class provides accessible vehicle class constants used in BEAM transportation models,
+    with helper methods for grouping and categorization.
+    """
+    # Freight vehicle classes
+    CLASS_2B3_VOCATIONAL = 'Class2b3Vocational'
+    CLASS_456_VOCATIONAL = 'Class456Vocational'
+    CLASS_78_VOCATIONAL = 'Class78Vocational'
+    CLASS_78_TRACTOR = 'Class78Tractor'
+
+    # Non-freight vehicle classes
+    CLASS_CAR = "Car"  # includes light and medium duty trucks
+    CLASS_BIKE = "Bike"
+    CLASS_MDP = "MediumDutyPassenger"
+
+    @classmethod
+    def get_medium_heavy_freight_classes(cls):
+        """Returns a list of all freight vehicle classes."""
+        return [
+            cls.CLASS_456_VOCATIONAL,
+            cls.CLASS_78_VOCATIONAL,
+            cls.CLASS_78_TRACTOR
+        ]
+
+    @classmethod
+    def get_freight_classes(cls):
+        """Returns a list of all freight vehicle classes."""
+        return [
+            cls.CLASS_2B3_VOCATIONAL,
+            cls.CLASS_456_VOCATIONAL,
+            cls.CLASS_78_VOCATIONAL,
+            cls.CLASS_78_TRACTOR
+        ]
+
+    @classmethod
+    def get_passenger_classes(cls):
+        """Returns a list of all non-freight vehicle classes."""
+        return [
+            cls.CLASS_CAR,
+            cls.CLASS_BIKE,
+            cls.CLASS_MDP
+        ]
+
+    @classmethod
+    def get_all_classes(cls):
+        """Returns a list of all vehicle classes."""
+        return cls.get_freight_classes() + cls.get_passenger_classes()
+
+    @classmethod
+    def is_freight(cls, beam_class):
+        """Returns True if the given class is a freight vehicle class."""
+        return beam_class in cls.get_freight_classes()
+
+    @classmethod
+    def class_to_display_name(cls, beam_class):
+        """Converts internal class names to display-friendly names."""
+        display_names = {
+            cls.CLASS_2B3_VOCATIONAL: "Class 2b/3 Vocational",
+            cls.CLASS_456_VOCATIONAL: "Class 4-6 Vocational",
+            cls.CLASS_78_VOCATIONAL: "Class 7-8 Vocational",
+            cls.CLASS_78_TRACTOR: "Class 7-8 Tractor",
+            cls.CLASS_CAR: "Passenger Car",
+            cls.CLASS_BIKE: "Bicycle",
+            cls.CLASS_MDP: "Medium-Duty Passenger"
+        }
+        return display_names.get(beam_class, beam_class)
+
 constants = {
     "joule_per_meter_base_rate": 1.213e8, # Energy consumption base rate in joules per meter
     "max_fuel_capacity_in_joule": 1.2e16, # Maximum fuel capacity in joules (represents physical tank limits)
@@ -119,38 +218,38 @@ weight_limits = {
 
 fastsim_routee_files = {
     "primary_powertrain": {
-        "freight-md-D-Diesel-Baseline": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(Diesel,_2020,_no_program).csv",
-        "freight-md-E-BE-Baseline": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(BEV,_2025,_no_program).csv",
-        # "freight-md-E-H2FC-Baseline": np.nan,
-        "freight-md-E-PHEV-Baseline": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(BEV,_2025,_no_program).csv",
-        "freight-hdt-D-Diesel-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(Diesel,_2020,_no_program).csv",
-        "freight-hdt-E-BE-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(BEV,_2025,_no_program).csv",
-        # "freight-hdt-E-H2FC-Baseline": np.nan,
-        "freight-hdt-E-PHEV-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(BEV,_2025,_no_program).csv",
-        "freight-hdv-D-Diesel-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(Diesel,_2020,_no_program).csv",
-        "freight-hdv-E-BE-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(BEV,_2025,_no_program).csv",
-        # "freight-hdv-E-H2FC-Baseline": np.nan,
-        "freight-hdv-E-PHEV-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(BEV,_2025,_no_program).csv"
+        "md-D-Diesel": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(Diesel,_2020,_no_program).csv",
+        "md-E-BE": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(BEV,_2025,_no_program).csv",
+        # "md-E-H2FC": np.nan,
+        "md-E-PHEV": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(BEV,_2025,_no_program).csv",
+        "hdt-D-Diesel": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(Diesel,_2020,_no_program).csv",
+        "hdt-E-BE": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(BEV,_2025,_no_program).csv",
+        # "hdt-E-H2FC": np.nan,
+        "hdt-E-PHEV": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(BEV,_2025,_no_program).csv",
+        "hdv-D-Diesel": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(Diesel,_2020,_no_program).csv",
+        "hdv-E-BE": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(BEV,_2025,_no_program).csv",
+        # "hdv-E-H2FC": np.nan,
+        "hdv-E-PHEV": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(BEV,_2025,_no_program).csv"
     },
     "secondary_powertrain": {
-        # "freight-md-D-Diesel-Baseline": np.nan,
-        # "freight-md-E-BE-Baseline": np.nan,
-        # "freight-md-E-H2FC-Baseline": np.nan,
-        "freight-md-E-PHEV-Baseline": ("Diesel",
+        # "md-D-Diesel": np.nan,
+        # "md-E-BE": np.nan,
+        # "md-E-H2FC": np.nan,
+        "md-E-PHEV": ("Diesel",
                                        9595.796035186175,
                                        constants["max_fuel_capacity_in_joule"],
                                        "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(HEV,_2025,_no_program).csv"),
-        # "freight-hdt-D-Diesel-Baseline": np.nan,
-        # "freight-hdt-E-BE-Baseline": np.nan,
-        # "freight-hdt-E-H2FC-Baseline": np.nan,
-        "freight-hdt-E-PHEV-Baseline": ("Diesel",
+        # "hdt-D-Diesel": np.nan,
+        # "hdt-E-BE": np.nan,
+        # "hdt-E-H2FC": np.nan,
+        "hdt-E-PHEV": ("Diesel",
                                         13817.086117829229,
                                         constants["max_fuel_capacity_in_joule"],
                                         "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(HEV,_2025,_no_program).csv"),
-        # "freight-hdv-D-Diesel-Baseline": np.nan,
-        # "freight-hdv-E-BE-Baseline": np.nan,
-        # "freight-hdv-E-H2FC-Baseline": np.nan,
-        "freight-hdv-E-PHEV-Baseline": ("Diesel",
+        # "hdv-D-Diesel": np.nan,
+        # "hdv-E-BE": np.nan,
+        # "hdv-E-H2FC": np.nan,
+        "hdv-E-PHEV": ("Diesel",
                                         14026.761465378302,
                                         constants["max_fuel_capacity_in_joule"],
                                         "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(HEV,_2025,_no_program).csv")
@@ -160,64 +259,218 @@ fastsim_routee_files = {
 ########## SF Bay Area #########
 
 sfbay_area_config = {
-    # OSMNX settings
-    "osmnx_settings": osmnx_settings,
-
-    # Vehicle weight classifications (FHWA)
-    "weight_limits": weight_limits,
-
-    # FastSim routee files
-    "fastsim_routee_files": fastsim_routee_files,
-
-    # Transit stop data
-
-    # if download isn't enabled, we read network from disk
-    "download_enabled": True,
-
     # Base paths
     "work_dir": os.path.expanduser("~/Workspace/Simulation/sfbay"),
-
-    # Geographic settings
     "study_area": "sfbay",
     "state_fips": "06",
     # 087 Santa Cruz
     # 113 Yolo
     "county_fips": ['001', '013', '041', '055', '075', '081', '085', '095', '097'],
     "census_year": 2018,
-    "utm_epsg": 26910,  # NAD83 / UTM zone 10N
-    "tolerance": 2,
 
-    # Density thresholds and corresponding network filters
-    "graph_layers": {
-        "main": {
-            "geo_level": "county",
-            "custom_filter": create_osm_highway_filter(list(set(osm_highways) - {"residential"})),
-            "buffer_zone_in_meters": 200
+    "geo": {
+        "utm_epsg": 26910, # NAD83 / UTM zone 10N
+        "taz_shp": "geo/shp/sfbay-tazs-epsg-26910.shp",
+        "taz_id": "taz1454",
+        "cbg_id": "GEOID",
+    },
+
+    "network": {
+        "osmnx_settings": osmnx_settings,
+        "weight_limits": weight_limits, # Vehicle weight classifications (FHWA)
+        "download_enabled": True, # if download isn't enabled, we read network from disk
+        "tolerance": 2,
+        "graph_layers": { # Density thresholds and corresponding network filters
+            "main": {
+                "geo_level": "county",
+                "custom_filter": create_osm_highway_filter(list(set(osm_highways) - {"residential"})),
+                "buffer_zone_in_meters": 200
+            },
+            "residential": {
+                "min_density_per_km2": 5500,
+                "geo_level": "cbg",
+                "custom_filter": create_osm_highway_filter(osm_highways),
+                "buffer_zone_in_meters": 20
+            }
+            # // California has a higher urbanization rate (94.8% urban vs 80.7% national average)
+            # // https://dof.ca.gov/wp-content/uploads/sites/352/Forecasting/Demographics/Documents/Urban-Rural_Classification_and_2020_Urban_Area_Criteria_CA_SDC.pdf
+            # const avgPersonsPerHousehold = 2.9; // CA average household size (higher than national 2.5)
+            #
+            # // Core density calculation (using similar proportions as national but adjusted for CA household size)
+            # const coreHUDensity = 1275; // National high-density nucleus requirement
+            # const caDensityAdjustment = 2.9 / 2.5; // CA vs national household size ratio
+            # // Calculate CA-adjusted thresholds
+            # const caHighDensityPPSM = coreHUDensity * 2.9;
+            # const caInitialCorePPSM = 425 * 2.9;
+            # const caUrbanExtensionPPSM = 200 * 2.9;
+            # // Result
+            # // California-adjusted density thresholds (persons per square mile):
+            # //  densest urban cores, typical of downtown areas in major California cities:  7,395 ppsm = 2,855 ppsk
+            # // High-density nucleus requirement: 3698 ppsm = 1429 ppsk
+            # // Initial core requirement: 1233 ppsm = 475 ppsk
+            # // Urban extension requirement: 580 ppsm = 224 ppsk
+            # // Rural Areas less than 580 people per square mile
         },
-        "residential": {
-            "min_density_per_km2": 4500,
-            "geo_level": "cbg",
-            "custom_filter": create_osm_highway_filter(osm_highways),
-            "buffer_zone_in_meters": 20
+        "validation": {
+            "npmrds": {
+                "year": 2018,
+                "geo": "validation/npmrds/California.shp",
+                "data": "validation/npmrds/al_ca_oct2018_1hr_trucks_pax.csv"
+            }
         }
-        # // California has a higher urbanization rate (94.8% urban vs 80.7% national average)
-        # // https://dof.ca.gov/wp-content/uploads/sites/352/Forecasting/Demographics/Documents/Urban-Rural_Classification_and_2020_Urban_Area_Criteria_CA_SDC.pdf
-        # const avgPersonsPerHousehold = 2.9; // CA average household size (higher than national 2.5)
-        #
-        # // Core density calculation (using similar proportions as national but adjusted for CA household size)
-        # const coreHUDensity = 1275; // National high-density nucleus requirement
-        # const caDensityAdjustment = 2.9 / 2.5; // CA vs national household size ratio
-        # // Calculate CA-adjusted thresholds
-        # const caHighDensityPPSM = coreHUDensity * 2.9;
-        # const caInitialCorePPSM = 425 * 2.9;
-        # const caUrbanExtensionPPSM = 200 * 2.9;
-        # // Result
-        # // California-adjusted density thresholds (persons per square mile):
-        # //  densest urban cores, typical of downtown areas in major California cities:  7,395 ppsm = 2,855 ppsk
-        # // High-density nucleus requirement: 3698 ppsm = 1429 ppsk
-        # // Initial core requirement: 1233 ppsm = 475 ppsk
-        # // Urban extension requirement: 580 ppsm = 224 ppsk
-        # // Rural Areas less than 580 people per square mile
+    },
+
+    # FastSim routee files
+    "fastsim_routee_files": fastsim_routee_files,
+
+    "freight": {
+        "stops_data": "data/austin_cargo_operations.csv",
+        "2018_Baseline" : {
+            "carriers_file": f"beam-ft/2024-11-06/2018-Baseline/carriers--2018-Baseline.csv",
+            "payloads_file": f"beam-ft/2024-11-06/2018-Baseline/payloads--2018-Baseline.csv",
+            "tours_file": f"beam-ft/2024-11-06/2018-Baseline/tours--2018-Baseline.csv",
+            "ft_vehicle_types_file": f"vehicle-tech/ft-vehicletypes--20241106--2018-Baseline.csv"
+        }
+    },
+
+    "emissions": {
+        "2018-Baseline" : {
+            "override_rates": False,
+            "override_fleet": True,
+            "rates": {
+                "output_dir": "emissions/20240123",
+                "filters": {
+                    "season_month": "Annual",
+                    "calendar_year": 2018,
+                    "temperature": 60.,
+                    "relative_humidity": 40.,
+                    "sub_area": ["SF"],
+                    "include_nan": True
+                },
+                "emfac": {
+                    "emfac_rates_by_model_year_file": f"emissions/rates/emfac/imputed_MTC_emission_rate_agg_NH3_added_2018_2025_2030_2040_2050.csv",
+                    "emfac_vmt_by_model_year_file": f"emissions/rates/emfac/Default_Statewide_2018_2025_2030_2040_2050_Annual_vmt_20240612233346.csv",
+                    "emfac_pop_by_model_year_file": f"emissions/rates/emfac/Default_Statewide_2018_2025_2030_2040_2050_Annual_population_20240612233346.csv"
+                },
+                "black_carbon": {
+                    "black_carbon_rates_file": f"emissions/rates/black_carbon/emfac_bc_rate_three_ver_2018.csv",
+                },
+                "road_dust": {
+                    "rainy_days_file": f"emissions/rates/road_dust/CA_input/rainy_days.csv",
+                    "silt_loading_file": f"emissions/rates/road_dust/CA_input/silt_loading.csv",
+                }
+            },
+            "beam" : {
+                "carriers_file": f"beam-ft/20240123/2018-Baseline/carriers--2018-Baseline.csv",
+                "payloads_file": f"beam-ft/20240123/2018-Baseline/payloads--2018-Baseline.csv",
+                "ft_vehicle_types_file": f"vehicle-tech/vehicleTypes--frism--2018-Baseline.csv",
+                "pax_vehicles_file": f"beam-pax/2023-Baseline/vehicles--atlas--2023-Baseline.csv.gz",
+                "pax_vehicle_types_file": f"vehicle-tech/vehicleTypes--atlas--2023-Baseline.csv"
+            },
+            "mapping": {
+                "fleet": {
+                    "ignore_beam_passenger_distribution": False,
+                    "ignore_beam_freight_distribution": False
+                },
+                "atlas":{
+                    "enable_atlas_emfac_crosswalk": True,
+                    "emfac": f"atlas/atlas-emfac-xwalk.csv",
+                    "routee": f"atlas/vehicle_type_mapping_baseline.csv",
+                    "alternatives": {
+                        "car": ['car'],
+                        "suv": ['suv', 'car', 'truck'],
+                        'truck': ['truck', 'suv', 'minvan'],
+                        'van': ['minvan', 'truck'],
+                        'minvan': ['minvan', 'truck', 'van']
+                    }
+                },
+                "fuel": {
+                    "beam": {
+                        "hydrogen": 'Elec', # From emission pov, BEAM's hydrogen cars shall be electric
+                        "electricity-only": 'Elec',
+                        "electricity-hybrid": 'Phe',
+                        "gasoline": 'Gas',
+                        "diesel": 'Dsl',
+                        "biodiesel": 'Dsl' # From emission pov, BEAM's biodiesel cars shall be diesel
+                    },
+                    "emfac-ft": {
+                        "Elec": 'Elec',
+                        "Phe": 'Phe',
+                        "Gas": 'Dsl',
+                        "Dsl": 'Dsl',
+                        "NG": 'Dsl' # EMFAC NG cars will be mapped to BEAM's diesel cars
+                    },
+                    "emfac-pax": {
+                        "Elec": 'Elec',
+                        "Phe": 'Phe',
+                        "Gas": 'Gas',
+                        "Dsl": 'Gas',
+                        "NG": 'Gas' # EMFAC NG cars will be mapped to BEAM's diesel cars
+                    },
+                    "emfac-bus": {
+                        "Elec": 'Elec',
+                        "Phe": 'Phe',
+                        "Gas": 'Gas',
+                        "Dsl": 'Dsl',
+                        "NG": 'Dsl'
+                    },
+                    "alternatives": {
+                        "Elec": ['Elec', 'Phe'],
+                        'Phe': ['Phe', 'Elec'],
+                        "Gas": ['Gas', 'Dsl'],
+                        "Dsl": ['Dsl', 'Gas']
+                    }
+                },
+                "class": {
+                    "emfac-ft": {
+                        "T6 CAIRP Class 4": "Class456Vocational",
+                        "T6 CAIRP Class 5": "Class456Vocational",
+                        "T6 CAIRP Class 6": "Class456Vocational",
+                        "T6 CAIRP Class 7": "Class78Tractor",
+                        "T6 Instate Delivery Class 4": "Class456Vocational",
+                        "T6 Instate Delivery Class 5": "Class456Vocational",
+                        "T6 Instate Delivery Class 6": "Class456Vocational",
+                        "T6 Instate Delivery Class 7": "Class78Vocational",
+                        "T6 Instate Other Class 4": "Class456Vocational",
+                        "T6 Instate Other Class 5": "Class456Vocational",
+                        "T6 Instate Other Class 6": "Class456Vocational",
+                        "T6 Instate Other Class 7": "Class78Vocational",
+                        "T6 Instate Tractor Class 6": "Class456Vocational",
+                        "T6 Instate Tractor Class 7": "Class78Tractor",
+                        "T6 OOS Class 4": "Class456Vocational",
+                        "T6 OOS Class 5": "Class456Vocational",
+                        "T6 OOS Class 6": "Class456Vocational",
+                        "T6 OOS Class 7": "Class78Vocational",
+                        "T7 CAIRP Class 8": "Class78Tractor",
+                        "T7 NNOOS Class 8": "Class78Vocational",
+                        "T7 NOOS Class 8": "Class78Vocational",
+                        "T7 Single Concrete/Transit Mix Class 8": "Class78Vocational",
+                        "T7 Single Dump Class 8": "Class78Vocational",
+                        "T7 Single Other Class 8": "Class78Vocational",
+                        "T7 Tractor Class 8": "Class78Tractor",
+                        "T7IS": "Class78Tractor"
+                    },
+                    "emfac-pax": {
+                        "LDA": "Car",
+                        "LDT1": "Car",
+                        "LDT2": "Car",
+                        "MCY": "Bike",
+                        "MDV": "Car"
+                    },
+                    "emfac-bus": {
+                        "UBUS": "MediumDutyPassenger"
+                    },
+                    "alternatives": {
+                        "Class456Vocational": ['Class456Vocational', 'Class78Vocational'],
+                        'Class78Vocational': ['Class78Vocational', 'Class456Vocational', 'Class78Tractor'],
+                        "Class78Tractor": ['Class78Tractor', 'Class78Vocational'],
+                        "Car": ['Car'],
+                        "Bike": ['Bike'],
+                        "MediumDutyPassenger": ['MediumDutyPassenger']
+                    }
+                }
+            }
+        }
     }
 }
 

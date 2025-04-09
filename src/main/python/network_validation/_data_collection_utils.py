@@ -2,8 +2,6 @@ import os
 
 import geopandas as gpd
 import pandas as pd
-from cenpy import products
-
 
 def collect_census_data(state_fips_code, county_fips_codes, year, census_data_file, geo_level='county'):
     """
@@ -141,6 +139,7 @@ def download_tract_census_data(state_fips_code, county_fips_codes, year, census_
     pandas.DataFrame
         DataFrame containing population data for census tracts
     """
+    from cenpy import products
     if not os.path.exists(census_data_file):
         # Connect to Census API
         try:
@@ -207,7 +206,8 @@ def collect_tract_boundaries(state_fips_code, county_fips_codes, year):
         raise
     return geo_data
 
-def collect_geographic_boundaries(state_fips_code, county_fips_codes, year, study_area_boundary_geo_path, geo_level):
+def collect_geographic_boundaries(state_fips_code, county_fips_codes, year, area_name, geo_level, work_dir):
+    study_area_boundary_geo_path = f"{work_dir}/{area_name}_{geo_level}_{year}_wgs84.geojson"
     if os.path.exists(study_area_boundary_geo_path):
         return gpd.read_file(study_area_boundary_geo_path)
     else:

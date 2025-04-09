@@ -15,6 +15,7 @@ import org.matsim.api.core.v01.events.Event
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.util.Try
 
 class BeamEventsWriterParquet(
   var outFileName: String,
@@ -103,8 +104,8 @@ class BeamEventsWriterParquet(
 
     eventAttributes.forEach((attName, attVal) => {
       val valueWithCorrectType = fieldNameToType.get(attName) match {
-        case Some(PDouble)  => attVal.toDouble
-        case Some(PInteger) => attVal.toInt
+        case Some(PDouble)  => Try(attVal.toDouble).getOrElse(Double.NaN)
+        case Some(PInteger) => Try(attVal.toInt).getOrElse(-1)
         case Some(PBoolean) => attVal.toBoolean
         case _              => attVal
       }

@@ -176,7 +176,7 @@ class HouseholdFleetManager(
             .flatMap { case (vehicleId, _) => availableVehicles.find(_.id == vehicleId) }
             .headOption
         case Some(requireVehicleCategory) =>
-          availableVehicles.find(_.beamVehicleType.vehicleCategory == requireVehicleCategory)
+          availableVehicles.find(veh => (veh.beamVehicleType.vehicleCategory == requireVehicleCategory))
         case _ => availableVehicles.headOption
       }
 
@@ -193,7 +193,7 @@ class HouseholdFleetManager(
             requireVehicleCategoryAvailable match {
               case Some(requiredType) if vehicles.values.exists(_.beamVehicleType.vehicleCategory == requiredType) =>
                 logger.warn(s"Emergency vehicle generation for type $requiredType failed")
-              case Some(requiredType) =>
+              case Some(_) =>
                 logger.debug(s"Ignoring vehicle request because it isn't for the right category")
               case None =>
             }
