@@ -360,14 +360,15 @@ def process_single_vehicle_type(
         # Generate the file path
         file_path = f"{rates_prefix_filepath}{emfac_id}.csv"
 
-        print(f"Writing emissions data to {file_path}")
-        logging.info(f"Writing emissions data to {file_path}")
-
-        # Ensure directory exists
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-
-        # Save the emissions rates to a CSV file
-        veh_emissions.to_csv(file_path, index=False)
+        # Save the emissions rates to a CSV file only if it doesn't exist
+        if not os.path.exists(file_path):
+            print(f"Writing emissions data to {file_path}")
+            logging.info(f"Writing emissions data to {file_path}")
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            veh_emissions.to_csv(file_path, index=False)
+            print(f"Created new file: {file_path}")
+        else:
+            print(f"File already generated: {file_path}")
 
         return veh_type_id, emfac_id
 

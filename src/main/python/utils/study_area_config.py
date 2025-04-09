@@ -335,7 +335,7 @@ sfbay_area_config = {
 
     "emissions": {
         "2018-Baseline" : {
-            "override_rates": True,
+            "override_rates": False,
             "override_fleet": True,
             "rates": {
                 "output_dir": "emissions/20240123",

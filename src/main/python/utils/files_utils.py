@@ -88,4 +88,4 @@ def check_files(paths, delete=True):
         else:
             results.append(exists and not delete)
 
-    return results[0] if len(results) == 1 else results
+    return all(results)

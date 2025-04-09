@@ -9,14 +9,13 @@ import pyarrow.csv as csv
 from tqdm import tqdm
 from tqdm.auto import tqdm
 
-from python.utils.files_utils import check_files
-
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, parent_dir)
 
 # Now use absolute import
+from python.utils.files_utils import check_files
 
 # Now use absolute import
 emissions_processes = [
@@ -388,7 +387,7 @@ def process_emfac_rates(
 def process_emfac_emissions(study_area, scenario_name, work_dir, config, format_func):
     # Get file paths
     emfac_config = config["rates"]["emfac"]
-    filters_config = config["filters"]
+    filters_config = config["rates"]["filters"]
     emfac_rates_by_model_year_file = os.path.join(work_dir, emfac_config['emfac_rates_by_model_year_file'])
     emfac_emission_rate_output_file = os.path.join(
         work_dir,
@@ -417,7 +416,7 @@ def process_emfac_emissions(study_area, scenario_name, work_dir, config, format_
 def process_black_carbon(study_area, scenario_name, work_dir, config, format_func):
     # Get file paths
     black_carbon_config = config["rates"]["black_carbon"]
-    filters_config = config["filters"]
+    filters_config = config["rates"]["filters"]
     bc_rates_by_model_year_file = os.path.join(work_dir, black_carbon_config['black_carbon_rates_file'])
     bc_emission_rate_output_file = os.path.join(
         work_dir,
@@ -459,7 +458,7 @@ def process_road_dust(study_area, scenario_name, work_dir, config, emfac_ids):
         pd.DataFrame: Road dust emission rates for all EMFAC IDs
     """
     road_dust_config = config["rates"]["road_dust"]
-    filters_config = config["filters"]
+    filters_config = config["rates"]["filters"]
 
     # Get road dust file paths
     _rainy_days_file = os.path.join(work_dir, road_dust_config['rainy_days_file'])
@@ -684,9 +683,9 @@ def process_emfac_population(_study_area, _scenario_name, _work_dir, config, for
     else:
         print(f"Processing EMFAC population data for {_study_area}, scenario: {_scenario_name}")
 
-        include_nan = config["filters"]["include_nan"]
-        calendar_year = config["filters"]["calendar_year"]
-        air_basin_area = config["filters"]["sub_area"]
+        include_nan = config["rates"]["filters"]["include_nan"]
+        calendar_year = config["rates"]["filters"]["calendar_year"]
+        air_basin_area = config["rates"]["filters"]["sub_area"]
         _emfac_population_by_model_year_file = os.path.join(
             _work_dir,
             config["rates"]["emfac"]["emfac_pop_by_model_year_file"]
@@ -824,9 +823,9 @@ def process_emfac_vmt(_study_area, _scenario_name, _work_dir, config, format_fun
     else:
         print(f"Processing EMFAC VMT data for {_study_area}, scenario: {_scenario_name}")
 
-        include_nan = config["filters"]["include_nan"]
-        calendar_year = config["filters"]["calendar_year"]
-        air_basin_area = config["filters"]["sub_area"]
+        include_nan = config["rates"]["filters"]["include_nan"]
+        calendar_year = config["rates"]["filters"]["calendar_year"]
+        air_basin_area = config["rates"]["filters"]["sub_area"]
         _emfac_vmt_by_model_year_file = os.path.join(
             _work_dir,
             config["rates"]["emfac"]["emfac_vmt_by_model_year_file"]
