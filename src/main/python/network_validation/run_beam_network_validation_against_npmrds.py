@@ -2,6 +2,8 @@ from validation_utils import *
 from pathlib import Path
 import sys
 
+from _data_collection_utils import collect_geographic_boundaries
+
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(os.path.dirname(current_dir))
@@ -41,7 +43,60 @@ vehicle_types_files = [(
     study_area_dir + f"/beam-freight/{batch}/{scenario}/vehicle-tech/ft-vehicletypes--{batch_label}--{scenario_label}.csv"
 )]
 
+npmrds_hourly_speed_csv = f"{run_dir}/{study_area}_npmrds_hourly_speeds.csv"
+npmrds_hourly_speed_by_road_class_csv = f"{run_dir}/{study_area}_npmrds_hourly_speed_by_road_class.csv"
+beam_network_mapped_to_npmrds_geo = f"{run_dir}/{study_area}_network_mapped_to_npmrds.geojson"
 
+if not (os.path.exists(npmrds_hourly_speed_csv) or os.path.exists(npmrds_hourly_speed_by_road_class_csv) or os.path.exists(beam_network_mapped_to_npmrds_geo)) :
+    region_boundary_wgs84 = collect_geographic_boundaries(
+        config["state_fips"],
+        config["county_fips"],
+        config["census_year"],
+        study_area,
+        geo_level='county',
+        work_dir=f'{config["work_dir"]}/geo'
+    )
+
+    config_network = config["network"]
+    config_npmrds = config_network["validation"]["npmrds"]
+    config_geo = config["geo"]
+
+    regional_npmrds_station, _, beam_npmrds_network_map, _ = prepare_npmrds_data(
+        # input
+        npmrds_label=f"NPMRDS_{config_npmrds["year"]}",
+        npmrds_raw_geo=f"{config['work_dir']}/{config_npmrds["geo"]}",
+        npmrds_raw_data_csv=f'{config['work_dir']}/{config_npmrds["data"]}',
+        npmrds_observed_speed_weight=0.5,
+        region_boundary=region_boundary_wgs84,
+        beam_network_csv_input=f"{network_dir}/network.csv.gz",
+        projected_crs_epsg=config_geo["utm_epsg"],
+        distance_buffer_m=20,
+        # output
+        npmrds_station_geo=f"{run_dir}/{study_area}_npmrds_station.geojson",
+        npmrds_data_csv=f"{run_dir}/{study_area}_npmrds_data.csv",
+        npmrds_hourly_speed_csv=f"{run_dir}/{study_area}_npmrds_hourly_speeds.csv",
+        npmrds_hourly_speed_by_road_class_csv=f"{run_dir}/{study_area}_npmrds_hourly_speed_by_road_class.csv",
+        beam_network_car_links_geo=f"{run_dir}/{study_area}_network_car_only.geojson",
+        beam_npmrds_network_map_geo=f"{run_dir}/{study_area}_network_mapped_to_npmrds.geojson")
+
+    # ########## Checking Network
+    print("Plotting region boundaries and stations")
+    plt.figure()
+    fig, ax = plt.subplots()
+    region_boundary_wgs84.boundary.plot(ax=ax, color='black')
+    regional_npmrds_station.plot(ax=ax, color='blue')
+    plt.title("Region Boundaries and NPMRDS Stations")
+    fig.savefig(f"{run_dir}/{study_area}_npmrds_station.png", dpi=300)  # Adjust dpi for resolution
+    plt.show(block=False)
+
+    print("Plotting BEAM Network and NPMRDS stations")
+    plt.figure()
+    fig, ax = plt.subplots()
+    regional_npmrds_station.plot(ax=ax, color='blue', linewidth=2, label='NPMRDS')
+    beam_npmrds_network_map.plot(ax=ax, color='red', linewidth=0.5, label='BEAM')
+    plt.title("BEAM Network and NPMRDS Stations")
+    fig.savefig(f"{run_dir}/{study_area}_network_mapped_to_npmrds.png", dpi=300)  # Adjust dpi for resolution
+    plt.show(block=False)
 
 # validation data
 # npmrds_station_geo = study_area_dir + '/validation/npmrds/seattle_npmrds_station.geojson'
