@@ -2057,10 +2057,10 @@ trait ChoosesMode {
           var isCurrentPersonalVehicleVoided = false
           vehiclesNotUsed.collect {
             case ActualVehicle(vehicle) if data.personData.currentTourPersonalVehicle.contains(vehicle.id) =>
-              if (
-                data.personData.currentTourMode
-                  .contains(WALK_BASED) && (!isFirstTripWithinTour(destinationActivity) || data.isWithinTripReplanning)
-              ) {
+              val isWalkBased = data.personData.currentTourMode.contains(WALK_BASED)
+              val isNotFirstTrip = !isFirstTripWithinTour(destinationActivity)
+              val isWithinReplanning = data.isWithinTripReplanning
+              if (isWalkBased && (isNotFirstTrip || isWithinReplanning)) {
                 logger.debug(
                   s"We're keeping vehicle ${vehicle.id} even though it isn't used in this trip " +
                   s"because we need it for egress at the end of the tour"
@@ -2152,9 +2152,9 @@ trait ChoosesMode {
                 ).vehicle.isSharedVehicle =>
               beamVehicles(veh).vehicle.setMustBeDrivenHome(true)
             case Some(veh)
-                if currentPlanMode.contains(BIKE_TRANSIT) && isLastTripWithinTour(destinationActivity) && !beamVehicles(
-                  veh
-                ).vehicle.isSharedVehicle =>
+                if currentPlanMode.contains(BIKE_TRANSIT) && isLastTripWithinTour(destinationActivity) && !beamVehicles
+                  .get(veh)
+                  .exists(_.vehicle.isSharedVehicle) =>
               beamVehicles(veh).vehicle.setMustBeDrivenHome(false)
             case _ =>
           }
