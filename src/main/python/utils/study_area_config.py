@@ -371,9 +371,9 @@ sfbay_area_config = {
                     "ignore_beam_freight_distribution": False
                 },
                 "atlas":{
-                    "enable_atlas_crosswalk": True,
+                    "enable_atlas_emfac_crosswalk": True,
                     "emfac": f"atlas/atlas-emfac-xwalk.csv",
-                    "beam": f"atlas/vehicle_type_mapping_baseline.csv",
+                    "routee": f"atlas/vehicle_type_mapping_baseline.csv",
                     "alternatives": {
                         "car": ['car'],
                         "suv": ['suv', 'car', 'truck'],

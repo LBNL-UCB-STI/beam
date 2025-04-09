@@ -82,14 +82,16 @@ def prepare_emissions_data_for_mapping(area, scenario, work_dir, config):
     emfac_vmt = process_emfac_vmt(area, scenario, work_dir, config, format_emissions_data)
     print(f"total_vmt: {emfac_vmt["total_vmt"].sum() / 1_000_000:.1f}M")
     #
+    emfac_fleet = pd.merge(emfac_pop, emfac_vmt[["emfacId", "total_vmt", "vmt_proportion"]], on='emfacId', how='left')
+    #
     print("\n=== CARB Emissions Rates ===\n")
-    rates = process_emissions_rates(area, scenario, work_dir, config, format_emissions_data)
-    print(f"rates: {len(rates):,}")
+    emfac_rates = process_emissions_rates(area, scenario, work_dir, config, format_emissions_data)
+    print(f"rates: {len(emfac_rates):,}")
 
-    return emfac_pop, emfac_vmt, rates
+    return emfac_fleet, emfac_rates
 
 
-def assign_emission_rates_to_vehicle_types(scenario, emissions_rates, emfac_pop, emfac_vmt, work_dir, config):
+def assign_emission_rates_to_vehicle_types(scenario, emissions_rates, emfac_fleet, work_dir, config):
     """
     Process freight and passenger vehicle emissions by assigning EMFAC IDs and emissions rates.
 
@@ -101,8 +103,7 @@ def assign_emission_rates_to_vehicle_types(scenario, emissions_rates, emfac_pop,
     Args:
         scenario (str): Scenario name
         emissions_rates (DataFrame): DataFrame containing emissions rates
-        emfac_pop (DataFrame): DataFrame containing EMFAC population data
-        emfac_vmt (DataFrame): DataFrame containing EMFAC VMT data
+        emfac_fleet (DataFrame): DataFrame containing EMFAC population and VMT data
         work_dir (str): Working directory for file operations
         config (dict): Configuration dictionary
 
@@ -143,7 +144,7 @@ def assign_emission_rates_to_vehicle_types(scenario, emissions_rates, emfac_pop,
         new_ft_vehicle_types = pd.read_csv(ft_vehtypes_out_file)
     else:
         new_carriers, new_ft_vehicle_types = generate_emfac_mapped_freight_fleet(
-            emfac_vmt, BeamClasses.get_freight_classes(), work_dir, config, format_beam_vehicle_types
+            emfac_fleet, BeamClasses.get_freight_classes(), work_dir, config, format_beam_vehicle_types
         )
         logging.info(f"Saving updated files to:\n  {carriers_out_file}\n  {ft_vehtypes_out_file}")
         new_ft_vehicle_types.to_csv(ft_vehtypes_out_file, index=False)
@@ -160,7 +161,7 @@ def assign_emission_rates_to_vehicle_types(scenario, emissions_rates, emfac_pop,
     else:
         # Generate passenger vehicle types
         new_pax_vehicle_types, other_pax_vehicle_types = generate_emfac_mapped_passenger_vehicle_types(
-            emfac_vmt,
+            emfac_fleet,
             car_class=BeamClasses.CLASS_CAR,
             bike_class=BeamClasses.CLASS_BIKE,
             transit_class=BeamClasses.CLASS_MDP,
@@ -437,11 +438,8 @@ def run():
     print(f"{'='*50}\n")
 
     work_dir = study_area_config["work_dir"]
-
-    emfac_pop, emfac_vmt, rates = prepare_emissions_data_for_mapping(area, scenario, work_dir, config)
-
-    assign_emission_rates_to_vehicle_types(scenario, rates, emfac_pop, emfac_vmt, work_dir, config)
-
+    emfac_fleet, emfac_rates = prepare_emissions_data_for_mapping(area, scenario, work_dir, config)
+    assign_emission_rates_to_vehicle_types(scenario, emfac_rates, emfac_fleet, work_dir, config)
     print(f"  DONE")
 
     # #################################################################

@@ -761,8 +761,14 @@ def process_emfac_population(_study_area, _scenario_name, _work_dir, config, for
 
             # Group by relevant columns and sum population
             print("Grouping data and calculating total populations")
-            group_col = ['vehicle_class', 'fuel', 'model_year_group', 'mappedFuel', 'mappedClass', 'emfacId']
-            emfac_population = df_formatted.groupby(group_col)['population'].sum().reset_index()
+            emfac_population = df_formatted.groupby('emfacId').agg({
+                'vehicle_class': 'first',
+                'fuel': 'first',
+                'model_year_group': 'first',
+                'mappedFuel': 'first',
+                'mappedClass': 'first',
+                'population': 'sum'
+            }).reset_index()
             print(f"After grouping: {len(emfac_population)} unique vehicle class/fuel/model year combinations")
             pbar.update(1)
 
@@ -896,8 +902,14 @@ def process_emfac_vmt(_study_area, _scenario_name, _work_dir, config, format_fun
 
             # Group by relevant columns and sum VMT
             print("Grouping data and calculating total VMT")
-            group_col = ['vehicle_class', 'fuel', 'model_year_group','mappedFuel', 'mappedClass', 'emfacId']
-            emfac_vmt = df_formatted.groupby(group_col)['total_vmt'].sum().reset_index()
+            emfac_vmt = df_formatted.groupby('emfacId').agg({
+                'vehicle_class': 'first',
+                'fuel': 'first',
+                'model_year_group': 'first',
+                'mappedFuel': 'first',
+                'mappedClass': 'first',
+                'total_vmt': 'sum'
+            }).reset_index()
             print(f"After grouping: {len(emfac_vmt)} unique vehicle class/fuel/model year combinations")
             pbar.update(1)
 
