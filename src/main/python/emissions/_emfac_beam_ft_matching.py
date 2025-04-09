@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
+from utils.files_utils import sanitize_name
+
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(os.path.dirname(current_dir))
@@ -582,7 +584,8 @@ def process_emfac_mappings(mapping_results, vehicle_types, vehicle_types_raw):
         old_vehicle_type_id = match_vehicle_type_id[i]
 
         # Create new vehicle type ID that incorporates the EMFAC ID
-        new_vehicle_type_id = f"{mapped_emfac_id}--{old_vehicle_type_id}"
+        old_vehicle_type_id_formatted = sanitize_name(old_vehicle_type_id).replace("_", "-")
+        new_vehicle_type_id = f"{mapped_emfac_id}--{old_vehicle_type_id_formatted}"
 
         # Store the mapping for later carrier updates
         vehicle_type_map[mapped_vehicle_id] = new_vehicle_type_id
