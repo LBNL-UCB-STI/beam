@@ -584,7 +584,7 @@ def process_emfac_mappings(mapping_results, vehicle_types, vehicle_types_raw):
         old_vehicle_type_id = match_vehicle_type_id[i]
 
         # Create new vehicle type ID that incorporates the EMFAC ID
-        old_vehicle_type_id_formatted = sanitize_name(old_vehicle_type_id).replace("_", "-")
+        old_vehicle_type_id_formatted = sanitize_name(old_vehicle_type_id).replace("_", "")
         new_vehicle_type_id = f"{mapped_emfac_id}--{old_vehicle_type_id_formatted}"
 
         # Store the mapping for later carrier updates

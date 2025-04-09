@@ -35,9 +35,9 @@ pd.set_option('display.max_columns', 20)
 
 def create_emfac_id(row):
     model_year_group_st = sanitize_name(row['model_year_group']).replace("_","")
-    vehicle_class_st = sanitize_name(row['vehicle_class']).replace("_","-")
+    vehicle_class_st = sanitize_name(row['vehicle_class']).replace("_","")
     fuel_st = sanitize_name(row['fuel']).replace("_","")
-    return f"{model_year_group_st}-{vehicle_class_st}-{fuel_st}"
+    return f"{model_year_group_st}{vehicle_class_st}{fuel_st}"
 
 
 def prepare_emissions_data_for_mapping(area, scenario, work_dir, config):
@@ -220,7 +220,7 @@ def assign_emission_rates_to_vehicle_types(scenario, emissions_rates, emfac_flee
         if veh_type_id:
             veh_type_id_temp = veh_type_id
             if emfac_id not in veh_type_id:
-                veh_type_id_formatted = sanitize_name(veh_type_id).replace("_", "-")
+                veh_type_id_formatted = sanitize_name(veh_type_id).replace("_", "")
                 veh_type_id_temp = f"{emfac_id}--{veh_type_id_formatted}"
             relative_rates_filepath = f"{shortened_path}/{veh_type_id_temp}.csv"
             vehtypes_with_emfac_id.loc[
@@ -360,7 +360,7 @@ def process_single_vehicle_type(
 
         veh_type_id_temp = veh_type_id
         if emfac_id not in veh_type_id:
-            veh_type_id_formatted = sanitize_name(veh_type_id).replace("_", "-")
+            veh_type_id_formatted = sanitize_name(veh_type_id).replace("_", "")
             veh_type_id_temp = f"{emfac_id}--{veh_type_id_formatted}"
 
         # Generate the file path

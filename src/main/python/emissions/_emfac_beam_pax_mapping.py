@@ -478,8 +478,8 @@ def generate_emfac_mapped_passenger_vehicle_types(emfac_fleet, car_class, bike_c
     car_beam_emfac['vehicleTypeId'] = car_beam_emfac.apply(
         lambda row: str(
             row["emfacId"]) + "--" +
-                    sanitize_name(row["bodytype"]).replace("_", "-") + "--" +
-                    sanitize_name(row["oldVehicleTypeId"]).replace("_", "-"), axis=1
+                    sanitize_name(row["bodytype"]).replace("_", "") + "--" +
+                    sanitize_name(row["oldVehicleTypeId"]).replace("_", ""), axis=1
     )
     car_beam_emfac = car_beam_emfac[vehicle_types_filtered.columns.tolist() + ["emfacId", "oldVehicleTypeId"]]
 
@@ -517,7 +517,7 @@ def generate_emfac_mapped_passenger_vehicle_types(emfac_fleet, car_class, bike_c
     bike_beam_emfac = bike_beam_emfac[vehicle_types_filtered.columns.tolist() + ["emfacId"]]
     bike_beam_emfac["oldVehicleTypeId"] = bike_beam_emfac["vehicleTypeId"]
     bike_beam_emfac['vehicleTypeId'] = bike_beam_emfac.apply(
-        lambda row: str(row["emfacId"]) + "--" + sanitize_name(row["oldVehicleTypeId"]).replace("_", "-")
+        lambda row: str(row["emfacId"]) + "--" + sanitize_name(row["oldVehicleTypeId"]).replace("_", "")
         , axis=1)
 
     # ###################################################################################################
@@ -554,7 +554,9 @@ def generate_emfac_mapped_passenger_vehicle_types(emfac_fleet, car_class, bike_c
 
     # Combine all vehicle types
     result = pd.concat([car_beam_emfac, bike_beam_emfac, bus_beam_emfac], ignore_index=True)
-    vehicle_types_others = vehicle_types_filtered[~vehicle_types_filtered["vehicleTypeId"].isin(result["oldVehicleTypeId"].unique())]
+    processed_ids = result["oldVehicleTypeId"].unique()
+    vehicle_types_others = vehicle_types_filtered.loc[~(car_bike_mask | bus_mask)].copy()
+    vehicle_types_others = vehicle_types_others[~vehicle_types_others["vehicleTypeId"].isin(processed_ids)]
     return result, vehicle_types_others
 
 
