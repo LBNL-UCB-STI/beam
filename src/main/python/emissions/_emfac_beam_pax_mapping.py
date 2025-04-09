@@ -177,13 +177,9 @@ def emfac2passenger_with_atlas_crosswalk(vehicle_types, atlas_emfac_fleet, work_
     vehicles_filtered = vehicles[vehicles["vehicleTypeId"].isin(beam_fleet)].copy()
 
     # Step 1: Merge vehicle types with body types
-    vehicle_types_with_body_types = pd.merge(
-        left=filtered_vehicle_types,
-        right=routee_beam_atlas_map[["vehicleTypeId", "bodytype"]],
-        on='vehicleTypeId',
-        how='left'
-    )
-    vehicle_types_with_body_types["bodytype"] = vehicle_types_with_body_types["bodytype"].str.lower().str.capitalize()
+    unique_vehicle_bodytype_map = routee_beam_atlas_map.groupby("vehicleTypeId")["bodytype"].first().to_dict()
+    vehicle_types_with_body_types = filtered_vehicle_types.copy()
+    vehicle_types_with_body_types["bodytype"] = filtered_vehicle_types["vehicleTypeId"].map(unique_vehicle_bodytype_map).str.lower().str.capitalize()
 
     # Step 2: Merge with EMFAC fleet data
     vehicles_atlas_emfac = pd.merge(
