@@ -11,11 +11,11 @@ import subprocess
 
 import osmnx as ox
 
-from osm_utils import download_and_prepare_osm_network
-from osm_utils import check_invalid_coordinates
-from osm_utils import scan_network_directories_for_ways
-from osm_utils import check_duplicate_edge_ids
-from osm_xml import save_graph_xml
+from _osm_utils import download_and_prepare_osm_network
+from _osm_utils import check_invalid_coordinates
+from _osm_utils import scan_network_directories_for_ways
+from _osm_utils import check_duplicate_edge_ids
+from _osm_xml import save_graph_xml
 
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))

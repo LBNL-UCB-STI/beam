@@ -10,7 +10,7 @@ It performs link-level and network-level speed validations and can also validate
 import sys
 from pathlib import Path
 
-from validation_utils import *
+from _validation_utils import *
 
 # Add parent directory to path for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
