@@ -8,14 +8,20 @@ It performs link-level and network-level speed validations and can also validate
 """
 
 import sys
+import json
+import os
 from pathlib import Path
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 
-from _validation_utils import *
+from _validation_utils import prepare_npmrds_data, fsystem_to_roadclass_lookup, LinkStats, SpeedValidationSetup
 
 # Add parent directory to path for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, parent_dir)
+plt.style.use('ggplot')
 
 from python.utils.study_area_config import get_area_config, generate_network_name
 from _data_collection_utils import collect_geographic_boundaries
@@ -315,6 +321,183 @@ def run_vmt_validation(vehicle_types_files):
     # Commented code from the original script would go here
 
 
+def generate_validation_stats(setup, processed_link_stats, output_dir, study_area):
+    """
+    Generate comprehensive statistics for both network and link validation
+
+    Parameters:
+    -----------
+    setup : SpeedValidationSetup
+        Validation setup object
+    processed_link_stats : list
+        List of processed link statistics
+    output_dir : str
+        Directory to save output data
+    study_area : str
+        Name of the study area
+
+    Returns:
+    --------
+    dict
+        Dictionary containing all generated statistics
+    """
+    stats_results = {
+        "network_validation": {},
+        "link_validation": {}
+    }
+
+    # Get the data
+    hourly_speed_by_road_class = setup.get_hourly_average_speed_by_road_class(processed_link_stats)
+    hourly_speed_by_road_class_no_npmrds = hourly_speed_by_road_class[
+        ~hourly_speed_by_road_class['scenario'].str.contains("npmrds", case=False, na=False)
+    ]
+
+    hourly_link_speed = setup.get_hourly_link_speed(processed_link_stats)
+    hourly_link_speed_by_road_class = setup.get_hourly_link_speed_by_road_class(processed_link_stats)
+
+    # Process data to get modes (if available)
+    has_mode_data = 'mode' in hourly_speed_by_road_class.columns
+
+    # 1. Network Validation Stats
+    print("Generating network validation statistics...")
+    network_stats = stats_results["network_validation"]
+
+    # Overall average speed
+    network_stats["overall_avg_speed"] = hourly_speed_by_road_class_no_npmrds['speed'].mean()
+
+    # Average speed per road category
+    network_stats["avg_speed_by_road_class"] = hourly_speed_by_road_class_no_npmrds.groupby('road_class')[
+        'speed'].mean().to_dict()
+
+    # Average speed at hour 8 (morning peak)
+    hour_8_data = hourly_speed_by_road_class_no_npmrds[hourly_speed_by_road_class_no_npmrds['hour'] == 8]
+    network_stats["avg_speed_hour_8"] = hour_8_data['speed'].mean()
+    network_stats["avg_speed_hour_8_by_road_class"] = hour_8_data.groupby('road_class')['speed'].mean().to_dict()
+
+    # Average speed per mode (if available)
+    if has_mode_data:
+        network_stats["avg_speed_by_mode"] = hourly_speed_by_road_class_no_npmrds.groupby('mode')[
+            'speed'].mean().to_dict()
+        network_stats["avg_speed_hour_8_by_mode"] = hour_8_data.groupby('mode')['speed'].mean().to_dict()
+
+    # 2. Link Validation Stats
+    print("Generating link validation statistics...")
+    link_stats = stats_results["link_validation"]
+
+    # Overall average speed
+    link_stats["overall_avg_speed"] = hourly_link_speed['speed'].mean()
+
+    # Average speed per road category
+    link_stats["avg_speed_by_road_class"] = hourly_link_speed_by_road_class.groupby('road_class')[
+        'speed'].mean().to_dict()
+
+    # Average speed at hour 8 (morning peak)
+    link_hour_8_data = hourly_link_speed_by_road_class[hourly_link_speed_by_road_class['hour'] == 8]
+    link_stats["avg_speed_hour_8"] = hourly_link_speed[hourly_link_speed['hour'] == 8]['speed'].mean()
+    link_stats["avg_speed_hour_8_by_road_class"] = link_hour_8_data.groupby('road_class')['speed'].mean().to_dict()
+
+    # Average speed per mode (if available)
+    if 'mode' in hourly_link_speed.columns:
+        link_stats["avg_speed_by_mode"] = hourly_link_speed.groupby('mode')['speed'].mean().to_dict()
+        link_stats["avg_speed_hour_8_by_mode"] = hourly_link_speed[hourly_link_speed['hour'] == 8].groupby('mode')[
+            'speed'].mean().to_dict()
+
+    # Save to JSON and CSV
+    save_stats_to_file(stats_results, output_dir, study_area)
+
+    return stats_results
+
+
+def save_stats_to_file(stats_results, output_dir, study_area):
+    """
+    Save statistics to JSON and CSV files
+
+    Parameters:
+    -----------
+    stats_results : dict
+        Dictionary containing all the statistics
+    output_dir : str
+        Directory to save output data
+    study_area : str
+        Name of the study area
+    """
+    # Save to JSON
+    with open(f"{output_dir}/{study_area}_validation_stats.json", 'w') as f:
+        json.dump(stats_results, f, indent=4)
+
+    # Create DataFrames and save to CSV
+
+    # Network validation
+    network_stats = stats_results["network_validation"]
+
+    # Overall stats
+    network_overall_df = pd.DataFrame({
+        'metric': ['overall_avg_speed', 'avg_speed_hour_8'],
+        'value': [network_stats['overall_avg_speed'], network_stats['avg_speed_hour_8']]
+    })
+    network_overall_df.to_csv(f"{output_dir}/{study_area}_network_overall_stats.csv", index=False)
+
+    # Road class stats
+    network_road_class_rows = []
+    for road_class, speed in network_stats['avg_speed_by_road_class'].items():
+        network_road_class_rows.append({
+            'road_class': road_class,
+            'avg_speed': speed,
+            'avg_speed_hour_8': network_stats['avg_speed_hour_8_by_road_class'].get(road_class, float('nan'))
+        })
+
+    network_road_class_df = pd.DataFrame(network_road_class_rows)
+    network_road_class_df.to_csv(f"{output_dir}/{study_area}_network_road_class_stats.csv", index=False)
+
+    # Mode stats (if available)
+    if 'avg_speed_by_mode' in network_stats:
+        network_mode_rows = []
+        for mode, speed in network_stats['avg_speed_by_mode'].items():
+            network_mode_rows.append({
+                'mode': mode,
+                'avg_speed': speed,
+                'avg_speed_hour_8': network_stats['avg_speed_hour_8_by_mode'].get(mode, float('nan'))
+            })
+
+        network_mode_df = pd.DataFrame(network_mode_rows)
+        network_mode_df.to_csv(f"{output_dir}/{study_area}_network_mode_stats.csv", index=False)
+
+    # Link validation
+    link_stats = stats_results["link_validation"]
+
+    # Overall stats
+    link_overall_df = pd.DataFrame({
+        'metric': ['overall_avg_speed', 'avg_speed_hour_8'],
+        'value': [link_stats['overall_avg_speed'], link_stats['avg_speed_hour_8']]
+    })
+    link_overall_df.to_csv(f"{output_dir}/{study_area}_link_overall_stats.csv", index=False)
+
+    # Road class stats
+    link_road_class_rows = []
+    for road_class, speed in link_stats['avg_speed_by_road_class'].items():
+        link_road_class_rows.append({
+            'road_class': road_class,
+            'avg_speed': speed,
+            'avg_speed_hour_8': link_stats['avg_speed_hour_8_by_road_class'].get(road_class, float('nan'))
+        })
+
+    link_road_class_df = pd.DataFrame(link_road_class_rows)
+    link_road_class_df.to_csv(f"{output_dir}/{study_area}_link_road_class_stats.csv", index=False)
+
+    # Mode stats (if available)
+    if 'avg_speed_by_mode' in link_stats:
+        link_mode_rows = []
+        for mode, speed in link_stats['avg_speed_by_mode'].items():
+            link_mode_rows.append({
+                'mode': mode,
+                'avg_speed': speed,
+                'avg_speed_hour_8': link_stats['avg_speed_hour_8_by_mode'].get(mode, float('nan'))
+            })
+
+        link_mode_df = pd.DataFrame(link_mode_rows)
+        link_mode_df.to_csv(f"{output_dir}/{study_area}_link_mode_stats.csv", index=False)
+
+
 def main():
     """
     Main function to run the validation process
@@ -326,6 +509,7 @@ def main():
     do_link_speed_validation = True
     do_network_speed_validation = True
     do_vmt_validation = False
+    generate_stats = True  # New flag to control stats generation
 
     # Load configuration
     config = get_area_config(study_area)
@@ -349,7 +533,7 @@ def main():
     )
 
     # Process link stats if needed
-    if do_link_speed_validation or do_network_speed_validation or do_vmt_validation:
+    if do_link_speed_validation or do_network_speed_validation or do_vmt_validation or generate_stats:
         print(f"Processing link stats: {link_stats}")
         processed_link_stats = setup.process_these_link_stats(
             link_stats=link_stats, assume_daylight_saving=True
@@ -370,6 +554,15 @@ def main():
 
     if do_vmt_validation:
         run_vmt_validation(vehicle_types_files)
+
+    # Generate comprehensive statistics if requested
+    if generate_stats and processed_link_stats is not None:
+        print("Generating comprehensive validation statistics...")
+        stats_results = generate_validation_stats(
+            setup, processed_link_stats, output_dir, study_area
+        )
+        print(f"Statistics saved to {output_dir}/{study_area}_validation_stats.json")
+        print(stats_results)
 
     print("Validation complete!")
 
