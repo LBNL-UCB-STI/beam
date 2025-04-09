@@ -29,6 +29,7 @@ from python.utils.study_area_config import get_area_config
 from python.utils.study_area_config import BeamClasses
 from python.utils.study_area_config import get_fuel_key
 from python.utils.files_utils import sanitize_name
+from python.utils.files_utils import check_files
 
 pd.set_option('display.max_columns', 20)
 
@@ -38,6 +39,80 @@ def create_emfac_id(row):
     vehicle_class_st = sanitize_name(row['vehicle_class']).replace("_","")
     fuel_st = sanitize_name(row['fuel']).replace("_","")
     return f"{model_year_group_st}{vehicle_class_st}{fuel_st}"
+
+def generate_emfac_beam_class_mapping(_study_area, _scenario_name, _work_dir, _config, to_filter_out):
+    """
+    Creates vehicle class mapping and saves it to a JSON file if it doesn't exist.
+    If the file exists, loads and returns the existing mapping.
+
+    Args:
+        _study_area: Stud Area
+        _scenario_name: Scenario Name
+        _work_dir:
+        _config: Configuration dictionary
+        to_filter_out:
+
+    Returns:
+        dict: The vehicle class mapping (either newly created or loaded from existing file)
+    """
+    _vehicle_class_output_file = os.path.join(
+        _work_dir,
+        f"{_config["rates"]["output_dir"]}/{_study_area}_vehicle_class_mapping_{_scenario_name}.json"
+    )
+    # Check if the file already exists
+    if os.path.exists(_vehicle_class_output_file):
+        print(f"File {_vehicle_class_output_file} already exists. Loading existing mapping.")
+        with open(_vehicle_class_output_file, 'r') as f:
+            return json.load(f)
+
+    # Create the mapping
+    mapping = {}
+
+    table = csv.read_csv(
+        os.path.join(_work_dir, _config["rates"]["emfac"]["emfac_pop_by_model_year_file"]),
+        read_options=pa.csv.ReadOptions(use_threads=True)
+    )
+    df = table.to_pandas()
+
+    for vehicle in df["vehicle_class"].unique():
+        if 'Utility' in vehicle or 'Public' in vehicle:
+            mapping[vehicle] = "NotMatched"
+        elif 'Port' in vehicle or 'POLA' in vehicle or 'POAK' in vehicle:
+            mapping[vehicle] = "NotMatched"
+        elif 'SWCV' in vehicle or 'PTO' in vehicle or 'T6TS' in vehicle:
+            mapping[vehicle] = "NotMatched"
+        elif vehicle in ['LDA', 'LDT1', 'LDT2', 'MDV']:
+            mapping[vehicle] = BeamClasses.CLASS_CAR
+        elif vehicle in ['MCY']:
+            mapping[vehicle] = BeamClasses.CLASS_BIKE
+        elif vehicle in ['UBUS']:
+            mapping[vehicle] = BeamClasses.CLASS_MDP
+        elif 'LHD' in vehicle:
+            mapping[vehicle] = BeamClasses.CLASS_2B3_VOCATIONAL
+        elif 'Class 4' in vehicle or 'Class 5' in vehicle or 'Class 6' in vehicle:
+            mapping[vehicle] = BeamClasses.CLASS_456_VOCATIONAL
+        elif 'Class 7' in vehicle or 'Class 8' in vehicle:
+            if 'Tractor' in vehicle or 'CAIRP' in vehicle:
+                mapping[vehicle] = BeamClasses.CLASS_78_TRACTOR
+            else:
+                mapping[vehicle] = BeamClasses.CLASS_78_VOCATIONAL
+        elif "T7IS" in vehicle:
+            mapping[vehicle] = BeamClasses.CLASS_78_TRACTOR
+        else:
+            mapping[vehicle] = "NotMatched"
+
+    # Print category groupings
+    class_groups = defaultdict(list)
+    for vehicle, vehicle_class in mapping.items():
+        if vehicle_class in to_filter_out:
+            mapping[vehicle] = "NotMatched"
+        class_groups[mapping[vehicle]].append(vehicle)
+    for vehicle_class, vehicles in class_groups.items():
+        print(f"Category: {vehicle_class}")
+        for vehicle in vehicles:
+            print(f"  - {vehicle}")
+
+    return {k: v for k, v in mapping.items() if v != "NotMatched"}
 
 
 def prepare_emissions_data_for_mapping(area, scenario, work_dir, config):
@@ -127,18 +202,19 @@ def assign_emission_rates_to_vehicle_types(scenario, emissions_rates, emfac_flee
     print("\n=== Map EMFAC To BEAM Population ===\n")
 
     # Define output file paths
-    carriers_out_file = os.path.join(work_dir, f"{config['beam']['carriers_file'].replace('.csv', '--TrAP.csv')}")
+    carriers_out_file = os.path.join(work_dir, f"{config['beam']['carriers_file'].replace('.csv', '--EM.csv')}")
     ft_vehtypes_out_file = os.path.join(work_dir,
-                                        f"{config['beam']['ft_vehicle_types_file'].replace('.csv', '--TrAP.csv')}")
+                                        f"{config['beam']['ft_vehicle_types_file'].replace('.csv', '--EM.csv')}")
     pax_vehtypes_out_file = os.path.join(work_dir,
-                                         f"{config['beam']['pax_vehicle_types_file'].replace('.csv', '--TrAP.csv')}")
+                                         f"{config['beam']['pax_vehicle_types_file'].replace('.csv', '--EM.csv')}")
     emissions_rates_dir = os.path.join(
         os.path.dirname(os.path.join(work_dir, f"{config['beam']['ft_vehicle_types_file']}")),
-        f"TrAP/{scenario.replace('_', '-')}"
+        f"emissions/{scenario.replace('_', '-')}"
     )
 
+
     # Process freight vehicles
-    if os.path.exists(carriers_out_file) and os.path.exists(ft_vehtypes_out_file):
+    if check_files([carriers_out_file, ft_vehtypes_out_file], config["override_fleet"]):
         logging.info("All carriers and freight vehicle types emissions files have already been created")
         logging.info(f"    carriers: {carriers_out_file}")
         logging.info(f"    freight vehicle types: {ft_vehtypes_out_file}")
@@ -152,7 +228,7 @@ def assign_emission_rates_to_vehicle_types(scenario, emissions_rates, emfac_flee
         new_carriers.to_csv(carriers_out_file, index=False)
 
     # Process passenger vehicles
-    if os.path.exists(pax_vehtypes_out_file):
+    if check_files([pax_vehtypes_out_file], config["override_fleet"]):
         logging.info("Passenger vehicle types emissions files have already been created:")
         logging.info(f"    passenger vehicle types: {pax_vehtypes_out_file}")
         new_pax_vehicle_types = pd.read_csv(pax_vehtypes_out_file)
@@ -172,8 +248,8 @@ def assign_emission_rates_to_vehicle_types(scenario, emissions_rates, emfac_flee
             format_func=format_beam_vehicle_types,
         )
 
-    vehicles_output = os.path.join(work_dir, f"{config['beam']['pax_vehicles_file'].replace('.csv', '--TrAP.csv')}")
-    if not os.path.exists(vehicles_output):
+    vehicles_output = os.path.join(work_dir, f"{config['beam']['pax_vehicles_file'].replace('.csv', '--EM.csv')}")
+    if not check_files([vehicles_output], config["override_fleet"]):
         pax_vehicles = generate_fleet_from_vehicle_types(
             new_pax_vehicle_types,
             car_class=BeamClasses.CLASS_CAR,
@@ -181,7 +257,7 @@ def assign_emission_rates_to_vehicle_types(scenario, emissions_rates, emfac_flee
             work_dir=work_dir,
             config=config
         )
-        vehicles_output = os.path.join(work_dir, f"{config['beam']['pax_vehicles_file'].replace('.csv', '--TrAP.csv')}")
+        vehicles_output = os.path.join(work_dir, f"{vehicles_output}")
         pax_vehicles.to_csv(vehicles_output, index=False)
 
     # Prepare for emissions rates processing
@@ -214,15 +290,11 @@ def assign_emission_rates_to_vehicle_types(scenario, emissions_rates, emfac_flee
 
     # Update emissions rate file paths in vehicle types
     path_parts = emissions_rates_dir.split('/')
-    trap_index = path_parts.index("TrAP")
-    shortened_path = '/'.join(path_parts[trap_index:])
+    em_index = path_parts.index("emissions")
+    shortened_path = '/'.join(path_parts[em_index:])
     for veh_type_id, emfac_id in results:
         if veh_type_id:
-            veh_type_id_temp = veh_type_id
-            if emfac_id not in veh_type_id:
-                veh_type_id_formatted = sanitize_name(veh_type_id).replace("_", "")
-                veh_type_id_temp = f"{emfac_id}--{veh_type_id_formatted}"
-            relative_rates_filepath = f"{shortened_path}/{veh_type_id_temp}.csv"
+            relative_rates_filepath = f"{shortened_path}/{emfac_id}.csv"
             vehtypes_with_emfac_id.loc[
                 vehtypes_with_emfac_id['vehicleTypeId'] == veh_type_id, 'emissionsRatesFile'
             ] = relative_rates_filepath
@@ -246,79 +318,6 @@ def assign_emission_rates_to_vehicle_types(scenario, emissions_rates, emfac_flee
     updated_pax_vehicle_types.drop(['emfacId', 'oldVehicleTypeId', 'vehicleClass'], axis=1, inplace=True)
     updated_pax_vehicle_types.to_csv(pax_vehtypes_out_file, index=False)
 
-def generate_emfac_beam_class_mapping(_study_area, _scenario_name, _work_dir, _config, to_filter_out):
-    """
-    Creates vehicle class mapping and saves it to a JSON file if it doesn't exist.
-    If the file exists, loads and returns the existing mapping.
-
-    Args:
-        _study_area: Stud Area
-        _scenario_name: Scenario Name
-        _work_dir:
-        _config: Configuration dictionary
-        to_filter_out:
-
-    Returns:
-        dict: The vehicle class mapping (either newly created or loaded from existing file)
-    """
-    _vehicle_class_output_file = os.path.join(
-        _work_dir,
-        f"{_config["rates"]["output_dir"]}/{_study_area}_vehicle_class_mapping_{_scenario_name}.json"
-    )
-    # Check if the file already exists
-    if os.path.exists(_vehicle_class_output_file):
-        print(f"File {_vehicle_class_output_file} already exists. Loading existing mapping.")
-        with open(_vehicle_class_output_file, 'r') as f:
-            return json.load(f)
-
-    # Create the mapping
-    mapping = {}
-
-    table = csv.read_csv(
-        os.path.join(_work_dir, _config["rates"]["emfac"]["emfac_pop_by_model_year_file"]),
-        read_options=pa.csv.ReadOptions(use_threads=True)
-    )
-    df = table.to_pandas()
-
-    for vehicle in df["vehicle_class"].unique():
-        if 'Utility' in vehicle or 'Public' in vehicle:
-            mapping[vehicle] = "NotMatched"
-        elif 'Port' in vehicle or 'POLA' in vehicle or 'POAK' in vehicle:
-            mapping[vehicle] = "NotMatched"
-        elif 'SWCV' in vehicle or 'PTO' in vehicle or 'T6TS' in vehicle:
-            mapping[vehicle] = "NotMatched"
-        elif vehicle in ['LDA', 'LDT1', 'LDT2', 'MDV']:
-            mapping[vehicle] = BeamClasses.CLASS_CAR
-        elif vehicle in ['MCY']:
-            mapping[vehicle] = BeamClasses.CLASS_BIKE
-        elif vehicle in ['UBUS']:
-            mapping[vehicle] = BeamClasses.CLASS_MDP
-        elif 'LHD' in vehicle:
-            mapping[vehicle] = BeamClasses.CLASS_2B3_VOCATIONAL
-        elif 'Class 4' in vehicle or 'Class 5' in vehicle or 'Class 6' in vehicle:
-            mapping[vehicle] = BeamClasses.CLASS_456_VOCATIONAL
-        elif 'Class 7' in vehicle or 'Class 8' in vehicle:
-            if 'Tractor' in vehicle or 'CAIRP' in vehicle:
-                mapping[vehicle] = BeamClasses.CLASS_78_TRACTOR
-            else:
-                mapping[vehicle] = BeamClasses.CLASS_78_VOCATIONAL
-        elif "T7IS" in vehicle:
-            mapping[vehicle] = BeamClasses.CLASS_78_TRACTOR
-        else:
-            mapping[vehicle] = "NotMatched"
-
-    # Print category groupings
-    class_groups = defaultdict(list)
-    for vehicle, vehicle_class in mapping.items():
-        if vehicle_class in to_filter_out:
-            mapping[vehicle] = "NotMatched"
-        class_groups[mapping[vehicle]].append(vehicle)
-    for vehicle_class, vehicles in class_groups.items():
-        print(f"Category: {vehicle_class}")
-        for vehicle in vehicles:
-            print(f"  - {vehicle}")
-
-    return {k: v for k, v in mapping.items() if v != "NotMatched"}
 
 def process_single_vehicle_type(
         veh_type: Dict[str, Any],
@@ -358,13 +357,8 @@ def process_single_vehicle_type(
             logging.warning(f"No emissions data found for vehicle type {veh_type_id}")
             return None
 
-        veh_type_id_temp = veh_type_id
-        if emfac_id not in veh_type_id:
-            veh_type_id_formatted = sanitize_name(veh_type_id).replace("_", "")
-            veh_type_id_temp = f"{emfac_id}--{veh_type_id_formatted}"
-
         # Generate the file path
-        file_path = f"{rates_prefix_filepath}{veh_type_id_temp}.csv"
+        file_path = f"{rates_prefix_filepath}{emfac_id}.csv"
 
         print(f"Writing emissions data to {file_path}")
         logging.info(f"Writing emissions data to {file_path}")

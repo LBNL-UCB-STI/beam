@@ -335,16 +335,18 @@ sfbay_area_config = {
 
     "emissions": {
         "2018-Baseline" : {
-            "filters": {
-                "season_month": "Annual",
-                "calendar_year": 2018,
-                "temperature": 60.,
-                "relative_humidity": 40.,
-                "sub_area": ["SF"],
-                "include_nan": True
-            },
+            "override_rates": True,
+            "override_fleet": True,
             "rates": {
                 "output_dir": "emissions/20240123",
+                "filters": {
+                    "season_month": "Annual",
+                    "calendar_year": 2018,
+                    "temperature": 60.,
+                    "relative_humidity": 40.,
+                    "sub_area": ["SF"],
+                    "include_nan": True
+                },
                 "emfac": {
                     "emfac_rates_by_model_year_file": f"emissions/rates/emfac/imputed_MTC_emission_rate_agg_NH3_added_2018_2025_2030_2040_2050.csv",
                     "emfac_vmt_by_model_year_file": f"emissions/rates/emfac/Default_Statewide_2018_2025_2030_2040_2050_Annual_vmt_20240612233346.csv",
