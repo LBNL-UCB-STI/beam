@@ -124,7 +124,7 @@ def prepare_and_plot_npmrds_data(config, config_npmrds, config_geo, network_dir,
     start_time = time.time()
 
     # Prepare NPMRDS data
-    regional_npmrds_station, _, beam_npmrds_network_map, _ = prepare_npmrds_data(
+    regional_npmrds_station, _, beam_npmrds_network_map, _, beam_network_filtered_car_links = prepare_npmrds_data(
         # input
         npmrds_label=f"NPMRDS_{config_npmrds['year']}",
         npmrds_raw_geo=f"{config['work_dir']}/{config_npmrds['geo']}",

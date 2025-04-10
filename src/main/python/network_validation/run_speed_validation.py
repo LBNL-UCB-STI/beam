@@ -11,6 +11,7 @@ import sys
 import json
 import os
 from pathlib import Path
+import geopandas as gpd
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -84,6 +85,7 @@ def prepare_npmrds_files(study_area, run_dir, network_dir, config):
     npmrds_hourly_speed_csv = f"{run_dir}/{study_area}_npmrds_hourly_speeds.csv"
     npmrds_hourly_speed_by_road_class_csv = f"{run_dir}/{study_area}_npmrds_hourly_speed_by_road_class.csv"
     beam_network_mapped_to_npmrds_geo = f"{run_dir}/{study_area}_network_mapped_to_npmrds.geojson"
+    beam_network_car_links_geo = f"{run_dir}/{study_area}_network_car_only.geojson"
 
     if not (os.path.exists(npmrds_hourly_speed_csv) or
             os.path.exists(npmrds_hourly_speed_by_road_class_csv) or
@@ -104,7 +106,7 @@ def prepare_npmrds_files(study_area, run_dir, network_dir, config):
         config_geo = config["geo"]
 
         # Prepare NPMRDS data
-        regional_npmrds_station, _, beam_npmrds_network_map, _ = prepare_npmrds_data(
+        regional_npmrds_station, _, beam_npmrds_network_map, _, beam_network_car_links_geo = prepare_npmrds_data(
             # input
             npmrds_label=f"NPMRDS_{config_npmrds['year']}",
             npmrds_raw_geo=f"{config['work_dir']}/{config_npmrds['geo']}",
@@ -127,7 +129,7 @@ def prepare_npmrds_files(study_area, run_dir, network_dir, config):
         plot_validation_maps(study_area, run_dir, region_boundary_wgs84,
                              regional_npmrds_station, beam_npmrds_network_map)
 
-    return npmrds_hourly_speed_csv, npmrds_hourly_speed_by_road_class_csv, beam_network_mapped_to_npmrds_geo
+    return npmrds_hourly_speed_csv, npmrds_hourly_speed_by_road_class_csv, beam_network_mapped_to_npmrds_geo, beam_network_car_links_geo
 
 
 def plot_validation_maps(study_area, run_dir, region_boundary, npmrds_station, network_map):
@@ -324,7 +326,7 @@ def run_vmt_validation(vehicle_types_files):
 def generate_validation_stats(setup, processed_link_stats, output_dir, study_area, peak_hour):
     """
     Generate comprehensive statistics for both network and link validation,
-    including NPMRDS comparison data and speed analysis by hour
+    including NPMRDS comparison data, speed analysis by hour, and link counts
 
     Parameters:
     -----------
@@ -352,6 +354,20 @@ def generate_validation_stats(setup, processed_link_stats, output_dir, study_are
         "network_validation": {},
         "link_validation": {},
         "npmrds": {},
+        "link_counts": {
+            "network": {
+                "overall": 0,
+                "by_road_class": {}
+            },
+            "link": {
+                "overall": 0,
+                "by_road_class": {}
+            },
+            "npmrds": {
+                "overall": 0,
+                "by_road_class": {}
+            }
+        },
         "lowest_speeds": {
             "network": {
                 "overall": {},
@@ -399,6 +415,33 @@ def generate_validation_stats(setup, processed_link_stats, output_dir, study_are
 
     # Process data to get modes (if available)
     has_mode_data = 'mode' in hourly_speed_by_road_class.columns
+
+    # Get the original network data and mapped data from the setup object
+    npmrds_beam_network = setup.beam_npmrds_network_map
+    beam_network = setup.beam_network_car_links_geo
+
+    # 0. Calculate link counts
+    link_counts = stats_results["link_counts"]
+
+    # Network-level link counts
+    # Get unique link IDs from the network map data
+    unique_network_links = beam_network['linkId'].nunique()
+    link_counts["network"]["overall"] = unique_network_links
+    road_class_counts = beam_network.groupby('road_class')['linkId'].nunique().to_dict()
+    link_counts["network"]["by_road_class"] = road_class_counts
+
+    # Link-level link counts (from hourly_link_speed)
+    # Count unique link IDs
+    unique_link_ids = npmrds_beam_network['link'].nunique()
+    link_counts["link"]["overall"] = unique_link_ids
+    road_class_counts = npmrds_beam_network.groupby('road_class')['link'].nunique().to_dict()
+    link_counts["link"]["by_road_class"] = road_class_counts
+
+    # NPMRDS link counts
+    unique_npmrds_links = npmrds_data['tmc'].nunique()
+    link_counts["npmrds"]["overall"] = unique_npmrds_links
+    npmrds_road_class_counts = npmrds_data.groupby('road_class')['tmc'].nunique().to_dict()
+    link_counts["npmrds"]["by_road_class"] = npmrds_road_class_counts
 
     # 1. Network Validation Stats
     print("Generating network validation statistics...")
@@ -618,8 +661,6 @@ def save_stats_to_file(stats_results, output_dir, study_area, peak_hour):
     peak_hour : int
         The peak hour (e.g., 9 for 9 AM)
     """
-    import pandas as pd
-
     # Network validation
     network_stats = stats_results["network_validation"]
 
@@ -873,14 +914,15 @@ def main():
     link_stats, vehicle_types_files = setup_link_stats(study_area_dir, batch, scenario, run_dir)
 
     # Prepare NPMRDS files
-    npmrds_hourly_speed_csv, npmrds_hourly_speed_by_road_class_csv, beam_network_mapped_to_npmrds_geo = \
+    npmrds_hourly_speed_csv, npmrds_hourly_speed_by_road_class_csv, beam_network_mapped_to_npmrds_geo, beam_network_car_links_geo = \
         prepare_npmrds_files(study_area, run_dir, network_dir, config)
 
     # Initialize validation setup
     setup = SpeedValidationSetup(
         npmrds_hourly_speed_csv=npmrds_hourly_speed_csv,
         npmrds_hourly_speed_by_road_class_csv=npmrds_hourly_speed_by_road_class_csv,
-        beam_network_mapped_to_npmrds_geo=beam_network_mapped_to_npmrds_geo
+        beam_network_mapped_to_npmrds_geo=beam_network_mapped_to_npmrds_geo,
+        beam_network_car_links_geo=beam_network_car_links_geo
     )
 
     # Process link stats if needed
