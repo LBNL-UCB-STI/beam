@@ -37,7 +37,7 @@ warnings.filterwarnings('ignore')
 # ************************************************************************************************
 
 AREA = "sfbay" # sfbay
-BATCH_NAME = "2024-01-23"
+BATCH_NAME = "20240123"
 SCENARIO_NAME = "Baseline"
 SCENARIO_SUFFIX = ""
 FRISM_VERSION = 1.0
@@ -67,7 +67,7 @@ SECONDARY_ENERGY_PROFILE = STUDY_AREA_CONFIG["fastsim_routee_files"]["secondary_
 # File paths and directories
 DIRECTORY_INPUT = f'{STUDY_AREA_CONFIG["work_dir"]}/frism/{BATCH_NAME}/{SCENARIO_NAME}'
 DIRECTORY_BATCH = f'{STUDY_AREA_CONFIG["work_dir"]}/beam-ft/{BATCH_NAME}'
-DIRECTORY_OUTPUT = f'{DIRECTORY_BATCH}/{YEAR}_{SCENARIO_LABEL}{SCENARIO_SUFFIX}'
+DIRECTORY_OUTPUT = f'{DIRECTORY_BATCH}/{YEAR}-{SCENARIO_LABEL}{SCENARIO_SUFFIX}'
 DIRECTORY_VEHICLE_TECH = f'{STUDY_AREA_CONFIG["work_dir"]}/vehicle-tech'
 DIRECTORY_SCENARIO = f'{DIRECTORY_OUTPUT}'
 # if SNAP_COORDINATES:

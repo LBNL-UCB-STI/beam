@@ -321,9 +321,10 @@ def run_vmt_validation(vehicle_types_files):
     # Commented code from the original script would go here
 
 
-def generate_validation_stats(setup, processed_link_stats, output_dir, study_area):
+def generate_validation_stats(setup, processed_link_stats, output_dir, study_area, peak_hour):
     """
-    Generate comprehensive statistics for both network and link validation
+    Generate comprehensive statistics for both network and link validation,
+    including NPMRDS comparison data
 
     Parameters:
     -----------
@@ -343,11 +344,18 @@ def generate_validation_stats(setup, processed_link_stats, output_dir, study_are
     """
     stats_results = {
         "network_validation": {},
-        "link_validation": {}
+        "link_validation": {},
+        "npmrds": {}
     }
 
     # Get the data
     hourly_speed_by_road_class = setup.get_hourly_average_speed_by_road_class(processed_link_stats)
+
+    # Separate NPMRDS data from simulation data
+    npmrds_data = hourly_speed_by_road_class[
+        hourly_speed_by_road_class['scenario'].str.contains("npmrds", case=False, na=False)
+    ]
+
     hourly_speed_by_road_class_no_npmrds = hourly_speed_by_road_class[
         ~hourly_speed_by_road_class['scenario'].str.contains("npmrds", case=False, na=False)
     ]
@@ -369,16 +377,15 @@ def generate_validation_stats(setup, processed_link_stats, output_dir, study_are
     network_stats["avg_speed_by_road_class"] = hourly_speed_by_road_class_no_npmrds.groupby('road_class')[
         'speed'].mean().to_dict()
 
-    # Average speed at hour 8 (morning peak)
-    hour_8_data = hourly_speed_by_road_class_no_npmrds[hourly_speed_by_road_class_no_npmrds['hour'] == 8]
-    network_stats["avg_speed_hour_8"] = hour_8_data['speed'].mean()
-    network_stats["avg_speed_hour_8_by_road_class"] = hour_8_data.groupby('road_class')['speed'].mean().to_dict()
+    # Average speed at peak hour (9 AM) - Overall only
+    peak_hour_data = hourly_speed_by_road_class_no_npmrds[hourly_speed_by_road_class_no_npmrds['hour'] == peak_hour]
+    network_stats[f"avg_speed_hour_{peak_hour}"] = peak_hour_data['speed'].mean()
 
     # Average speed per mode (if available)
     if has_mode_data:
         network_stats["avg_speed_by_mode"] = hourly_speed_by_road_class_no_npmrds.groupby('mode')[
             'speed'].mean().to_dict()
-        network_stats["avg_speed_hour_8_by_mode"] = hour_8_data.groupby('mode')['speed'].mean().to_dict()
+        network_stats[f"avg_speed_hour_{peak_hour}_by_mode"] = peak_hour_data.groupby('mode')['speed'].mean().to_dict()
 
     # 2. Link Validation Stats
     print("Generating link validation statistics...")
@@ -391,24 +398,48 @@ def generate_validation_stats(setup, processed_link_stats, output_dir, study_are
     link_stats["avg_speed_by_road_class"] = hourly_link_speed_by_road_class.groupby('road_class')[
         'speed'].mean().to_dict()
 
-    # Average speed at hour 8 (morning peak)
-    link_hour_8_data = hourly_link_speed_by_road_class[hourly_link_speed_by_road_class['hour'] == 8]
-    link_stats["avg_speed_hour_8"] = hourly_link_speed[hourly_link_speed['hour'] == 8]['speed'].mean()
-    link_stats["avg_speed_hour_8_by_road_class"] = link_hour_8_data.groupby('road_class')['speed'].mean().to_dict()
+    # Average speed at peak hour (9 AM) - Overall only
+    link_stats[f"avg_speed_hour_{peak_hour}"] = hourly_link_speed[hourly_link_speed['hour'] == peak_hour][
+        'speed'].mean()
 
     # Average speed per mode (if available)
     if 'mode' in hourly_link_speed.columns:
         link_stats["avg_speed_by_mode"] = hourly_link_speed.groupby('mode')['speed'].mean().to_dict()
-        link_stats["avg_speed_hour_8_by_mode"] = hourly_link_speed[hourly_link_speed['hour'] == 8].groupby('mode')[
+        link_stats[f"avg_speed_hour_{peak_hour}_by_mode"] = \
+        hourly_link_speed[hourly_link_speed['hour'] == peak_hour].groupby('mode')['speed'].mean().to_dict()
+
+    # 3. NPMRDS Stats
+    print("Generating NPMRDS statistics...")
+    npmrds_stats = stats_results["npmrds"]
+
+    if not npmrds_data.empty:
+        # Overall average speed
+        npmrds_stats["overall_avg_speed"] = npmrds_data['speed'].mean()
+
+        # Average speed per road category
+        npmrds_stats["avg_speed_by_road_class"] = npmrds_data.groupby('road_class')['speed'].mean().to_dict()
+
+        # Average speed at peak hour (9 AM) - Overall and by road category
+        npmrds_peak_hour_data = npmrds_data[npmrds_data['hour'] == peak_hour]
+        npmrds_stats[f"avg_speed_hour_{peak_hour}"] = npmrds_peak_hour_data['speed'].mean()
+        npmrds_stats[f"avg_speed_hour_{peak_hour}_by_road_class"] = npmrds_peak_hour_data.groupby('road_class')[
             'speed'].mean().to_dict()
 
+        # Average speed per mode (if available)
+        if has_mode_data and 'mode' in npmrds_data.columns:
+            npmrds_stats["avg_speed_by_mode"] = npmrds_data.groupby('mode')['speed'].mean().to_dict()
+            npmrds_stats[f"avg_speed_hour_{peak_hour}_by_mode"] = npmrds_peak_hour_data.groupby('mode')[
+                'speed'].mean().to_dict()
+    else:
+        print("Warning: No NPMRDS data found in the processed link stats")
+
     # Save to JSON and CSV
-    save_stats_to_file(stats_results, output_dir, study_area)
+    save_stats_to_file(stats_results, output_dir, study_area, peak_hour)
 
     return stats_results
 
 
-def save_stats_to_file(stats_results, output_dir, study_area):
+def save_stats_to_file(stats_results, output_dir, study_area, peak_hour):
     """
     Save statistics to JSON and CSV files
 
@@ -420,7 +451,18 @@ def save_stats_to_file(stats_results, output_dir, study_area):
         Directory to save output data
     study_area : str
         Name of the study area
+    peak_hour : int
+        The peak hour (e.g., 9 for 9 AM)
     """
+    import json
+    import pandas as pd
+
+    # Add peak hour to stats_results metadata
+    stats_results["metadata"] = {
+        "peak_hour": peak_hour,
+        "study_area": study_area
+    }
+
     # Save to JSON
     with open(f"{output_dir}/{study_area}_validation_stats.json", 'w') as f:
         json.dump(stats_results, f, indent=4)
@@ -430,10 +472,11 @@ def save_stats_to_file(stats_results, output_dir, study_area):
     # Network validation
     network_stats = stats_results["network_validation"]
 
-    # Overall stats
+    # Overall stats including peak hour
     network_overall_df = pd.DataFrame({
-        'metric': ['overall_avg_speed', 'avg_speed_hour_8'],
-        'value': [network_stats['overall_avg_speed'], network_stats['avg_speed_hour_8']]
+        'metric': ['overall_avg_speed', f'avg_speed_hour_{peak_hour}'],
+        'value': [network_stats['overall_avg_speed'], network_stats[f'avg_speed_hour_{peak_hour}']],
+        'peak_hour': [None, peak_hour]  # Add peak hour info
     })
     network_overall_df.to_csv(f"{output_dir}/{study_area}_network_overall_stats.csv", index=False)
 
@@ -443,7 +486,7 @@ def save_stats_to_file(stats_results, output_dir, study_area):
         network_road_class_rows.append({
             'road_class': road_class,
             'avg_speed': speed,
-            'avg_speed_hour_8': network_stats['avg_speed_hour_8_by_road_class'].get(road_class, float('nan'))
+            'peak_hour_used': peak_hour  # Add peak hour info
         })
 
     network_road_class_df = pd.DataFrame(network_road_class_rows)
@@ -453,11 +496,17 @@ def save_stats_to_file(stats_results, output_dir, study_area):
     if 'avg_speed_by_mode' in network_stats:
         network_mode_rows = []
         for mode, speed in network_stats['avg_speed_by_mode'].items():
-            network_mode_rows.append({
+            row_data = {
                 'mode': mode,
                 'avg_speed': speed,
-                'avg_speed_hour_8': network_stats['avg_speed_hour_8_by_mode'].get(mode, float('nan'))
-            })
+                'peak_hour_used': peak_hour  # Add peak hour info
+            }
+            if f'avg_speed_hour_{peak_hour}_by_mode' in network_stats:
+                row_data[f'avg_speed_hour_{peak_hour}'] = network_stats[f'avg_speed_hour_{peak_hour}_by_mode'].get(mode,
+                                                                                                                   float(
+                                                                                                                       'nan'))
+
+            network_mode_rows.append(row_data)
 
         network_mode_df = pd.DataFrame(network_mode_rows)
         network_mode_df.to_csv(f"{output_dir}/{study_area}_network_mode_stats.csv", index=False)
@@ -465,10 +514,11 @@ def save_stats_to_file(stats_results, output_dir, study_area):
     # Link validation
     link_stats = stats_results["link_validation"]
 
-    # Overall stats
+    # Overall stats including peak hour
     link_overall_df = pd.DataFrame({
-        'metric': ['overall_avg_speed', 'avg_speed_hour_8'],
-        'value': [link_stats['overall_avg_speed'], link_stats['avg_speed_hour_8']]
+        'metric': ['overall_avg_speed', f'avg_speed_hour_{peak_hour}'],
+        'value': [link_stats['overall_avg_speed'], link_stats[f'avg_speed_hour_{peak_hour}']],
+        'peak_hour': [None, peak_hour]  # Add peak hour info
     })
     link_overall_df.to_csv(f"{output_dir}/{study_area}_link_overall_stats.csv", index=False)
 
@@ -478,7 +528,7 @@ def save_stats_to_file(stats_results, output_dir, study_area):
         link_road_class_rows.append({
             'road_class': road_class,
             'avg_speed': speed,
-            'avg_speed_hour_8': link_stats['avg_speed_hour_8_by_road_class'].get(road_class, float('nan'))
+            'peak_hour_used': peak_hour  # Add peak hour info
         })
 
     link_road_class_df = pd.DataFrame(link_road_class_rows)
@@ -488,14 +538,345 @@ def save_stats_to_file(stats_results, output_dir, study_area):
     if 'avg_speed_by_mode' in link_stats:
         link_mode_rows = []
         for mode, speed in link_stats['avg_speed_by_mode'].items():
-            link_mode_rows.append({
+            row_data = {
                 'mode': mode,
                 'avg_speed': speed,
-                'avg_speed_hour_8': link_stats['avg_speed_hour_8_by_mode'].get(mode, float('nan'))
-            })
+                'peak_hour_used': peak_hour  # Add peak hour info
+            }
+            if f'avg_speed_hour_{peak_hour}_by_mode' in link_stats:
+                row_data[f'avg_speed_hour_{peak_hour}'] = link_stats[f'avg_speed_hour_{peak_hour}_by_mode'].get(mode,
+                                                                                                                float(
+                                                                                                                    'nan'))
+
+            link_mode_rows.append(row_data)
 
         link_mode_df = pd.DataFrame(link_mode_rows)
         link_mode_df.to_csv(f"{output_dir}/{study_area}_link_mode_stats.csv", index=False)
+
+    # NPMRDS Stats (if available)
+    npmrds_stats = stats_results.get("npmrds", {})
+    if npmrds_stats:
+        # Overall stats including peak hour
+        npmrds_overall_df = pd.DataFrame({
+            'metric': ['overall_avg_speed', f'avg_speed_hour_{peak_hour}'],
+            'value': [npmrds_stats.get('overall_avg_speed', float('nan')),
+                      npmrds_stats.get(f'avg_speed_hour_{peak_hour}', float('nan'))],
+            'peak_hour': [None, peak_hour]  # Add peak hour info
+        })
+        npmrds_overall_df.to_csv(f"{output_dir}/{study_area}_npmrds_overall_stats.csv", index=False)
+
+        # Road class stats
+        if 'avg_speed_by_road_class' in npmrds_stats:
+            npmrds_road_class_rows = []
+            for road_class, speed in npmrds_stats['avg_speed_by_road_class'].items():
+                row_data = {
+                    'road_class': road_class,
+                    'avg_speed': speed,
+                    'peak_hour_used': peak_hour  # Add peak hour info
+                }
+                if f'avg_speed_hour_{peak_hour}_by_road_class' in npmrds_stats:
+                    row_data[f'avg_speed_hour_{peak_hour}'] = npmrds_stats[
+                        f'avg_speed_hour_{peak_hour}_by_road_class'].get(road_class, float('nan'))
+
+                npmrds_road_class_rows.append(row_data)
+
+            npmrds_road_class_df = pd.DataFrame(npmrds_road_class_rows)
+            npmrds_road_class_df.to_csv(f"{output_dir}/{study_area}_npmrds_road_class_stats.csv", index=False)
+
+    # Create a special file combining all data sources for peak hour (9 AM)
+    peak_hour_stats = {
+        'metadata': {
+            'peak_hour': peak_hour,
+            'study_area': study_area
+        },
+        'network_overall': network_stats.get(f'avg_speed_hour_{peak_hour}', float('nan')),
+        'link_overall': link_stats.get(f'avg_speed_hour_{peak_hour}', float('nan'))
+    }
+
+    if npmrds_stats:
+        peak_hour_stats['npmrds_overall'] = npmrds_stats.get(f'avg_speed_hour_{peak_hour}', float('nan'))
+        if f'avg_speed_hour_{peak_hour}_by_road_class' in npmrds_stats:
+            peak_hour_stats['npmrds_by_road_class'] = npmrds_stats[f'avg_speed_hour_{peak_hour}_by_road_class']
+
+    # Add mode data if available
+    if f'avg_speed_hour_{peak_hour}_by_mode' in network_stats:
+        peak_hour_stats['network_by_mode'] = network_stats[f'avg_speed_hour_{peak_hour}_by_mode']
+
+    if f'avg_speed_hour_{peak_hour}_by_mode' in link_stats:
+        peak_hour_stats['link_by_mode'] = link_stats[f'avg_speed_hour_{peak_hour}_by_mode']
+
+    # Save peak hour stats to JSON
+    with open(f"{output_dir}/{study_area}_peak_hour_{peak_hour}_stats.json", 'w') as f:
+        json.dump(peak_hour_stats, f, indent=4)
+
+    # Create a simple CSV for peak hour comparison
+    peak_hour_rows = [
+        {'data_source': 'network', 'metric': 'overall', 'speed': peak_hour_stats['network_overall'],
+         'peak_hour': peak_hour},
+        {'data_source': 'link', 'metric': 'overall', 'speed': peak_hour_stats['link_overall'], 'peak_hour': peak_hour}
+    ]
+
+    if 'npmrds_overall' in peak_hour_stats:
+        peak_hour_rows.append({
+            'data_source': 'npmrds',
+            'metric': 'overall',
+            'speed': peak_hour_stats['npmrds_overall'],
+            'peak_hour': peak_hour
+        })
+
+    # Add road class data for NPMRDS
+    if 'npmrds_by_road_class' in peak_hour_stats:
+        for road_class, speed in peak_hour_stats['npmrds_by_road_class'].items():
+            peak_hour_rows.append({
+                'data_source': 'npmrds',
+                'metric': f'road_class_{road_class}',
+                'speed': speed,
+                'peak_hour': peak_hour
+            })
+
+    # Add mode data
+    if 'network_by_mode' in peak_hour_stats:
+        for mode, speed in peak_hour_stats['network_by_mode'].items():
+            peak_hour_rows.append({
+                'data_source': 'network',
+                'metric': f'mode_{mode}',
+                'speed': speed,
+                'peak_hour': peak_hour
+            })
+
+    if 'link_by_mode' in peak_hour_stats:
+        for mode, speed in peak_hour_stats['link_by_mode'].items():
+            peak_hour_rows.append({
+                'data_source': 'link',
+                'metric': f'mode_{mode}',
+                'speed': speed,
+                'peak_hour': peak_hour
+            })
+
+    peak_hour_df = pd.DataFrame(peak_hour_rows)
+    peak_hour_df.to_csv(f"{output_dir}/{study_area}_peak_hour_{peak_hour}_stats.csv", index=False)
+
+    # Create a comparative stats file (BEAM vs NPMRDS)
+    if npmrds_stats:
+        # Overall comparison
+        comparison_rows = [{
+            'metric': 'overall_avg_speed',
+            'network': network_stats.get('overall_avg_speed', float('nan')),
+            'link': link_stats.get('overall_avg_speed', float('nan')),
+            'npmrds': npmrds_stats.get('overall_avg_speed', float('nan')),
+            'peak_hour_used': peak_hour  # Add peak hour info
+        }, {
+            'metric': f'avg_speed_hour_{peak_hour}',
+            'network': network_stats.get(f'avg_speed_hour_{peak_hour}', float('nan')),
+            'link': link_stats.get(f'avg_speed_hour_{peak_hour}', float('nan')),
+            'npmrds': npmrds_stats.get(f'avg_speed_hour_{peak_hour}', float('nan')),
+            'peak_hour': peak_hour  # Add peak hour info
+        }]
+
+        # Road class comparisons (if available)
+        if ('avg_speed_by_road_class' in network_stats and
+                'avg_speed_by_road_class' in link_stats and
+                'avg_speed_by_road_class' in npmrds_stats):
+
+            # Get the union of all road classes
+            all_road_classes = set()
+            all_road_classes.update(network_stats['avg_speed_by_road_class'].keys())
+            all_road_classes.update(link_stats['avg_speed_by_road_class'].keys())
+            all_road_classes.update(npmrds_stats['avg_speed_by_road_class'].keys())
+
+            for road_class in all_road_classes:
+                comparison_rows.append({
+                    'metric': f'avg_speed_road_class_{road_class}',
+                    'network': network_stats['avg_speed_by_road_class'].get(road_class, float('nan')),
+                    'link': link_stats['avg_speed_by_road_class'].get(road_class, float('nan')),
+                    'npmrds': npmrds_stats['avg_speed_by_road_class'].get(road_class, float('nan')),
+                    'peak_hour_used': peak_hour  # Add peak hour info
+                })
+
+        comparison_df = pd.DataFrame(comparison_rows)
+        comparison_df.to_csv(f"{output_dir}/{study_area}_beam_npmrds_comparison.csv", index=False)
+
+
+def find_lowest_speed_hours(setup, processed_link_stats, output_dir, study_area, peak_hour):
+    """
+    Find the hours with the lowest average speeds overall and for each road category
+
+    Parameters:
+    -----------
+    setup : SpeedValidationSetup
+        Validation setup object
+    processed_link_stats : list
+        List of processed link statistics
+    output_dir : str
+        Directory to save output data
+    study_area : str
+        Name of the study area
+    peak_hour : int
+        The peak hour used for other analysis
+
+    Returns:
+    --------
+    dict
+        Dictionary containing the lowest speed hours and their speeds
+    """
+    print("Finding hours with lowest speeds...")
+
+    # Initialize results dictionary
+    lowest_speed_stats = {
+        "network": {
+            "overall": {},
+            "by_road_class": {}
+        },
+        "link": {
+            "overall": {},
+            "by_road_class": {}
+        },
+        "npmrds": {
+            "overall": {},
+            "by_road_class": {}
+        }
+    }
+
+    # Get the data
+    hourly_speed_by_road_class = setup.get_hourly_average_speed_by_road_class(processed_link_stats)
+
+    # Separate NPMRDS data from simulation data
+    npmrds_data = hourly_speed_by_road_class[
+        hourly_speed_by_road_class['scenario'].str.contains("npmrds", case=False, na=False)
+    ]
+
+    hourly_speed_by_road_class_no_npmrds = hourly_speed_by_road_class[
+        ~hourly_speed_by_road_class['scenario'].str.contains("npmrds", case=False, na=False)
+    ]
+
+    hourly_link_speed = setup.get_hourly_link_speed(processed_link_stats)
+    hourly_link_speed_by_road_class = setup.get_hourly_link_speed_by_road_class(processed_link_stats)
+
+    # 1. Network Validation - Overall
+    # Group by hour and calculate mean speed for each hour
+    network_hourly_avg = hourly_speed_by_road_class_no_npmrds.groupby('hour')['speed'].mean().reset_index()
+    # Find hour with minimum speed
+    network_min_hour_row = network_hourly_avg.loc[network_hourly_avg['speed'].idxmin()]
+    lowest_speed_stats["network"]["overall"] = {
+        "hour": int(network_min_hour_row['hour']),
+        "speed": float(network_min_hour_row['speed'])
+    }
+
+    # 2. Network Validation - By Road Class
+    for road_class in hourly_speed_by_road_class_no_npmrds['road_class'].unique():
+        road_class_data = hourly_speed_by_road_class_no_npmrds[
+            hourly_speed_by_road_class_no_npmrds['road_class'] == road_class
+            ]
+        if not road_class_data.empty:
+            road_class_hourly_avg = road_class_data.groupby('hour')['speed'].mean().reset_index()
+            min_hour_row = road_class_hourly_avg.loc[road_class_hourly_avg['speed'].idxmin()]
+            lowest_speed_stats["network"]["by_road_class"][road_class] = {
+                "hour": int(min_hour_row['hour']),
+                "speed": float(min_hour_row['speed'])
+            }
+
+    # 3. Link Validation - Overall
+    link_hourly_avg = hourly_link_speed.groupby('hour')['speed'].mean().reset_index()
+    link_min_hour_row = link_hourly_avg.loc[link_hourly_avg['speed'].idxmin()]
+    lowest_speed_stats["link"]["overall"] = {
+        "hour": int(link_min_hour_row['hour']),
+        "speed": float(link_min_hour_row['speed'])
+    }
+
+    # 4. Link Validation - By Road Class
+    for road_class in hourly_link_speed_by_road_class['road_class'].unique():
+        road_class_data = hourly_link_speed_by_road_class[
+            hourly_link_speed_by_road_class['road_class'] == road_class
+            ]
+        if not road_class_data.empty:
+            road_class_hourly_avg = road_class_data.groupby('hour')['speed'].mean().reset_index()
+            min_hour_row = road_class_hourly_avg.loc[road_class_hourly_avg['speed'].idxmin()]
+            lowest_speed_stats["link"]["by_road_class"][road_class] = {
+                "hour": int(min_hour_row['hour']),
+                "speed": float(min_hour_row['speed'])
+            }
+
+    # 5. NPMRDS - Overall
+    if not npmrds_data.empty:
+        npmrds_hourly_avg = npmrds_data.groupby('hour')['speed'].mean().reset_index()
+        npmrds_min_hour_row = npmrds_hourly_avg.loc[npmrds_hourly_avg['speed'].idxmin()]
+        lowest_speed_stats["npmrds"]["overall"] = {
+            "hour": int(npmrds_min_hour_row['hour']),
+            "speed": float(npmrds_min_hour_row['speed'])
+        }
+
+        # 6. NPMRDS - By Road Class
+        for road_class in npmrds_data['road_class'].unique():
+            road_class_data = npmrds_data[npmrds_data['road_class'] == road_class]
+            if not road_class_data.empty:
+                road_class_hourly_avg = road_class_data.groupby('hour')['speed'].mean().reset_index()
+                min_hour_row = road_class_hourly_avg.loc[road_class_hourly_avg['speed'].idxmin()]
+                lowest_speed_stats["npmrds"]["by_road_class"][road_class] = {
+                    "hour": int(min_hour_row['hour']),
+                    "speed": float(min_hour_row['speed'])
+                }
+
+    # Save results to JSON file
+    with open(f"{output_dir}/{study_area}_lowest_speed_hours.json", 'w') as f:
+        json.dump(lowest_speed_stats, f, indent=4)
+
+    # Create CSV file
+    rows = []
+
+    # Network data
+    rows.append({
+        'data_source': 'network',
+        'category': 'overall',
+        'hour_with_lowest_speed': lowest_speed_stats["network"]["overall"]["hour"],
+        'lowest_speed': lowest_speed_stats["network"]["overall"]["speed"]
+    })
+
+    for road_class, data in lowest_speed_stats["network"]["by_road_class"].items():
+        rows.append({
+            'data_source': 'network',
+            'category': f'road_class_{road_class}',
+            'hour_with_lowest_speed': data["hour"],
+            'lowest_speed': data["speed"]
+        })
+
+    # Link data
+    rows.append({
+        'data_source': 'link',
+        'category': 'overall',
+        'hour_with_lowest_speed': lowest_speed_stats["link"]["overall"]["hour"],
+        'lowest_speed': lowest_speed_stats["link"]["overall"]["speed"]
+    })
+
+    for road_class, data in lowest_speed_stats["link"]["by_road_class"].items():
+        rows.append({
+            'data_source': 'link',
+            'category': f'road_class_{road_class}',
+            'hour_with_lowest_speed': data["hour"],
+            'lowest_speed': data["speed"]
+        })
+
+    # NPMRDS data
+    if "hour" in lowest_speed_stats["npmrds"]["overall"]:
+        rows.append({
+            'data_source': 'npmrds',
+            'category': 'overall',
+            'hour_with_lowest_speed': lowest_speed_stats["npmrds"]["overall"]["hour"],
+            'lowest_speed': lowest_speed_stats["npmrds"]["overall"]["speed"]
+        })
+
+        for road_class, data in lowest_speed_stats["npmrds"]["by_road_class"].items():
+            rows.append({
+                'data_source': 'npmrds',
+                'category': f'road_class_{road_class}',
+                'hour_with_lowest_speed': data["hour"],
+                'lowest_speed': data["speed"]
+            })
+
+    # Create DataFrame and save to CSV
+    lowest_speed_df = pd.DataFrame(rows)
+    lowest_speed_df.to_csv(f"{output_dir}/{study_area}_lowest_speed_hours.csv", index=False)
+
+    return lowest_speed_stats
 
 
 def main():
@@ -505,11 +886,13 @@ def main():
     # Configuration
     study_area = "sfbay"  # or "seattle"
     batch = "20240123"
-    scenario = "2018-Baseline-FC12-Bis2"
+    scenario = "2018-Baseline-FC11"
+    peak_hour = 8
     do_link_speed_validation = True
     do_network_speed_validation = True
     do_vmt_validation = False
-    generate_stats = True  # New flag to control stats generation
+    generate_stats = True  # Flag to control stats generation
+    find_lowest_speeds = True  # New flag to control lowest speed analysis
 
     # Load configuration
     config = get_area_config(study_area)
@@ -533,7 +916,7 @@ def main():
     )
 
     # Process link stats if needed
-    if do_link_speed_validation or do_network_speed_validation or do_vmt_validation or generate_stats:
+    if do_link_speed_validation or do_network_speed_validation or do_vmt_validation or generate_stats or find_lowest_speeds:
         print(f"Processing link stats: {link_stats}")
         processed_link_stats = setup.process_these_link_stats(
             link_stats=link_stats, assume_daylight_saving=True
@@ -559,10 +942,28 @@ def main():
     if generate_stats and processed_link_stats is not None:
         print("Generating comprehensive validation statistics...")
         stats_results = generate_validation_stats(
-            setup, processed_link_stats, output_dir, study_area
+            setup, processed_link_stats, output_dir, study_area, peak_hour
         )
         print(f"Statistics saved to {output_dir}/{study_area}_validation_stats.json")
-        print(stats_results)
+
+    # Find hours with lowest speeds if requested
+    if find_lowest_speeds and processed_link_stats is not None:
+        print("Analyzing hours with lowest speeds...")
+        lowest_speed_stats = find_lowest_speed_hours(
+            setup, processed_link_stats, output_dir, study_area, peak_hour
+        )
+        print(f"Lowest speed statistics saved to {output_dir}/{study_area}_lowest_speed_hours.json")
+
+        # Print a summary of the lowest speed hours
+        print("\nSummary of hours with lowest speeds:")
+        print(
+            f"Network overall: Hour {lowest_speed_stats['network']['overall']['hour']}: {lowest_speed_stats['network']['overall']['speed']:.2f} mph")
+        print(
+            f"Link overall: Hour {lowest_speed_stats['link']['overall']['hour']}: {lowest_speed_stats['link']['overall']['speed']:.2f} mph")
+
+        if "hour" in lowest_speed_stats["npmrds"]["overall"]:
+            print(
+                f"NPMRDS overall: Hour {lowest_speed_stats['npmrds']['overall']['hour']}: {lowest_speed_stats['npmrds']['overall']['speed']:.2f} mph")
 
     print("Validation complete!")
 
