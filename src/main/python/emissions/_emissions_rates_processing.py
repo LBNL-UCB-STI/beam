@@ -48,6 +48,7 @@ pollutant_columns = {
     'BC_V3': 'rate_bch_gram_float'
 }
 
+
 def calculate_road_dust_emissions(silt_loading, rainy_days):
     """
     Calculate road dust emissions based on EPA AP-42 methodology.
@@ -222,10 +223,13 @@ def pivot_rates_for_beam(df_raw):
     return pivot_df
 
 
-def process_rates_group(df, row):
+def process_rates_group(df, row, emissions_version):
     mask = ((df["county"] == row["county"]) & (df["emfacId"] == row["emfacId"]))
     df_subset = df[mask]
     df_output_list = []
+
+    # Extract PM-related pollutant columns
+    pm_columns = [value for key, value in pollutant_columns.items() if key.startswith('PM')]
 
     # Add progress bar for processing each emissions process
     print(f"Processing emissions for county: {row['county']}, emfacId: {row['emfacId']}")
@@ -240,6 +244,15 @@ def process_rates_group(df, row):
                                                                [0.0, 3600.0])
             else:
                 df_temp = pivot_rates_for_beam(df_temp)
+
+            if emissions_version == "EMFAC2021":
+                if process == 'PMTW' and row.get('fuel').isin(['Elec', 'Phe']):
+                    # Apply 15% increase to PM-related columns
+                    # EMFAC2021 underestimated tire wear emissions for electric vehicles
+                    # https://ww2.arb.ca.gov/sites/default/files/2024-11/3rd%20Workshop%20Draft%20Slides%20FINAL%20ADA.pdf
+                    for col in pm_columns:
+                        df_temp[col] = df_temp[col] * 1.15
+
             df_output_list.append(df_temp)
 
     return pd.concat(df_output_list, ignore_index=True) if df_output_list else pd.DataFrame()

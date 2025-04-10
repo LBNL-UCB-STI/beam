@@ -12,9 +12,9 @@ import pyarrow as pa
 import pyarrow.csv as csv
 from joblib import Parallel, delayed
 
-from _emfac_and_emissions_rates_processing import process_emfac_population
-from _emfac_and_emissions_rates_processing import process_emfac_vmt
-from _emfac_and_emissions_rates_processing import process_emissions_rates
+from _emissions_rates_processing import process_emfac_population
+from _emissions_rates_processing import process_emfac_vmt
+from _emissions_rates_processing import process_emissions_rates
 from _emfac_beam_ft_matching import generate_emfac_mapped_freight_fleet
 from _emfac_beam_pax_mapping import generate_emfac_mapped_passenger_vehicle_types
 from _emfac_beam_pax_mapping import generate_fleet_from_vehicle_types

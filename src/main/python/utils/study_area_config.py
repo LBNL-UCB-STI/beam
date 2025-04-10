@@ -348,14 +348,17 @@ sfbay_area_config = {
                     "include_nan": True
                 },
                 "emfac": {
+                    "version": "EMFAC2021",
                     "emfac_rates_by_model_year_file": f"emissions/rates/emfac/imputed_MTC_emission_rate_agg_NH3_added_2018_2025_2030_2040_2050.csv",
                     "emfac_vmt_by_model_year_file": f"emissions/rates/emfac/Default_Statewide_2018_2025_2030_2040_2050_Annual_vmt_20240612233346.csv",
                     "emfac_pop_by_model_year_file": f"emissions/rates/emfac/Default_Statewide_2018_2025_2030_2040_2050_Annual_population_20240612233346.csv"
                 },
                 "black_carbon": {
+                    "version": "",
                     "black_carbon_rates_file": f"emissions/rates/black_carbon/emfac_bc_rate_three_ver_2018.csv",
                 },
                 "road_dust": {
+                    "version": "",
                     "rainy_days_file": f"emissions/rates/road_dust/CA_input/rainy_days.csv",
                     "silt_loading_file": f"emissions/rates/road_dust/CA_input/silt_loading.csv",
                 }
