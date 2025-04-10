@@ -83,17 +83,20 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
 
   private var r5: R5Wrapper = new R5Wrapper(
     workerParams,
-    new FreeFlowTravelTime,
+    new BeamFreeFlowTravelTime(networkHelper = workerParams.networkHelper),
     workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
   )
 
   private var secondR5: Option[R5Wrapper] = for {
     (transportNetwork, network) <- networks2
-  } yield new R5Wrapper(
-    workerParams.copy(transportNetwork = transportNetwork, networkHelper = new NetworkHelperImpl(network)),
-    new FreeFlowTravelTime,
-    workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
-  )
+  } yield {
+    val networkHelperImpl = new NetworkHelperImpl(network)
+    new R5Wrapper(
+      workerParams.copy(transportNetwork = transportNetwork, networkHelper = networkHelperImpl),
+      new BeamFreeFlowTravelTime(networkHelperImpl),
+      workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
+    )
+  }
 
   private val graphHopperDir: String = Paths.get(workerParams.beamConfig.beam.inputDirectory, "graphhopper").toString
   private val carGraphHopperDir: String = Paths.get(graphHopperDir, "car").toString
