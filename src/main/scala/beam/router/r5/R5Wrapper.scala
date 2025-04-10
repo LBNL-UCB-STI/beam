@@ -1231,22 +1231,9 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     // Cache the maximum velocity for this vehicle type
     val vehicleMaxSpeed = vehicleType.maxVelocity.getOrElse(Double.MaxValue)
 
-    // Create a cache for edge length to avoid repeated lookups
-    val edgeLengthCache = new ConcurrentHashMap[Int, Double]()
-
-    // Create a cache for bicycle scale factors if needed
-    val bikeScaleFactorCache = if (shouldApplyBicycleScaleFactor) {
-      new ConcurrentHashMap[Int, Double]()
-    } else null
-
     (time: Double, linkId: Int, streetMode: StreetMode) => {
       // Get the edge length, using the cache
-      val edgeLength = edgeLengthCache.computeIfAbsent(
-        linkId,
-        id => {
-          transportNetwork.streetLayer.edgeStore.getCursor(id).getLengthM
-        }
-      )
+      val edgeLength = transportNetwork.streetLayer.edgeStore.lengths_mm.get(linkId / 2) / 1000.0
 
       // Calculate the mode-specific speed
       val maxSpeed: Double = if (streetMode == StreetMode.CAR) {
@@ -1257,17 +1244,11 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
 
       val minTravelTime = edgeLength / maxSpeed
 
-      if (streetMode == StreetMode.CAR) {
+      if (streetMode == StreetMode.BICYCLE && shouldApplyBicycleScaleFactor) {
+        //note we're not explicitly checking that it is a Bike VehicleType
+        minTravelTime * bikeLanesAdjustment.bikeScaleFactor(linkId)
+      } else if (streetMode == StreetMode.CAR) {
         carWeightCalculator.calcTravelTime(linkId, travelTime, maxSpeed, time, shouldAddNoise, edgeLength)
-      } else if (streetMode == StreetMode.BICYCLE && shouldApplyBicycleScaleFactor) {
-        // Use the cache for bike scale factors
-        val scaleFactor = bikeScaleFactorCache.computeIfAbsent(
-          linkId,
-          id => {
-            bikeLanesAdjustment.scaleFactor(vehicleType, id)
-          }
-        )
-        minTravelTime * scaleFactor
       } else {
         minTravelTime
       }
@@ -1322,7 +1303,7 @@ object R5Wrapper {
 
   sealed trait RoutingVehicleCategory
 
-  object RoutingVehicleCategory {
+  private object RoutingVehicleCategory {
     case object HeavyDuty extends RoutingVehicleCategory
     case object MediumDuty extends RoutingVehicleCategory
     case object Other extends RoutingVehicleCategory
@@ -1348,18 +1329,6 @@ object R5Wrapper {
 
     def isRestricted(category: VehicleCategory.VehicleCategory, speedThreshold: Double): Boolean = {
       isRestricted(RoutingVehicleCategory.fromCategory(category), speedThreshold)
-    }
-
-    def validFor: Vector[RoutingVehicleCategory] = {
-      RoutingVehicleCategory.values
-        .filter(category =>
-          category match {
-            case RoutingVehicleCategory.HeavyDuty  => !hhdt
-            case RoutingVehicleCategory.MediumDuty => !lmhdt
-            case RoutingVehicleCategory.Other      => false
-          }
-        )
-        .toVector
     }
   }
 }

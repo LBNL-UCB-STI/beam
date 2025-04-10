@@ -7,6 +7,7 @@ import beam.router.BeamRouter.{Location, RoutingRequest}
 import beam.router.Modes.BeamMode
 import beam.router.r5.{R5Parameters, R5Wrapper}
 import beam.router.{BeamRouter, FreeFlowTravelTime}
+import beam.router.BeamTravelTime
 import beam.sim.BeamHelper
 import beam.sim.common.GeoUtils
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}

@@ -1,6 +1,8 @@
 package beam.router.r5
 
+import beam.router.BeamTravelTime
 import org.matsim.core.router.util.TravelTime
+
 import java.util.concurrent.ThreadLocalRandom
 
 class CarWeightCalculator(workerParams: R5Parameters, travelTimeNoiseFraction: Double = 0d) {
@@ -32,14 +34,27 @@ class CarWeightCalculator(workerParams: R5Parameters, travelTimeNoiseFraction: D
     val lengthM =
       if (edgeLength > 0) edgeLength
       else {
-        transportNetwork.streetLayer.edgeStore.getCursor(linkId).getLengthM
+        transportNetwork.streetLayer.edgeStore.lengths_mm.get(linkId / 2) / 1000.0
       }
 
     // Pre-compute these values once
     val maxTravelTime = lengthM / minSpeed
     val minTravelTime = lengthM / maxSpeed
 
-    val physSimTravelTime = travelTime.getLinkTravelTime(link, time, null, null)
+    // Get travel time - use optimized method if available
+    val physSimTravelTime = travelTime match {
+      case beamTT: BeamTravelTime =>
+        // Use the optimized method with pre-computed length
+        beamTT.getLinkTravelTime(linkId, time, lengthM)
+      case _ =>
+        // Fall back to the original method
+        val link = networkHelper.getLinkUnsafe(linkId)
+        if (link == null) {
+          lengthM / maxSpeed // Default to free flow if link not found
+        } else {
+          travelTime.getLinkTravelTime(link, time, null, null)
+        }
+    }
 
     // Generate noise only if needed
     val physSimTravelTimeWithNoise =
