@@ -91,17 +91,18 @@ object VehicleCategory {
       case exception: Exception => throw new RuntimeException(f"Can not parse vehicle category: '$value'.", exception)
     }
 
+  val values: Vector[VehicleCategory] = Vector(
+    Body,
+    Bike,
+    Car,
+    MediumDutyPassenger,
+    Class2b3Vocational,
+    Class456Vocational,
+    Class78Vocational,
+    Class78Tractor
+  )
+
   private def fromStringOptional(value: String): Option[VehicleCategory] = {
-    Vector(
-      Body,
-      Bike,
-      Car,
-      MediumDutyPassenger,
-      Class2b3Vocational,
-      Class456Vocational,
-      Class78Vocational,
-      Class78Tractor
-    )
-      .find(_.toString.equalsIgnoreCase(value))
+    values.find(_.toString.equalsIgnoreCase(value))
   }
 }
