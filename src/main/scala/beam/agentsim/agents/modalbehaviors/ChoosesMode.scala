@@ -2164,8 +2164,10 @@ trait ChoosesMode {
             case ActualVehicle(vehicle) if data.personData.currentTourPersonalVehicle.contains(vehicle.id) =>
               if (
                 data.personData.currentTourMode
-                  .contains(WALK_BASED) && (!isFirstTripWithinTour(destinationActivity) || data.isWithinTripReplanning)
+                  .contains(WALK_BASED) && (getCurrentTourStrategy(data.personData).tourVehicle
+                  .contains(vehicle.id) || data.isWithinTripReplanning)
               ) {
+                // Note: Removed this condition: !isFirstTripWithinTour(destinationActivity)
                 logger.debug(
                   s"We're keeping vehicle ${vehicle.id} even though it isn't used in this trip " +
                   s"because we need it for egress at the end of the tour"
