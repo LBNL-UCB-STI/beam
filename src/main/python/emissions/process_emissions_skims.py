@@ -8,7 +8,7 @@ from pyproj import Transformer
 from shapely.geometry import LineString
 
 from _beam_emissions_plotting import *
-from _emfac_emissions_mapping import *
+from python.utils.study_area_config import emissions_config
 
 # Configure pandas display options
 pd.set_option('display.max_columns', 20)
@@ -39,7 +39,10 @@ SKIMS_SCHEMA = pa.schema([
     ('PM2_5', pa.float64()),
     ('ROG', pa.float64()),
     ('SOx', pa.float64()),
-    ('TOG', pa.float64())
+    ('TOG', pa.float64()),
+    ('BC', pa.float64()),
+    ('BCm', pa.float64()),
+    ('BCh', pa.float64())
 ])
 
 
@@ -111,7 +114,7 @@ def read_skims_emissions_chunked(skims_file, vehicleTypes_file, vehicleTypeId_fi
 
         new_columns = []
         new_fields = []
-        for pollutant in pollutant_columns.keys():
+        for pollutant in emissions_config["pollutants"].keys():
             new_fields.append(pa.field(f'scaled_{pollutant}', pa.float64(), True))
             new_columns.append(pc.multiply(
                 pc.divide(
@@ -168,7 +171,7 @@ def read_skims_emissions_chunked(skims_file, vehicleTypes_file, vehicleTypeId_fi
         # Melt the dataframe
         id_vars = ['hour', 'linkId', 'tazId', 'emfacId', 'class', 'beamFuel', 'emfacFuel', 'process', 'kwh', 'vmt',
                    'vht']
-        value_vars = [f'scaled_{pollutant}' for pollutant in pollutant_columns.keys()]
+        value_vars = [f'scaled_{pollutant}' for pollutant in emissions_config["pollutants"].keys()]
         melted_chunk = df_chunk_merged.melt(
             id_vars=id_vars,
             value_vars=value_vars,

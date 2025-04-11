@@ -16,37 +16,7 @@ sys.path.insert(0, parent_dir)
 
 # Now use absolute import
 from python.utils.files_utils import check_files
-
-# Now use absolute import
-emissions_processes = [
-    "RUNEX",
-    "IDLEX",
-    "STREX",
-    "DIURN",
-    "HOTSOAK",
-    "RUNLOSS",
-    "PMTW",
-    "PMBW",
-    "PRDUST"
-]
-
-pollutant_columns = {
-    'CH4': 'rate_ch4_gram_float',
-    'CO': 'rate_co_gram_float',
-    'CO2': 'rate_co2_gram_float',
-    'HC': 'rate_hc_gram_float',
-    'NH3': 'rate_nh3_gram_float',
-    'NOx': 'rate_nox_gram_float',
-    'PM': 'rate_pm_gram_float',
-    'PM10': 'rate_pm10_gram_float',
-    'PM2_5': 'rate_pm2_5_gram_float',
-    'ROG': 'rate_rog_gram_float',
-    'SOx': 'rate_sox_gram_float',
-    'TOG': 'rate_tog_gram_float',
-    'BC_V1': 'rate_bc_gram_float',
-    'BC_V2': 'rate_bcm_gram_float',
-    'BC_V3': 'rate_bch_gram_float'
-}
+from python.utils.study_area_config import emissions_config
 
 
 def calculate_road_dust_emissions(silt_loading, rainy_days):
@@ -213,9 +183,9 @@ def pivot_rates_for_beam(df_raw):
         index_.append("speed_time")
     pivot_df = df_raw.pivot_table(index=index_, columns='pollutant', values='emission_rate', aggfunc='first',
                                   fill_value=0).reset_index()
-    pivot_df = pivot_df.rename(columns=pollutant_columns)
+    pivot_df = pivot_df.rename(columns=emissions_config["pollutants"])
     # Add missing columns with default values
-    for col in pollutant_columns.values():
+    for col in emissions_config["pollutants"].values():
         if col not in pivot_df.columns:
             pivot_df[col] = 0.0
     pivot_df.insert(0, 'speed_mph_float_bins', "")
@@ -228,12 +198,12 @@ def process_rates_group(df, row, emissions_version):
     df_subset = df[mask]
     df_output_list = []
 
-    # Extract PM-related pollutant columns
-    pm_columns = [value for key, value in pollutant_columns.items() if key.startswith('PM')]
+    # # Extract PM-related pollutant columns
+    # pm_columns = [value for key, value in emissions_config["pollutants"].items() if key.startswith('PM')]
 
     # Add progress bar for processing each emissions process
     print(f"Processing emissions for county: {row['county']}, emfacId: {row['emfacId']}")
-    for process in tqdm(emissions_processes, desc="Processing emission processes"):
+    for process in tqdm(emissions_config["processes"], desc="Processing emission processes"):
         df_temp = df_subset[df_subset['process'] == process]
         if not df_temp.empty:
             if process in ['RUNEX', 'PMBW']:

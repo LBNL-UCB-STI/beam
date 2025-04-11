@@ -45,7 +45,7 @@ def generate_network_name(config: dict) -> str:
     Example output: sfbay-area-cbg7000-network or sfbay-area-cbg7000-ferry-network
     """
     # Get study area
-    study_area = config["study_area"]
+    study_area = config["area"]["name"]
     layers = config["network"]["graph_layers"]
 
     # Get residential geographic level and density
@@ -53,7 +53,6 @@ def generate_network_name(config: dict) -> str:
         density_value = str(layers["residential"]["min_density_per_km2"])
         residential_geo_level = f"-{layers["residential"]["geo_level"]}{density_value}"
     else:
-        density_value = ""
         residential_geo_level = ""
 
     # Ferry suffix
@@ -256,17 +255,46 @@ fastsim_routee_files = {
     }
 }
 
+
+########## Emissions #########
+
+emissions_config = {
+    "pollutants": {
+        'CH4': 'rate_ch4_gram_float',
+        'CO': 'rate_co_gram_float',
+        'CO2': 'rate_co2_gram_float',
+        'HC': 'rate_hc_gram_float',
+        'NH3': 'rate_nh3_gram_float',
+        'NOx': 'rate_nox_gram_float',
+        'PM': 'rate_pm_gram_float',
+        'PM10': 'rate_pm10_gram_float',
+        'PM2_5': 'rate_pm2_5_gram_float',
+        'ROG': 'rate_rog_gram_float',
+        'SOx': 'rate_sox_gram_float',
+        'TOG': 'rate_tog_gram_float',
+        'BC': 'rate_bc_gram_float',
+        'BCm': 'rate_bcm_gram_float',
+        'BCh': 'rate_bch_gram_float'
+    },
+    "processes" : [
+        "RUNEX", "IDLEX", "STREX", "DIURN", "HOTSOAK", "RUNLOSS", "PMTW", "PMBW", "PRDUST"
+    ]
+}
+
 ########## SF Bay Area #########
 
 sfbay_area_config = {
     # Base paths
     "work_dir": os.path.expanduser("~/Workspace/Simulation/sfbay"),
-    "study_area": "sfbay",
-    "state_fips": "06",
-    # 087 Santa Cruz
-    # 113 Yolo
-    "county_fips": ['001', '013', '041', '055', '075', '081', '085', '095', '097'],
-    "census_year": 2018,
+
+    "area": {
+        "name": "sfbay",
+        "state_fips": "06",
+        # 087 Santa Cruz
+        # 113 Yolo
+        "county_fips": ['001', '013', '041', '055', '075', '081', '085', '095', '097'],
+        "census_year": 2018,
+    },
 
     "geo": {
         "utm_epsg": 26910, # NAD83 / UTM zone 10N
