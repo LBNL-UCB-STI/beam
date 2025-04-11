@@ -762,7 +762,8 @@ trait ChoosesMode {
       stay using newPersonData
     case Event(_: RetryModeChoice, choosesModeData: ChoosesModeData) =>
       val newPersonData = choosesModeData.copy(
-        routingFinished = true
+        routingFinished = true,
+        parkingRequestIds = Map.empty // Clear pending parking requests
       )
       stay using newPersonData
     case Event(cavTripLegsResponse: CavTripLegsResponse, choosesModeData: ChoosesModeData) =>
@@ -1668,10 +1669,19 @@ trait ChoosesMode {
                 ) & choosesModeData.rideHail2TransitRoutingRequestId.nonEmpty
               ) {
                 self ! RetryModeChoice(getCurrentTriggerId.get)
+                val updatedTripStrategy = TripModeChoiceStrategy(None)
+                _experiencedBeamPlan.putStrategy(
+                  _experiencedBeamPlan.getTripContaining(nextActivity(choosesModeData.personData).get),
+                  updatedTripStrategy
+                )
 
                 stay() using choosesModeData.copy(
-                  personData = personData.copy(currentTourMode = None),
-                  allAvailableStreetVehicles = availableVehicles
+                  personData = personData.copy(
+                    currentTripMode = None,
+                    numberOfReplanningAttempts = personData.numberOfReplanningAttempts + 1
+                  ),
+                  allAvailableStreetVehicles = availableVehicles,
+                  excludeModes = choosesModeData.excludeModes ++ choosesModeData.personData.currentTripMode
                 )
               } else {
                 // Need to gather more routing options
@@ -1681,10 +1691,19 @@ trait ChoosesMode {
                   body.id,
                   mode.toString
                 )
+                val updatedTripStrategy = TripModeChoiceStrategy(None)
+                _experiencedBeamPlan.putStrategy(
+                  _experiencedBeamPlan.getTripContaining(nextActivity(choosesModeData.personData).get),
+                  updatedTripStrategy
+                )
                 stay() using ChoosesModeData(
-                  personData = personData.copy(currentTourMode = None),
+                  personData = personData.copy(
+                    currentTripMode = None,
+                    numberOfReplanningAttempts = personData.numberOfReplanningAttempts + 1
+                  ),
                   currentLocation = choosesModeData.currentLocation,
-                  excludeModes = choosesModeData.excludeModes
+                  excludeModes = choosesModeData.excludeModes ++ choosesModeData.personData.currentTripMode,
+                  parkingRequestIds = Map.empty // Clear any pending parking requests
                 )
               }
             case _ =>
