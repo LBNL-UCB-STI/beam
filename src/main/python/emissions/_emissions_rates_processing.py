@@ -374,7 +374,7 @@ def process_emfac_emissions(study_area, scenario_name, work_dir, config, format_
     emfac_rates_by_model_year_file = os.path.join(work_dir, emfac_config['emfac_rates_by_model_year_file'])
     emfac_emission_rate_output_file = os.path.join(
         work_dir,
-        f"{config["rates"]["output_dir"]}/{study_area}_emfac_rates_{scenario_name}.csv"
+        f"{config["run"]["emissions_dir"]}/{study_area}_emfac_rates_{scenario_name}.csv"
     )
 
     if check_files([emfac_emission_rate_output_file], config["override_rates"]):
@@ -403,7 +403,7 @@ def process_black_carbon(study_area, scenario_name, work_dir, config, format_fun
     bc_rates_by_model_year_file = os.path.join(work_dir, black_carbon_config['black_carbon_rates_file'])
     bc_emission_rate_output_file = os.path.join(
         work_dir,
-        f"{config["rates"]["output_dir"]}/{study_area}_black_carbon_rates_{scenario_name}.csv"
+        f"{config["run"]["emissions_dir"]}/{study_area}_black_carbon_rates_{scenario_name}.csv"
     )
 
     if check_files([bc_emission_rate_output_file], config["override_rates"]):
@@ -448,7 +448,7 @@ def process_road_dust(study_area, scenario_name, work_dir, config, emfac_ids):
     _silt_loading_file = os.path.join(work_dir, road_dust_config['silt_loading_file'])
     road_dust_output_file = os.path.join(
         work_dir,
-        f"{config["rates"]["output_dir"]}/{study_area}_paved_road_dust_rates_{scenario_name}.csv"
+        f"{config["run"]["emissions_dir"]}/{study_area}_paved_road_dust_rates_{scenario_name}.csv"
     )
 
     # Check if the output file already exists
@@ -653,7 +653,7 @@ def process_emfac_population(_study_area, _scenario_name, _work_dir, config, for
     """
     _emfac_population_output_file = os.path.join(
         _work_dir,
-        f"{config["rates"]["output_dir"]}/{_study_area}_emfac_population_{_scenario_name}.csv"
+        f"{config["run"]["emissions_dir"]}/{_study_area}_emfac_population_{_scenario_name}.csv"
     )
 
     # Ensure output directory exists
@@ -793,7 +793,7 @@ def process_emfac_vmt(_study_area, _scenario_name, _work_dir, config, format_fun
     """
     _emfac_vmt_output_file = os.path.join(
         _work_dir,
-        f"{config["rates"]["output_dir"]}/{_study_area}_emfac_vmt_{_scenario_name}.csv"
+        f"{config["run"]["emissions_dir"]}/{_study_area}_emfac_vmt_{_scenario_name}.csv"
     )
 
     # Ensure output directory exists

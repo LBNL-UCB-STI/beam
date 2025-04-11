@@ -7,14 +7,14 @@ This script validates a BEAM traffic simulation network against NPMRDS data.
 It performs link-level and network-level speed validations and can also validate VMT.
 """
 
-import sys
 import json
 import os
+import sys
 from pathlib import Path
-import geopandas as gpd
+
+import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-import matplotlib.pyplot as plt
 
 from _validation_utils import prepare_npmrds_data, fsystem_to_roadclass_lookup, LinkStats, SpeedValidationSetup
 
