@@ -493,6 +493,12 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       profileRequest.fromLat = from.getY
       profileRequest.toLon = to.getX
       profileRequest.toLat = to.getY
+      profileRequest.maxRides = vehicle.mode match {
+        case CAR | BIKE => 2
+        case WALK       => 3
+        case _          => 3
+      }
+
       val walkToVehicleDuration = maybeWalkToVehicle(vehicle).map(leg => leg.beamLeg.duration).getOrElse(0)
       profileRequest.fromTime = request.departureTime + walkToVehicleDuration
       profileRequest.toTime =
@@ -634,6 +640,11 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         )
         profileRequest.toLon = to.getX
         profileRequest.toLat = to.getY
+        profileRequest.maxRides = vehicle.mode match {
+          case CAR  => 2
+          case WALK => 3
+          case _    => 3
+        }
         val vehicleType = vehicleTypes(vehicle.vehicleTypeId)
         val streetRouter = new StreetRouter(
           transportNetwork.streetLayer,
@@ -694,7 +705,6 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         }
 
       val transitPaths = latency("getpath-transit-time", Metrics.VerboseLevel) {
-        profileRequest.fromTime = request.departureTime
         accessStopsByMode.flatMap { case (mode, stopVisitor) =>
           val modeSpecificBuffer = mode match {
             case LegMode.WALK         => beamConfig.beam.routing.r5.accessBufferTimeSeconds.walk
@@ -704,6 +714,11 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             case LegMode.CAR          => beamConfig.beam.routing.r5.accessBufferTimeSeconds.car
             case _                    => 0
           }
+          profileRequest.maxRides = mode match {
+            case LegMode.WALK => 3
+            case _            => 2
+          }
+          profileRequest.fromTime = request.departureTime
           profileRequest.toTime = request.departureTime + modeSpecificBuffer + 61
           // Important to allow 61 seconds for transit schedules to be considered! Along with any other buffers
           val router = new McRaptorSuboptimalPathProfileRouter(

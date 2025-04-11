@@ -2881,7 +2881,11 @@ object BeamConfig {
 
       case class Output(
         activity_sim_skimmer: scala.Option[BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer],
-        emissions: BeamConfig.Beam.Exchange.Output.Emissions
+        activitySimSkimsEnabled: scala.Boolean,
+        emissions: BeamConfig.Beam.Exchange.Output.Emissions,
+        generateSkimsForAllModes: scala.Boolean,
+        generateSkimsForRideHailTransit: scala.Boolean,
+        sendNonChosenTripsToSkimmer: scala.Boolean
       )
 
       object Output {
@@ -2907,7 +2911,7 @@ object BeamConfig {
           }
 
           case class Secondary(
-            beamModeFilter: scala.List[java.lang.String],
+            beamModeFilter: scala.Option[scala.List[java.lang.String]],
             enabled: scala.Boolean,
             taz: BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz
           )
@@ -2945,8 +2949,8 @@ object BeamConfig {
                 c: com.typesafe.config.Config
               ): BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz = {
                 BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz(
-                  filePath = c.getString("filePath"),
-                  tazIdFieldName = c.getString("tazIdFieldName"),
+                  filePath = if (c.hasPathOrNull("filePath")) c.getString("filePath") else "''",
+                  tazIdFieldName = if (c.hasPathOrNull("tazIdFieldName")) c.getString("tazIdFieldName") else "''",
                   tazMapping =
                     if (c.hasPathOrNull("tazMapping"))
                       scala.Some(
@@ -2960,7 +2964,8 @@ object BeamConfig {
 
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary = {
               BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary(
-                beamModeFilter = $_L$_str(c.getList("beamModeFilter")),
+                beamModeFilter =
+                  if (c.hasPathOrNull("beamModeFilter")) scala.Some($_L$_str(c.getList("beamModeFilter"))) else None,
                 enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
                 taz = BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz(
                   if (c.hasPathOrNull("taz")) c.getConfig("taz")
@@ -3009,10 +3014,18 @@ object BeamConfig {
               if (c.hasPathOrNull("activity-sim-skimmer"))
                 scala.Some(BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer(c.getConfig("activity-sim-skimmer")))
               else None,
+            activitySimSkimsEnabled =
+              c.hasPathOrNull("activitySimSkimsEnabled") && c.getBoolean("activitySimSkimsEnabled"),
             emissions = BeamConfig.Beam.Exchange.Output.Emissions(
               if (c.hasPathOrNull("emissions")) c.getConfig("emissions")
               else com.typesafe.config.ConfigFactory.parseString("emissions{}")
-            )
+            ),
+            generateSkimsForAllModes =
+              c.hasPathOrNull("generateSkimsForAllModes") && c.getBoolean("generateSkimsForAllModes"),
+            generateSkimsForRideHailTransit =
+              c.hasPathOrNull("generateSkimsForRideHailTransit") && c.getBoolean("generateSkimsForRideHailTransit"),
+            sendNonChosenTripsToSkimmer =
+              !c.hasPathOrNull("sendNonChosenTripsToSkimmer") || c.getBoolean("sendNonChosenTripsToSkimmer")
           )
         }
       }
