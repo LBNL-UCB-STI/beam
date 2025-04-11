@@ -643,7 +643,12 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       for (vehicle <- egressVehicles) {
         val (costPerMile, costPerMinute) = getVehicleCosts(vehicle)
         val theDestination = if (mainRouteToVehicle) {
-          destinationVehicle.get.locationUTM.loc
+          if (destinationVehicle.isDefined) {
+            destinationVehicle.get.locationUTM.loc
+          } else {
+            logger.error("Route requested with egress vehicles that don't exist")
+            request.destinationUTM
+          }
         } else {
           request.destinationUTM
         }

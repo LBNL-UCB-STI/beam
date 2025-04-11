@@ -2162,16 +2162,23 @@ trait ChoosesMode {
           var isCurrentPersonalVehicleVoided = false
           vehiclesNotUsed.collect {
             case ActualVehicle(vehicle) if data.personData.currentTourPersonalVehicle.contains(vehicle.id) =>
-              if (
-                data.personData.currentTourMode
-                  .contains(WALK_BASED) && (getCurrentTourStrategy(data.personData).tourVehicle
-                  .contains(vehicle.id) || data.isWithinTripReplanning)
-              ) {
+              if (data.personData.currentTourMode.contains(WALK_BASED)) {
                 // Note: Removed this condition: !isFirstTripWithinTour(destinationActivity)
-                logger.debug(
-                  s"We're keeping vehicle ${vehicle.id} even though it isn't used in this trip " +
-                  s"because we need it for egress at the end of the tour"
-                )
+                if (
+                  getCurrentTourStrategy(data.personData).tourVehicle.contains(
+                    vehicle.id
+                  ) || data.isWithinTripReplanning
+                ) {
+                  logger.debug(
+                    s"Person ${this.id} is keeping vehicle ${vehicle.id} even though it isn't used in this trip " +
+                    s"because we need it for egress at the end of the tour"
+                  )
+                } else {
+                  logger.warn(
+                    s"Person ${this.id} is keeping vehicle ${vehicle.id} even though it's not stored in our " +
+                    s"tourModeStrategy, which is ${getCurrentTourStrategy(data.personData)}"
+                  )
+                }
               } else if (getParentTourStrategy(data.personData).exists(s => s.tourVehicle.contains(vehicle.id))) {
                 logger.debug(
                   s"We're keeping vehicle ${vehicle.id} even though it isn't used in this trip " +
@@ -2180,7 +2187,7 @@ trait ChoosesMode {
               } else {
                 if (!data.isWithinTripReplanning) {
                   logger.warn(
-                    s"We are going to give up vehicle " +
+                    s"Person ${this.id} is going to give up vehicle " +
                     s"${vehicle.id} because it's not used in our next leg. Perhaps it was created unnecessarily? - $data"
                   )
                 }
@@ -2388,7 +2395,7 @@ trait ChoosesMode {
         withTransit = true,
         Some(id),
         Vector(bodyStreetVehicleRequestParam, dummyRHVehicle.copy(locationUTM = currentSpaceTime)),
-        streetVehiclesUseIntermodalUse = AccessAndEgress,
+        streetVehiclesUseIntermodalUse = rideHailTransitIntermodalUse,
         triggerId = getCurrentTriggerIdOrGenerate
       )
       router ! theRequest
@@ -2666,13 +2673,23 @@ trait ChoosesMode {
               )
             }
           case (`lastTripIndex`, Some(currentTourPersonalVehicle)) =>
+            val vehiclesForRouting = availableVehicles
+              .map(_.streetVehicle)
+              .filter(_.id == currentTourPersonalVehicle)
+            val intermodalUse: IntermodalUse = if (vehiclesForRouting.isEmpty) {
+              logger.error(
+                s"Agent ${this.id} has tour vehicle ${currentTourPersonalVehicle.toString} in PersonData but " +
+                s"has no available vehicles for routing on egress leg of drive transit trip"
+              )
+              AccessAndOrEgress
+            } else {
+              Egress
+            }
             // At the end of the tour, only drive home a vehicle that we have also taken away from there.
             makeRequestWith(
               withTransit = true,
-              availableVehicles
-                .map(_.streetVehicle)
-                .filter(_.id == currentTourPersonalVehicle) :+ bodyStreetVehicle,
-              streetVehiclesIntermodalUse = Egress
+              vehiclesForRouting :+ bodyStreetVehicle,
+              streetVehiclesIntermodalUse = intermodalUse
             )
             responsePlaceholders = makeResponsePlaceholders(
               withRouting = true,
