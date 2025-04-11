@@ -896,7 +896,7 @@ def main():
     # Configuration
     study_area = "sfbay"  # or "seattle"
     batch = "20240123"
-    scenario = "2018-Baseline-FC10-Bis2"
+    scenario = "2018-Baseline-FC10-1-Bis2"
     peak_hour = 8
     do_link_speed_validation = True
     do_network_speed_validation = True

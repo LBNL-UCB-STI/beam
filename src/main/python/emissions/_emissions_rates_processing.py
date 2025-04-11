@@ -245,13 +245,13 @@ def process_rates_group(df, row, emissions_version):
             else:
                 df_temp = pivot_rates_for_beam(df_temp)
 
-            if emissions_version == "EMFAC2021":
-                if process == 'PMTW' and row.get('fuel').isin(['Elec', 'Phe']):
-                    # Apply 15% increase to PM-related columns
-                    # EMFAC2021 underestimated tire wear emissions for electric vehicles
-                    # https://ww2.arb.ca.gov/sites/default/files/2024-11/3rd%20Workshop%20Draft%20Slides%20FINAL%20ADA.pdf
-                    for col in pm_columns:
-                        df_temp[col] = df_temp[col] * 1.15
+            # if emissions_version == "EMFAC2021":
+            #     if process == 'PMTW' and row.get('fuel').isin(['Elec', 'Phe']):
+            #         # Apply 15% increase to PM-related columns
+            #         # EMFAC2021 underestimated tire wear emissions for electric vehicles
+            #         # https://ww2.arb.ca.gov/sites/default/files/2024-11/3rd%20Workshop%20Draft%20Slides%20FINAL%20ADA.pdf
+            #         for col in pm_columns:
+            #             df_temp[col] = df_temp[col] * 1.15
 
             df_output_list.append(df_temp)
 
