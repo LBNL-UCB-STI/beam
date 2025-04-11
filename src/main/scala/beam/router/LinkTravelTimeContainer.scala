@@ -14,13 +14,13 @@ import scala.collection.mutable
 import scala.util.Try
 
 class LinkTravelTimeContainer(fileName: String, timeBinSizeInSeconds: Int, maxHour: Int)
-    extends TravelTime
+    extends BeamTravelTime
     with LazyLogging {
 
-  private val travelTimeCalculator: TravelTime =
+  private val travelTimeCalculator: BeamTravelTime =
     TravelTimeCalculatorHelper.CreateTravelTimeCalculator(timeBinSizeInSeconds, loadLinkStats().asJava)
 
-  def loadLinkStats(): scala.collection.Map[String, Array[Double]] = {
+  private def loadLinkStats(): scala.collection.Map[String, Array[Double]] = {
     val start = System.currentTimeMillis()
     val linkTravelTimeMap: mutable.HashMap[String, Array[Double]] = mutable.HashMap()
     logger.info(s"Stats fileName [$fileName] is being loaded")
@@ -58,4 +58,11 @@ class LinkTravelTimeContainer(fileName: String, timeBinSizeInSeconds: Int, maxHo
     travelTimeCalculator.getLinkTravelTime(link, time, person, vehicle)
   }
 
+  /**
+    * Get travel time using integer link ID directly.
+    * This avoids the overhead of Link object lookups and string parsing.
+    */
+  def getLinkTravelTime(linkId: Int, time: Double): Double = {
+    travelTimeCalculator.getLinkTravelTime(linkId, time)
+  }
 }

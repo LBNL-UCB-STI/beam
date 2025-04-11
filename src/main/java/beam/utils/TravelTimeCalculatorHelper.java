@@ -1,5 +1,6 @@
 package beam.utils;
 
+import beam.router.BeamTravelTime;
 import beam.utils.logging.ExponentialLoggerWrapperImpl;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
@@ -12,7 +13,7 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 
 public class TravelTimeCalculatorHelper {
-    public static class TravelTimePerHour implements TravelTime {
+    public static class TravelTimePerHour implements BeamTravelTime {
         private final Logger log = LoggerFactory.getLogger(TravelTimePerHour.class);
 
         private final double[][] _linkIdToTravelTimeArray;
@@ -25,13 +26,12 @@ public class TravelTimeCalculatorHelper {
         }
 
         @Override
-        public double getLinkTravelTime(Link link, double time, Person person, Vehicle vehicle) {
-            final int linkId = Integer.parseInt(link.getId().toString());
+        public double getLinkTravelTime(int linkId, double time) {
             if (linkId < 0 || linkId >= _linkIdToTravelTimeArray.length || _linkIdToTravelTimeArray[linkId] == null) {
                 if (ExponentialLoggerWrapperImpl.isNumberPowerOfTwo(++numWarnings)) {
                     log.warn("Invalid linkId {} or missing travel time data", linkId);
                 }
-                return link.getLength() / link.getFreespeed(); // Calculate travel time directly
+                return 0d; // Calculate travel time directly
             }
             double[] timePerHour = _linkIdToTravelTimeArray[linkId];
             int idx = getOffset(time);
@@ -40,9 +40,15 @@ public class TravelTimeCalculatorHelper {
                     log.warn("Got offset which is out of array for the link {}. Something wrong. idx: {}, time: {},  _timeBinSizeInSeconds: '{}'",
                             linkId, idx, time, _timeBinSizeInSeconds);
                 }
-                return link.getLength() / link.getFreespeed();
+                return 0d;
             }
             return timePerHour[idx];
+        }
+
+        @Override
+        public double getLinkTravelTime(Link link, double time, Person person, Vehicle vehicle) {
+            final int linkId = Integer.parseInt(link.getId().toString());
+            return getLinkTravelTime(linkId, time);
         }
 
         private int getOffset(double time) {
@@ -64,6 +70,11 @@ public class TravelTimeCalculatorHelper {
                 linkIdToTravelTimeArray[idx] = value.clone();
             });
             return linkIdToTravelTimeArray;
+        }
+
+        @Override
+        public double getLinkTravelTime(int linkId, double time, double linkLengthMeters) {
+            return getLinkTravelTime(linkId, time);
         }
     }
 
@@ -117,7 +128,7 @@ public class TravelTimeCalculatorHelper {
         return result;
     }
 
-    public static TravelTime CreateTravelTimeCalculator(int timeBinSizeInSeconds, Map<String, double[]> linkIdToTravelTimeData) {
+    public static BeamTravelTime CreateTravelTimeCalculator(int timeBinSizeInSeconds, Map<String, double[]> linkIdToTravelTimeData) {
         return new TravelTimePerHour(timeBinSizeInSeconds, linkIdToTravelTimeData);
     }
 }
