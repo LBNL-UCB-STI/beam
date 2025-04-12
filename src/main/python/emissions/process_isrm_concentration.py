@@ -1,570 +1,845 @@
+"""
+ISRM Concentration Processor
+
+This module processes emission data using the Intervention Model for Air Pollution (InMAP) Reduced-Form 
+Source-Receptor Matrix (ISRM) to calculate changes in air pollutant concentrations and related health impacts
+across different scenarios.
+
+The tool can:
+1. Load and process emissions data from different scenarios
+2. Merge emissions data with ISRM polygon data
+3. Calculate differences in emissions between scenarios
+4. Process emission data through ISRM to get concentration results
+5. Generate visualizations of emissions and concentrations
+"""
+
+import contextily as ctx
 import geopandas as gpd
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from shapely.geometry import Polygon
-import time
-import numpy as np
-import zarr
-import s3fs
-import contextily as ctx
-from matplotlib_scalebar.scalebar import ScaleBar
-from matplotlib.patches import FancyArrowPatch
-import geopandas as gpd
-import matplotlib.pyplot as plt
-import contextily as ctx
-from matplotlib.patches import FancyArrowPatch
-from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
-from PIL import Image
-import io
-import numpy as np
-from contextily.tile import _fetch_tile
-from matplotlib.colors import LinearSegmentedColormap
 import pyreadr
-
-proj_string = "+proj=lcc +lat_0=40 +lon_0=-97 +lat_1=33 +lat_2=45 +x_0=0 +y_0=0 +ellps=sphere +units=m +no_defs +type=crs"
-
-emis_shapefile_filepath = '../BEAM_to_EMFACT/isrm_polygon/isrm_polygon.shp'
-
-emissionType = 'All'  # ['onNetwork','offNetwork','All']
-
-scenarios = [
-
-    #              'sfbay-baseline3_20240728',
-    'sfbay-baseline3_20240728',
-
-    'sfbay-tr_capacity_1_5-20230608',
-    'sfbay-tr_capacity_1_5-20230608',
-    'sfbay-tr_capacity_1_5-20230608',
-
-    'sfbay-telecommuting-baseline-20230616',
-
-]
-scenarios2 = [
-    #         'sfbay-cordon_flatrate_20241023',
-    'sfbay-cordon_income_20241023',
-
-    'sfbay-tr_capacity_1_5-20230608',
-    'sfbay-wb-incentives-200-20230630',
-    'sfbay-tr-discount-100-20230703',
-
-    'sfbay-telecommuting-8p60-20230620',
-]
-
-inexus_filepaths = [
-
-    #     'sfbay-baseline3_20240728/inexus/sfbay_baseline_default-1.0_2020__20240728.csv.gz',
-    'sfbay-baseline3_20240728/inexus/sfbay_baseline_default-1.0_2020__20240728.csv.gz',
-
-    'sfbay-tr_capacity_1_5-20230608/inexus/sfbay_repo_transitCapacity-1.5_2020__20230608.csv.gz',
-    'sfbay-tr_capacity_1_5-20230608/inexus/sfbay_repo_transitCapacity-1.5_2020__20230608.csv.gz',
-    'sfbay-tr_capacity_1_5-20230608/inexus/sfbay_repo_transitCapacity-1.5_2020__20230608.csv.gz',
-
-    'sfbay-telecommuting-baseline-20230616/inexus/sfbay_baseline_default-1.0_2020__20230616.csv.gz',
-
-]
-
-inexus_filepaths2 = [
-    #         'sfbay-cordon_flatrate_20241023/inexus/output/sfbay_baseline_default-1.0_2020__20241024.csv.gz',
-    'sfbay-cordon_income_20241023/inexus/output/sfbay_baseline_default-1.0_2020__20241024.csv.gz',
-
-    'sfbay-tr_capacity_1_5-20230608/inexus/sfbay_repo_transitCapacity-1.5_2020__20230608.csv.gz',
-    'sfbay-wb-incentives-200-20230630/inexus/sfbay_incentives_walk and bike-1000_2020__20230630.csv.gz',
-    'sfbay-tr-discount-100-20230703/inexus/sfbay_price_transit_price-0_2020__20230702.csv.gz',
-
-    'sfbay-telecommuting-8p60-20230620/inexus/sfbay_baseline_default-1.0_2020__20230620.csv.gz',
-
-]
-
-scenario_labels = [
-    #     'SFMTA Cordon Policy Flat Rate',
-    'SFMTA Cordon Policy Income-Based',
-
-    'Baseline',
-    'Active Modes Incentives',
-    'Transit Incentives',
-
-    'Telecommuting']
-
-bucket = 'beam-core-outputs'
-
-# Primary PM2.5 to BC1 and BC3
-is_BC = False
-# Nox to NO2
-is_NO2 = True
+import s3fs
+import zarr
+from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.patches import FancyArrowPatch
+from matplotlib_scalebar.scalebar import ScaleBar
+from shapely.geometry import Polygon
 
 
-# Custom colormap with white at the center
-def custom_colormap():
-    colors = ["#0000ff", "#ffffff", "#ff0000"]
-    n_bins = 100  # Discretizes the interpolation into bins
-    cmap_name = 'custom_cmap'
-    return LinearSegmentedColormap.from_list(cmap_name, colors, N=n_bins)
+class ISRMConcentrationProcessor:
+    """
+    A class to process emissions data and calculate concentrations using ISRM.
 
+    This processor takes emissions data from different scenarios, processes it through
+    the ISRM model, and calculates resulting concentrations and health impacts.
+    """
 
-def custom_colormap2():
-    colors = ["#ff0000", "#ffffff", "#0000ff"]
-    n_bins = 100  # Discretizes the interpolation into bins
-    cmap_name = 'custom_cmap'
-    return LinearSegmentedColormap.from_list(cmap_name, colors, N=n_bins)
+    def __init__(self, emission_type='All', is_bc=False, is_no2=True):
+        """
+        Initialize the processor with configuration parameters.
 
+        Args:
+            emission_type (str): Type of emissions to process ('onNetwork', 'offNetwork', 'All')
+            is_bc (bool): Whether to process Black Carbon (BC) data
+            is_no2 (bool): Whether to process NO2 data
+        """
+        self.emission_type = emission_type
+        self.is_bc = is_bc
+        self.is_no2 = is_no2
+        self.proj_string = "+proj=lcc +lat_0=40 +lon_0=-97 +lat_1=33 +lat_2=45 +x_0=0 +y_0=0 +ellps=sphere +units=m +no_defs +type=crs"
 
-def load_emis_data(emis_filepath, emis_filepath2=None):
-    print('load_emis_data ...')
-    emis = pd.read_csv(emis_filepath, nrows=None)
+    def create_custom_colormap(self, reverse=False):
+        """
+        Create a custom colormap with blue-white-red gradient.
 
-    if emissionType == 'onNetwork':
+        Args:
+            reverse (bool): Whether to reverse the color order (red-white-blue)
 
+        Returns:
+            matplotlib.colors.LinearSegmentedColormap: The custom colormap
+        """
+        if reverse:
+            colors = ["#ff0000", "#ffffff", "#0000ff"]
+        else:
+            colors = ["#0000ff", "#ffffff", "#ff0000"]
+
+        n_bins = 100  # Discretizes the interpolation into bins
+        cmap_name = 'custom_cmap'
+        return LinearSegmentedColormap.from_list(cmap_name, colors, N=n_bins)
+
+    def load_emis_data(self, emis_filepath, emis_filepath2=None):
+        """
+        Load emissions data from CSV file(s) and process based on emission type.
+
+        If two filepaths are provided, calculates the difference between them.
+
+        Args:
+            emis_filepath (str): Path to first emissions CSV file
+            emis_filepath2 (str, optional): Path to second emissions CSV file to compare
+
+        Returns:
+            pandas.DataFrame: Processed emissions data
+        """
+        print('Loading emissions data...')
+        emis = pd.read_csv(emis_filepath, nrows=None)
+
+        if self.emission_type == 'onNetwork':
+            self._process_onnetwork_emissions(emis)
+        elif self.emission_type == 'offNetwork':
+            self._process_offnetwork_emissions(emis)
+
+        emis = emis[['ISRM', 'tons_per_year_ROG', 'tons_per_year_NOx', 'tons_per_year_NH3',
+                     'tons_per_year_SOx', 'tons_per_year_PM2_5', 'tons_per_year_CO2']]
+        emis = emis.groupby('ISRM').sum().reset_index()
+
+        if emis_filepath2 and emis_filepath2 != emis_filepath:
+            emis2 = pd.read_csv(emis_filepath2, nrows=None)
+
+            if self.emission_type == 'onNetwork':
+                self._process_onnetwork_emissions(emis2)
+            elif self.emission_type == 'offNetwork':
+                self._process_offnetwork_emissions(emis2)
+
+            emis2 = emis2[['ISRM', 'tons_per_year_ROG', 'tons_per_year_NOx', 'tons_per_year_NH3',
+                           'tons_per_year_SOx', 'tons_per_year_PM2_5', 'tons_per_year_CO2']]
+            emis2 = emis2.groupby('ISRM').sum().reset_index()
+
+            merged_emis = pd.merge(emis, emis2, on='ISRM', how='outer', suffixes=('_1', '_2')).fillna(0)
+
+            # Calculate differences between the two datasets
+            for pollutant in ['ROG', 'NOx', 'NH3', 'SOx', 'PM2_5', 'CO2']:
+                merged_emis[f'tons_per_year_{pollutant}'] = (
+                        merged_emis[f'tons_per_year_{pollutant}_2'] -
+                        merged_emis[f'tons_per_year_{pollutant}_1']
+                )
+
+            self.calculate_emissions_differences(emis, emis2)
+            return merged_emis
+        else:
+            return emis
+
+    def _process_onnetwork_emissions(self, emis):
+        """
+        Process on-network emissions data.
+
+        Args:
+            emis (pandas.DataFrame): Emissions data to process
+        """
         emis['tons_per_year_ROG'] = emis['tons_per_year_RUNEX_ROG'] + emis['tons_per_year_RUNLOSS_ROG']
         emis['tons_per_year_NOx'] = emis['tons_per_year_RUNEX_NOx']
         emis['tons_per_year_NH3'] = emis['tons_per_year_RUNEX_NH3']
         emis['tons_per_year_SOx'] = emis['tons_per_year_RUNEX_SOx']
-        emis['tons_per_year_PM2_5'] = emis['tons_per_year_RUNEX_PM2_5'] + emis['tons_per_year_PMBW_PM2_5'] + emis[
-            'tons_per_year_PMTW_PM2_5']
+        emis['tons_per_year_PM2_5'] = (
+                emis['tons_per_year_RUNEX_PM2_5'] +
+                emis['tons_per_year_PMBW_PM2_5'] +
+                emis['tons_per_year_PMTW_PM2_5']
+        )
         emis['tons_per_year_CO2'] = emis['tons_per_year_RUNEX_CO2']
 
-    elif emissionType == 'offNetwork':
+    def _process_offnetwork_emissions(self, emis):
+        """
+        Process off-network emissions data.
 
-        emis['tons_per_year_ROG'] = emis['tons_per_year_DIURN_ROG'] + emis['tons_per_year_HOTSOAK_ROG'] + emis[
-            'tons_per_year_STREX_ROG']
+        Args:
+            emis (pandas.DataFrame): Emissions data to process
+        """
+        emis['tons_per_year_ROG'] = (
+                emis['tons_per_year_DIURN_ROG'] +
+                emis['tons_per_year_HOTSOAK_ROG'] +
+                emis['tons_per_year_STREX_ROG']
+        )
         emis['tons_per_year_NOx'] = emis['tons_per_year_STREX_NOx']
         emis['tons_per_year_NH3'] = 0.0
         emis['tons_per_year_SOx'] = emis['tons_per_year_STREX_SOx']
         emis['tons_per_year_PM2_5'] = emis['tons_per_year_STREX_PM2_5']
         emis['tons_per_year_CO2'] = emis['tons_per_year_STREX_CO2']
 
-    emis = emis[['ISRM', 'tons_per_year_ROG', 'tons_per_year_NOx', 'tons_per_year_NH3', 'tons_per_year_SOx',
-                 'tons_per_year_PM2_5', 'tons_per_year_CO2']]
-    emis = emis.groupby('ISRM').sum().reset_index()
+    def load_shape_data(self, shapefile_path):
+        """
+        Load ISRM polygon shape data from shapefile.
 
-    if emis_filepath2 != emis_filepath:
+        Args:
+            shapefile_path (str): Path to the ISRM polygon shapefile
 
-        emis2 = pd.read_csv(emis_filepath2, nrows=None)
+        Returns:
+            geopandas.GeoDataFrame: The loaded shapefile data
+        """
+        print('Loading shape data...')
+        return gpd.read_file(shapefile_path)
 
-        if emissionType == 'onNetwork':
+    def calculate_emissions_differences(self, emis1, emis2):
+        """
+        Calculate percentage changes in emissions between two scenarios
+        for different geographic regions (cordon zone, SF, and rest).
 
-            emis2['tons_per_year_ROG'] = emis2['tons_per_year_RUNEX_ROG'] + emis2['tons_per_year_RUNLOSS_ROG']
-            emis2['tons_per_year_NOx'] = emis2['tons_per_year_RUNEX_NOx']
-            emis2['tons_per_year_NH3'] = emis2['tons_per_year_RUNEX_NH3']
-            emis2['tons_per_year_SOx'] = emis2['tons_per_year_RUNEX_SOx']
-            emis2['tons_per_year_PM2_5'] = emis2['tons_per_year_RUNEX_PM2_5'] + emis2['tons_per_year_PMBW_PM2_5'] + \
-                                           emis2['tons_per_year_PMTW_PM2_5']
-            emis2['tons_per_year_CO2'] = emis2['tons_per_year_RUNEX_CO2']
+        Args:
+            emis1 (pandas.DataFrame): First emissions dataset
+            emis2 (pandas.DataFrame): Second emissions dataset
+        """
+        print('Calculating emissions differences...')
 
-        elif emissionType == 'offNetwork':
+        def calculate_change(old, new):
+            """Calculate percentage change"""
+            return (new / old - 1) * 100 if old != 0 else 0
 
-            emis2['tons_per_year_ROG'] = emis2['tons_per_year_DIURN_ROG'] + emis2['tons_per_year_HOTSOAK_ROG'] + emis2[
-                'tons_per_year_STREX_ROG']
-            emis2['tons_per_year_NOx'] = emis2['tons_per_year_STREX_NOx']
-            emis2['tons_per_year_NH3'] = 0.0
-            emis2['tons_per_year_SOx'] = emis2['tons_per_year_STREX_SOx']
-            emis2['tons_per_year_PM2_5'] = emis2['tons_per_year_STREX_PM2_5']
-            emis2['tons_per_year_CO2'] = emis2['tons_per_year_STREX_CO2']
+        # Define ISRM cordon zone and SF ranges
+        cordon_ranges = [(1346, 1350), (1378, 1382), (1393, 1397), (1402, 1402), (1412, 1415)]
+        sf_ranges = [
+            (983, 986), (988, 991), (1002, 1005), (1039, 1048),
+            (1064, 1073), (1084, 1093), (1129, 1138), (1176, 1185),
+            (1221, 1230), (1253, 1264), (1291, 1302), (1340, 1345),
+            (1351, 1351), (1372, 1377), (1383, 1383), (1388, 1392),
+            (1407, 1411), (1416, 1416), (1053, 1053), (1113, 1113),
+            (1193, 1193)
+        ]
 
-        emis2 = emis2[['ISRM', 'tons_per_year_ROG', 'tons_per_year_NOx', 'tons_per_year_NH3', 'tons_per_year_SOx',
-                       'tons_per_year_PM2_5', 'tons_per_year_CO2']]
-        emis2 = emis2.groupby('ISRM').sum().reset_index()
-        merged_emis = pd.merge(emis, emis2, on='ISRM', how='outer', suffixes=('_1', '_2')).fillna(0)
-        merged_emis['tons_per_year_ROG'] = (merged_emis['tons_per_year_ROG_2'] - merged_emis['tons_per_year_ROG_1'])
-        merged_emis['tons_per_year_NOx'] = (merged_emis['tons_per_year_NOx_2'] - merged_emis['tons_per_year_NOx_1'])
-        merged_emis['tons_per_year_NH3'] = (merged_emis['tons_per_year_NH3_2'] - merged_emis['tons_per_year_NH3_1'])
-        merged_emis['tons_per_year_SOx'] = (merged_emis['tons_per_year_SOx_2'] - merged_emis['tons_per_year_SOx_1'])
-        merged_emis['tons_per_year_PM2_5'] = (
-                    merged_emis['tons_per_year_PM2_5_2'] - merged_emis['tons_per_year_PM2_5_1'])
-        merged_emis['tons_per_year_CO2'] = (merged_emis['tons_per_year_CO2_2'] - merged_emis['tons_per_year_CO2_1'])
+        # Functions to check if ISRM is in specific zones
+        def is_in_cordon(isrm):
+            return any(start <= isrm <= end for start, end in cordon_ranges)
 
-        calculate_emissions_differences(emis, emis2)
+        def is_in_sf(isrm):
+            return any(start <= isrm <= end for start, end in sf_ranges)
 
-        return merged_emis
+        # Filter emissions data for different zones
+        emis1_cordon = emis1[emis1['ISRM'].apply(is_in_cordon)]
+        emis2_cordon = emis2[emis2['ISRM'].apply(is_in_cordon)]
 
-    else:
+        emis1_sf = emis1[emis1['ISRM'].apply(is_in_sf)]
+        emis2_sf = emis2[emis2['ISRM'].apply(is_in_sf)]
 
-        return emis
+        emis1_rest = emis1[~emis1['ISRM'].apply(lambda x: is_in_cordon(x) or is_in_sf(x))]
+        emis2_rest = emis2[~emis2['ISRM'].apply(lambda x: is_in_cordon(x) or is_in_sf(x))]
 
+        # Calculate sum of emissions for each zone
+        def calculate_totals(emis):
+            return {
+                'ROG': emis['tons_per_year_ROG'].sum(),
+                'NOx': emis['tons_per_year_NOx'].sum(),
+                'NH3': emis['tons_per_year_NH3'].sum(),
+                'SOx': emis['tons_per_year_SOx'].sum(),
+                'PM2.5': emis['tons_per_year_PM2_5'].sum(),
+                'CO2': emis['tons_per_year_CO2'].sum(),
+            }
 
-def load_shape_data(emis_shapefile_filepath):
-    print('load_shape_data ...')
-    return gpd.read_file(emis_shapefile_filepath)
+        totals_cordon = calculate_totals(emis1_cordon)
+        totals_cordon2 = calculate_totals(emis2_cordon)
 
+        totals_sf = calculate_totals(emis1_sf)
+        totals_sf2 = calculate_totals(emis2_sf)
 
-def calculate_emissions_differences(emis, emis2):
-    print('calculate_emissions_differences ...')
+        totals_rest = calculate_totals(emis1_rest)
+        totals_rest2 = calculate_totals(emis2_rest)
 
-    def calculate_change(old, new):
-        return (new / old - 1) * 100
+        # Calculate percentage changes
+        def calculate_percentage_changes(totals1, totals2):
+            return {key: calculate_change(totals1[key], totals2[key]) for key in totals1}
 
-    # Define ISRM cordon zone and SF ranges
-    cordon_ranges = [(1346, 1350), (1378, 1382), (1393, 1397), (1402, 1402), (1412, 1415)]
-    SF_ranges = [(983, 986), (988, 991), (1002, 1005), (1039, 1048),
-                 (1064, 1073), (1084, 1093), (1129, 1138), (1176, 1185),
-                 (1221, 1230), (1253, 1264), (1291, 1302), (1340, 1345),
-                 (1351, 1351), (1372, 1377), (1383, 1383), (1388, 1392),
-                 (1407, 1411), (1416, 1416), (1053, 1053), (1113, 1113),
-                 (1193, 1193)]
+        delta_cordon = calculate_percentage_changes(totals_cordon, totals_cordon2)
+        delta_sf = calculate_percentage_changes(totals_sf, totals_sf2)
+        delta_rest = calculate_percentage_changes(totals_rest, totals_rest2)
 
-    # Function to check if ISRM is in the cordon zone or SF
-    def is_in_cordon(isrm):
-        return any(start <= isrm <= end for start, end in cordon_ranges)
+        # Print the results
+        print("\n--- Total Emissions ---")
+        self._print_emissions_results("Cordon Zone", totals_cordon)
+        self._print_emissions_results("San Francisco (SF)", totals_sf)
+        self._print_emissions_results("Rest of the Area", totals_rest)
 
-    def is_in_SF(isrm):
-        return any(start <= isrm <= end for start, end in SF_ranges)
+        print("\n--- Percentage Change in Emissions ---")
+        self._print_emissions_results("Cordon Zone", delta_cordon, is_percent=True)
+        self._print_emissions_results("San Francisco (SF)", delta_sf, is_percent=True)
+        self._print_emissions_results("Rest of the Area", delta_rest, is_percent=True)
 
-    # Filter emis and emis2 for cordon zone, SF, and the rest
-    emis_cordon = emis[emis['ISRM'].apply(is_in_cordon)]
-    emis2_cordon = emis2[emis2['ISRM'].apply(is_in_cordon)]
+    def _print_emissions_results(self, zone_name, data, is_percent=False):
+        """
+        Helper method to print emissions results.
 
-    emis_SF = emis[emis['ISRM'].apply(is_in_SF)]
-    emis2_SF = emis2[emis2['ISRM'].apply(is_in_SF)]
+        Args:
+            zone_name (str): Name of the zone
+            data (dict): Emissions data to print
+            is_percent (bool): Whether the data represents percentages
+        """
+        print(f"{zone_name}:")
+        for pollutant, value in data.items():
+            if is_percent:
+                print(f"  {pollutant}: {value:.2f}% change")
+            else:
+                print(f"  {pollutant}: {value:.2f} tons/year")
 
-    emis_rest = emis[~emis['ISRM'].apply(lambda x: is_in_cordon(x) or is_in_SF(x))]
-    emis2_rest = emis2[~emis2['ISRM'].apply(lambda x: is_in_cordon(x) or is_in_SF(x))]
+    def merge_emis_with_shape(self, emis_data, shape_data):
+        """
+        Merge emissions data with shape data to create a GeoDataFrame.
 
-    # Calculate sum of emissions for cordon, SF, and rest
-    def calculate_totals(emis):
-        return {
-            'ROG': emis['tons_per_year_ROG'].sum(),
-            'NOx': emis['tons_per_year_NOx'].sum(),
-            'NH3': emis['tons_per_year_NH3'].sum(),
-            'SOx': emis['tons_per_year_SOx'].sum(),
-            'PM2.5': emis['tons_per_year_PM2_5'].sum(),
-            'CO2': emis['tons_per_year_CO2'].sum(),
+        Args:
+            emis_data (pandas.DataFrame): Emissions data
+            shape_data (geopandas.GeoDataFrame): Shape data with geometries
+
+        Returns:
+            geopandas.GeoDataFrame: Merged emissions and shape data
+        """
+        print('Merging emissions with shape data...')
+        emis_data['ISRM'] = emis_data['ISRM'].astype(str).str.upper()
+        shape_data['isrm'] = shape_data['isrm'].astype(str).str.upper()
+
+        merged_data = emis_data.merge(shape_data[['isrm', 'geometry']],
+                                      left_on='ISRM', right_on='isrm')
+
+        gdf = gpd.GeoDataFrame(merged_data, geometry='geometry')
+        gdf['ISRM'] = gdf['ISRM'].astype(int)
+        gdf['area'] = gdf.geometry.area
+
+        return gdf[['ISRM', 'tons_per_year_ROG', 'tons_per_year_NOx', 'tons_per_year_NH3',
+                    'tons_per_year_SOx', 'tons_per_year_PM2_5', 'tons_per_year_CO2', 'geometry']]
+
+    def load_inmap_data(self, url):
+        """
+        Load InMAP data from S3 and create polygons.
+
+        Args:
+            url (str): S3 URL for the InMAP data
+
+        Returns:
+            tuple: (Zarr store with InMAP data, list of polygons)
+        """
+        print('Loading InMAP data...')
+        fs = s3fs.S3FileSystem(anon=True, client_kwargs=dict(region_name='us-east-2'))
+        sr = zarr.open(s3fs.S3Map(url, s3=fs, check=False), mode="r")
+        polygons = self._create_polygons(sr)
+        return sr, polygons
+
+    def _create_polygons(self, sr):
+        """
+        Create polygon geometries from InMAP grid data.
+
+        Args:
+            sr: Zarr store with InMAP grid data
+
+        Returns:
+            list: List of Shapely Polygon objects
+        """
+
+        def rect(i, w, s, e, n):
+            """Create rectangle coordinates"""
+            x = [w[i], e[i], e[i], w[i], w[i]]
+            y = [s[i], s[i], n[i], n[i], s[i]]
+            return x, y
+
+        polygons = []
+        w = sr["W"][:]
+        s = sr["S"][:]
+        e = sr["E"][:]
+        n = sr["N"][:]
+
+        for i in range(52411):
+            x, y = rect(i, w, s, e, n)
+            polygons.append(Polygon([
+                [x[0], y[0]], [x[1], y[1]], [x[2], y[2]],
+                [x[3], y[3]], [x[4], y[4]]
+            ]))
+
+        return polygons
+
+    def process_emission_data(self, emis, sr, polygons):
+        """
+        Process emission data through ISRM to calculate concentrations and health impacts.
+
+        Args:
+            emis (geopandas.GeoDataFrame): Emissions data with geometries
+            sr: Zarr store with InMAP data
+            polygons (list): List of polygons for the InMAP grid
+
+        Returns:
+            geopandas.GeoDataFrame: Processed results with concentrations and health impacts
+        """
+        print('Processing emission data through ISRM...')
+
+        # Load population and mortality data
+        total_pop = sr['TotalPop'][0:52411]
+        mortality_rate = sr['MortalityRate'][0:52411]
+
+        # Create location mapping
+        df = pd.DataFrame({'Location': range(52411)})
+        df['Location'] = df['Location'].astype(int)
+
+        emis['ISRM'] = emis['ISRM'].astype(int)
+        join_right_df = df.merge(emis, left_on='Location', right_on='ISRM', how='right')
+
+        index = join_right_df.Location.tolist()
+        ppl = np.unique(join_right_df.Location.tolist())
+        num = range(0, len(ppl))
+        dictionary = dict(zip(ppl, num))
+
+        print(f"Available data keys: {list(sr.keys())}")
+
+        # Load NO2 conversion data if needed
+        no2_data = None
+        if self.is_no2:
+            no2_data = self._load_no2_conversion_data(ppl)
+
+        # Load InMAP data for different pollutants
+        soa = sr['SOA'].get_orthogonal_selection(([0], ppl, slice(None)))
+        print("SOA data loaded. Shape:", soa.shape)
+
+        pno3 = sr['pNO3'].get_orthogonal_selection(([0], ppl, slice(None)))
+        print("pNO3 data loaded.")
+
+        pnh4 = sr['pNH4'].get_orthogonal_selection(([0], ppl, slice(None)))
+        print("pNH4 data loaded.")
+
+        pso4 = sr['pSO4'].get_orthogonal_selection(([0], ppl, slice(None)))
+        print("pSO4 data loaded.")
+
+        pm25 = sr['PrimaryPM25'].get_orthogonal_selection(([0], ppl, slice(None)))
+        print("PrimaryPM25 data loaded.")
+
+        # Initialize BC variables only if needed
+        bcv1 = None
+        bcv3 = None
+        if self.is_bc:
+            # Check if BCV1 and BCV3 fields exist in emis
+            if 'tons_per_year_BCV1' in emis.columns and 'tons_per_year_BCV3' in emis.columns:
+                bcv1 = sr['PrimaryPM25'].get_orthogonal_selection(([0], ppl, slice(None)))
+                print("BCV1 data loaded.")
+
+                bcv3 = sr['PrimaryPM25'].get_orthogonal_selection(([0], ppl, slice(None)))
+                print("BCV3 data loaded.")
+            else:
+                print("Warning: BC processing enabled but BCV1/BCV3 columns not found in emissions data")
+                self.is_bc = False
+
+        # Initialize concentration data arrays
+        soa_data = np.zeros(52411)
+        pno3_data = np.zeros(52411)
+        pnh4_data = np.zeros(52411)
+        pso4_data = np.zeros(52411)
+        pm25_data = np.zeros(52411)
+
+        bcv1_data = np.zeros(52411) if self.is_bc else 0.0
+        bcv3_data = np.zeros(52411) if self.is_bc else 0.0
+        no2_data = np.zeros(52411) if self.is_no2 else 0.0
+
+        # Process emissions through ISRM
+        for i in range(len(index)):
+            isrm_idx = dictionary[index[i]]
+
+            soa_data += soa[0, isrm_idx, :] * emis.tons_per_year_ROG.iloc[i]
+            pno3_data += pno3[0, isrm_idx, :] * emis.tons_per_year_NOx.iloc[i]
+            pnh4_data += pnh4[0, isrm_idx, :] * emis.tons_per_year_NH3.iloc[i]
+            pso4_data += pso4[0, isrm_idx, :] * emis.tons_per_year_SOx.iloc[i]
+            pm25_data += pm25[0, isrm_idx, :] * emis.tons_per_year_PM2_5.iloc[i]
+
+            if self.is_bc and bcv1 is not None and bcv3 is not None:
+                bcv1_data += bcv1[0, isrm_idx, :] * emis.tons_per_year_BCV1.iloc[i]
+                bcv3_data += bcv3[0, isrm_idx, :] * emis.tons_per_year_BCV3.iloc[i]
+
+            if self.is_no2 and no2_data is not None:
+                no2_data += no2_data[0, isrm_idx, :] * emis.tons_per_year_NOx.iloc[i]
+
+        # Calculate total PM2.5 and health impacts
+        total_data = soa_data + pno3_data + pnh4_data + pso4_data + pm25_data
+        fact = 28766.639  # Conversion factor
+
+        total_pm25 = fact * total_data
+
+        # Population and mortality rate adjustments
+        pop_adjustment = 1.096163  # Ratio between 2016 and 2010 population
+        mortality_adjustment = 0.960899254  # Ratio between 2016 and 2005 mortality rates
+
+        # Calculate health impacts using concentration-response functions
+        deaths_k = (
+                (np.exp(np.log(1.06) / 10 * total_pm25) - 1) *
+                total_pop * pop_adjustment *
+                mortality_rate / 100000 * mortality_adjustment
+        )
+
+        deaths_l = (
+                (np.exp(np.log(1.14) / 10 * total_pm25) - 1) *
+                total_pop * pop_adjustment *
+                mortality_rate / 100000 * mortality_adjustment
+        )
+
+        # Prepare results data
+        data = {
+            'SOA': fact * soa_data,
+            'pNO3': fact * pno3_data,
+            'pNH4': fact * pnh4_data,
+            'pSO4': fact * pso4_data,
+            'PrimaryPM25': fact * pm25_data,
+            'TotalPM25': total_pm25,
+            'deathsK': deaths_k,
+            'deathsL': deaths_l
         }
 
-    totals_cordon = calculate_totals(emis_cordon)
-    totals_cordon2 = calculate_totals(emis2_cordon)
+        if self.is_bc:
+            data.update({'BCV1': bcv1_data, 'BCV3': bcv3_data})
 
-    totals_SF = calculate_totals(emis_SF)
-    totals_SF2 = calculate_totals(emis2_SF)
+        if self.is_no2:
+            data.update({'NO2': no2_data})
 
-    totals_rest = calculate_totals(emis_rest)
-    totals_rest2 = calculate_totals(emis2_rest)
+        # Create GeoDataFrame with results
+        results_isrm = gpd.GeoDataFrame(pd.DataFrame(data), geometry=polygons[0:52411])
 
-    # Calculate percentage changes
-    def calculate_percentage_changes(totals1, totals2):
-        return {key: calculate_change(totals1[key], totals2[key]) for key in totals1}
+        # Calculate and print total health impacts
+        total_deaths = pd.DataFrame.from_dict({
+            "Model": ["ISRM"],
+            "Krewski Deaths": [results_isrm.deathsK.sum()],
+            "LePeule Deaths": [results_isrm.deathsL.sum()],
+        })
 
-    delta_cordon = calculate_percentage_changes(totals_cordon, totals_cordon2)
-    delta_SF = calculate_percentage_changes(totals_SF, totals_SF2)
-    delta_rest = calculate_percentage_changes(totals_rest, totals_rest2)
+        print(total_deaths)
 
-    # Print the results
-    print("\n--- Total Emissions ---")
-    print("Cordon Zone:")
-    for pollutant, value in totals_cordon.items():
-        print(f"  {pollutant}: {value:.2f} tons/year")
+        # Calculate monetary valuation using Value of Statistical Life (VSL)
+        vsl = 9.0e6  # Value of Statistical Life in USD
+        damages = pd.DataFrame.from_dict({
+            "Model": ["ISRM"],
+            "Krewski Damages": total_deaths["Krewski Deaths"] * vsl,
+            "LePeule Damages": total_deaths["LePeule Deaths"] * vsl,
+        })
 
-    print("San Francisco (SF):")
-    for pollutant, value in totals_SF.items():
-        print(f"  {pollutant}: {value:.2f} tons/year")
+        print(damages)
 
-    print("Rest of the Area:")
-    for pollutant, value in totals_rest.items():
-        print(f"  {pollutant}: {value:.2f} tons/year")
-
-    print("\n--- Percentage Change in Emissions ---")
-    print("Cordon Zone:")
-    for pollutant, value in delta_cordon.items():
-        print(f"  {pollutant}: {value:.2f}% change")
-
-    print("San Francisco (SF):")
-    for pollutant, value in delta_SF.items():
-        print(f"  {pollutant}: {value:.2f}% change")
-
-    print("Rest of the Area:")
-    for pollutant, value in delta_rest.items():
-        print(f"  {pollutant}: {value:.2f}% change")
+        return results_isrm
 
 
-def merge_emis_with_shape(merged_emis, gdf):
-    print('merge_emis_with_shape ...')
-    merged_emis['ISRM'] = merged_emis['ISRM'].astype(str).str.upper()
-    gdf['isrm'] = gdf['isrm'].astype(str).str.upper()
-    merged_emis = merged_emis.merge(gdf[['isrm', 'geometry']], left_on='ISRM', right_on='isrm')
-    emis = gpd.GeoDataFrame(merged_emis, geometry='geometry')
-    emis['ISRM'] = emis['ISRM'].astype(int)
-    emis['area'] = emis.geometry.area
-    return emis[['ISRM', 'tons_per_year_ROG', 'tons_per_year_NOx', 'tons_per_year_NH3', 'tons_per_year_SOx',
-                 'tons_per_year_PM2_5', 'tons_per_year_CO2', 'geometry']]
+    def _load_no2_conversion_data(self, ppl):
+        """
+        Load NO2 conversion data from R data file.
 
+        Args:
+            ppl (numpy.array): Array of locations to process
 
-def rect(i, w, s, e, n):
-    x = [w[i], e[i], e[i], w[i], w[i]]
-    y = [s[i], s[i], n[i], n[i], s[i]]
-    return x, y
-
-
-def poly(sr):
-    ret = []
-    w = sr["W"][:]
-    s = sr["S"][:]
-    e = sr["E"][:]
-    n = sr["N"][:]
-    for i in range(52411):
-        x, y = rect(i, w, s, e, n)
-        ret.append(Polygon([[x[0], y[0]], [x[1], y[1]], [x[2], y[2]], [x[3], y[3]], [x[4], y[4]]]))
-    return ret
-
-
-def load_inmap_data(url):
-    print('load_inmap_data ...')
-    fs = s3fs.S3FileSystem(anon=True, client_kwargs=dict(region_name='us-east-2'))
-    sr = zarr.open(s3fs.S3Map(url, s3=fs, check=False), mode="r")
-    return sr, poly(sr)
-
-
-def process_emission_data(emis, sr, p):
-    print('process_emission_data ...')
-    TotalPop = sr['TotalPop'][0:52411]
-    MortalityRate = sr['MortalityRate'][0:52411]
-    df = pd.DataFrame({'Location': range(52411)})
-    df['Location'] = df['Location'].astype(int)
-    emis['ISRM'] = emis['ISRM'].astype(int)
-    join_right_df = df.merge(emis, left_on='Location', right_on='ISRM', how='right')
-    index = join_right_df.Location.tolist()
-    ppl = np.unique(join_right_df.Location.tolist())
-    num = range(0, len(ppl))
-    dictionary = dict(zip(ppl, num))
-    print(list(sr.keys()))
-    if is_NO2:
+        Returns:
+            numpy.array: NO2 conversion matrix
+        """
         result = pyreadr.read_r('NOx_to_NO2_ISRM.RData')
-        NO2_df = result['res.dat']
+        no2_df = result['res.dat']
 
-        # Convert the index and columns to integers
-        NO2_df.index = NO2_df.index.astype(int)
-        NO2_df.columns = NO2_df.columns.astype(int)
+        # Convert indices and columns to integers
+        no2_df.index = no2_df.index.astype(int)
+        no2_df.columns = no2_df.columns.astype(int)
 
-        # Define the full domain of indices for columns (0 to 55410)
+        # Create full domain and fill with zeros
         full_index = list(range(52411))
+        no2_full = no2_df.reindex(index=full_index, columns=full_index, fill_value=0.0)
 
-        # Reindex the DataFrame to cover the full domain, filling missing entries with 0
-        NO2_full = NO2_df.reindex(index=full_index, columns=full_index, fill_value=0.0)
+        # Subset rows to locations of interest
+        no2_subset = no2_full.loc[ppl, :]
 
-        # Subset the rows to only those in ppl (which should have length 1781)
-        NO2_subset = NO2_full.loc[ppl, :]
+        # Convert to numpy array and add time dimension
+        no2 = no2_subset.values
+        no2 = no2[np.newaxis, :, :]
 
-        # Convert to a NumPy array and add a time dimension so that shape is (1, len(ppl), len(full_index))
-        NO2 = NO2_subset.values
-        NO2 = NO2[np.newaxis, :, :]
-        print('NO2', NO2)
-        print('NO2 shape', NO2.shape)
-        print('NO2 data is allocated. Shape:', NO2.shape)
-    SOA = sr['SOA'].get_orthogonal_selection(([0], ppl, slice(None)))
-    print("SOA data is allocated.")
-    print('SOA', SOA)
-    print('SOA shape', SOA.shape)
-    print(len(SOA))
-    pNO3 = sr['pNO3'].get_orthogonal_selection(([0], ppl, slice(None)))
-    print("pNO3 data is allocated.")
-    pNH4 = sr['pNH4'].get_orthogonal_selection(([0], ppl, slice(None)))
-    print("pNH4 data is allocated.")
-    pSO4 = sr['pSO4'].get_orthogonal_selection(([0], ppl, slice(None)))
-    print("pSO4 data is allocated.")
-    PM25 = sr['PrimaryPM25'].get_orthogonal_selection(([0], ppl, slice(None)))
-    print("PrimaryPM25 data is allocated.")
-    if is_BC:
-        BCV1 = sr['PrimaryPM25'].get_orthogonal_selection(([0], ppl, slice(None)))
-        print("BCV1 data is allocated.")
-        BCV3 = sr['PrimaryPM25'].get_orthogonal_selection(([0], ppl, slice(None)))
-        print("BCV3 data is allocated.")
+        print('NO2 conversion data loaded. Shape:', no2.shape)
 
-    SOA_data, pNO3_data, pNH4_data, pSO4_data, PM25_data = 0.0, 0.0, 0.0, 0.0, 0.0
-    BCV1_data, BCV3_data, NO2_data = 0.0, 0.0, 0.0
+        return no2
 
-    print('emis', emis)
-    print('index', index)
+    def plot_emissions(self, emis, scenario1, scenario2, detail_net, is_zoom=False, pollutant='PM2_5'):
+        """
+        Plot emissions data on a map.
 
-    for i in range(len(index)):
-        SOA_data += SOA[0, dictionary[index[i]], :] * emis.tons_per_year_ROG[i]
-        pNO3_data += pNO3[0, dictionary[index[i]], :] * emis.tons_per_year_NOx[i]
-        pNH4_data += pNH4[0, dictionary[index[i]], :] * emis.tons_per_year_NH3[i]
-        pSO4_data += pSO4[0, dictionary[index[i]], :] * emis.tons_per_year_SOx[i]
-        PM25_data += PM25[0, dictionary[index[i]], :] * emis.tons_per_year_PM2_5[i]
-        if is_BC:
-            BCV1_data += BCV1[0, dictionary[index[i]], :] * emis.tons_per_year_BCV1[i]
-            BCV3_data += BCV3[0, dictionary[index[i]], :] * emis.tons_per_year_BCV3[i]
-        if is_NO2:
-            NO2_data += NO2[0, dictionary[index[i]], :] * emis.tons_per_year_NOx[i]
+        Args:
+            emis (geopandas.GeoDataFrame): Emissions data with geometries
+            scenario1 (str): First scenario name
+            scenario2 (str): Second scenario name
+            detail_net (geopandas.GeoDataFrame): Network data for background
+            is_zoom (bool): Whether to zoom into a specific area
+            pollutant (str): Pollutant to plot
+        """
+        print(f'Plotting emissions map for {pollutant}...')
 
-    data = SOA_data + pNO3_data + pNH4_data + pSO4_data + PM25_data
+        # Convert to web mercator projection for basemap
+        emis = emis.to_crs(epsg=3857)
+        detail_net = detail_net.to_crs(epsg=3857)
 
-    fact = 28766.639
-    TotalPM25 = fact * data
-    #     deathsK = (np.exp(np.log(1.06) / 10 * TotalPM25) - 1) * TotalPop * 1.0465819687408728 * MortalityRate / 100000 * 1.025229357798165
-    #     deathsL = (np.exp(np.log(1.14) / 10 * TotalPM25) - 1) * TotalPop * 1.0465819687408728 * MortalityRate / 100000 * 1.025229357798165#
-    # Update form 2016 to 2018
-    #     1.0465819687408728 is the ratio between year-2016 population (what we want) and year-2010 population (what the model has). 2018 is  1.096163
-    #     1.025229357798165 is the ratio between year-2016 mortality rate (what we want) and year-2005 mortality rate (what the model has). 2018 is 0.960899254
-    deathsK = (np.exp(np.log(1.06) / 10 * TotalPM25) - 1) * TotalPop * 1.096163 * MortalityRate / 100000 * 0.960899254
-    deathsL = (np.exp(np.log(1.14) / 10 * TotalPM25) - 1) * TotalPop * 1.096163 * MortalityRate / 100000 * 0.960899254
+        # Calculate emissions per unit area
+        emis['area'] = emis.geometry.area
+        emis[f'tons_per_year_{pollutant}/area_square_meters'] = (
+                emis[f'tons_per_year_{pollutant}'] / emis['area'] * 2589988.11  # Convert to per square mile
+        )
 
-    data = {
-        'SOA': fact * SOA_data,
-        'pNO3': fact * pNO3_data,
-        'pNH4': fact * pNH4_data,
-        'pSO4': fact * pSO4_data,
-        'PrimaryPM25': fact * PM25_data,
-        'TotalPM25': TotalPM25,
-        'deathsK': deathsK,
-        'deathsL': deathsL
+        # Save to shapefile
+        emis.to_file(f'{scenario2}_{scenario1}_{self.emission_type}_delta_emis.shp')
+
+        # Create figure and plot
+        fig, ax = plt.subplots(figsize=(15, 10))
+
+        # Add network as background
+        detail_net.plot(ax=ax, color='grey', alpha=0.05)
+
+        # Add OpenStreetMap basemap
+        ctx.add_basemap(ax, crs=emis.crs.to_string(), source=ctx.providers.OpenStreetMap.Mapnik, alpha=0.65)
+
+        # Create custom colormap
+        cmap = self.create_custom_colormap()
+
+        # Filter and plot emissions that exceed threshold
+        filtered_emis = emis[(emis[f'tons_per_year_{pollutant}/area_square_meters'] > 0.001) |
+                             (emis[f'tons_per_year_{pollutant}/area_square_meters'] < -0.001)]
+
+        # Determine color scale
+        vmax = max(abs(emis[f'tons_per_year_{pollutant}/area_square_meters']))
+
+        # Plot emissions data
+        filtered_emis.plot(
+            ax=ax,
+            column=f'tons_per_year_{pollutant}/area_square_meters',
+            cmap=cmap,
+            legend=True,
+            legend_kwds={
+                'label': f"Δ{pollutant} Delta Emission (Tons per Year per Square Mile)",
+                'orientation': "vertical"
+            },
+            vmin=-vmax,
+            vmax=vmax,
+            alpha=0.65
+        )
+
+        # Set map extent
+        if is_zoom:
+            ax.set_xlim(-13642750, -13592000)
+            ax.set_ylim(4527000, 4565000)
+        else:
+            ax.set_xlim(-13662750, -13552000)
+            ax.set_ylim(4465000, 4585000)
+
+        # Add scale bar and north arrow
+        self._add_map_elements(ax)
+
+        # Save figure and display
+        plt.savefig(f'{scenario2}_{scenario1}_{self.emission_type}_{is_zoom}_{pollutant}EmissionMap.png', dpi=600)
+        plt.show()
+
+    def plot_concentrations(self, results, label, scenario1, scenario2, detail_net,
+                            is_zoom=False, vmin=None, vmax=None):
+        """
+        Plot concentration results on a map.
+
+        Args:
+            results (geopandas.GeoDataFrame): Concentration results
+            label (str): Data column to plot
+            scenario1 (str): First scenario name
+            scenario2 (str): Second scenario name
+            detail_net (geopandas.GeoDataFrame): Network data for background
+            is_zoom (bool): Whether to zoom into a specific area
+            vmin (float, optional): Minimum value for color scale
+            vmax (float, optional): Maximum value for color scale
+        """
+        print(f'Plotting concentration map for {label}...')
+
+        # Set coordinate reference system if not already set
+        try:
+            results = results.set_crs(crs=self.proj_string)
+        except:
+            pass  # Already has CRS
+
+        # Set color scale limits if not provided
+        if vmin is None:
+            vmin = -max(abs(results[label]))
+        if vmax is None:
+            vmax = max(abs(results[label]))
+
+        # Convert to web mercator projection for basemap
+        results = results.to_crs(epsg=3857)
+        detail_net = detail_net.to_crs(epsg=3857)
+
+        # Create figure and plot
+        fig, ax = plt.subplots(figsize=(15, 10))
+
+        # Add network as background
+        detail_net.plot(ax=ax, color='grey', alpha=0.05)
+
+        # Add OpenStreetMap basemap
+        ctx.add_basemap(ax, crs=results.crs.to_string(), source=ctx.providers.OpenStreetMap.Mapnik, alpha=0.65)
+
+        # Create custom colormap
+        cmap = self.create_custom_colormap()
+
+        # Set appropriate legend label
+        if label == 'TotalPM25':
+            legend_kwds = {'label': "ΔPM$_{2.5}$ concentration (μg m$^{-3}$)", 'orientation': "vertical"}
+        else:
+            legend_kwds = {'label': f"Δ{label} concentration (μg m$^{-3}$)", 'orientation': "vertical"}
+
+        # Filter and plot results that exceed threshold
+        filtered_results = results[(results[label] > 0.005) | (results[label] < -0.005)]
+
+        filtered_results.plot(
+            ax=ax,
+            column=label,
+            cmap=cmap,
+            legend=True,
+            legend_kwds=legend_kwds,
+            vmin=vmin,
+            vmax=vmax,
+            alpha=0.65
+        )
+
+        # Set map extent
+        if is_zoom:
+            ax.set_xlim(-13642750, -13592000)
+            ax.set_ylim(4527000, 4565000)
+        else:
+            ax.set_xlim(-13662750, -13552000)
+            ax.set_ylim(4465000, 4585000)
+
+        # Add scale bar and north arrow
+        self._add_map_elements(ax)
+
+        # Save figure and display
+        plt.savefig(f'{scenario2}_{scenario1}_{self.emission_type}_{is_zoom}_{label}.png', dpi=600)
+        plt.show()
+
+    def _add_map_elements(self, ax):
+        """
+        Add common map elements (scale bar, north arrow).
+
+        Args:
+            ax (matplotlib.axes.Axes): The axes to add elements to
+        """
+        # Add scale bar
+        scalebar = ScaleBar(1, location='lower right', box_color='white',
+                            box_alpha=1, color='black', scale_loc='top')
+        ax.add_artist(scalebar)
+
+        # Add north arrow
+        north_arrow = FancyArrowPatch(
+            (0.1, 0.85), (0.1, 0.95),
+            facecolor='black',
+            edgecolor='black',
+            transform=ax.transAxes,
+            arrowstyle='-|>',
+            mutation_scale=20
+        )
+        ax.add_patch(north_arrow)
+
+        # Add 'N' label
+        ax.text(0.1, 0.95, 'N', transform=ax.transAxes, fontsize=20, ha='center', va='bottom')
+
+        # Remove axis
+        ax.axis('off')
+
+    def process_scenario(self, scenario1, scenario2, emis_filepath1, emis_filepath2,
+                         shapefile_path, detail_net_path, inmap_url):
+        """
+        Process a pair of scenarios to calculate and visualize emission differences and concentrations.
+
+        Args:
+            scenario1 (str): First scenario name
+            scenario2 (str): Second scenario name
+            emis_filepath1 (str): Path to first emissions CSV file
+            emis_filepath2 (str): Path to second emissions CSV file
+            shapefile_path (str): Path to ISRM polygon shapefile
+            detail_net_path (str): Path to network GeoJSON/shapefile
+            inmap_url (str): S3 URL for InMAP data
+
+        Returns:
+            tuple: (Emissions GeoDataFrame, Concentration results GeoDataFrame)
+        """
+        print(f'\n=== Processing Scenarios: {scenario1} vs {scenario2} ===\n')
+
+        # Load and process emissions data
+        emis = self.load_emis_data(emis_filepath1, emis_filepath2)
+
+        # Load shape data and merge with emissions
+        shape_data = self.load_shape_data(shapefile_path)
+        emis = self.merge_emis_with_shape(emis, shape_data)
+
+        # Save emissions data
+        emis.to_csv(f'{scenario2}_{scenario1}_{self.emission_type}_deltaEmis.csv')
+
+        # Load detail network for visualization
+        detail_net = gpd.read_file(detail_net_path)
+
+        # Load InMAP data
+        sr, polygons = self.load_inmap_data(inmap_url)
+
+        # Process emissions through ISRM
+        results = self.process_emission_data(emis, sr, polygons)
+
+        # Save results
+        results.to_file(f'{scenario2}_{scenario1}_{self.emission_type}_resultsISRM.shp')
+        results.to_csv(f'{scenario2}_{scenario1}_{self.emission_type}_resultsISRM.csv')
+
+        # Create visualizations
+        # Emissions maps
+        self.plot_emissions(emis, scenario1, scenario2, detail_net, pollutant='PM2_5')
+        self.plot_emissions(emis, scenario1, scenario2, detail_net, pollutant='CO2')
+
+        # Zoomed emissions maps
+        self.plot_emissions(emis, scenario1, scenario2, detail_net, is_zoom=True, pollutant='PM2_5')
+        self.plot_emissions(emis, scenario1, scenario2, detail_net, is_zoom=True, pollutant='CO2')
+
+        # Concentration maps
+        self.plot_concentrations(results, 'TotalPM25', scenario1, scenario2, detail_net)
+
+        if self.is_no2:
+            self.plot_concentrations(results, 'NO2', scenario1, scenario2, detail_net, vmin=-0.3, vmax=0.3)
+
+        # Zoomed concentration maps
+        self.plot_concentrations(results, 'TotalPM25', scenario1, scenario2, detail_net, is_zoom=True)
+
+        if self.is_no2:
+            self.plot_concentrations(results, 'NO2', scenario1, scenario2, detail_net, is_zoom=True,
+                                     vmin=-0.3, vmax=0.3)
+
+        return emis, results
+
+def main():
+    """
+    Main function to run the ISRM concentration processing for multiple scenarios.
+    """
+    # Configuration
+    emis_shapefile_filepath = '../BEAM_to_EMFACT/isrm_polygon/isrm_polygon.shp'
+    emission_type = 'All'  # Options: 'onNetwork', 'offNetwork', 'All'
+    detail_net_path = '/Users/cpoliziani/Downloads/toUse/InMAP/BEAM_to_EMFACT/sfbay-unclassified-unsimplified-unprojected.osm.shp'
+    inmap_url = 's3://inmap-model/isrm_v1.2.1.zarr/'
+
+    # Initialize processor
+    processor = ISRMConcentrationProcessor(emission_type=emission_type, is_bc=False, is_no2=True)
+
+    # Define scenarios to process
+    scenario_pairs = [
+        # Scenario 1: Baseline vs SFMTA Cordon Policy (Income-Based)
+        ('sfbay-baseline3_20240728', 'sfbay-cordon_income_20241023'),
+
+        # Scenario 2: Baseline vs Transit Capacity
+        ('sfbay-baseline3_20240728', 'sfbay-tr_capacity_1_5-20230608'),
+
+        # Scenario 3: Transit Capacity vs Active Modes Incentives
+        ('sfbay-tr_capacity_1_5-20230608', 'sfbay-wb-incentives-200-20230630'),
+
+        # Scenario 4: Transit Capacity vs Transit Incentives
+        ('sfbay-tr_capacity_1_5-20230608', 'sfbay-tr-discount-100-20230703'),
+
+        # Scenario 5: Baseline Telecommuting vs Enhanced Telecommuting
+        ('sfbay-telecommuting-baseline-20230616', 'sfbay-telecommuting-8p60-20230620')
+    ]
+
+    # File paths for each scenario
+    scenario_filepaths = {
+        'sfbay-baseline3_20240728': '../BEAM_to_EMFACT/BEAM_INMAP_detail_ISRM_sfbay-baseline3_20240728.csv',
+        'sfbay-cordon_income_20241023': '../BEAM_to_EMFACT/BEAM_INMAP_detail_ISRM_sfbay-cordon_income_20241023.csv',
+        'sfbay-tr_capacity_1_5-20230608': '../BEAM_to_EMFACT/BEAM_INMAP_detail_ISRM_sfbay-tr_capacity_1_5-20230608.csv',
+        'sfbay-wb-incentives-200-20230630': '../BEAM_to_EMFACT/BEAM_INMAP_detail_ISRM_sfbay-wb-incentives-200-20230630.csv',
+        'sfbay-tr-discount-100-20230703': '../BEAM_to_EMFACT/BEAM_INMAP_detail_ISRM_sfbay-tr-discount-100-20230703.csv',
+        'sfbay-telecommuting-baseline-20230616': '../BEAM_to_EMFACT/BEAM_INMAP_detail_ISRM_sfbay-telecommuting-baseline-20230616.csv',
+        'sfbay-telecommuting-8p60-20230620': '../BEAM_to_EMFACT/BEAM_INMAP_detail_ISRM_sfbay-telecommuting-8p60-20230620.csv'
     }
 
-    if is_BC:
-        data.update({'BCV1': BCV1_data, 'BCV3': BCV3_data})
+    # Process each scenario pair
+    for scenario1, scenario2 in scenario_pairs:
+        emis_filepath1 = scenario_filepaths[scenario1]
+        emis_filepath2 = scenario_filepaths[scenario2]
 
-    if is_NO2:
-        data.update({'NO2': NO2_data})
+        processor.process_scenario(
+            scenario1,
+            scenario2,
+            emis_filepath1,
+            emis_filepath2,
+            emis_shapefile_filepath,
+            detail_net_path,
+            inmap_url
+        )
 
-    resultsISRM = gpd.GeoDataFrame(pd.DataFrame(data), geometry=p[0:52411])
-
-    deaths = pd.DataFrame.from_dict({
-        "Model": ["ISRM"],
-        "Krewski Deaths": [resultsISRM.deathsK.sum()],
-        "LePeule Deaths": [resultsISRM.deathsL.sum()],
-    })
-    print(deaths)
-    vsl = 9.0e6
-    print(pd.DataFrame.from_dict({
-        "Model": ["ISRM"],
-        "Krewski Damages": deaths["Krewski Deaths"] * vsl,
-        "LePeule Damages": deaths["LePeule Deaths"] * vsl,
-    }))
-
-    return resultsISRM
-
-
-def plot_emis(emis, scenario, scenario2, emissionType, detail_net, is_zoom=False, poll='PM2_5'):
-    print('plot_emis ...')
-    emis = emis.to_crs(epsg=3857)
-    detail_net = detail_net.to_crs(epsg=3857)
-    emis['area'] = emis.geometry.area
-    emis[f'tons_per_year_{poll}/area_square_meters'] = emis[f'tons_per_year_{poll}'] / emis['area'] * 2589988.11
-    emis.to_file(f'{scenario2}_{scenario}_{emissionType}_delta_emis.shp')
-
-    fig, ax = plt.subplots(figsize=(15, 10))
-
-    detail_net.plot(ax=ax, color='grey', alpha=0.05)
-
-    ctx.add_basemap(ax, crs=emis.crs.to_string(), source=ctx.providers.OpenStreetMap.Mapnik, alpha=0.65)
-    cmap = custom_colormap()
-
-    emis[(emis[f'tons_per_year_{poll}/area_square_meters'] > 0.001) | (
-                emis[f'tons_per_year_{poll}/area_square_meters'] < -0.001)].plot(
-        ax=ax, column=f'tons_per_year_{poll}/area_square_meters', cmap=cmap, legend=True,
-        legend_kwds={'label': f"Δ{poll} Delta Emission (Tons per Year per Square Mile)", 'orientation': "vertical"},
-        vmin=-max(abs(emis[f'tons_per_year_{poll}/area_square_meters'])),
-        vmax=max(abs(emis[f'tons_per_year_{poll}/area_square_meters'])),
-        #         vmin=-0.2,vmax=0.2,
-        alpha=0.65
-    )
-
-    if is_zoom:
-
-        ax.set_xlim(-13642750, -13592000)
-        ax.set_ylim(4527000, 4565000)
-
-    else:
-
-        ax.set_xlim(-13662750, -13552000)
-        ax.set_ylim(4465000, 4585000)
-
-    scalebar = ScaleBar(1, location='lower right', box_color='white', box_alpha=1, color='black', scale_loc='top')
-    ax.add_artist(scalebar)
-    north_arrow = FancyArrowPatch((0.1, 0.85), (0.1, 0.95), facecolor='black', edgecolor='black',
-                                  transform=ax.transAxes, arrowstyle='-|>', mutation_scale=20)
-    ax.add_patch(north_arrow)
-    ax.text(0.1, 0.95, 'N', transform=ax.transAxes, fontsize=20, ha='center', va='bottom')
-    ax.axis('off')
-    plt.savefig(f'{scenario2}_{scenario}_{emissionType}_{is_zoom}_{poll}EmissionMap.png', dpi=600)
-    plt.show()
-
-
-def plot_concentrations(resultsISRM, label, scenario, scenario2, emissionType, proj_string, detail_net, is_zoom=False,
-                        vmin=-99, vmax=-99):
-    print('plot_concentrations ...')
-    try:
-        resultsISRM = resultsISRM.set_crs(crs=proj_string)
-    except:
-        None
-
-    if vmin == -99:
-        vmin = min(resultsISRM[label])
-    if vmax == -99:
-        vmax = max(resultsISRM[label])
-
-    resultsISRM = resultsISRM.to_crs(epsg=3857)
-    detail_net = detail_net.to_crs(epsg=3857)
-
-    fig, ax = plt.subplots(figsize=(15, 10))
-    detail_net.plot(ax=ax, color='grey', alpha=0.05)
-
-    ctx.add_basemap(ax, crs=resultsISRM.crs.to_string(), source=ctx.providers.OpenStreetMap.Mapnik, alpha=0.65)
-    cmap = custom_colormap()
-
-    if label == 'TotalPM25':
-        legend_kwds = {'label': "ΔPM$_{2.5}$ concentration (μg m$^{-3}$)", 'orientation': "vertical"}
-    else:
-        legend_kwds = {'label': f"{label} concentration (μg m$^{-3}$)", 'orientation': "vertical"}
-
-    resultsISRM[(resultsISRM[label] > 0.005) | (resultsISRM[label] < -0.005)].plot(
-        ax=ax, column=label, cmap=cmap, legend=True,
-        legend_kwds=legend_kwds,
-        #         vmin=-max(abs(resultsISRM['TotalPM25'])), vmax=max(abs(resultsISRM['TotalPM25'])), alpha=0.65
-        vmin=vmin, vmax=vmax,
-        alpha=0.65
-    )
-
-    if is_zoom:
-
-        ax.set_xlim(-13642750, -13592000)
-        ax.set_ylim(4527000, 4565000)
-
-    else:
-
-        ax.set_xlim(-13662750, -13552000)
-        ax.set_ylim(4465000, 4585000)
-
-    scalebar = ScaleBar(1, location='lower right', box_color='white', box_alpha=1, color='black', scale_loc='top')
-    ax.add_artist(scalebar)
-    north_arrow = FancyArrowPatch((0.1, 0.85), (0.1, 0.95), facecolor='black', edgecolor='black',
-                                  transform=ax.transAxes, arrowstyle='-|>', mutation_scale=20)
-    ax.add_patch(north_arrow)
-    ax.text(0.1, 0.95, 'N', transform=ax.transAxes, fontsize=20, ha='center', va='bottom')
-    ax.axis('off')
-    plt.savefig(f'{scenario2}_{scenario}_{emissionType}_{is_zoom}_{label}.png', dpi=600)
-    plt.show()
-
-
-for scenario, scenario2 in zip(scenarios, scenarios2):
-    print('####SCENARIO#####')
-    print(f'####{scenario}#####')
-    print(f'####{scenario2}#####')
-
-    emis_filepath = f'../BEAM_to_EMFACT/BEAM_INMAP_detail_ISRM_{scenario}.csv'
-    emis_filepath2 = f'../BEAM_to_EMFACT/BEAM_INMAP_detail_ISRM_{scenario2}.csv'
-
-    emis = load_emis_data(emis_filepath, emis_filepath2)
-    shape_data = load_shape_data(emis_shapefile_filepath)
-    emis = merge_emis_with_shape(emis, shape_data)
-    emis.to_csv(f'{scenario2}_{scenario}_{emissionType}_deltaEmis.csv')
-
-    detail_net = gpd.read_file(
-        '/Users/cpoliziani/Downloads/toUse/InMAP/BEAM_to_EMFACT/sfbay-unclassified-unsimplified-unprojected.osm.shp')
-    url = 's3://inmap-model/isrm_v1.2.1.zarr/'
-    sr, p = load_inmap_data(url)
-    resultsISRM = process_emission_data(emis, sr, p)
-    resultsISRM.to_file(f'{scenario2}_{scenario}_{emissionType}_resultsISRM.shp')
-    resultsISRM.to_csv(f'{scenario2}_{scenario}_{emissionType}_resultsISRM.csv')
-    plot_emis(emis, scenario, scenario2, emissionType, detail_net, poll='PM2_5')
-    plot_emis(emis, scenario, scenario2, emissionType, detail_net, poll='CO2')
-    plot_concentrations(resultsISRM, 'TotalPM25', scenario, scenario2, emissionType, proj_string, detail_net)
-    plot_concentrations(resultsISRM, 'NO2', scenario, scenario2, emissionType, proj_string, detail_net, vmin=-0.3,
-                        vmax=0.3)
-    #     plot_concentrations(resultsISRM,'BCV1', scenario, scenario2, emissionType, proj_string, detail_net)
-    #     plot_concentrations(resultsISRM,'BCV3', scenario, scenario2, emissionType, proj_string, detail_net)
-    plot_emis(emis, scenario, scenario2, emissionType, detail_net, is_zoom=True, poll='PM2_5')
-    plot_emis(emis, scenario, scenario2, emissionType, detail_net, is_zoom=True, poll='CO2')
-    plot_concentrations(resultsISRM, 'TotalPM25', scenario, scenario2, emissionType, proj_string, detail_net,
-                        is_zoom=True)
-    plot_concentrations(resultsISRM, 'NO2', scenario, scenario2, emissionType, proj_string, detail_net, is_zoom=True)
-#     plot_concentrations(resultsISRM,'BCV1', scenario, scenario2, emissionType, proj_string, detail_net, is_zoom = True)
-#     plot_concentrations(resultsISRM,'BCV3', scenario, scenario2, emissionType, proj_string, detail_net, is_zoom = True)
-
+if __name__ == "__main__":
+    main()
