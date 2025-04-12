@@ -6,11 +6,11 @@ import sys
 import time
 from collections import defaultdict
 
+import pandas as pd
 import pyarrow as pa
 import pyarrow.compute as pc
-import pyarrow.csv as csv
 import pyarrow.csv as pv
-import pandas as pd
+import pyarrow.parquet as pq  # Added for parquet compression
 from tqdm import tqdm
 from tqdm.auto import tqdm
 
@@ -42,7 +42,7 @@ def generate_emfac_beam_class_mapping(emfac_pop_by_model_year_file, vehicle_clas
     # Create the mapping
     mapping = {}
 
-    table = csv.read_csv(emfac_pop_by_model_year_file, read_options=pa.csv.ReadOptions(use_threads=True))
+    table = pv.read_csv(emfac_pop_by_model_year_file, read_options=pa.csv.ReadOptions(use_threads=True))
     df = table.to_pandas()
 
     for vehicle in df["vehicle_class"].unique():
@@ -92,7 +92,10 @@ def read_skims_emissions_chunked(
         emissions_skims_file,
         expansion_factor,
         scenario_name,
-        chunk_size=1000000
+        processed_skim_output=None,  # New parameter for the output compressed file path
+        chunk_size=1000000,
+        compression='snappy',  # Default compression method
+        force_reprocess=False  # Parameter to force reprocessing even if file exists
 ):
     """
     Read and process emissions data from skims file in chunks (optimized)
@@ -103,11 +106,19 @@ def read_skims_emissions_chunked(
         emissions_skims_file: Path to emissions skims file
         expansion_factor: Factor to scale observations
         scenario_name: Name of the scenario
+        processed_skim_output: Path to store the compressed processed file (default: None)
         chunk_size: Size of chunks to process at once
+        compression: Compression method for output file (default: 'snappy')
+        force_reprocess: If True, reprocess even if output file exists (default: False)
 
     Returns:
-        DataFrame with processed emissions data
+        DataFrame with processed emissions data or None if file exists and force_reprocess is False
     """
+
+    # Check if output file already exists and we're not forcing reprocessing
+    if processed_skim_output and os.path.exists(processed_skim_output) and not force_reprocess:
+        print(f"Processed file {processed_skim_output} already exists. Skipping processing.")
+        return pd.read_parquet(processed_skim_output)
 
     # Define schema for skims data
     SKIMS_SCHEMA = pa.schema([
@@ -137,7 +148,8 @@ def read_skims_emissions_chunked(
         ('BCh', pa.float64())
     ])
     # List of pollutants to process
-    pollutant_cols = ['CH4', 'CO', 'CO2', 'HC', 'NH3', 'NOx', 'PM', 'PM10', 'PM2_5', 'ROG', 'SOx', 'TOG', 'BC', 'BCm', 'BCh']
+    pollutant_cols = ['CH4', 'CO', 'CO2', 'HC', 'NH3', 'NOx', 'PM', 'PM10', 'PM2_5', 'ROG', 'SOx', 'TOG', 'BC', 'BCm',
+                      'BCh']
 
     start_time = time.time()
     print(f"Processing emissions data from {emissions_skims_file}")
@@ -273,6 +285,26 @@ def read_skims_emissions_chunked(
         return pd.DataFrame()
 
     final_result = pd.concat(result_chunks, ignore_index=True)
+
+    # Save compressed output if path is provided
+    if processed_skim_output:
+        print(f"Compressing and saving processed data to {processed_skim_output}")
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(processed_skim_output), exist_ok=True)
+
+        # Convert pandas DataFrame to PyArrow Table
+        table = pa.Table.from_pandas(final_result)
+
+        # Write to compressed parquet file
+        pq.write_table(
+            table,
+            processed_skim_output,
+            compression=compression,
+            use_dictionary=True,
+            version='2.6',
+            write_statistics=True
+        )
+        print(f"Successfully saved compressed file to {processed_skim_output}")
 
     # Clean up memory
     del result_chunks

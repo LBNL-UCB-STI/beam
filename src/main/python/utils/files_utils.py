@@ -8,6 +8,10 @@ from tqdm import tqdm
 from tqdm.auto import tqdm
 import pandas as pd
 import re
+import math
+import concurrent.futures
+
+
 
 def combine_csv_files(input_files, output_file):
     # Read and combine CSV files vertically
@@ -163,3 +167,237 @@ def load_heavy_csv(file_path, chunk_size=100000):
     except Exception as e:
         print(f"Error loading CSV: {str(e)}")
         return None
+
+
+def split_csv_gz(
+        input_file: str,
+        output_dir: str,
+        chunk_size: int = 1000000,  # Number of rows per chunk
+        compression: str = 'gzip',
+        process_function=None,
+        n_workers: int = 4
+):
+    """
+    Split a large compressed CSV file into smaller chunks with progress tracking.
+
+    Args:
+        input_file: Path to the input CSV.gz file
+        output_dir: Directory to store the chunked files
+        chunk_size: Number of rows per chunk
+        compression: Compression format ('gzip', 'bz2', etc.)
+        process_function: Optional function to process each chunk
+        n_workers: Number of worker processes for parallel processing
+
+    Returns:
+        List of output file paths
+    """
+    # Ensure output directory exists
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Get total number of lines for progress bar
+    print("Counting lines in file (this might take a while for a 10GB file)...")
+    with gzip.open(input_file, 'rt') as f:
+        # Get the header
+        header = f.readline()
+
+        # Count lines using a buffer-based approach (memory efficient)
+        total_lines = 0
+        for _ in tqdm(f, desc="Counting lines"):
+            total_lines += 1
+
+    # Calculate total chunks
+    total_chunks = math.ceil(total_lines / chunk_size)
+    print(f"File will be split into {total_chunks} chunks")
+
+    # Function to process a single chunk
+    def process_chunk(chunk_id):
+        # For the first chunk we need to read from the start
+        if chunk_id == 0:
+            skip_rows = 0
+            header_flag = 0  # Don't skip header
+        else:
+            # Skip header for subsequent chunks
+            skip_rows = 1 + (chunk_id * chunk_size)
+            header_flag = 0  # Already skipping rows, so don't skip header again
+
+        # Determine how many rows to read
+        if chunk_id == total_chunks - 1:  # Last chunk
+            nrows = total_lines - (chunk_id * chunk_size)
+        else:
+            nrows = chunk_size
+
+        chunk_file = os.path.join(output_dir, f"chunk_{chunk_id:05d}.csv.gz")
+
+        try:
+            # Read chunk from the original file
+            df_chunk = pd.read_csv(
+                input_file,
+                compression='gzip',
+                skiprows=skip_rows,
+                nrows=nrows,
+                header=header_flag
+            )
+
+            # If it's not the first chunk, add the header
+            if chunk_id > 0:
+                with gzip.open(input_file, 'rt') as f:
+                    header_text = f.readline().strip()
+                    df_chunk.columns = header_text.split(',')
+
+            # Apply process function if provided
+            if process_function:
+                df_chunk = process_function(df_chunk)
+
+            # Save the chunk
+            df_chunk.to_csv(
+                chunk_file,
+                compression=compression,
+                index=False
+            )
+
+            return chunk_file
+        except Exception as e:
+            print(f"Error processing chunk {chunk_id}: {str(e)}")
+            return None
+
+    # Process chunks with progress bar
+    output_files = []
+    with tqdm(total=total_chunks, desc="Splitting file") as pbar:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=n_workers) as executor:
+            futures = [executor.submit(process_chunk, i) for i in range(total_chunks)]
+
+            for future in concurrent.futures.as_completed(futures):
+                result = future.result()
+                if result:
+                    output_files.append(result)
+                pbar.update(1)
+
+    print(f"Successfully split into {len(output_files)} chunks")
+    return output_files
+
+
+def read_chunks(
+        chunk_dir: str,
+        process_function=None,
+        pattern: str = "chunk_*.csv.gz",
+        compression: str = 'gzip'
+):
+    """
+    Read and process chunks one by one.
+
+    Args:
+        chunk_dir: Directory containing the chunks
+        process_function: Function to apply to each chunk
+        pattern: Glob pattern to match chunk files
+        compression: Compression format
+
+    Yields:
+        Processed DataFrame chunks
+    """
+    import glob
+
+    # Get all chunk files sorted by name
+    chunk_files = sorted(glob.glob(os.path.join(chunk_dir, pattern)))
+
+    # Process each chunk with progress bar
+    for chunk_file in tqdm(chunk_files, desc="Processing chunks"):
+        df_chunk = pd.read_csv(chunk_file, compression=compression)
+
+        if process_function:
+            df_chunk = process_function(df_chunk)
+
+        yield df_chunk
+
+
+def process_all_chunks(
+        chunk_dir: str,
+        process_function,
+        pattern: str = "chunk_*.csv.gz",
+        compression: str = 'gzip',
+        output_file: str = None,
+        n_workers: int = 4
+):
+    """
+    Process all chunks in parallel and optionally combine results.
+
+    Args:
+        chunk_dir: Directory containing the chunks
+        process_function: Function to apply to each chunk
+        pattern: Glob pattern to match chunk files
+        compression: Compression format
+        output_file: Optional output file to save combined results
+        n_workers: Number of worker processes
+
+    Returns:
+        Combined DataFrame if output_file is None, otherwise None
+    """
+    import glob
+
+    # Get all chunk files sorted by name
+    chunk_files = sorted(glob.glob(os.path.join(chunk_dir, pattern)))
+    total_chunks = len(chunk_files)
+
+    # Function to process a single chunk file
+    def process_chunk_file(chunk_file):
+        df_chunk = pd.read_csv(chunk_file, compression=compression)
+        return process_function(df_chunk)
+
+    # Process chunks in parallel with progress bar
+    results = []
+    with tqdm(total=total_chunks, desc="Processing all chunks") as pbar:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=n_workers) as executor:
+            futures = [executor.submit(process_chunk_file, f) for f in chunk_files]
+
+            for future in concurrent.futures.as_completed(futures):
+                result = future.result()
+                results.append(result)
+                pbar.update(1)
+
+    # Combine results if needed
+    if results:
+        combined = pd.concat(results, ignore_index=True)
+
+        if output_file:
+            combined.to_csv(output_file, compression=compression, index=False)
+            print(f"Combined results saved to {output_file}")
+            return None
+        else:
+            return combined
+
+    return None
+
+
+# Example usage
+if __name__ == "__main__":
+    # Example process function
+    def example_process(df):
+        # Replace with your actual processing logic
+        return df.fillna(0)  # Just an example
+
+    work_dir = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-runs/20240123/2018-Baseline")
+    # Split the large file
+    input_file = f"{work_dir}/0.skimsEmissions.csv.gz"
+    output_dir = f"{work_dir}/chunks"
+    output_file = f"{work_dir}/0.skimsEmissions.processed.csv.gz"
+
+    # Split the file into chunks
+    split_csv_gz(
+        input_file=input_file,
+        output_dir=output_dir,
+        chunk_size=1000000,  # Adjust based on your memory constraints
+        process_function=example_process,
+        n_workers=os.cpu_count()  # Use all available cores
+    )
+
+    # Option 1: Process chunks one by one (lower memory usage)
+    for chunk in read_chunks(output_dir, process_function=example_process):
+        # Do something with each processed chunk
+        print(f"Processed chunk with {len(chunk)} rows")
+
+    # Option 2: Process all chunks in parallel and combine results
+    combined_df = process_all_chunks(
+        chunk_dir=output_dir,
+        process_function=example_process,
+        output_file=output_file,
+        n_workers=os.cpu_count()
+    )
