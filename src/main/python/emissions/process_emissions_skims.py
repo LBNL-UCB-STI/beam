@@ -1,5 +1,6 @@
 import sys
-import os.path
+import os
+import gc
 import time
 from pathlib import Path
 
@@ -8,9 +9,12 @@ import pyarrow.compute as pc
 import pyarrow.csv as pv
 from pyproj import Transformer
 from shapely.geometry import LineString
+import concurrent.futures
+from concurrent.futures import ProcessPoolExecutor
+from rtree import index
+from h3 import LatLngPoly
 
 from _beam_emissions_plotting import *
-from _emissions_utils import generate_emfac_beam_class_mapping
 
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -36,7 +40,7 @@ SKIMS_SCHEMA = pa.schema([
     ('tazId', pa.string()),
     ('vehicleTypeId', pa.string()),
     ('emissionsProcess', pa.string()),
-    ('speedInMps', pa.float64()),
+    ('travelTimeInSecond', pa.float64()),
     ('energyInJoule', pa.float64()),
     ('observations', pa.int64()),
     ('iterations', pa.int64()),
@@ -71,9 +75,13 @@ def read_skims_emissions_chunked(
         chunk_size=1000000
 ):
     """
-    Read and process emissions data from skims file in chunks
+    Read and process emissions data from skims file in chunks (optimized)
 
     Args:
+        vehicle_types: DataFrame with vehicle type information
+        network: DataFrame with network information
+        emissions_skims_file: Path to emissions skims file
+        expansion_factor: Factor to scale observations
         scenario_name: Name of the scenario
         chunk_size: Size of chunks to process at once
 
@@ -82,17 +90,47 @@ def read_skims_emissions_chunked(
     """
     start_time = time.time()
 
+    # Pre-process lookups for faster merges
     unique_vehicle_types_id = vehicle_types['vehicleTypeId'].unique()
 
-    # Initialize an empty list to store the processed chunks
-    result_chunks = []
+    # Create dictionaries for faster lookups instead of merges
+    vehicle_type_lookup = vehicle_types.set_index('vehicleTypeId')[['mappedClass', 'mappedFuel']].to_dict('index')
+    network_lookup = network.set_index('linkId')['linkLength'].to_dict()
 
-    # Set up the CSV reader with chunking
+    # Calculate constant values once
+    expansion_factor_scalar = pa.scalar(expansion_factor, type=pa.float64())
+    million_scalar = pa.scalar(1e6, type=pa.float64())
+    joule_to_kwh_scalar = pa.scalar(3.6e6, type=pa.float64())
+    second_to_hour_scalar = pa.scalar(3.6e3, type=pa.float64())
+    mile_conversion = 6.21371192e-4  # meters to miles
+
+    # Pre-define column lists
+    pollutant_cols = list(emissions_config["pollutants"].keys())
+    scaled_pollutant_cols = [f'scaled_{pollutant}' for pollutant in pollutant_cols]
+
+    # Get the field names from the schema
+    include_columns = None  # Include all columns
+    if isinstance(SKIMS_SCHEMA, pa.Schema):
+        include_columns = [field.name for field in SKIMS_SCHEMA]
+
+    # Set up Arrow CSV reader with optimized options
     csv_reader = pv.open_csv(
         emissions_skims_file,
-        read_options=pv.ReadOptions(block_size=chunk_size, use_threads=True),
-        parse_options=pv.ParseOptions(delimiter=','),
-        convert_options=pv.ConvertOptions(column_types=SKIMS_SCHEMA)
+        read_options=pv.ReadOptions(
+            block_size=chunk_size,
+            use_threads=True,
+            skip_rows_after_names=0
+        ),
+        parse_options=pv.ParseOptions(
+            delimiter=',',
+            quote_char='"',
+            escape_char=False,
+            newlines_in_values=False
+        ),
+        convert_options=pv.ConvertOptions(
+            column_types=SKIMS_SCHEMA,
+            include_columns=include_columns
+        ) if include_columns else pv.ConvertOptions(column_types=SKIMS_SCHEMA)
     )
 
     # Get total file size for progress bar
@@ -102,101 +140,138 @@ def read_skims_emissions_chunked(
     pbar = tqdm(total=total_size, unit='B', unit_scale=True, desc="Processing chunks",
                 position=0, leave=True, mininterval=1.0, maxinterval=10.0, miniters=1)
 
-    # Process the skims file in chunks
-    for chunk in csv_reader:
-        chunk_size = chunk.nbytes
+    # Process in parallel using threads
+    with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
+        futures = []
 
-        # Filter the chunk
-        filtered_chunk = chunk.filter(chunk['vehicleTypeId'].isin(unique_vehicle_types_id))
+        # Define the processing function to run in parallel
+        def process_chunk(chunk):
+            chunk_df = None
+            try:
+                # Filter the chunk
+                mask = pa.compute.is_in(chunk['vehicleTypeId'], pa.array(unique_vehicle_types_id))
+                filtered_chunk = chunk.filter(mask)
 
-        # Perform calculations in PyArrow
-        observations_expansion = pc.multiply(
-            filtered_chunk['observations'], pc.cast(pa.scalar(expansion_factor), pa.float64())
-        )
+                if filtered_chunk.num_rows == 0:
+                    return None
 
-        new_columns = []
-        new_fields = []
-        for pollutant in emissions_config["pollutants"].keys():
-            new_fields.append(pa.field(f'scaled_{pollutant}', pa.float64(), True))
-            new_columns.append(pc.multiply(
-                pc.divide(
-                    filtered_chunk[pollutant], pc.cast(pa.scalar(1e6), pa.float64())
-                ),
-                observations_expansion
-            ))
+                # Perform calculations in PyArrow
+                observations_expansion = pc.multiply(
+                    filtered_chunk['observations'], expansion_factor_scalar
+                )
 
-        new_fields.append(pa.field('kwh', pa.float64(), True))
-        new_columns.append(
-            pc.multiply(
-                pc.divide(
-                    filtered_chunk['energyInJoule'], pc.cast(pa.scalar(3.6e6), pa.float64())
-                ),
-                observations_expansion
-            )
-        )
+                # Process all pollutants in one go
+                new_columns = []
+                new_fields = []
 
-        new_fields.append(pa.field('vht', pa.float64(), True))
-        new_columns.append(
-            pc.multiply(
-                pc.divide(
-                    filtered_chunk['travelTimeInSecond'], pc.cast(pa.scalar(3.6e3), pa.float64())
-                ),
-                observations_expansion
-            )
-        )
+                # Calculate all scaled pollutants at once
+                for pollutant in pollutant_cols:
+                    new_fields.append(pa.field(f'scaled_{pollutant}', pa.float64(), True))
+                    new_columns.append(pc.multiply(
+                        pc.divide(filtered_chunk[pollutant], million_scalar),
+                        observations_expansion
+                    ))
 
-        # Create a new RecordBatch with additional columns
-        new_schema = filtered_chunk.schema
-        for field in new_fields:
-            new_schema = new_schema.append(field)
+                # Calculate kwh
+                new_fields.append(pa.field('kwh', pa.float64(), True))
+                new_columns.append(
+                    pc.multiply(
+                        pc.divide(filtered_chunk['energyInJoule'], joule_to_kwh_scalar),
+                        observations_expansion
+                    )
+                )
 
-        new_columns = filtered_chunk.columns + new_columns
-        filtered_chunk = pa.RecordBatch.from_arrays(new_columns, schema=new_schema)
+                # Calculate vht
+                new_fields.append(pa.field('vht', pa.float64(), True))
+                new_columns.append(
+                    pc.multiply(
+                        pc.divide(filtered_chunk['travelTimeInSecond'], second_to_hour_scalar),
+                        observations_expansion
+                    )
+                )
 
-        # Convert to pandas
-        df_chunk = filtered_chunk.to_pandas()
+                # Create a new RecordBatch with additional columns
+                new_schema = filtered_chunk.schema
+                for field in new_fields:
+                    new_schema = new_schema.append(field)
 
-        # Merge with vehicleTypes and network
-        df_chunk_merged = (
-            df_chunk
-            .merge(vehicle_types[['vehicleTypeId', 'mappedClass', 'mappedFuel', 'emfacId']], on='vehicleTypeId', how='left')
-            .merge(network[['linkId', 'linkLength']], on='linkId', how='left')
-        )
+                new_columns = filtered_chunk.columns + new_columns
+                result_batch = pa.RecordBatch.from_arrays(new_columns, schema=new_schema)
 
-        # Calculate annualHourlyMVMT
-        df_chunk_merged['vmt'] = (df_chunk_merged['linkLength'] * 6.21371192e-4) * observations_expansion
+                # Convert to pandas only after all Arrow computations are done
+                df_chunk = result_batch.to_pandas()
 
-        # Rename column
-        df_chunk_merged.rename(columns={'emissionsProcess': 'process'}, inplace=True)
+                # Add mapped class and fuel using vectorized dictionary mapping
+                df_chunk['mappedClass'] = df_chunk['vehicleTypeId'].map(
+                    {k: v['mappedClass'] for k, v in vehicle_type_lookup.items()}
+                )
+                df_chunk['mappedFuel'] = df_chunk['vehicleTypeId'].map(
+                    {k: v['mappedFuel'] for k, v in vehicle_type_lookup.items()}
+                )
 
-        # Melt the dataframe
-        id_vars = ['hour', 'linkId', 'tazId', 'emfacId', 'mappedClass', 'mappedFuel', 'process', 'kwh', 'vmt', 'vht']
-        value_vars = [f'scaled_{pollutant}' for pollutant in emissions_config["pollutants"].keys()]
-        melted_chunk = df_chunk_merged.melt(
-            id_vars=id_vars,
-            value_vars=value_vars,
-            var_name='pollutant',
-            value_name='rate'
-        )
-        melted_chunk['pollutant'] = melted_chunk['pollutant'].str.replace('scaled_', '')
-        melted_chunk['scenario'] = scenario_name
+                # Add link length using vectorized mapping
+                df_chunk['linkLength'] = df_chunk['linkId'].map(network_lookup)
 
-        result_chunks.append(melted_chunk)
+                # Calculate VMT vectorized
+                df_chunk['vmt'] = df_chunk['linkLength'] * mile_conversion * df_chunk['observations'] * expansion_factor
 
-        # Update progress bar
-        pbar.update(chunk_size)
+                # Rename column
+                df_chunk.rename(columns={'emissionsProcess': 'process'}, inplace=True)
+
+                # Selecting only needed columns before melt to reduce memory
+                id_vars = ['hour', 'linkId', 'tazId', 'mappedClass', 'mappedFuel', 'process', 'kwh', 'vmt', 'vht']
+
+                # More efficient melt operation
+                result_rows = []
+                for pollutant in pollutant_cols:
+                    scaled_col = f'scaled_{pollutant}'
+                    temp_df = df_chunk[id_vars + [scaled_col]].copy()
+                    temp_df['pollutant'] = pollutant
+                    temp_df['rate'] = temp_df[scaled_col]
+                    temp_df.drop(columns=[scaled_col], inplace=True)
+                    result_rows.append(temp_df)
+
+                chunk_df = pd.concat(result_rows, ignore_index=True)
+                chunk_df['scenario'] = scenario_name
+
+                return chunk_df
+
+            except Exception as e:
+                print(f"Error processing chunk: {e}")
+                return None
+
+        # Process chunks in parallel
+        for chunk in csv_reader:
+            chunk_size = chunk.nbytes
+            futures.append(executor.submit(process_chunk, chunk))
+            pbar.update(chunk_size)
+
+        # Collect results
+        result_chunks = []
+        for future in concurrent.futures.as_completed(futures):
+            result = future.result()
+            if result is not None and not result.empty:
+                result_chunks.append(result)
 
     # Close progress bar
     pbar.close()
 
     # Combine all processed chunks
-    melted = pd.concat(result_chunks, ignore_index=True)
+    if not result_chunks:
+        print("No valid data processed")
+        return pd.DataFrame()
+
+    # Use pandas.concat with optimized parameters
+    melted = pd.concat(result_chunks, ignore_index=True, copy=False)
+
+    # Clean up memory
+    del result_chunks
+    gc.collect()
 
     end_time = time.time()
-    print(f"Time taken to read the file: {end_time - start_time:.2f} seconds to read file {skims_file}")
+    print(f"Time taken: {end_time - start_time:.2f} seconds to process {emissions_skims_file}")
 
     return melted
-
 
 def create_model_vmt_comparison_chart(skims_data, emfac_vmt, output_dir):
     """
@@ -227,7 +302,7 @@ def create_model_vmt_comparison_chart(skims_data, emfac_vmt, output_dir):
 
 def load_network(network_file, source_epsg):
     """
-    Load and transform network data
+    Load and transform network data (optimized version)
 
     Args:
         network_file: Path to network CSV file
@@ -240,19 +315,100 @@ def load_network(network_file, source_epsg):
     network = pd.read_csv(network_file)
     transformer = Transformer.from_crs(source_epsg, "EPSG:4326", always_xy=True)
 
-    # Vectorized coordinate conversion
-    network[['fromLocationX', 'fromLocationY']] = network.apply(
-        lambda row: pd.Series(transformer.transform(row['fromLocationX'], row['fromLocationY'])),
-        axis=1, result_type='expand'
-    )
-    network[['toLocationX', 'toLocationY']] = network.apply(
-        lambda row: pd.Series(transformer.transform(row['toLocationX'], row['toLocationY'])),
-        axis=1, result_type='expand'
-    )
+    # Extract coordinate columns as numpy arrays for faster processing
+    from_x = network['fromLocationX'].values
+    from_y = network['fromLocationY'].values
+    to_x = network['toLocationX'].values
+    to_y = network['toLocationY'].values
+
+    # Perform batch transformation (much faster than row-by-row)
+    from_transformed = transformer.transform(from_x, from_y)
+    to_transformed = transformer.transform(to_x, to_y)
+
+    # Update the dataframe with transformed coordinates
+    network['fromLocationX'] = from_transformed[0]
+    network['fromLocationY'] = from_transformed[1]
+    network['toLocationX'] = to_transformed[0]
+    network['toLocationY'] = to_transformed[1]
 
     return network[['linkId', 'linkLength', 'fromLocationX', 'fromLocationY', 'toLocationX', 'toLocationY']]
 
+    # Helper function for parallel processing
 
+
+# Helper function for parallel processing - defined outside the main function
+def create_h3_polygon(h):
+    """Create a Shapely polygon from an H3 cell index"""
+    boundary = h3.cell_to_boundary(h)
+    shapely_coords = [(lng, lat) for lat, lng in boundary]
+    return Polygon(shapely_coords)
+
+
+# Helper function for calculating intersections - defined outside the main function
+def calculate_intersection(data):
+    """Calculate intersection between an H3 cell and a network link"""
+    h_cell, from_x, from_y, to_x, to_y, link_id, link_length = data
+
+    try:
+        # Create H3 cell polygon
+        boundary = h3.cell_to_boundary(h_cell)
+        shapely_coords = [(lng, lat) for lat, lng in boundary]
+        h3_poly = Polygon(shapely_coords)
+
+        # Create network link linestring
+        line = LineString([(from_x, from_y), (to_x, to_y)])
+
+        # Calculate intersection
+        intersection = h3_poly.intersection(line)
+        length_ratio = intersection.length / link_length
+
+        return h_cell, link_id, length_ratio
+    except Exception as e:
+        print(f"Error in calculate_intersection: {e}")
+        return h_cell, link_id, 0
+
+def calculate_batch_intersections(batch_df, network):
+    results = []
+    for _, row in batch_df.iterrows():
+        try:
+            # Get the h3 cell boundary coordinates
+            h_cell = row['h3_cell']
+            boundary = h3.cell_to_boundary(h_cell)
+            shapely_coords = [(lng, lat) for lat, lng in boundary]
+            h3_poly = Polygon(shapely_coords)
+
+            # Get the original line geometry
+            line_id = row['linkId']
+            orig_line_data = network.loc[network['linkId'] == line_id].iloc[0]
+            line = LineString([
+                (orig_line_data['fromLocationX'], orig_line_data['fromLocationY']),
+                (orig_line_data['toLocationX'], orig_line_data['toLocationY'])
+            ])
+
+            intersection = h3_poly.intersection(line)
+            results.append({
+                'h3_cell': h_cell,
+                'linkId': line_id,
+                'intersection_length': intersection.length
+            })
+        except Exception as e:
+            print(f"Error in calculate_intersection: {e}")
+            results.append({
+                'h3_cell': row['h3_cell'],
+                'linkId': row['linkId'],
+                'intersection_length': 0
+            })
+    return results
+
+
+# Add this helper function at the module level, outside any other function
+def process_batch(batch_network_pair):
+    """Process a batch of h3 cells and network data for intersection calculation"""
+    batch, network_clean = batch_network_pair
+    return calculate_batch_intersections(batch, network_clean)
+
+
+# Then modify the generate_h3_intersections function:
 def generate_h3_intersections(network_df, resolution, output_dir):
     """
     Generate H3 cell intersections with network
@@ -265,6 +421,14 @@ def generate_h3_intersections(network_df, resolution, output_dir):
     Returns:
         DataFrame with intersection data
     """
+    # Check if output file already exists
+    output_file = f'{output_dir}/network.h3.csv'
+    if os.path.exists(output_file):
+        print(f"Reading existing intersection data from {output_file}")
+        return pd.read_csv(output_file)
+    else:
+        print(f"Generating new intersection data with resolution {resolution}")
+
     print(f"Initial network_df shape: {network_df.shape}")
 
     # Remove rows with NaN values in coordinate columns
@@ -275,30 +439,42 @@ def generate_h3_intersections(network_df, resolution, output_dir):
     # Create bounding box
     lats = network_clean[['fromLocationY', 'toLocationY']].values.flatten()
     lons = network_clean[['fromLocationX', 'toLocationX']].values.flatten()
-    bbox = [[
-        [min(lats), min(lons)],
-        [min(lats), max(lons)],
-        [max(lats), max(lons)],
-        [max(lats), min(lons)],
-        [min(lats), min(lons)]  # Close the polygon
-    ]]
 
-    # Generate H3 cells
-    h3_cells = list(h3.polyfill({'type': 'Polygon', 'coordinates': bbox}, resolution))
+    # LatLngPoly expects coordinates as (lat, lng) pairs
+    bbox_coords = [
+        (min(lats), min(lons)),
+        (min(lats), max(lons)),
+        (max(lats), max(lons)),
+        (max(lats), min(lons)),  # Close the polygon
+        (min(lats), min(lons))  # Close the polygon
+    ]
+    bbox_poly = LatLngPoly(bbox_coords)
+
+    # Generate H3 cells using h3shape_to_cells
+    h3_cells = list(h3.h3shape_to_cells(bbox_poly, resolution))
     print(f"Number of H3 cells: {len(h3_cells)}")
 
     if len(h3_cells) == 0:
         print("No H3 cells created. Check your bounding box and resolution.")
         return pd.DataFrame()
 
-    # Create GeoDataFrame of H3 cells
+    # Use parallel processing with chunks
+    chunk_size = 10000
+    h3_cell_geometries = []
+
+    for i in range(0, len(h3_cells), chunk_size):
+        chunk = h3_cells[i:i + chunk_size]
+        with ProcessPoolExecutor() as executor:
+            chunk_geometries = list(executor.map(create_h3_polygon, chunk))
+        h3_cell_geometries.extend(chunk_geometries)
+
     h3_gdf = gpd.GeoDataFrame(
         {'h3_cell': h3_cells},
-        geometry=[Polygon(h3.h3_to_geo_boundary(h, geo_json=True)) for h in h3_cells],
+        geometry=h3_cell_geometries,
         crs="EPSG:4326"
     )
 
-    # Create network GeoDataFrame
+    # Create network GeoDataFrame with a spatial index
     def create_linestring(row):
         return LineString([(row['fromLocationX'], row['fromLocationY']),
                            (row['toLocationX'], row['toLocationY'])])
@@ -309,35 +485,84 @@ def generate_h3_intersections(network_df, resolution, output_dir):
         crs="EPSG:4326"
     )
 
-    # Spatial join
-    joined = gpd.sjoin(h3_gdf, network_gdf, how="inner", predicate="intersects")
-    print(f"Joined DataFrame shape after spatial join: {joined.shape}")
+    # OPTIMIZATION 3: Perform manual spatial join using R-tree index
+    # Create spatial index for network geometries
+    idx = index.Index()
+    for i, geom in enumerate(network_gdf.geometry):
+        idx.insert(i, geom.bounds)
 
-    if joined.empty:
+    # Find potential intersections using the spatial index
+    join_pairs = []
+    for h_idx, h_geom in enumerate(h3_gdf.geometry):
+        for n_idx in idx.intersection(h_geom.bounds):
+            if h_geom.intersects(network_gdf.geometry.iloc[n_idx]):
+                join_pairs.append((h_idx, n_idx))
+
+    if not join_pairs:
+        # Try with buffered network linestrings
+        print("No intersections found with direct approach. Trying with buffered network.")
+        network_gdf['buffered_geom'] = network_gdf.geometry.buffer(0.0001)
+
+        # Update spatial index with buffered geometries
+        idx = index.Index()
+        for i, geom in enumerate(network_gdf['buffered_geom']):
+            idx.insert(i, geom.bounds)
+
+        # Find potential intersections using the updated spatial index
+        for h_idx, h_geom in enumerate(h3_gdf.geometry):
+            for n_idx in idx.intersection(h_geom.bounds):
+                if h_geom.intersects(network_gdf['buffered_geom'].iloc[n_idx]):
+                    join_pairs.append((h_idx, n_idx))
+
+    if not join_pairs:
         print("No intersections found between H3 cells and network geometries.")
         return pd.DataFrame()
 
-    # Calculate intersections and lengths
-    def calculate_intersection(row):
-        try:
-            h3_poly = Polygon(h3.h3_to_geo_boundary(row['h3_cell'], geo_json=True))
-            line = row['geometry']
-            intersection = h3_poly.intersection(line)
-            return pd.Series({'intersection_length': intersection.length})
-        except Exception as e:
-            print(f"Error in calculate_intersection: {e}")
-            return pd.Series({'intersection_length': 0})
+    # Create joined dataframe from the pairs
+    h_indices, n_indices = zip(*join_pairs)
+    joined = pd.DataFrame({
+        'h3_cell': h3_gdf.iloc[list(h_indices)]['h3_cell'].values,
+        'geometry': h3_gdf.iloc[list(h_indices)].geometry.values,
+    })
 
-    tqdm.pandas(desc="Calculating intersections")
-    joined['intersection_length'] = joined.progress_apply(calculate_intersection, axis=1)
+    # Add network data
+    for col in network_gdf.columns:
+        if col != 'geometry' and col != 'buffered_geom':
+            joined[col] = network_gdf.iloc[list(n_indices)][col].values
+
+    print(f"Joined DataFrame shape after spatial join: {joined.shape}")
+
+    # Split into batches for parallel processing
+    batch_size = 1000
+    batches = [joined.iloc[i:i + batch_size] for i in range(0, len(joined), batch_size)]
+
+    # Create pairs of batch and network_clean for the process_batch function
+    batch_network_pairs = [(batch, network_clean) for batch in batches]
+
+    all_results = []
+    with ProcessPoolExecutor() as executor:
+        # Use the named function instead of lambda
+        batch_results = list(executor.map(process_batch, batch_network_pairs))
+
+    for batch in batch_results:
+        all_results.extend(batch)
+
+    # Convert results to DataFrame
+    intersection_df = pd.DataFrame(all_results)
 
     # Calculate length ratios
-    joined['length_ratio'] = joined['intersection_length'] / joined['linkLength']
+    intersection_df = pd.merge(
+        intersection_df,
+        network_clean[['linkId', 'linkLength']],
+        on='linkId'
+    )
+    intersection_df['length_ratio'] = intersection_df['intersection_length'] / intersection_df['linkLength']
 
     # Keep only necessary columns
-    intersection_df = joined[['h3_cell', 'linkId', 'length_ratio']]
+    intersection_df = intersection_df[['h3_cell', 'linkId', 'length_ratio']]
 
-    intersection_df.to_csv(f'{output_dir}/network.h3.csv', index=False)
+    # Save results
+    intersection_df.to_csv(output_file, index=False)
 
     return intersection_df
 
@@ -440,7 +665,8 @@ def main():
     stationary_processes = ["STREX", "DIURN", "HOTSOAK", "RUNLOSS", "IDLEX"]
     h3_resolution = 8
     study_area_config = get_area_config(area)
-    run_config = study_area_config["run"]
+    scenario_config = study_area_config["emissions"][scenario]
+    run_config = scenario_config["run"]
     run_config["emissions_dir"] = f"emissions/{run_batch}"
     run_config["events_file"] = f"beam-runs/{run_batch}/{scenario}/0.events.csv.gz"
     run_config["emissions_skims_file"] = f"beam-runs/{run_batch}/{scenario}/0.skimsEmissions.csv.gz"
@@ -449,7 +675,7 @@ def main():
 
     ###################################################################################################
 
-    scenario_config = study_area_config["emissions"][scenario]
+
     work_dir = study_area_config["work_dir"]
     output_dir = os.path.join(work_dir, run_config["output_dir"])
     utm_epsg = study_area_config["geo"]["utm_epsg"]
@@ -466,19 +692,18 @@ def main():
     freight_fuel_map = scenario_config["mapping"]["fuel"]["emfac-ft"]
 
     # File paths
-    ft_vehicle_types_file = f"{work_dir}/{scenario_config["beam"]["ft_vehicle_types_file"]}--TrAP.csv"
-    pax_vehicle_types_file = f"{work_dir}/{scenario_config["beam"]["pax_vehicle_types_file"]}--TrAP.csv"
-    tours_file = f"{work_dir}/{scenario_config["beam"]["tours_file"]}.csv"
-    carriers_file = f"{work_dir}/{scenario_config["beam"]["carriers_file"]}--TrAP.csv"
-    emissions_skims_file = f"{work_dir}/{run_config["emissions_skims_file"]}.csv"
-    emfac_vmt_file = f"{output_dir}/{area}_emfac_vmt_{scenario}.csv"
+    ft_vehicle_types_file = f"{work_dir}/{scenario_config["beam"]["ft_vehicle_types_file"].replace(".csv", "--EM.csv")}"
+    pax_vehicle_types_file = f"{work_dir}/{scenario_config["beam"]["pax_vehicle_types_file"].replace(".csv", "--EM.csv")}"
+    tours_file = f"{work_dir}/{scenario_config["beam"]["tours_file"]}"
+    carriers_file = f"{work_dir}/{scenario_config["beam"]["carriers_file"].replace(".csv", "--EM.csv")}"
+    emissions_skims_file = f"{work_dir}/{run_config["emissions_skims_file"]}"
 
     # Reading files
     pax_vehicle_types = pd.read_csv(pax_vehicle_types_file)
     ft_vehicle_types = pd.read_csv(ft_vehicle_types_file)
     tours = pd.read_csv(tours_file)[["tourId", 'departureTimeInSec']]
     carriers = pd.read_csv(carriers_file)[["tourId", 'vehicleTypeId']]
-    emfac_vmt = pd.read_csv(emfac_vmt_file)
+    emfac_vmt = pd.read_csv(f"{output_dir}/{area}_emfac_vmt_{scenario}.csv")
 
     # Processing
     pax_vehicle_types = pax_vehicle_types[~pax_vehicle_types["emissionsRatesFile"].isna()].copy()
