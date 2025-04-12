@@ -1,11 +1,25 @@
 import os
 import h3
+import sys
+from pathlib import Path
 from shapely.geometry import Polygon
 from shapely.geometry import LineString
 import pandas as pd
 import geopandas as gpd
 from concurrent.futures import ProcessPoolExecutor
 from rtree import index
+from _beam_emissions_plotting import plot_h3_heatmap
+from _emissions_utils import read_skims_emissions_chunked
+
+# Get the absolute path to the directory containing this script
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(os.path.dirname(current_dir))
+sys.path.insert(0, parent_dir)
+
+from python.utils.network_utils import load_network
+from python.utils.study_area_config import get_area_config
+from python.utils.study_area_config import generate_network_name
+from python.utils.study_area_config import get_fuel_key
 
 def create_h3_polygon(h3_cell):
     """
@@ -344,3 +358,174 @@ def process_h3_emissions(emissions_df, intersection_df, pollutant):
     print(f"Result shape: {result.shape}")
 
     return result
+
+
+def main():
+    area = "sfbay"
+    run_batch = "20240123"
+    scenario = "2018-Baseline"
+    driving_processes = ["RUNEX", "PMBW", "PMTW", "RUNLOSS", "PRDUST"]
+    stationary_processes = ["STREX", "DIURN", "HOTSOAK", "RUNLOSS", "IDLEX"]
+    h3_resolution = 8
+    study_area_config = get_area_config(area)
+    scenario_config = study_area_config["emissions"][scenario]
+    run_config = scenario_config["run"]
+    run_config["emissions_dir"] = f"emissions/{run_batch}"
+    run_config["events_file"] = f"beam-runs/{run_batch}/{scenario}/0.events.csv.gz"
+    run_config["emissions_skims_file"] = f"beam-runs/{run_batch}/{scenario}/0.skimsEmissions.csv.gz"
+    run_config["link_stats_file"] = f"beam-runs/{run_batch}/{scenario}/0.linkstats.csv.gz"
+    run_config["sample_portion"] = 0.1
+
+    ###################################################################################################
+
+
+    work_dir = study_area_config["work_dir"]
+    output_dir = os.path.join(work_dir, run_config["output_dir"])
+    utm_epsg = study_area_config["geo"]["utm_epsg"]
+
+    # Output directories
+    plot_dir = f'{output_dir}/_plots'
+    Path(plot_dir).mkdir(parents=True, exist_ok=True)
+
+    network_name = generate_network_name(study_area_config)
+    network_file = f'{work_dir}/network/{network_name}/network.csv.gz'
+    expansion_factor = 1 / run_config["sample_portion"]
+    car_bike_fuel_map = scenario_config["mapping"]["fuel"]["emfac-pax"]
+    bus_fuel_map = scenario_config["mapping"]["fuel"]["emfac-bus"]
+    freight_fuel_map = scenario_config["mapping"]["fuel"]["emfac-ft"]
+
+    # File paths
+    ft_vehicle_types_file = f"{work_dir}/{scenario_config["beam"]["ft_vehicle_types_file"].replace(".csv", "--EM.csv")}"
+    pax_vehicle_types_file = f"{work_dir}/{scenario_config["beam"]["pax_vehicle_types_file"].replace(".csv", "--EM.csv")}"
+    tours_file = f"{work_dir}/{scenario_config["beam"]["tours_file"]}"
+    carriers_file = f"{work_dir}/{scenario_config["beam"]["carriers_file"].replace(".csv", "--EM.csv")}"
+    emissions_skims_file = f"{work_dir}/{run_config["emissions_skims_file"]}"
+
+    # Reading files
+    pax_vehicle_types = pd.read_csv(pax_vehicle_types_file)
+    ft_vehicle_types = pd.read_csv(ft_vehicle_types_file)
+    tours = pd.read_csv(tours_file)[["tourId", 'departureTimeInSec']]
+    carriers = pd.read_csv(carriers_file)[["tourId", 'vehicleTypeId']]
+
+    # Processing
+    pax_vehicle_types = pax_vehicle_types[~pax_vehicle_types["emissionsRatesFile"].isna()].copy()
+    pax_vehicle_types['mappedClass'] = pax_vehicle_types['vehicleCategory'].str.strip()
+    pax_vehicle_types['fuel_key'] = pax_vehicle_types.apply(get_fuel_key, axis=1)
+    bus_mask = pax_vehicle_types['vehicleCategory'] == "MediumDutyPassenger"
+    car_bike_vehicle_types = pax_vehicle_types[~bus_mask].copy()
+    car_bike_vehicle_types['mappedFuel'] = car_bike_vehicle_types['fuel_key'].map(car_bike_fuel_map)
+    bus_vehicle_types = pax_vehicle_types[bus_mask].copy()
+    bus_vehicle_types['mappedFuel'] = bus_vehicle_types['fuel_key'].map(bus_fuel_map)
+    ft_vehicle_types['fuel_key'] = ft_vehicle_types.apply(get_fuel_key, axis=1)
+    ft_vehicle_types['mappedFuel'] = ft_vehicle_types['fuel_key'].map(freight_fuel_map)
+    ft_vehicle_types['mappedClass'] = ft_vehicle_types['vehicleCategory'].str.strip()
+    vehicle_types = pd.concat([pax_vehicle_types, ft_vehicle_types], axis=0)
+
+    tours_types_2018 = pd.merge(
+        tours,
+        pd.merge(
+            carriers,
+            ft_vehicle_types[["vehicleTypeId", 'mappedFuel', 'mappedClass']],
+            on="vehicleTypeId"),
+        on="tourId"
+    )
+    tours_types_2018["scenario"] = scenario
+
+    print("Loading network data...")
+    network = load_network(network_file, utm_epsg)
+    network_h3_intersection = generate_h3_intersections(network, h3_resolution, output_dir)
+
+    print("Processing skims data...")
+    skims = read_skims_emissions_chunked(
+        vehicle_types,
+        network,
+        emissions_skims_file,
+        expansion_factor,
+        scenario,
+        chunk_size=1000000
+    )
+
+    print("Processing activities...")
+    driving_process_activity = skims[
+        (skims["process"].isin(driving_processes)) & (skims["vht"] > 0)
+    ].groupby(["scenario", "linkId"])["vmt"].sum().reset_index(name="vmt")
+
+    h3_vmt = process_h3_data(network_h3_intersection, driving_process_activity, "vmt")
+    vmt_column = "Weighted VMT from driving activities"
+    h3_vmt.rename(columns={"weighted_vmt": vmt_column}, inplace=True)
+
+    parking_process_activity = skims[
+        (skims["process"].isin(stationary_processes)) & (skims["vht"] == 0)
+    ].groupby(["scenario", "linkId"]).size().reset_index(name='count')
+
+    h3_count = process_h3_data(network_h3_intersection, parking_process_activity, "count")
+    count_column = "Weighted count of parking activities"
+    h3_count.rename(columns={"weighted_count": count_column}, inplace=True)
+
+    print("Processing emissions...")
+    # Process each pollutant
+    pm25 = process_h3_emissions(skims, network_h3_intersection, 'PM2_5')
+    nox = process_h3_emissions(skims, network_h3_intersection, 'NOx')
+    co = process_h3_emissions(skims, network_h3_intersection, 'CO')
+    co2 = process_h3_emissions(skims, network_h3_intersection, 'CO2')
+
+    # Convert to grams per square meter
+    pm25_column = "PM2_5 in grams per square meter"
+    pm25[pm25_column] = pm25["PM2_5"] * 1e6  # from metric ton to gram
+
+    nox_column = "NOx in grams per square meter"
+    nox[nox_column] = nox["NOx"] * 1e6
+
+    co_column = "CO in grams per square meter"
+    co[co_column] = co["CO"] * 1e6
+
+    co2_column = "CO2 in grams per square meter"
+    co2[co2_column] = co2["CO2"] * 1e6
+
+    print("Calculating delta emissions...")
+    # Calculate delta emissions between scenarios
+    # PM2.5 delta
+    # pm25_delta = pm25.pivot(index='h3_cell', columns='scenario', values='PM2_5').reset_index()
+    # pm25_delta = pm25_delta.fillna(0)
+    # pm25_delta["scenario"] = "-".join([scenario_2050_label, scenario_2018_label])
+    # pm25_delta['Delta_PM2_5'] = pm25_delta[scenario_2050_label] - pm25_delta[scenario_2018_label]
+    # pm25_delta_column = "Delta PM2_5 in grams per square meter"
+    # pm25_delta[pm25_delta_column] = pm25_delta["Delta_PM2_5"] * 1e6
+
+    # NOx delta
+    # nox_delta = nox.pivot(index='h3_cell', columns='scenario', values='NOx').reset_index()
+    # nox_delta = nox_delta.fillna(0)
+    # nox_delta["scenario"] = "-".join([scenario_2050_label, scenario_2018_label])
+    # nox_delta['Delta_NOx'] = nox_delta[scenario_2050_label] - nox_delta[scenario_2018_label]
+    # nox_delta_column = "Delta NOx in grams per square meter"
+    # nox_delta[nox_delta_column] = nox_delta["Delta_NOx"] * 1e6
+
+    # CO2 delta
+    # co2_delta = co2.pivot(index='h3_cell', columns='scenario', values='CO2').reset_index()
+    # co2_delta = co2_delta.fillna(0)
+    # co2_delta["scenario"] = "-".join([scenario_2050_label, scenario_2018_label])
+    # co2_delta['Delta_CO2'] = co2_delta[scenario_2050_label] - co2_delta[scenario_2018_label]
+    # co2_delta_column = "Delta CO2 in grams per square meter"
+    # co2_delta[co2_delta_column] = co2_delta["Delta_CO2"] * 1e6
+
+    # Figure 3: Activity heatmaps
+    plot_h3_heatmap(h3_vmt, vmt_column, scenario, plot_dir, is_delta=False, remove_outliers=True, in_log_scale=True)
+    plot_h3_heatmap(h3_count, count_column, scenario, plot_dir, is_delta=False, remove_outliers=True, in_log_scale=True)
+
+    # Figure 4: Emissions heatmaps
+    plot_h3_heatmap(pm25, pm25_column, scenario, plot_dir, is_delta=False, remove_outliers=True, in_log_scale=True)
+    plot_h3_heatmap(nox, nox_column, scenario, plot_dir, is_delta=False, remove_outliers=True, in_log_scale=True)
+    plot_h3_heatmap(co2, co2_column, scenario, plot_dir, is_delta=False, remove_outliers=True, in_log_scale=True)
+
+    # Figure 6: Delta emissions heatmaps
+    # plot_h3_heatmap(pm25_delta, pm25_delta_column, "-".join([scenario_2050_label, scenario_2018_label]), plot_dir,
+    #                 is_delta=True, remove_outliers=True, in_log_scale=True)
+    # plot_h3_heatmap(nox_delta, nox_delta_column, "-".join([scenario_2050_label, scenario_2018_label]), plot_dir,
+    #                 is_delta=True, remove_outliers=True, in_log_scale=True)
+    # plot_h3_heatmap(co2_delta, co2_delta_column, "-".join([scenario_2050_label, scenario_2018_label]), plot_dir,
+    #                 is_delta=True, remove_outliers=True, in_log_scale=True)
+    print("Processing completed successfully.")
+
+
+if __name__ == "__main__":
+    main()
