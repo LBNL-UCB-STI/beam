@@ -9,6 +9,7 @@ from tqdm.auto import tqdm
 import pandas as pd
 import re
 import math
+import glob
 import concurrent.futures
 
 
@@ -169,69 +170,184 @@ def load_heavy_csv(file_path, chunk_size=100000):
         return None
 
 
-def split_csv_gz(
-        input_file: str,
-        output_dir: str,
-        chunk_size: int = 1000000,  # Number of rows per chunk
-        compression: str = 'gzip',
-        process_function=None,
-        n_workers: int = 4
-):
+class CsvChunker:
     """
-    Split a large compressed CSV file into smaller chunks with progress tracking.
-
-    Args:
-        input_file: Path to the input CSV.gz file
-        output_dir: Directory to store the chunked files
-        chunk_size: Number of rows per chunk
-        compression: Compression format ('gzip', 'bz2', etc.)
-        process_function: Optional function to process each chunk
-        n_workers: Number of worker processes for parallel processing
-
-    Returns:
-        List of output file paths
+    A class for efficiently splitting and processing large CSV.GZ files in chunks.
+    Provides methods to split files, read specific chunks, and process chunks
+    with custom functions.
     """
-    # Ensure output directory exists
-    os.makedirs(output_dir, exist_ok=True)
 
-    # Get total number of lines for progress bar
-    print("Counting lines in file (this might take a while for a 10GB file)...")
-    with gzip.open(input_file, 'rt') as f:
-        # Get the header
-        header = f.readline()
+    def __init__(
+            self,
+            input_file=None,
+            output_dir=None,
+            chunk_size=1000000,
+            compression='gzip',
+            n_workers=None
+    ):
+        """
+        Initialize the CsvChunker.
 
-        # Count lines using a buffer-based approach (memory efficient)
-        total_lines = 0
-        for _ in tqdm(f, desc="Counting lines"):
-            total_lines += 1
+        Args:
+            input_file: Path to the input CSV.gz file
+            output_dir: Directory to store the chunked files
+            chunk_size: Number of rows per chunk
+            compression: Compression format ('gzip', 'bz2', etc.)
+            n_workers: Number of worker processes for parallel processing
+                       (defaults to CPU count if None)
+        """
+        self.input_file = input_file
+        self.output_dir = output_dir
+        self.chunk_size = chunk_size
+        self.compression = compression
+        self.n_workers = n_workers if n_workers is not None else os.cpu_count()
+        self.metadata = None
+        self.total_chunks = 0
+        self.total_lines = 0
 
-    # Calculate total chunks
-    total_chunks = math.ceil(total_lines / chunk_size)
-    print(f"File will be split into {total_chunks} chunks")
+        # Create output directory if specified
+        if self.output_dir:
+            os.makedirs(self.output_dir, exist_ok=True)
+            # Try to load existing metadata
+            self._load_metadata()
 
-    # Function to process a single chunk
-    def process_chunk(chunk_id):
+    def _get_metadata_path(self):
+        """Get the path to the metadata file."""
+        return os.path.join(self.output_dir, "chunks_metadata.json")
+
+    def _save_metadata(self, total_chunks):
+        """Save metadata about the chunking process."""
+        self.metadata = {
+            "source_file": self.input_file,
+            "chunk_size": self.chunk_size,
+            "total_chunks": total_chunks,
+            "total_lines": self.total_lines,
+            "creation_time": pd.Timestamp.now().isoformat()
+        }
+
+        with open(self._get_metadata_path(), 'w') as f:
+            json.dump(self.metadata, f)
+
+    def _load_metadata(self):
+        """Load metadata about the chunking process if it exists."""
+        metadata_path = self._get_metadata_path()
+        if os.path.exists(metadata_path):
+            with open(metadata_path, 'r') as f:
+                self.metadata = json.load(f)
+                if 'total_lines' in self.metadata:
+                    self.total_lines = self.metadata['total_lines']
+                if 'total_chunks' in self.metadata:
+                    self.total_chunks = self.metadata['total_chunks']
+
+    def _verify_chunks_exist(self):
+        """Verify that all expected chunks exist in the directory."""
+        if not self.metadata:
+            return False, []
+
+        missing_chunks = []
+
+        for i in range(self.metadata['total_chunks']):
+            chunk_file = os.path.join(self.output_dir, f"chunk_{i:05d}.csv.gz")
+            if not os.path.exists(chunk_file):
+                missing_chunks.append(i)
+
+        return len(missing_chunks) == 0, missing_chunks
+
+    def split_file(self, force_resplit=False):
+        """
+        Split a large compressed CSV file into smaller chunks with progress tracking.
+
+        Args:
+            force_resplit: If True, force resplitting even if chunks already exist
+
+        Returns:
+            List of output file paths
+        """
+        if not self.input_file or not self.output_dir:
+            raise ValueError("Input file and output directory must be specified")
+
+        # Check if chunks already exist
+        if not force_resplit and self.metadata is not None:
+            # Verify all chunks exist and match current parameters
+            if (self.metadata['source_file'] == self.input_file and
+                    self.metadata['chunk_size'] == self.chunk_size):
+
+                chunks_exist, missing_chunks = self._verify_chunks_exist()
+
+                if chunks_exist:
+                    print(f"Chunks already exist for {self.input_file} with chunk size {self.chunk_size}.")
+                    print(f"Total chunks: {self.metadata['total_chunks']}")
+
+                    # Get all chunk files
+                    chunk_files = sorted(glob.glob(os.path.join(self.output_dir, "chunk_*.csv.gz")))
+                    return chunk_files
+                else:
+                    print(f"Some chunks are missing: {missing_chunks}. Will recreate all chunks.")
+            else:
+                print(
+                    f"Parameters changed. Previous: {self.metadata['source_file']} with size {self.metadata['chunk_size']}")
+                print(f"Current: {self.input_file} with size {self.chunk_size}. Will recreate all chunks.")
+
+        # Get total number of lines for progress bar
+        print("Counting lines in file (this might take a while for a 10GB file)...")
+        with gzip.open(self.input_file, 'rt') as f:
+            # Get the header
+            header = f.readline()
+
+            # Count lines using a buffer-based approach (memory efficient)
+            self.total_lines = 0
+            for _ in tqdm(f, desc="Counting lines"):
+                self.total_lines += 1
+
+        # Calculate total chunks
+        self.total_chunks = math.ceil(self.total_lines / self.chunk_size)
+        print(f"File will be split into {self.total_chunks} chunks")
+
+        # Use a sequential approach to avoid multiprocessing issues
+        output_files = []
+        for chunk_id in tqdm(range(self.total_chunks), desc="Splitting file"):
+            chunk_file = self._process_chunk_sequential(chunk_id, header)
+            if chunk_file:
+                output_files.append(chunk_file)
+
+        # Save metadata
+        self._save_metadata(self.total_chunks)
+
+        print(f"Successfully split into {len(output_files)} chunks")
+        return output_files
+
+    def _process_chunk_sequential(self, chunk_id, header=None):
+        """
+        Process a single chunk sequentially (no multiprocessing).
+
+        Args:
+            chunk_id: Index of the chunk to process
+            header: Optional header text from the file
+
+        Returns:
+            Path to the saved chunk file or None if error
+        """
         # For the first chunk we need to read from the start
         if chunk_id == 0:
             skip_rows = 0
             header_flag = 0  # Don't skip header
         else:
             # Skip header for subsequent chunks
-            skip_rows = 1 + (chunk_id * chunk_size)
+            skip_rows = 1 + (chunk_id * self.chunk_size)
             header_flag = 0  # Already skipping rows, so don't skip header again
 
         # Determine how many rows to read
-        if chunk_id == total_chunks - 1:  # Last chunk
-            nrows = total_lines - (chunk_id * chunk_size)
+        if chunk_id == self.total_chunks - 1:  # Last chunk
+            nrows = self.total_lines - (chunk_id * self.chunk_size)
         else:
-            nrows = chunk_size
+            nrows = self.chunk_size
 
-        chunk_file = os.path.join(output_dir, f"chunk_{chunk_id:05d}.csv.gz")
+        chunk_file = os.path.join(self.output_dir, f"chunk_{chunk_id:05d}.csv.gz")
 
         try:
             # Read chunk from the original file
             df_chunk = pd.read_csv(
-                input_file,
+                self.input_file,
                 compression='gzip',
                 skiprows=skip_rows,
                 nrows=nrows,
@@ -239,19 +355,17 @@ def split_csv_gz(
             )
 
             # If it's not the first chunk, add the header
-            if chunk_id > 0:
-                with gzip.open(input_file, 'rt') as f:
+            if chunk_id > 0 and header is None:
+                with gzip.open(self.input_file, 'rt') as f:
                     header_text = f.readline().strip()
                     df_chunk.columns = header_text.split(',')
-
-            # Apply process function if provided
-            if process_function:
-                df_chunk = process_function(df_chunk)
+            elif chunk_id > 0 and header is not None:
+                df_chunk.columns = header.strip().split(',')
 
             # Save the chunk
             df_chunk.to_csv(
                 chunk_file,
-                compression=compression,
+                compression=self.compression,
                 index=False
             )
 
@@ -260,144 +374,183 @@ def split_csv_gz(
             print(f"Error processing chunk {chunk_id}: {str(e)}")
             return None
 
-    # Process chunks with progress bar
-    output_files = []
-    with tqdm(total=total_chunks, desc="Splitting file") as pbar:
-        with concurrent.futures.ProcessPoolExecutor(max_workers=n_workers) as executor:
-            futures = [executor.submit(process_chunk, i) for i in range(total_chunks)]
+    def get_chunk_count(self):
+        """
+        Get the total number of chunks in the directory.
 
-            for future in concurrent.futures.as_completed(futures):
-                result = future.result()
-                if result:
-                    output_files.append(result)
-                pbar.update(1)
+        Returns:
+            Number of chunks
+        """
+        if self.metadata is not None:
+            return self.metadata['total_chunks']
 
-    print(f"Successfully split into {len(output_files)} chunks")
-    return output_files
+        # Fallback to counting files if metadata is not available
+        if self.output_dir:
+            chunk_files = glob.glob(os.path.join(self.output_dir, "chunk_*.csv.gz"))
+            return len(chunk_files)
 
+        return 0
 
-def read_chunks(
-        chunk_dir: str,
-        process_function=None,
-        pattern: str = "chunk_*.csv.gz",
-        compression: str = 'gzip'
-):
-    """
-    Read and process chunks one by one.
+    def read_chunk_by_index(self, chunk_index):
+        """
+        Read a specific chunk by its index.
 
-    Args:
-        chunk_dir: Directory containing the chunks
-        process_function: Function to apply to each chunk
-        pattern: Glob pattern to match chunk files
-        compression: Compression format
+        Args:
+            chunk_index: Index of the chunk to read (0-based)
 
-    Yields:
-        Processed DataFrame chunks
-    """
-    import glob
+        Returns:
+            DataFrame chunk or None if not found
+        """
+        if not self.output_dir:
+            raise ValueError("Output directory must be specified")
 
-    # Get all chunk files sorted by name
-    chunk_files = sorted(glob.glob(os.path.join(chunk_dir, pattern)))
+        # Format the filename with leading zeros
+        chunk_file = os.path.join(self.output_dir, f"chunk_{chunk_index:05d}.csv.gz")
 
-    # Process each chunk with progress bar
-    for chunk_file in tqdm(chunk_files, desc="Processing chunks"):
-        df_chunk = pd.read_csv(chunk_file, compression=compression)
-
-        if process_function:
-            df_chunk = process_function(df_chunk)
-
-        yield df_chunk
-
-
-def process_all_chunks(
-        chunk_dir: str,
-        process_function,
-        pattern: str = "chunk_*.csv.gz",
-        compression: str = 'gzip',
-        output_file: str = None,
-        n_workers: int = 4
-):
-    """
-    Process all chunks in parallel and optionally combine results.
-
-    Args:
-        chunk_dir: Directory containing the chunks
-        process_function: Function to apply to each chunk
-        pattern: Glob pattern to match chunk files
-        compression: Compression format
-        output_file: Optional output file to save combined results
-        n_workers: Number of worker processes
-
-    Returns:
-        Combined DataFrame if output_file is None, otherwise None
-    """
-    import glob
-
-    # Get all chunk files sorted by name
-    chunk_files = sorted(glob.glob(os.path.join(chunk_dir, pattern)))
-    total_chunks = len(chunk_files)
-
-    # Function to process a single chunk file
-    def process_chunk_file(chunk_file):
-        df_chunk = pd.read_csv(chunk_file, compression=compression)
-        return process_function(df_chunk)
-
-    # Process chunks in parallel with progress bar
-    results = []
-    with tqdm(total=total_chunks, desc="Processing all chunks") as pbar:
-        with concurrent.futures.ProcessPoolExecutor(max_workers=n_workers) as executor:
-            futures = [executor.submit(process_chunk_file, f) for f in chunk_files]
-
-            for future in concurrent.futures.as_completed(futures):
-                result = future.result()
-                results.append(result)
-                pbar.update(1)
-
-    # Combine results if needed
-    if results:
-        combined = pd.concat(results, ignore_index=True)
-
-        if output_file:
-            combined.to_csv(output_file, compression=compression, index=False)
-            print(f"Combined results saved to {output_file}")
+        # Check if file exists
+        if not os.path.exists(chunk_file):
+            print(f"Chunk {chunk_index} does not exist at path: {chunk_file}")
             return None
-        else:
-            return combined
 
-    return None
+        # Read the chunk
+        print(f"Reading chunk {chunk_index} from {chunk_file}")
+        df_chunk = pd.read_csv(chunk_file, compression=self.compression)
+
+        return df_chunk
+
+    def process_chunk(self, chunk, process_function):
+        """
+        Apply a processing function to a chunk DataFrame.
+
+        Args:
+            chunk: DataFrame to process
+            process_function: Function to apply to the chunk
+
+        Returns:
+            Processed DataFrame
+        """
+        return process_function(chunk)
+
+    def read_chunks(self):
+        """
+        Read chunks one by one.
+
+        Yields:
+            DataFrame chunks
+        """
+        if not self.output_dir:
+            raise ValueError("Output directory must be specified")
+
+        # Get the number of chunks from metadata
+        total_chunks = self.get_chunk_count()
+
+        # Read each chunk in order
+        for i in tqdm(range(total_chunks), desc="Processing chunks"):
+            chunk_file = os.path.join(self.output_dir, f"chunk_{i:05d}.csv.gz")
+
+            if os.path.exists(chunk_file):
+                df_chunk = pd.read_csv(chunk_file, compression=self.compression)
+                yield df_chunk
+            else:
+                print(f"Warning: Chunk file {chunk_file} not found, skipping")
+
+    def process_all_chunks(self, process_function, output_file=None):
+        """
+        Process all chunks sequentially and optionally combine results.
+
+        Args:
+            process_function: Function to apply to each chunk
+            output_file: Optional output file to save combined results
+
+        Returns:
+            Combined DataFrame if output_file is None, otherwise None
+        """
+        if not self.output_dir:
+            raise ValueError("Output directory must be specified")
+
+        # Get the number of chunks from metadata
+        total_chunks = self.get_chunk_count()
+
+        # Create list of chunk files
+        chunk_files = [os.path.join(self.output_dir, f"chunk_{i:05d}.csv.gz") for i in range(total_chunks)]
+        existing_chunk_files = [f for f in chunk_files if os.path.exists(f)]
+
+        if len(existing_chunk_files) < total_chunks:
+            print(f"Warning: Expected {total_chunks} chunks but found {len(existing_chunk_files)}")
+
+        # Process chunks sequentially with progress bar
+        results = []
+        for chunk_file in tqdm(existing_chunk_files, desc="Processing all chunks"):
+            df_chunk = pd.read_csv(chunk_file, compression=self.compression)
+            processed_chunk = process_function(df_chunk)
+            results.append(processed_chunk)
+
+        # Combine results if needed
+        if results:
+            combined = pd.concat(results, ignore_index=True)
+
+            if output_file:
+                combined.to_csv(output_file, compression=self.compression, index=False)
+                print(f"Combined results saved to {output_file}")
+                return None
+            else:
+                return combined
+
+        return None
 
 
 # Example usage
-if __name__ == "__main__":
-    # Example process function
-    def example_process(df):
-        # Replace with your actual processing logic
-        return df.fillna(0)  # Just an example
+def example_process(df):
+    # Replace with your actual processing logic
+    return df.fillna(0)  # Just an example
 
+
+def main():
     work_dir = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-runs/20240123/2018-Baseline")
     # Split the large file
     input_file = f"{work_dir}/0.skimsEmissions.csv.gz"
     output_dir = f"{work_dir}/chunks"
     output_file = f"{work_dir}/0.skimsEmissions.processed.csv.gz"
 
-    # Split the file into chunks
-    split_csv_gz(
+    # Create a CsvChunker instance
+    chunker = CsvChunker(
         input_file=input_file,
         output_dir=output_dir,
         chunk_size=1000000,  # Adjust based on your memory constraints
-        process_function=example_process,
         n_workers=os.cpu_count()  # Use all available cores
     )
 
-    # Option 1: Process chunks one by one (lower memory usage)
-    for chunk in read_chunks(output_dir, process_function=example_process):
-        # Do something with each processed chunk
-        print(f"Processed chunk with {len(chunk)} rows")
+    # Split the file into chunks if not already done
+    chunker.split_file(force_resplit=False)  # Set to True to force resplitting
 
-    # Option 2: Process all chunks in parallel and combine results
-    combined_df = process_all_chunks(
-        chunk_dir=output_dir,
-        process_function=example_process,
-        output_file=output_file,
-        n_workers=os.cpu_count()
-    )
+    print(f"Total chunks available: {chunker.get_chunk_count()}")
+
+    # Example 1: Read a specific chunk by index
+    chunk_index = 3  # Read the 4th chunk (0-based index)
+    df_specific_chunk = chunker.read_chunk_by_index(chunk_index)
+
+    if df_specific_chunk is not None:
+        print(f"Successfully read chunk {chunk_index} with {len(df_specific_chunk)} rows")
+        # Process the specific chunk
+        processed_chunk = chunker.process_chunk(df_specific_chunk, example_process)
+        print(f"Processed chunk has {len(processed_chunk)} rows")
+        print(len(df_specific_chunk))
+        print(df_specific_chunk.head(5))
+
+    # # Example 2: Process chunks one by one (lower memory usage)
+    # for i, chunk in enumerate(chunker.read_chunks()):
+    #     # Process the chunk
+    #     processed_chunk = example_process(chunk)
+    #     print(f"Processed chunk {i} with {len(processed_chunk)} rows")
+    #     if i >= 2:  # Just process a few chunks as an example
+    #         break
+    #
+    # # Example 3: Process all chunks and combine results
+    # combined_df = chunker.process_all_chunks(
+    #     process_function=example_process,
+    #     output_file=output_file
+    # )
+
+
+if __name__ == "__main__":
+    main()
