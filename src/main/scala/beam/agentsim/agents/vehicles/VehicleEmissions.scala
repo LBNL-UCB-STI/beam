@@ -78,19 +78,17 @@ class VehicleEmissions(
         vehicleOperationTimeTrieMap,
         beamServices.beamConfig.beam.agentsim.agents.vehicles.emissions
       )
-      if (beamServices.beamConfig.beam.agentsim.agents.vehicles.emissions.skims) {
+      if (!emissions.notValid && beamServices.beamConfig.beam.agentsim.agents.vehicles.emissions.skims) {
         // Create and process EmissionsSkimmerEvent
         beamServices.matsimServices.getEvents.processEvent(
           EmissionsSkimmerEvent(
             time = data.linkStartTime,
             linkId = data.linkId,
-            zone = data.taz.map(_.tazId.toString).getOrElse(""),
             vehicleType = data.vehicleType.id.toString,
             emissions = emissions,
             emissionsProcess = process,
             travelTime = data.linkTravelTime.getOrElse(0.0),
             parkingDuration = data.parkingDuration.getOrElse(0.0),
-            energyConsumption = data.primaryEnergyConsumed + data.secondaryEnergyConsumed,
             beamServices = beamServices
           )
         )

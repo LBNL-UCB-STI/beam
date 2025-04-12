@@ -14,12 +14,11 @@ class EmissionsSkims() extends AbstractSkimmerReadOnly {
     linkId: Id[Link],
     vehicleType: String,
     hour: Int,
-    tazId: String,
     emissionsProcess: EmissionsProfile.EmissionsProcess
   ): Option[EmissionsSkimmerInternal] = {
     val getSkimValue = pastSkims
       .get(currentIteration - 1)
-      .flatMap(_.get(EmissionsSkimmerKey(linkId.toString, vehicleType, hour, tazId, emissionsProcess)))
+      .flatMap(_.get(EmissionsSkimmerKey(linkId.toString.toInt, vehicleType, hour, emissionsProcess)))
       .asInstanceOf[Option[EmissionsSkimmerInternal]]
     if (getSkimValue.nonEmpty) {
       numberOfSkimValueFound = numberOfSkimValueFound + 1
@@ -33,10 +32,9 @@ class EmissionsSkims() extends AbstractSkimmerReadOnly {
     linkId: Id[Link],
     vehicleType: String,
     hour: Int,
-    tazId: String,
     emissionsProcess: EmissionsProfile.EmissionsProcess
   ): Option[EmissionsSkimmerInternal] =
     aggregatedFromPastSkims
-      .get(EmissionsSkimmerKey(linkId.toString, vehicleType, hour, tazId, emissionsProcess))
+      .get(EmissionsSkimmerKey(linkId.toString.toInt, vehicleType, hour, emissionsProcess))
       .asInstanceOf[Option[EmissionsSkimmerInternal]]
 }
