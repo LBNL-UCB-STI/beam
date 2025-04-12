@@ -448,7 +448,7 @@ object VehicleEmissions extends LazyLogging {
           operationTimeMap: TrieMap[Id[BeamVehicle], Double],
           _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
-          if(!operationTimeMap.contains(data.vehicleId))
+          if (!operationTimeMap.contains(data.vehicleId))
             operationTimeMap.put(data.vehicleId, data.activityStartTime)
 
           val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
@@ -487,7 +487,8 @@ object VehicleEmissions extends LazyLogging {
                 operationTimeMap.update(data.vehicleId, data.linkStartTime + vehicleDurationInSec)
                 val workingIdleFactor =
                   workdayIdleFactor.get(data.vehicleType.vehicleCategory).map(_(emissionsConfig)).getOrElse(0.0)
-                val portionOfIdlingHours = ((operationDurationInSec + vehicleDurationInSec) / 3600.0) * workingIdleFactor
+                val portionOfIdlingHours =
+                  ((operationDurationInSec + vehicleDurationInSec) / 3600.0) * workingIdleFactor
                 portionOfIdlingHours
             }
 
@@ -508,7 +509,7 @@ object VehicleEmissions extends LazyLogging {
           operationTimeMap: TrieMap[Id[BeamVehicle], Double],
           _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
-          if(!operationTimeMap.contains(data.vehicleId))
+          if (!operationTimeMap.contains(data.vehicleId))
             operationTimeMap.put(data.vehicleId, data.activityStartTime)
 
           val numberOfVehicleStartTimes = 1 // We calculate it for 1 leave parking event
@@ -530,7 +531,7 @@ object VehicleEmissions extends LazyLogging {
           operationTimeMap: TrieMap[Id[BeamVehicle], Double],
           _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
-          if(!operationTimeMap.contains(data.vehicleId))
+          if (!operationTimeMap.contains(data.vehicleId))
             operationTimeMap.put(data.vehicleId, data.activityStartTime)
 
           val vehicleParkingInHours = data.parkingDuration.map(_ / 3600.0).getOrElse(0.0)
@@ -552,7 +553,7 @@ object VehicleEmissions extends LazyLogging {
           operationTimeMap: TrieMap[Id[BeamVehicle], Double],
           _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
-          if(!operationTimeMap.contains(data.vehicleId))
+          if (!operationTimeMap.contains(data.vehicleId))
             operationTimeMap.put(data.vehicleId, data.activityStartTime)
 
           val numberOfVehicleStartTimes = 1 // We calculate it for 1 leave parking event
@@ -573,7 +574,7 @@ object VehicleEmissions extends LazyLogging {
           operationTimeMap: TrieMap[Id[BeamVehicle], Double],
           _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
-          if(!operationTimeMap.contains(data.vehicleId))
+          if (!operationTimeMap.contains(data.vehicleId))
             operationTimeMap.put(data.vehicleId, data.activityStartTime)
 
           val vehicleHoursTraveledInHours =
@@ -595,7 +596,7 @@ object VehicleEmissions extends LazyLogging {
           operationTimeMap: TrieMap[Id[BeamVehicle], Double],
           _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
-          if(!operationTimeMap.contains(data.vehicleId))
+          if (!operationTimeMap.contains(data.vehicleId))
             operationTimeMap.put(data.vehicleId, data.activityStartTime)
 
           val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
@@ -616,7 +617,7 @@ object VehicleEmissions extends LazyLogging {
           operationTimeMap: TrieMap[Id[BeamVehicle], Double],
           _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
-          if(!operationTimeMap.contains(data.vehicleId))
+          if (!operationTimeMap.contains(data.vehicleId))
             operationTimeMap.put(data.vehicleId, data.activityStartTime)
 
           val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
@@ -637,7 +638,7 @@ object VehicleEmissions extends LazyLogging {
           operationTimeMap: TrieMap[Id[BeamVehicle], Double],
           _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
-          if(!operationTimeMap.contains(data.vehicleId))
+          if (!operationTimeMap.contains(data.vehicleId))
             operationTimeMap.put(data.vehicleId, data.activityStartTime)
 
           val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
