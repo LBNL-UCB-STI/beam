@@ -89,189 +89,150 @@ def read_skims_emissions_chunked(
         DataFrame with processed emissions data
     """
     start_time = time.time()
+    print(f"Processing emissions data from {emissions_skims_file}")
 
-    # Pre-process lookups for faster merges
-    unique_vehicle_types_id = vehicle_types['vehicleTypeId'].unique()
+    # Create optimized lookups
+    unique_vehicle_types = vehicle_types['vehicleTypeId'].unique()
+    vehicle_type_dict = vehicle_types.set_index('vehicleTypeId')[['mappedClass', 'mappedFuel']].to_dict('index')
+    network_lengths = network.set_index('linkId')['linkLength'].to_dict()
 
-    # Create dictionaries for faster lookups instead of merges
-    vehicle_type_lookup = vehicle_types.set_index('vehicleTypeId')[['mappedClass', 'mappedFuel']].to_dict('index')
-    network_lookup = network.set_index('linkId')['linkLength'].to_dict()
-
-    # Calculate constant values once
+    # Constants for calculations
     expansion_factor_scalar = pa.scalar(expansion_factor, type=pa.float64())
     million_scalar = pa.scalar(1e6, type=pa.float64())
     joule_to_kwh_scalar = pa.scalar(3.6e6, type=pa.float64())
     second_to_hour_scalar = pa.scalar(3.6e3, type=pa.float64())
     mile_conversion = 6.21371192e-4  # meters to miles
 
-    # Pre-define column lists
-    pollutant_cols = list(emissions_config["pollutants"].keys())
-    scaled_pollutant_cols = [f'scaled_{pollutant}' for pollutant in pollutant_cols]
+    # List of pollutants to process
+    pollutant_cols = ['CH4', 'CO', 'CO2', 'HC', 'NH3', 'NOx', 'PM', 'PM10', 'PM2_5', 'ROG', 'SOx', 'TOG', 'BC', 'BCm',
+                      'BCh']
 
-    # Get the field names from the schema
-    include_columns = None  # Include all columns
-    if isinstance(SKIMS_SCHEMA, pa.Schema):
-        include_columns = [field.name for field in SKIMS_SCHEMA]
-
-    # Set up Arrow CSV reader with optimized options
+    # Set up PyArrow CSV reader
     csv_reader = pv.open_csv(
         emissions_skims_file,
-        read_options=pv.ReadOptions(
-            block_size=chunk_size,
-            use_threads=True,
-            skip_rows_after_names=0
-        ),
-        parse_options=pv.ParseOptions(
-            delimiter=',',
-            quote_char='"',
-            escape_char=False,
-            newlines_in_values=False
-        ),
-        convert_options=pv.ConvertOptions(
-            column_types=SKIMS_SCHEMA,
-            include_columns=include_columns
-        ) if include_columns else pv.ConvertOptions(column_types=SKIMS_SCHEMA)
+        read_options=pv.ReadOptions(block_size=chunk_size, use_threads=True),
+        parse_options=pv.ParseOptions(delimiter=','),
+        convert_options=pv.ConvertOptions(column_types=SKIMS_SCHEMA)
     )
 
-    # Get total file size for progress bar
-    total_size = os.path.getsize(emissions_skims_file)
+    # Progress tracking
+    file_size = os.path.getsize(emissions_skims_file)
+    progress = tqdm(total=file_size, unit='B', unit_scale=True, desc="Processing emissions data")
 
-    # Initialize progress bar
-    pbar = tqdm(total=total_size, unit='B', unit_scale=True, desc="Processing chunks",
-                position=0, leave=True, mininterval=1.0, maxinterval=10.0, miniters=1)
+    # Define function to process chunks in parallel
+    def process_chunk(chunk):
+        # Filter to relevant vehicle types
+        mask = pc.is_in(chunk['vehicleTypeId'], pa.array(unique_vehicle_types))
+        filtered = chunk.filter(mask)
 
-    # Process in parallel using threads
-    with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
+        if filtered.num_rows == 0:
+            return None
+
+        # Calculate expanded observations
+        observations_expansion = pc.multiply(filtered['observations'], expansion_factor_scalar)
+
+        # Calculate scaled pollutants using PyArrow operations
+        new_fields = []
+        new_columns = []
+
+        for pollutant in pollutant_cols:
+            new_fields.append(pa.field(f'scaled_{pollutant}', pa.float64(), True))
+            new_columns.append(
+                pc.multiply(
+                    pc.divide(filtered[pollutant], million_scalar),
+                    observations_expansion
+                )
+            )
+
+        # Calculate kwh using PyArrow
+        new_fields.append(pa.field('kwh', pa.float64(), True))
+        new_columns.append(
+            pc.multiply(
+                pc.divide(filtered['energyInJoule'], joule_to_kwh_scalar),
+                observations_expansion
+            )
+        )
+
+        # Calculate vht using PyArrow
+        new_fields.append(pa.field('vht', pa.float64(), True))
+        new_columns.append(
+            pc.multiply(
+                pc.divide(filtered['travelTimeInSecond'], second_to_hour_scalar),
+                observations_expansion
+            )
+        )
+
+        # Create new record batch with additional columns
+        new_schema = filtered.schema
+        for field in new_fields:
+            new_schema = new_schema.append(field)
+
+        result_batch = pa.RecordBatch.from_arrays(
+            filtered.columns + new_columns,
+            schema=new_schema
+        )
+
+        # Convert to pandas after all Arrow computations
+        df = result_batch.to_pandas()
+
+        # Add mapped class and fuel
+        df['mappedClass'] = df['vehicleTypeId'].map({k: v['mappedClass'] for k, v in vehicle_type_dict.items()})
+        df['mappedFuel'] = df['vehicleTypeId'].map({k: v['mappedFuel'] for k, v in vehicle_type_dict.items()})
+
+        # Add link length and calculate VMT
+        df['linkLength'] = df['linkId'].map(network_lengths)
+        df['vmt'] = df['linkLength'] * mile_conversion * df['observations'] * expansion_factor
+
+        # Rename process column
+        df.rename(columns={'emissionsProcess': 'process'}, inplace=True)
+
+        # Melt the dataframe for pollutants
+        id_cols = ['hour', 'linkId', 'tazId', 'mappedClass', 'mappedFuel',
+                   'process', 'kwh', 'vmt', 'vht']
+
+        # Efficient melt operation
+        result_dfs = []
+        for pollutant in pollutant_cols:
+            temp_df = df[id_cols + [f'scaled_{pollutant}']].copy()
+            temp_df['pollutant'] = pollutant
+            temp_df['rate'] = temp_df[f'scaled_{pollutant}']
+            temp_df = temp_df.drop(columns=[f'scaled_{pollutant}'])
+            result_dfs.append(temp_df)
+
+        melted = pd.concat(result_dfs, ignore_index=True)
+        melted['scenario'] = scenario_name
+
+        return melted
+
+    # Process chunks in parallel
+    result_chunks = []
+    with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = []
 
-        # Define the processing function to run in parallel
-        def process_chunk(chunk):
-            chunk_df = None
-            try:
-                # Filter the chunk
-                mask = pa.compute.is_in(chunk['vehicleTypeId'], pa.array(unique_vehicle_types_id))
-                filtered_chunk = chunk.filter(mask)
-
-                if filtered_chunk.num_rows == 0:
-                    return None
-
-                # Perform calculations in PyArrow
-                observations_expansion = pc.multiply(
-                    filtered_chunk['observations'], expansion_factor_scalar
-                )
-
-                # Process all pollutants in one go
-                new_columns = []
-                new_fields = []
-
-                # Calculate all scaled pollutants at once
-                for pollutant in pollutant_cols:
-                    new_fields.append(pa.field(f'scaled_{pollutant}', pa.float64(), True))
-                    new_columns.append(pc.multiply(
-                        pc.divide(filtered_chunk[pollutant], million_scalar),
-                        observations_expansion
-                    ))
-
-                # Calculate kwh
-                new_fields.append(pa.field('kwh', pa.float64(), True))
-                new_columns.append(
-                    pc.multiply(
-                        pc.divide(filtered_chunk['energyInJoule'], joule_to_kwh_scalar),
-                        observations_expansion
-                    )
-                )
-
-                # Calculate vht
-                new_fields.append(pa.field('vht', pa.float64(), True))
-                new_columns.append(
-                    pc.multiply(
-                        pc.divide(filtered_chunk['travelTimeInSecond'], second_to_hour_scalar),
-                        observations_expansion
-                    )
-                )
-
-                # Create a new RecordBatch with additional columns
-                new_schema = filtered_chunk.schema
-                for field in new_fields:
-                    new_schema = new_schema.append(field)
-
-                new_columns = filtered_chunk.columns + new_columns
-                result_batch = pa.RecordBatch.from_arrays(new_columns, schema=new_schema)
-
-                # Convert to pandas only after all Arrow computations are done
-                df_chunk = result_batch.to_pandas()
-
-                # Add mapped class and fuel using vectorized dictionary mapping
-                df_chunk['mappedClass'] = df_chunk['vehicleTypeId'].map(
-                    {k: v['mappedClass'] for k, v in vehicle_type_lookup.items()}
-                )
-                df_chunk['mappedFuel'] = df_chunk['vehicleTypeId'].map(
-                    {k: v['mappedFuel'] for k, v in vehicle_type_lookup.items()}
-                )
-
-                # Add link length using vectorized mapping
-                df_chunk['linkLength'] = df_chunk['linkId'].map(network_lookup)
-
-                # Calculate VMT vectorized
-                df_chunk['vmt'] = df_chunk['linkLength'] * mile_conversion * df_chunk['observations'] * expansion_factor
-
-                # Rename column
-                df_chunk.rename(columns={'emissionsProcess': 'process'}, inplace=True)
-
-                # Selecting only needed columns before melt to reduce memory
-                id_vars = ['hour', 'linkId', 'tazId', 'mappedClass', 'mappedFuel', 'process', 'kwh', 'vmt', 'vht']
-
-                # More efficient melt operation
-                result_rows = []
-                for pollutant in pollutant_cols:
-                    scaled_col = f'scaled_{pollutant}'
-                    temp_df = df_chunk[id_vars + [scaled_col]].copy()
-                    temp_df['pollutant'] = pollutant
-                    temp_df['rate'] = temp_df[scaled_col]
-                    temp_df.drop(columns=[scaled_col], inplace=True)
-                    result_rows.append(temp_df)
-
-                chunk_df = pd.concat(result_rows, ignore_index=True)
-                chunk_df['scenario'] = scenario_name
-
-                return chunk_df
-
-            except Exception as e:
-                print(f"Error processing chunk: {e}")
-                return None
-
-        # Process chunks in parallel
         for chunk in csv_reader:
-            chunk_size = chunk.nbytes
+            progress.update(chunk.nbytes)
             futures.append(executor.submit(process_chunk, chunk))
-            pbar.update(chunk_size)
 
-        # Collect results
-        result_chunks = []
         for future in concurrent.futures.as_completed(futures):
             result = future.result()
             if result is not None and not result.empty:
                 result_chunks.append(result)
 
-    # Close progress bar
-    pbar.close()
+    progress.close()
 
-    # Combine all processed chunks
+    # Combine all chunks
     if not result_chunks:
         print("No valid data processed")
         return pd.DataFrame()
 
-    # Use pandas.concat with optimized parameters
-    melted = pd.concat(result_chunks, ignore_index=True, copy=False)
+    final_result = pd.concat(result_chunks, ignore_index=True)
 
     # Clean up memory
     del result_chunks
     gc.collect()
 
-    end_time = time.time()
-    print(f"Time taken: {end_time - start_time:.2f} seconds to process {emissions_skims_file}")
-
-    return melted
+    print(f"Processing completed in {time.time() - start_time:.2f} seconds")
+    return final_result
 
 def create_model_vmt_comparison_chart(skims_data, emfac_vmt, output_dir):
     """
@@ -302,38 +263,43 @@ def create_model_vmt_comparison_chart(skims_data, emfac_vmt, output_dir):
 
 def load_network(network_file, source_epsg):
     """
-    Load and transform network data (optimized version)
+    Load and transform network data
 
     Args:
         network_file: Path to network CSV file
         source_epsg: Source EPSG code for coordinate transformation
 
     Returns:
-        DataFrame with network data
+        DataFrame with network data including transformed coordinates
     """
-    # Read and process network file
+    print(f"Loading network data from {network_file}")
+
+    # Read network file
     network = pd.read_csv(network_file)
+
+    # Create transformer for coordinate conversion
     transformer = Transformer.from_crs(source_epsg, "EPSG:4326", always_xy=True)
 
-    # Extract coordinate columns as numpy arrays for faster processing
+    # Extract coordinates as numpy arrays for efficient batch processing
     from_x = network['fromLocationX'].values
     from_y = network['fromLocationY'].values
     to_x = network['toLocationX'].values
     to_y = network['toLocationY'].values
 
-    # Perform batch transformation (much faster than row-by-row)
-    from_transformed = transformer.transform(from_x, from_y)
-    to_transformed = transformer.transform(to_x, to_y)
+    # Transform coordinates in a batch (much faster than row-by-row)
+    from_lng_lat = transformer.transform(from_x, from_y)
+    to_lng_lat = transformer.transform(to_x, to_y)
 
     # Update the dataframe with transformed coordinates
-    network['fromLocationX'] = from_transformed[0]
-    network['fromLocationY'] = from_transformed[1]
-    network['toLocationX'] = to_transformed[0]
-    network['toLocationY'] = to_transformed[1]
+    network['fromLocationX'] = from_lng_lat[0]  # longitude
+    network['fromLocationY'] = from_lng_lat[1]  # latitude
+    network['toLocationX'] = to_lng_lat[0]  # longitude
+    network['toLocationY'] = to_lng_lat[1]  # latitude
 
-    return network[['linkId', 'linkLength', 'fromLocationX', 'fromLocationY', 'toLocationX', 'toLocationY']]
-
-    # Helper function for parallel processing
+    # Return only needed columns
+    return network[['linkId', 'linkLength',
+                    'fromLocationX', 'fromLocationY',
+                    'toLocationX', 'toLocationY']]
 
 
 # Helper function for parallel processing - defined outside the main function
