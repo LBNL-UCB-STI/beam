@@ -6,13 +6,12 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from utils.files_utils import sanitize_name
-
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, parent_dir)
 
+from python.utils.files_utils import sanitize_name
 
 def parse_sample_probability_string(prob_string):
     """

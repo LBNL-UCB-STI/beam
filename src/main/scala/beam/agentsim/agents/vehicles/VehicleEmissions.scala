@@ -399,7 +399,7 @@ object VehicleEmissions extends LazyLogging {
       // Based on silt loading, vehicle weight, precipitation, and road type.
       // E = k * (SL^0.91) * (W^1.02) * (1 - P/N/4) with PM2.5/PM10 fractions applied.
       // xVMT => gram/veh-mile
-      case "dust" | "road_dust" | "paved_road_dust" => Some(PRDUST)
+      case "dust" | "road_dust" | "paved_road_dust" | "prdust" => Some(PRDUST)
 
       // if process is not recognized then RUNEX emission will be used
       case _ =>
@@ -775,13 +775,7 @@ object VehicleEmissions extends LazyLogging {
 
             def readRateCheckIfNull(headerName: String): Double = {
               val value = csvRecord.getDouble(headerName)
-              if (value == null) {
-                log.warn(
-                  s"Record $csvRecord does not contain a valid rate for $headerName. " +
-                  "Warning early to bring attention and get it fixed if not intended."
-                )
-                0.0
-              } else value
+              if (value == null) 0.0 else value
             }
 
             // Emissions Rates in Grans Per Mile

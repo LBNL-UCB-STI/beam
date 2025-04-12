@@ -193,7 +193,7 @@ def pivot_rates_for_beam(df_raw):
     return pivot_df
 
 
-def process_rates_group(df, row, emissions_version):
+def process_rates_group(df, row):
     mask = ((df["county"] == row["county"]) & (df["emfacId"] == row["emfacId"]))
     df_subset = df[mask]
     df_output_list = []
@@ -333,10 +333,6 @@ def process_emfac_rates(
     # Use parallel processing with fewer, larger chunks
     with Pool(num_cores) as pool:
         with tqdm(total=num_cores, desc="Processing chunks") as pbar:
-            def update_progress(*args):
-                pbar.update()
-                return args[0]
-
             # Use imap to process chunks sequentially with progress updates
             df_output_list = []
             for result in pool.imap(process_chunk, [(chunk, emissions_rates) for chunk in chunks]):
@@ -352,7 +348,6 @@ def process_emfac_rates(
 
     # Count rows before filtering
     total_rows_before = len(df_output)
-    filtered_out = df_output[(df_output[emission_columns] == 0).all(axis=1)]
     df_output = df_output[~(df_output[emission_columns] == 0).all(axis=1)]
     # Count rows after filtering
     total_rows_after = len(df_output)
@@ -516,10 +511,15 @@ def process_emissions_rates(_study_area, _scenario_name, _work_dir, config, form
     """
     # File paths for outputs
     rates_config = config["rates"]
-    combined_rate_file = os.path.join(_work_dir, f"{rates_config["output_dir"]}/{_study_area}_emissions_rates_{_scenario_name}.csv")
+    combined_rate_file = os.path.join(_work_dir, f"{config["run"]["output_dir"]}/{_study_area}_emissions_rates_{_scenario_name}.csv")
 
     # Ensure output directory exists
     os.makedirs(os.path.dirname(combined_rate_file), exist_ok=True)
+
+    # Specify the columns you want to appear first
+    first_cols = [
+        "scenario", "emfacId", "county", "speed_mph_float_bins", "time_minutes_float_bins", "road_category", "process"
+    ]
 
     if check_files([combined_rate_file], config["override_rates"]):
         print(f"Loading existing combined rates from: {combined_rate_file}")
@@ -547,29 +547,45 @@ def process_emissions_rates(_study_area, _scenario_name, _work_dir, config, form
             if 'emfac' in rates_config:
                 print(f"\nProcessing EMFAC emissions for scenario '{_scenario_name}'")
                 emfac_rates = process_emfac_emissions(_study_area, _scenario_name, _work_dir, config, format_func)
-                if not emfac_rates.empty:
-                    dfs.append(emfac_rates)
-                    emfac_ids.update(emfac_rates["emfacId"].unique())
-                    print(f"Added {len(emfac_rates)} EMFAC emission rows")
-                else:
-                    print("No EMFAC emissions were processed")
                 pbar.update(1)
             else:
+                emfac_rates = None
                 print(f"Skipping EMFAC processing for scenario '{_scenario_name}' as no config is provided.")
 
             # Process black carbon emissions if configured
             if 'black_carbon' in rates_config:
                 print(f"\nProcessing Black Carbon emissions for scenario '{_scenario_name}'")
                 black_carbon_rates = process_black_carbon(_study_area, _scenario_name, _work_dir, config, format_func)
-                if not black_carbon_rates.empty:
-                    dfs.append(black_carbon_rates)
-                    emfac_ids.update(black_carbon_rates["emfacId"].unique())
-                    print(f"Added {len(black_carbon_rates)} Black Carbon emission rows")
-                else:
-                    print("No Black Carbon emissions were processed")
                 pbar.update(1)
             else:
+                black_carbon_rates = None
                 print(f"Skipping Black Carbon processing for scenario '{_scenario_name}' as no config is provided.")
+
+            if emfac_rates is not None and black_carbon_rates is not None:
+                emfac_bc_keys = ["emfacId", "county", "speed_mph_float_bins", "time_minutes_float_bins", "process"]
+                # Filter black_carbon_rates to keep only key columns and columns starting with "rate_bc"
+                bc_cols_to_keep = [col for col in black_carbon_rates.columns if col.startswith("rate_bc")]
+                bc_rates_filtered = black_carbon_rates[emfac_bc_keys + bc_cols_to_keep]
+                # Filter emfac_rates to keep everything except columns starting with "rate_bc"
+                emfac_cols_to_keep = [col for col in emfac_rates.columns if not col.startswith("rate_bc")]
+                emfac_rates_filtered = emfac_rates[emfac_cols_to_keep]
+                # Merge the filtered dataframes
+                emfac_bc_rates = pd.merge(emfac_rates_filtered, bc_rates_filtered, on=emfac_bc_keys,how='outer')
+                print(f"Merged EMFAC and Black Carbon rates. Shape: {emfac_bc_rates.shape}")
+            elif emfac_rates is not None:
+                emfac_bc_rates = emfac_rates
+                print(f"Using EMFAC rates only. Shape: {emfac_rates.shape}")
+            elif black_carbon_rates is not None:
+                emfac_bc_rates = black_carbon_rates
+                print(f"Using Black Carbon rates only. Shape: {black_carbon_rates.shape}")
+            else:
+                emfac_bc_rates = pd.DataFrame()  # Create empty DataFrame if both are None
+                print("No emission rates available.")
+
+            if not emfac_bc_rates.empty:
+                dfs.append(emfac_bc_rates)
+                emfac_ids.update(emfac_bc_rates["emfacId"].unique())
+                print(f"Added {len(emfac_bc_rates)} emission rows")
 
             # Process road dust emissions if configured
             if 'road_dust' in rates_config:
@@ -622,11 +638,6 @@ def process_emissions_rates(_study_area, _scenario_name, _work_dir, config, form
             # Report on final combined size
             print(f"Combined rates shape: {_combined_rates.shape}")
 
-            # Specify the columns you want to appear first
-            first_cols = [
-                "scenario", "emfacId", "county", "speed_mph_float_bins", "time_minutes_float_bins", "road_category",
-                "process"
-            ]
             remaining_cols = [col for col in _combined_rates.columns if col not in first_cols]
             _combined_rates = _combined_rates[first_cols + remaining_cols]
 
