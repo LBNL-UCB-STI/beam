@@ -1,9 +1,9 @@
 import os
-import re
 import time
-import psutil
 from pathlib import Path
+
 import polars as pl
+import psutil
 
 
 class TurboEmissionsProcessor:
@@ -27,12 +27,6 @@ class TurboEmissionsProcessor:
         self.keep_columns = ['hour', 'linkId', 'vehicleTypeId', 'process',
                              'travelTimeInSecond', 'parkingDurationInSecond',
                              'observations', 'iterations', 'emissions']
-
-        # Pre-compile regex patterns for all pollutants (using raw strings)
-        self.regex_patterns = {
-            pollutant: re.compile(fr"{pollutant}:([\d\.E\-]+)")
-            for pollutant in self.target_pollutants
-        }
 
     def process(self):
         """
@@ -73,29 +67,19 @@ class TurboEmissionsProcessor:
 
         for pollutant in self.target_pollutants:
             pollutant_start = time.time()
-            pattern = self.regex_patterns[pollutant]
-
-            # Create extraction function using pre-compiled regex pattern
-            def extract_value(s):
-                if s is None:
-                    return None
-                match = pattern.search(s)
-                if match:
-                    try:
-                        return float(match.group(1))
-                    except (ValueError, TypeError):
-                        return None
-                return None
 
             # Filter for rows containing this pollutant (much faster than regex on all rows)
             pollutant_df = df.filter(pl.col("emissions").str.contains(f"{pollutant}:"))
 
             if len(pollutant_df) > 0:
-                # Extract the pollutant value and drop rows with null values
+                # Extract the pollutant value using Polars' native string extraction (much faster)
                 pollutant_df = (
                     pollutant_df
-                    .with_column(
-                        pl.col("emissions").map_elements(extract_value).alias(pollutant)
+                    .with_columns(
+                        pl.col("emissions")
+                        .str.extract(fr"{pollutant}:([\d\.E\-]+)", group_index=1)
+                        .cast(pl.Float64)
+                        .alias(pollutant)
                     )
                     .filter(pl.col(pollutant).is_not_null())
                     .drop("emissions")  # Drop emissions column as we've extracted what we need
@@ -103,13 +87,19 @@ class TurboEmissionsProcessor:
 
                 # Write to output file if we have data
                 if len(pollutant_df) > 0:
-                    input_basename = Path(self.input_file).name
-                    input_name = input_basename.split('.')[0]
-                    if input_name.endswith('.csv'):
-                        input_name = input_name[:-4]
+                    filename = os.path.basename(self.input_file)
+                    if filename.endswith(".csv.gz"):
+                        new_file_name = filename.replace(".csv.gz", f".{pollutant}.csv.gz")
+                    else:
+                        new_file_name = filename.replace(".csv", f".{pollutant}.csv.gz")
 
-                    output_path = self.output_dir / f"{input_name}_{pollutant}.csv.gz"
-                    pollutant_df.write_csv(str(output_path), compression="gzip")
+                    output_path = self.output_dir / new_file_name
+
+                    # Fix: Use the correct syntax for Polars CSV writing with compression
+                    pollutant_df.write_csv(
+                        file=str(output_path),
+                        include_header=True
+                    )
 
                     created_files.append(str(output_path))
                     print(f"  - {pollutant}: {len(pollutant_df):,} rows in {time.time() - pollutant_start:.2f} seconds")
