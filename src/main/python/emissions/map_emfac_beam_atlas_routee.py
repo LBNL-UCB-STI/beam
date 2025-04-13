@@ -376,8 +376,7 @@ def run():
     scenario = "2018-Baseline"
     study_area_config = get_area_config(area)
     config = study_area_config["emissions"][scenario]
-    emissions_dir = f"emissions/{run_batch}"
-    config["run"]["emissions_dir"] = emissions_dir
+    config["run"]["output_dir"] = f"emissions/{run_batch}"
     beam_config = config["beam"]
     beam_config["carriers_file"] = f"beam-ft/{run_batch}/{scenario}/carriers--{scenario}.csv"
     beam_config["payloads_file"] = f"beam-ft/{run_batch}/{scenario}/payloads--{scenario}.csv"
@@ -386,7 +385,7 @@ def run():
     beam_config["pax_vehicles_file"] = f"beam-pax/vehicles--atlas--2017-Baseline.csv.gz"
 
     emfac_pop_by_model_year_file = config["rates"]["emfac"]["emfac_pop_by_model_year_file"]
-    vehicle_class_output_file = f"{emissions_dir}/{area}_vehicle_class_mapping_{scenario}.json"
+    vehicle_class_output_file = f"{config["run"]["output_dir"]}/{area}_vehicle_class_mapping_{scenario}.json"
     emfac_class_map = generate_emfac_beam_class_mapping(
         emfac_pop_by_model_year_file = os.path.join(study_area_config["work_dir"], emfac_pop_by_model_year_file),
         vehicle_class_output_file = os.path.join(study_area_config["work_dir"], vehicle_class_output_file),
