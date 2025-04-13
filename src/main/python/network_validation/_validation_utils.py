@@ -598,7 +598,7 @@ def prepare_npmrds_data(
                                                     projected_crs_epsg, distance_buffer_m)
         beam_npmrds_network_map.to_file(beam_npmrds_network_map_geo, driver='GeoJSON')
 
-    return regional_npmrds_station, regional_npmrds_data, beam_npmrds_network_map, npmrds_hourly_speed_road_class, beam_network_filtered_car_links
+    return regional_npmrds_station, regional_npmrds_data, beam_npmrds_network_map, npmrds_hourly_speed_road_class
 
 
 class LinkStats:

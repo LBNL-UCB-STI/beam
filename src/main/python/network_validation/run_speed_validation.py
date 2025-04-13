@@ -49,8 +49,6 @@ def setup_directories(batch, scenario, config):
         study_area_dir, network_dir, run_dir, output_dir, plots_dir
     """
     study_area_dir = config["work_dir"]
-    network_name = generate_network_name(config)
-    network_dir = f'{config["work_dir"]}/network/{network_name}'
     run_dir = f"{config["work_dir"]}/beam-runs/{batch}/{scenario}"
 
     # Create output directories
@@ -59,10 +57,10 @@ def setup_directories(batch, scenario, config):
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     Path(plots_dir).mkdir(parents=True, exist_ok=True)
 
-    return study_area_dir, network_dir, run_dir, output_dir, plots_dir
+    return study_area_dir, run_dir, output_dir, plots_dir
 
 
-def prepare_npmrds_files(study_area, run_dir, network_dir, config):
+def prepare_npmrds_files(study_area, batch, scenario, config):
     """
     Prepare NPMRDS files if they don't exist already
 
@@ -82,31 +80,36 @@ def prepare_npmrds_files(study_area, run_dir, network_dir, config):
     tuple
         Paths to the NPMRDS hourly speed CSV, road class CSV, and network map geojson
     """
+    network_name = generate_network_name(config)
+    network_dir = f'{config["work_dir"]}/network/{network_name}'
+    run_dir = f"{config["work_dir"]}/beam-runs/{batch}/{scenario}"
     npmrds_hourly_speed_csv = f"{run_dir}/{study_area}_npmrds_hourly_speeds.csv"
     npmrds_hourly_speed_by_road_class_csv = f"{run_dir}/{study_area}_npmrds_hourly_speed_by_road_class.csv"
     beam_network_mapped_to_npmrds_geo = f"{run_dir}/{study_area}_network_mapped_to_npmrds.geojson"
     beam_network_car_links_geo = f"{run_dir}/{study_area}_network_car_only.geojson"
+
+    area_config = config["area"]
+    network_config = config["network"]
+    geo_config = config["geo"]
 
     if not (os.path.exists(npmrds_hourly_speed_csv) or
             os.path.exists(npmrds_hourly_speed_by_road_class_csv) or
             os.path.exists(beam_network_mapped_to_npmrds_geo)):
         # Collect geographic boundaries
         region_boundary_wgs84 = collect_geographic_boundaries(
-            config["state_fips"],
-            config["county_fips"],
-            config["census_year"],
+            area_config["state_fips"],
+            area_config["county_fips"],
+            area_config["census_year"],
             study_area,
             geo_level='county',
             work_dir=f'{config["work_dir"]}/geo'
         )
 
         # Get configuration sections
-        config_network = config["network"]
-        config_npmrds = config_network["validation"]["npmrds"]
-        config_geo = config["geo"]
+        config_npmrds = network_config["validation"]["npmrds"]
 
         # Prepare NPMRDS data
-        regional_npmrds_station, _, beam_npmrds_network_map, _, beam_network_car_links_geo = prepare_npmrds_data(
+        regional_npmrds_station, _, beam_npmrds_network_map, _ = prepare_npmrds_data(
             # input
             npmrds_label=f"NPMRDS_{config_npmrds['year']}",
             npmrds_raw_geo=f"{config['work_dir']}/{config_npmrds['geo']}",
@@ -114,7 +117,7 @@ def prepare_npmrds_files(study_area, run_dir, network_dir, config):
             npmrds_observed_speed_weight=0.5,
             region_boundary=region_boundary_wgs84,
             beam_network_csv_input=f"{network_dir}/network.csv.gz",
-            projected_crs_epsg=config_geo["utm_epsg"],
+            projected_crs_epsg=geo_config["utm_epsg"],
             distance_buffer_m=20,
             # output
             npmrds_station_geo=f"{run_dir}/{study_area}_npmrds_station.geojson",
@@ -168,7 +171,7 @@ def plot_validation_maps(study_area, run_dir, region_boundary, npmrds_station, n
     plt.show(block=False)
 
 
-def setup_link_stats(study_area_dir, batch, scenario, run_dir):
+def setup_link_stats(batch, scenario, config):
     """
     Set up link statistics data
 
@@ -188,6 +191,7 @@ def setup_link_stats(study_area_dir, batch, scenario, run_dir):
     tuple
         link_stats, vehicle_types_files
     """
+    run_dir = f"{config["work_dir"]}/beam-runs/{batch}/{scenario}"
     batch_label = batch.replace("-", "")
     scenario_label = scenario.replace("_", "-")
 
@@ -199,8 +203,8 @@ def setup_link_stats(study_area_dir, batch, scenario, run_dir):
     vehicle_types_files = [(
         batch_label,
         scenario_label,
-        f"{study_area_dir}/beam-runs/{batch}/{scenario}/0.events.csv.gz",
-        f"{study_area_dir}/beam-freight/{batch}/{scenario}/vehicle-tech/ft-vehicletypes--{batch_label}--{scenario_label}.csv"
+        f"{config["work_dir"]}/beam-runs/{batch}/{scenario}/0.events.csv.gz",
+        f"{config["work_dir"]}/beam-freight/{batch}/{scenario}/vehicle-tech/ft-vehicletypes--{batch_label}--{scenario_label}.csv"
     )]
 
     return link_stats, vehicle_types_files
@@ -896,7 +900,7 @@ def main():
     # Configuration
     study_area = "sfbay"  # or "seattle"
     batch = "20240123"
-    scenario = "2018-Baseline-FC10-1-Bis2"
+    scenario = "2018-Baseline-FC10-0-1"
     peak_hour = 8
     do_link_speed_validation = True
     do_network_speed_validation = True
@@ -907,15 +911,18 @@ def main():
     config = get_area_config(study_area)
     config["network"]["graph_layers"]["residential"]["min_density_per_km2"] = 5500
 
-    # Setup directories
-    study_area_dir, network_dir, run_dir, output_dir, plots_dir = setup_directories(batch, scenario, config)
+    # Create output directories
+    output_dir = f"{config["work_dir"]}/beam-runs/{batch}/{scenario}/validation_output"
+    plots_dir = f"{output_dir}/plots"
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    Path(plots_dir).mkdir(parents=True, exist_ok=True)
 
     # Setup link stats
-    link_stats, vehicle_types_files = setup_link_stats(study_area_dir, batch, scenario, run_dir)
+    link_stats, vehicle_types_files = setup_link_stats(batch, scenario, config)
 
     # Prepare NPMRDS files
     npmrds_hourly_speed_csv, npmrds_hourly_speed_by_road_class_csv, beam_network_mapped_to_npmrds_geo, beam_network_car_links_geo = \
-        prepare_npmrds_files(study_area, run_dir, network_dir, config)
+        prepare_npmrds_files(study_area, batch, scenario, config)
 
     # Initialize validation setup
     setup = SpeedValidationSetup(
