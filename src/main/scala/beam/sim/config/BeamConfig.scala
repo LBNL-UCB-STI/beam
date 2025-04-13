@@ -1801,14 +1801,38 @@ object BeamConfig {
 
           case class Emissions(
             events: scala.Boolean,
-            pollutantsToFilterOut: scala.Option[scala.List[java.lang.String]],
+            pollutantsFilter: scala.List[java.lang.String],
+            ratesFilter: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.RatesFilter,
             skims: scala.Boolean,
-            workdayIdleTimeFraction: scala.Option[
-              BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.WorkdayIdleTimeFraction
-            ]
+            workdayIdleTimeFraction: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.WorkdayIdleTimeFraction
           )
 
           object Emissions {
+
+            case class RatesFilter(
+              county: scala.List[java.lang.String],
+              grade: scala.List[java.lang.String],
+              roadCategory: scala.List[java.lang.String],
+              soakTime: scala.List[java.lang.String],
+              speed: scala.List[java.lang.String],
+              weight: scala.List[java.lang.String]
+            )
+
+            object RatesFilter {
+
+              def apply(
+                c: com.typesafe.config.Config
+              ): BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.RatesFilter = {
+                BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.RatesFilter(
+                  county = $_L$_str(c.getList("county")),
+                  grade = $_L$_str(c.getList("grade")),
+                  roadCategory = $_L$_str(c.getList("roadCategory")),
+                  soakTime = $_L$_str(c.getList("soakTime")),
+                  speed = $_L$_str(c.getList("speed")),
+                  weight = $_L$_str(c.getList("weight"))
+                )
+              }
+            }
 
             case class WorkdayIdleTimeFraction(
               bus: scala.Double,
@@ -1834,17 +1858,16 @@ object BeamConfig {
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions = {
               BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions(
                 events = c.hasPathOrNull("events") && c.getBoolean("events"),
-                pollutantsToFilterOut =
-                  if (c.hasPathOrNull("pollutantsToFilterOut")) scala.Some($_L$_str(c.getList("pollutantsToFilterOut")))
-                  else None,
+                pollutantsFilter = $_L$_str(c.getList("pollutantsFilter")),
+                ratesFilter = BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.RatesFilter(
+                  if (c.hasPathOrNull("ratesFilter")) c.getConfig("ratesFilter")
+                  else com.typesafe.config.ConfigFactory.parseString("ratesFilter{}")
+                ),
                 skims = !c.hasPathOrNull("skims") || c.getBoolean("skims"),
-                workdayIdleTimeFraction =
-                  if (c.hasPathOrNull("workdayIdleTimeFraction"))
-                    scala.Some(
-                      BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
-                        .WorkdayIdleTimeFraction(c.getConfig("workdayIdleTimeFraction"))
-                    )
-                  else None
+                workdayIdleTimeFraction = BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.WorkdayIdleTimeFraction(
+                  if (c.hasPathOrNull("workdayIdleTimeFraction")) c.getConfig("workdayIdleTimeFraction")
+                  else com.typesafe.config.ConfigFactory.parseString("workdayIdleTimeFraction{}")
+                )
               )
             }
           }

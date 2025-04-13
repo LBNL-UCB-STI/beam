@@ -15,6 +15,7 @@ import beam.router.skim.event.EmissionsSkimmerEvent
 import beam.sim.BeamServices
 import beam.sim.common.DoubleTypedRange
 import beam.sim.config.BeamConfig
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.RatesFilter
 import beam.utils.BeamVehicleUtils.convertRecordStringToDoubleTypedRange
 import beam.utils.{BeamVehicleUtils, NetworkHelper}
 import com.typesafe.scalalogging.LazyLogging
@@ -35,7 +36,8 @@ class VehicleEmissions(
   vehicleTypesBasePaths: IndexedSeq[String],
   vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
   linkToGradePercentFilePath: String,
-  pollutantsToFilterOut: List[String]
+  pollutantsFilter: List[String],
+  ratesFilter: RatesFilter
 ) {
   import VehicleEmissions._
   import EmissionsProfile._
@@ -55,7 +57,7 @@ class VehicleEmissions(
   private lazy val linkIdToGradePercentMap =
     BeamVehicleUtils.loadLinkIdToGradeMapFromCSV(csvParser, linkToGradePercentFilePath)
 
-  Emissions.setFilter(pollutantsToFilterOut)
+  Emissions.setFilter(pollutantsFilter)
 
   def getEmissionsProfileInGram(
     vehicleActivityData: IndexedSeq[BeamVehicle.VehicleActivityData],
@@ -132,31 +134,27 @@ class VehicleEmissions(
     ratesStore: EmissionsRateFilter,
     networkHelper: NetworkHelper
   ): Option[Emissions] = {
-    val speedInMilesPerHour =
+    val speedMph =
       data.averageSpeed.map(BeamVehicleUtils.convertFromMetersPerSecondToMilesPerHour).getOrElse(0.0)
     val weightKg = data.vehicleType.curbWeightInKg + data.payloadInKg.getOrElse(0.0)
-    val soakTimeIntMinutes = data.parkingDuration.map(_ / 60.0).getOrElse(0.0)
-    val gradePercent = linkIdToGradePercentMap.getOrElse(data.linkId, 0.0)
+    val soakTimeMin = data.parkingDuration.map(_ / 60.0).getOrElse(0.0)
+    val gradePct = linkIdToGradePercentMap.getOrElse(data.linkId, 0.0)
     val county = data.taz.flatMap(_.county).getOrElse("").trim.toLowerCase
     val roadCategory =
-      networkHelper.getLink(data.linkId).map(_.getAttributes.getAttribute("type").toString.toLowerCase).getOrElse("")
+      networkHelper
+        .getLink(data.linkId)
+        .flatMap(link => Option(link.getAttributes.getAttribute("type")).map(_.toString.toLowerCase))
+        .getOrElse("unclassified")
+    val processStr = process.toString
 
     val ratesMaybe = for {
-      (_, gradeFilter) <- findInterval(
-        ratesStore,
-        speedInMilesPerHour,
-        preferWiderRanges = !List(RUNEX, PMBW).contains(process)
-      )
-      (_, weightFilter)   <- findInterval(gradeFilter, gradePercent)
-      (_, soakTimeFilter) <- findInterval(weightFilter, weightKg)
-      (_, countyFilter) <- findInterval(
-        soakTimeFilter,
-        soakTimeIntMinutes,
-        preferWiderRanges = !List(STREX).contains(process)
-      )
-      (_, roadCategoryFilter) <- findString(countyFilter, county, preferEmptyKey = false)
-      (_, processFilter)      <- findString(roadCategoryFilter, roadCategory, preferEmptyKey = process != PRDUST)
-      rates                   <- processFilter.get(process.toString)
+      (_, gradeFilter)    <- findInterval(ratesStore, speedMph, !ratesFilter.speed.contains(processStr))
+      (_, weightFilter)   <- findInterval(gradeFilter, gradePct, !ratesFilter.grade.contains(processStr))
+      (_, soakTimeFilter) <- findInterval(weightFilter, weightKg, !ratesFilter.weight.contains(processStr))
+      (_, countyFilter)   <- findInterval(soakTimeFilter, soakTimeMin, !ratesFilter.soakTime.contains(processStr))
+      (_, roadFilter)     <- findString(countyFilter, county, !ratesFilter.county.contains(processStr))
+      (_, processFilter)  <- findString(roadFilter, roadCategory, !ratesFilter.roadCategory.contains(processStr))
+      rates               <- processFilter.get(process.toString)
     } yield rates
 
     ratesMaybe.orElse(data.vehicleType.emissionsRatesInGramsPerMile.flatMap(_.values.get(process)))
@@ -233,12 +231,19 @@ object VehicleEmissions extends LazyLogging {
     var filter: Option[List[EmissionType]] = None
 
     def setFilter(emissionsStr: List[String]): Unit = {
-      if (filter.isEmpty) {
-        filter = Some(emissionsStr.flatMap(fromString))
-        if (filter.exists(_.nonEmpty)) {
-          val to_filter_out = filter.map(_.map(_.toString).mkString(", ")).getOrElse("").trim
-          logger.info(s"Filtering out the following pollutants (see emissions.pollutantsToFilterOut): $to_filter_out")
-        }
+      filter match {
+        case None =>
+          val toKeep = emissionsStr.flatMap(fromString)
+          val allEmissions = values.toList
+          filter = Some(allEmissions.filterNot(toKeep.contains))
+
+          if (toKeep.nonEmpty) {
+            val keeping = toKeep.map(_.toString).mkString(", ")
+            val filtering = filter.map(_.map(_.toString).mkString(", ")).getOrElse("")
+            logger.info(s"Keeping only the following pollutants: $keeping")
+            logger.info(s"Filtering out: $filtering")
+          }
+        case _ =>
       }
     }
 
@@ -254,7 +259,7 @@ object VehicleEmissions extends LazyLogging {
     def init(): Emissions = Emissions()
 
     def apply(values: (EmissionType, Double)*): Emissions = {
-      new Emissions(values.filter(v => !filter.contains(v._1)).toMap)
+      new Emissions(values.filter(v => !this.filter.contains(v._1)).toMap)
     }
 
     def formatEmissions(emissions: Emissions): String =
@@ -412,16 +417,16 @@ object VehicleEmissions extends LazyLogging {
       (BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions) => Double
     ] = Map(
       MediumDutyPassenger -> { (emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions) =>
-        emissionsConfig.workdayIdleTimeFraction.map(_.bus).getOrElse(0.0)
+        emissionsConfig.workdayIdleTimeFraction.bus
       },
       Class456Vocational -> { (emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions) =>
-        emissionsConfig.workdayIdleTimeFraction.map(_.class456).getOrElse(0.0)
+        emissionsConfig.workdayIdleTimeFraction.class456
       },
       Class78Vocational -> { (emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions) =>
-        emissionsConfig.workdayIdleTimeFraction.map(_.class78v).getOrElse(0.0)
+        emissionsConfig.workdayIdleTimeFraction.class78v
       },
       Class78Tractor -> { (emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions) =>
-        emissionsConfig.workdayIdleTimeFraction.map(_.class78t).getOrElse(0.0)
+        emissionsConfig.workdayIdleTimeFraction.class78t
       }
     )
 
