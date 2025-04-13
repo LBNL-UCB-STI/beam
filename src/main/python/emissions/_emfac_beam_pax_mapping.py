@@ -168,21 +168,13 @@ def emfac2passenger_with_atlas_crosswalk(vehicle_types, atlas_emfac_fleet, work_
     Returns:
         pd.DataFrame: DataFrame with distributed vmt and population values
     """
-    routee_beam_atlas_map = pd.read_csv(str(os.path.join(work_dir, config["mapping"]["atlas"]["routee"])), dtype=str)
     vehicles = pd.read_csv(str(os.path.join(work_dir, config["beam"]["pax_vehicles_file"])), dtype=str)
-    beam_fleet = vehicles["vehicleTypeId"].unique()
-    filtered_vehicle_types = vehicle_types[vehicle_types["vehicleTypeId"].isin(beam_fleet)].copy()
-    beam_fleet = filtered_vehicle_types["vehicleTypeId"].unique()
-    vehicles_filtered = vehicles[vehicles["vehicleTypeId"].isin(beam_fleet)].copy()
-
-    # Step 1: Merge vehicle types with body types
-    unique_vehicle_bodytype_map = routee_beam_atlas_map.groupby("vehicleTypeId")["bodytype"].first().to_dict()
-    vehicle_types_with_body_types = filtered_vehicle_types.copy()
-    vehicle_types_with_body_types["bodytype"] = filtered_vehicle_types["vehicleTypeId"].map(unique_vehicle_bodytype_map).str.lower().str.capitalize()
+    vehicle_types_filtered = vehicle_types[vehicle_types["vehicleTypeId"].isin(vehicles["vehicleTypeId"].unique())].copy()
+    vehicles_filtered = vehicles[vehicles["vehicleTypeId"].isin(vehicle_types_filtered["vehicleTypeId"].unique())].copy()
 
     # Step 2: Merge with EMFAC fleet data
     vehicles_atlas_emfac = pd.merge(
-        left=vehicle_types_with_body_types,
+        left=vehicle_types_filtered,
         right=atlas_emfac_fleet,
         left_on=['bodytype', 'mappedFuel', 'mappedClass'],
         right_on=['bodytype', 'mappedFuel', 'mappedClass'],

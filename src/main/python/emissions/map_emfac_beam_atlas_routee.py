@@ -42,13 +42,55 @@ def create_emfac_id(row):
     return f"{model_year_group_st}{vehicle_class_st}{fuel_st}"
 
 
+def categorize_model_year(year, bin_years=None):
+    """
+    Categorize a model year into bins based on a list of cutoff years.
+
+    Parameters:
+    -----------
+    year : int or float
+        The model year to categorize
+    bin_years : list, optional
+        A sorted list of cutoff years. Default is [1993, 2006, 2018]
+        Each year in the input will be categorized to the nearest bin year
+        that is greater than or equal to it.
+
+    Returns:
+    --------
+    str
+        The bin year as a string
+
+    Example:
+    --------
+    >>> categorize_model_year(2000, [1993, 2006, 2018])
+    '2006'
+    >>> categorize_model_year(2010, [1993, 2006, 2018])
+    '2018'
+    >>> categorize_model_year(1990, [1993, 2006, 2018])
+    '1993'
+    """
+    # Default bin years if none provided
+    if bin_years is None:
+        bin_years = [1993, 2006, 2018]
+
+    # Ensure bin_years is sorted
+    bin_years = sorted(bin_years)
+
+    # Handle years before the first bin
+    if year <= bin_years[0]:
+        return str(bin_years[0])
+
+    # Find the appropriate bin
+    for i in range(len(bin_years) - 1):
+        if year <= bin_years[i + 1]:
+            return str(bin_years[i + 1])
+
+    # If year is greater than all bins, return the last bin
+    return str(bin_years[-1])
+
+
 def prepare_emissions_data_for_mapping(area, scenario, work_dir, config):
     mapping_config = config["mapping"]
-    def categorize_model_year(year):
-        # https://pubs.acs.org/doi/full/10.1021/acs.est.9b04763
-        if year <= 1993: return '1993'
-        elif year <= 2006: return '2006'
-        else: return '2018'
     def format_emissions_data(emfac_types: pd.DataFrame) -> pd.DataFrame:
         result_ft_df = emfac_types.copy()
         result_ft_df['mappedClass'] = result_ft_df['vehicle_class'].map(mapping_config["class"]["emfac-ft"])
@@ -70,7 +112,9 @@ def prepare_emissions_data_for_mapping(area, scenario, work_dir, config):
 
         result_df = pd.concat([result_ft_df, result_pax_df, result_bus_df])
 
-        result_df['model_year_group'] = result_df['model_year'].apply(categorize_model_year)
+        result_df['model_year_group'] = result_df['model_year'].apply(
+            lambda x: categorize_model_year(x, mapping_config["fleet"]["model_year_bins"])
+        )
         result_df[['county', 'area']] = result_df['sub_area'].str.extract(r'^([^()]+)\s*\(([^)]+)\)')
         result_df['county'] = result_df['county'].str.strip().str.lower()
         result_df['area'] = result_df['area'].str.strip()

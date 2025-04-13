@@ -107,8 +107,8 @@ def generate_mapping_from_csv(atlas_vehicles, routee_vehicles):
     Generate a mapping between Atlas and RouteE vehicle types from CSV files.
 
     Args:
-        atlas_file (str): Path to Atlas CSV file
-        routee_file (str): Path to RouteE CSV file
+        atlas_vehicles (Dataframe):
+        routee_vehicles (Dataframe):
 
     Returns:
         dict: A dictionary mapping Atlas vehicle IDs to RouteE vehicle IDs
@@ -136,18 +136,18 @@ def generate_mapping_from_csv(atlas_vehicles, routee_vehicles):
             elif year_diff <= 5:
                 score += 1  # Somewhat close
 
-            # Body type match
-            if body_type == routee_components['body_type']:
-                score += 3  # Exact body type match
-
-            # Fuel type match
+            # Fuel type match (prioritized with higher weight)
             if fuel_type == routee_components['fuel_type']:
-                score += 3  # Exact fuel type match
+                score += 5  # Exact fuel type match (increased weight)
             elif (
                     (fuel_type == 'hybrid' and routee_components['fuel_type'] == 'phev') or
                     (fuel_type == 'phev' and routee_components['fuel_type'] == 'hybrid')
             ):
-                score += 1  # Similar alternative fuel types
+                score += 2  # Similar alternative fuel types (increased weight)
+
+            # Body type match (lower priority than fuel type)
+            if body_type == routee_components['body_type']:
+                score += 3  # Exact body type match
 
             # Update best match if this one is better
             if score > best_score:
@@ -158,7 +158,6 @@ def generate_mapping_from_csv(atlas_vehicles, routee_vehicles):
             mapping[atlas_id] = best_match
 
     return mapping
-
 
 if __name__ == "__main__":
     work_dir = os.path.expanduser("~/Workspace/Simulation/sfbay")
@@ -180,26 +179,34 @@ if __name__ == "__main__":
     vehicles_2023_raw = pd.read_csv(vehicles_2023_file)
     vehicles_2023_bike = vehicles_2023_raw[vehicles_2023_raw['vehicleTypeId']=="BIKE-DEFAULT"].copy()
     vehicles_2023_no_bike = vehicles_2023_raw[vehicles_2023_raw['vehicleTypeId']!="BIKE-DEFAULT"].copy()
-    vehicles_2023 = vehicles_2023_no_bike.groupby(['vehicleTypeId']).size().reset_index(name='count')
-    vehicles_2023_sum = vehicles_2023["count"].sum()
-    vehicles_2023["proportion"] = vehicles_2023["count"] / vehicles_2023_sum
+    atlas_routee_mapping = pd.read_csv(atlas_routee_mapping_file)
+    atlas_vehicles_2023 = (pd.merge(vehicles_2023_no_bike, atlas_routee_mapping, on="vehicleTypeId", how="left")
+                           .groupby('vehicleTypeId').agg(
+        {
+            'vehicleTypeId': lambda x: len(x),  # This will be renamed to avoid conflict
+            'bodytype': 'first',
+            'modelyear': 'first',
+            'adopt_fuel': 'first'
+        }
+    ).rename(columns={'vehicleTypeId': 'count'}).reset_index())
+    atlas_vehicles_2023_sum = atlas_vehicles_2023["count"].sum()
+    atlas_vehicles_2023["proportion"] = atlas_vehicles_2023["count"] / atlas_vehicles_2023_sum
 
-    vehicles_2023.sort_values(by='proportion', ascending=False, inplace=True)
+    atlas_vehicles_2023.sort_values(by='proportion', ascending=False, inplace=True)
     atlas_2017.sort_values(by='proportion', ascending=False, inplace=True)
-    atlas_2017.to_csv(f"test.csv", index=False)
 
     # Create a copy of vehicles_2017 that we'll modify as we go
     remaining_2017 = atlas_2017.copy()
 
     # Create a copy of vehicles_2023 to store the results
-    result_df = vehicles_2023.copy()
+    result_df = atlas_vehicles_2023.copy()
 
     # Add new columns for the mapped values
     result_df["mapped_bodytype"] = None
     result_df["mapped_modelyear"] = None
     result_df["mapped_adopt_fuel"] = None
 
-    for row in vehicles_2023.itertuples():
+    for row in atlas_vehicles_2023.itertuples():
         if len(remaining_2017) > 0:
             remaining_2017_reset = remaining_2017.reset_index()
             weights = remaining_2017_reset['proportion']
@@ -211,15 +218,46 @@ if __name__ == "__main__":
             # Store the original index to use for dropping from remaining_2017
             original_idx = sampled_row['index']  # This is the original index stored as a column after reset_index
 
-            # Assign the mapped values to the specific row in result_df
-            result_df.loc[row.Index, "mapped_bodytype"] = sampled_row.bodytype
-            result_df.loc[row.Index, "mapped_modelyear"] = sampled_row.modelyear
-            result_df.loc[row.Index, "mapped_adopt_fuel"] = sampled_row.adopt_fuel
+            for row in atlas_vehicles_2023.itertuples():
+                if len(remaining_2017_reset) == 0:
+                    print(f"No more 2017 vehicles to match with {row.Index}")
+                    break
 
-            # Remove the first row from remaining_2017
-            remaining_2017 = remaining_2017.drop(original_idx)
+                # Create all masks upfront
+                bodytype_mask = remaining_2017_reset["bodytype"] == row.bodytype
+                modelyear_mask = remaining_2017_reset["modelyear"] <= row.modelyear
+                fuel_mask = remaining_2017_reset["adopt_fuel"] == row.adopt_fuel
+
+                # Try different combinations in order of specificity
+                match_conditions = [
+                    bodytype_mask & modelyear_mask & fuel_mask,  # All criteria
+                    bodytype_mask & fuel_mask,  # Body type and fuel
+                    fuel_mask,  # Just fuel
+                    bodytype_mask,  # Just body type
+                    pd.Series(True, index=remaining_2017_reset.index)  # Everything remaining
+                ]
+
+                # Find the first non-empty match
+                match = None
+                for condition in match_conditions:
+                    temp_match = remaining_2017_reset[condition]
+                    if not temp_match.empty:
+                        match = temp_match
+                        break
+
+                # Sample one row based on weights (adjusted for the filtered DataFrame)
+                sampled_idx = match.sample(n=1, weights=match['proportion']).index[0]
+                sampled_row = remaining_2017_reset.loc[sampled_idx]
+
+                # Assign the mapped values to the specific row in result_df
+                result_df.loc[row.Index, "mapped_bodytype"] = sampled_row.bodytype
+                result_df.loc[row.Index, "mapped_modelyear"] = sampled_row.modelyear
+                result_df.loc[row.Index, "mapped_adopt_fuel"] = sampled_row.adopt_fuel
+
+                # Remove the used row from remaining_2017_reset
+                remaining_2017_reset = remaining_2017_reset.drop(sampled_idx)
         else:
-            print(f"No more 2017 vehicles to match with {row.Index}")
+            print("No 2017 vehicles available for matching")
             break
 
     result_df["atlasId"] = result_df.apply(

@@ -408,12 +408,12 @@ sfbay_area_config = {
             "mapping": {
                 "fleet": {
                     "ignore_beam_passenger_distribution": False,
-                    "ignore_beam_freight_distribution": False
+                    "ignore_beam_freight_distribution": False,
+                    "model_year_bins": [1993, 2006, 2018]
                 },
                 "atlas":{
                     "enable_atlas_emfac_crosswalk": True,
                     "emfac": f"atlas/atlas-emfac-xwalk.csv",
-                    "routee": f"atlas/vehicle_type_mapping_baseline.csv",
                     "alternatives": {
                         "car": ['car'],
                         "suv": ['suv', 'car', 'truck'],
