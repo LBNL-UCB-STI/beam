@@ -158,7 +158,7 @@ def turn_atlas_route_2023_baseline_into_2017_baseline(
         vehicles_2023_file,
         atlas_routee_mapping_file,
         vehicle_types_2023_file,
-        output_vehicle_types_2023_file,
+        output_vehicle_types_2017_file,
         output_vehicles_2017_file):
     # Load and prepare 2017 vehicle data
     atlas_2017_raw = pd.read_csv(atlas_2017_file)
@@ -195,9 +195,20 @@ def turn_atlas_route_2023_baseline_into_2017_baseline(
     new_vehicle_types_2017_df, vehicle_id_map = map_vehicle_types(
         atlas_2017, atlas_vehicles_2023, vehicle_types_2023
     )
+    new_vehicle_types_2017_df["bodytype"] = new_vehicle_types_2017_df["bodytype"].str.capitalize()
+    new_vehicle_types_2017_df["adopt_fuel"] = new_vehicle_types_2017_df["adopt_fuel"].str.capitalize()
+    new_vehicle_types_2017_df["model_year_group"] = new_vehicle_types_2017_df["modelyear"].apply(
+        lambda year: (lambda y, bins:
+                      str(bins[0]) if y <= bins[0] else
+                      next((str(bins[i + 1]) for i in range(len(bins) - 1) if y <= bins[i + 1]), str(bins[-1]))
+                      )(year, sorted([1993, 2006, 2018]))
+    )
+
+    vehicle_types_2023_non_car = vehicle_types_2023[vehicle_types_2023["vehicleCategory"] != "Car"]
+    new_vehicle_types_2017_df = pd.concat([new_vehicle_types_2017_df, vehicle_types_2023_non_car])
 
     # Save new vehicle types
-    new_vehicle_types_2017_df.to_csv(output_vehicle_types_2023_file, index=False)
+    new_vehicle_types_2017_df.to_csv(output_vehicle_types_2017_file, index=False)
 
     # Create and save mapped vehicles file
     vehicles_2017_no_bike = vehicles_2023_no_bike.copy()
@@ -212,10 +223,10 @@ if __name__ == "__main__":
     work_dir = os.path.expanduser("~/Workspace/Simulation/sfbay")
     turn_atlas_route_2023_baseline_into_2017_baseline(
         atlas_2017_file=f"{work_dir}/atlas/vehicles_2017.csv",
-        vehicles_2023_file=f"{work_dir}/beam-pax/2023-Baseline/vehicles--atlas--2023-Baseline.csv.gz",
+        vehicles_2023_file=f"{work_dir}/beam-pax/vehicles--atlas--2023-Baseline.csv.gz",
         atlas_routee_mapping_file=f"{work_dir}/atlas/vehicle_type_mapping_baseline.csv",
         vehicle_types_2023_file=f"{work_dir}/vehicle-tech/vehicleTypes--atlas--2023-Baseline.csv",
-        output_vehicle_types_2023_file = f"{work_dir}/vehicle-tech/vehicleTypes--atlas--2017-Baseline.csv",
-        output_vehicles_2017_file = f"{work_dir}/beam-pax/2023-Baseline/vehicles--atlas--2017-Baseline.csv.gz"
+        output_vehicle_types_2017_file = f"{work_dir}/vehicle-tech/vehicleTypes--atlas--2017-Baseline.csv",
+        output_vehicles_2017_file = f"{work_dir}/beam-pax/vehicles--atlas--2017-Baseline.csv.gz"
     )
 

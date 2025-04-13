@@ -5,19 +5,16 @@ import os.path
 import shutil
 import sys
 from typing import Dict, Any, Optional
-from collections import defaultdict
 
 import pandas as pd
-import pyarrow as pa
-import pyarrow.csv as csv
 from joblib import Parallel, delayed
 
-from _emissions_rates_processing import process_emfac_population
-from _emissions_rates_processing import process_emfac_vmt
-from _emissions_rates_processing import process_emissions_rates
 from _emfac_beam_ft_matching import generate_emfac_mapped_freight_fleet
 from _emfac_beam_pax_mapping import generate_emfac_mapped_passenger_vehicle_types
 from _emfac_beam_pax_mapping import generate_fleet_from_vehicle_types
+from _emissions_rates_processing import process_emfac_population
+from _emissions_rates_processing import process_emfac_vmt
+from _emissions_rates_processing import process_emissions_rates
 from _emissions_utils import generate_emfac_beam_class_mapping
 
 # Get the absolute path to the directory containing this script
@@ -385,7 +382,8 @@ def run():
     beam_config["carriers_file"] = f"beam-ft/{run_batch}/{scenario}/carriers--{scenario}.csv"
     beam_config["payloads_file"] = f"beam-ft/{run_batch}/{scenario}/payloads--{scenario}.csv"
     beam_config["ft_vehicle_types_file"] = f"vehicle-tech/vehicleTypes--frism--{scenario}.csv"
-    beam_config["pax_vehicle_types_file"] = f"vehicle-tech/vehicleTypes--atlas--2023-Baseline.csv"
+    beam_config["pax_vehicle_types_file"] = f"vehicle-tech/vehicleTypes--atlas--2017-Baseline.csv"
+    beam_config["pax_vehicles_file"] = f"beam-pax/vehicles--atlas--2017-Baseline.csv.gz"
 
     emfac_pop_by_model_year_file = config["rates"]["emfac"]["emfac_pop_by_model_year_file"]
     vehicle_class_output_file = f"{emissions_dir}/{area}_vehicle_class_mapping_{scenario}.json"

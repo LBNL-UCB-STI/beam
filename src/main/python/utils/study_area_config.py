@@ -281,6 +281,32 @@ emissions_config = {
     ]
 }
 
+########## Vehicle Types #########
+vehicle_types_config = {
+    "columns": [
+        "vehicleTypeId",
+        "seatingCapacity",
+        "standingRoomCapacity",
+        "lengthInMeter",
+        "primaryFuelType",
+        "primaryFuelConsumptionInJoulePerMeter",
+        "primaryFuelCapacityInJoule",
+        "primaryVehicleEnergyFile",
+        "secondaryFuelType",
+        "secondaryFuelConsumptionInJoulePerMeter",
+        "secondaryVehicleEnergyFile",
+        "secondaryFuelCapacityInJoule",
+        "automationLevel",
+        "maxVelocity",
+        "passengerCarUnit",
+        "rechargeLevel2RateLimitInWatts",
+        "rechargeLevel3RateLimitInWatts",
+        "vehicleCategory",
+        "sampleProbabilityWithinCategory",
+        "sampleProbabilityString"
+    ]
+}
+
 ########## SF Bay Area #########
 
 sfbay_area_config = {
@@ -402,7 +428,7 @@ sfbay_area_config = {
                 "payloads_file": f"beam-ft/20240123/2018-Baseline/payloads--2018-Baseline.csv",
                 "tours_file": f"beam-ft/20240123/2018-Baseline/tours--2018-Baseline.csv",
                 "ft_vehicle_types_file": f"vehicle-tech/vehicleTypes--frism--2018-Baseline.csv",
-                "pax_vehicles_file": f"beam-pax/2023-Baseline/vehicles--atlas--2017-Baseline.csv.gz",
+                "pax_vehicles_file": f"beam-pax/vehicles--atlas--2017-Baseline.csv.gz",
                 "pax_vehicle_types_file": f"vehicle-tech/vehicleTypes--atlas--2017-Baseline.csv"
             },
             "mapping": {
