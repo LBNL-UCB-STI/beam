@@ -1,6 +1,15 @@
 import os
 import re
+import sys
 import pandas as pd
+
+# Get the absolute path to the directory containing this script
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(os.path.dirname(current_dir))
+sys.path.insert(0, parent_dir)
+
+# Now use absolute import
+from python.utils.files_utils import sanitize_name
 
 
 def filter_vehicles_by_year(file_path, max_year=2018):
@@ -37,18 +46,226 @@ def filter_vehicles_by_year(file_path, max_year=2018):
     return filtered_df
 
 
+def extract_vehicle_components(vehicle_id, id_type):
+    """
+    Extracts components (year, body type, fuel type) from vehicle IDs.
+
+    Args:
+        vehicle_id (str): The vehicle ID (Atlas or RouteE format)
+        id_type (str): Either 'atlas' or 'routee'
+
+    Returns:
+        dict: A dictionary with extracted components
+    """
+    if id_type == 'atlas':
+        # Atlas format: YYYY-bodytype-fueltype
+        year, body_type, fuel_type = vehicle_id.split('-')
+        return {
+            'year': year,
+            'body_type': body_type,
+            'fuel_type': fuel_type
+        }
+    elif id_type == 'routee':
+        # RouteE format: YYYY_Make_Model_Details
+        parts = vehicle_id.split('_')
+        year = parts[0]
+        make = parts[1]
+        model_parts = parts[2:]
+
+        # Determine body type based on model
+        model = '_'.join(model_parts).lower()
+        if 'pickup' in model or 'silverado' in model or 'f150' in model:
+            body_type = 'pickup'
+        elif 'highlander' in model or 'qx60' in model:
+            body_type = 'suv'
+        elif 'quest' in model or 'sienna' in model:
+            body_type = 'van'
+        else:
+            body_type = 'car'
+
+        # Determine fuel type based on model
+        if 'hybrid' in vehicle_id.lower() or 'eassist' in vehicle_id.lower():
+            fuel_type = 'hybrid'
+        elif 'volt' in vehicle_id.lower() or 'phev' in vehicle_id.lower():
+            fuel_type = 'phev'
+        elif 'tesla' in vehicle_id.lower() or 'model_s' in vehicle_id.lower() or 'model_x' in vehicle_id.lower():
+            fuel_type = 'ev'
+        else:
+            fuel_type = 'conv'
+
+        return {
+            'year': year,
+            'make': make,
+            'body_type': body_type,
+            'fuel_type': fuel_type
+        }
+    return None
+
+
+def generate_mapping_from_csv(atlas_vehicles, routee_vehicles):
+    """
+    Generate a mapping between Atlas and RouteE vehicle types from CSV files.
+
+    Args:
+        atlas_file (str): Path to Atlas CSV file
+        routee_file (str): Path to RouteE CSV file
+
+    Returns:
+        dict: A dictionary mapping Atlas vehicle IDs to RouteE vehicle IDs
+    """
+    # Create mapping
+    mapping = {}
+
+    for atlas_id in atlas_vehicles:
+        best_match = None
+        best_score = -1
+
+        year, body_type, fuel_type = atlas_id.split('-')
+
+        for routee_id in routee_vehicles:
+            routee_components = extract_vehicle_components(routee_id, 'routee')
+
+            score = 0
+
+            # Year match (exact is best, but close years are acceptable)
+            year_diff = abs(int(year) - int(routee_components['year']))
+            if year_diff == 0:
+                score += 3  # Exact year match
+            elif year_diff <= 2:
+                score += 2  # Close year match
+            elif year_diff <= 5:
+                score += 1  # Somewhat close
+
+            # Body type match
+            if body_type == routee_components['body_type']:
+                score += 3  # Exact body type match
+
+            # Fuel type match
+            if fuel_type == routee_components['fuel_type']:
+                score += 3  # Exact fuel type match
+            elif (
+                    (fuel_type == 'hybrid' and routee_components['fuel_type'] == 'phev') or
+                    (fuel_type == 'phev' and routee_components['fuel_type'] == 'hybrid')
+            ):
+                score += 1  # Similar alternative fuel types
+
+            # Update best match if this one is better
+            if score > best_score:
+                best_score = score
+                best_match = routee_id
+
+        if best_match:
+            mapping[atlas_id] = best_match
+
+    return mapping
+
+
 if __name__ == "__main__":
-    file_path = os.path.expanduser(
-        "~/Workspace/Simulation/sfbay/vehicle-tech/vehicleTypes--atlas--baseline-projection.csv")
-    filtered_df = filter_vehicles_by_year(file_path, 2023)
-    print(f"Found {len(filtered_df)} vehicles after filtering")
+    work_dir = os.path.expanduser("~/Workspace/Simulation/sfbay")
+    # vehicles_types_2050 = f"{work_dir}/vehicleTypes--atlas--baseline-projection.csv"
+    # filtered_df = filter_vehicles_by_year(vehicles_types_2050, 2023)
+    atlas_2017_file = f"{work_dir}/atlas/vehicles_2017.csv"
+    vehicles_2023_file = f"{work_dir}/beam-pax/2023-Baseline/vehicles--atlas--2023-Baseline.csv.gz"
+    atlas_routee_mapping_file = f"{work_dir}/atlas/vehicle_type_mapping_baseline.csv"
+    vehicle_types_2023_file = f"{work_dir}/vehicle-tech/vehicleTypes--atlas--2023-Baseline.csv"
 
-    # Print some examples of what was kept
-    for i, (index, row) in enumerate(filtered_df.head().iterrows()):
-        print(f"{i + 1}. Vehicle ID: {row.get('vehicleTypeId')}")
+    output_vehicle_types_2023_file = f"{work_dir}/vehicle-tech/vehicleTypes--atlas--2017-Baseline.csv"
+    output_vehicles_2017_file = f"{work_dir}/beam-pax/2023-Baseline/vehicles--atlas--2017-Baseline.csv.gz"
 
-    # Save the filtered data to a new CSV file
-    dir_path = os.path.dirname(file_path)
-    output_path = f"{dir_path}/vehicleTypes--atlas--2023-Baseline.csv"
-    filtered_df.to_csv(output_path, index=False)
-    print(f"Filtered data saved to: {output_path}")
+    atlas_2017_raw = pd.read_csv(atlas_2017_file)
+    atlas_2017 = atlas_2017_raw.groupby(['bodytype', 'modelyear', 'adopt_fuel']).size().reset_index(name='count')
+    atlas_2017_sum = atlas_2017["count"].sum()
+    atlas_2017["proportion"] = atlas_2017["count"] / atlas_2017_sum
+
+    vehicles_2023_raw = pd.read_csv(vehicles_2023_file)
+    vehicles_2023_bike = vehicles_2023_raw[vehicles_2023_raw['vehicleTypeId']=="BIKE-DEFAULT"].copy()
+    vehicles_2023_no_bike = vehicles_2023_raw[vehicles_2023_raw['vehicleTypeId']!="BIKE-DEFAULT"].copy()
+    vehicles_2023 = vehicles_2023_no_bike.groupby(['vehicleTypeId']).size().reset_index(name='count')
+    vehicles_2023_sum = vehicles_2023["count"].sum()
+    vehicles_2023["proportion"] = vehicles_2023["count"] / vehicles_2023_sum
+
+    vehicles_2023.sort_values(by='proportion', ascending=False, inplace=True)
+    atlas_2017.sort_values(by='proportion', ascending=False, inplace=True)
+    atlas_2017.to_csv(f"test.csv", index=False)
+
+    # Create a copy of vehicles_2017 that we'll modify as we go
+    remaining_2017 = atlas_2017.copy()
+
+    # Create a copy of vehicles_2023 to store the results
+    result_df = vehicles_2023.copy()
+
+    # Add new columns for the mapped values
+    result_df["mapped_bodytype"] = None
+    result_df["mapped_modelyear"] = None
+    result_df["mapped_adopt_fuel"] = None
+
+    for row in vehicles_2023.itertuples():
+        if len(remaining_2017) > 0:
+            remaining_2017_reset = remaining_2017.reset_index()
+            weights = remaining_2017_reset['proportion']
+
+            # Sample one row based on weights
+            sampled_idx = remaining_2017_reset.sample(n=1, weights=weights).index[0]
+            sampled_row = remaining_2017_reset.iloc[sampled_idx]
+
+            # Store the original index to use for dropping from remaining_2017
+            original_idx = sampled_row['index']  # This is the original index stored as a column after reset_index
+
+            # Assign the mapped values to the specific row in result_df
+            result_df.loc[row.Index, "mapped_bodytype"] = sampled_row.bodytype
+            result_df.loc[row.Index, "mapped_modelyear"] = sampled_row.modelyear
+            result_df.loc[row.Index, "mapped_adopt_fuel"] = sampled_row.adopt_fuel
+
+            # Remove the first row from remaining_2017
+            remaining_2017 = remaining_2017.drop(original_idx)
+        else:
+            print(f"No more 2017 vehicles to match with {row.Index}")
+            break
+
+    result_df["atlasId"] = result_df.apply(
+        lambda x: f"{str(int(x['mapped_modelyear']))}-"
+                  f"{sanitize_name(x['mapped_bodytype']).replace("_","").title()}-"
+                  f"{sanitize_name(x['mapped_adopt_fuel']).replace("_","").title()}", axis=1
+    )
+
+    unique_atlas_ids_by_2017 = result_df["atlasId"].unique()
+    # Filter for IDs that start with a year <= 2017
+    unique_routee_ids_by_2018 = [vid for vid in result_df["vehicleTypeId"].unique() if
+                                  re.match(r"^(\d{4})", vid) and
+                                  int(re.match(r"^(\d{4})", vid).group(1)) <= 2018]
+
+    mapping = generate_mapping_from_csv(unique_atlas_ids_by_2017, unique_routee_ids_by_2018)
+    result_df["routee"] = result_df["atlasId"].map(mapping)
+    result_df["oldVehicleTypeId"] = result_df["vehicleTypeId"]
+    result_df["vehicleTypeId"] = result_df.apply(
+        lambda x: f"{x['atlasId'].replace("-","")}--"
+                  f"{sanitize_name(x['routee']).replace("_","")}", axis=1
+    )
+
+    vehicle_types_2023 = pd.read_csv(vehicle_types_2023_file)
+    vehicle_id_map = {}
+    new_rows = []
+    for row in result_df.itertuples():
+        new_row = vehicle_types_2023[vehicle_types_2023['vehicleTypeId'] == row.routee].iloc[0].copy()
+        new_row["oldVehicleTypeId"] = row.oldVehicleTypeId
+        new_row['vehicleTypeId'] = row.vehicleTypeId
+        new_row["bodytype"] = row.mapped_bodytype
+        new_row["modelyear"] = row.mapped_modelyear
+        new_row["adopt_fuel"] = row.mapped_adopt_fuel
+        vehicle_id_map[row.oldVehicleTypeId] = row.vehicleTypeId
+        new_rows.append(new_row)
+
+    new_vehicle_types_2017_df = pd.DataFrame(new_rows)
+    new_vehicle_types_2017_df.drop(columns=["oldVehicleTypeId"], inplace=True)
+    new_vehicle_types_2017_df.to_csv(output_vehicle_types_2023_file, index=False)
+
+    vehicles_2017_no_bike = vehicles_2023_no_bike.copy()
+    vehicles_2017_no_bike["oldVehicleTypeId"] = vehicles_2017_no_bike["vehicleTypeId"]
+    vehicles_2017_no_bike["vehicleTypeId"] = vehicles_2017_no_bike["oldVehicleTypeId"].map(vehicle_id_map)
+    vehicles_2017_no_bike.drop(columns=["oldVehicleTypeId"], inplace=True)
+    vehicles_2017_new = pd.concat([vehicles_2017_no_bike, vehicles_2023_bike])
+    vehicles_2017_new.to_csv(output_vehicles_2017_file, index=False)
+
+
+
+
