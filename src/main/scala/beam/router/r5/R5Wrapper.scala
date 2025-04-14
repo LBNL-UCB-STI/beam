@@ -640,6 +640,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       val egressRouters = mutable.Map[LegMode, StreetRouter]()
       val egressStopsByMode = mutable.Map[LegMode, StopVisitor]()
       profileRequest.reverseSearch = true
+      val isCarEgress = egressVehicles.exists(_.mode == CAR)
       for (vehicle <- egressVehicles) {
         val (costPerMile, costPerMinute) = getVehicleCosts(vehicle)
         val theDestination = if (mainRouteToVehicle) {
@@ -659,16 +660,6 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         )
         profileRequest.toLon = to.getX
         profileRequest.toLat = to.getY
-        profileRequest.maxRides = vehicle.mode match {
-          case CAR  => 2
-          case WALK => 3
-          case _    => 3
-        }
-        profileRequest.suboptimalMinutes = vehicle.mode match {
-          case CAR  => beamConfig.beam.routing.r5.suboptimalMinutesForDriveAccess
-          case WALK => beamConfig.beam.routing.r5.suboptimalMinutes
-          case _    => beamConfig.beam.routing.r5.suboptimalMinutes
-        }
         val vehicleType = vehicleTypes(vehicle.vehicleTypeId)
         val streetRouter = new StreetRouter(
           transportNetwork.streetLayer,
@@ -713,10 +704,20 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           egressStopsByMode.put(legMode, stopVisitor)
         }
       }
+      if (isCarEgress) {
+        profileRequest.maxRides = 2
+        profileRequest.suboptimalMinutes = beamConfig.beam.routing.r5.suboptimalMinutesForDriveAccess
+      } else {
+        profileRequest.maxRides = 3
+        profileRequest.suboptimalMinutes = beamConfig.beam.routing.r5.suboptimalMinutes
+      }
 
       val departureTimeToDominatingList: IntFunction[DominatingList] = (departureTime: Int) =>
         beamConfig.beam.routing.r5.transitAlternativeList.toLowerCase match {
-          case "suboptimal" if !mainRouteRideHailTransit =>
+          case "suboptimal" if !mainRouteRideHailTransit && !isCarEgress =>
+            // Note: We now disallow multiple responses for
+            // drive_transit. We should turn this back on if it is
+            // very important to the analysis
             new SuboptimalDominatingList(
               profileRequest.suboptimalMinutes
             )
