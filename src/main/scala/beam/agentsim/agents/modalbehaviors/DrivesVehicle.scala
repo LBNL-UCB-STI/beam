@@ -234,10 +234,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         ) if data.currentTripMode.contains(HOV2_TELEPORTATION) || data.currentTripMode.contains(HOV3_TELEPORTATION) =>
       updateLatestObservedTick(tick)
 
-      val dataForNextLegOrActivity: BasePersonData = data.copy(
-        currentVehicle = Vector(),
-        currentTripCosts = 0.0
-      )
+      val dataForNextLegOrActivity: BasePersonData = data.copy(currentVehicle = Vector(), currentTripCosts = 0.0)
 
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using dataForNextLegOrActivity.asInstanceOf[T]

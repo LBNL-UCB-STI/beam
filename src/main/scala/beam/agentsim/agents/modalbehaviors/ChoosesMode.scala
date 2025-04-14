@@ -515,10 +515,7 @@ trait ChoosesMode {
 
       val newPersonData = choosesModeData.copy(
         personData = personData
-          .copy(
-            currentTripMode = currentTripMode,
-            currentTourMode = currentTourStrategy.tourMode
-          ),
+          .copy(currentTripMode = currentTripMode, currentTourMode = currentTourStrategy.tourMode),
         routingResponse = responsePlaceholders.routingResponse,
         rideHailResult = responsePlaceholders.rideHailResult,
         rideHail2TransitRoutingResponse = responsePlaceholders.rideHail2TransitRoutingResponse,
@@ -1533,7 +1530,7 @@ trait ChoosesMode {
           .filterNot(itin =>
             itin.vehiclesInTrip
               .filterNot(_.toString.startsWith("body"))
-              .exists(choosesModeData.personData.mostRecentDeniedBoardingLeg.map(_.beamVehicleId).contains)
+              .exists(choosesModeData.personData.deniedBoardingLegs.map(_.beamVehicleId).contains)
           )
 
       val currentAct = currentActivity(personData)
@@ -1561,10 +1558,9 @@ trait ChoosesMode {
       def gotoFinishingModeChoice(chosenTrip: EmbodiedBeamTrip) = {
         goto(FinishingModeChoice) using choosesModeData.copy(
           personData = personData.copy(
-            currentTourMode = chosenCurrentTourMode,
-            currentTripMode = Some(chosenTrip.tripClassifier),
-            passengerSchedule = PassengerSchedule(),
             restOfCurrentTrip = List.empty[EmbodiedBeamLeg],
+            currentTripMode = Some(chosenTrip.tripClassifier),
+            currentTourMode = chosenCurrentTourMode,
             currentTourPersonalVehicle = chosenCurrentTourMode match {
               // if they're on a walk based tour we let them keep access to whatever personal vehicle they used on the
               // first leg or in a parent tour
@@ -1577,7 +1573,8 @@ trait ChoosesMode {
                   .orElse(
                     choosesModeData.personData.currentTourPersonalVehicle
                   )
-            }
+            },
+            passengerSchedule = PassengerSchedule()
           ),
           pendingChosenTrip = Some(chosenTrip),
           availableAlternatives = availableAlts
@@ -1643,8 +1640,8 @@ trait ChoosesMode {
           val dataForNextStep =
             choosesModeData.copy(
               personData = personData.copy(
-                currentTourMode = chosenCurrentTourMode,
                 currentTripMode = Some(chosenTrip.tripClassifier),
+                currentTourMode = chosenCurrentTourMode,
                 currentTourPersonalVehicle = chosenCurrentTourPersonalVehicle
                   .get(chosenTrip)
                   .flatten // If we're on a subtour and it uses no vehicle, we still pass on any tour vehicle from parent tours
@@ -1870,8 +1867,8 @@ trait ChoosesMode {
                 stay() using ChoosesModeData(
                   personData = personData.copy(
                     currentTripMode = None,
-                    numberOfReplanningAttempts = personData.numberOfReplanningAttempts + 1,
-                    currentTourPersonalVehicle = currentTourVehicle
+                    currentTourPersonalVehicle = currentTourVehicle,
+                    numberOfReplanningAttempts = personData.numberOfReplanningAttempts + 1
                   ),
                   allAvailableStreetVehicles = updatedVehicles,
                   currentLocation = choosesModeData.currentLocation,
@@ -2178,10 +2175,7 @@ trait ChoosesMode {
             updatedTripStrategy
           )
 
-          goto(Teleporting) using data.personData.copy(
-            currentTrip = Some(chosenTrip),
-            restOfCurrentTrip = List()
-          )
+          goto(Teleporting) using data.personData.copy(currentTrip = Some(chosenTrip), restOfCurrentTrip = List())
 
         case _ =>
           val (vehiclesUsed, vehiclesNotUsed) = data.availablePersonalStreetVehicles
@@ -2489,7 +2483,12 @@ trait ChoosesMode {
     val shouldAlwaysQueryRideHailTransit =
       shouldAlwaysQueryTransit & beamScenario.beamConfig.beam.exchange.output.generateSkimsForRideHailTransit
 
-    val bufferToUse = choosesModeData.personData.mostRecentDeniedBoardingLeg match {
+    val lastDepartureLeg: Option[EmbodiedBeamLeg] = choosesModeData.personData.deniedBoardingLegs match {
+      case legs if legs.nonEmpty => Some(legs.maxBy(_.beamLeg.startTime))
+      case _                     => None
+    }
+
+    val bufferToUse = lastDepartureLeg match {
       case Some(transitLeg) =>
         // Get the departure time of the failed transit leg
         val failedTransitDepartureTime = transitLeg.beamLeg.startTime

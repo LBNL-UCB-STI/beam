@@ -204,7 +204,7 @@ object PersonAgent {
     failedTrips: IndexedSeq[EmbodiedBeamTrip] = IndexedSeq.empty,
     lastUsedParkingStall: Option[ParkingStall] = None,
     enrouteData: EnrouteData = EnrouteData(),
-    mostRecentDeniedBoardingLeg: Option[EmbodiedBeamLeg] = None // ADDED THIS LINE
+    deniedBoardingLegs: Set[EmbodiedBeamLeg] = Set.empty[EmbodiedBeamLeg]
   ) extends PersonData
       with ExponentialLazyLogging {
 
@@ -673,11 +673,11 @@ class PersonAgent(
             currentTourMode = currentTourModeChoiceStrategy.tourMode,
             currentTourPersonalVehicle =
               currentTourModeChoiceStrategy.tourVehicle.orElse(data.currentTourPersonalVehicle),
+            passengerSchedule = PassengerSchedule(),
             numberOfReplanningAttempts = 0,
             failedTrips = IndexedSeq.empty,
             enrouteData = EnrouteData(),
-            passengerSchedule = PassengerSchedule(),
-            mostRecentDeniedBoardingLeg = None // EXPLICITLY SET TO NONE FOR NEW TRIP
+            deniedBoardingLegs = Set.empty[EmbodiedBeamLeg]
           ),
           SpaceTime(currentCoord, _currentTick.get),
           excludeModes =
@@ -724,8 +724,8 @@ class PersonAgent(
       eventsManager.processEvent(teleportationEvent)
 
       goto(ProcessingNextLegOrStartActivity) using data.copy(
-        hasDeparted = true,
-        currentVehicle = Vector.empty[Id[BeamVehicle]]
+        currentVehicle = Vector.empty[Id[BeamVehicle]],
+        hasDeparted = true
       )
 
   }
@@ -813,11 +813,11 @@ class PersonAgent(
     val nextCoord = nextActivity(data).get.getCoord
     goto(ChoosingMode) using ChoosesModeData(
       data.copy(
-        currentTripMode = None,
         currentTrip = None,
         restOfCurrentTrip = List.empty[EmbodiedBeamLeg],
-        numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1,
-        passengerSchedule = PassengerSchedule()
+        currentTripMode = None,
+        passengerSchedule = PassengerSchedule(),
+        numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1
       ),
       currentLocation = SpaceTime(
         currentCoord,
@@ -872,15 +872,15 @@ class PersonAgent(
 
       goto(ChoosingMode) using ChoosesModeData(
         data.copy(
-          numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1,
           currentTrip = None,
-          currentTripMode = Some(replannedMode),
           restOfCurrentTrip = List.empty[EmbodiedBeamLeg],
+          currentTripMode = Some(replannedMode),
           passengerSchedule = PassengerSchedule(),
+          numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1,
           failedTrips = data.failedTrips ++ data.currentTrip.map(trip =>
             trip.copy(legs = trip.legs.filter(_.beamLeg.startTime > _currentTick.getOrElse(-1)))
           ),
-          mostRecentDeniedBoardingLeg = Some(data.nextLeg)
+          deniedBoardingLegs = data.deniedBoardingLegs + data.nextLeg
         ),
         currentLocation = SpaceTime(currentCoord, _currentTick.get),
         pendingChosenTrip = None,
@@ -1007,8 +1007,8 @@ class PersonAgent(
         )
       }
 
-      goto(Moving) replying CompletionNotice(triggerId) using data.copy(
-        currentVehicle = vehicleToEnter +: data.currentVehicle
+      goto(Moving) replying CompletionNotice(triggerId) using data.copy(currentVehicle =
+        vehicleToEnter +: data.currentVehicle
       )
   }
 
@@ -1110,10 +1110,7 @@ class PersonAgent(
         (data.restOfCurrentTrip.tail, data.currentTripCosts + data.nextLeg.cost)
       }
 
-      goto(ChoosingParkingSpot) using data.copy(
-        restOfCurrentTrip = trip,
-        currentTripCosts = cost
-      )
+      goto(ChoosingParkingSpot) using data.copy(restOfCurrentTrip = trip, currentTripCosts = cost)
   }
 
   onTransition { case _ -> _ =>
@@ -1150,16 +1147,16 @@ class PersonAgent(
         else { (basePersonData.currentTourMode, basePersonData.currentTourPersonalVehicle) }
       goto(ChoosingMode) using ChoosesModeData(
         basePersonData.copy(
-          currentTripMode = Some(WALK_TRANSIT),
           currentTrip = None,
           restOfCurrentTrip = List.empty[EmbodiedBeamLeg],
+          currentTripMode = Some(WALK_TRANSIT),
           currentTourPersonalVehicle = updatedTourPersonalVehicle,
-          numberOfReplanningAttempts = basePersonData.numberOfReplanningAttempts + 1,
           passengerSchedule = PassengerSchedule(),
+          numberOfReplanningAttempts = basePersonData.numberOfReplanningAttempts + 1,
           failedTrips = basePersonData.failedTrips ++ basePersonData.currentTrip.map(trip =>
             trip.copy(legs = trip.legs.filter(_.beamLeg.startTime > _currentTick.getOrElse(-1)))
           ),
-          mostRecentDeniedBoardingLeg = basePersonData.restOfCurrentTrip.headOption
+          deniedBoardingLegs = basePersonData.deniedBoardingLegs ++ basePersonData.restOfCurrentTrip.headOption
         ),
         SpaceTime(currentCoord, _currentTick.get),
         isWithinTripReplanning = true,
@@ -1310,9 +1307,9 @@ class PersonAgent(
         }
 
         val updatedData = data.copy(
+          currentVehicle = currentVehicleForNextState,
           passengerSchedule = newPassengerSchedule,
           currentLegPassengerScheduleIndex = 0,
-          currentVehicle = currentVehicleForNextState,
           enrouteData = if (needEnroute) data.enrouteData.copy(isInEnrouteState = true) else data.enrouteData
         )
 
@@ -1363,10 +1360,10 @@ class PersonAgent(
         personData = data
           .copy(
             currentTripMode = Some(replannedMode),
-            numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1,
             passengerSchedule = PassengerSchedule(),
+            numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1,
             failedTrips = data.failedTrips ++ data.currentTrip.toVector,
-            mostRecentDeniedBoardingLeg = Some(data.nextLeg)
+            deniedBoardingLegs = data.deniedBoardingLegs + data.nextLeg
           ),
         currentLocation = SpaceTime(currentCoord, _currentTick.get),
         pendingChosenTrip = None,
@@ -1419,8 +1416,8 @@ class PersonAgent(
         personData = data
           .copy(
             currentTripMode = None,
-            numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1,
-            passengerSchedule = PassengerSchedule()
+            passengerSchedule = PassengerSchedule(),
+            numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1
           ),
         currentLocation = SpaceTime(currentCoord, _currentTick.get),
         pendingChosenTrip = None,
@@ -1500,10 +1497,10 @@ class PersonAgent(
             currentActivityIndex = data.currentActivityIndex + 1,
             currentTrip = None,
             restOfCurrentTrip = List(),
-            currentTourPersonalVehicle = nextTripTourPersonalVehicle,
             currentTripMode = None,
-            hasDeparted = false,
-            passengerSchedule = PassengerSchedule()
+            currentTourPersonalVehicle = nextTripTourPersonalVehicle,
+            passengerSchedule = PassengerSchedule(),
+            hasDeparted = false
           )
         case None =>
           logDebug("PersonAgent nextActivity returned None")
@@ -1601,6 +1598,7 @@ class PersonAgent(
             currentActivityIndex = data.currentActivityIndex + 1,
             currentTrip = None,
             restOfCurrentTrip = List(),
+            currentTripMode = None,
             currentTourPersonalVehicle = data.currentTourPersonalVehicle match {
               case Some(personalVehId) if beamVehicles.contains(personalVehId) =>
                 val personalVeh = beamVehicles(personalVehId).asInstanceOf[ActualVehicle].vehicle
@@ -1636,10 +1634,9 @@ class PersonAgent(
               case None =>
                 None
             },
-            currentTripMode = None,
-            rideHailReservedForLegs = IndexedSeq.empty,
+            passengerSchedule = PassengerSchedule(),
             hasDeparted = false,
-            passengerSchedule = PassengerSchedule()
+            rideHailReservedForLegs = IndexedSeq.empty
           )
         case None =>
           logDebug("PersonAgent nextActivity returned None")
