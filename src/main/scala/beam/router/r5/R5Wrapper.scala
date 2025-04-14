@@ -664,6 +664,11 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           case WALK => 3
           case _    => 3
         }
+        profileRequest.suboptimalMinutes = vehicle.mode match {
+          case CAR  => beamConfig.beam.routing.r5.suboptimalMinutesForDriveAccess
+          case WALK => beamConfig.beam.routing.r5.suboptimalMinutes
+          case _    => beamConfig.beam.routing.r5.suboptimalMinutes
+        }
         val vehicleType = vehicleTypes(vehicle.vehicleTypeId)
         val streetRouter = new StreetRouter(
           transportNetwork.streetLayer,
