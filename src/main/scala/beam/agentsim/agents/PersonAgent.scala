@@ -858,7 +858,9 @@ class PersonAgent(
         data.copy(
           numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1,
           currentTrip = None,
-          restOfCurrentTrip = List.empty[EmbodiedBeamLeg]
+          currentTripMode = Some(WALK_TRANSIT),
+          restOfCurrentTrip = List.empty[EmbodiedBeamLeg],
+          failedTrips = data.failedTrips ++ data.currentTrip.toSeq
         ),
         currentLocation = SpaceTime(currentCoord, _currentTick.get),
         pendingChosenTrip = None,
@@ -1115,19 +1117,19 @@ class PersonAgent(
 
       val nextAct = nextActivity(basePersonData).get
       val nextCoord = nextAct.getCoord
+      // Change -- just switch back to walk_transit
       // Have to give up my mode as well, perhaps there's no option left for driving.
-      _experiencedBeamPlan.putStrategy(nextAct, TripModeChoiceStrategy(mode = None))
-      val (updatedTourMode, updatedTourPersonalVehicle): (Option[BeamTourMode], Option[Id[BeamVehicle]]) =
-        if (nextAct.getType.equalsIgnoreCase("Home")) { (None, None) }
-        else { (basePersonData.currentTourMode, basePersonData.currentTourPersonalVehicle) }
+//      _experiencedBeamPlan.putStrategy(nextAct, TripModeChoiceStrategy(mode = None))
+//      val (updatedTourMode, updatedTourPersonalVehicle): (Option[BeamTourMode], Option[Id[BeamVehicle]]) =
+//        if (nextAct.getType.equalsIgnoreCase("Home")) { (None, None) }
+//        else { (basePersonData.currentTourMode, basePersonData.currentTourPersonalVehicle) }
       goto(ChoosingMode) using ChoosesModeData(
         basePersonData.copy(
-          currentTripMode = None,
-          currentTourMode = updatedTourMode,
+          currentTripMode = Some(WALK_TRANSIT),
           currentTrip = None,
           restOfCurrentTrip = List.empty[EmbodiedBeamLeg],
-          currentTourPersonalVehicle = updatedTourPersonalVehicle,
-          numberOfReplanningAttempts = basePersonData.numberOfReplanningAttempts + 1
+          numberOfReplanningAttempts = basePersonData.numberOfReplanningAttempts + 1,
+          failedTrips = basePersonData.failedTrips ++ basePersonData.currentTrip.toVector
         ),
         SpaceTime(currentCoord, _currentTick.get),
         isWithinTripReplanning = true,
@@ -1317,7 +1319,11 @@ class PersonAgent(
       val nextCoord = nextActivity(data).get.getCoord
       goto(ChoosingMode) using ChoosesModeData(
         personData = data
-          .copy(currentTripMode = Some(WALK_TRANSIT), numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
+          .copy(
+            currentTripMode = Some(WALK_TRANSIT),
+            numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1,
+            failedTrips = data.failedTrips ++ data.currentTrip.toVector
+          ),
         currentLocation = SpaceTime(currentCoord, _currentTick.get),
         pendingChosenTrip = None,
         rideHail2TransitRoutingResponse = None,
@@ -1827,7 +1833,9 @@ class PersonAgent(
   protected def getCurrentTourStrategy(
     data: BasePersonData
   ): TourModeChoiceStrategy = {
-    _experiencedBeamPlan.getTourStrategy[TourModeChoiceStrategy](currentActivity(data))
+    nextActivity(data)
+      .map(_experiencedBeamPlan.getTourStrategy[TourModeChoiceStrategy](_))
+      .getOrElse(TourModeChoiceStrategy())
   }
 
   private def handleSuccessfulTransitReservation(
