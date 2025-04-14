@@ -1,264 +1,612 @@
-import os
-import time
-from pathlib import Path
-import pandas as pd
-import re
 import gzip
-import shutil
-import polars as pl
+import os
+import re
+import time
+
+import duckdb
 import psutil
+from tqdm import tqdm
+import pandas as pd
+
+import matplotlib.pyplot as plt
+from _emissions_utils import process_color_map
 
 
-class MemoryEfficientProcessor:
+def get_or_upload_emissions_to_duckdb(csv_or_db_file, memory_limit=None):
     """
-    Memory-efficient processor that uses lazy evaluation and streaming
-    to avoid loading the entire file into memory at once.
+    Upload emissions CSV data to a DuckDB database for efficient querying.
+
+    Parameters:
+    -----------
+    input_csv_file : str
+        Path to the input CSV.GZ file containing emissions data
+    db_path : str, optional
+        Path where the DuckDB database will be stored. If None, creates in same dir as CSV
+    threads : int, optional
+        Number of threads to use for loading. If None, auto-detects based on CPU count
+
+    Returns:
+    --------
+    str
+        Path to the created DuckDB database
     """
+    start_time = time.time()
 
-    def __init__(
-            self,
-            input_file,
-            output_dir,
-            target_pollutants,
-            batch_size=100000  # Process in more manageable chunks
-    ):
-        self.input_file = input_file
-        self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(exist_ok=True, parents=True)
-        self.target_pollutants = target_pollutants if isinstance(target_pollutants, list) else [target_pollutants]
-        self.batch_size = batch_size
-        # Column selection (only keep what we need)
-        self.keep_columns = ['hour', 'linkId', 'vehicleTypeId', 'process',
-                             'travelTimeInSecond', 'parkingDurationInSecond',
-                             'observations', 'iterations', 'emissions']
+    # Validate input file
+    if not os.path.exists(csv_or_db_file):
+        raise FileNotFoundError(f"Input file not found: {csv_or_db_file}")
 
-        # Print version information
-        print(f"Pandas version: {pd.__version__}")
-        print(f"Polars version: {pl.__version__}")
+    # Check if the input file is a CSV or a DuckDB database
+    if csv_or_db_file.endswith('.duckdb'):
+        db_path = csv_or_db_file
+        input_csv_file = None
+    elif csv_or_db_file.endswith('.csv.gz') or csv_or_db_file.endswith('.csv'):
+        db_path = None
+        input_csv_file = csv_or_db_file
+    else:
+        raise ValueError("Input file must be a .csv or .duckdb file")
 
-    def process(self):
-        """
-        Process the emissions file using lazy evaluation to minimize memory usage.
-        Returns a list of output file paths.
-        """
-        start_time = time.time()
-        print(f"Processing file using memory-efficient streaming approach...")
+    # Auto-determine database path if not provided
+    if db_path is None:
+        db_path = os.path.join(os.path.dirname(input_csv_file),f"{os.path.basename(input_csv_file).split('.')[0]}.duckdb")
 
-        # Report initial memory state
-        mem_info = psutil.virtual_memory()
-        print(
-            f"Memory before processing: {mem_info.used / (1024 ** 3):.2f} GB / {mem_info.total / (1024 ** 3):.2f} GB ({mem_info.percent}%)")
+    # Create parent directory if it doesn't exist
+    os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
 
-        created_files = []
+    print(f"Loading emissions data into DuckDB database at: {db_path}")
 
-        print(f"Processing {len(self.target_pollutants)} pollutants...")
+    # Check if database already exists and has data
+    db_exists = os.path.exists(db_path)
+    has_data = False
 
-        # Get the column names from the file first (lightweight operation)
+    if db_exists:
         try:
-            schema = pl.scan_csv(self.input_file, n_rows=10).collect().columns
-            available_columns = [col for col in self.keep_columns if col in schema]
+            # Check if database already has emissions table with data
+            conn = duckdb.connect(database=db_path, read_only=True)
+            result = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='emissions'").fetchall()
+            if result:
+                count = conn.execute("SELECT COUNT(*) FROM emissions").fetchone()[0]
+                print(f"Database already exists with {count:,} rows")
+                has_data = count > 0
+            conn.close()
         except Exception as e:
-            print(f"Error getting schema, falling back to basic schema: {str(e)}")
-            schema = self.keep_columns  # Initialize schema to prevent reference errors
-            available_columns = self.keep_columns
+            print(f"Error checking existing database: {str(e)}")
+            print("Will recreate database")
+            if os.path.exists(db_path):
+                os.remove(db_path)
+                db_exists = False
 
-        # Process one pollutant at a time to minimize memory usage
-        for pollutant in self.target_pollutants:
-            pollutant_start = time.time()
+    # If database already has data, return early
+    if db_exists and has_data:
+        print(f"Using existing database at {db_path}")
+        return db_path
+    # Connect to the database
+    conn = duckdb.connect(database=db_path, read_only=False)
+    # Configure DuckDB performance settings
+    if memory_limit is not None:
+        conn.execute(f"SET memory_limit='{memory_limit}'")
+    # Auto-detect threads if not specified (leave 1-2 cores free)
+    cpu_count = psutil.cpu_count(logical=False) or psutil.cpu_count()
+    threads = max(1, cpu_count - 1)
+    print(f"Using {threads} threads for processing")
+    conn.execute(f"SET threads={threads}")
 
-            # Prepare the output file path
-            filename = os.path.basename(self.input_file)
-            if filename.endswith(".csv.gz"):
-                new_file_name = filename.replace(".csv.gz", f"_{pollutant}.csv.gz")
-            else:
-                new_file_name = filename.replace(".csv", f"_{pollutant}.csv.gz")
+    try:
+        # Additional performance optimizations that should be compatible with most DuckDB versions
+        conn.execute("SET checkpoint_threshold='4GB'")  # Higher checkpoint threshold
+    except:
+        print("Note: Checkpoint threshold setting not supported in this DuckDB version")
 
-            output_path = self.output_dir / new_file_name
-            temp_output_path = str(output_path).replace('.gz', '')  # Non-compressed version
+    # Load the data
+    print("Creating emissions table from CSV data...")
+    try:
+        # Try with parallel loading if supported
+        conn.execute(f"""
+            CREATE TABLE emissions AS
+            SELECT * FROM read_csv_auto(
+                '{input_csv_file}',
+                ignore_errors=true,
+                all_varchar=false,
+                sample_size=10000,
+                compression='auto',
+                parallel=true
+            )
+        """)
+    except Exception as e:
+        print(f"Parallel loading not supported, using standard loading: {str(e)}")
+        conn.execute(f"""
+            CREATE TABLE emissions AS
+            SELECT * FROM read_csv_auto(
+                '{input_csv_file}',
+                ignore_errors=true,
+                all_varchar=false,
+                sample_size=10000,
+                compression='auto'
+            )
+        """)
 
-            try:
-                # Process in streaming mode - filter first to reduce memory
-                query = (
-                    pl.scan_csv(self.input_file)
-                    .filter(pl.col("emissions").str.contains(f"{pollutant}:"))
-                    .select([
-                        *available_columns,  # Directly use available columns
-                        pl.col("emissions").str.extract(fr"{pollutant}:([\d\.E\-]+)", group_index=1)
-                        .cast(pl.Float64).alias(pollutant)
-                    ])
-                    .filter(pl.col(pollutant).is_not_null())
-                )
+    # # Create index on emissions column for faster searching
+    # print("Creating index on emissions column...")
+    # try:
+    #     conn.execute("CREATE INDEX idx_emissions ON emissions(emissions)")
+    # except Exception as e:
+    #     print(f"Note: Index creation not supported in this DuckDB version: {str(e)}")
 
-                # Execute the query and write results to uncompressed file first
-                try:
-                    result = query.collect()
-                    rows_processed = len(result)
+    # Verify loading was successful
+    row_count = conn.execute("SELECT COUNT(*) FROM emissions").fetchone()[0]
+    print(f"Successfully loaded {row_count:,} rows into database")
 
-                    if rows_processed > 0:
-                        # Write to uncompressed file first
-                        result.write_csv(temp_output_path)
+    # Analyze table for query optimization
+    try:
+        conn.execute("ANALYZE emissions")
+    except:
+        print("Note: ANALYZE command not supported in this DuckDB version")
 
-                        # Then compress it
-                        with open(temp_output_path, 'rb') as f_in:
-                            with gzip.open(str(output_path), 'wb') as f_out:
-                                shutil.copyfileobj(f_in, f_out)
+    # Close the connection
+    conn.close()
 
-                        # Remove the uncompressed file
-                        os.remove(temp_output_path)
-
-                        created_files.append(str(output_path))
-                        print(
-                            f"  - {pollutant}: {rows_processed:,} rows in {time.time() - pollutant_start:.2f} seconds")
-                    else:
-                        print(f"  - {pollutant}: No data found")
-
-                except Exception as e:
-                    print(f"  - Error during query execution or file writing: {str(e)}")
-                    raise Exception("Force pandas fallback")
-
-            except Exception as e:
-                # Skip the chunked processing with polars since it's failing
-                # and go straight to pandas which is working
-                print(f"  - Streaming failed for {pollutant}, using pandas: {str(e)}")
-
-                # Try pandas as reliable fallback
-                try:
-                    # Function to process chunks with pandas
-                    def process_chunk(chunk):
-                        if "emissions" not in chunk.columns:
-                            return pd.DataFrame()
-
-                        # Ensure emissions is a string column
-                        if not pd.api.types.is_string_dtype(chunk['emissions']):
-                            chunk['emissions'] = chunk['emissions'].astype(str)
-
-                        # Filter rows with the pollutant
-                        mask = chunk['emissions'].str.contains(f"{pollutant}:", na=False)
-                        if not mask.any():
-                            return pd.DataFrame()
-
-                        filtered = chunk.loc[mask].copy()
-
-                        # Extract pollutant value
-                        pattern = re.compile(fr"{pollutant}:([\d\.E\-]+)")
-                        filtered[pollutant] = filtered['emissions'].apply(
-                            lambda x: float(pattern.search(x).group(1)) if isinstance(x, str) and pattern.search(
-                                x) else None
-                        )
-
-                        # Drop rows with missing values and the emissions column
-                        filtered = filtered.dropna(subset=[pollutant])
-                        if "emissions" in filtered.columns:
-                            filtered = filtered.drop(columns=["emissions"])
-
-                        return filtered
-
-                    # Process in chunks
-                    total_rows = 0
-                    first_chunk = True
-
-                    for chunk in pd.read_csv(
-                            self.input_file,
-                            compression='infer',
-                            chunksize=self.batch_size,  # This is valid for pandas
-                            low_memory=True
-                    ):
-                        # Keep only necessary columns to save memory
-                        cols_to_keep = [col for col in self.keep_columns if col in chunk.columns]
-                        if "emissions" not in cols_to_keep:
-                            cols_to_keep.append("emissions")
-                        chunk = chunk[cols_to_keep]
-
-                        # Process chunk
-                        result = process_chunk(chunk)
-                        if len(result) > 0:
-                            # Write to CSV
-                            mode = 'w' if first_chunk else 'a'
-                            header = first_chunk
-                            result.to_csv(str(output_path), mode=mode, index=False, header=header,
-                                          compression='gzip')
-                            first_chunk = False
-                            total_rows += len(result)
-
-                        # Clean up memory
-                        del chunk, result
-                        import gc
-                        gc.collect()
-
-                    if total_rows > 0:
-                        created_files.append(str(output_path))
-                        print(
-                            f"  - {pollutant}: {total_rows:,} rows processed with pandas in {time.time() - pollutant_start:.2f} seconds")
-                    else:
-                        # Remove empty files
-                        if os.path.exists(output_path):
-                            os.remove(output_path)
-                        print(f"  - {pollutant}: No data found")
-
-                except Exception as e:
-                    print(f"  - All processing methods failed for {pollutant}: {str(e)}")
-
-            # Monitor memory usage
-            if (time.time() - start_time) % 60 < 5:  # Report memory every ~60 seconds
-                mem_info = psutil.virtual_memory()
-                print(
-                    f"Memory usage: {mem_info.used / (1024 ** 3):.2f} GB / {mem_info.total / (1024 ** 3):.2f} GB ({mem_info.percent}%)")
-
-        # Report overall performance
-        total_time = time.time() - start_time
-        print(f"\nTotal processing time: {total_time:.2f} seconds")
-        print(f"Throughput: {os.path.getsize(self.input_file) / (1024 ** 2) / total_time:.2f} MB/s")
-
-        return created_files
+    load_time = time.time() - start_time
+    print(f"Database creation completed in {load_time:.2f} seconds")
+    return db_path
 
 
-def process_pollutants(skims_file, emissions_output_dir, target_pollutants):
-    """Process pollutants using memory-efficient streaming approach."""
-    print(f"\n{'=' * 80}")
-    print("MEMORY-EFFICIENT EMISSIONS PROCESSOR")
-    print(f"{'=' * 80}")
+def extract_pollutant(db_path, pollutant, output_path, compress=True):
+    """
+    Extract a specific pollutant from the emissions database.
+    Handles semicolon-delimited emissions data.
 
-    # Get system information
-    mem_info = psutil.virtual_memory()
-    file_size = os.path.getsize(skims_file) / (1024 ** 3)  # Size in GB
+    Parameters:
+    -----------
+    db_path : str
+        Path to the DuckDB database containing emissions data
+    pollutant : str
+        Name of the pollutant to extract (e.g., 'CO2', 'NOx')
+    output_path : str
+        Path where the output CSV file will be saved
+    compress : bool, optional
+        Whether to compress the output file as .csv.gz (True) or leave as .csv (False)
 
-    print(f"System memory: {mem_info.total / (1024 ** 3):.1f} GB ({mem_info.percent}% used)")
-    print(f"Input file size: {file_size:.2f} GB")
+    Returns:
+    --------
+    str
+        Path to the created output file
+    int
+        Number of rows extracted
+    """
+    start_time = time.time()
 
-    # Calculate batch size based on available memory, with reasonable limits
-    available_memory = (mem_info.available * 0.5) / (1024 ** 3)  # Use up to 50% of available RAM
-    estimated_expansion = 5  # Estimate of how much a compressed file expands in memory
+    # Validate inputs
+    if not os.path.exists(db_path):
+        raise FileNotFoundError(f"Database file not found: {db_path}")
 
-    # Cap the batch size to something reasonable
-    batch_size = max(10000,
-                     min(1000000, int((available_memory * 1024 * 1024) / (file_size * estimated_expansion * 10))))
-    print(f"Using batch size of {batch_size:,} rows")
-
-    # Initialize and run the processor
-    processor = MemoryEfficientProcessor(
-        input_file=skims_file,
-        output_dir=emissions_output_dir,
-        target_pollutants=target_pollutants,
-        batch_size=batch_size
-    )
-
-    # Process the file
-    return processor.process()
-
-
-def main():
-    """Main execution function."""
-    work_dir = os.path.expanduser("~/Workspace/Simulation/sfbay")
-    # skims_file = f"{work_dir}/beam-runs/20240123/2018-Baseline-EM1/0.skimsEmissions.csv.gz"
-    skims_file = f"/Users/haitamlaarabi/Workspace/Models/beam/trap/output/sf-light/sflight-11-emissions-urbansim_v2__2025-04-13_14-06-48_hif/ITERS/it.0/0.skimsEmissions.csv.gz"
-    output_dir = f"{work_dir}/beam-runs/20240123/2018-Baseline-EM1/emissions-output"
+    # Ensure output directory exists
+    output_dir = os.path.dirname(os.path.abspath(output_path))
     os.makedirs(output_dir, exist_ok=True)
-    target_pollutants = [
-        "CH4", "CO", "CO2", "HC", "NH3", "NOx", "PM", "PM10", "PM2_5", "ROG", "SOx", "TOG", "BC", "BCm", "BCh"
-    ]
 
-    process_pollutants(skims_file, output_dir, target_pollutants)
+    # Determine temporary and final paths
+    if compress and not output_path.endswith('.gz'):
+        output_path = f"{output_path}.gz"
+
+    temp_output_path = output_path
+    if compress:
+        temp_output_path = output_path.replace('.gz', '')
+
+    print(f"Extracting pollutant '{pollutant}' from database: {db_path}")
+
+    # Connect to the database
+    conn = duckdb.connect(database=db_path, read_only=True)
+
+    try:
+        # Check if database has emissions table
+        result = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='emissions'").fetchall()
+        if not result:
+            raise ValueError("Database does not contain an emissions table")
+
+        # Count matching rows for progress information
+        count_query = f"""
+            SELECT COUNT(*) 
+            FROM emissions 
+            WHERE emissions LIKE '%{pollutant}:%'
+        """
+        matching_rows = conn.execute(count_query).fetchone()[0]
+        print(f"Found {matching_rows:,} rows containing {pollutant}")
+
+        if matching_rows == 0:
+            print(f"No data found for pollutant: {pollutant}")
+            return None, 0
+
+        # Get the raw data with emissions column - we'll extract values using pandas
+        # since the delimiter is semicolon instead of comma
+        query = f"""
+            SELECT 
+                hour, 
+                linkId, 
+                vehicleTypeId, 
+                process, 
+                travelTimeInSecond, 
+                observations, 
+                iterations,
+                emissions
+            FROM emissions
+            WHERE emissions LIKE '%{pollutant}:%'
+        """
+
+        # Execute the query and get results as DataFrame
+        print(f"Fetching data for {pollutant}...")
+        df = conn.execute(query).df()
+
+        if len(df) == 0:
+            print(f"No data found for pollutant: {pollutant}")
+            return None, 0
+
+        # Extract pollutant values using regex
+        print(f"Extracting {pollutant} values...")
+        # Pattern to match pollutant:value followed by semicolon or end of string
+        pattern = re.compile(fr'{pollutant}:([\d\.E\-]+)(;|$)')
+
+        # Apply extraction
+        df[pollutant] = df['emissions'].apply(
+            lambda x: float(pattern.search(x).group(1)) if pattern.search(x) else None
+        )
+
+        # Drop rows with missing values and the original emissions column
+        df = df.dropna(subset=[pollutant])
+        df = df.drop(columns=['emissions'])
+
+        if len(df) == 0:
+            print(f"No valid data found for pollutant: {pollutant}")
+            return None, 0
+
+        # Write to CSV
+        print(f"Writing {len(df):,} rows to output file...")
+        df.to_csv(temp_output_path, index=False)
+
+        # Compress if needed
+        if compress:
+            print(f"Compressing output file...")
+            with open(temp_output_path, 'rb') as f_in:
+                with gzip.open(output_path, 'wb', compresslevel=6) as f_out:
+                    # Get file size for progress bar
+                    f_in.seek(0, os.SEEK_END)
+                    file_size = f_in.tell()
+                    f_in.seek(0)
+
+                    # Use progress bar for compression
+                    with tqdm(total=file_size, unit='B', unit_scale=True,
+                              desc=f"Compressing {pollutant} data") as pbar:
+                        # Use larger buffer for better performance
+                        buffer_size = 4 * 1024 * 1024  # 4MB buffer
+                        while True:
+                            chunk = f_in.read(buffer_size)
+                            if not chunk:
+                                break
+                            f_out.write(chunk)
+                            pbar.update(len(chunk))
+
+            # Remove temporary uncompressed file
+            os.remove(temp_output_path)
+            final_path = output_path
+        else:
+            final_path = temp_output_path
+
+        rows_extracted = len(df)
+        processing_time = time.time() - start_time
+        print(f"Extracted {rows_extracted:,} rows with {pollutant} in {processing_time:.2f} seconds")
+        return final_path, rows_extracted
+
+    except Exception as e:
+        print(f"Error extracting pollutant {pollutant}: {str(e)}")
+        # Clean up any temporary files
+        if os.path.exists(temp_output_path):
+            os.remove(temp_output_path)
+        return None, 0
+
+    finally:
+        # Close the connection
+        conn.close()
+
+
+def process_by_link_type_process(skims_db, pollutants, group_by_clauses, output_file, multiplier_factor, pollutant_suffix):
+    """
+    Process emissions data directly from DuckDB database by link type, vehicle type, and process.
+    Handles semicolon-delimited emissions data with robust error handling.
+    If the output file already exists, reads and returns it instead of reprocessing.
+
+    Parameters:
+    -----------
+    skims_db : str
+        Path to the DuckDB database
+    pollutants : list
+        List of pollutant names to process
+    group_by_clauses : list
+        Columns to group by
+    output_file : str
+        Path to save the output file
+
+    Returns:
+    --------
+    pandas.DataFrame
+        Merged DataFrame with all pollutants
+    """
+    # Check if output file already exists
+    if os.path.exists(output_file):
+        print(f"Output file {output_file} already exists. Reading existing file...")
+        try:
+            result_df = pd.read_csv(output_file, compression='gzip')
+            print(f"Successfully loaded existing file with {len(result_df)} rows.")
+            return result_df
+        except Exception as e:
+            print(f"Error reading existing file: {e}")
+            print("Will reprocess the data...")
+
+    # Connect to the database
+    conn = duckdb.connect(database=skims_db, read_only=True)
+
+    try:
+        # Construct the SELECT clause for each pollutant
+        select_clauses = list(group_by_clauses) + ["SUM(observations) as observations"]
+
+        for pollutant in pollutants:
+            # Add calculation for total pollutant
+            select_clauses.append(f"""
+                SUM(
+                    CASE 
+                        WHEN REGEXP_MATCHES(emissions, '{pollutant}:([\\d\\.E\\-]+)(;|$)') 
+                        THEN CAST(NULLIF(REGEXP_EXTRACT(emissions, '{pollutant}:([\\d\\.E\\-]+)(;|$)', 1), '') AS DOUBLE) * observations * {multiplier_factor}
+                        ELSE 0 
+                    END
+                ) AS {pollutant}_{pollutant_suffix}
+            """)
+
+        # Construct the WHERE clause to filter for rows containing any of the pollutants
+        where_conditions = []
+        for pollutant in pollutants:
+            where_conditions.append(f"emissions LIKE '%{pollutant}:%'")
+
+        where_clause = " OR ".join(where_conditions)
+
+        # Build the final query
+        query = f"""
+        SELECT 
+            {', '.join(select_clauses)}
+        FROM emissions
+        WHERE {where_clause}
+        GROUP BY {', '.join(group_by_clauses)}
+        """
+
+        print("Executing query to extract and aggregate pollutants...")
+        print(f"Query: grouped by {', '.join(group_by_clauses)} for pollutants: {', '.join(pollutants)}")
+        result_df = conn.execute(query).df()
+
+        if len(result_df) == 0:
+            print("No data found for any of the specified pollutants")
+            return None
+
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
+
+        # Save the result to a CSV file
+        result_df.to_csv(output_file, index=False, compression='gzip')
+        print(f"Saved merged emissions skims to {output_file}")
+
+        return result_df
+
+    finally:
+        # Close the connection
+        conn.close()
+
+
+def plot_pollutants_by_process(skims, scenario, plot_dir, height_size, font_size):
+    process_order = list(process_color_map.keys())
+    grouped = skims.groupby(['pollutant', 'process'])['tons_year'].sum().unstack().reindex(columns=process_order)
+    normalized = grouped.div(grouped.sum(axis=1), axis=0) * 100
+    csv_filename = f'{plot_dir}/emissions_by_process_{scenario.replace(" ", "_").lower()}.csv'
+    normalized.to_csv(csv_filename)
+
+    # Create the plot
+    fig, ax = plt.subplots(figsize=(20, height_size))
+    normalized.plot(kind='bar', stacked=True, ax=ax, color=[process_color_map[col] for col in normalized.columns])
+    plt.title(f'Normalized Emissions by Process - {scenario}', fontsize=font_size + 4)
+    plt.xlabel('Emissions', fontsize=font_size)
+    plt.ylabel('Relative Process Contribution (%)', fontsize=font_size)
+    plt.xticks(rotation=0, ha='center', fontsize=font_size)
+    plt.yticks(fontsize=font_size)
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: '{:.0f}%'.format(y)))
+    ax.set_ylim(0, 100)
+    legend = plt.legend(title='Process', bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=font_size)
+    plt.setp(legend.get_title(), fontsize=font_size)
+    plt.tight_layout()
+    plt.savefig(
+        f'{plot_dir}/emissions_by_process_{scenario.replace(" ", "_").lower()}.png',
+        dpi=300,
+        bbox_inches='tight'
+    )
+    plt.show()
+
+
+def plot_emissions_by_mode_and_pollutant(skims, pollutant, scenario, plot_dir, width_size, height_size, font_size):
+    process_order = list(process_color_map.keys())
+
+    pollutant_data = skims[skims['pollutant'] == pollutant].copy()
+    grouped = pollutant_data.groupby(['mode', 'process'])['tons_year'].sum().unstack().reindex(columns=process_order)
+    grouped = grouped.fillna(0)
+
+    csv_filename = f'{plot_dir}/emissions_by_mode_{pollutant}_{scenario.replace(" ", "_").lower()}.csv'
+    grouped.to_csv(csv_filename)
+
+    # Create the plot
+    fig, ax = plt.subplots(figsize=(width_size, height_size))
+    grouped.plot(kind='bar', stacked=True, ax=ax, color=[process_color_map[col] for col in grouped.columns])
+    plt.title(f'{pollutant} Emissions by Mode - {scenario}', fontsize=font_size + 4)
+    plt.xlabel('Mode', fontsize=font_size)
+    plt.ylabel(f'{pollutant} Emissions (tons/year)', fontsize=font_size)
+    plt.xticks(rotation=0, ha='center', fontsize=font_size)
+    plt.yticks(fontsize=font_size)
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: '{:,.0f}'.format(y)))
+    legend = plt.legend(title='Process', bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=font_size)
+    plt.setp(legend.get_title(), fontsize=font_size)
+    plt.tight_layout()
+    plt.savefig(
+        f'{plot_dir}/emissions_by_mode_{pollutant}_{scenario.replace(" ", "_").lower()}.png',
+        dpi=300,
+        bbox_inches='tight'
+    )
+    plt.show()
 
 
 if __name__ == "__main__":
-    main()
+    # Example inputs
+    sample_size = 0.1
+    grams_to_us_tons = 1 / 907185
+    days_per_year = 320
+    multiplier_factor = (1 / sample_size) * grams_to_us_tons * days_per_year
+    pollutants = ["CH4", "CO", "CO2", "HC", "NH3", "NOx", "PM", "PM10", "PM2_5", "ROG", "SOx", "TOG", "BC", "BCm", "BCh"]
+
+    # Files
+    work_dir = os.path.expanduser("~/Workspace/Simulation/sfbay")
+    # skims_file = f"/Users/haitamlaarabi/Workspace/Models/beam/trap/output/sf-light/sflight-11-emissions-urbansim_v2__2025-04-13_14-06-48_hif/ITERS/it.0/0.skimsEmissions.csv.gz"
+    skims_file = f"{work_dir}/beam-runs/20240123/2018-Baseline-EM1/0.skimsEmissions.csv.gz"
+    output_dir = f"{work_dir}/beam-runs/20240123/2018-Baseline-EM1/emissions-output"
+    os.makedirs(output_dir, exist_ok=True)
+    skims_db_file = f"{work_dir}/beam-runs/20240123/2018-Baseline-EM1/0.skimsEmissions.duckdb"
+    freight_types_file = f"{work_dir}/vehicle-tech/vehicleTypes--frism--2018-Baseline--EM.csv"
+    passenger_types_file = f"{work_dir}/vehicle-tech/vehicleTypes--atlas--2017-Baseline--EM.csv"
+
+    # Loading
+    run_dir = os.path.dirname(skims_db_file)
+    skims_db = get_or_upload_emissions_to_duckdb(csv_or_db_file=skims_db_file)
+    freight_types = pd.read_csv(freight_types_file)
+    passenger_types = pd.read_csv(passenger_types_file)
+
+    # Processing
+    plot_pollutants_by_process_flag = False
+    plot_pollutants_by_process_and_demand_flag = False
+    plot_pollutant_total_by_demand = True
+
+    # pollutants = ["PM2_5", "NOx", "CO2"]
+    # group_by = ["linkId", "vehicleTypeId", "process"]
+    # process_by_link_type_process(
+    #     skims_db = skims_db,
+    #     pollutants = pollutants,
+    #     group_by_clauses = group_by,
+    #     output_file = f"{run_dir}/emissions_by_{'_'.join(group_by)}_for_{'_'.join(pollutants)}.csv.gz"
+    # )
+
+    # pollutants = ["PM2_5", "NOx", "CO2"]
+    # group_by = ["process"]
+    # result = process_by_link_type_process(
+    #     skims_db = skims_db,
+    #     pollutants = pollutants,
+    #     group_by_clauses = group_by,
+    #     output_file = f"{run_dir}/emissions_by_{'_'.join(group_by)}_for_{'_'.join(pollutants)}.csv.gz"
+    # )
+    # tot_co2 = result["CO2"].sum()
+    # result["CO2_share"] = result["CO2"]/tot_co2
+    # print(result.head(20))
+
+    if plot_pollutants_by_process_and_demand_flag:
+        group_by = ["process", "vehicleTypeId"]
+        result = process_by_link_type_process(
+            skims_db = skims_db,
+            pollutants = pollutants,
+            group_by_clauses = group_by,
+            output_file = f"{run_dir}/emissions_by_{'_'.join(group_by)}_for_all.csv.gz",
+            multiplier_factor = multiplier_factor,
+            pollutant_suffix = "tons_year"
+        )
+        freight_types_ids = freight_types["vehicleTypeId"].unique()
+        freight_result = result[result["vehicleTypeId"].isin(freight_types_ids)]
+        melted_df = pd.melt(freight_result,
+            id_vars=['process'],
+            value_vars=[col for col in result.columns if col.endswith('_tons_year')],
+            var_name='pollutant',
+            value_name='tons_year'
+        )
+        melted_df['pollutant'] = melted_df['pollutant'].str.replace('_tons_year', '')
+        melted_df = melted_df[['process', 'pollutant', 'tons_year']]
+        melted_df = melted_df[melted_df['tons_year'] > 0].copy()
+        plot_pollutants_by_process(
+            melted_df,
+            scenario="2018 Baseline Freight Only",
+            plot_dir=output_dir,
+            height_size=6,
+            font_size=20
+        )
+
+    if plot_pollutants_by_process_flag:
+        group_by = ["process"]
+        result = process_by_link_type_process(
+            skims_db = skims_db,
+            pollutants = pollutants,
+            group_by_clauses = group_by,
+            output_file = f"{run_dir}/emissions_by_{'_'.join(group_by)}_for_all.csv.gz",
+            multiplier_factor = multiplier_factor,
+            pollutant_suffix = "tons_year"
+        )
+        melted_df = pd.melt(result,
+            id_vars=['process'],
+            value_vars=[col for col in result.columns if col.endswith('_tons_year')],
+            var_name='pollutant',
+            value_name='tons_year'
+        )
+        melted_df['pollutant'] = melted_df['pollutant'].str.replace('_tons_year', '')
+        melted_df = melted_df[['process', 'pollutant', 'tons_year']]
+        melted_df = melted_df[melted_df['tons_year'] > 0].copy()
+        plot_pollutants_by_process(
+            melted_df,
+            scenario="2018 Baseline Passenger and Freight",
+            plot_dir=output_dir,
+            height_size=6,
+            font_size=20
+        )
+
+    if plot_pollutant_total_by_demand:
+        group_by = ["process", "vehicleTypeId"]
+        result = process_by_link_type_process(
+            skims_db = skims_db,
+            pollutants = pollutants,
+            group_by_clauses = group_by,
+            output_file = f"{run_dir}/emissions_by_{'_'.join(group_by)}_for_all.csv.gz",
+            multiplier_factor = multiplier_factor,
+            pollutant_suffix = "tons_year"
+        )
+        melted_df = pd.melt(result,
+                            id_vars=['process', 'vehicleTypeId'],
+                            value_vars=[col for col in result.columns if col.endswith('_tons_year')],
+                            var_name='pollutant',
+                            value_name='tons_year'
+                            )
+        melted_df['pollutant'] = melted_df['pollutant'].str.replace('_tons_year', '')
+        melted_df = melted_df[['process', 'vehicleTypeId', 'pollutant', 'tons_year']]
+        melted_df = melted_df[melted_df['tons_year'] > 0].copy()
+
+        # Get unique vehicle type IDs for each category
+        freight_types_ids = freight_types["vehicleTypeId"].unique()
+        car_types_ids = passenger_types[passenger_types["vehicleCategory"].str.lower() == "car"][
+            "vehicleTypeId"].unique()
+        bike_types_ids = passenger_types[passenger_types["vehicleCategory"].str.lower() == "bike"][
+            "vehicleTypeId"].unique()
+        bus_types_ids = passenger_types[
+            (passenger_types["vehicleCategory"].str.lower() == "mediumdutypassenger") &
+            (passenger_types["vehicleTypeId"].str.lower().str.contains("bus"))
+            ]["vehicleTypeId"].unique()
+
+        melted_df["mode"] = ""
+        melted_df.loc[melted_df["vehicleTypeId"].isin(car_types_ids), "mode"] = "Car"
+        melted_df.loc[melted_df["vehicleTypeId"].isin(bike_types_ids), "mode"] = "Bike"
+        melted_df.loc[melted_df["vehicleTypeId"].isin(bus_types_ids), "mode"] = "Bus"
+        melted_df.loc[melted_df["vehicleTypeId"].isin(freight_types_ids), "mode"] = "MHD"
+
+        grouped_df = melted_df.groupby(["process", "pollutant", "mode"])["tons_year"].sum().reset_index()
+        plot_emissions_by_mode_and_pollutant(
+            grouped_df,
+            pollutant="PM2_5",
+            scenario="2018 Baseline Passenger and Freight",
+            plot_dir=output_dir,
+            width_size=16,
+            height_size=6,
+            font_size=18
+        )
+
+
+    print("END")

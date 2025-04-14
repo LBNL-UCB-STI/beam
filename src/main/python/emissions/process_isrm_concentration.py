@@ -24,6 +24,8 @@ from matplotlib.patches import FancyArrowPatch
 from matplotlib_scalebar.scalebar import ScaleBar
 from shapely.geometry import Polygon
 
+from emissions_skims_processor import get_or_upload_emissions_to_duckdb
+
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(os.path.dirname(current_dir))
@@ -32,6 +34,28 @@ sys.path.insert(0, parent_dir)
 # Now use absolute import
 from python.utils.study_area_config import get_area_config
 from python.utils.study_area_config import generate_network_name
+
+
+def process_by_link_type_process(skims_db, pollutants, run_dir):
+    merged_df = None
+    for pollutant in pollutants:
+        skims = pd.read_csv(f"{run_dir}/0.skimsEmissions_{pollutant}.csv.gz")
+        grouped_skims = skims.groupby(["linkId", "vehicleTypeId", "process"]).agg({
+            f'{pollutant}': 'sum',
+            'observations': 'sum'
+        }).reset_index()
+        grouped_skims[f'tot_{pollutant}'] = grouped_skims[pollutant] * grouped_skims['observations']
+        if merged_df is None:
+            merged_df = grouped_skims[['linkId', 'vehicleTypeId', 'process', pollutant, f'tot_{pollutant}']]
+        else:
+            temp_df = grouped_skims[['linkId', 'vehicleTypeId', 'process', pollutant, f'tot_{pollutant}']]
+            merged_df = pd.merge(merged_df, temp_df, on=['linkId', 'vehicleTypeId', 'process'], how='outer')
+
+    # Save the merged DataFrame to a CSV file
+    output_file = f"{run_dir}/0.skimsEmissions_{"_".join(pollutants)}.csv.gz"
+    merged_df.to_csv(output_file, index=False)
+    print(f"Saved merged emissions skims to {output_file}")
+    return merged_df
 
 
 def main():
@@ -50,8 +74,10 @@ def main():
 
     isrm_beam_geo = f"{work_dir}/inmap/{network_name}/isrm-beam--network-intersection.geojson"
     isrm_grid_geo = f"{work_dir}/inmap/ISRM/isrm_polygon.shp"
-    emissions_skims_s1 = f"{work_dir}/beam-runs/20240123/2018-Baseline-EM1/0.skimsEmissions.csv.gz"
-    emissions_skims_s0 = ""
+    pollutants = ["PM2_5"]
+    skims_db_file = f"{work_dir}/beam-runs/20240123/2018-Baseline-EM1/0.skimsEmissions.duckdb"
+    skims_db = get_or_upload_emissions_to_duckdb(csv_or_db_file=skims_db_file)
+    skims1 = process_by_link_type_process(skims_db, pollutants)
 
     # Configuration
     emis_shapefile_filepath = f'{work_dir}/{inmap_conf["isrm_grid"]}'

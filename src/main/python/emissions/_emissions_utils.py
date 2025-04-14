@@ -21,6 +21,17 @@ sys.path.insert(0, parent_dir)
 
 from python.utils.study_area_config import BeamClasses
 
+process_color_map = {
+    'IDLEX':   '#fde725',  # Light yellow
+    'RUNEX':   '#7ad151',  # Light green
+    'PMBW':    '#22a884',  # Teal
+    'PMTW':    '#2a788e',  # Blue-green
+    'STREX': '#8e0152',   # Dark magenta
+    'RUNLOSS': '#4b0082',   # Indigo
+    'HOTSOAK': '#414487',  # Purple-blue
+    'DIURN': '#440154',  # Dark purple
+}
+
 
 def generate_emfac_beam_class_mapping(emfac_pop_by_model_year_file, vehicle_class_output_file, to_filter_out):
     """
