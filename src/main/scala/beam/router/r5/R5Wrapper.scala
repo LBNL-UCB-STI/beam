@@ -635,6 +635,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       val egressRouters = mutable.Map[LegMode, StreetRouter]()
       val egressStopsByMode = mutable.Map[LegMode, StopVisitor]()
       profileRequest.reverseSearch = true
+      val isCarEgress = egressVehicles.exists(_.mode == CAR)
       for (vehicle <- egressVehicles) {
         val (costPerMile, costPerMinute) = getVehicleCosts(vehicle)
         val theDestination = if (mainRouteToVehicle) {
@@ -715,6 +716,9 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           val departureTimeToDominatingList: IntFunction[DominatingList] = (departureTime: Int) =>
             beamConfig.beam.routing.r5.transitAlternativeList.toLowerCase match {
               case "suboptimal" if !mainRouteRideHailTransit && !isDriveTransitRequest =>
+                // Note: We now disallow multiple responses for
+                // drive_transit. We should turn this back on if it is
+                // very important to the analysis
                 new SuboptimalDominatingList(
                   profileRequest.suboptimalMinutes
                 )
@@ -725,6 +729,18 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
                   departureTime + profileRequest.maxTripDurationMinutes * 60
                 )
             }
+
+          mode match {
+            case LegMode.CAR | LegMode.BICYCLE =>
+              profileRequest.suboptimalMinutes = beamConfig.beam.routing.r5.suboptimalMinutesForDriveAccess
+              profileRequest.maxRides = 2
+            case _ if egressVehicles.exists(v => Seq(CAR, BIKE).contains(v.mode)) =>
+              profileRequest.suboptimalMinutes = beamConfig.beam.routing.r5.suboptimalMinutesForDriveAccess
+              profileRequest.maxRides = 2
+            case _ =>
+              profileRequest.suboptimalMinutes = beamConfig.beam.routing.r5.suboptimalMinutes
+              profileRequest.maxRides = 3
+          }
 
           val modeSpecificBuffer = mode match {
             case LegMode.WALK         => beamConfig.beam.routing.r5.accessBufferTimeSeconds.walk
