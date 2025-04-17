@@ -7,7 +7,7 @@ import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm
 object Fleets {
 
   def lookup(config: BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm): FleetType = {
-    val vehicleManager = VehicleManager.createOrGetReservedFor(config.name, VehicleManager.TypeEnum.Shared)
+    val vehicleManager = VehicleManager.createOrGetReservedFor(config.name, Some(VehicleManager.TypeEnum.Shared))
     val parkingFilePath = config.parkingFilePath
     config.managerType match {
       case "fixed-non-reserving-fleet-by-taz" =>

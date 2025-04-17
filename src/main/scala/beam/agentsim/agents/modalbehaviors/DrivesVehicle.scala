@@ -18,7 +18,7 @@ import beam.agentsim.events.RefuelSessionEvent.NotApplicable
 import beam.agentsim.events._
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
-import beam.agentsim.infrastructure.{ParkingInquiry, ParkingStall}
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingNetworkManager, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{HasTriggerId, Trigger}
@@ -762,15 +762,14 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
               currentBeamVehicle.id == currentVehicleUnderControl,
               currentBeamVehicle.id + " " + currentVehicleUnderControl
             )
-            currentBeamVehicle.stall.foreach { theStall =>
-              parkingManager ! ReleaseParkingStall(theStall, tick)
-              currentBeamVehicle.setLastVehicleTimeLink(
-                Some(tick),
-                theStall.link.map(_.getId.toString.toInt)
-              )
-            }
-            currentBeamVehicle.unsetParkingStall()
-
+            ParkingNetworkManager.handleReleasingParkingSpot(
+              tick,
+              currentBeamVehicle,
+              None,
+              id,
+              parkingManager,
+              eventsManager
+            )
           case None =>
         }
         val triggerToSchedule: Vector[ScheduleTrigger] = data.passengerSchedule

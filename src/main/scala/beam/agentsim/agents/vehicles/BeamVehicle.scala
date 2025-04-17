@@ -442,7 +442,8 @@ class BeamVehicle(
 
   def isSharedVehicle: Boolean = beamVehicleType.id.toString.startsWith("sharedVehicle")
 
-  def isFreightVehicle: Boolean = id.toString.startsWith("freightVehicle")
+  def isFreight: Boolean =
+    VehicleManager.getReservedFor(vehicleManagerId.get()).exists(_.managerType == VehicleManager.TypeEnum.Freight)
 
   def isCAV: Boolean = beamVehicleType.isConnectedAutomatedVehicle
 

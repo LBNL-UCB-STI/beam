@@ -16,17 +16,26 @@ sealed abstract class FreightRequestType extends EnumEntry
 
 object FreightRequestType extends Enum[FreightRequestType] {
   val values: immutable.IndexedSeq[FreightRequestType] = findValues
-
   case object Unloading extends FreightRequestType
   case object Loading extends FreightRequestType
-
 }
 
-case class FreightTour(
-  tourId: Id[FreightTour],
-  departureTimeInSec: Int,
-  maxTourDurationInSec: Int
-)
+sealed abstract class FreightDeliveryType extends EnumEntry { val value: String }
+
+object FreightDeliveryType extends Enum[FreightDeliveryType] {
+  val values: immutable.IndexedSeq[FreightDeliveryType] = findValues
+  case object B2B extends FreightDeliveryType { override val value = "b2b" }
+  case object B2C extends FreightDeliveryType { override val value = "b2c" }
+  case object Whatever extends FreightDeliveryType { override val value = "whatever" }
+
+  def apply(s: String): FreightDeliveryType = {
+    if (s.trim.toLowerCase.startsWith(B2B.value) || s.trim.toLowerCase.contains(B2B.value)) B2B
+    else if (s.trim.toLowerCase.startsWith(B2C.value) || s.trim.toLowerCase.contains(B2C.value)) B2C
+    else Whatever
+  }
+}
+
+case class FreightTour(tourId: Id[FreightTour], departureTimeInSec: Int, maxTourDurationInSec: Int)
 
 case class PayloadPlan(
   payloadId: Id[PayloadPlan],

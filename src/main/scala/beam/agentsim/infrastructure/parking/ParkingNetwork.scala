@@ -12,8 +12,8 @@ abstract class ParkingNetwork(parkingZones: Map[Id[ParkingZoneId], ParkingZone])
   protected val searchFunctions: Option[InfrastructureFunctions]
 
   // Core
-  protected var totalStallsInUse: Long = 0L
-  protected var totalStallsAvailable: Long = parkingZones.map(_._2.stallsAvailable).sum
+  private var totalStallsInUse: Long = 0L
+  private var totalStallsAvailable: Long = parkingZones.map(_._2.stallsAvailable).sum
 
   /**
     * @param inquiry ParkingInquiry
@@ -51,7 +51,7 @@ abstract class ParkingNetwork(parkingZones: Map[Id[ParkingZoneId], ParkingZone])
     */
   def processReleaseParkingStall(release: ReleaseParkingStall): Boolean = {
     val parkingZoneId = release.stall.parkingZoneId
-    val released: Boolean = if (parkingZoneId == ParkingZone.DefaultParkingZoneId) {
+    val released: Boolean = if (parkingZoneId == ParkingZone.DefaultParkingZone.parkingZoneId) {
       // this is an infinitely available resource; no update required
       logger.debug("Releasing a stall in the default/emergency zone")
       true

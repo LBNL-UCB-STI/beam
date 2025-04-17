@@ -23,7 +23,8 @@ case class LeavingParkingEvent(
   parkingType: ParkingType,
   pricingModel: Option[PricingModel],
   ChargingPointType: Option[ChargingPointType],
-  emissionsProfile: Option[EmissionsProfile]
+  emissionsProfile: Option[EmissionsProfile],
+  parkingZoneId: Id[ParkingZoneId]
 ) extends Event(time)
     with ScalaEvent {
   import LeavingParkingEvent._
@@ -42,6 +43,8 @@ case class LeavingParkingEvent(
     attr.put(ATTRIBUTE_EMISSIONS_PROFILE, emissionsProfile.map(BeamVehicleUtils.buildEmissionsString).getOrElse(""))
     attr.put(ATTRIBUTE_PARKING_DURATION, parkingDuration.toString)
     attr.put(ATTRIBUTE_COST, pricingModel.map(_.costInDollars.toString).getOrElse("0"))
+    attr.put(ATTRIBUTE_PARKING_ZONE_ID, parkingZoneId.toString)
+
     attr
   }
 }
@@ -74,6 +77,7 @@ object LeavingParkingEvent {
   val ATTRIBUTE_DRIVER_ID: String = "driver"
   val ATTRIBUTE_EMISSIONS_PROFILE: String = "emissions"
   val ATTRIBUTE_PARKING_DURATION: String = "duration"
+  val ATTRIBUTE_PARKING_ZONE_ID: String = "parkingZoneId"
 
   def apply(
     time: Double,
@@ -93,7 +97,8 @@ object LeavingParkingEvent {
       stall.parkingType,
       stall.pricingModel,
       stall.chargingPointType,
-      emissionsProfile
+      emissionsProfile,
+      parkingZoneId = stall.parkingZoneId
     )
   }
 
@@ -123,6 +128,18 @@ object LeavingParkingEvent {
       pricingModel,
       chargingPointType,
       emissionsProfile
+    )
+    val parkingZoneId: Id[ParkingZoneId] = Id.create(attr(ATTRIBUTE_PARKING_ZONE_ID), classOf[ParkingZoneId])
+    LeavingParkingEvent(
+      time,
+      personId,
+      vehicleId,
+      tazId,
+      score,
+      parkingType,
+      pricingModel,
+      chargingPointType,
+      parkingZoneId
     )
   }
 }

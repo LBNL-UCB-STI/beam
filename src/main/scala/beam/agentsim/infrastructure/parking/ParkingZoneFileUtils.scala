@@ -59,7 +59,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     * @param maybeChargingPoint charging point type
     * @return a row describing infinite free parking at this TAZ
     */
-  def defaultParkingRow(
+  private def defaultParkingRow(
     geoId: Id[TAZ],
     parkingType: ParkingType,
     maybeChargingPoint: Option[ChargingPointType],
@@ -70,7 +70,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       parkingType.toString, // parkingType
       PricingModel.FlatFee(0).toString, // pricingModel
       maybeChargingPoint.map(_.toString).getOrElse("NoCharger"), // chargingPointType
-      ParkingZone.UbiqiutousParkingAvailability.toString, // numStalls
+      ParkingZone.UbiquitousParkingAvailability.toString, // numStalls
       "0", // feeInCents
       defaultReservedFor.toString, // reservedFor
       "", // timeRestrictions
@@ -720,17 +720,17 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
   def rideHailParkingOutputDataDescriptor: OutputDataDescriptor =
     OutputDataDescriptorObject("ParkingZoneFileUtils", s"ridehailParking.csv")(
       """
-      taz                         | Taz id where the parking zone resides                             
-      parkingType                 | Parking type: Residential, Workplace, Public                                      
-      pricingModel                | Pricing model                                        
-      chargingPointType           | Charging point type                                           
-      numStalls                   | Number of stalls                                   
-      feeInCents                  | Fee in cents                                     
-      reservedFor                 | Id of Vehicle Manager this zone is reserver for                                     
-      timeRestrictions            | Time restrictions for vehicle categories                                           
-      parkingZoneId               | Parking zone id                                       
-      locationX                   | X part of a concrete location of this parking zone (if defined)                                   
-      locationY                   | Y part of a concrete location of this parking zone (if defined)                                   
+      taz                         | Taz id where the parking zone resides
+      parkingType                 | Parking type: Residential, Workplace, Public
+      pricingModel                | Pricing model
+      chargingPointType           | Charging point type
+      numStalls                   | Number of stalls
+      feeInCents                  | Fee in cents
+      reservedFor                 | Id of Vehicle Manager this zone is reserver for
+      timeRestrictions            | Time restrictions for vehicle categories
+      parkingZoneId               | Parking zone id
+      locationX                   | X part of a concrete location of this parking zone (if defined)
+      locationY                   | Y part of a concrete location of this parking zone (if defined)
       sitePowerManager            | Site power manager
       energyStorageCapacityInKWh  | Energy storage capacity in KWh
       energyStorageSOC            | Energy storage state of charge
