@@ -144,12 +144,12 @@ class BackgroundSkimsCreatorTest extends AnyFlatSpec with Matchers with BeamHelp
 
     pathTypeToSkimsCount(ActivitySimPathType.DRV_HVY_WLK) shouldBe 9
     pathTypeToSkimsCount(ActivitySimPathType.WLK_LOC_WLK) shouldBe 86
-    pathTypeToSkimsCount(ActivitySimPathType.DRV_LRF_WLK) shouldBe 19
+    pathTypeToSkimsCount(ActivitySimPathType.DRV_LRF_WLK) shouldBe 22
     pathTypeToSkimsCount(ActivitySimPathType.WLK_LRF_WLK) shouldBe 28
     pathTypeToSkimsCount(ActivitySimPathType.WLK_HVY_WLK) shouldBe 24
-    pathTypeToSkimsCount(ActivitySimPathType.DRV_LOC_WLK) shouldBe 34
+    pathTypeToSkimsCount(ActivitySimPathType.DRV_LOC_WLK) shouldBe 31
 
-    skims.keys.size shouldBe (9 + 86 + 19 + 28 + 24 + 34)
+    skims.keys.size shouldBe (9 + 86 + 22 + 28 + 24 + 31)
   }
 
   "skims creator" should "generate all types of skims" in {
