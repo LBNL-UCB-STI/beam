@@ -16,7 +16,7 @@ __author__ = 'Andrew A Campbell'
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
-        print 'ERROR: need to supply the path to the conifg file'
+        print('ERROR: need to supply the path to the conifg file')
     config_path = sys.argv[1]
     conf = ConfigParser.ConfigParser()
     conf.read(config_path)
@@ -31,11 +31,11 @@ if __name__ == '__main__':
     # If we want, run deviation_analysis.py to get the new deviation matrix.
     exec_file =  conf.get('Deviation_Analysis', 'exec_file')
     if exec_file:
-        print "Running Deviation Anaylsis"
+        print("Running Deviation Anaylsis")
         execfile(exec_file)
 
     # Create the distance matrix
-    print "Creating distance matrix"
+    print("Creating distance matrix")
     df = pd.read_csv(ssqd_dev_path)
     df.dropna(axis=1, inplace=True)  # Drop any sensors with missing data
     df.drop(filter_stations, axis=1)  # Filter outWriter stations on the filter list in the config file. These are bad outliers
@@ -44,12 +44,12 @@ if __name__ == '__main__':
     D_days = scipy.spatial.distance.cdist(dat.transpose(), dat.transpose(), "euclidean")
 
     # Run the hierarchical clustering
-    print "Running hierarchical clustering"
+    print("Running hierarchical clustering")
     Y = sch.linkage(D, method='centroid')
     Y_days = sch.linkage(D_days, method='centroid')
 
     # Create the dendrogram and plot
-    print "Building figures"
+    print("Building figures")
     Z_all = sch.dendrogram(Y, distance_sort='ascending', no_plot=True)  # non-plotting dg. Used for resorting the sensors in the heat map
 
     fig = pylab.figure(figsize=(15, 8))
