@@ -2250,7 +2250,7 @@ trait ChoosesMode {
                     .filter(!_.vehicle.isSharedVehicle)
                     .find { veh =>
                       (chosenTrip.tripClassifier, data.personData.currentTourMode) match {
-                        case (_, Some(FREIGHT_TOUR)) => veh.vehicle.isFreight
+                        case (_, Some(FREIGHT_TOUR)) => veh.vehicle.isFreightVehicle
                         case (_, Some(CAR_BASED))    => veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car
                         case (_, Some(BIKE_BASED)) =>
                           veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike
