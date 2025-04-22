@@ -97,7 +97,13 @@ class BeamEventsWriterParquet(
   }
 
   override def closeFile(): Unit = {
-    parquetWriter.close()
+    if (parquetWriter != null) {
+      try {
+        parquetWriter.close()
+      } catch {
+        case e: Exception => logger.error("Error closing ParquetWriter", e)
+      }
+    }
   }
 
   def toGenericDataRecord(event: Event, columnNames: Seq[String]): GenericData.Record = {

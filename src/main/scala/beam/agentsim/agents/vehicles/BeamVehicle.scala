@@ -595,6 +595,10 @@ object BeamVehicle {
     vehicleId.toString.startsWith(idPrefixSharedTeleportationVehicle)
   }
 
+  def isFreightVehicle(vehicleId: Id[BeamVehicle]): Boolean = {
+    vehicleId.toString.startsWith("freightVehicle")
+  }
+
   def isEmergencyVehicle(vehicleId: Id[BeamVehicle]): Boolean = {
     vehicleId.toString.contains("-emergency-")
   }

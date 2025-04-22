@@ -533,9 +533,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         List<Object> objects = pte.linkIdsJava();
         // most of the time the last link of previous leg is the first link of current leg - we are avoiding this
         boolean sameLinkAtTheEnd;
+
         try {
             sameLinkAtTheEnd = !linkIds.isEmpty()
-                    && pte.linkIds().head().toString().equals(Iterables.getLast(linkIds).toString());
+                    && String.valueOf(pte.linkIds()[0]).equals(Iterables.getLast(linkIds).toString());
         } catch (java.util.NoSuchElementException e) {
             log.error("Mismatched path traversal in physsim plans: {}, matched leg: {}", pte, connectedLeg);
             return null;

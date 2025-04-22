@@ -1521,7 +1521,8 @@ trait ChoosesMode {
           // Send non-chosen trips to skimmer if configured to do so
           combinedItinerariesForChoice.foreach {
             case possibleTrip
-                if (possibleTrip != chosenTrip) && beamScenario.beamConfig.beam.router.skim.sendNonChosenTripsToSkimmer =>
+                if (possibleTrip != chosenTrip) && beamScenario.beamConfig.beam.router.skim.sendNonChosenTripsToSkimmer && !choosesModeData.personData.currentTourMode
+                  .contains(FREIGHT_TOUR) =>
               generateSkimData(
                 possibleTrip.legs.lastOption.map(_.beamLeg.endTime).getOrElse(_currentTick.get),
                 possibleTrip,
@@ -2249,7 +2250,7 @@ trait ChoosesMode {
                     .filter(!_.vehicle.isSharedVehicle)
                     .find { veh =>
                       (chosenTrip.tripClassifier, data.personData.currentTourMode) match {
-                        case (_, Some(FREIGHT_TOUR)) => veh.vehicle.isFreightVehicle
+                        case (_, Some(FREIGHT_TOUR)) => veh.vehicle.isFreight
                         case (_, Some(CAR_BASED))    => veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car
                         case (_, Some(BIKE_BASED)) =>
                           veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike

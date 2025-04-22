@@ -384,15 +384,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         numberOfPassengers,
         currentLeg,
         getCurrentTripMode(data),
-        fuelConsumed.primaryFuel,
-        fuelConsumed.secondaryFuel,
-        currentBeamVehicle.primaryFuelLevelInJoules,
-        currentBeamVehicle.secondaryFuelLevelInJoules,
-        tollOnCurrentLeg,
-        payloadIds,
-        currentBeamVehicle.beamVehicleType.curbWeightInKg + payloadWeight,
+        fuelConsumed.primaryFuel.toFloat,
+        fuelConsumed.secondaryFuel.toFloat,
+        currentBeamVehicle.primaryFuelLevelInJoules.toFloat,
+        currentBeamVehicle.secondaryFuelLevelInJoules.toFloat,
+        tollOnCurrentLeg.toFloat,
+        payloadIds.toArray,
+        (currentBeamVehicle.beamVehicleType.curbWeightInKg + payloadWeight).toFloat,
         emissionsProfile,
-        riders
+        riders.toArray
       )
 
       eventsManager.processEvent(pte)
@@ -637,15 +637,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           numberOfPassengers,
           partiallyCompletedBeamLeg,
           getCurrentTripMode(data),
-          fuelConsumed.primaryFuel,
-          fuelConsumed.secondaryFuel,
-          currentBeamVehicle.primaryFuelLevelInJoules,
-          currentBeamVehicle.secondaryFuelLevelInJoules,
-          tollOnCurrentLeg,
-          payloadIds,
-          currentBeamVehicle.beamVehicleType.curbWeightInKg + payloadWeight,
+          fuelConsumed.primaryFuel.toFloat,
+          fuelConsumed.secondaryFuel.toFloat,
+          currentBeamVehicle.primaryFuelLevelInJoules.toFloat,
+          currentBeamVehicle.secondaryFuelLevelInJoules.toFloat,
+          tollOnCurrentLeg.toFloat,
+          payloadIds.toArray,
+          (currentBeamVehicle.beamVehicleType.curbWeightInKg + payloadWeight).toFloat,
           emissionsProfile,
-          riders
+          riders.toArray
         )
         eventsManager.processEvent(pte)
         generateTCSEventIfPossible(pte)
