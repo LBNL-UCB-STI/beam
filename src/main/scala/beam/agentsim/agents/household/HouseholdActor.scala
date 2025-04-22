@@ -690,14 +690,19 @@ object HouseholdActor {
     }
   }
 
+  object EmergencyHouseholdVehicleGenerator {
+    private val sharedRandomGenerator = new UniformRealDistributionEnhanced()
+  }
+
   class EmergencyHouseholdVehicleGenerator(
     household: Household,
     beamScenario: BeamScenario,
     vehiclesAdjustment: VehiclesAdjustment,
     defaultCategory: VehicleCategory
   ) extends LazyLogging {
-    private val realDistribution: UniformRealDistributionEnhanced = new UniformRealDistributionEnhanced()
-    realDistribution.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
+
+    private val realDistribution: UniformRealDistributionEnhanced =
+      EmergencyHouseholdVehicleGenerator.sharedRandomGenerator
 
     def sampleVehicleTypeForEmergencyUse(
       personId: Id[Person],

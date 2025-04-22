@@ -142,7 +142,7 @@ trait GeoUtils extends ExponentialLazyLogging {
       theSplit = streetLayer.findSplit(coord.getY, coord.getX, maxRadius, streetMode)
     }
     if (theSplit == null) {
-      notExponentialLogger.warn(
+      notExponentialLogger.debug(
         s"The split is `null` for StreetLayer.BoundingBox: ${streetLayer.getEnvelope}, coord: $coord, maxRadius: $maxRadius, street mode $streetMode"
       )
     }
