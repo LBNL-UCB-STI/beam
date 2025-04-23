@@ -330,6 +330,16 @@ trait ChoosesMode {
     }
   }
 
+  /**
+    * Sends a request to the given vehicle fleets to determine the availability of vehicles at a specific location and activity.
+    * An optional vehicle category can be specified to filter the results.
+    *
+    * @param vehicleFleets                   the list of vehicle fleet actor references to query for available vehicles
+    * @param location                        the location and time for which to check vehicle availability
+    * @param activity                        the activity associated with the request, which may influence vehicle availability
+    * @param requireVehicleCategoryAvailable an optional vehicle category to filter available vehicles; if specified, only vehicles of this category will be included
+    * @return a Future containing a MobilityStatusResponse that includes a collection of available vehicles and a trigger ID
+    */
   private def requestAvailableVehicles(
     vehicleFleets: Seq[ActorRef],
     location: SpaceTime,
@@ -844,24 +854,13 @@ trait ChoosesMode {
         )
   } using completeChoiceIfReady)
 
-  private def correctCurrentTripModeAccordingToRules(
-    currentTripMode: Option[BeamMode],
-    personData: BasePersonData,
-    availableModes: Seq[BeamMode]
-  ): Option[BeamMode] = {
-    val replanningIsAvailable =
-      personData.numberOfReplanningAttempts < beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts
-    currentTripMode match {
-      case Some(mode @ (HOV2_TELEPORTATION | HOV3_TELEPORTATION))
-          if availableModes.contains(CAR) && replanningIsAvailable =>
-        Some(mode)
-      case Some(mode) if availableModes.contains(mode) && replanningIsAvailable => Some(mode)
-      case Some(mode) if availableModes.contains(mode)                          => Some(WALK)
-      case None if !replanningIsAvailable                                       => Some(WALK)
-      case _                                                                    => None
-    }
-  }
-
+  /**
+    * Generates a sequence of parking inquiries for vehicles in the given itineraries, based on the
+    * chosen mode data and parking behavior of the vehicles. It checks which vehicles have already
+    * been requested for parking and creates inquiries for the remaining vehicles.
+    *
+    * @param choosesModeData Data related to the mode choice of the person, including parking
+    */
   private def makeParkingInquiries(
     choosesModeData: ChoosesModeData,
     itineraries: Seq[EmbodiedBeamTrip]
@@ -1080,6 +1079,19 @@ trait ChoosesMode {
 
   case object FinishingModeChoice extends BeamAgentState
 
+  /**
+    * Creates a sequence of ride-hail to transit itineraries based on the provided results for
+    * ride-hail access, ride-hail egress, and a drive transit trip.
+    *
+    * @param rideHail2TransitAccessResult the result of the ride-hail-to-transit access leg request,
+    *                                     containing ride-hail vehicle options and associated data
+    * @param rideHail2TransitEgressResult the result of the ride-hail-to-transit egress leg request,
+    *                                     containing ride-hail vehicle options and associated data
+    * @param driveTransitTrip             the returned drive transit trip that will be turned into a
+    *                                     ridehail transit trip
+    * @return a vector of possible ride-hail to transit itineraries as embodied trips; returns an empty
+    *         vector if an itinerary cannot be generated
+    */
   private def createRideHail2TransitItin(
     rideHail2TransitAccessResult: RideHailResponse,
     rideHail2TransitEgressResult: RideHailResponse,
@@ -1124,6 +1136,17 @@ trait ChoosesMode {
     } else Vector.empty[EmbodiedBeamTrip]
   }
 
+  /**
+    * Creates a ride-hail transit trip by combining a drive-transit trip, ride-hail access legs,
+    * and ride-hail egress legs, while adjusting for timing constraints and extra wait times.
+    *
+    * @param driveTransitTrip the original drive-transit trip composed of a sequence of legs
+    * @param tncAccessLeg     the sequence of ride-hail access legs used to reach the transit
+    * @param timeToCustomer   time required for the ride-hail vehicle to reach the customer
+    * @param tncEgressLeg     the sequence of ride-hail egress legs used after the transit
+    * @return an optional ride-hail transit trip combining the input components if timing constraints are satisfied,
+    *         or None if the trip cannot be created due to excessive wait time
+    */
   private def createRideHailTransitTrip(
     driveTransitTrip: EmbodiedBeamTrip,
     tncAccessLeg: Vector[EmbodiedBeamLeg],
@@ -1206,6 +1229,14 @@ trait ChoosesMode {
     }
   }
 
+  /**
+    * Filters the available vehicles based on the current tour strategy.
+    * Only includes vehicles that align with the conditions defined by the method logic.
+    *
+    * @param allAvailableStreetVehicles A vector containing all street vehicles currently available.
+    * @param currentTourStrategy        The strategy object representing the current tour mode and vehicle preferences.
+    * @return A vector of filtered vehicles or tokens meeting the specified conditions.
+    */
   private def filterAvailableVehicles(
     allAvailableStreetVehicles: Vector[VehicleOrToken],
     currentTourStrategy: TourModeChoiceStrategy
@@ -1291,21 +1322,22 @@ trait ChoosesMode {
     })
   }
 
-  def mustBeDrivenHome(vehicle: VehicleOrToken): Boolean = {
-    vehicle match {
-      case ActualVehicle(beamVehicle) =>
-        beamVehicle.isMustBeDrivenHome
-      case _: Token =>
-        false // is not a household vehicle
-    }
-  }
-
   // Note that remainingAvailableVehicles includes all vehicles that were available,
   // and any unused vehicles will be released.
   // That's why we remove any drive_transit vehicles after
   // replanning -- so they don't get released.
 
-  def findQueriedModes(
+  /**
+    * Finds the set of modes that were queried based on the routing response, ride hail result,
+    * and the optional ride hail to transit routing request identifier.
+    *
+    * @param routingResponse                  The response of a routing request, containing the requested modes and details about transit usage.
+    * @param rideHailResult                   The result of a ride hail mode request, including whether the request was for pooled or non-pooled ride hail.
+    * @param rideHail2TransitRoutingRequestId An optional identifier to determine if ride hail to transit was part of the query.
+    * @return A set of Beam modes that were part of the query, which includes non-ride hail modes,
+    *         direct ride hail modes, and ride hail transit modes.
+    */
+  private def findQueriedModes(
     routingResponse: RoutingResponse,
     rideHailResult: RideHailResponse,
     rideHail2TransitRoutingRequestId: Option[Int]
@@ -1341,6 +1373,16 @@ trait ChoosesMode {
     expectedNonRideHailModes ++ expectedDirectRideHailModes ++ expectedRideHailTransitModes
   }
 
+  /**
+    * Handles the mode and vehicle choice for a person during their current activity in the simulation.
+    * This function evaluates available transportation options, including ride-hail, walking, and other transit methods,
+    * based on various criteria such as current location, tour strategy, and vehicle availability. It computes the
+    * best possible trip options, filters them, and determines the next course of action based on the chosen alternative.
+    * The method also updates the person's data with the selected trip mode and tour specifics.
+    *
+    * @return A transformation of the FSM state, applying the updated mode choice and trip information for the specific person
+    *         if all conditions are met. Only states matching the specified input conditions are handled.
+    */
   private def completeChoiceIfReady: PartialFunction[State, State] = {
     case FSM.State(
           _,
@@ -1700,6 +1742,39 @@ trait ChoosesMode {
                     numberOfReplanningAttempts = personData.numberOfReplanningAttempts + 1
                   ),
                   allAvailableStreetVehicles = availableVehicles,
+                  excludeModes = choosesModeData.excludeModes ++ choosesModeData.personData.currentTripMode
+                )
+              } else if (
+                (mode == DRIVE_TRANSIT || mode == BIKE_TRANSIT) && (isLastTripWithinTour(
+                  nextAct
+                ) || personData.numberOfReplanningAttempts > 5)
+              ) {
+                // Abandon the vehicle because we have no route to get it home
+                val vehicleId = personData.currentTourPersonalVehicle.get
+                logger.warn(
+                  s"Agent ${this.id} is abandoning vehicle $vehicleId after ${personData.numberOfReplanningAttempts} " +
+                  s"failed attempts to find a route to take it home on a ${mode.toString} trip."
+                )
+
+                // Release the vehicle
+                if (beamVehicles.contains(vehicleId)) {
+                  val vehicle = beamVehicles(vehicleId).vehicle
+                  vehicle.setMustBeDrivenHome(false)
+                  beamVehicles.remove(vehicleId)
+                  vehicle.getManager.get ! ReleaseVehicle(vehicle, getCurrentTriggerId.get)
+                }
+                val updatedTripStrategy = TripModeChoiceStrategy(None)
+                _experiencedBeamPlan.putStrategy(
+                  _experiencedBeamPlan.getTripContaining(nextActivity(choosesModeData.personData).get),
+                  updatedTripStrategy
+                )
+
+                stay() using choosesModeData.copy(
+                  personData = personData.copy(
+                    currentTripMode = None,
+                    numberOfReplanningAttempts = personData.numberOfReplanningAttempts + 1
+                  ),
+                  allAvailableStreetVehicles = availableVehicles.filterNot(v => v.id == vehicleId),
                   excludeModes = choosesModeData.excludeModes ++ choosesModeData.personData.currentTripMode
                 )
               } else {
@@ -2348,6 +2423,17 @@ trait ChoosesMode {
     }
   }
 
+  /**
+    * Constructs and sends routing and mode choice requests to the appropriate services (e.g., router, ride hail manager).
+    *
+    * @param currentTripMode   Optionally, the current mode of transportation for the trip.
+    * @param currentTourMode   Optionally, the overall mode chosen for the tour.
+    * @param hasRideHail       A flag indicating if ride hail services are available.
+    * @param availableVehicles A vector of available vehicles or tokens for the current person.
+    * @param choosesModeData   Data structure containing information for mode choice decision-making.
+    * @param triggerId         An identifier for the triggering event of the requests.
+    * @return A tuple containing placeholders for chooses mode response, an optional request ID, and an updated vector of vehicles or tokens.
+    */
   private def makeRoutingRequests(
     currentTripMode: Option[BeamMode],
     currentTourMode: Option[BeamTourMode],
@@ -2762,6 +2848,18 @@ trait ChoosesMode {
     )
   }
 
+  /**
+    * Determines the tour mode and assigns vehicles for a trip or tour based on the given strategy, available modes,
+    * vehicles, and first leg itineraries.
+    *
+    * @param currentTourStrategy The current strategy for selecting the tour mode.
+    * @param currentTripMode     The current mode of the trip, if already determined.
+    * @param availableVehicles   A list of vehicles or tokens available for the person.
+    * @param choosesModeData     The data used for mode choice decisions, containing person-related information.
+    * @param firstLegItineraries A collection of potential itineraries for the first leg of the trip.
+    * @return A tuple where the first element is the chosen tour mode (if any), and the second element is a mapping between
+    *         embodied beam trips and the chosen vehicle IDs (if any).
+    */
   private def chooseTourModeAndVehicle(
     currentTourStrategy: TourModeChoiceStrategy,
     currentTripMode: Option[BeamMode],
