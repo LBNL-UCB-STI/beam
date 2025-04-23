@@ -393,6 +393,12 @@ trait ChoosesMode {
             "as WALK_TRANSIT because I missed my initial transit leg but want to keep my vehicle"
           )
           Some(WALK_TRANSIT)
+        case (Some(WALK_TRANSIT), Some(DRIVE_TRANSIT)) if choosesModeData.isWithinTripReplanning =>
+          logger.warn(
+            "Keeping my _experiencedBeamPlan mode as WALK_TRANSIT and ChoosesModeData" +
+            s"as DRIVE_TRANSIT, even though I don't know why. Full personData: $personData "
+          )
+          Some(WALK_TRANSIT)
         case (Some(BIKE_TRANSIT), Some(WALK_TRANSIT)) if choosesModeData.isWithinTripReplanning =>
           logger.debug(
             "Keeping my _experiencedBeamPlan mode as BIKE_TRANSIT and ChoosesModeData" +
@@ -1677,7 +1683,7 @@ trait ChoosesMode {
               if (
                 choosesModeData.routingResponse.exists(
                   _.request.exists(_.withTransit)
-                ) & choosesModeData.rideHail2TransitRoutingRequestId.nonEmpty
+                ) & choosesModeData.rideHail2TransitRoutingRequestId.nonEmpty & !choosesModeData.isWithinTripReplanning
               ) {
                 self ! RetryModeChoice(getCurrentTriggerId.get)
                 val updatedTripStrategy = TripModeChoiceStrategy(None)
