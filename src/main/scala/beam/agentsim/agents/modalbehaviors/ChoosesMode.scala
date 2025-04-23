@@ -1555,6 +1555,23 @@ trait ChoosesMode {
         )
       }
 
+      if (personData.numberOfReplanningAttempts > 20) {
+        logger.warn(
+          s"Agent ${this.id} exceeded 20 replanning attempts at ${currentPersonLocation}. " +
+          s"Creating emergency walking trip."
+        )
+
+        // Create a direct walking path that ignores network connectivity
+        val emergencyWalkTrip = createExpensiveWalkTrip(
+          currentPersonLocation,
+          nextAct,
+          routingResponse
+        )
+
+        // Skip normal mode choice and use this trip
+        gotoFinishingModeChoice(emergencyWalkTrip)
+      }
+
       val currentPlanMode = _experiencedBeamPlan
         .getStrategy[TripModeChoiceStrategy](_experiencedBeamPlan.getTripContaining(nextAct))
         .mode
@@ -1727,7 +1744,7 @@ trait ChoosesMode {
               if (
                 choosesModeData.routingResponse.exists(
                   _.request.exists(_.withTransit)
-                ) && choosesModeData.rideHail2TransitRoutingRequestId.nonEmpty && !choosesModeData.isWithinTripReplanning
+                ) && choosesModeData.rideHail2TransitRoutingRequestId.nonEmpty && !choosesModeData.isWithinTripReplanning && personData.numberOfReplanningAttempts == 0
               ) {
                 self ! RetryModeChoice(getCurrentTriggerId.get)
                 val updatedTripStrategy = TripModeChoiceStrategy(None)
@@ -1742,6 +1759,7 @@ trait ChoosesMode {
                     numberOfReplanningAttempts = personData.numberOfReplanningAttempts + 1
                   ),
                   allAvailableStreetVehicles = availableVehicles,
+                  routingFinished = true,
                   excludeModes = choosesModeData.excludeModes ++ choosesModeData.personData.currentTripMode
                 )
               } else if (
@@ -1777,7 +1795,8 @@ trait ChoosesMode {
                     numberOfReplanningAttempts = personData.numberOfReplanningAttempts + 1
                   ),
                   allAvailableStreetVehicles = availableVehicles.filterNot(v => v.id == vehicleId),
-                  excludeModes = choosesModeData.excludeModes ++ choosesModeData.personData.currentTripMode
+                  excludeModes = choosesModeData.excludeModes ++ choosesModeData.personData.currentTripMode,
+                  routingFinished = true
                 )
               } else {
                 // Need to gather more routing options
@@ -1888,8 +1907,24 @@ trait ChoosesMode {
             .legs
             .head
       }
+    val minDuration =
+      if (originalWalkTripLeg.beamLeg.duration < beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow) {
+        logger.info(
+          s"Agent ${this.id}'s walk trip duration ${originalWalkTripLeg.beamLeg.duration} is less than the minimum " +
+          s"of ${beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow}. Setting it to the minimum."
+        )
+        beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow
+      } else {
+        originalWalkTripLeg.beamLeg.duration
+      }
+
     val expensiveWalkTrip = EmbodiedBeamTrip(
-      Vector(originalWalkTripLeg.copy(replanningPenalty = 10.0))
+      Vector(
+        originalWalkTripLeg.copy(
+          replanningPenalty = 10.0,
+          beamLeg = originalWalkTripLeg.beamLeg.scaleToNewDuration(minDuration)
+        )
+      )
     )
     expensiveWalkTrip
   }
