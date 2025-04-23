@@ -1769,6 +1769,8 @@ trait ChoosesMode {
                   updatedTripStrategy
                 )
 
+                self ! RetryModeChoice(getCurrentTriggerId.get)
+
                 stay() using choosesModeData.copy(
                   personData = personData.copy(
                     currentTripMode = None,
