@@ -1727,7 +1727,7 @@ trait ChoosesMode {
               if (
                 choosesModeData.routingResponse.exists(
                   _.request.exists(_.withTransit)
-                ) & choosesModeData.rideHail2TransitRoutingRequestId.nonEmpty & !choosesModeData.isWithinTripReplanning
+                ) && choosesModeData.rideHail2TransitRoutingRequestId.nonEmpty && !choosesModeData.isWithinTripReplanning
               ) {
                 self ! RetryModeChoice(getCurrentTriggerId.get)
                 val updatedTripStrategy = TripModeChoiceStrategy(None)
@@ -2382,7 +2382,11 @@ trait ChoosesMode {
             case Some(otherMode) if currentTourPersonalVehicle.isDefined & isLastTrip =>
               logger.warn(
                 s"Chose a ${chosenTrip.tripClassifier} trip with a $otherMode leg in our plans. This is because " +
-                s"we need to tour vehicle ${currentTourPersonalVehicle.get} back home"
+                s"we need to take tour vehicle ${currentTourPersonalVehicle.get} back home. Updating it in plan"
+              )
+              _experiencedBeamPlan.putStrategy(
+                _experiencedBeamPlan.getTripContaining(destinationActivity),
+                TripModeChoiceStrategy(Some(chosenTrip.tripClassifier))
               )
             case Some(otherMode) =>
               logger.error(
