@@ -1495,6 +1495,7 @@ trait ChoosesMode {
         goto(FinishingModeChoice) using choosesModeData.copy(
           personData = personData.copy(
             currentTourMode = chosenCurrentTourMode,
+            currentTripMode = Some(chosenTrip.tripClassifier),
             currentTourPersonalVehicle = chosenCurrentTourMode match {
               // if they're on a walk based tour we let them keep access to whatever personal vehicle they used on the
               // first leg or in a parent tour
@@ -1555,6 +1556,7 @@ trait ChoosesMode {
             choosesModeData.copy(
               personData = personData.copy(
                 currentTourMode = chosenCurrentTourMode,
+                currentTripMode = Some(chosenTrip.tripClassifier),
                 currentTourPersonalVehicle = chosenCurrentTourPersonalVehicle
                   .getOrElse(chosenTrip, personData.currentTourPersonalVehicle)
               ),
