@@ -1773,8 +1773,8 @@ trait ChoosesMode {
                 )
               } else if (
                 (mode == DRIVE_TRANSIT || mode == BIKE_TRANSIT) && (isLastTripWithinTour(
-                  nextAct
-                ) || personData.numberOfReplanningAttempts > 5)
+                  currentAct
+                ) || personData.numberOfReplanningAttempts > 5) && personData.currentTourPersonalVehicle.isDefined
               ) {
                 // Abandon the vehicle because we have no route to get it home
                 val vehicleId = personData.currentTourPersonalVehicle.get
