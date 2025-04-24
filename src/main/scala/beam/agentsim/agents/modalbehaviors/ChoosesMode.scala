@@ -1501,6 +1501,13 @@ trait ChoosesMode {
         case _ =>
           combinedItinerariesForChoice
       }
+      def getFailedBoardingVehicles(personData: BasePersonData): Set[Id[BeamVehicle]] = {
+        // Get latest failed trip (which we're storing when boarding fails)
+        personData.failedTrips.lastOption.flatMap { trip =>
+          // Find first transit leg - this is the one that failed boarding
+          trip.legs.find(_.beamLeg.mode.isTransit).map(_.beamVehicleId)
+        }.toSet
+      }
 
       val itinerariesOfCorrectMode =
         filteredItinerariesForChoice
@@ -1508,7 +1515,7 @@ trait ChoosesMode {
           .filterNot(itin =>
             itin.vehiclesInTrip
               .filterNot(_.toString.startsWith("body"))
-              .exists(veh => personData.failedTrips.flatMap(_.vehiclesInTrip).contains(veh))
+              .exists(getFailedBoardingVehicles(personData).contains)
           )
 
       val currentAct = currentActivity(personData)
@@ -1538,6 +1545,8 @@ trait ChoosesMode {
           personData = personData.copy(
             currentTourMode = chosenCurrentTourMode,
             currentTripMode = Some(chosenTrip.tripClassifier),
+            passengerSchedule = PassengerSchedule(),
+            restOfCurrentTrip = List.empty[EmbodiedBeamLeg],
             currentTourPersonalVehicle = chosenCurrentTourMode match {
               // if they're on a walk based tour we let them keep access to whatever personal vehicle they used on the
               // first leg or in a parent tour
@@ -1557,19 +1566,19 @@ trait ChoosesMode {
 
       if (personData.numberOfReplanningAttempts > 20) {
         logger.warn(
-          s"Agent ${this.id} exceeded 20 replanning attempts at ${currentPersonLocation}. " +
-          s"Creating emergency walking trip."
+          s"Agent ${this.id} exceeded 20 replanning attempts at ${choosesModeData.currentLocation}. " +
+          s"Creating emergency walking trip. State: $choosesModeData"
         )
 
-        // Create a direct walking path that ignores network connectivity
-        val emergencyWalkTrip = createExpensiveWalkTrip(
-          currentPersonLocation,
-          nextAct,
-          routingResponse
+        val bushwhackingTrip = RoutingWorker.createBushwackingTrip(
+          choosesModeData.currentLocation.loc,
+          nextActivity(choosesModeData.personData).get.getCoord,
+          _currentTick.get,
+          body.toStreetVehicle,
+          geo
         )
 
-        // Skip normal mode choice and use this trip
-        gotoFinishingModeChoice(emergencyWalkTrip)
+        gotoFinishingModeChoice(bushwhackingTrip)
       }
 
       val currentPlanMode = _experiencedBeamPlan
@@ -2580,6 +2589,21 @@ trait ChoosesMode {
     val shouldAlwaysQueryRideHailTransit =
       shouldAlwaysQueryTransit & beamScenario.beamConfig.beam.exchange.output.generateSkimsForRideHailTransit
 
+    val mostRecentFailedTrip = choosesModeData.personData.failedTrips.lastOption
+    val failedTransitLeg = mostRecentFailedTrip.flatMap(_.legs.find(_.beamLeg.mode.isTransit))
+
+    val bufferToUse = failedTransitLeg match {
+      case Some(transitLeg) =>
+        // Get the departure time of the failed transit leg
+        val failedTransitDepartureTime = transitLeg.beamLeg.startTime
+        // Buffer to skip just past this transit departure
+        (failedTransitDepartureTime - _currentTick.get) + BUFFER_PER_REPLANNING_ATTEMPT_IN_SEC
+
+      case None =>
+        // Fallback to standard buffer if no failed transit leg
+        choosesModeData.personData.numberOfReplanningAttempts * BUFFER_PER_REPLANNING_ATTEMPT_IN_SEC
+    }
+
     // Track ride hail requests that have already been made
     val (alreadyRequestedRideHail, alreadyRequestedRideHailTransit) =
       if (shouldAlwaysQueryTransit) {
@@ -2643,7 +2667,8 @@ trait ChoosesMode {
         makeRequestWith(
           withTransit = availableModesGivenTourMode.exists(_.isTransit) || shouldAlwaysQueryTransit,
           availableStreetVehiclesGivenTourMode,
-          possibleEgressVehicles = dummySharedVehicles
+          possibleEgressVehicles = dummySharedVehicles,
+          departureBuffer = bufferToUse
         )
       case Some(WALK) =>
         responsePlaceholders = makeResponsePlaceholders(
@@ -2661,7 +2686,7 @@ trait ChoosesMode {
         makeRequestWith(
           withTransit = true,
           Vector(bodyStreetVehicle),
-          departureBuffer = choosesModeData.personData.numberOfReplanningAttempts * BUFFER_PER_REPLANNING_ATTEMPT_IN_SEC
+          departureBuffer = bufferToUse
         )
       case Some(CAV) =>
         // Request from household the trip legs to put into trip
@@ -2810,8 +2835,7 @@ trait ChoosesMode {
               makeRequestWith(
                 withTransit = true,
                 Vector(bodyStreetVehicle),
-                departureBuffer =
-                  choosesModeData.personData.numberOfReplanningAttempts * BUFFER_PER_REPLANNING_ATTEMPT_IN_SEC
+                departureBuffer = bufferToUse
               )
               responsePlaceholders = makeResponsePlaceholders(
                 withRouting = true,
