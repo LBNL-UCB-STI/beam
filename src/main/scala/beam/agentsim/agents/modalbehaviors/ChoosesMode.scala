@@ -474,7 +474,8 @@ trait ChoosesMode {
       //        filterAvailableVehicles(availablePersonalStreetVehicles ++ availableEmergencyVehicles, currentTourStrategy)
       val otherNewAndTourVehicles = filterAvailableVehicles(
         availablePersonalStreetVehicles ++ availableEmergencyVehicles,
-        currentTourStrategy
+        currentTourStrategy,
+        parentTourStrategy.nonEmpty
       ).distinct
 
       val availableModesGivenTourMode = getAvailableModesGivenTourMode(
@@ -1239,7 +1240,8 @@ trait ChoosesMode {
     */
   private def filterAvailableVehicles(
     allAvailableStreetVehicles: Vector[VehicleOrToken],
-    currentTourStrategy: TourModeChoiceStrategy
+    currentTourStrategy: TourModeChoiceStrategy,
+    onSubTour: Boolean = false
   ): Vector[VehicleOrToken] = {
     val tourVehicle = currentTourStrategy.tourVehicle
     val tourMode = currentTourStrategy.tourMode
@@ -1253,7 +1255,8 @@ trait ChoosesMode {
       case ActualVehicle(beamVehicle) if tourVehicle.contains(beamVehicle.id) => Some(ActualVehicle(beamVehicle))
       case ActualVehicle(beamVehicle) if BeamVehicle.isSharedTeleportationVehicle(beamVehicle.id) =>
         Some(ActualVehicle(beamVehicle))
-      case ActualVehicle(beamVehicle) if tourVehicle.isEmpty && tourMode.isDefined && beamVehicle.isMustBeDrivenHome =>
+      case ActualVehicle(beamVehicle)
+          if tourVehicle.isEmpty && tourMode.isDefined && beamVehicle.isMustBeDrivenHome && !onSubTour =>
         logger.debug(
           s"Person person ${this.id} is already on a walk based tour, and we have access to vehicle " +
           s" ${beamVehicle.id}, and we're" +
@@ -1459,15 +1462,20 @@ trait ChoosesMode {
         case _ =>
       }
 
-      val newAndTourVehicles = allAvailableStreetVehicles ++ getParentTourStrategy(personData)
-        .flatMap(_.tourVehicle)
-        .flatMap(v => beamVehicles.get(v))
-        .filterNot(_.vehicle.isSharedVehicle)
+      val availableParentTourVehicles = getParentTourStrategy(personData)
+        .flatMap(strategy =>
+          strategy.tourMode match {
+            case Some(CAR_BASED | BIKE_BASED) =>
+              strategy.tourVehicle
+                .flatMap(v => beamVehicles.get(v))
+                .filterNot(_.vehicle.isSharedVehicle)
+            case _ =>
+              None // If it's a walk_based tour we assume it was left at a transit stop en_route
+          }
+        )
         .toVector
-        .groupBy(_.id)
-        .values
-        .map(_.head)
-        .toVector
+
+      val newAndTourVehicles = allAvailableStreetVehicles ++ availableParentTourVehicles
 
       val availableEmergencyVehicles =
         beamVehicles.filterKeys(k => k.toString.startsWith(f"${this.id.toString}-emergency")).values.toVector
@@ -1826,8 +1834,13 @@ trait ChoosesMode {
                       s"failed attempts to find a route to take it home on a ${mode.toString} trip."
                     )
 
-                    // Todo: Remove vehicle from beamPlan
-
+                    val remainingVehicles = availableVehicles.filterNot(v => v.id == vehicleId)
+                    updateTourModeStrategy(
+                      currentTourStrategy.tourMode,
+                      None,
+                      nextActivity(choosesModeData.personData).get,
+                      remainingVehicles
+                    )
                     // Release the vehicle
                     if (beamVehicles.contains(vehicleId)) {
                       val vehicle = beamVehicles(vehicleId).vehicle
@@ -1835,7 +1848,7 @@ trait ChoosesMode {
                       vehicle.unsetDriver()
                       beamVehicles.remove(vehicleId)
                     }
-                    (availableVehicles.filterNot(v => v.id == vehicleId), None)
+                    (remainingVehicles, None)
                   } else {
                     (availableVehicles, personData.currentTourPersonalVehicle)
                   }
@@ -2379,7 +2392,7 @@ trait ChoosesMode {
               beamVehicles.remove(vehicle.id)
               vehicle.getManager match {
                 case Some(manager) if BeamVehicle.isEmergencyVehicle(vehicle.id) && !isLastTrip =>
-                  logger.debug("Releasing emergency vehicle")
+                  logger.debug(f"Releasing emergency vehicle for person ${this.id}")
                   manager ! ReleaseVehicle(vehicle, triggerId)
                 case Some(manager) => manager ! ReleaseVehicle(vehicle, triggerId)
                 case _             => logger.warn(s"Giving up vehicle ${vehicle.id}, which doesn't have a manager set")

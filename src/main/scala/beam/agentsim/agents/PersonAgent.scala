@@ -1063,7 +1063,11 @@ class PersonAgent(
           if (currentBeamVehicle.beamVehicleType.vehicleCategory != Bike) {
             if (currentBeamVehicle.stall.isEmpty) logWarn("Expected currentBeamVehicle.stall to be defined.")
           }
-          if (currentBeamVehicle.isSharedVehicle || BeamVehicle.isSharedTeleportationVehicle(currentBeamVehicle.id)) {
+          if (
+            (currentBeamVehicle.isSharedVehicle && !BeamVehicle.isEmergencyVehicle(
+              currentBeamVehicle.id
+            )) || BeamVehicle.isSharedTeleportationVehicle(currentBeamVehicle.id)
+          ) {
             // Is a shared vehicle. Give it up.
             currentBeamVehicle.getManager.get ! ReleaseVehicle(currentBeamVehicle, triggerId)
             beamVehicles -= data.currentVehicle.head
