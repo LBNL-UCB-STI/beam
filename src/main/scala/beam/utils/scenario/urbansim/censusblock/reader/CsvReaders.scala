@@ -18,7 +18,8 @@ class CsvPersonReader(path: String) extends BaseCsvReader[InputPersonInfo](path)
         householdId = record.get("household_id"),
         age = record.get("age").toInt,
         sex = Sex.determineSex(record.get("sex").toInt),
-        industry = Option(record.get("industry"))
+        industry = Option(record.get("industry")),
+        valueOfTime = Option(record.get("value_of_time")).map(_.toDouble)
       )
     }
   }
