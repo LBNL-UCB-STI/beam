@@ -1295,10 +1295,7 @@ trait ChoosesMode {
     availableModes.intersect(currentTourMode match {
       case Some(WALK_BASED)
           if availablePersonalStreetVehicles
-            .exists(_.vehicle.isMustBeDrivenHome) && isLastTripWithinTour(nextActivity) =>
-        if (isSubTour) {
-          logger.debug("This is an interesting situation we should maybe wbe worried about")
-        }
+            .exists(_.vehicle.isMustBeDrivenHome) && isLastTripWithinTour(nextActivity) && !isSubTour =>
         val requiredEgressModes = availablePersonalStreetVehicles.flatMap {
           case veh: ActualVehicle =>
             maybeTourPersonalVehicle match {
@@ -1564,10 +1561,12 @@ trait ChoosesMode {
               case Some(WALK_BASED) => choosesModeData.personData.currentTourPersonalVehicle
               // Otherwise they keep track of the chosen vehicle
               case _ =>
-                chosenCurrentTourPersonalVehicle.getOrElse(
-                  chosenTrip,
-                  choosesModeData.personData.currentTourPersonalVehicle
-                )
+                chosenCurrentTourPersonalVehicle
+                  .get(chosenTrip)
+                  .flatten // If we're on a subtour and it uses no vehicle, we still pass on any tour vehicle from parent tours
+                  .orElse(
+                    choosesModeData.personData.currentTourPersonalVehicle
+                  )
             }
           ),
           pendingChosenTrip = Some(chosenTrip),
@@ -1637,13 +1636,30 @@ trait ChoosesMode {
                 currentTourMode = chosenCurrentTourMode,
                 currentTripMode = Some(chosenTrip.tripClassifier),
                 currentTourPersonalVehicle = chosenCurrentTourPersonalVehicle
-                  .getOrElse(chosenTrip, personData.currentTourPersonalVehicle)
+                  .get(chosenTrip)
+                  .flatten // If we're on a subtour and it uses no vehicle, we still pass on any tour vehicle from parent tours
+                  .orElse(personData.currentTourPersonalVehicle)
               ),
               pendingChosenTrip = Some(chosenTrip),
               availableAlternatives = availableAlts
             )
           goto(FinishingModeChoice) using dataForNextStep
         case None =>
+          if (!choosesModeData.personData.currentTourMode.contains(FREIGHT_TOUR)) {
+            combinedItinerariesForChoice.foreach { possibleTrip =>
+              logger.debug(
+                f"Sending trip ${possibleTrip} to skimmer because it didn't match required mode ${currentPlanMode}"
+              )
+              generateSkimData(
+                routingResponse.request.map(_.departureTime).getOrElse(_currentTick.get),
+                possibleTrip,
+                failedTrip = false,
+                personData.currentActivityIndex,
+                currentActivity(personData),
+                nextActivity(personData)
+              )
+            }
+          }
           choosesModeData.personData.currentTripMode match {
             case Some(CAV) =>
               // Special case, if you are using household CAV, no choice was necessary you just use this mode
@@ -1750,6 +1766,20 @@ trait ChoosesMode {
                   nextAct.getCoord.getY
                 )
               )
+
+              if (
+                isFirstTripWithinTour(
+                  currentActivity(choosesModeData.personData)
+                ) && !choosesModeData.isWithinTripReplanning
+              ) {
+                logger.debug("Resetting tour mode to none because we haven't left yet")
+                updateTourModeStrategy(
+                  None,
+                  None,
+                  nextActivity(choosesModeData.personData).get,
+                  choosesModeData.allAvailableStreetVehicles
+                )
+              }
 
               // Available vehicles filtering for replanning
               val availableVehicles =
@@ -2316,7 +2346,7 @@ trait ChoosesMode {
                     s"Person ${this.id} is keeping vehicle ${vehicle.id} even though it isn't used in this trip " +
                     s"because we need it for egress at the end of the tour"
                   )
-                } else {
+                } else if (getParentTourStrategy(data.personData).isEmpty) {
                   logger.warn(
                     s"Person ${this.id} is keeping vehicle ${vehicle.id} even though it's not stored in our " +
                     s"tourModeStrategy, which is ${getCurrentTourStrategy(data.personData)}"
