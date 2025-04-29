@@ -45,6 +45,7 @@ apply plugin: 'scalafmt'
 
 group = 'beam'
 version = '1.0.beta.1'
+version = '0.9.13-beta-v6'
 
 description = """"""
 
