@@ -1331,7 +1331,8 @@ class PersonAgent(
           .copy(
             currentTripMode = Some(WALK_TRANSIT),
             numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1,
-            passengerSchedule = PassengerSchedule()
+            passengerSchedule = PassengerSchedule(),
+            failedTrips = data.failedTrips ++ data.currentTrip.toVector
           ),
         currentLocation = SpaceTime(currentCoord, _currentTick.get),
         pendingChosenTrip = None,
@@ -1548,7 +1549,7 @@ class PersonAgent(
             if (activityEndTime > tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow) {
               activityEndTime.toInt
             } else {
-              logger.warn(
+              logger.debug(
                 "Moving back next activity end time from {} to {} to avoid parallelism issues, currently on trip {}",
                 activityEndTime,
                 tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
@@ -1846,7 +1847,9 @@ class PersonAgent(
   protected def getCurrentTourStrategy(
     data: BasePersonData
   ): TourModeChoiceStrategy = {
-    _experiencedBeamPlan.getTourStrategy[TourModeChoiceStrategy](currentActivity(data))
+    nextActivity(data)
+      .map(_experiencedBeamPlan.getTourStrategy[TourModeChoiceStrategy](_))
+      .getOrElse(TourModeChoiceStrategy())
   }
 
   private def handleSuccessfulTransitReservation(

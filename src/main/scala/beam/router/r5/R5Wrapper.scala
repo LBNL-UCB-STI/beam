@@ -640,6 +640,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       val egressRouters = mutable.Map[LegMode, StreetRouter]()
       val egressStopsByMode = mutable.Map[LegMode, StopVisitor]()
       profileRequest.reverseSearch = true
+      val isCarEgress = egressVehicles.exists(_.mode == CAR)
       for (vehicle <- egressVehicles) {
         val (costPerMile, costPerMinute) = getVehicleCosts(vehicle)
         val theDestination = if (mainRouteToVehicle) {

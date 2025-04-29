@@ -157,7 +157,7 @@ class BeamScoringFunctionFactory @Inject() (
               case Some(expectedTravelTime) =>
                 x.totalTravelTimeInSecs.toDouble / 60.0 / NumberUtils.toDouble(expectedTravelTime.toString)
               case None =>
-                logger.warn(s"Missing expected travel time ratio for leg $y")
+                logger.debug(s"Missing expected travel time ratio for leg $y")
                 1.0
             }))
           }
