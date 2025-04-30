@@ -369,10 +369,16 @@ trait ChoosesParking extends {
 
   when(ChoosingParkingSpot) {
     case Event(ParkingInquiryResponse(stall, _, _), data) =>
+      val tick = _currentTick.getOrElse(0)
       val distanceThresholdToIgnoreWalking =
         beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
       val nextLeg =
         data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
+      val startLegTriggerTick = if (nextLeg.startTime < tick) {
+        tick
+      } else {
+        nextLeg.startTime
+      }
       currentBeamVehicle.setReservedParkingStall(Some(stall))
       val distance =
         beamServices.geo.distUTMInMeters(stall.locationUTM, beamServices.geo.wgs2Utm(nextLeg.travelPath.endPoint.loc))
@@ -381,7 +387,7 @@ trait ChoosesParking extends {
         val (_, triggerId) = releaseTickAndTriggerId()
         scheduler ! CompletionNotice(
           triggerId,
-          Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self))
+          Vector(ScheduleTrigger(StartLegTrigger(startLegTriggerTick, nextLeg), self))
         )
         val updatedData = data match {
           case data: BasePersonData => data.copy(enrouteData = EnrouteData())
@@ -405,7 +411,7 @@ trait ChoosesParking extends {
             val (tick, triggerId) = releaseTickAndTriggerId()
             scheduler ! CompletionNotice(
               triggerId,
-              Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self))
+              Vector(ScheduleTrigger(StartLegTrigger(startLegTriggerTick, nextLeg), self))
             )
             handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, beamServices, eventsManager)
             goto(WaitingToDrive) using data.copy(enrouteData = EnrouteData())
