@@ -372,12 +372,12 @@ trait ChoosesParking extends {
       val tick = _currentTick.getOrElse(0)
       val distanceThresholdToIgnoreWalking =
         beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
-      val nextLeg =
-        data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
-      val startLegTriggerTick = if (nextLeg.startTime < tick) {
-        tick
+      val existingLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
+
+      val (startLegTriggerTick, nextLeg) = if (existingLeg.startTime < tick) {
+        (tick, existingLeg.updateStartTime(tick))
       } else {
-        nextLeg.startTime
+        (existingLeg.startTime, existingLeg)
       }
       currentBeamVehicle.setReservedParkingStall(Some(stall))
       val distance =
