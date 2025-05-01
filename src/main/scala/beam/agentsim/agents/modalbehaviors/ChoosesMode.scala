@@ -2868,7 +2868,8 @@ trait ChoosesMode {
               makeRequestWith(
                 withTransit = true,
                 filterStreetVehiclesForQuery(availableVehicles.map(_.streetVehicle), vehicleMode)
-                :+ bodyStreetVehicle
+                :+ bodyStreetVehicle,
+                departureBuffer = bufferToUse
               )
               responsePlaceholders = makeResponsePlaceholders(
                 withRouting = true,
@@ -2906,7 +2907,8 @@ trait ChoosesMode {
             makeRequestWith(
               withTransit = true,
               vehiclesForRouting :+ bodyStreetVehicle,
-              streetVehiclesIntermodalUse = intermodalUse
+              streetVehiclesIntermodalUse = intermodalUse,
+              departureBuffer = bufferToUse
             )
             responsePlaceholders = makeResponsePlaceholders(
               withRouting = true,
