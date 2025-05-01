@@ -375,7 +375,9 @@ trait ChoosesParking extends {
       val existingLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
 
       val (startLegTriggerTick, nextLeg) = if (existingLeg.startTime < tick) {
-        (tick, existingLeg.updateStartTime(tick))
+        val rescheduledLeg = existingLeg.updateStartTime(tick)
+        data.passengerSchedule.replaceLegWithSamePath(existingLeg, rescheduledLeg)
+        (tick, rescheduledLeg)
       } else {
         (existingLeg.startTime, existingLeg)
       }
