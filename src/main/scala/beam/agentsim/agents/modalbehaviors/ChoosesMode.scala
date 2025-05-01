@@ -2467,8 +2467,14 @@ trait ChoosesMode {
               )
             case Some(strategyMode) if strategyMode == chosenTrip.tripClassifier =>
             case Some(strategyMode @ (DRIVE_TRANSIT | BIKE_TRANSIT | RIDE_HAIL_TRANSIT))
-                if (chosenTrip.tripClassifier == WALK_TRANSIT) && data.isWithinTripReplanning =>
-              logger.debug(f"Assigning replanning walk_transit trip as part of planned $strategyMode trip")
+                if data.isWithinTripReplanning =>
+              if (chosenTrip.tripClassifier != WALK_TRANSIT) {
+                logger.info(
+                  f"Switching to a ${chosenTrip.tripClassifier} trip after a failed $strategyMode trip after departure"
+                )
+              } else {
+                logger.debug(f"Assigning replanning walk_transit trip as part of planned $strategyMode trip")
+              }
             case Some(otherMode) if currentTourPersonalVehicle.isDefined & isLastTrip =>
               logger.warn(
                 s"Chose a ${chosenTrip.tripClassifier} trip with a $otherMode leg in our plans. This is because " +
