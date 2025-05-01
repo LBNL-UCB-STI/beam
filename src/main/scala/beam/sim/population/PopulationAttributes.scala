@@ -31,6 +31,9 @@ case class AttributesOfIndividual(
   wheelchairUser: Boolean = false
 ) extends PopulationAttributes {
   lazy val hasModalityStyle: Boolean = modalityStyle.nonEmpty
+  private val hourConversion = 1.0 / 3600
+  private val modeMultiplierCache = collection.concurrent.TrieMap[BeamMode, Double]()
+  private val poolingMultiplierCache = collection.concurrent.TrieMap[AutomationLevel, Double]()
 
   val busTransit: Set[BeamMode] = Set(BeamMode.BUS, BeamMode.WALK)
   val subwayTransit: Set[BeamMode] = Set(BeamMode.SUBWAY, BeamMode.WALK)
@@ -48,38 +51,41 @@ case class AttributesOfIndividual(
     isRideHail: Boolean = false,
     isPooledTrip: Boolean = false
   ): Double = {
-    // NOTE: This is in hours
-    val isWorkTrip = destinationActivity match {
-      case None =>
-        false
-      case Some(activity) =>
-        activity.getType().equalsIgnoreCase("work")
+    val (linkId, travelTime) = IdAndTT
+    val isWorkTrip = destinationActivity.exists(_.getType.equalsIgnoreCase("work"))
+
+    val multiplier = if (beamMode == CAR) {
+      val vehicleAutomationLevel = getAutomationLevel(beamVehicleTypeId, beamServices)
+      if (isRideHail) {
+        if (isPooledTrip) {
+          modeMultiplierCache.getOrElseUpdate(
+            RIDE_HAIL_POOLED,
+            modeChoiceModel.modeMultipliers.getOrElse(Some(RIDE_HAIL_POOLED), 1.0)
+          ) * poolingMultiplierCache.getOrElseUpdate(
+            vehicleAutomationLevel,
+            modeChoiceModel.poolingMultipliers.getOrElse(vehicleAutomationLevel, 1.0)
+          )
+        } else {
+          modeMultiplierCache.getOrElseUpdate(
+            RIDE_HAIL,
+            modeChoiceModel.modeMultipliers.getOrElse(Some(RIDE_HAIL), 1.0)
+          )
+        }
+      } else {
+        getSituationMultiplier(
+          linkId,
+          travelTime,
+          isWorkTrip,
+          modeChoiceModel.situationMultipliers(beamMode),
+          vehicleAutomationLevel,
+          beamServices
+        ) * modeMultiplierCache.getOrElseUpdate(CAR, modeChoiceModel.modeMultipliers.getOrElse(Some(CAR), 1.0))
+      }
+    } else {
+      modeMultiplierCache.getOrElseUpdate(beamMode, modeChoiceModel.modeMultipliers.getOrElse(Some(beamMode), 1.0))
     }
 
-    val multiplier = beamMode match {
-      case CAR =>
-        val vehicleAutomationLevel = getAutomationLevel(beamVehicleTypeId, beamServices)
-        if (isRideHail) {
-          if (isPooledTrip) {
-            getModeVotMultiplier(Option(RIDE_HAIL_POOLED), modeChoiceModel) *
-            getPooledFactor(vehicleAutomationLevel, modeChoiceModel.poolingMultipliers)
-          } else {
-            getModeVotMultiplier(Option(RIDE_HAIL), modeChoiceModel)
-          }
-        } else {
-          getSituationMultiplier(
-            IdAndTT._1,
-            IdAndTT._2,
-            isWorkTrip,
-            modeChoiceModel.situationMultipliers(beamMode),
-            vehicleAutomationLevel,
-            beamServices
-          ) * getModeVotMultiplier(Option(CAR), modeChoiceModel)
-        }
-      case _ =>
-        getModeVotMultiplier(Option(beamMode), modeChoiceModel)
-    }
-    multiplier * IdAndTT._2 / 3600
+    multiplier * travelTime * hourConversion
   }
 
   def getGeneralizedTimeOfLegForMNL(
@@ -173,23 +179,29 @@ case class AttributesOfIndividual(
     homeToWork || workToHome
   }
 
+  private val automationLevelCache = collection.concurrent.TrieMap[Id[BeamVehicleType], AutomationLevel]()
+
   private def getAutomationLevel(
     beamVehicleTypeId: Id[BeamVehicleType],
     beamServices: BeamServices
   ): AutomationLevel = {
-    val automationInt = if (beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.overrideAutomationForVOTT) {
-      beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.overrideAutomationLevel
-    } else {
-      beamServices.beamScenario.vehicleTypes(beamVehicleTypeId).automationLevel
-    }
-    automationInt match {
-      case 1 => levelLE2
-      case 2 => levelLE2
-      case 3 => level3
-      case 4 => level4
-      case 5 => level5
-      case _ => levelLE2
-    }
+    automationLevelCache.getOrElseUpdate(
+      beamVehicleTypeId, {
+        val automationInt = if (beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.overrideAutomationForVOTT) {
+          beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.overrideAutomationLevel
+        } else {
+          beamServices.beamScenario.vehicleTypes(beamVehicleTypeId).automationLevel
+        }
+        automationInt match {
+          case 1 => levelLE2
+          case 2 => levelLE2
+          case 3 => level3
+          case 4 => level4
+          case 5 => level5
+          case _ => levelLE2
+        }
+      }
+    )
   }
 
   // Convert from seconds to hours and bring in person's base VOT
