@@ -699,33 +699,32 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         }
       }
 
-      val departureTimeToDominatingList: IntFunction[DominatingList] = (departureTime: Int) =>
-        beamConfig.beam.routing.r5.transitAlternativeList.toLowerCase match {
-          case "suboptimal" if !mainRouteRideHailTransit =>
-            new SuboptimalDominatingList(
-              profileRequest.suboptimalMinutes
-            )
-          case _ =>
-            new BeamDominatingList(
-              profileRequest.inRoutingFareCalculator,
-              Integer.MAX_VALUE,
-              departureTime + profileRequest.maxTripDurationMinutes * 60
-            )
-        }
-
       val transitPaths = latency("getpath-transit-time", Metrics.VerboseLevel) {
         accessStopsByMode.flatMap { case (mode, stopVisitor) =>
-          mode match {
-            case LegMode.CAR | LegMode.BICYCLE =>
-              profileRequest.suboptimalMinutes = beamConfig.beam.routing.r5.suboptimalMinutesForDriveAccess
-              profileRequest.maxRides = 2
-            case _ if egressVehicles.exists(v => Seq(CAR, BIKE).contains(v.mode)) =>
-              profileRequest.suboptimalMinutes = beamConfig.beam.routing.r5.suboptimalMinutesForDriveAccess
-              profileRequest.maxRides = 2
-            case _ =>
-              profileRequest.suboptimalMinutes = beamConfig.beam.routing.r5.suboptimalMinutes
-              profileRequest.maxRides = 3
+          val isDriveTransitRequest = mode == LegMode.CAR || mode == LegMode.BICYCLE ||
+            egressVehicles.exists(v => Seq(CAR, BIKE).contains(v.mode))
+
+          if (isDriveTransitRequest) {
+            profileRequest.suboptimalMinutes = beamConfig.beam.routing.r5.suboptimalMinutesForDriveAccess
+            profileRequest.maxRides = 2
+          } else {
+            profileRequest.suboptimalMinutes = beamConfig.beam.routing.r5.suboptimalMinutes
+            profileRequest.maxRides = 3
           }
+
+          val departureTimeToDominatingList: IntFunction[DominatingList] = (departureTime: Int) =>
+            beamConfig.beam.routing.r5.transitAlternativeList.toLowerCase match {
+              case "suboptimal" if !mainRouteRideHailTransit && !isDriveTransitRequest =>
+                new SuboptimalDominatingList(
+                  profileRequest.suboptimalMinutes
+                )
+              case _ =>
+                new BeamDominatingList(
+                  profileRequest.inRoutingFareCalculator,
+                  Integer.MAX_VALUE,
+                  departureTime + profileRequest.maxTripDurationMinutes * 60
+                )
+            }
 
           val modeSpecificBuffer = mode match {
             case LegMode.WALK         => beamConfig.beam.routing.r5.accessBufferTimeSeconds.walk
