@@ -1307,6 +1307,7 @@ class PersonAgent(
     case Event(StateTimeout, data: BasePersonData)
         if data.hasNextLeg && data.nextLeg.beamLeg.mode.isTransit &&
           data.nextLeg.beamLeg.startTime < _currentTick.get =>
+      val nextAct = nextActivity(data)
       // We've missed the bus. This occurs when something takes longer than planned (based on the
       // initial inquiry). So we replan but change trip mode to WALK_TRANSIT since we've already done our non-transit
       // portion.
@@ -1329,11 +1330,16 @@ class PersonAgent(
         )
       )
 
-      val nextCoord = nextActivity(data).get.getCoord
+      val replannedMode = data.currentTripMode match { // Keep drive transit if we're picking up the vehicle
+        case Some(BeamMode.DRIVE_TRANSIT) if isLastTripWithinTour(nextAct.get) => BeamMode.DRIVE_TRANSIT
+        case _                                                                 => BeamMode.WALK_TRANSIT
+      }
+
+      val nextCoord = nextAct.get.getCoord
       goto(ChoosingMode) using ChoosesModeData(
         personData = data
           .copy(
-            currentTripMode = Some(WALK_TRANSIT),
+            currentTripMode = Some(replannedMode),
             numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1,
             passengerSchedule = PassengerSchedule(),
             failedTrips = data.failedTrips ++ data.currentTrip.toVector

@@ -2949,7 +2949,7 @@ trait ChoosesMode {
       case Some(RIDE_HAIL_TRANSIT) if choosesModeData.isWithinTripReplanning =>
         // Give up on ride hail transit after a failure, too complicated, but try regular ride hail again
         responsePlaceholders = makeResponsePlaceholders(withRouting = true, withRideHail = true)
-        makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
+        makeRequestWith(withTransit = true, Vector(bodyStreetVehicle), departureBuffer = bufferToUse)
         if (!alreadyRequestedRideHail) { makeRideHailRequest() }
       case Some(RIDE_HAIL_TRANSIT) =>
         responsePlaceholders =
