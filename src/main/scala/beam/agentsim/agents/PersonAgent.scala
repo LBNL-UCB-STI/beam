@@ -857,10 +857,21 @@ class PersonAgent(
           nextCoordWgs.getY
         )
       )
+
+      val (replannedMode, excludedMode) =
+        data.currentTripMode match { // Keep drive transit if we're picking up the vehicle
+          case Some(mode @ (BIKE_TRANSIT | DRIVE_TRANSIT)) if isLastTripWithinTour(nextActivity(data).get) =>
+            (mode, None)
+          case Some(mode @ (BIKE_TRANSIT | RIDE_HAIL_TRANSIT | DRIVE_TRANSIT)) =>
+            (WALK_TRANSIT, Some(mode))
+          case _ => (WALK_TRANSIT, None)
+        }
+
       goto(ChoosingMode) using ChoosesModeData(
         data.copy(
           numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1,
           currentTrip = None,
+          currentTripMode = Some(replannedMode),
           restOfCurrentTrip = List.empty[EmbodiedBeamLeg],
           passengerSchedule = PassengerSchedule(),
           failedTrips = data.failedTrips ++ data.currentTrip.map(trip =>
@@ -873,9 +884,10 @@ class PersonAgent(
         rideHail2TransitAccessResult = None,
         rideHail2TransitEgressResult = None,
         isWithinTripReplanning = true,
-        excludeModes =
+        excludeModes = excludedMode.toSet ++ (
           if (canUseCars(currentCoord, nextCoord)) Set.empty
           else Set(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
+        )
       )
   }
 
@@ -1330,10 +1342,14 @@ class PersonAgent(
         )
       )
 
-      val replannedMode = data.currentTripMode match { // Keep drive transit if we're picking up the vehicle
-        case Some(BeamMode.DRIVE_TRANSIT) if isLastTripWithinTour(nextAct.get) => BeamMode.DRIVE_TRANSIT
-        case _                                                                 => BeamMode.WALK_TRANSIT
-      }
+      val (replannedMode, excludedMode) =
+        data.currentTripMode match { // Keep drive transit if we're picking up the vehicle
+          case Some(mode @ (BIKE_TRANSIT | DRIVE_TRANSIT)) if isLastTripWithinTour(nextAct.get) =>
+            (mode, None)
+          case Some(mode @ (BIKE_TRANSIT | RIDE_HAIL_TRANSIT | DRIVE_TRANSIT)) =>
+            (WALK_TRANSIT, Some(mode))
+          case _ => (WALK_TRANSIT, None)
+        }
 
       val nextCoord = nextAct.get.getCoord
       goto(ChoosingMode) using ChoosesModeData(
@@ -1350,9 +1366,8 @@ class PersonAgent(
         rideHail2TransitAccessResult = None,
         rideHail2TransitEgressResult = None,
         isWithinTripReplanning = true,
-        excludeModes =
-          if (canUseCars(currentCoord, nextCoord)) Set.empty
-          else Set(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
+        excludeModes = excludedMode.toSet ++ (if (canUseCars(currentCoord, nextCoord)) Set.empty
+                                              else Set(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV))
       )
     // TRANSIT
     case Event(StateTimeout, data: BasePersonData) if data.hasNextLeg && data.nextLeg.beamLeg.mode.isTransit =>
