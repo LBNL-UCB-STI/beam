@@ -374,13 +374,14 @@ trait ChoosesParking extends {
         beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
       val existingLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
 
-      val (startLegTriggerTick, nextLeg) = if (existingLeg.startTime < tick) {
+      val (startLegTriggerTick, nextLeg, fixedData) = if (existingLeg.startTime < tick) {
         val rescheduledLeg = existingLeg.updateStartTime(tick)
-        data.passengerSchedule.replaceLegWithSamePath(existingLeg, rescheduledLeg)
-        (tick, rescheduledLeg)
+        val newSchedule = data.passengerSchedule.replaceLegWithSamePath(existingLeg, rescheduledLeg)
+        (tick, rescheduledLeg, data.asInstanceOf[BasePersonData].copy(passengerSchedule = newSchedule))
       } else {
-        (existingLeg.startTime, existingLeg)
+        (existingLeg.startTime, existingLeg, data)
       }
+
       currentBeamVehicle.setReservedParkingStall(Some(stall))
       val distance =
         beamServices.geo.distUTMInMeters(stall.locationUTM, beamServices.geo.wgs2Utm(nextLeg.travelPath.endPoint.loc))
@@ -391,13 +392,13 @@ trait ChoosesParking extends {
           triggerId,
           Vector(ScheduleTrigger(StartLegTrigger(startLegTriggerTick, nextLeg), self))
         )
-        val updatedData = data match {
+        val updatedData = fixedData match {
           case data: BasePersonData => data.copy(enrouteData = EnrouteData())
-          case _                    => data
+          case _                    => fixedData
         }
         goto(WaitingToDrive) using updatedData
       } else {
-        val (updatedData, isEnrouting) = data match {
+        val (updatedData, isEnrouting) = fixedData match {
           case data: BasePersonData if data.enrouteData.isInEnrouteState =>
             val updatedEnrouteData =
               data.enrouteData.copy(hasReservedFastChargerStall =
@@ -405,7 +406,7 @@ trait ChoosesParking extends {
               )
             (data.copy(enrouteData = updatedEnrouteData), updatedEnrouteData.isEnrouting)
           case _ =>
-            (data, false)
+            (fixedData, false)
         }
         updatedData match {
           case data: BasePersonData if data.enrouteData.isInEnrouteState && !isEnrouting =>
