@@ -90,7 +90,8 @@ class LinkStateOfChargeSpec extends AnyWordSpecLike with Matchers with BeamHelpe
     events
       .collectFirst {
         case pte: PathTraversalEvent if pte.vehicleId == vehicleId =>
-          pte.endLegPrimaryFuelLevel + pte.primaryFuelConsumed
+          pte.endLegPrimaryFuelLevel.asInstanceOf[Double] + pte.primaryFuelConsumed.asInstanceOf[Double]
+
       }
       .getOrElse(Double.NaN)
   }
