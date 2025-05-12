@@ -1,5 +1,6 @@
 import gzip
 import io
+import os
 
 from tqdm import tqdm
 from tqdm.auto import tqdm
@@ -72,3 +73,19 @@ def sanitize_name(filename):
     sanitized = sanitized.strip('_')
 
     return sanitized
+
+
+def check_files(paths, delete=True):
+    if isinstance(paths, str):
+        paths = [paths]
+
+    results = []
+    for path in paths:
+        exists = os.path.isfile(path)
+        if exists and delete:
+            os.remove(path)
+            results.append(False)
+        else:
+            results.append(exists and not delete)
+
+    return all(results)

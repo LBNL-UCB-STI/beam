@@ -15,6 +15,7 @@ parent_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, parent_dir)
 
 # Now use absolute import
+from python.utils.files_utils import check_files
 
 # Now use absolute import
 emissions_processes = [
@@ -283,121 +284,117 @@ def process_emfac_rates(
         DataFrame with processed EMFAC rates
     """
     # Process the emissions data
-    if not os.path.exists(emfac_rates_by_model_year_file):
-        emfac_rates = pd.DataFrame({})
-        print(f"Error: Emissions rates file '{emfac_rates_by_model_year_file}' not found.")
-    else:
-        print(f"Reading CSV file: {emfac_rates_by_model_year_file}")
-        table = csv.read_csv(emfac_rates_by_model_year_file, read_options=pa.csv.ReadOptions(use_threads=True))
-        df = table.to_pandas()
-        print(f"CSV file loaded. Shape: {df.shape}")
+    print(f"Reading CSV file: {emfac_rates_by_model_year_file}")
+    table = csv.read_csv(emfac_rates_by_model_year_file, read_options=pa.csv.ReadOptions(use_threads=True))
+    df = table.to_pandas()
+    print(f"CSV file loaded. Shape: {df.shape}")
 
-        # Apply filters based on config
-        print("Applying filters...")
-        if 'season_month' in df.columns:
-            print(f"Filtering by season_month: {season_month}")
-            df = df[(df['season_month'] == season_month) | (include_nan & df['season_month'].isna())]
-            print(f"After season_month filter. Shape: {df.shape}")
+    # Apply filters based on config
+    print("Applying filters...")
+    if 'season_month' in df.columns:
+        print(f"Filtering by season_month: {season_month}")
+        df = df[(df['season_month'] == season_month) | (include_nan & df['season_month'].isna())]
+        print(f"After season_month filter. Shape: {df.shape}")
 
-        if 'calendar_year' in df.columns:
-            print(f"Filtering by calendar_year: {calendar_year}")
-            df = df[(df['calendar_year'] == calendar_year) | (include_nan & df['calendar_year'].isna())]
-            print(f"After calendar_year filter. Shape: {df.shape}")
+    if 'calendar_year' in df.columns:
+        print(f"Filtering by calendar_year: {calendar_year}")
+        df = df[(df['calendar_year'] == calendar_year) | (include_nan & df['calendar_year'].isna())]
+        print(f"After calendar_year filter. Shape: {df.shape}")
 
-        # Improved air basin area filtering to handle partial matches
-        if 'sub_area' in df.columns:
-            print(f"Filtering by air_basin_area: {air_basin_area}")
-            # Create a filter condition for partial matches
-            sub_area_filter = include_nan & df['sub_area'].isna()
+    # Improved air basin area filtering to handle partial matches
+    if 'sub_area' in df.columns:
+        print(f"Filtering by air_basin_area: {air_basin_area}")
+        # Create a filter condition for partial matches
+        sub_area_filter = include_nan & df['sub_area'].isna()
 
-            for area in air_basin_area:
-                # Look for exact match or area in parentheses (e.g., "Santa Clara (SF)" for "SF")
-                sub_area_filter = sub_area_filter | df['sub_area'].str.contains(f'\\({area}\\)', regex=True) | (
-                        df['sub_area'] == area)
+        for area in air_basin_area:
+            # Look for exact match or area in parentheses (e.g., "Santa Clara (SF)" for "SF")
+            sub_area_filter = sub_area_filter | df['sub_area'].str.contains(f'\\({area}\\)', regex=True) | (
+                    df['sub_area'] == area)
 
-            # Apply the filter
-            df = df[sub_area_filter]
-            print(f"After sub_area filter. Shape: {df.shape}")
+        # Apply the filter
+        df = df[sub_area_filter]
+        print(f"After sub_area filter. Shape: {df.shape}")
 
-        if 'temperature' in df.columns:
-            print(f"Filtering by temperature: {temperature}")
-            df = df[(df['temperature'] == temperature) | (include_nan & df['temperature'].isna())]
-            print(f"After temperature filter. Shape: {df.shape}")
+    if 'temperature' in df.columns:
+        print(f"Filtering by temperature: {temperature}")
+        df = df[(df['temperature'] == temperature) | (include_nan & df['temperature'].isna())]
+        print(f"After temperature filter. Shape: {df.shape}")
 
-        if 'relative_humidity' in df.columns:
-            print(f"Filtering by relative_humidity: {relative_humidity}")
-            df = df[(df['relative_humidity'] == relative_humidity) | (include_nan & df['relative_humidity'].isna())]
-            print(f"After relative_humidity filter. Shape: {df.shape}")
+    if 'relative_humidity' in df.columns:
+        print(f"Filtering by relative_humidity: {relative_humidity}")
+        df = df[(df['relative_humidity'] == relative_humidity) | (include_nan & df['relative_humidity'].isna())]
+        print(f"After relative_humidity filter. Shape: {df.shape}")
 
-        # Group by MY_group and calculate statistics
-        print("Filling missing values and formatting data...")
-        df = df.fillna('')
-        df = df.reset_index(drop=True)
+    # Group by MY_group and calculate statistics
+    print("Filling missing values and formatting data...")
+    df = df.fillna('')
+    df = df.reset_index(drop=True)
 
-        print("Formatting data with provided format function...")
-        df_formatted = format_func(df)
+    print("Formatting data with provided format function...")
+    df_formatted = format_func(df)
 
-        print("Grouping and calculating mean emission rates...")
-        group_col = ['area', 'county', 'emfacId', 'model_year_group', 'vehicle_class', 'fuel', 'process', 'speed_time', 'pollutant']
-        emissions_rates = df_formatted.groupby(group_col)['emission_rate'].mean().reset_index()
-        print("Getting unique county/emfacId combinations...")
-        df_unique = emissions_rates[["county", "emfacId"]].drop_duplicates().reset_index(drop=True)
-        print(f"Found {len(df_unique)} unique county/emfacId combinations")
+    print("Grouping and calculating mean emission rates...")
+    group_col = ['area', 'county', 'emfacId', 'model_year_group', 'vehicle_class', 'fuel', 'process', 'speed_time', 'pollutant']
+    emissions_rates = df_formatted.groupby(group_col)['emission_rate'].mean().reset_index()
+    print("Getting unique county/emfacId combinations...")
+    df_unique = emissions_rates[["county", "emfacId"]].drop_duplicates().reset_index(drop=True)
+    print(f"Found {len(df_unique)} unique county/emfacId combinations")
 
-        # Parallel processing
-        # Use fewer, larger chunks and match to number of CPU cores
-        num_cores = min(os.cpu_count() or 4, 8)  # Cap at 8 to prevent excessive overhead
-        chunks = np.array_split(df_unique, num_cores)
-        print(f"Starting parallel processing with {num_cores} cores...")
+    # Parallel processing
+    # Use fewer, larger chunks and match to number of CPU cores
+    num_cores = min(os.cpu_count() or 4, 8)  # Cap at 8 to prevent excessive overhead
+    chunks = np.array_split(df_unique, num_cores)
+    print(f"Starting parallel processing with {num_cores} cores...")
 
-        # Use parallel processing with fewer, larger chunks
-        with Pool(num_cores) as pool:
-            with tqdm(total=num_cores, desc="Processing chunks") as pbar:
-                def update_progress(*args):
-                    pbar.update()
-                    return args[0]
+    # Use parallel processing with fewer, larger chunks
+    with Pool(num_cores) as pool:
+        with tqdm(total=num_cores, desc="Processing chunks") as pbar:
+            def update_progress(*args):
+                pbar.update()
+                return args[0]
 
-                # Use imap to process chunks sequentially with progress updates
-                df_output_list = []
-                for result in pool.imap(process_chunk, [(chunk, emissions_rates) for chunk in chunks]):
-                    df_output_list.append(result)
-                    pbar.update(1)
+            # Use imap to process chunks sequentially with progress updates
+            df_output_list = []
+            for result in pool.imap(process_chunk, [(chunk, emissions_rates) for chunk in chunks]):
+                df_output_list.append(result)
+                pbar.update(1)
 
-        # Formatting for merge
-        print("Combining results and finalizing data...")
-        df_output = pd.concat(df_output_list, ignore_index=True).drop(["speed_time"], axis=1)
+    # Formatting for merge
+    print("Combining results and finalizing data...")
+    df_output = pd.concat(df_output_list, ignore_index=True).drop(["speed_time"], axis=1)
 
-        # Filter out rows where all emission columns are zero
-        emission_columns = [col for col in df_output.columns if col.startswith('rate_') and col.endswith('_gram_float')]
+    # Filter out rows where all emission columns are zero
+    emission_columns = [col for col in df_output.columns if col.startswith('rate_') and col.endswith('_gram_float')]
 
-        # Count rows before filtering
-        total_rows_before = len(df_output)
-        filtered_out = df_output[(df_output[emission_columns] == 0).all(axis=1)]
-        df_output = df_output[~(df_output[emission_columns] == 0).all(axis=1)]
-        # Count rows after filtering
-        total_rows_after = len(df_output)
+    # Count rows before filtering
+    total_rows_before = len(df_output)
+    filtered_out = df_output[(df_output[emission_columns] == 0).all(axis=1)]
+    df_output = df_output[~(df_output[emission_columns] == 0).all(axis=1)]
+    # Count rows after filtering
+    total_rows_after = len(df_output)
 
-        print(f"Filtered out {total_rows_before - total_rows_after} rows where all emission columns are zero")
-        print(f"Final dataset has {total_rows_after} rows")
+    print(f"Filtered out {total_rows_before - total_rows_after} rows where all emission columns are zero")
+    print(f"Final dataset has {total_rows_after} rows")
 
-        # Reorder columns to ensure 'county' is at the front
-        columns = df_output.columns.tolist()
-        columns = ['county'] + [col for col in columns if col != 'county']
-        emfac_rates = df_output[columns]
+    # Reorder columns to ensure 'county' is at the front
+    columns = df_output.columns.tolist()
+    columns = ['county'] + [col for col in columns if col != 'county']
+    emfac_rates = df_output[columns]
 
     return emfac_rates
 
 def process_emfac_emissions(study_area, scenario_name, work_dir, config, format_func):
     # Get file paths
     emfac_config = config["rates"]["emfac"]
-    filters_config = config["filters"]
+    filters_config = config["rates"]["filters"]
     emfac_rates_by_model_year_file = os.path.join(work_dir, emfac_config['emfac_rates_by_model_year_file'])
     emfac_emission_rate_output_file = os.path.join(
         work_dir,
         f"{config["rates"]["output_dir"]}/{study_area}_emfac_rates_{scenario_name}.csv"
     )
 
-    if os.path.exists(emfac_emission_rate_output_file):
+    if check_files([emfac_emission_rate_output_file], config["override_rates"]):
         emfac_rates = pd.read_csv(emfac_emission_rate_output_file)
     else:
         emfac_rates = process_emfac_rates(
@@ -419,14 +416,14 @@ def process_emfac_emissions(study_area, scenario_name, work_dir, config, format_
 def process_black_carbon(study_area, scenario_name, work_dir, config, format_func):
     # Get file paths
     black_carbon_config = config["rates"]["black_carbon"]
-    filters_config = config["filters"]
+    filters_config = config["rates"]["filters"]
     bc_rates_by_model_year_file = os.path.join(work_dir, black_carbon_config['black_carbon_rates_file'])
     bc_emission_rate_output_file = os.path.join(
         work_dir,
         f"{config["rates"]["output_dir"]}/{study_area}_black_carbon_rates_{scenario_name}.csv"
     )
 
-    if os.path.exists(bc_emission_rate_output_file):
+    if check_files([bc_emission_rate_output_file], config["override_rates"]):
         bc_rates = pd.read_csv(bc_emission_rate_output_file)
     else:
         bc_rates = process_emfac_rates(
@@ -461,7 +458,7 @@ def process_road_dust(study_area, scenario_name, work_dir, config, emfac_ids):
         pd.DataFrame: Road dust emission rates for all EMFAC IDs
     """
     road_dust_config = config["rates"]["road_dust"]
-    filters_config = config["filters"]
+    filters_config = config["rates"]["filters"]
 
     # Get road dust file paths
     _rainy_days_file = os.path.join(work_dir, road_dust_config['rainy_days_file'])
@@ -472,7 +469,7 @@ def process_road_dust(study_area, scenario_name, work_dir, config, emfac_ids):
     )
 
     # Check if the output file already exists
-    if os.path.exists(road_dust_output_file):
+    if check_files([road_dust_output_file], config["override_rates"]):
         print(f"Loading existing road dust rates from: {road_dust_output_file}")
         road_dust_rates = pd.read_csv(road_dust_output_file)
         print(f"Loaded road dust rates with {len(road_dust_rates)} rows")
@@ -541,7 +538,7 @@ def process_emissions_rates(_study_area, _scenario_name, _work_dir, config, form
     # Ensure output directory exists
     os.makedirs(os.path.dirname(combined_rate_file), exist_ok=True)
 
-    if os.path.exists(combined_rate_file):
+    if check_files([combined_rate_file], config["override_rates"]):
         print(f"Loading existing combined rates from: {combined_rate_file}")
         _combined_rates = pd.read_csv(combined_rate_file, dtype=str)
         print(f"Loaded combined rates with {len(_combined_rates)} rows")
@@ -679,16 +676,16 @@ def process_emfac_population(_study_area, _scenario_name, _work_dir, config, for
     # Ensure output directory exists
     os.makedirs(os.path.dirname(_emfac_population_output_file), exist_ok=True)
 
-    if os.path.exists(_emfac_population_output_file):
+    if check_files([_emfac_population_output_file], config["override_rates"]):
         print(f"Loading existing EMFAC population data from: {_emfac_population_output_file}")
         emfac_population = pd.read_csv(_emfac_population_output_file)
         print(f"Loaded population data with {len(emfac_population)} rows")
     else:
         print(f"Processing EMFAC population data for {_study_area}, scenario: {_scenario_name}")
 
-        include_nan = config["filters"]["include_nan"]
-        calendar_year = config["filters"]["calendar_year"]
-        air_basin_area = config["filters"]["sub_area"]
+        include_nan = config["rates"]["filters"]["include_nan"]
+        calendar_year = config["rates"]["filters"]["calendar_year"]
+        air_basin_area = config["rates"]["filters"]["sub_area"]
         _emfac_population_by_model_year_file = os.path.join(
             _work_dir,
             config["rates"]["emfac"]["emfac_pop_by_model_year_file"]
@@ -761,8 +758,14 @@ def process_emfac_population(_study_area, _scenario_name, _work_dir, config, for
 
             # Group by relevant columns and sum population
             print("Grouping data and calculating total populations")
-            group_col = ['vehicle_class', 'fuel', 'model_year_group', 'mappedFuel', 'mappedClass', 'emfacId']
-            emfac_population = df_formatted.groupby(group_col)['population'].sum().reset_index()
+            emfac_population = df_formatted.groupby('emfacId').agg({
+                'vehicle_class': 'first',
+                'fuel': 'first',
+                'model_year_group': 'first',
+                'mappedFuel': 'first',
+                'mappedClass': 'first',
+                'population': 'sum'
+            }).reset_index()
             print(f"After grouping: {len(emfac_population)} unique vehicle class/fuel/model year combinations")
             pbar.update(1)
 
@@ -813,16 +816,16 @@ def process_emfac_vmt(_study_area, _scenario_name, _work_dir, config, format_fun
     # Ensure output directory exists
     os.makedirs(os.path.dirname(_emfac_vmt_output_file), exist_ok=True)
 
-    if os.path.exists(_emfac_vmt_output_file):
+    if check_files([_emfac_vmt_output_file], config["override_rates"]):
         print(f"Loading existing EMFAC VMT data from: {_emfac_vmt_output_file}")
         emfac_vmt = pd.read_csv(_emfac_vmt_output_file)
         print(f"Loaded VMT data with {len(emfac_vmt)} rows")
     else:
         print(f"Processing EMFAC VMT data for {_study_area}, scenario: {_scenario_name}")
 
-        include_nan = config["filters"]["include_nan"]
-        calendar_year = config["filters"]["calendar_year"]
-        air_basin_area = config["filters"]["sub_area"]
+        include_nan = config["rates"]["filters"]["include_nan"]
+        calendar_year = config["rates"]["filters"]["calendar_year"]
+        air_basin_area = config["rates"]["filters"]["sub_area"]
         _emfac_vmt_by_model_year_file = os.path.join(
             _work_dir,
             config["rates"]["emfac"]["emfac_vmt_by_model_year_file"]
@@ -896,8 +899,14 @@ def process_emfac_vmt(_study_area, _scenario_name, _work_dir, config, format_fun
 
             # Group by relevant columns and sum VMT
             print("Grouping data and calculating total VMT")
-            group_col = ['vehicle_class', 'fuel', 'model_year_group','mappedFuel', 'mappedClass', 'emfacId']
-            emfac_vmt = df_formatted.groupby(group_col)['total_vmt'].sum().reset_index()
+            emfac_vmt = df_formatted.groupby('emfacId').agg({
+                'vehicle_class': 'first',
+                'fuel': 'first',
+                'model_year_group': 'first',
+                'mappedFuel': 'first',
+                'mappedClass': 'first',
+                'total_vmt': 'sum'
+            }).reset_index()
             print(f"After grouping: {len(emfac_vmt)} unique vehicle class/fuel/model year combinations")
             pbar.update(1)
 

@@ -2,9 +2,11 @@ import os
 import re
 import sys
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
+
+from utils.files_utils import sanitize_name
 
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -155,7 +157,96 @@ def process_vehicle_types_probabilities_by_vehicle_category_and_income_group(veh
     return df
 
 
-def emfac2passenger_by_category_income(vehicle_types, car_emfac, ignore_beam_distribution):
+def emfac2passenger_with_atlas_crosswalk(vehicle_types, atlas_emfac_fleet, work_dir, config):
+    """
+    Distribute total_vmt and population values evenly across different vehicle typeIds
+    that share the same emfacId and bodytype combination.
+
+    Args:
+        vehicle_types (pd.DataFrame): DataFrame with vehicleTypeId and bodytype
+        atlas_emfac_fleet (pd.DataFrame): DataFrame with emfacId, bodytype, total_vmt, population
+
+    Returns:
+        pd.DataFrame: DataFrame with distributed vmt and population values
+    """
+    routee_beam_atlas_map = pd.read_csv(str(os.path.join(work_dir, config["mapping"]["atlas"]["routee"])), dtype=str)
+    vehicles = pd.read_csv(str(os.path.join(work_dir, config["beam"]["pax_vehicles_file"])), dtype=str)
+    beam_fleet = vehicles["vehicleTypeId"].unique()
+    filtered_vehicle_types = vehicle_types[vehicle_types["vehicleTypeId"].isin(beam_fleet)].copy()
+    beam_fleet = filtered_vehicle_types["vehicleTypeId"].unique()
+    vehicles_filtered = vehicles[vehicles["vehicleTypeId"].isin(beam_fleet)].copy()
+
+    # Step 1: Merge vehicle types with body types
+    unique_vehicle_bodytype_map = routee_beam_atlas_map.groupby("vehicleTypeId")["bodytype"].first().to_dict()
+    vehicle_types_with_body_types = filtered_vehicle_types.copy()
+    vehicle_types_with_body_types["bodytype"] = filtered_vehicle_types["vehicleTypeId"].map(unique_vehicle_bodytype_map).str.lower().str.capitalize()
+
+    # Step 2: Merge with EMFAC fleet data
+    vehicles_atlas_emfac = pd.merge(
+        left=vehicle_types_with_body_types,
+        right=atlas_emfac_fleet,
+        left_on=['bodytype', 'mappedFuel', 'mappedClass'],
+        right_on=['bodytype', 'mappedFuel', 'mappedClass'],
+        how='left'
+    )
+
+    # Step 3: Count matching vehicle types for each emfacId
+    emfac_counts = vehicles_atlas_emfac.groupby('emfacId').size().to_dict()
+
+    # Step 4: Create a mapping of emfacId to total_vmt and population
+    emfac_values = {row['emfacId']: (row['total_vmt'], row['population'])
+                    for _, row in atlas_emfac_fleet.iterrows()}
+
+    # Step 5: Apply the distribution in one vectorized operation
+    vehicles_atlas_emfac['total_vmt'] = vehicles_atlas_emfac.apply(
+        lambda row: emfac_values[row['emfacId']][0] / emfac_counts[row['emfacId']]
+        if row['emfacId'] in emfac_counts and emfac_counts[row['emfacId']] > 0 else 0,
+        axis=1
+    )
+    vehicles_atlas_emfac['population'] = vehicles_atlas_emfac.apply(
+        lambda row: emfac_values[row['emfacId']][1] / emfac_counts[row['emfacId']]
+        if row['emfacId'] in emfac_counts and emfac_counts[row['emfacId']] > 0 else 0,
+        axis=1
+    )
+
+    # Get only valid rows
+    results = vehicles_atlas_emfac.reset_index(drop=True)
+
+    # Calculate proportions
+    results['vmt_proportion'] = results.groupby('vehicleCategory')['total_vmt'].transform(
+        lambda x: x / x.sum() if x.sum() > 0 else 0
+    )
+    results['population_proportion'] = results.groupby('vehicleCategory')['population'].transform(
+        lambda x: x / x.sum() if x.sum() > 0 else 0
+    )
+
+    total_vehicle_types = len(vehicles_filtered)
+    vehicle_type_counts = vehicles_filtered.groupby('vehicleTypeId').size().reset_index(name='count')
+    vehicle_type_counts["proportion"] = vehicle_type_counts["count"] / total_vehicle_types
+    vehicle_type_proportions = dict(zip(vehicle_type_counts['vehicleTypeId'], vehicle_type_counts['proportion']))
+
+    # Apply distribution - fixed the dictionary lookup
+    results['distribution'] = results['vehicleTypeId'].map(vehicle_type_proportions) * results['vmt_proportion']
+    total = results['distribution'].sum()
+    results['distribution'] = results['distribution'] / total if total > 0 else 0
+
+    results['sampleProbabilityWithinCategory'] = results['distribution']
+    results['income_bin'] = "all"
+    results['income_prop'] = results['distribution']
+    results['ridehail_bin'] = "all"
+    results['ridehail_prop'] = results['distribution']
+
+    results['sampleProbabilityString'] = results.apply(
+        lambda row: create_sample_probability_string(
+            row['income_bin'], row['income_prop'], row['ridehail_bin'], row['ridehail_prop']
+        ),
+        axis=1
+    )
+
+    return results
+
+
+def emfac2passenger_by_category_income(vehicle_types, car_emfac_fleet, config):
     """
     Merge passenger vehicle types with EMFAC vmt data.
 
@@ -173,7 +264,7 @@ def emfac2passenger_by_category_income(vehicle_types, car_emfac, ignore_beam_dis
             - ridehail_prop: Ridehail probability
             - sampleProbabilityWithinCategory: Probability within vehicle category
 
-        car_emfac (pd.DataFrame): DataFrame of EMFAC vehicle vmt with columns:
+        car_emfac_fleet (pd.DataFrame): DataFrame of EMFAC vehicle population and vmt with columns:
             - emfacId: ID of EMFAC vehicle type
             - mappedClass: Vehicle class category in BEAM
             - vehicle_class: Specific vehicle class (e.g., 'LD1', 'LD2')
@@ -188,19 +279,18 @@ def emfac2passenger_by_category_income(vehicle_types, car_emfac, ignore_beam_dis
             - newProportionRidehail: Recalculated ridehail proportion
             - sampleProbabilityString: Updated probability string
     """
-    # Merge dataframes on matching columns
     df_merged = pd.merge(
         left=vehicle_types,
-        right=car_emfac,
+        right=car_emfac_fleet,
         left_on=['mappedClass', 'mappedFuel'],
         right_on=['mappedClass', 'mappedFuel'],
-        how='outer'
+        how='left'
     )
 
     # Calculate vehicle class probabilities given fuel type using groupby
     vehicle_class_probs = {}
     # Group by mappedClass and fuel to get distribution by vehicle_class
-    grouped = car_emfac.groupby(['mappedClass', 'mappedFuel'])
+    grouped = car_emfac_fleet.groupby(['mappedClass', 'mappedFuel'])
 
     for group_key, group_df in grouped:
         mapped_class, mapped_fuel = group_key
@@ -208,10 +298,9 @@ def emfac2passenger_by_category_income(vehicle_types, car_emfac, ignore_beam_dis
             vehicle_class_probs[(mapped_class, mapped_fuel)] = {}
 
         # Calculate normalized probabilities for each vehicle class within the group
-        total_prop = group_df['vmt_normalized'].sum()
-        if total_prop > 0:
-            for _, row in group_df.iterrows():
-                vehicle_class_probs[(mapped_class, mapped_fuel)][row['vehicle_class']] = row['vmt_normalized'] / total_prop
+        total_vmt = group_df['total_vmt'].sum()
+        for _, row in group_df.iterrows():
+            vehicle_class_probs[(mapped_class, mapped_fuel)][row['vehicle_class']] = row['total_vmt'] / total_vmt
 
     # Apply the conditional probability formula to calculate new proportions
     # Using a vectorized approach where possible
@@ -224,8 +313,8 @@ def emfac2passenger_by_category_income(vehicle_types, car_emfac, ignore_beam_dis
     df_merged['vehicle_class_prob'] = df_merged.apply(get_vehicle_class_prob, axis=1)
 
     # Calculate new proportions
-    if ignore_beam_distribution:
-        df_merged['sampleProbabilityWithinCategory'] = df_merged['vmt_normalized']
+    if config["mapping"]["fleet"]["ignore_beam_passenger_distribution"]:
+        df_merged['sampleProbabilityWithinCategory'] = df_merged['total_vmt']
         df_merged['income_prop'] = df_merged['vehicle_class_prob']
         df_merged['ridehail_prop'] = df_merged['vehicle_class_prob']
     else:
@@ -275,7 +364,54 @@ def emfac2passenger_by_category_income(vehicle_types, car_emfac, ignore_beam_dis
     return df_merged
 
 
-def generate_emfac_mapped_passenger_vehicle_types(emfac_vmt, car_class, bike_class, transit_class, filter_out_classes, work_dir, config, format_func):
+def create_atlas_emfac_crosswalk(car_emfac_fleet, work_dir, config):
+    """
+    Create a crosswalk between EMFAC classes and bodytypes.
+
+    Args:
+        car_emfac_fleet (pd.DataFrame): DataFrame containing EMFAC fleet
+        work_dir (str): Working directory path containing input files
+        config (dict): Configuration dictionary with data file paths and settings
+
+    Returns:
+        pd.DataFrame: car_emfac with added bodytype and bodytype_prop columns,
+                      and updated emfacId column combined with bodytype
+    """
+    emfac_bodytype_df = pd.read_csv(os.path.join(work_dir, config["mapping"]["atlas"]["emfac"]))
+    result_rows = []
+    for _, emfac_row in car_emfac_fleet.iterrows():
+        emfac_class = emfac_row['vehicle_class']
+        body_type_matches = []
+
+        for _, body_type_row in emfac_bodytype_df.iterrows():
+            body_type = body_type_row['bodytype'].lower().capitalize()
+            if emfac_class in body_type_row.index and body_type_row[emfac_class] > 0:
+                proportion = body_type_row[emfac_class]
+                body_type_matches.append((body_type, proportion))
+
+        for body_type, proportion in body_type_matches:
+            new_row = emfac_row.copy()
+            new_row["bodytype"] = body_type
+            new_row["bodytype_prop"] = proportion
+            result_rows.append(new_row)
+
+    # Create DataFrame from results
+    result_df = pd.DataFrame(result_rows)
+    result_df["pop"] = result_df["population"] * result_df["bodytype_prop"]
+    result_df["vmt"] = result_df["total_vmt"] * result_df["bodytype_prop"]
+    result_df["population"] = result_df["pop"]
+    result_df["total_vmt"] = result_df["vmt"]
+    total_population = result_df['population'].sum()
+    total_vmt = result_df['total_vmt'].sum()
+    if total_population > 0 and total_vmt > 0:
+        result_df["population_proportion"] = result_df['population'] / total_population
+        result_df["vmt_proportion"] = result_df['total_vmt'] / total_vmt
+
+    car_emfac_fleet_with_bodytype = result_df[car_emfac_fleet.columns.tolist() + ["bodytype"]].copy()
+    return car_emfac_fleet_with_bodytype
+
+
+def generate_emfac_mapped_passenger_vehicle_types(emfac_fleet, car_class, bike_class, transit_class, filter_out_classes, work_dir, config, format_func):
     """
     Generate a passenger vehicle types with EMFAC mappings for different vehicle classes.
 
@@ -284,7 +420,7 @@ def generate_emfac_mapped_passenger_vehicle_types(emfac_vmt, car_class, bike_cla
     distributions from both sources while mapping vehicle types to appropriate EMFAC categories.
 
     Args:
-        emfac_vmt (pd.DataFrame): EMFAC vmt data with vehicle classes and proportions
+        emfac_fleet (pd.DataFrame): EMFAC vmt and population data with vehicle classes and proportions
         car_class (str): Identifier for car vehicle classes
         bike_class (str): Identifier for bike vehicle classes
         transit_class (str): Identifier for transit vehicle classes
@@ -300,27 +436,10 @@ def generate_emfac_mapped_passenger_vehicle_types(emfac_vmt, car_class, bike_cla
     """
     # Load vehicle types file
     vehicle_types_file = os.path.join(work_dir, f"{config['beam']['pax_vehicle_types_file']}")
-    vehicles_file = os.path.join(work_dir, f"{config['beam']['pax_vehicles_file']}")
 
     # Read and filter vehicle types
     vehicle_types_raw = pd.read_csv(vehicle_types_file, dtype=str)
     vehicle_types_filtered = vehicle_types_raw[~vehicle_types_raw["vehicleCategory"].isin(filter_out_classes)]
-
-    if os.path.exists(vehicles_file):
-        vehicles_raw = pd.read_csv(vehicle_types_file, dtype=str)
-        counts = vehicles_raw["vehicleTypeId"].value_counts()
-        vehicle_summary = pd.DataFrame({
-            'vehicleTypeId': counts.index,
-            'population': counts.values
-        }).reset_index(drop=True)
-        # Merge with the filtered vehicle types DataFrame
-        vehicle_types_filtered = pd.merge(
-            vehicle_types_filtered,
-            vehicle_summary,
-            on="vehicleTypeId",
-            how="left"
-        )
-
 
     # Create masks for filtering
     car_bike_mask = vehicle_types_filtered['vehicleCategory'].isin([car_class, bike_class])
@@ -338,38 +457,35 @@ def generate_emfac_mapped_passenger_vehicle_types(emfac_vmt, car_class, bike_cla
     # ###################################################################################################
 
     # Process car data
-    car_emfac = emfac_vmt[emfac_vmt["mappedClass"].isin([car_class])].copy()
-
-    # Normalize bike vmt data
-    car_pop_sum = car_emfac['total_vmt'].sum()
-
-    if car_pop_sum > 0:
-        car_emfac['vmt_normalized'] = car_emfac['total_vmt'] / car_pop_sum
-    else:
-        car_emfac['vmt_normalized'] = 0.0
+    car_emfac_fleet = emfac_fleet[emfac_fleet["mappedClass"].isin([car_class])].copy()
 
     # Process car data with probabilities
     car_vehicle_types = vehicle_types[vehicle_types['mappedClass'].isin([car_class])].copy()
     processed_car_types = process_vehicle_types_probabilities_by_vehicle_category_and_income_group(car_vehicle_types)
-    ignore_beam_passenger_distribution = config["mapping"]["fleet"]["ignore_beam_passenger_distribution"]
-    car_beam_emfac = emfac2passenger_by_category_income(processed_car_types, car_emfac, ignore_beam_passenger_distribution)
+
+    if config["mapping"]["atlas"]["enable_atlas_emfac_crosswalk"]:
+        atlas_emfac_fleet = create_atlas_emfac_crosswalk(car_emfac_fleet, work_dir, config)
+        car_beam_emfac = emfac2passenger_with_atlas_crosswalk(processed_car_types, atlas_emfac_fleet, work_dir, config)
+    else:
+        car_beam_emfac = emfac2passenger_by_category_income(processed_car_types, car_emfac_fleet, config)
 
     # Select only necessary columns from the result
-    car_beam_emfac = car_beam_emfac[vehicle_types_filtered.columns.tolist() + ["emfacId"]]
     car_beam_emfac["oldVehicleTypeId"] = car_beam_emfac["vehicleTypeId"]
-    car_beam_emfac["vehicleTypeId"] = car_beam_emfac["emfacId"].astype(str) + "--" + car_beam_emfac["oldVehicleTypeId"].astype(str)
+    car_beam_emfac['vehicleTypeId'] = car_beam_emfac.apply(
+        lambda row: str(
+            row["emfacId"]) + "--" +
+                    sanitize_name(row["bodytype"]).replace("_", "") + "--" +
+                    sanitize_name(row["oldVehicleTypeId"]).replace("_", ""), axis=1
+    )
+    car_beam_emfac = car_beam_emfac[vehicle_types_filtered.columns.tolist() + ["emfacId", "oldVehicleTypeId"]]
 
     # ###################################################################################################
     # BIKE
     # ###################################################################################################
 
     # Process bike data
-    bike_emfac = emfac_vmt[emfac_vmt["mappedClass"].isin([bike_class])].copy()
-
-    # Normalize bike vmt data
+    bike_emfac = emfac_fleet[emfac_fleet["mappedClass"].isin([bike_class])].copy()
     bike_pop_sum = bike_emfac['total_vmt'].sum()
-
-    # Add safeguard for division by zero
     if bike_pop_sum > 0:
         bike_emfac['vmt_normalized'] = bike_emfac['total_vmt'] / bike_pop_sum
     else:
@@ -396,22 +512,21 @@ def generate_emfac_mapped_passenger_vehicle_types(emfac_vmt, car_class, bike_cla
     # Select bike columns
     bike_beam_emfac = bike_beam_emfac[vehicle_types_filtered.columns.tolist() + ["emfacId"]]
     bike_beam_emfac["oldVehicleTypeId"] = bike_beam_emfac["vehicleTypeId"]
-    bike_beam_emfac["vehicleTypeId"] = bike_beam_emfac["emfacId"].astype(str) + "--" + bike_beam_emfac["oldVehicleTypeId"].astype(str)
+    bike_beam_emfac['vehicleTypeId'] = bike_beam_emfac.apply(
+        lambda row: str(row["emfacId"]) + "--" + sanitize_name(row["oldVehicleTypeId"]).replace("_", "")
+        , axis=1)
 
     # ###################################################################################################
     # BUS
     # ###################################################################################################
 
     # Process bus data
-    bus_emfac = emfac_vmt[emfac_vmt["mappedClass"] == transit_class].copy()
-
-    # Normalize bus vmt data
+    bus_emfac = emfac_fleet[emfac_fleet["mappedClass"] == transit_class].copy()
     bus_pop_sum = bus_emfac['total_vmt'].sum()
-
     if bus_pop_sum > 0:
         bus_emfac['vmt_normalized'] = bus_emfac['total_vmt'] / bus_pop_sum
     else:
-        bus_emfac['vmt_normalized'] = 1.0  # Default value if no range
+        bus_emfac['vmt_normalized'] = 0.0  # Default value if no range
 
     # Bus mask for filter - corrected syntax for filtering
     bus_types_mask = (vehicle_types['mappedClass'] == transit_class) & \
@@ -435,17 +550,16 @@ def generate_emfac_mapped_passenger_vehicle_types(emfac_vmt, car_class, bike_cla
 
     # Combine all vehicle types
     result = pd.concat([car_beam_emfac, bike_beam_emfac, bus_beam_emfac], ignore_index=True)
-
-    vehicle_types_others = vehicle_types_filtered[~vehicle_types_filtered["vehicleTypeId"].isin(result["oldVehicleTypeId"].unique())]
-
+    processed_ids = result["oldVehicleTypeId"].unique()
+    vehicle_types_others = vehicle_types_filtered.loc[~(car_bike_mask | bus_mask)].copy()
+    vehicle_types_others = vehicle_types_others[~vehicle_types_others["vehicleTypeId"].isin(processed_ids)]
     return result, vehicle_types_others
 
 
 def generate_fleet_from_vehicle_types(mapped_vehicle_types, car_class, bike_class, work_dir, config):
     """
     Update vehicle.csv file by sampling from new vehicle types based on original vehicleTypeId.
-
-    This function uses vectorized operations and batch processing for better performance.
+    This highly optimized function uses vectorized operations and eliminates loops where possible.
 
     Args:
         mapped_vehicle_types (pd.DataFrame): DataFrame containing mapped vehicle types
@@ -460,40 +574,52 @@ def generate_fleet_from_vehicle_types(mapped_vehicle_types, car_class, bike_clas
     # Read the vehicle.csv file
     vehicles_file_path = os.path.join(work_dir, config["beam"]["pax_vehicles_file"])
     vehicles_df = pd.read_csv(vehicles_file_path)
-    total_vehicles = len(vehicles_df)
 
-    # Filter vehicle types to only cars and bikes
+    # Create new columns in advance
+    vehicles_df['oldVehicleTypeId'] = vehicles_df['vehicleTypeId']
+    vehicles_df['stateOfCharge'] = ""
+
+    # Filter vehicle types to only cars and bikes (do this once)
     car_bike_mask = mapped_vehicle_types['vehicleCategory'].isin([car_class, bike_class])
     filtered_vehicle_types = mapped_vehicle_types.loc[car_bike_mask].copy()
 
-    # Ensure sampleProbabilityWithinCategory is numeric
+    # Ensure sampleProbabilityWithinCategory is numeric (do this once)
     filtered_vehicle_types['sampleProbabilityWithinCategory'] = pd.to_numeric(
         filtered_vehicle_types['sampleProbabilityWithinCategory'], errors='coerce'
     ).fillna(0)
 
-    # Precompute vehicle category mappings
-    vehicle_categories = {}
-    for vehicle_type_id in vehicles_df['vehicleTypeId'].unique():
-        if isinstance(vehicle_type_id, str) and 'BIKE' in vehicle_type_id.upper():
-            vehicle_categories[vehicle_type_id] = bike_class
-        else:
-            vehicle_categories[vehicle_type_id] = car_class
-
-    # Create a dictionary to store matches by original type
-    type_matches = {}
-
-    # Precompute category filters
-    category_filters = {
+    # Pre-process and organize vehicle types by category
+    vehicle_types_by_category = {
         car_class: filtered_vehicle_types[filtered_vehicle_types['vehicleCategory'] == car_class],
         bike_class: filtered_vehicle_types[filtered_vehicle_types['vehicleCategory'] == bike_class]
     }
 
-    # Create new columns in the vehicles DataFrame
-    vehicles_df['oldVehicleTypeId'] = vehicles_df['vehicleTypeId']
-    vehicles_df['stateOfCharge'] = ""
+    # Pre-process and organize vehicle types by original type (if oldVehicleTypeId exists)
+    vehicle_types_by_original = {}
+    if 'oldVehicleTypeId' in filtered_vehicle_types.columns:
+        for orig_id in filtered_vehicle_types['oldVehicleTypeId'].unique():
+            if pd.notna(orig_id) and orig_id:
+                matches = filtered_vehicle_types[filtered_vehicle_types['oldVehicleTypeId'] == orig_id]
+                if len(matches) > 0:
+                    weights = matches['sampleProbabilityWithinCategory'].values
+                    weights_sum = np.sum(weights)
+                    if weights_sum > 0:
+                        weights = weights / weights_sum
+                    vehicle_types_by_original[str(orig_id)] = (matches, weights)
 
-    # Process in batches with progress bar
-    batch_size = 1000
+    # Create lookup table of original type IDs to categories
+    unique_vehicle_types = vehicles_df['vehicleTypeId'].unique()
+    vehicle_categories = {}
+    for vtype in unique_vehicle_types:
+        vtype_str = str(vtype)
+        if 'BIKE' in vtype_str.upper():
+            vehicle_categories[vtype_str] = bike_class
+        else:
+            vehicle_categories[vtype_str] = car_class
+
+    # Process in larger batches for better performance
+    batch_size = 10000  # Increased batch size
+    total_vehicles = len(vehicles_df)
     num_batches = (total_vehicles + batch_size - 1) // batch_size
 
     with tqdm(total=total_vehicles, desc="Processing vehicles") as pbar:
@@ -502,47 +628,58 @@ def generate_fleet_from_vehicle_types(mapped_vehicle_types, car_class, bike_clas
             end_idx = min(start_idx + batch_size, total_vehicles)
             batch = vehicles_df.iloc[start_idx:end_idx]
 
-            for idx, vehicle in batch.iterrows():
-                original_type_id = str(vehicle['vehicleTypeId'])
+            # Create arrays to hold new values
+            new_vehicle_type_ids = []
+            states_of_charge = []
 
-                # Use cached matches if available
-                if original_type_id in type_matches:
-                    matches, weights = type_matches[original_type_id]
+            # Group vehicles by original type to process in chunks
+            for original_type_id, group_indices in batch.groupby('vehicleTypeId').groups.items():
+                original_type_id_str = str(original_type_id)
+                group_size = len(group_indices)
+
+                # Get matching vehicle types for this original type
+                if original_type_id_str in vehicle_types_by_original:
+                    matches, weights = vehicle_types_by_original[original_type_id_str]
                 else:
-                    # Filter vehicle types to only include those with matching oldVehicleTypeId
-                    if 'oldVehicleTypeId' in filtered_vehicle_types.columns:
-                        matches = filtered_vehicle_types[
-                            filtered_vehicle_types['oldVehicleTypeId'] == original_type_id].copy()
-                    else:
-                        matches = filtered_vehicle_types[
-                            filtered_vehicle_types['vehicleTypeId'].str.contains(original_type_id, case=False)].copy()
-
-                    if len(matches) == 0:
-                        # If no direct match, use vehicle category
-                        category = vehicle_categories[original_type_id]
-                        matches = category_filters[category].copy()
-
-                    # Get weights for sampling
+                    # If no direct match, use vehicle category
+                    category = vehicle_categories[original_type_id_str]
+                    matches = vehicle_types_by_category[category]
                     weights = matches['sampleProbabilityWithinCategory'].values
+                    weights_sum = np.sum(weights)
+                    if weights_sum > 0:
+                        weights = weights / weights_sum
+                    # Cache for future use
+                    vehicle_types_by_original[original_type_id_str] = (matches, weights)
 
-                    # Cache the matches and weights
-                    type_matches[original_type_id] = (matches, weights)
+                # Sample vehicle types for the entire group at once
+                if len(matches) > 0:
+                    if np.sum(weights) > 0:
+                        sampled_indices = np.random.choice(
+                            len(matches), size=group_size, p=weights, replace=True
+                        )
+                    else:
+                        sampled_indices = np.random.randint(0, len(matches), size=group_size)
 
-                # Sample a new vehicle type
-                if np.sum(weights) > 0:
-                    sampled_idx = np.random.choice(len(matches), p=weights / np.sum(weights))
+                    # Get sampled vehicle types and fuel types
+                    sampled_vehicles = matches.iloc[sampled_indices]
+                    sampled_types = sampled_vehicles['vehicleTypeId'].values
+                    is_electric = sampled_vehicles['primaryFuelType'].str.lower().str.contains('electricity',
+                                                                                               na=False).values
+
+                    # Assign to ordered arrays
+                    for i, idx in enumerate(group_indices):
+                        # No need to calculate idx_in_batch since we're using arrays and appending
+                        new_vehicle_type_ids.append(sampled_types[i])
+                        states_of_charge.append('1' if is_electric[i] else '')
                 else:
-                    sampled_idx = np.random.randint(0, len(matches))
+                    # Fallback if no matches (should rarely happen)
+                    for _ in range(group_size):
+                        new_vehicle_type_ids.append(original_type_id)
+                        states_of_charge.append('')
 
-                sampled_row = matches.iloc[sampled_idx]
-
-                # Update vehicleTypeId to the sampled one
-                vehicles_df.at[idx, 'vehicleTypeId'] = sampled_row['vehicleTypeId']
-
-                # Update stateOfCharge based on fuel type
-                fuel_type = str(sampled_row['primaryFuelType']).lower()
-                if 'electricity' in fuel_type:
-                    vehicles_df.at[idx, 'stateOfCharge'] = 1
+            # Bulk update the batch
+            vehicles_df.loc[start_idx:end_idx - 1, 'vehicleTypeId'] = new_vehicle_type_ids
+            vehicles_df.loc[start_idx:end_idx - 1, 'stateOfCharge'] = states_of_charge
 
             pbar.update(end_idx - start_idx)
 

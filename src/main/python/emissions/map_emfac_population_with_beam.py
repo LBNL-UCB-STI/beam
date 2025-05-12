@@ -29,6 +29,7 @@ from python.utils.study_area_config import get_area_config
 from python.utils.study_area_config import BeamClasses
 from python.utils.study_area_config import get_fuel_key
 from python.utils.files_utils import sanitize_name
+from python.utils.files_utils import check_files
 
 pd.set_option('display.max_columns', 20)
 
@@ -37,210 +38,7 @@ def create_emfac_id(row):
     model_year_group_st = sanitize_name(row['model_year_group']).replace("_","")
     vehicle_class_st = sanitize_name(row['vehicle_class']).replace("_","")
     fuel_st = sanitize_name(row['fuel']).replace("_","")
-    return f"{model_year_group_st}-{vehicle_class_st}-{fuel_st}"
-
-def prepare_emissions_data_for_mapping(area, scenario, work_dir, config):
-    mapping_config = config["mapping"]
-    def categorize_model_year(year):
-        # https://pubs.acs.org/doi/full/10.1021/acs.est.9b04763
-        if year <= 1993: return '1993'
-        elif year <= 2006: return '2006'
-        else: return '2018'
-    def format_emissions_data(emfac_types: pd.DataFrame) -> pd.DataFrame:
-        result_ft_df = emfac_types.copy()
-        result_ft_df['mappedClass'] = result_ft_df['vehicle_class'].map(mapping_config["class"]["emfac-ft"])
-        result_ft_df.dropna(subset=['mappedClass'], inplace=True)
-        result_ft_df['mappedFuel'] = result_ft_df['fuel'].map(mapping_config["fuel"]["emfac-ft"])
-        result_ft_df.dropna(subset=['mappedFuel'], inplace=True)
-
-        result_pax_df = emfac_types.copy()
-        result_pax_df['mappedClass'] = result_pax_df['vehicle_class'].map(mapping_config["class"]["emfac-pax"])
-        result_pax_df.dropna(subset=['mappedClass'], inplace=True)
-        result_pax_df['mappedFuel'] = result_pax_df['fuel'].map(mapping_config["fuel"]["emfac-pax"])
-        result_pax_df.dropna(subset=['mappedFuel'], inplace=True)
-
-        result_bus_df = emfac_types.copy()
-        result_bus_df['mappedClass'] = result_bus_df['vehicle_class'].map(mapping_config["class"]["emfac-bus"])
-        result_bus_df.dropna(subset=['mappedClass'], inplace=True)
-        result_bus_df['mappedFuel'] = result_bus_df['fuel'].map(mapping_config["fuel"]["emfac-bus"])
-        result_bus_df.dropna(subset=['mappedFuel'], inplace=True)
-
-        result_df = pd.concat([result_ft_df, result_pax_df, result_bus_df])
-
-        result_df['model_year_group'] = result_df['model_year'].apply(categorize_model_year)
-        result_df[['county', 'area']] = result_df['sub_area'].str.extract(r'^([^()]+)\s*\(([^)]+)\)')
-        result_df['county'] = result_df['county'].str.strip().str.lower()
-        result_df['area'] = result_df['area'].str.strip()
-        result_df['emfacId'] = result_df.apply(create_emfac_id, axis=1)
-        return result_df
-
-    emfac_pop = process_emfac_population(area, scenario, work_dir, config, format_emissions_data)
-    print("\n=== EMFAC Population ===\n")
-    print(f"total_population: {emfac_pop["population"].sum() / 1_000_000:.1f}M")
-    #
-    print("\n=== EMFAC VMT ===\n")
-    emfac_vmt = process_emfac_vmt(area, scenario, work_dir, config, format_emissions_data)
-    print(f"total_vmt: {emfac_vmt["total_vmt"].sum() / 1_000_000:.1f}M")
-    #
-    print("\n=== CARB Emissions Rates ===\n")
-    rates = process_emissions_rates(area, scenario, work_dir, config, format_emissions_data)
-    print(f"rates: {len(rates):,}")
-
-    return emfac_pop, emfac_vmt, rates
-
-
-def assign_emission_rates_to_vehicle_types(scenario, emissions_rates, emfac_pop, emfac_vmt, work_dir, config):
-    """
-    Process freight and passenger vehicle emissions by assigning EMFAC IDs and emissions rates.
-
-    This function:
-    1. Builds new freight vehicle types and assigns them to carriers
-    2. Creates or loads passenger vehicle types
-    3. Assigns emissions rates to all vehicle types
-
-    Args:
-        scenario (str): Scenario name
-        emissions_rates (DataFrame): DataFrame containing emissions rates
-        emfac_pop (DataFrame): DataFrame containing EMFAC population data
-        emfac_vmt (DataFrame): DataFrame containing EMFAC VMT data
-        work_dir (str): Working directory for file operations
-        config (dict): Configuration dictionary
-
-    Returns:
-        None: Files are saved to disk
-    """
-    # ######
-    def format_beam_vehicle_types(vehicle_types: pd.DataFrame) -> pd.DataFrame:
-        # Validate inputs
-        result_df = vehicle_types.copy()
-        result_df['fuel_key'] = result_df.apply(get_fuel_key, axis=1)
-        result_df['mappedFuel'] = result_df['fuel_key'].map(config["mapping"]["fuel"]["beam"])
-        na_count = result_df['mappedFuel'].isna().sum()
-        if na_count > 0:
-            logging.warning(f"{na_count} vehicle types could not be mapped to EMFAC fuel types")
-        result_df['mappedClass'] = result_df['vehicleCategory']
-        return result_df
-    # ######
-
-    print("\n=== Map EMFAC To BEAM Population ===\n")
-
-    # Define output file paths
-    carriers_out_file = os.path.join(work_dir, f"{config['beam']['carriers_file'].replace('.csv', '--TrAP.csv')}")
-    ft_vehtypes_out_file = os.path.join(work_dir,
-                                        f"{config['beam']['ft_vehicle_types_file'].replace('.csv', '--TrAP.csv')}")
-    pax_vehtypes_out_file = os.path.join(work_dir,
-                                         f"{config['beam']['pax_vehicle_types_file'].replace('.csv', '--TrAP.csv')}")
-    emissions_rates_dir = os.path.join(
-        os.path.dirname(os.path.join(work_dir, f"{config['beam']['ft_vehicle_types_file']}")),
-        f"TrAP/{scenario.replace('_', '-')}"
-    )
-
-    # Process freight vehicles
-    if os.path.exists(carriers_out_file) and os.path.exists(ft_vehtypes_out_file):
-        logging.info("All carriers and freight vehicle types emissions files have already been created")
-        logging.info(f"    carriers: {carriers_out_file}")
-        logging.info(f"    freight vehicle types: {ft_vehtypes_out_file}")
-        new_ft_vehicle_types = pd.read_csv(ft_vehtypes_out_file)
-    else:
-        new_carriers, new_ft_vehicle_types = generate_emfac_mapped_freight_fleet(
-            emfac_vmt, BeamClasses.get_freight_classes(), work_dir, config, format_beam_vehicle_types
-        )
-        logging.info(f"Saving updated files to:\n  {carriers_out_file}\n  {ft_vehtypes_out_file}")
-        new_ft_vehicle_types.to_csv(ft_vehtypes_out_file, index=False)
-        new_carriers.to_csv(carriers_out_file, index=False)
-
-    # Process passenger vehicles
-    if os.path.exists(pax_vehtypes_out_file):
-        logging.info("Passenger vehicle types emissions files have already been created:")
-        logging.info(f"    passenger vehicle types: {pax_vehtypes_out_file}")
-        new_pax_vehicle_types = pd.read_csv(pax_vehtypes_out_file)
-        temp = pd.read_csv(os.path.join(work_dir, f"{config['beam']['pax_vehicle_types_file']}"))
-        other_pax_vehicle_types = temp[temp["vehicleCategory"].isin(
-            BeamClasses.get_freight_classes() + new_pax_vehicle_types["vehicleCategory"].unique().tolist())]
-    else:
-        # Generate passenger vehicle types
-        new_pax_vehicle_types, other_pax_vehicle_types = generate_emfac_mapped_passenger_vehicle_types(
-            emfac_vmt,
-            car_class=BeamClasses.CLASS_CAR,
-            bike_class=BeamClasses.CLASS_BIKE,
-            transit_class=BeamClasses.CLASS_MDP,
-            filter_out_classes=BeamClasses.get_freight_classes(),
-            work_dir=work_dir,
-            config=config,
-            format_func=format_beam_vehicle_types,
-        )
-
-    vehicles_output = os.path.join(work_dir, f"{config['beam']['pax_vehicles_file'].replace('.csv', '--TrAP.csv')}")
-    if not os.path.exists(vehicles_output):
-        pax_vehicles = generate_fleet_from_vehicle_types(
-            new_pax_vehicle_types,
-            car_class=BeamClasses.CLASS_CAR,
-            bike_class=BeamClasses.CLASS_BIKE,
-            work_dir=work_dir,
-            config=config
-        )
-        vehicles_output = os.path.join(work_dir, f"{config['beam']['pax_vehicles_file'].replace('.csv', '--TrAP.csv')}")
-        pax_vehicles.to_csv(vehicles_output, index=False)
-
-    # Prepare for emissions rates processing
-    vehtypes_with_emfac_id = pd.concat([new_ft_vehicle_types, new_pax_vehicle_types], ignore_index=True)
-
-    # Prepare directory for emissions rates files
-    try:
-        if os.path.exists(emissions_rates_dir):
-            shutil.rmtree(emissions_rates_dir)
-        os.makedirs(emissions_rates_dir, exist_ok=True)
-        logging.info(f"Ready to write new data to the directory {emissions_rates_dir}")
-    except Exception as e:
-        logging.error(f"Failed to prepare directory {emissions_rates_dir}: {e}")
-
-    # Process vehicle emissions in parallel with chunking
-    chunk_size = 100
-    results = []
-    for i in range(0, len(vehtypes_with_emfac_id), chunk_size):
-        chunk = vehtypes_with_emfac_id.iloc[i:i + chunk_size]
-        chunk_results = Parallel(n_jobs=-1, timeout=600)(
-            delayed(process_single_vehicle_type)(
-                veh_type,
-                emissions_rates,
-                f"{emissions_rates_dir}/"
-            ) for _, veh_type in chunk.iterrows()
-        )
-        results.extend(chunk_results)
-        del chunk_results  # Free memory
-
-    # Update emissions rate file paths in vehicle types
-    path_parts = emissions_rates_dir.split('/')
-    trap_index = path_parts.index("TrAP")
-    shortened_path = '/'.join(path_parts[trap_index:])
-    for veh_type_id, emfac_id in results:
-        if veh_type_id:
-            veh_type_id_temp = veh_type_id
-            if emfac_id not in veh_type_id:
-                veh_type_id_temp = f"{emfac_id}--{veh_type_id}"
-            relative_rates_filepath = f"{shortened_path}/{veh_type_id_temp}.csv"
-            vehtypes_with_emfac_id.loc[
-                vehtypes_with_emfac_id['vehicleTypeId'] == veh_type_id, 'emissionsRatesFile'
-            ] = relative_rates_filepath
-
-    # Save updated vehicle types
-    logging.info(f"Writing:\n{ft_vehtypes_out_file}\n{pax_vehtypes_out_file}")
-
-    # Save freight vehicle types
-    ft_freight_mask = (vehtypes_with_emfac_id['vehicleCategory'].isin(BeamClasses.get_freight_classes()))
-    updated_ft_vehicle_types = vehtypes_with_emfac_id[ft_freight_mask].copy()
-    updated_ft_vehicle_types.drop(['emfacId', 'oldVehicleTypeId', 'vehicleClass'], axis=1, inplace=True)
-    updated_ft_vehicle_types.to_csv(ft_vehtypes_out_file, index=False)
-
-    # Save passenger vehicle types
-    updated_pax_vehicle_types_others = other_pax_vehicle_types.copy()
-    updated_pax_vehicle_types_others['emissionsRatesFile'] = ""
-    updated_pax_vehicle_types = pd.concat(
-        [vehtypes_with_emfac_id[~ft_freight_mask].copy(), other_pax_vehicle_types],
-        axis=0
-    )
-    updated_pax_vehicle_types.drop(['emfacId', 'oldVehicleTypeId', 'vehicleClass'], axis=1, inplace=True)
-    updated_pax_vehicle_types.to_csv(pax_vehtypes_out_file, index=False)
+    return f"{model_year_group_st}{vehicle_class_st}{fuel_st}"
 
 def generate_emfac_beam_class_mapping(_study_area, _scenario_name, _work_dir, _config, to_filter_out):
     """
@@ -316,6 +114,211 @@ def generate_emfac_beam_class_mapping(_study_area, _scenario_name, _work_dir, _c
 
     return {k: v for k, v in mapping.items() if v != "NotMatched"}
 
+
+def prepare_emissions_data_for_mapping(area, scenario, work_dir, config):
+    mapping_config = config["mapping"]
+    def categorize_model_year(year):
+        # https://pubs.acs.org/doi/full/10.1021/acs.est.9b04763
+        if year <= 1993: return '1993'
+        elif year <= 2006: return '2006'
+        else: return '2018'
+    def format_emissions_data(emfac_types: pd.DataFrame) -> pd.DataFrame:
+        result_ft_df = emfac_types.copy()
+        result_ft_df['mappedClass'] = result_ft_df['vehicle_class'].map(mapping_config["class"]["emfac-ft"])
+        result_ft_df.dropna(subset=['mappedClass'], inplace=True)
+        result_ft_df['mappedFuel'] = result_ft_df['fuel'].map(mapping_config["fuel"]["emfac-ft"])
+        result_ft_df.dropna(subset=['mappedFuel'], inplace=True)
+
+        result_pax_df = emfac_types.copy()
+        result_pax_df['mappedClass'] = result_pax_df['vehicle_class'].map(mapping_config["class"]["emfac-pax"])
+        result_pax_df.dropna(subset=['mappedClass'], inplace=True)
+        result_pax_df['mappedFuel'] = result_pax_df['fuel'].map(mapping_config["fuel"]["emfac-pax"])
+        result_pax_df.dropna(subset=['mappedFuel'], inplace=True)
+
+        result_bus_df = emfac_types.copy()
+        result_bus_df['mappedClass'] = result_bus_df['vehicle_class'].map(mapping_config["class"]["emfac-bus"])
+        result_bus_df.dropna(subset=['mappedClass'], inplace=True)
+        result_bus_df['mappedFuel'] = result_bus_df['fuel'].map(mapping_config["fuel"]["emfac-bus"])
+        result_bus_df.dropna(subset=['mappedFuel'], inplace=True)
+
+        result_df = pd.concat([result_ft_df, result_pax_df, result_bus_df])
+
+        result_df['model_year_group'] = result_df['model_year'].apply(categorize_model_year)
+        result_df[['county', 'area']] = result_df['sub_area'].str.extract(r'^([^()]+)\s*\(([^)]+)\)')
+        result_df['county'] = result_df['county'].str.strip().str.lower()
+        result_df['area'] = result_df['area'].str.strip()
+        result_df['emfacId'] = result_df.apply(create_emfac_id, axis=1)
+        return result_df
+
+    emfac_pop = process_emfac_population(area, scenario, work_dir, config, format_emissions_data)
+    print("\n=== EMFAC Population ===\n")
+    print(f"total_population: {emfac_pop["population"].sum() / 1_000_000:.1f}M")
+    #
+    print("\n=== EMFAC VMT ===\n")
+    emfac_vmt = process_emfac_vmt(area, scenario, work_dir, config, format_emissions_data)
+    print(f"total_vmt: {emfac_vmt["total_vmt"].sum() / 1_000_000:.1f}M")
+    #
+    emfac_fleet = pd.merge(emfac_pop, emfac_vmt[["emfacId", "total_vmt", "vmt_proportion"]], on='emfacId', how='left')
+    #
+    print("\n=== CARB Emissions Rates ===\n")
+    emfac_rates = process_emissions_rates(area, scenario, work_dir, config, format_emissions_data)
+    print(f"rates: {len(emfac_rates):,}")
+
+    return emfac_fleet, emfac_rates
+
+
+def assign_emission_rates_to_vehicle_types(scenario, emissions_rates, emfac_fleet, work_dir, config):
+    """
+    Process freight and passenger vehicle emissions by assigning EMFAC IDs and emissions rates.
+
+    This function:
+    1. Builds new freight vehicle types and assigns them to carriers
+    2. Creates or loads passenger vehicle types
+    3. Assigns emissions rates to all vehicle types
+
+    Args:
+        scenario (str): Scenario name
+        emissions_rates (DataFrame): DataFrame containing emissions rates
+        emfac_fleet (DataFrame): DataFrame containing EMFAC population and VMT data
+        work_dir (str): Working directory for file operations
+        config (dict): Configuration dictionary
+
+    Returns:
+        None: Files are saved to disk
+    """
+    # ######
+    def format_beam_vehicle_types(vehicle_types: pd.DataFrame) -> pd.DataFrame:
+        # Validate inputs
+        result_df = vehicle_types.copy()
+        result_df['fuel_key'] = result_df.apply(get_fuel_key, axis=1)
+        result_df['mappedFuel'] = result_df['fuel_key'].map(config["mapping"]["fuel"]["beam"])
+        na_count = result_df['mappedFuel'].isna().sum()
+        if na_count > 0:
+            logging.warning(f"{na_count} vehicle types could not be mapped to EMFAC fuel types")
+        result_df['mappedClass'] = result_df['vehicleCategory']
+        return result_df
+    # ######
+
+    print("\n=== Map EMFAC To BEAM Population ===\n")
+
+    # Define output file paths
+    carriers_out_file = os.path.join(work_dir, f"{config['beam']['carriers_file'].replace('.csv', '--EM.csv')}")
+    ft_vehtypes_out_file = os.path.join(work_dir,
+                                        f"{config['beam']['ft_vehicle_types_file'].replace('.csv', '--EM.csv')}")
+    pax_vehtypes_out_file = os.path.join(work_dir,
+                                         f"{config['beam']['pax_vehicle_types_file'].replace('.csv', '--EM.csv')}")
+    emissions_rates_dir = os.path.join(
+        os.path.dirname(os.path.join(work_dir, f"{config['beam']['ft_vehicle_types_file']}")),
+        f"emissions/{scenario.replace('_', '-')}"
+    )
+
+
+    # Process freight vehicles
+    if check_files([carriers_out_file, ft_vehtypes_out_file], config["override_fleet"]):
+        logging.info("All carriers and freight vehicle types emissions files have already been created")
+        logging.info(f"    carriers: {carriers_out_file}")
+        logging.info(f"    freight vehicle types: {ft_vehtypes_out_file}")
+        new_ft_vehicle_types = pd.read_csv(ft_vehtypes_out_file)
+    else:
+        new_carriers, new_ft_vehicle_types = generate_emfac_mapped_freight_fleet(
+            emfac_fleet, BeamClasses.get_freight_classes(), work_dir, config, format_beam_vehicle_types
+        )
+        logging.info(f"Saving updated files to:\n  {carriers_out_file}\n  {ft_vehtypes_out_file}")
+        new_ft_vehicle_types.to_csv(ft_vehtypes_out_file, index=False)
+        new_carriers.to_csv(carriers_out_file, index=False)
+
+    # Process passenger vehicles
+    if check_files([pax_vehtypes_out_file], config["override_fleet"]):
+        logging.info("Passenger vehicle types emissions files have already been created:")
+        logging.info(f"    passenger vehicle types: {pax_vehtypes_out_file}")
+        new_pax_vehicle_types = pd.read_csv(pax_vehtypes_out_file)
+        temp = pd.read_csv(os.path.join(work_dir, f"{config['beam']['pax_vehicle_types_file']}"))
+        other_pax_vehicle_types = temp[temp["vehicleCategory"].isin(
+            BeamClasses.get_freight_classes() + new_pax_vehicle_types["vehicleCategory"].unique().tolist())]
+    else:
+        # Generate passenger vehicle types
+        new_pax_vehicle_types, other_pax_vehicle_types = generate_emfac_mapped_passenger_vehicle_types(
+            emfac_fleet,
+            car_class=BeamClasses.CLASS_CAR,
+            bike_class=BeamClasses.CLASS_BIKE,
+            transit_class=BeamClasses.CLASS_MDP,
+            filter_out_classes=BeamClasses.get_freight_classes(),
+            work_dir=work_dir,
+            config=config,
+            format_func=format_beam_vehicle_types,
+        )
+
+    vehicles_output = os.path.join(work_dir, f"{config['beam']['pax_vehicles_file'].replace('.csv', '--EM.csv')}")
+    if not check_files([vehicles_output], config["override_fleet"]):
+        pax_vehicles = generate_fleet_from_vehicle_types(
+            new_pax_vehicle_types,
+            car_class=BeamClasses.CLASS_CAR,
+            bike_class=BeamClasses.CLASS_BIKE,
+            work_dir=work_dir,
+            config=config
+        )
+        vehicles_output = os.path.join(work_dir, f"{vehicles_output}")
+        pax_vehicles.to_csv(vehicles_output, index=False)
+
+    # Prepare for emissions rates processing
+    vehtypes_with_emfac_id = pd.concat([new_ft_vehicle_types, new_pax_vehicle_types], ignore_index=True)
+    vehtypes_with_emfac_id = vehtypes_with_emfac_id.fillna("")
+
+    # Prepare directory for emissions rates files
+    try:
+        if os.path.exists(emissions_rates_dir):
+            shutil.rmtree(emissions_rates_dir)
+        os.makedirs(emissions_rates_dir, exist_ok=True)
+        logging.info(f"Ready to write new data to the directory {emissions_rates_dir}")
+    except Exception as e:
+        logging.error(f"Failed to prepare directory {emissions_rates_dir}: {e}")
+
+    # Process vehicle emissions in parallel with chunking
+    chunk_size = 100
+    results = []
+    for i in range(0, len(vehtypes_with_emfac_id), chunk_size):
+        chunk = vehtypes_with_emfac_id.iloc[i:i + chunk_size]
+        chunk_results = Parallel(n_jobs=-1, timeout=600)(
+            delayed(process_single_vehicle_type)(
+                veh_type,
+                emissions_rates,
+                f"{emissions_rates_dir}/"
+            ) for _, veh_type in chunk.iterrows()
+        )
+        results.extend(chunk_results)
+        del chunk_results  # Free memory
+
+    # Update emissions rate file paths in vehicle types
+    path_parts = emissions_rates_dir.split('/')
+    em_index = path_parts.index("emissions")
+    shortened_path = '/'.join(path_parts[em_index:])
+    for veh_type_id, emfac_id in results:
+        if veh_type_id:
+            relative_rates_filepath = f"{shortened_path}/{emfac_id}.csv"
+            vehtypes_with_emfac_id.loc[
+                vehtypes_with_emfac_id['vehicleTypeId'] == veh_type_id, 'emissionsRatesFile'
+            ] = relative_rates_filepath
+
+    # Save updated vehicle types
+    logging.info(f"Writing:\n{ft_vehtypes_out_file}\n{pax_vehtypes_out_file}")
+
+    # Save freight vehicle types
+    ft_freight_mask = (vehtypes_with_emfac_id['vehicleCategory'].isin(BeamClasses.get_freight_classes()))
+    updated_ft_vehicle_types = vehtypes_with_emfac_id[ft_freight_mask].copy()
+    updated_ft_vehicle_types.drop(['emfacId', 'oldVehicleTypeId', 'vehicleClass'], axis=1, inplace=True)
+    updated_ft_vehicle_types.to_csv(ft_vehtypes_out_file, index=False)
+
+    # Save passenger vehicle types
+    updated_pax_vehicle_types_others = other_pax_vehicle_types.copy()
+    updated_pax_vehicle_types_others['emissionsRatesFile'] = ""
+    updated_pax_vehicle_types = pd.concat(
+        [vehtypes_with_emfac_id[~ft_freight_mask].copy(), other_pax_vehicle_types],
+        axis=0
+    )
+    updated_pax_vehicle_types.drop(['emfacId', 'oldVehicleTypeId', 'vehicleClass'], axis=1, inplace=True)
+    updated_pax_vehicle_types.to_csv(pax_vehtypes_out_file, index=False)
+
+
 def process_single_vehicle_type(
         veh_type: Dict[str, Any],
         emissions_rates: pd.DataFrame,
@@ -354,21 +357,18 @@ def process_single_vehicle_type(
             logging.warning(f"No emissions data found for vehicle type {veh_type_id}")
             return None
 
-        veh_type_id_temp = veh_type_id
-        if emfac_id not in veh_type_id:
-            veh_type_id_temp = f"{emfac_id}--{veh_type_id}"
-
         # Generate the file path
-        file_path = f"{rates_prefix_filepath}{veh_type_id_temp}.csv"
+        file_path = f"{rates_prefix_filepath}{emfac_id}.csv"
 
-        print(f"Writing emissions data to {file_path}")
-        logging.info(f"Writing emissions data to {file_path}")
-
-        # Ensure directory exists
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-
-        # Save the emissions rates to a CSV file
-        veh_emissions.to_csv(file_path, index=False)
+        # Save the emissions rates to a CSV file only if it doesn't exist
+        if not os.path.exists(file_path):
+            print(f"Writing emissions data to {file_path}")
+            logging.info(f"Writing emissions data to {file_path}")
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            veh_emissions.to_csv(file_path, index=False)
+            print(f"Created new file: {file_path}")
+        else:
+            print(f"File already generated: {file_path}")
 
         return veh_type_id, emfac_id
 
@@ -437,11 +437,8 @@ def run():
     print(f"{'='*50}\n")
 
     work_dir = study_area_config["work_dir"]
-
-    emfac_pop, emfac_vmt, rates = prepare_emissions_data_for_mapping(area, scenario, work_dir, config)
-
-    assign_emission_rates_to_vehicle_types(scenario, rates, emfac_pop, emfac_vmt, work_dir, config)
-
+    emfac_fleet, emfac_rates = prepare_emissions_data_for_mapping(area, scenario, work_dir, config)
+    assign_emission_rates_to_vehicle_types(scenario, emfac_rates, emfac_fleet, work_dir, config)
     print(f"  DONE")
 
     # #################################################################
