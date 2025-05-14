@@ -5,25 +5,26 @@ import beam.router.skim.ActivitySimPathType._
 import beam.router.skim.ActivitySimSkimmer.ExcerptData
 import beam.router.skim.ActivitySimTimeBin._
 import beam.router.skim.{ActivitySimMetric, ActivitySimPathType, ActivitySimTimeBin}
-import beam.utils.FileUtils
 import beam.utils.csv.CsvWriter
+import com.typesafe.scalalogging.LazyLogging
 import omx.hdf5.HDF5Loader
 import omx.{OmxFile, OmxMatrix}
-
-import scala.collection.mutable
-import scala.util.Try
 
 /**
   * @author Dmitry Openkov
   */
-object ActivitySimOmxWriter {
+object ActivitySimOmxWriter extends LazyLogging {
 
   def writeToOmx(
     filePath: String,
     skimData: Iterator[ExcerptData],
     geoUnits: Seq[String]
-  ): Try[Unit] = Try {
+  ): Unit = try {
+    logger.info(s"Starting writeToOmx with filePath: $filePath")
+    logger.info(s"HDF5 library preparation starting...")
     HDF5Loader.prepareHdf5Library()
+    logger.info(s"HDF5 library prepared successfully")
+
     val pathTypeToMatrixData: Map[ActivitySimPathType, MatrixData] = (
       for {
         data     <- activitySimMatrixData
@@ -31,38 +32,93 @@ object ActivitySimOmxWriter {
         limitedData = data.copy(metrics = data.metrics & ExcerptData.supportedActivitySimMetric)
       } yield pathType -> limitedData
     ).toMap
-    FileUtils.using(
-      new OmxFile(filePath)
-    ) { omxFile =>
-      val shape: Array[Int] = Array.fill(geoUnits.size)(geoUnits.size)
-      omxFile.openNew(shape)
-      val geoUnitMapping = geoUnits.zipWithIndex.toMap
+    logger.info(s"Matrix data map created with ${pathTypeToMatrixData.size} entries")
 
-      val allMatrices = mutable.Map.empty[String, OmxMatrix.OmxFloatMatrix]
+    logger.info(s"Creating new OmxFile instance for path: $filePath")
+    val omxFile = new OmxFile(filePath)
+    logger.info("OmxFile instance created successfully")
+
+    logger.info(s"Shape size will be: ${geoUnits.size}x${geoUnits.size}")
+
+    val shape: Array[Int] = Array.fill(geoUnits.size)(geoUnits.size)
+    logger.info("Attempting to open new file...")
+    try {
+      omxFile.openNew(shape)
+      logger.info("File opened successfully")
+    } catch {
+      case e: Exception =>
+        logger.error(s"Failed to open file: ${e.getMessage}")
+        logger.error(s"Exception class: ${e.getClass.getName}")
+        e.printStackTrace()
+    }
+
+    val geoUnitMapping = geoUnits.zipWithIndex.toMap
+
+    // Group the data by matrix key to process each matrix once
+    val groupedData = skimData.toSeq.groupBy { excerptData =>
+      val pathType = excerptData.pathType match {
+        case rideHailMode @ (TNC_SINGLE | TNC_SHARED) =>
+          f"${rideHailMode.toString}_${excerptData.fleetName.toUpperCase}"
+        case _ => excerptData.pathType.toString
+      }
+      (
+        pathType,
+        excerptData.timePeriodString,
+        pathTypeToMatrixData.get(excerptData.pathType).map(_.metrics).getOrElse(Set.empty[ActivitySimMetric])
+      )
+    }
+
+    // Process each matrix
+    for {
+      ((pathType, timePeriod, metrics), excerpts) <- groupedData
+      metric                                      <- metrics
+    } {
+      val matrixName = s"${pathType}_${metric}__$timePeriod"
+      val valuesFloat = Array.fill[Float](shape(0), shape(1))(Float.NaN)
+      val matrix = new OmxMatrix.OmxFloatMatrix(matrixName, valuesFloat, -1.0f)
+
+      matrix.setAttribute("mode", pathType)
+      matrix.setAttribute("timePeriod", timePeriod)
+      matrix.setAttribute("measure", metric.toString)
+
+      // Fill the matrix
       for {
-        excerptData <- skimData
-        matrixData  <- pathTypeToMatrixData.get(excerptData.pathType).toIterable
-        row         <- geoUnitMapping.get(excerptData.originId).toIterable
-        column      <- geoUnitMapping.get(excerptData.destinationId).toIterable
-        metric      <- matrixData.metrics
+        excerptData <- excerpts
+        row         <- geoUnitMapping.get(excerptData.originId)
+        column      <- geoUnitMapping.get(excerptData.destinationId)
       } {
-        val pathType = excerptData.pathType match {
-          case rideHailMode @ (TNC_SINGLE | TNC_SHARED) =>
-            f"${rideHailMode.toString}_${excerptData.fleetName.toUpperCase}"
-          case _ => excerptData.pathType.toString
-        }
-        val matrix = getOrCreateMatrix(allMatrices, pathType, excerptData.timePeriodString, metric, shape)
-        matrix.setAttribute("mode", pathType)
-        matrix.setAttribute("timePeriod", excerptData.timePeriodString)
-        matrix.setAttribute("measure", metric.toString)
         matrix.getData()(row)(column) = excerptData.getValue(metric).toFloat * getUnitConversion(metric)
       }
-      allMatrices.values.foreach(omxFile.addMatrix)
-    // we cannot add a lookup because string arrays are not supported by hdf5lib java
-    // omxFile.addLookup(new OmxStringLookup("zone_id", geoUnits.toArray, ""))
+
+      omxFile.addMatrix(matrix)
     }
-    // we write geo unit mapping as a csv file next to the omx file
+
+    logger.info("Saving OMX file...")
+    omxFile.save()
+    logger.info("OMX file saved successfully")
+    omxFile.close()
+    logger.info("OMX file closed")
+
+    // Write geo unit mapping as before
     CsvWriter(filePath + ".mapping", "zone_id").writeAllAndClose(geoUnits.map(Seq(_)))
+  } catch {
+    case e: java.io.FileNotFoundException =>
+      e.printStackTrace()
+      throw new RuntimeException(s"Failed to create or access file at path: $filePath. Error: ${e.getMessage}", e)
+    case e: java.io.IOException =>
+      e.printStackTrace()
+      throw new RuntimeException(s"IO error while writing to OMX file: ${e.getMessage}", e)
+    case e: IllegalArgumentException =>
+      throw new RuntimeException(s"Invalid argument provided: ${e.getMessage}", e)
+    case e: NoSuchElementException =>
+      throw new RuntimeException(s"Missing required data: ${e.getMessage}", e)
+    case e: OutOfMemoryError =>
+      throw new RuntimeException(s"Insufficient memory to process the matrix data.", e)
+    case e: Exception =>
+      throw new RuntimeException(
+        s"Unexpected error while writing OMX file: ${e.getMessage}. Error type: ${e.getClass.getSimpleName}",
+        e
+      )
   }
 
   private def getUnitConversion(metric: ActivitySimMetric): Float = {
@@ -70,22 +126,6 @@ object ActivitySimOmxWriter {
       case DIST | DDIST => 1f / 1609.34f
       case _            => 1f
     }
-  }
-
-  private def getOrCreateMatrix(
-    matrixMap: mutable.Map[String, OmxMatrix.OmxFloatMatrix],
-    pathType: String,
-    timeBin: String,
-    metric: ActivitySimMetric,
-    shape: Array[Int]
-  ): OmxMatrix.OmxFloatMatrix = {
-    val matrixName = s"${pathType}_${metric}__$timeBin"
-    matrixMap.getOrElseUpdate(
-      matrixName, {
-        val valuesFloat = Array.fill[Float](shape(0), shape(1))(Float.NaN)
-        new OmxMatrix.OmxFloatMatrix(matrixName, valuesFloat, -1.0f)
-      }
-    )
   }
 
   /**
