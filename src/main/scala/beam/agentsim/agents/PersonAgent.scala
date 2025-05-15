@@ -223,7 +223,7 @@ object PersonAgent {
       restOfCurrentTrip.headOption.exists(_.isRideHail) && !rideHailReservedForLegs.contains(restOfCurrentTrip.head)
     }
 
-    def currentTourModeIsIn(modes: BeamMode*): Boolean = currentTourMode.exists(modes.contains)
+    def currentTripModeIsIn(modes: BeamMode*): Boolean = currentTripMode.exists(modes.contains)
 
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData =
       copy(passengerSchedule = newPassengerSchedule)
@@ -1442,7 +1442,7 @@ class PersonAgent(
     case Event(
           StateTimeout,
           data: BasePersonData
-        ) if data.currentTourModeIsIn(HOV2_TELEPORTATION, HOV3_TELEPORTATION) =>
+        ) if data.currentTripModeIsIn(HOV2_TELEPORTATION, HOV3_TELEPORTATION) =>
       nextActivity(data) match {
         case Some(activity) =>
           val (tick, triggerId) = releaseTickAndTriggerId()
@@ -1623,6 +1623,7 @@ class PersonAgent(
                 }
               case Some(personalVehId) =>
                 logger.error(s"Vehicle ${personalVehId.toString} seems to have disappeared")
+                logger.warn("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
                 None
               case None =>
                 None

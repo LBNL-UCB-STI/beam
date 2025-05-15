@@ -1758,6 +1758,7 @@ trait ChoosesMode {
                   eventsManager.processEvent(ev)
                 )
               }
+              createAndProcessModeChoiceEvent(None, _currentTick.get, choosesModeData)
 
               // Create replanning event
               eventsManager.processEvent(
@@ -2238,78 +2239,11 @@ trait ChoosesMode {
       val chosenTrip =
         makeFinalCorrections(pendingTrip, tick, correctedActivityEndTime)
 
-      // Write start and end links of chosen route into Activities.
-      // We don't check yet whether the incoming and outgoing routes agree on the link an Activity is on.
-      // Our aim should be that every transition from a link to another link be accounted for.
-      val headOpt = chosenTrip.legs.headOption
-        .flatMap(_.beamLeg.travelPath.linkIds.headOption)
-      val lastOpt = chosenTrip.legs.lastOption
-        .flatMap(_.beamLeg.travelPath.linkIds.lastOption)
-      if (headOpt.isDefined && lastOpt.isDefined) {
-        _experiencedBeamPlan
-          .activities(data.personData.currentActivityIndex)
-          .setLinkId(Id.createLinkId(headOpt.get))
-        _experiencedBeamPlan
-          .activities(data.personData.currentActivityIndex + 1)
-          .setLinkId(Id.createLinkId(lastOpt.get))
-      } else {
-        val origin = beamServices.geo.utm2Wgs(
-          _experiencedBeamPlan
-            .activities(data.personData.currentActivityIndex)
-            .getCoord
-        )
-        val destination = beamServices.geo.utm2Wgs(
-          _experiencedBeamPlan
-            .activities(data.personData.currentActivityIndex + 1)
-            .getCoord
-        )
-        val linkRadiusMeters = beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
-        _experiencedBeamPlan
-          .activities(data.personData.currentActivityIndex)
-          .setLinkId(
-            Id.createLinkId(
-              beamServices.geo.getNearestR5Edge(transportNetwork.streetLayer, origin, linkRadiusMeters)
-            )
-          )
-        _experiencedBeamPlan
-          .activities(data.personData.currentActivityIndex + 1)
-          .setLinkId(
-            Id.createLinkId(
-              beamServices.geo.getNearestR5Edge(transportNetwork.streetLayer, destination, linkRadiusMeters)
-            )
-          )
-      }
-
-      val tripId: String = _experiencedBeamPlan.trips
-        .lift(data.personData.currentActivityIndex + 1) match {
-        case Some(trip) =>
-          trip.leg.map(l => Option(l.getAttributes.getAttribute("trip_id")).getOrElse("").toString).getOrElse("")
-        case None => ""
-      }
+      createAndProcessModeChoiceEvent(Some(chosenTrip), tick, data)
 
       val destinationActivity = nextActivity(data.personData).get
       val isFirstTrip = isFirstTripWithinTour(destinationActivity)
       val isLastTrip = isLastTripWithinTour(destinationActivity)
-
-      val initialTourMode = data.personData.currentTourMode
-
-      val modeChoiceEvent = new ModeChoiceEvent(
-        tick,
-        id,
-        chosenTrip.tripClassifier.value,
-        initialTourMode.map(_.value).getOrElse(""),
-        data.expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
-        _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getLinkId.toString,
-        data.availableAlternatives.get,
-        data.availablePersonalStreetVehicles.nonEmpty,
-        chosenTrip.legs.view.map(_.beamLeg.travelPath.distanceInM).sum,
-        _experiencedBeamPlan.tourIndexOfElement(destinationActivity),
-        chosenTrip,
-        _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getType,
-        destinationActivity.getType,
-        tripId
-      )
-      eventsManager.processEvent(modeChoiceEvent)
 
       data.personData.currentTripMode match {
         case Some(mode) if mode.isTeleportation =>
@@ -3110,6 +3044,92 @@ trait ChoosesMode {
             )
         }
     }
+  }
+
+  private def createAndProcessModeChoiceEvent(
+    chosenTripMaybe: Option[EmbodiedBeamTrip],
+    tick: Int,
+    data: ChoosesMode.ChoosesModeData
+  ): Unit = {
+    // Write start and end links of chosen route into Activities.
+    // We don't check yet whether the incoming and outgoing routes agree on the link an Activity is on.
+    // Our aim should be that every transition from a link to another link be accounted for.
+    val headOpt = chosenTripMaybe.flatMap(
+      _.legs.headOption
+        .flatMap(_.beamLeg.travelPath.linkIds.headOption)
+    )
+    val lastOpt = chosenTripMaybe.flatMap(
+      _.legs.lastOption
+        .flatMap(_.beamLeg.travelPath.linkIds.lastOption)
+    )
+    if (headOpt.isDefined && lastOpt.isDefined) {
+      _experiencedBeamPlan
+        .activities(data.personData.currentActivityIndex)
+        .setLinkId(Id.createLinkId(headOpt.get))
+      _experiencedBeamPlan
+        .activities(data.personData.currentActivityIndex + 1)
+        .setLinkId(Id.createLinkId(lastOpt.get))
+    } else {
+      val origin = beamServices.geo.utm2Wgs(
+        _experiencedBeamPlan
+          .activities(data.personData.currentActivityIndex)
+          .getCoord
+      )
+      val destination = beamServices.geo.utm2Wgs(
+        _experiencedBeamPlan
+          .activities(data.personData.currentActivityIndex + 1)
+          .getCoord
+      )
+      val linkRadiusMeters = beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
+      _experiencedBeamPlan
+        .activities(data.personData.currentActivityIndex)
+        .setLinkId(
+          Id.createLinkId(
+            beamServices.geo.getNearestR5Edge(transportNetwork.streetLayer, origin, linkRadiusMeters)
+          )
+        )
+      _experiencedBeamPlan
+        .activities(data.personData.currentActivityIndex + 1)
+        .setLinkId(
+          Id.createLinkId(
+            beamServices.geo.getNearestR5Edge(transportNetwork.streetLayer, destination, linkRadiusMeters)
+          )
+        )
+    }
+
+    val tripId: String = _experiencedBeamPlan.trips
+      .lift(data.personData.currentActivityIndex + 1) match {
+      case Some(trip) =>
+        trip.leg.map(l => Option(l.getAttributes.getAttribute("trip_id")).getOrElse("").toString).getOrElse("")
+      case None => ""
+    }
+
+    val destinationActivity = nextActivity(data.personData).get
+
+    val initialTourMode = data.personData.currentTourMode
+
+    val tripDistance: Double =
+      chosenTripMaybe.map(_.legs.view.map(_.beamLeg.travelPath.distanceInM).sum).getOrElse(Double.NaN)
+
+    val modeChoiceEvent = new ModeChoiceEvent(
+      tick,
+      id,
+      chosenTripMaybe
+        .map(_.tripClassifier.value)
+        .getOrElse(data.personData.currentTripMode.map(_.value).getOrElse("None")),
+      initialTourMode.map(_.value).getOrElse(""),
+      data.expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
+      _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getLinkId.toString,
+      data.availableAlternatives.getOrElse(""),
+      data.availablePersonalStreetVehicles.nonEmpty,
+      tripDistance,
+      _experiencedBeamPlan.tourIndexOfElement(destinationActivity),
+      chosenTripMaybe.getOrElse(EmbodiedBeamTrip.empty),
+      _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getType,
+      destinationActivity.getType,
+      tripId
+    )
+    eventsManager.processEvent(modeChoiceEvent)
   }
 
   private def updateTourModeStrategy(
