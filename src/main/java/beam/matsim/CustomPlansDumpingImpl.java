@@ -87,7 +87,7 @@ public class CustomPlansDumpingImpl implements PlansDumping, BeforeMobsimListene
         }
 
         stopwatch.beginOperation("dump experienced plans");
-        log.info("Dumping experienced plans, using our own BEAM implementation...");
+        log.info("Dumping experienced plans using our BEAM implementation...");
 
         try {
             String outputFilename = controlerIO.getOutputFilename(Controler.DefaultFiles.experiencedPlans);
@@ -96,27 +96,23 @@ public class CustomPlansDumpingImpl implements PlansDumping, BeforeMobsimListene
                     Controler.DefaultFiles.experiencedPlans
             );
 
-            // Ensure output directory exists
             ensureDirectoryExists(outputFilename);
-
             Path fromPath = Paths.get(iterationFilename);
             Path toPath = Paths.get(outputFilename);
 
             if (!Files.exists(fromPath)) {
-                log.error("Source experienced plans file not found: {}", iterationFilename);
-                log.error("Plans were probably not generated in the final iteration");
+                // Instead of throwing an error, write current plans as experienced plans
+                log.warn("Experienced plans file not found at {}. Writing current plans instead.", iterationFilename);
+                writePlans(outputFilename);
                 return;
             }
 
-            Files.copy(fromPath, toPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
+            Files.copy(fromPath, toPath, StandardCopyOption.REPLACE_EXISTING);
             log.info("Successfully copied experienced plans from {} to {}", iterationFilename, outputFilename);
 
         } catch (IOException e) {
-            log.error("Failed to copy experienced plans file: {}", e.getMessage());
-            throw new UncheckedIOException("Failed to copy experienced plans file", e);
-        } catch (Exception e) {
-            log.error("Error while dumping experienced plans: {}", e.getMessage());
-            throw new RuntimeException("Error while dumping experienced plans", e);
+            log.error("Failed to copy/write experienced plans file: {}", e.getMessage());
+            throw new UncheckedIOException("Failed to handle experienced plans file", e);
         } finally {
             stopwatch.endOperation("dump experienced plans");
         }

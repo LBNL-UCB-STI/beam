@@ -41,7 +41,9 @@ class CsvPlanReader(path: String) extends BaseCsvReader[InputPlanElement](path) 
         ActivityType = Option(record.get("ActivityType")),
         x = Option(record.get("x")).map(_.toDouble),
         y = Option(record.get("y")).map(_.toDouble),
-        departureTime = Option(record.get("departure_time")).map(_.toDouble)
+        departureTime = Option(record.get("departure_time")).map(_.toDouble),
+        expectedDurationMinutes = Option(record.get("trip_dur_min")).map(_.toString.toDouble),
+        expectedCostDollars = Option(record.get("trip_cost_dollars")).map(_.toString.toDouble)
       )
     }
   }
