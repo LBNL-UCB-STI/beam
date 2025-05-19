@@ -153,7 +153,7 @@ def main():
     # Configuration settings
     study_area = "sfbay"  # or "seattle"
     batch = "20241106"
-    scenario = "2018-Baseline-20250411-FC08-0"
+    scenario = "2018-Baseline-20250519-FC10-0"
     run_dir = f"{study_area_dir}/beam-runs/{batch}/{scenario}"
     network_file = f"{study_area_dir}/network/sfbay-area-cbg5500-network/network.csv.gz"
     network_dir = os.path.dirname(network_file)
@@ -165,8 +165,8 @@ def main():
         "link_stats": f"{run_dir}/3.linkstats.csv.gz",
         "output_dir": f"{run_dir}/validation_output",
         "plots_dir": f"{run_dir}/validation_output/plots",
-        "npmrds_hourly_speed_csv": f"{run_dir}/npmrds/{study_area}-npmrds-hourly-speeds.csv",
-        "npmrds_hourly_speed_by_road_class_csv": f"{run_dir}/npmrds/{study_area}-npmrds-hourly-speed-by-road-class.csv",
+        "npmrds_hourly_speed_csv": f"{study_area_dir}/validation/npmrds/{study_area}_npmrds_hourly_speeds.csv",
+        "npmrds_hourly_speed_by_road_class_csv": f"{study_area_dir}/validation/npmrds/{study_area}_npmrds_hourly_speed_by_road_class.csv",
         "beam_network_mapped_to_npmrds_geo": f"{network_dir}/{network_name}--mapped-to-npmrds.geojson"
     }
 
