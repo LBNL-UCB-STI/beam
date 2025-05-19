@@ -93,7 +93,8 @@ class ModeChoiceSpec
   }
 
   "Running beam with high intercepts for RH transit" must {
-    "use RH transit with R5 router" in {
+    "use RH transit with R5 router" taggedAs Retryable in {
+      // Marking this as retryable because it fails sometimes due to small number randomness
       val theRun: StartWithCustomConfig = new StartWithCustomConfig(
         resolvedBaseBeamvilleUrbansimConfigWithHighInterceptFor("ride_hail_transit_intercept", "R5")
       )

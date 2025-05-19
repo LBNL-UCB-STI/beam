@@ -91,7 +91,7 @@ object ParkingNetworkManager extends LazyLogging {
       val vehicleActivityData = BeamVehicle.collectVehicleActivityData(
         tick,
         Right(stall.link.getOrElse(NetworkUtils.getNearestLink(beamServices.beamScenario.network, stall.locationUTM))),
-        currentBeamVehicle.beamVehicleType,
+        currentBeamVehicle,
         None,
         Some(stall),
         beamServices

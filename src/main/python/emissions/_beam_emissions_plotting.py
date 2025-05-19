@@ -123,13 +123,9 @@ def plot_hourly_emissions_by_scenario_class_fuel(emissions_skims, pollutant, out
     plt.savefig(f'{output_dir}/{pollutant.lower()}_emissions_by_scenario_hour_class_fuel.png', dpi=300, bbox_inches='tight')
 
 
-def plot_hourly_activity(tours_types, fuel_beam2emfac_map, output_dir, height_size):
+def plot_hourly_activity(tours_types, output_dir, height_size):
     # Preprocess data
-    tours_types['class'] = tours_types['vehicleCategory'].str.replace('Vocational|Tractor', '', regex=True).str.strip()
-    tours_types['fuel'] = tours_types['primaryFuelType'].str.lower().map(fuel_beam2emfac_map)
-    tours_types['fuel'] = np.where((tours_types['fuel'] == "Elec") & tours_types['secondaryFuelType'].notna(), 'Phe',
-                                   tours_types['fuel'])
-    tours_types['fuel_class'] = tours_types['fuel'] + '-' + tours_types['class']
+    tours_types['fuel_class'] = tours_types['mappedFuel'] + '-' + tours_types['mappedClass']
     tours_types['departure_hour'] = (tours_types['departureTimeInSec'] / 3600).astype(int) % 24
     # Group by scenario, hour, and fuel_class, count the number of tours
     hourly_activity = tours_types.groupby(['scenario', 'departure_hour', 'fuel_class']).size().unstack(

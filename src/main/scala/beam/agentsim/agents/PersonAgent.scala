@@ -57,7 +57,13 @@ import beam.utils.MeasureUnitConversion._
 import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.events._
+import org.matsim.api.core.v01.events.{
+  ActivityEndEvent,
+  ActivityStartEvent,
+  PersonArrivalEvent,
+  PersonEntersVehicleEvent,
+  PersonLeavesVehicleEvent
+}
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
@@ -66,6 +72,7 @@ import org.matsim.core.utils.misc.Time
 import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
 import scala.concurrent.duration._
+import scala.jdk.CollectionConverters.asScalaBufferConverter
 
 /**
   */
@@ -662,7 +669,8 @@ class PersonAgent(
             // use the mode of the next leg as the new trip mode.
             currentTripMode = modeOfNextLeg,
             currentTourMode = currentTourModeChoiceStrategy.tourMode,
-            currentTourPersonalVehicle = currentTourModeChoiceStrategy.tourVehicle,
+            currentTourPersonalVehicle =
+              currentTourModeChoiceStrategy.tourVehicle.orElse(data.currentTourPersonalVehicle),
             numberOfReplanningAttempts = 0,
             failedTrips = IndexedSeq.empty,
             enrouteData = EnrouteData()
@@ -713,9 +721,7 @@ class PersonAgent(
 
       goto(ProcessingNextLegOrStartActivity) using data.copy(
         hasDeparted = true,
-        currentVehicle = Vector.empty[Id[BeamVehicle]],
-        currentTourPersonalVehicle =
-          data.currentTourPersonalVehicle // changed to allow you to keep your initial DRIVE_TRANSIT vehicle
+        currentVehicle = Vector.empty[Id[BeamVehicle]]
       )
 
   }
@@ -1520,17 +1526,22 @@ class PersonAgent(
                   beamVehicles -= personalVeh.id
                   personalVeh.getManager.get ! ReleaseVehicle(personalVeh, triggerId)
                   None
-                } else if (_experiencedBeamPlan.isLastElementInTour(activity)) {
+                } else if (_experiencedBeamPlan.isLastElementInTour(data.currentActivityIndex + 1)) {
                   getParentTourStrategy(data) match {
                     case Some(parentStrategy) =>
                       // Here we're coming out of a nested tour and need to get the tour of our parent vehicle
                       parentStrategy.tourVehicle.orElse(currentTourStrategy.tourVehicle)
                     case _ =>
                       logger.warn(
-                        s"Malformed tour for person ${this.id}: ${currentTour(data).activities
-                          .map(act => act.getType + "_" + act.getCoord)}"
+                        s"Starting a ${activity.getType} activity, and the" +
+                        s" next ${_experiencedBeamPlan.getPlanElements.asScala
+                          .lift(data.currentActivityIndex + 2)
+                          .map(x => x.toString)
+                          .getOrElse("HOME")}, but not currently on a " +
+                        s"subtour. Keeping my current vehicle. Perhaps there was a malformed tour for " +
+                        s"person ${this.id}: ${currentTour(data).activities.map(act => act.getType + "->")}"
                       )
-                      None
+                      data.currentTourPersonalVehicle
                   }
                 } else {
                   data.currentTourPersonalVehicle
@@ -1827,7 +1838,7 @@ class PersonAgent(
         logger.debug(s"$id is performing Activity at end of simulation")
         logger.warn("Performing Activity at end of simulation")
       } else {
-        logger.warn(s"$id has received Finish while in state: $stateName, personId: $id")
+        logger.debug(s"$id has received Finish while in state: $stateName, personId: $id")
       }
       stop
     case Event(TriggerWithId(_: BoardVehicleTrigger, _), _: ChoosesModeData) =>

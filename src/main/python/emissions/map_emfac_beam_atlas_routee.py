@@ -5,19 +5,17 @@ import os.path
 import shutil
 import sys
 from typing import Dict, Any, Optional
-from collections import defaultdict
 
 import pandas as pd
-import pyarrow as pa
-import pyarrow.csv as csv
 from joblib import Parallel, delayed
 
-from _emfac_and_emissions_rates_processing import process_emfac_population
-from _emfac_and_emissions_rates_processing import process_emfac_vmt
-from _emfac_and_emissions_rates_processing import process_emissions_rates
 from _emfac_beam_ft_matching import generate_emfac_mapped_freight_fleet
 from _emfac_beam_pax_mapping import generate_emfac_mapped_passenger_vehicle_types
 from _emfac_beam_pax_mapping import generate_fleet_from_vehicle_types
+from _emissions_rates_processing import process_emfac_population
+from _emissions_rates_processing import process_emfac_vmt
+from _emissions_rates_processing import process_emissions_rates
+from _emissions_utils import generate_emfac_beam_class_mapping
 
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -40,88 +38,56 @@ def create_emfac_id(row):
     fuel_st = sanitize_name(row['fuel']).replace("_","")
     return f"{model_year_group_st}{vehicle_class_st}{fuel_st}"
 
-def generate_emfac_beam_class_mapping(_study_area, _scenario_name, _work_dir, _config, to_filter_out):
-    """
-    Creates vehicle class mapping and saves it to a JSON file if it doesn't exist.
-    If the file exists, loads and returns the existing mapping.
 
-    Args:
-        _study_area: Stud Area
-        _scenario_name: Scenario Name
-        _work_dir:
-        _config: Configuration dictionary
-        to_filter_out:
+def categorize_model_year(year, bin_years=None):
+    """
+    Categorize a model year into bins based on a list of cutoff years.
+
+    Parameters:
+    -----------
+    year : int or float
+        The model year to categorize
+    bin_years : list, optional
+        A sorted list of cutoff years. Default is [1993, 2006, 2018]
+        Each year in the input will be categorized to the nearest bin year
+        that is greater than or equal to it.
 
     Returns:
-        dict: The vehicle class mapping (either newly created or loaded from existing file)
+    --------
+    str
+        The bin year as a string
+
+    Example:
+    --------
+    >>> categorize_model_year(2000, [1993, 2006, 2018])
+    '2006'
+    >>> categorize_model_year(2010, [1993, 2006, 2018])
+    '2018'
+    >>> categorize_model_year(1990, [1993, 2006, 2018])
+    '1993'
     """
-    _vehicle_class_output_file = os.path.join(
-        _work_dir,
-        f"{_config["rates"]["output_dir"]}/{_study_area}_vehicle_class_mapping_{_scenario_name}.json"
-    )
-    # Check if the file already exists
-    if os.path.exists(_vehicle_class_output_file):
-        print(f"File {_vehicle_class_output_file} already exists. Loading existing mapping.")
-        with open(_vehicle_class_output_file, 'r') as f:
-            return json.load(f)
+    # Default bin years if none provided
+    if bin_years is None:
+        bin_years = [1993, 2006, 2018]
 
-    # Create the mapping
-    mapping = {}
+    # Ensure bin_years is sorted
+    bin_years = sorted(bin_years)
 
-    table = csv.read_csv(
-        os.path.join(_work_dir, _config["rates"]["emfac"]["emfac_pop_by_model_year_file"]),
-        read_options=pa.csv.ReadOptions(use_threads=True)
-    )
-    df = table.to_pandas()
+    # Handle years before the first bin
+    if year <= bin_years[0]:
+        return str(bin_years[0])
 
-    for vehicle in df["vehicle_class"].unique():
-        if 'Utility' in vehicle or 'Public' in vehicle:
-            mapping[vehicle] = "NotMatched"
-        elif 'Port' in vehicle or 'POLA' in vehicle or 'POAK' in vehicle:
-            mapping[vehicle] = "NotMatched"
-        elif 'SWCV' in vehicle or 'PTO' in vehicle or 'T6TS' in vehicle:
-            mapping[vehicle] = "NotMatched"
-        elif vehicle in ['LDA', 'LDT1', 'LDT2', 'MDV']:
-            mapping[vehicle] = BeamClasses.CLASS_CAR
-        elif vehicle in ['MCY']:
-            mapping[vehicle] = BeamClasses.CLASS_BIKE
-        elif vehicle in ['UBUS']:
-            mapping[vehicle] = BeamClasses.CLASS_MDP
-        elif 'LHD' in vehicle:
-            mapping[vehicle] = BeamClasses.CLASS_2B3_VOCATIONAL
-        elif 'Class 4' in vehicle or 'Class 5' in vehicle or 'Class 6' in vehicle:
-            mapping[vehicle] = BeamClasses.CLASS_456_VOCATIONAL
-        elif 'Class 7' in vehicle or 'Class 8' in vehicle:
-            if 'Tractor' in vehicle or 'CAIRP' in vehicle:
-                mapping[vehicle] = BeamClasses.CLASS_78_TRACTOR
-            else:
-                mapping[vehicle] = BeamClasses.CLASS_78_VOCATIONAL
-        elif "T7IS" in vehicle:
-            mapping[vehicle] = BeamClasses.CLASS_78_TRACTOR
-        else:
-            mapping[vehicle] = "NotMatched"
+    # Find the appropriate bin
+    for i in range(len(bin_years) - 1):
+        if year <= bin_years[i + 1]:
+            return str(bin_years[i + 1])
 
-    # Print category groupings
-    class_groups = defaultdict(list)
-    for vehicle, vehicle_class in mapping.items():
-        if vehicle_class in to_filter_out:
-            mapping[vehicle] = "NotMatched"
-        class_groups[mapping[vehicle]].append(vehicle)
-    for vehicle_class, vehicles in class_groups.items():
-        print(f"Category: {vehicle_class}")
-        for vehicle in vehicles:
-            print(f"  - {vehicle}")
-
-    return {k: v for k, v in mapping.items() if v != "NotMatched"}
+    # If year is greater than all bins, return the last bin
+    return str(bin_years[-1])
 
 
 def prepare_emissions_data_for_mapping(area, scenario, work_dir, config):
     mapping_config = config["mapping"]
-    def categorize_model_year(year):
-        # https://pubs.acs.org/doi/full/10.1021/acs.est.9b04763
-        if year <= 1993: return '1993'
-        elif year <= 2006: return '2006'
-        else: return '2018'
     def format_emissions_data(emfac_types: pd.DataFrame) -> pd.DataFrame:
         result_ft_df = emfac_types.copy()
         result_ft_df['mappedClass'] = result_ft_df['vehicle_class'].map(mapping_config["class"]["emfac-ft"])
@@ -143,7 +109,9 @@ def prepare_emissions_data_for_mapping(area, scenario, work_dir, config):
 
         result_df = pd.concat([result_ft_df, result_pax_df, result_bus_df])
 
-        result_df['model_year_group'] = result_df['model_year'].apply(categorize_model_year)
+        result_df['model_year_group'] = result_df['model_year'].apply(
+            lambda x: categorize_model_year(x, mapping_config["fleet"]["model_year_bins"])
+        )
         result_df[['county', 'area']] = result_df['sub_area'].str.extract(r'^([^()]+)\s*\(([^)]+)\)')
         result_df['county'] = result_df['county'].str.strip().str.lower()
         result_df['area'] = result_df['area'].str.strip()
@@ -405,25 +373,29 @@ def run():
     # Configuration parameters
     area = "sfbay"
     run_batch = "20240123"
-    run_batch_label = run_batch.replace("-", "")
     scenario = "2018-Baseline"
-    scenario_label = scenario.replace("_", "-")
-
     study_area_config = get_area_config(area)
     config = study_area_config["emissions"][scenario]
-    config["rates"]["output_dir"] = f"emissions/{run_batch}"
+    config["run"]["output_dir"] = f"emissions/{run_batch}"
     beam_config = config["beam"]
-    beam_config["carriers_file"] = f"beam-ft/{run_batch}/{scenario}/carriers--{scenario_label}.csv"
-    beam_config["payloads_file"] = f"beam-ft/{run_batch}/{scenario}/payloads--{scenario_label}.csv"
-    beam_config["ft_vehicle_types_file"] = f"vehicle-tech/vehicleTypes--frism--{scenario_label}.csv"
-    beam_config["pax_vehicle_types_file"] = f"vehicle-tech/vehicleTypes--atlas--2023-Baseline.csv"
+    beam_config["carriers_file"] = f"beam-ft/{run_batch}/{scenario}/carriers--{scenario}.csv"
+    beam_config["payloads_file"] = f"beam-ft/{run_batch}/{scenario}/payloads--{scenario}.csv"
+    beam_config["ft_vehicle_types_file"] = f"vehicle-tech/vehicleTypes--frism--{scenario}.csv"
+    beam_config["pax_vehicle_types_file"] = f"vehicle-tech/vehicleTypes--atlas--2017-Baseline.csv"
+    beam_config["pax_vehicles_file"] = f"beam-pax/vehicles--atlas--2017-Baseline.csv.gz"
+
+    emfac_pop_by_model_year_file = config["rates"]["emfac"]["emfac_pop_by_model_year_file"]
+    vehicle_class_output_file = f"{config["run"]["output_dir"]}/{area}_vehicle_class_mapping_{scenario}.json"
     emfac_class_map = generate_emfac_beam_class_mapping(
-        area, scenario, study_area_config["work_dir"], config, to_filter_out=[BeamClasses.CLASS_2B3_VOCATIONAL]
+        emfac_pop_by_model_year_file = os.path.join(study_area_config["work_dir"], emfac_pop_by_model_year_file),
+        vehicle_class_output_file = os.path.join(study_area_config["work_dir"], vehicle_class_output_file),
+        to_filter_out=[BeamClasses.CLASS_2B3_VOCATIONAL]
     )
+
     config["mapping"]["class"]["emfac"] = emfac_class_map
     # Write Config file to keep track of runs
     # Write it onl after all modification to config are completed
-    emissions_work_dir = os.path.join(study_area_config["work_dir"], config["rates"]["output_dir"])
+    emissions_work_dir = os.path.join(study_area_config["work_dir"], config["run"]["emissions_dir"])
     os.makedirs(emissions_work_dir, exist_ok=True)
     with open(os.path.join(study_area_config["work_dir"], f"{emissions_work_dir}/{area}_emissions_config_{scenario}.json"), 'w') as f:
         json.dump(study_area_config, f, indent=2)

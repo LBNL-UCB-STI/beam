@@ -13,7 +13,7 @@ parent_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, parent_dir)
 
 # Now use absolute import
-
+from python.utils.files_utils import sanitize_name
 
 def calculate_tour_summary_by_vehicle(payloads_raw):
     """

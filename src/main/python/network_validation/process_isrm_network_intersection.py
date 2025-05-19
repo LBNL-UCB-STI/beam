@@ -356,13 +356,16 @@ def map_beam_network_to_isrm_osm_intersection(network_path, isrm_osm_path, outpu
 
 def main():
     """Main execution function with hardcoded paths."""
-    area = "seattle"
+    area = "sfbay"
     study_area_config = get_area_config(area)
-    study_area_config["graph_layers"]["residential"]["min_density_per_km2"] = 412
+    network_config = study_area_config["network"]
+    geo_config = study_area_config["geo"]
+    network_config["graph_layers"]["residential"]["min_density_per_km2"] = 5500
 
     network_name = generate_network_name(study_area_config)
     work_dir = study_area_config["work_dir"]
     network_dir = f'{work_dir}/network/{network_name}'
+    utm_epsg = geo_config["utm_epsg"]
 
     # Input/output paths
     isrm_grid_path = os.path.expanduser(f"{work_dir}/inmap/ISRM/isrm_polygon.shp")
@@ -380,7 +383,7 @@ def main():
             isrm_grid_path=isrm_grid_path,
             osm_geojson_path=osm_geojson_path,
             osm_gpkg_path=osm_gpkg_path,
-            epsg_utm=study_area_config["utm_epsg"],
+            epsg_utm=utm_epsg,
             output_path=isrm_osm_geojson_path
         )
 

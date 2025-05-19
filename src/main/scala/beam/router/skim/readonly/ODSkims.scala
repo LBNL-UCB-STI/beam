@@ -25,6 +25,7 @@ import beam.router.skim.core.AbstractSkimmerReadOnly
 import beam.router.skim.core.ODSkimmer.{ExcerptData, ODSkimmerInternal, ODSkimmerKey, ODSkimmerTimeCostTransfer, Skim}
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamHelper, BeamScenario, BeamServices}
+import beam.utils.OptionalUtils.OptionalTimeExtension
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
 
@@ -151,7 +152,7 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
       val skim = getTimeDistanceAndCost(
         activity1.getCoord,
         activity2.getCoord,
-        activity1.getEndTime.seconds().toInt,
+        activity1.getEndTime.toOption.map(_.toInt).getOrElse(beam.UNDEFINED_TIME.toInt),
         mode,
         vehicleTypeId,
         vehicleType,

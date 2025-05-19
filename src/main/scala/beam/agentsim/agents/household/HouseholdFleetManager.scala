@@ -96,7 +96,7 @@ class HouseholdFleetManager(
         // Request that all household vehicles be parked at the home coordinate. If the vehicle is an EV,
         // send the request to the charging manager. Otherwise send request to the parking manager.
         val workingPersonsList =
-          homeAndStartingWorkLocations.filter(_._2.parkingActivityType == ParkingActivityType.Work).keys.toBuffer
+          homeAndStartingWorkLocations.filter(_._2.parkingActivityType == ParkingActivityType.Working).keys.toBuffer
         vehicles.toList.map { case (id, vehicle) =>
           val personId: Id[Person] =
             if (workingPersonsList.nonEmpty) workingPersonsList.remove(0)
@@ -176,7 +176,7 @@ class HouseholdFleetManager(
             .flatMap { case (vehicleId, _) => availableVehicles.find(_.id == vehicleId) }
             .headOption
         case Some(requireVehicleCategory) =>
-          availableVehicles.find(_.beamVehicleType.vehicleCategory == requireVehicleCategory)
+          availableVehicles.find(veh => (veh.beamVehicleType.vehicleCategory == requireVehicleCategory))
         case _ => availableVehicles.headOption
       }
 

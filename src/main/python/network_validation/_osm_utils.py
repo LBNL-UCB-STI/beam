@@ -1001,12 +1001,12 @@ def project_graph(G: nx.MultiDiGraph, to_crs=None, to_latlong=False) -> nx.Multi
     return G_proj
 
 
-def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGraph:
+def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, _geo_config: dict, work_dir) -> nx.MultiDiGraph:
     """Download and prepare OSM network based on study area configuration."""
     print("=== Starting OSM Network Download and Preparation ===")
 
     # Apply OSMNX settings
-    for setting, value in _study_area_config["osmnx_settings"].items():
+    for setting, value in _network_config["osmnx_settings"].items():
         setattr(ox.settings, setting, value)
     print("✓ OSMNX settings applied")
 
@@ -1014,18 +1014,18 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
     graphs = []
 
     # Set up study area parameters
-    study_area = _study_area_config['study_area']
-    base_name = f"{_study_area_config['work_dir']}/geo/{study_area}"
-    census_year = _study_area_config["census_year"]
-    utm_epsg = _study_area_config["utm_epsg"]
-    state_fips_code = _study_area_config["state_fips"]
-    county_fips_codes = _study_area_config["county_fips"]
-    tolerance = _study_area_config["tolerance"]
+    study_area = _area_config['name']
+    base_name = f"{work_dir}/geo/{study_area}"
+    census_year = _area_config["census_year"]
+    state_fips_code = _area_config["state_fips"]
+    county_fips_codes = _area_config["county_fips"]
+    tolerance = _network_config["tolerance"]
+    utm_epsg = _geo_config["utm_epsg"]
 
     print(f"Collecting {study_area} boundaries...")
 
     # Process each layer defined in the configuration
-    for layer_name, layer_config in _study_area_config["graph_layers"].items():
+    for layer_name, layer_config in _network_config["graph_layers"].items():
         # Get layer configuration
         geo_level = layer_config["geo_level"]
         min_density = layer_config.get("min_density_per_km2", 0)
@@ -1037,8 +1037,9 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
             state_fips_code=state_fips_code,
             county_fips_codes=county_fips_codes,
             year=census_year,
-            study_area_boundary_geo_path=f"{base_name}_{geo_level}_{census_year}_wgs84.geojson",
-            geo_level=geo_level
+            area_name = study_area,
+            geo_level=geo_level,
+            work_dir=work_dir
         )
 
         # Process specific layer types
@@ -1135,7 +1136,7 @@ def download_and_prepare_osm_network(_study_area_config: dict) -> nx.MultiDiGrap
 
     # Process tags for vehicle types
     print("Processing tags...")
-    g_processed_tags = process_tags(g_with_speeds, _study_area_config)
+    g_processed_tags = process_tags(g_with_speeds, _network_config)
     print("✓ Edge tags processed")
 
     # Consolidate intersections

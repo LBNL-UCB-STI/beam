@@ -1,8 +1,10 @@
 package beam.router.skim
 
-import beam.router.skim.ActivitySimPathType.{isWalkTransit, WLK_TRN_WLK}
+import beam.router.skim.ActivitySimPathType.{isWalkTransit, TNC_SHARED, TNC_SINGLE, WLK_TRN_WLK}
 import beam.router.skim.core.{AbstractSkimmer, AbstractSkimmerInternal, AbstractSkimmerKey, AbstractSkimmerReadOnly}
 import beam.router.skim.urbansim.ActivitySimOmxWriter
+import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_POOLED}
 import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
 import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject, ProfilingUtils}
@@ -19,6 +21,19 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     extends AbstractSkimmer(beamConfig, matsimServices.getControlerIO) {
 
   private val config: BeamConfig.Beam.Router.Skim = beamConfig.beam.router.skim
+
+  private val allRideHailFleets: Map[BeamMode, List[String]] = beamConfig.beam.agentsim.agents.rideHail.managers
+    .flatMap(manager =>
+      manager.supportedModes
+        .split(',')
+        .map(_.trim.toLowerCase)
+        .flatMap(BeamMode.fromString)
+        .filter(_.isRideHail)
+        .map(supportedMode => supportedMode -> manager.name)
+    )
+    .groupBy(_._1)
+    .map { case (mode, fleets) => mode -> fleets.map(_._2) }
+
   import ActivitySimSkimmer._
 
   override lazy val readOnlySkim: AbstractSkimmerReadOnly = ActivitySimSkims(beamConfig, beamScenario)
@@ -155,10 +170,11 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     writer: BufferedWriter,
     origin: GeoUnit,
     destination: GeoUnit,
-    pathType: ActivitySimPathType
+    pathType: ActivitySimPathType,
+    fleet: Option[String] = None
   ): Unit = {
     ActivitySimTimeBin.values.foreach { timeBin =>
-      val excerptData = getExcerptData(timeBin, origin, destination, pathType)
+      val excerptData = getExcerptData(timeBin, origin, destination, pathType, fleet)
       writer.write(excerptData.toCsvString)
     }
   }
@@ -176,7 +192,18 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
         pathTypes.foreach { pathType =>
           origins.foreach { origin =>
             destinations.foreach { destination =>
-              writeSkimRow(writer, origin, destination, pathType)
+              pathType match {
+                case TNC_SINGLE =>
+                  allRideHailFleets(RIDE_HAIL).foreach { fleet =>
+                    writeSkimRow(writer, origin, destination, pathType, Some(fleet))
+                  }
+                case TNC_SHARED =>
+                  allRideHailFleets(RIDE_HAIL_POOLED).foreach { fleet =>
+                    writeSkimRow(writer, origin, destination, pathType, Some(fleet))
+                  }
+                case _ => writeSkimRow(writer, origin, destination, pathType)
+              }
+
             }
           }
         }
@@ -236,7 +263,8 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       timeBin: ActivitySimTimeBin,
       pathType: ActivitySimPathType,
       origin: String,
-      destination: String
+      destination: String,
+      fleet: Option[String]
     )
 
     val mappedSkimFilePath = filePath.lastIndexOf(".") match {
@@ -267,7 +295,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
 
     val transformData: Map[ActivitySimKey, Iterable[ActivitySimSkimmerInternal]] => Iterable[ExcerptData] = { data =>
       data.map { case (key, skimMap) =>
-        weightedData(key.timeBin.entryName, key.origin, key.destination, key.pathType, skimMap.toList)
+        weightedData(key.timeBin.entryName, key.origin, key.destination, key.pathType, key.fleet, skimMap.toList)
       }
     }
 
@@ -284,7 +312,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
           } else baseEntry
         }
         .groupBy { case (key, _) =>
-          ActivitySimKey(ActivitySimTimeBin.toTimeBin(key.hour), key.pathType, key.origin, key.destination)
+          ActivitySimKey(ActivitySimTimeBin.toTimeBin(key.hour), key.pathType, key.origin, key.destination, key.fleet)
         }
         .mapValues(_.map(_._2))
 
@@ -294,7 +322,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
             for {
               mappedOrigin      <- exchangeGeoMap.getMappedGeoId(key.origin)
               mappedDestination <- exchangeGeoMap.getMappedGeoId(key.destination)
-            } yield ActivitySimKey(key.timeBin, key.pathType, mappedOrigin, mappedDestination) -> data
+            } yield ActivitySimKey(key.timeBin, key.pathType, mappedOrigin, mappedDestination, key.fleet) -> data
           }
           .flatten
           .groupBy(_._1)
@@ -337,7 +365,8 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     timeBin: ActivitySimTimeBin,
     origin: GeoUnit,
     destination: GeoUnit,
-    pathType: ActivitySimPathType
+    pathType: ActivitySimPathType,
+    maybeFleetName: Option[String] = None
   ): Option[ExcerptData] = {
     if (pathType == ActivitySimPathType.WALK && timeBin != ActivitySimTimeBin.EARLY_AM) {
       None
@@ -349,7 +378,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       if (individualSkims.isEmpty) {
         None
       } else {
-        Some(weightedData(timeBin.toString, origin.id, destination.id, pathType, individualSkims))
+        Some(weightedData(timeBin.toString, origin.id, destination.id, pathType, maybeFleetName, individualSkims))
       }
     }
   }
@@ -359,6 +388,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     originId: String,
     destinationId: String,
     pathType: ActivitySimPathType,
+    fleetName: Option[String],
     individualSkims: List[ActivitySimSkimmerInternal]
   ) = {
     val weights = individualSkims.map(sk => sk.observations)
@@ -397,6 +427,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     ExcerptData(
       timePeriodString = timePeriodString,
       pathType = pathType,
+      fleetName = fleetName.getOrElse(""),
       originId = originId,
       destinationId = destinationId,
       weightedTotalTime = weightedTotalTime,
@@ -424,12 +455,14 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     timeBin: ActivitySimTimeBin,
     origin: GeoUnit,
     destination: GeoUnit,
-    pathType: ActivitySimPathType
+    pathType: ActivitySimPathType,
+    maybeFleetName: Option[String]
   ): ExcerptData = {
-    getExcerptDataOption(timeBin, origin, destination, pathType).getOrElse(
+    getExcerptDataOption(timeBin, origin, destination, pathType, maybeFleetName).getOrElse(
       ExcerptData(
         timeBin.toString,
         pathType,
+        maybeFleetName.getOrElse(""),
         origin.id,
         destination.id,
         0,
@@ -457,9 +490,14 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
 
 object ActivitySimSkimmer extends LazyLogging {
 
-  case class ActivitySimSkimmerKey(hour: Int, pathType: ActivitySimPathType, origin: String, destination: String)
-      extends AbstractSkimmerKey {
-    override def toCsv: String = hour + "," + pathType + "," + origin + "," + destination
+  case class ActivitySimSkimmerKey(
+    hour: Int,
+    pathType: ActivitySimPathType,
+    origin: String,
+    destination: String,
+    fleet: Option[String] = None
+  ) extends AbstractSkimmerKey {
+    override def toCsv: String = hour + "," + pathType + "," + fleet.getOrElse("") + "," + origin + "," + destination
   }
 
   case class ActivitySimSkimmerInternal(
@@ -500,6 +538,7 @@ object ActivitySimSkimmer extends LazyLogging {
   case class ExcerptData(
     timePeriodString: String,
     pathType: ActivitySimPathType,
+    fleetName: String,
     originId: String,
     destinationId: String,
     weightedTotalTime: Double,
@@ -575,6 +614,7 @@ object ActivitySimSkimmer extends LazyLogging {
     val csvHeaderSeq: Seq[String] = Seq(
       "timePeriod",
       "pathType",
+      "fleetName",
       "origin",
       "destination",
       "TIME_minutes",

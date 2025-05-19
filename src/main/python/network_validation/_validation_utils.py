@@ -613,12 +613,14 @@ class LinkStats:
 
 class SpeedValidationSetup:
     def __init__(self, npmrds_hourly_speed_csv, npmrds_hourly_speed_by_road_class_csv,
-                 beam_network_mapped_to_npmrds_geo):
+                 beam_network_mapped_to_npmrds_geo, beam_network_car_links_geo):
         st = time.time()
         print("Loading data ...")
         self.npmrds_hourly_speed = pv.read_csv(npmrds_hourly_speed_csv).to_pandas()
         self.beam_npmrds_network_map = gpd.read_file(beam_network_mapped_to_npmrds_geo)
         self.npmrds_hourly_speed_by_road_class = pv.read_csv(npmrds_hourly_speed_by_road_class_csv).to_pandas()
+        self.beam_network_car_links_geo = gpd.read_file(beam_network_car_links_geo)
+        self.beam_network_car_links_geo["road_class"] = self.beam_network_car_links_geo["attributeOrigType"].map(beam_to_roadclass_lookup)
         base_name, extension = os.path.splitext(beam_network_mapped_to_npmrds_geo)
         self.generate_link_speed_params(base_name)
         print(f"Execution time of prepare_npmrds_and_beam_data: {(time.time() - st) / 60.0:.2f} minutes")

@@ -284,7 +284,7 @@ object ChargingNetwork extends LazyLogging {
             .getOrElse(inquiry.parkingDuration.toInt)
           (parkingDuration, activityTypeAlias + inquiry.activityType)
         }
-        .getOrElse((estimatedMinParkingDurationInSeconds, ParkingActivityType.Wherever.toString))
+        .getOrElse((estimatedMinParkingDurationInSeconds, ParkingActivityType.Miscellaneous.toString))
       vehiclesCurrentlyChargingInternal.get(vehicle.id) match {
         case Some(chargingVehicle) =>
           //When a vehicle gets from the Waiting Line it gets connected to the station internally

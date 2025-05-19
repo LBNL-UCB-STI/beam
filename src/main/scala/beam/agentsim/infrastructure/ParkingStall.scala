@@ -2,6 +2,7 @@ package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
 import beam.agentsim.infrastructure.parking.{ParkingType, _}
@@ -21,7 +22,7 @@ case class ParkingStall(
   chargingPointType: Option[ChargingPointType],
   pricingModel: Option[PricingModel],
   parkingType: ParkingType,
-  activityType: String,
+  activityType: ParkingActivityType,
   reservedFor: ReservedFor,
   link: Option[Link] = None
 ) {
@@ -51,7 +52,7 @@ object ParkingStall {
       parkingZone.chargingPointType,
       parkingZone.pricingModel,
       parkingZone.parkingType,
-      "init",
+      ParkingActivityType.fromParkingType(parkingZone.parkingType),
       parkingZone.reservedFor
     )
   }
@@ -70,7 +71,7 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = None,
     parkingType = ParkingType.Public,
-    activityType = "default",
+    activityType = ParkingActivityType.Miscellaneous,
     reservedFor = VehicleManager.AnyManager
   )
 
@@ -96,11 +97,9 @@ object ParkingStall {
       locationUTM = new Coord(x, y),
       costInDollars = costInDollars,
       chargingPointType = None,
-      pricingModel = Some {
-        PricingModel.FlatFee(costInDollars.toInt)
-      },
+      pricingModel = Some(PricingModel.FlatFee(costInDollars.toInt)),
       parkingType = ParkingType.Public,
-      activityType = "emergency",
+      activityType = ParkingActivityType.Miscellaneous,
       reservedFor = VehicleManager.AnyManager
     )
   }
@@ -123,7 +122,7 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = Some(PricingModel.FlatFee(0)),
     parkingType = ParkingType.Residential,
-    activityType = activity,
+    activityType = ParkingActivityType.fromString(activity),
     reservedFor = VehicleManager.AnyManager
   )
 
@@ -135,7 +134,7 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = Some(PricingModel.FlatFee(0)),
     parkingType = ParkingType.DoubleParking,
-    activityType = activity,
+    activityType = ParkingActivityType.fromString(activity),
     reservedFor = VehicleManager.AnyManager
   )
 
@@ -151,7 +150,7 @@ object ParkingStall {
     chargingPointType = Some(ChargingPointType.ChargingStationCcsComboType2),
     pricingModel = Some(PricingModel.FlatFee(0)),
     parkingType = ParkingType.Public,
-    activityType = "charging",
+    activityType = ParkingActivityType.Charging,
     reservedFor = VehicleManager.AnyManager
   )
 
@@ -174,9 +173,8 @@ object ParkingStall {
       parkingAlternative.parkingZone.chargingPointType,
       None,
       parkingAlternative.parkingType,
-      activityType,
+      ParkingActivityType.fromString(activityType),
       parkingAlternative.parkingZone.reservedFor
     )
   }
-
 }

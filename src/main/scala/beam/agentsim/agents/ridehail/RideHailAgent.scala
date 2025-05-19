@@ -302,7 +302,17 @@ class RideHailAgent(
       log.debug("myUnhandled state({}): {}", stateName, ev)
       if (isCurrentlyOnShift) {
         val actualLastTick = Time.parseTime(beamScenario.beamConfig.beam.agentsim.endTime).toInt - 1
-        eventsManager.processEvent(new ShiftEvent(actualLastTick, EndShift, id.toString, vehicle))
+        val maybeIDLEVehicleActivity = BeamVehicle.getRideHailIdlingActivityForEmissions(
+          actualLastTick,
+          currentBeamVehicle,
+          beamServices
+        )
+        val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
+          maybeIDLEVehicleActivity.toIndexedSeq,
+          classOf[LeavingParkingEvent],
+          beamServices
+        )
+        eventsManager.processEvent(new ShiftEvent(actualLastTick, EndShift, id.toString, vehicle, emissionsProfileIDLE))
       }
       stop
 
@@ -453,10 +463,11 @@ class RideHailAgent(
         )
       }
       val newShiftToSchedule = if (needsToEndShift) {
-        val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivityForEmissions(tick, currentBeamVehicle, beamServices)
+        val maybeIDLEVehicleActivity =
+          BeamVehicle.getRideHailIdlingActivityForEmissions(tick, currentBeamVehicle, beamServices)
         val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
-          maybeIDLEVehicleActivity,
-          classOf[PathTraversalEvent],
+          maybeIDLEVehicleActivity.toIndexedSeq,
+          classOf[LeavingParkingEvent],
           beamServices
         )
         eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle, emissionsProfileIDLE))
@@ -485,10 +496,11 @@ class RideHailAgent(
         stay()
       } else {
         if (needsToEndShift) {
-          val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivityForEmissions(tick, currentBeamVehicle, beamServices)
+          val maybeIDLEVehicleActivity =
+            BeamVehicle.getRideHailIdlingActivityForEmissions(tick, currentBeamVehicle, beamServices)
           val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
-            maybeIDLEVehicleActivity,
-            classOf[PathTraversalEvent],
+            maybeIDLEVehicleActivity.toIndexedSeq,
+            classOf[LeavingParkingEvent],
             beamServices
           )
           currentBeamVehicle.resetLastVehicleLinkTime()
@@ -621,14 +633,14 @@ class RideHailAgent(
         ) =>
       log.debug(s"state(RideHailAgent.Idle.EndShiftTrigger; Trigger ID: $triggerId; Vehicle ID: ${vehicle.id}")
       updateLatestObservedTick(tick)
-      val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivityForEmissions(
+      val maybeIDLEVehicleActivity = BeamVehicle.getRideHailIdlingActivityForEmissions(
         tick,
         currentBeamVehicle,
         beamServices
       )
       val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
-        maybeIDLEVehicleActivity,
-        classOf[PathTraversalEvent],
+        maybeIDLEVehicleActivity.toIndexedSeq,
+        classOf[LeavingParkingEvent],
         beamServices
       )
       currentBeamVehicle.resetLastVehicleLinkTime()

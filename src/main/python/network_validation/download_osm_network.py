@@ -11,11 +11,11 @@ import subprocess
 
 import osmnx as ox
 
-from osm_utils import download_and_prepare_osm_network
-from osm_utils import check_invalid_coordinates
-from osm_utils import scan_network_directories_for_ways
-from osm_utils import check_duplicate_edge_ids
-from osm_xml import save_graph_xml
+from _osm_utils import download_and_prepare_osm_network
+from _osm_utils import check_invalid_coordinates
+from _osm_utils import scan_network_directories_for_ways
+from _osm_utils import check_duplicate_edge_ids
+from _osm_xml import save_graph_xml
 
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -31,11 +31,12 @@ def main():
     """Main execution function."""
     area = "sfbay"  # Options: sfbay, seattle
     study_area_config = get_area_config(area)
-    study_area_config["graph_layers"]["residential"]["min_density_per_km2"] = 5500  # 2855 for sfbay, 412 for seattle
+    study_area_config["network"]["graph_layers"]["residential"]["min_density_per_km2"] = 5500  # 2855 for sfbay, 412 for seattle
 
     # Generate configuration name and prepare directory
     config_name = generate_network_name(study_area_config)
-    network_dir = f'{study_area_config["work_dir"]}/network/{config_name}'
+    work_dir = study_area_config["work_dir"]
+    network_dir = f'{work_dir}/network/{config_name}'
     os.makedirs(network_dir, exist_ok=True)
 
     # Define output file paths
@@ -47,7 +48,12 @@ def main():
     geojson_network = f'{network_dir}/{config_name}.osm.geojson'
 
     print(f'Downloading and preparing OSM-based {config_name} network...')
-    g_network = download_and_prepare_osm_network(study_area_config)
+    g_network = download_and_prepare_osm_network(
+        study_area_config["network"],
+        study_area_config["area"],
+        study_area_config["geo"],
+        work_dir
+    )
 
     # Check for duplicate edge IDs
     nodes, edges = ox.graph_to_gdfs(g_network)
@@ -107,7 +113,7 @@ def main():
     print(f"OSM Network saved to '{osm_network}'.")
 
     # Convert to PBF and GeoJSON formats
-    cmd = f"osmium cat {osm_network} -o {pbf_network} --overwrite --output-format pbf,compression=zlib"
+    cmd = f"osmium cat {osm_network} -o - --output-format pbf,compression=zlib | osmium sort - -o {pbf_network} --overwrite"
     subprocess.run(cmd, shell=True, check=True)
     print(f"OSM PBF File saved to '{pbf_network}'")
 

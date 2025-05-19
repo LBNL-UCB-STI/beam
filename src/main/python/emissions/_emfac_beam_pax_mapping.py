@@ -6,12 +6,13 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from utils.files_utils import sanitize_name
-
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, parent_dir)
+
+from python.utils.files_utils import sanitize_name
+from python.utils.study_area_config import vehicle_types_config
 
 
 def parse_sample_probability_string(prob_string):
@@ -169,26 +170,31 @@ def emfac2passenger_with_atlas_crosswalk(vehicle_types, atlas_emfac_fleet, work_
     Returns:
         pd.DataFrame: DataFrame with distributed vmt and population values
     """
-    routee_beam_atlas_map = pd.read_csv(str(os.path.join(work_dir, config["mapping"]["atlas"]["routee"])), dtype=str)
     vehicles = pd.read_csv(str(os.path.join(work_dir, config["beam"]["pax_vehicles_file"])), dtype=str)
-    beam_fleet = vehicles["vehicleTypeId"].unique()
-    filtered_vehicle_types = vehicle_types[vehicle_types["vehicleTypeId"].isin(beam_fleet)].copy()
-    beam_fleet = filtered_vehicle_types["vehicleTypeId"].unique()
-    vehicles_filtered = vehicles[vehicles["vehicleTypeId"].isin(beam_fleet)].copy()
+    vehicle_types_filtered = vehicle_types[vehicle_types["vehicleTypeId"].isin(vehicles["vehicleTypeId"].unique())].copy()
+    vehicles_filtered = vehicles[vehicles["vehicleTypeId"].isin(vehicle_types_filtered["vehicleTypeId"].unique())].copy()
 
-    # Step 1: Merge vehicle types with body types
-    unique_vehicle_bodytype_map = routee_beam_atlas_map.groupby("vehicleTypeId")["bodytype"].first().to_dict()
-    vehicle_types_with_body_types = filtered_vehicle_types.copy()
-    vehicle_types_with_body_types["bodytype"] = filtered_vehicle_types["vehicleTypeId"].map(unique_vehicle_bodytype_map).str.lower().str.capitalize()
+    vehicle_types_filtered['model_year_group'] = vehicle_types_filtered['model_year_group'].astype(int)
+    atlas_emfac_fleet['model_year_group'] = atlas_emfac_fleet['model_year_group'].astype(int)
 
     # Step 2: Merge with EMFAC fleet data
     vehicles_atlas_emfac = pd.merge(
-        left=vehicle_types_with_body_types,
+        left=vehicle_types_filtered,
         right=atlas_emfac_fleet,
-        left_on=['bodytype', 'mappedFuel', 'mappedClass'],
-        right_on=['bodytype', 'mappedFuel', 'mappedClass'],
+        on=['bodytype', 'mappedFuel', 'mappedClass', 'model_year_group'],
         how='left'
     )
+    non_matched_ids = vehicles_atlas_emfac[vehicles_atlas_emfac["emfacId"].isna()]["vehicleTypeId"].unique()
+    if len(non_matched_ids) > 0:
+        matched2 = pd.merge(
+            left=vehicle_types_filtered[vehicle_types_filtered["vehicleTypeId"].isin(non_matched_ids)],
+            right=atlas_emfac_fleet,
+            on=['bodytype', 'mappedFuel', 'mappedClass'],
+            how='left'
+        )
+        matched = vehicles_atlas_emfac[~vehicles_atlas_emfac["emfacId"].isna()].copy()
+        vehicles_atlas_emfac = pd.concat([matched, matched2])
+
 
     # Step 3: Count matching vehicle types for each emfacId
     emfac_counts = vehicles_atlas_emfac.groupby('emfacId').size().to_dict()
@@ -472,12 +478,9 @@ def generate_emfac_mapped_passenger_vehicle_types(emfac_fleet, car_class, bike_c
     # Select only necessary columns from the result
     car_beam_emfac["oldVehicleTypeId"] = car_beam_emfac["vehicleTypeId"]
     car_beam_emfac['vehicleTypeId'] = car_beam_emfac.apply(
-        lambda row: str(
-            row["emfacId"]) + "--" +
-                    sanitize_name(row["bodytype"]).replace("_", "") + "--" +
-                    sanitize_name(row["oldVehicleTypeId"]).replace("_", ""), axis=1
+        lambda row: str(row["emfacId"]) + "--" + row["oldVehicleTypeId"], axis=1
     )
-    car_beam_emfac = car_beam_emfac[vehicle_types_filtered.columns.tolist() + ["emfacId", "oldVehicleTypeId"]]
+    car_beam_emfac = car_beam_emfac[vehicle_types_config["columns"] + ["emfacId", "oldVehicleTypeId"]]
 
     # ###################################################################################################
     # BIKE
@@ -510,7 +513,7 @@ def generate_emfac_mapped_passenger_vehicle_types(emfac_fleet, car_class, bike_c
     )
 
     # Select bike columns
-    bike_beam_emfac = bike_beam_emfac[vehicle_types_filtered.columns.tolist() + ["emfacId"]]
+    bike_beam_emfac = bike_beam_emfac[vehicle_types_config["columns"] + ["emfacId"]]
     bike_beam_emfac["oldVehicleTypeId"] = bike_beam_emfac["vehicleTypeId"]
     bike_beam_emfac['vehicleTypeId'] = bike_beam_emfac.apply(
         lambda row: str(row["emfacId"]) + "--" + sanitize_name(row["oldVehicleTypeId"]).replace("_", "")
@@ -545,7 +548,7 @@ def generate_emfac_mapped_passenger_vehicle_types(emfac_fleet, car_class, bike_c
     ).reset_index(drop=True)
 
     # Select bus columns
-    bus_beam_emfac = bus_beam_emfac[vehicle_types_filtered.columns.tolist() + ["emfacId"]]
+    bus_beam_emfac = bus_beam_emfac[vehicle_types_config["columns"] + ["emfacId"]]
     bus_beam_emfac["oldVehicleTypeId"] = bus_beam_emfac["vehicleTypeId"]
 
     # Combine all vehicle types
