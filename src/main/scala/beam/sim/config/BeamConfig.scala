@@ -45,6 +45,7 @@ object BeamConfig {
       fractionOfPlansWithSingleActivity: scala.Double,
       h3taz: BeamConfig.Beam.Agentsim.H3taz,
       lastIteration: scala.Int,
+      lastTransitTrip: java.lang.String,
       populationAdjustment: java.lang.String,
       randomSeedForPopulationSampling: scala.Option[scala.Int],
       scenarios: BeamConfig.Beam.Agentsim.Scenarios,
@@ -2443,6 +2444,7 @@ object BeamConfig {
             else com.typesafe.config.ConfigFactory.parseString("h3taz{}")
           ),
           lastIteration = if (c.hasPathOrNull("lastIteration")) c.getInt("lastIteration") else 0,
+          lastTransitTrip = if (c.hasPathOrNull("lastTransitTrip")) c.getString("lastTransitTrip") else "28:00:00",
           populationAdjustment =
             if (c.hasPathOrNull("populationAdjustment")) c.getString("populationAdjustment") else "DEFAULT_ADJUSTMENT",
           randomSeedForPopulationSampling =

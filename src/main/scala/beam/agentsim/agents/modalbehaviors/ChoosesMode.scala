@@ -397,9 +397,10 @@ trait ChoosesMode {
             TripModeChoiceStrategy(Some(dataMode))
           _experiencedBeamPlan.putStrategy(_experiencedBeamPlan.getTripContaining(nextAct), updatedTripStrategy)
           Some(dataMode)
-        case (Some(DRIVE_TRANSIT), Some(WALK_TRANSIT)) if choosesModeData.isWithinTripReplanning =>
+        case (Some(mode @ (DRIVE_TRANSIT | BIKE_TRANSIT | RIDE_HAIL_TRANSIT)), Some(WALK_TRANSIT))
+            if choosesModeData.isWithinTripReplanning =>
           logger.debug(
-            "Keeping my _experiencedBeamPlan mode as DRIVE_TRANSIT and ChoosesModeData" +
+            f"Keeping my _experiencedBeamPlan mode as $mode and ChoosesModeData" +
             "as WALK_TRANSIT because I missed my initial transit leg but want to keep my vehicle"
           )
           Some(WALK_TRANSIT)
@@ -407,12 +408,6 @@ trait ChoosesMode {
           logger.warn(
             "Keeping my _experiencedBeamPlan mode as WALK_TRANSIT and ChoosesModeData" +
             s"as DRIVE_TRANSIT, even though I don't know why. Full personData: $personData "
-          )
-          Some(WALK_TRANSIT)
-        case (Some(BIKE_TRANSIT), Some(WALK_TRANSIT)) if choosesModeData.isWithinTripReplanning =>
-          logger.debug(
-            "Keeping my _experiencedBeamPlan mode as BIKE_TRANSIT and ChoosesModeData" +
-            "as WALK_TRANSIT because I missed my initial transit leg but want to keep my vehicle"
           )
           Some(WALK_TRANSIT)
         case _ =>
@@ -1412,7 +1407,8 @@ trait ChoosesMode {
             _,
             _,
             true,
-            _
+            _,
+            mostRecentFailedBoardingTrip
           ),
           _,
           _,
@@ -1517,13 +1513,6 @@ trait ChoosesMode {
         case _ =>
           combinedItinerariesForChoice
       }
-      def getFailedBoardingVehicles(personData: BasePersonData): Set[Id[BeamVehicle]] = {
-        // Get latest failed trip (which we're storing when boarding fails)
-        personData.failedTrips.lastOption.flatMap { trip =>
-          // Find first transit leg - this is the one that failed boarding
-          trip.legs.find(_.beamLeg.mode.isTransit).map(_.beamVehicleId)
-        }.toSet
-      }
 
       val itinerariesOfCorrectMode =
         filteredItinerariesForChoice
@@ -1531,7 +1520,7 @@ trait ChoosesMode {
           .filterNot(itin =>
             itin.vehiclesInTrip
               .filterNot(_.toString.startsWith("body"))
-              .exists(getFailedBoardingVehicles(personData).contains)
+              .exists(mostRecentFailedBoardingTrip.map(_.beamVehicleId).contains)
           )
 
       val currentAct = currentActivity(personData)
@@ -2575,10 +2564,7 @@ trait ChoosesMode {
     val shouldAlwaysQueryRideHailTransit =
       shouldAlwaysQueryTransit & beamScenario.beamConfig.beam.exchange.output.generateSkimsForRideHailTransit
 
-    val mostRecentFailedTrip = choosesModeData.personData.failedTrips.lastOption
-    val failedTransitLeg = mostRecentFailedTrip.flatMap(_.legs.find(_.beamLeg.mode.isTransit))
-
-    val bufferToUse = failedTransitLeg match {
+    val bufferToUse = choosesModeData.mostRecentDeniedBoardingLeg match {
       case Some(transitLeg) =>
         // Get the departure time of the failed transit leg
         val failedTransitDepartureTime = transitLeg.beamLeg.startTime
@@ -3232,7 +3218,8 @@ object ChoosesMode {
     excludeModes: Set[BeamMode] = Set.empty[BeamMode],
     availableAlternatives: Option[String] = None,
     routingFinished: Boolean = false,
-    routingRequestToLegMap: Map[Int, TripIdentifier] = Map.empty
+    routingRequestToLegMap: Map[Int, TripIdentifier] = Map.empty,
+    mostRecentDeniedBoardingLeg: Option[EmbodiedBeamLeg] = None
   ) extends PersonData {
     override def currentVehicle: VehicleStack = personData.currentVehicle
 

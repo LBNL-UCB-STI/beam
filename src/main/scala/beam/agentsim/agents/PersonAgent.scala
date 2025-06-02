@@ -53,6 +53,7 @@ import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Debug
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices, Geofence}
+import beam.utils.DateUtils.getLastTransitTripTime
 import beam.utils.MeasureUnitConversion._
 import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
@@ -1164,7 +1165,8 @@ class PersonAgent(
         rideHail2TransitEgressResult = None,
         excludeModes =
           if (canUseCars(currentCoord, nextCoord)) Set.empty
-          else Set(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
+          else Set(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV),
+        mostRecentDeniedBoardingLeg = basePersonData.restOfCurrentTrip.headOption
       )
   }
 
@@ -1318,7 +1320,9 @@ class PersonAgent(
     // TRANSIT but too late
     case Event(StateTimeout, data: BasePersonData)
         if data.hasNextLeg && data.nextLeg.beamLeg.mode.isTransit &&
-          data.nextLeg.beamLeg.startTime < _currentTick.get =>
+          ((data.nextLeg.beamLeg.startTime < _currentTick.get) || (_currentTick.get > getLastTransitTripTime(
+            beamServices.beamConfig
+          ))) =>
       val nextAct = nextActivity(data)
       // We've missed the bus. This occurs when something takes longer than planned (based on the
       // initial inquiry). So we replan but change trip mode to WALK_TRANSIT since we've already done our non-transit
