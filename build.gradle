@@ -30,6 +30,7 @@ plugins {
     id 'com.bmuschko.docker-java-application' version '9.4.0'
     id "cz.alenkacz.gradle.scalafmt" version "1.16.2"
     id "java-library"
+    id 'scala'
 }
 
 apply plugin: 'java'
@@ -146,13 +147,20 @@ configurations.all {
         // we need this in order to get Elki library working fine.
         force 'net.jafama:jafama:2.3.2'
         // we need this in order to get Elki library working fine.
-        force 'it.unimi.dsi:fastutil:8.5.4'
+        force 'it.unimi.dsi:fastutil:8.5.12'
 
         force 'org.apache.logging.log4j:log4j-core:2.15.0'
         force 'org.apache.logging.log4j:log4j-api:2.15.0'
+        force 'org.apache.parquet:parquet-avro:1.12.3'
+        force 'org.apache.parquet:parquet-hadoop:1.12.3'
+        force 'org.apache.parquet:parquet-common:1.12.3'
+        force 'org.apache.parquet:parquet-column:1.12.3'
+        force 'org.apache.parquet:parquet-encoding:1.12.3'
     }
     exclude group: "log4j", module: "log4j"
     exclude group: "org.matsim", module: "matsim"
+    exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+    exclude group: 'org.slf4j', module: 'slf4j-reload4j'
 }
 
 dependencies {
@@ -168,6 +176,13 @@ dependencies {
     implementation group: 'com.google.inject.extensions', name: 'guice-multibindings', version: '4.1.0'
     implementation group: 'org.apache.commons', name: 'commons-collections4', version: '4.4'
     implementation group: 'org.apache.commons', name: 'commons-math3', version: '3.6.1'
+    implementation 'org.apache.commons:commons-lang3:3.12.0'
+    implementation 'commons-io:commons-io:2.11.0'
+    implementation 'org.apache.commons:commons-csv:1.8'
+    implementation 'org.apache.commons:commons-text:1.10.0'
+    implementation 'commons-lang:commons-lang:2.6'
+    implementation 'org.glassfish:javax.el:3.0.0'
+    implementation 'javax.el:javax.el-api:3.0.0'
     implementation group: 'org.apache.httpcomponents', name: 'fluent-hc', version: '4.5.13'
 
     // Apache 2.0
@@ -230,6 +245,8 @@ dependencies {
     implementation("com.github.LBNL-UCB-STI:jsprit-wrapper:v0.5.1")
     implementation("com.github.LBNL-UCB-STI:omx-java:v2.0.2")
 
+    implementation group: 'dev.zarr', name: 'jzarr', version: '0.4.2'
+
     testImplementation group: 'junit', name: 'junit', version: '4.8'
     testImplementation group: 'org.mockito', name: 'mockito-inline', version: '2.27.0'
     testImplementation group: "org.mockito", name: "mockito-core", version: "2.28.2"
@@ -282,12 +299,12 @@ dependencies {
     // https://mvnrepository.com/artifact/io.circe/circe-parser_2.12
     implementation group: 'io.circe', name: "circe-parser_${scalaBinaryVersion}", version: circeBinaryVersion
 
-    implementation group: 'com.typesafe.play', name: "play-json_${scalaBinaryVersion}", version: '2.6.3'
+    implementation group: 'com.typesafe.play', name: "play-json_${scalaBinaryVersion}", version: '2.8.1'
 
     implementation(group: 'com.github.romix.akka', name: "akka-kryo-serialization_${scalaBinaryVersion}", version: '0.5.2') {
         exclude group: 'com.esotericsoftware', module: 'kryo'
     }
-    implementation group: 'com.esotericsoftware', name: 'kryo', version: '4.0.2'
+    implementation group: 'com.esotericsoftware', name: 'kryo', version: '4.0.3'
 
     implementation "com.github.vagmcs:optimus_${scalaBinaryVersion}:3.1.0"
     implementation "com.github.vagmcs:optimus-solver-oj_${scalaBinaryVersion}:3.1.0"
@@ -329,16 +346,19 @@ dependencies {
     implementation group: 'com.zaxxer', name: 'nuprocess', version: '1.2.4'
 
     def parquet = "1.12.3"
-    implementation group: 'org.apache.parquet', name: 'parquet-hadoop', version: parquet
-    implementation group: 'org.apache.parquet', name: 'parquet-avro', version: parquet
-    implementation(group: 'org.apache.hadoop', name: 'hadoop-client', version: '2.7.3') {
-        exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+    // Parquet dependencies with shading
+    implementation 'org.apache.parquet:parquet-avro:1.12.3'
+    implementation 'org.apache.parquet:parquet-hadoop:1.12.3'
+    implementation 'org.apache.hadoop:hadoop-common:3.3.4'
+    implementation 'org.apache.hadoop:hadoop-mapreduce-client-core:3.3.4'
+    implementation('org.apache.hadoop:hadoop-client:3.3.6') {
         // Exclude `ASM` because it is binary incompatible with the one which is gotten from `com.conveyal:kryo-tools`: `org.ow2.asm:asm:5.0.4`
         exclude group: 'asm', module: 'asm'
         // Exclude jsp-api because it contains an older version of javax.el (Expression Language) which is incompatible
         // with one that Hibernate-validator uses
         exclude group: 'javax.servlet.jsp', module: 'jsp-api'
     }
+    implementation 'it.unimi.dsi:fastutil:8.5.12'
 
     implementation(group: 'com.lihaoyi', name: "sourcecode_${scalaBinaryVersion}", version: '0.1.9')
 
@@ -793,6 +813,9 @@ tasks.register('createDockerfile', Dockerfile) {
     addFile 'entrypoint.sh', 'entrypoint.sh'
     runCommand('chmod +x /app/entrypoint.sh')
     entryPoint('/app/entrypoint.sh')
+
+    mainClassName = 'beam.sim.RunBeam' // Replace with the desired main class
+
 }
 
 ext.getDockerTag = { ->

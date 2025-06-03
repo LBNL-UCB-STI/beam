@@ -2,7 +2,7 @@ package beam.router.skim
 
 import beam.router.skim.ActivitySimPathType.{isWalkTransit, TNC_SHARED, TNC_SINGLE, WLK_TRN_WLK}
 import beam.router.skim.core.{AbstractSkimmer, AbstractSkimmerInternal, AbstractSkimmerKey, AbstractSkimmerReadOnly}
-import beam.router.skim.urbansim.ActivitySimOmxWriter
+import beam.router.skim.urbansim.{ActivitySimOmxWriter, ActivitySimZarrWriter}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_POOLED}
 import beam.sim.BeamScenario
@@ -45,7 +45,11 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
 
   override def writeToDisk(event: IterationEndsEvent): Unit =
     if (config.writeSkimsInterval > 0 && event.getIteration % config.writeSkimsInterval == 0) {
-      val extension = if (config.activity_sim_skimmer.fileOutputFormat.equalsIgnoreCase("csv")) "csv.gz" else "omx"
+      val extension = config.activity_sim_skimmer.fileOutputFormat.toLowerCase match {
+        case "csv"  => "csv.gz"
+        case "zarr" => "zarr"
+        case _      => "omx"
+      }
       val filePath = event.getServices.getControlerIO
         .getIterationFilename(event.getServices.getIterationNumber, s"${skimFileBaseName}_current.$extension")
       writePresentedSkims(filePath)
@@ -284,6 +288,8 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
           case "csv" =>
             val csvWriter = new CsvWriter(filePath, ExcerptData.csvHeaderSeq)
             csvWriter.writeAllAndClose(data.map(_.toCsvSeq))
+          case "zarr" =>
+            ActivitySimZarrWriter.writeToZarr(filePath, data.iterator, geoUnits)
           case _ =>
             ActivitySimOmxWriter.writeToOmx(filePath, data.iterator, geoUnits)
         }

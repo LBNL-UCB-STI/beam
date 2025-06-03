@@ -150,6 +150,14 @@ class BeamScoringFunctionFactory @Inject() (
           leg.getAttributes.putAttribute("vehicles", trip.vehiclesInTrip.mkString(","))
         }
 
+        // TODO: Factor in ivt multipliers from ASim to downweight extra time on transit:
+//        ivt_cost_multiplier: 0.6
+//        ivt_lrt_multiplier: 0.9
+//        ivt_ferry_multiplier: 0.8
+//        ivt_exp_multiplier: 1
+//        ivt_hvy_multiplier: 0.8
+//        ivt_com_multiplier: 0.7
+
         val tripsWithUpdatedAttributes = trips
           .zip(personLegs)
           .map { case (x, y) =>
