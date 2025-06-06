@@ -1863,7 +1863,8 @@ trait ChoosesMode {
                   allAvailableStreetVehicles = updatedVehicles,
                   currentLocation = choosesModeData.currentLocation,
                   excludeModes = choosesModeData.excludeModes ++ choosesModeData.personData.currentTripMode,
-                  parkingRequestIds = Map.empty // Clear any pending parking requests
+                  parkingRequestIds = Map.empty, // Clear any pending parking requests
+                  mostRecentDeniedBoardingLeg = choosesModeData.mostRecentDeniedBoardingLeg
                 )
               }
             case _ =>

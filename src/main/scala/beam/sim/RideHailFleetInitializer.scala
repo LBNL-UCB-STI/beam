@@ -652,6 +652,12 @@ class ProceduralRideHailFleetInitializer(
       }
       .count(beamVehicleType => beamVehicleType.vehicleCategory == VehicleCategory.Car) / fleet
 
+    logger.info(
+      s"Manager: ${managerConfig.name}: Number of household vehicles: $initialNumHouseholdVehicles, " +
+      s"fraction of initial vehicle fleet: ${managerConfig.initialization.procedural.fractionOfInitialVehicleFleet}, " +
+      s"ride hail agents to be generated: ${math.round(initialNumHouseholdVehicles * managerConfig.initialization.procedural.fractionOfInitialVehicleFleet)}"
+    )
+
     math.round(
       initialNumHouseholdVehicles *
       managerConfig.initialization.procedural.fractionOfInitialVehicleFleet
@@ -665,7 +671,14 @@ class ProceduralRideHailFleetInitializer(
     val averageOnDutyHoursPerDay = managerConfig.initialization.procedural.averageOnDutyHoursPerDay
     val meanLogShiftDurationHours = managerConfig.initialization.procedural.meanLogShiftDurationHours
     val stdLogShiftDurationHours = managerConfig.initialization.procedural.stdLogShiftDurationHours
-    var equivalentNumberOfDrivers = managerConfig.initialization.procedural.equivalentNumberOfDrivers
+    var equivalentNumberOfDrivers = if (managerConfig.initialization.procedural.equivalentNumberOfDrivers >= 0) {
+      managerConfig.initialization.procedural.equivalentNumberOfDrivers
+    } else {
+      logger.warn(
+        s"Equivalent number of drivers is set to ${managerConfig.initialization.procedural.equivalentNumberOfDrivers}, setting it to 0 instead"
+      )
+      0
+    }
 
     val personsWithMoreThanOneActivity = passengerPopulation.filter(_.getSelectedPlan.getPlanElements.size > 1)
     val persons: Array[Person] = rand.shuffle(personsWithMoreThanOneActivity).toArray
@@ -690,7 +703,10 @@ class ProceduralRideHailFleetInitializer(
     var warned = false
     while (equivalentNumberOfDrivers < numRideHailAgents.toDouble) {
       if ((idx >= persons.length) && !warned) {
-        logger.warn(s"Shouldn't have more ridehail drivers than total population of ${persons.length}")
+        logger.warn(
+          s"We need ${numRideHailAgents.toDouble} ridehail agents, which is more than total population of ${persons.length}"
+        )
+        logger.info(s"Current ratio of drivers to agents is $idx agents, $equivalentNumberOfDrivers drivers")
         warned = true
       }
       try {
@@ -718,8 +734,16 @@ class ProceduralRideHailFleetInitializer(
           val shiftEndTime = min(shiftMidPointTime + (shiftDuration / 2).toInt, 30 * 3600)
 
           val shiftEquivalentNumberOfDrivers_ = (shiftEndTime - shiftStartTime) / (averageOnDutyHoursPerDay * 3600)
+          if (shiftEquivalentNumberOfDrivers_ < 0.0) {
+            logger.warn(
+              s"How did we end up with a negative equivalent number of drivers? " +
+              s"shiftStartTime: $shiftStartTime, shiftEndTime: $shiftEndTime, shiftDuration: $shiftDuration"
+            )
+            (Some(List(Shift(Range(shiftStartTime, shiftEndTime), None))), 1.0)
+          } else {
+            (Some(List(Shift(Range(shiftStartTime, shiftEndTime), None))), shiftEquivalentNumberOfDrivers_)
+          }
 
-          (Some(List(Shift(Range(shiftStartTime, shiftEndTime), None))), shiftEquivalentNumberOfDrivers_)
         }
 
         val rideHailAgentInitializer = RideHailAgentInitializer(
@@ -933,7 +957,7 @@ case class ShpGeofence(
     geometries.exists(_.contains(point))
   }
 
-  override def toString() = {
+  override def toString(): String = {
     s"ShpGeofence(${geometries.size} features from file: $geofenceShpFile)"
   }
 

@@ -888,7 +888,8 @@ class PersonAgent(
         excludeModes = excludedMode.toSet ++ (
           if (canUseCars(currentCoord, nextCoord)) Set.empty
           else Set(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
-        )
+        ),
+        mostRecentDeniedBoardingLeg = Some(data.nextLeg)
       )
   }
 
