@@ -35,6 +35,7 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
+import kamon.Kamon
 import org.apache.commons.lang3.StringUtils
 import org.jfree.data.category.DefaultCategoryDataset
 import org.matsim.api.core.v01.Scenario
@@ -673,6 +674,7 @@ class BeamSim @Inject() (
     logger.info("Actor system shut down")
 
     deleteMATSimOutputFiles(event.getServices.getIterationNumber)
+    Kamon.stopModules()
 
     // simulation python scripts
     for {

@@ -290,8 +290,10 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
             csvWriter.writeAllAndClose(data.map(_.toCsvSeq))
           case "zarr" =>
             ActivitySimZarrWriter.writeToZarr(filePath, data.iterator, geoUnits)
-          case _ =>
+          case "omx" =>
             ActivitySimOmxWriter.writeToOmx(filePath, data.iterator, geoUnits)
+          case _ =>
+            logger.warn("Not writing skims")
         }
       } catch {
         case exception: Exception =>

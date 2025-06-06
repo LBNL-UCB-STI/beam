@@ -62,6 +62,15 @@ object ActivitySimZarrWriter extends LazyLogging {
           val compressor = com.bc.zarr.CompressorFactory.create(
             "zlib"
           )
+//          val compressor = com.bc.zarr.CompressorFactory.create(
+//            "blosc",
+//            "cname",
+//            "zstd",
+//            "clevel",
+//            "5",
+//            "shuffle",
+//            "1"
+//          )
           val chunkShape = Array[Int](shape(0), shape(1), 1)
 
           val arrayParams = new com.bc.zarr.ArrayParams()
