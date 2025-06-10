@@ -833,7 +833,7 @@ object BeamVehicle {
             taz = currentLink.flatMap(link => beamServices.beamScenario.tazTreeMap.getTAZfromLink(link.getId)),
             parkingDuration = Some(duration),
             parkingType = Some(ParkingType.Public),
-            activityType = Some(ParkingActivityType.IDLE.toString),
+            activityType = Some(ParkingActivityType.Idling.toString),
             linkTravelTime = None
           )
         }
