@@ -13,7 +13,6 @@ import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import pandas as pd
 import seaborn as sns
 
 from _validation_utils import prepare_npmrds_data, fsystem_to_roadclass_lookup, LinkStats, SpeedValidationSetup
@@ -24,7 +23,6 @@ parent_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, parent_dir)
 plt.style.use('ggplot')
 
-from python.utils.study_area_config import get_area_config, generate_network_name
 from _data_collection_utils import collect_geographic_boundaries
 
 
@@ -60,79 +58,48 @@ def setup_directories(batch, scenario, config):
     return study_area_dir, run_dir, output_dir, plots_dir
 
 
-def prepare_npmrds_files(study_area, batch, scenario, config):
-    """
-    Prepare NPMRDS files if they don't exist already
-
-    Parameters:
-    -----------
-    study_area : str
-        Name of the study area (e.g., "sfbay", "seattle")
-    run_dir : str
-        Directory where the run data is stored
-    network_dir : str
-        Directory where the network data is stored
-    config : dict
-        Configuration dictionary containing study area settings
-
-    Returns:
-    --------
-    tuple
-        Paths to the NPMRDS hourly speed CSV, road class CSV, and network map geojson
-    """
-    network_name = generate_network_name(config)
-    network_dir = f'{config["work_dir"]}/network/{network_name}'
-    run_dir = f"{config["work_dir"]}/beam-runs/{batch}/{scenario}"
-    npmrds_hourly_speed_csv = f"{run_dir}/{study_area}_npmrds_hourly_speeds.csv"
-    npmrds_hourly_speed_by_road_class_csv = f"{run_dir}/{study_area}_npmrds_hourly_speed_by_road_class.csv"
-    beam_network_mapped_to_npmrds_geo = f"{run_dir}/{study_area}_network_mapped_to_npmrds.geojson"
-    beam_network_car_links_geo = f"{run_dir}/{study_area}_network_car_only.geojson"
-
-    area_config = config["area"]
-    network_config = config["network"]
-    geo_config = config["geo"]
-
-    if not (os.path.exists(npmrds_hourly_speed_csv) or
-            os.path.exists(npmrds_hourly_speed_by_road_class_csv) or
-            os.path.exists(beam_network_mapped_to_npmrds_geo)):
+def prepare_npmrds_files(configs, paths):
+    if not (os.path.exists(paths["npmrds_hourly_speed_csv"]) or
+            os.path.exists(paths["npmrds_hourly_speed_by_road_class_csv"]) or
+            os.path.exists(paths["beam_network_mapped_to_npmrds_geo"])):
         # Collect geographic boundaries
         region_boundary_wgs84 = collect_geographic_boundaries(
-            area_config["state_fips"],
-            area_config["county_fips"],
-            area_config["census_year"],
-            study_area,
+            configs["state_fips"],
+            configs["county_fips"],
+            configs["census_year"],
+            configs["study_area"],
             geo_level='county',
-            work_dir=f'{config["work_dir"]}/geo'
+            work_dir=f'{paths["geo_dir"]}'
         )
-
-        # Get configuration sections
-        config_npmrds = network_config["validation"]["npmrds"]
 
         # Prepare NPMRDS data
         regional_npmrds_station, _, beam_npmrds_network_map, _ = prepare_npmrds_data(
             # input
-            npmrds_label=f"NPMRDS_{config_npmrds['year']}",
-            npmrds_raw_geo=f"{config['work_dir']}/{config_npmrds['geo']}",
-            npmrds_raw_data_csv=f'{config["work_dir"]}/{config_npmrds["data"]}',
+            npmrds_label=configs['npmrds_label'],
+            npmrds_raw_geo=paths["npmrds_raw_geo"],
+            npmrds_raw_data_csv=paths["npmrds_raw_data_csv"],
             npmrds_observed_speed_weight=0.5,
             region_boundary=region_boundary_wgs84,
-            beam_network_csv_input=f"{network_dir}/network.csv.gz",
-            projected_crs_epsg=geo_config["utm_epsg"],
+            beam_network_csv_input=paths["network_csv"],
+            projected_crs_epsg=configs["utm_epsg"],
             distance_buffer_m=20,
             # output
-            npmrds_station_geo=f"{run_dir}/{study_area}_npmrds_station.geojson",
-            npmrds_data_csv=f"{run_dir}/{study_area}_npmrds_data.csv",
-            npmrds_hourly_speed_csv=npmrds_hourly_speed_csv,
-            npmrds_hourly_speed_by_road_class_csv=npmrds_hourly_speed_by_road_class_csv,
-            beam_network_car_links_geo=f"{run_dir}/{study_area}_network_car_only.geojson",
-            beam_npmrds_network_map_geo=beam_network_mapped_to_npmrds_geo
+            npmrds_station_geo=paths["npmrds_station_geo"],
+            npmrds_data_csv=paths["npmrds_data_csv"],
+            npmrds_hourly_speed_csv=paths["npmrds_hourly_speed_csv"],
+            npmrds_hourly_speed_by_road_class_csv=paths["npmrds_hourly_speed_by_road_class_csv"],
+            beam_network_car_links_geo=paths["beam_network_car_links_geo"],
+            beam_npmrds_network_map_geo=paths["beam_network_mapped_to_npmrds_geo"]
         )
 
         # Generate plots
-        plot_validation_maps(study_area, run_dir, region_boundary_wgs84,
+        plot_validation_maps(configs["study_area"], paths["run_dir"], region_boundary_wgs84,
                              regional_npmrds_station, beam_npmrds_network_map)
 
-    return npmrds_hourly_speed_csv, npmrds_hourly_speed_by_road_class_csv, beam_network_mapped_to_npmrds_geo, beam_network_car_links_geo
+    return (paths["npmrds_hourly_speed_csv"],
+            paths["npmrds_hourly_speed_by_road_class_csv"],
+            paths["beam_network_mapped_to_npmrds_geo"],
+            paths["beam_network_car_links_geo"])
 
 
 def plot_validation_maps(study_area, run_dir, region_boundary, npmrds_station, network_map):
@@ -169,45 +136,6 @@ def plot_validation_maps(study_area, run_dir, region_boundary, npmrds_station, n
     plt.title("BEAM Network and NPMRDS Stations")
     fig.savefig(f"{run_dir}/{study_area}_network_mapped_to_npmrds.png", dpi=300)
     plt.show(block=False)
-
-
-def setup_link_stats(batch, scenario, config):
-    """
-    Set up link statistics data
-
-    Parameters:
-    -----------
-    study_area_dir : str
-        Directory where study area data is stored
-    batch : str
-        Batch identifier
-    scenario : str
-        Scenario name
-    run_dir : str
-        Directory where the run data is stored
-
-    Returns:
-    --------
-    tuple
-        link_stats, vehicle_types_files
-    """
-    run_dir = f"{config["work_dir"]}/beam-runs/{batch}/{scenario}"
-    batch_label = batch.replace("-", "")
-    scenario_label = scenario.replace("_", "-")
-
-    link_stats = [
-        LinkStats(scenario=f"{batch}_{scenario_label}", demand_fraction=0.1,
-                  file_path=os.path.join(run_dir, "3.linkstats.csv.gz"))
-    ]
-
-    vehicle_types_files = [(
-        batch_label,
-        scenario_label,
-        f"{config["work_dir"]}/beam-runs/{batch}/{scenario}/0.events.csv.gz",
-        f"{config["work_dir"]}/beam-freight/{batch}/{scenario}/vehicle-tech/ft-vehicletypes--{batch_label}--{scenario_label}.csv"
-    )]
-
-    return link_stats, vehicle_types_files
 
 
 def run_network_speed_validation(study_area, setup, processed_link_stats, output_dir, plots_dir):
@@ -655,31 +583,53 @@ def main():
     Main function to run the validation process
     """
     # Configuration
-    study_area = "sfbay"  # or "seattle"
-    batch = "20241106"
-    scenario = "2018-Baseline-20250519-FC10-0"
     peak_hour = 8
     do_link_speed_validation = True
     do_network_speed_validation = True
     do_vmt_validation = False
     generate_stats = True  # Flag to control stats generation
+    work_dir = os.path.expanduser("~/Workspace/Simulation/sfbay")
+    configs = {
+        "study_area": "sfbay",
+        "batch": "calibration",
+        "scenario": "2018-Baseline-20250522-FC08-0",
+        "state_fips": "06",
+        "county_fips": ['001', '013', '041', '055', '075', '081', '085', '095', '097'],
+        "census_year": 2018,
+        "npmrds_label": f"NPMRDS_2018",
+        "utm_epsg": 26910
+    }
+    paths = {
+        "work_dir": work_dir,
+        "link_stats_file": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/5.linkstats.csv.gz",
+        "events_file": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/5.events.csv.gz",
+        "network_csv": f"{work_dir}/network/sfbay-area-cbg5500-network/network.csv.gz",
+
+        "run_dir": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}",
+        "data_dir": f"{work_dir}/beam-freight/{configs["batch"]}/{configs["scenario"]}",
+        "geo_dir": f"{work_dir}/geo",
+        "output_dir": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/validation_output",
+        "plots_dir": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/validation_output/plots",
+        "vehicle_types_file": f"{work_dir}/beam-freight/{configs["batch"]}/{configs["scenario"]}/vehicle-tech/ft-vehicletypes--{configs["batch"]}--{configs["scenario"]}.csv",
+        "npmrds_hourly_speed_csv": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/{configs["study_area"]}_npmrds_hourly_speeds.csv",
+        "npmrds_hourly_speed_by_road_class_csv": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/{configs["study_area"]}_npmrds_hourly_speed_by_road_class.csv",
+        "beam_network_mapped_to_npmrds_geo": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/{configs["study_area"]}_network_mapped_to_npmrds.geojson",
+        "beam_network_car_links_geo": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/{configs["study_area"]}_network_car_only.geojson",
+        "npmrds_station_geo": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/{configs["study_area"]}_npmrds_station.geojson",
+        "npmrds_data_csv": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/{configs["study_area"]}_npmrds_data.csv",
+        "npmrds_raw_geo": f"{work_dir}/validation/npmrds/California.shp",
+        "npmrds_raw_data_csv": f'{work_dir}/validation/npmrds/al_ca_oct2018_1hr_trucks_pax.csv',
+    }
 
     # Load configuration
-    config = get_area_config(study_area)
-    config["network"]["graph_layers"]["residential"]["min_density_per_km2"] = 5500
-
-    # Create output directories
-    output_dir = f"{config["work_dir"]}/beam-runs/{batch}/{scenario}/validation_output"
-    plots_dir = f"{output_dir}/plots"
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
-    Path(plots_dir).mkdir(parents=True, exist_ok=True)
-
-    # Setup link stats
-    link_stats, vehicle_types_files = setup_link_stats(batch, scenario, config)
+    Path(paths["output_dir"]).mkdir(parents=True, exist_ok=True)
+    Path(paths["plots_dir"]).mkdir(parents=True, exist_ok=True)
+    link_stats = [LinkStats(scenario=f"{configs["batch"]}_{configs["scenario"]}", demand_fraction=0.1, file_path=paths["link_stats_file"])]
+    vehicle_types_files = [(configs["batch"], configs["scenario"], paths["events_file"], paths["vehicle_types_file"])]
 
     # Prepare NPMRDS files
     npmrds_hourly_speed_csv, npmrds_hourly_speed_by_road_class_csv, beam_network_mapped_to_npmrds_geo, beam_network_car_links_geo = \
-        prepare_npmrds_files(study_area, batch, scenario, config)
+        prepare_npmrds_files(configs, paths)
 
     # Initialize validation setup
     setup = SpeedValidationSetup(
@@ -701,12 +651,12 @@ def main():
     # Run validations as requested
     if do_network_speed_validation:
         run_network_speed_validation(
-            study_area, setup, processed_link_stats, output_dir, plots_dir
+            configs["study_area"], setup, processed_link_stats, paths["output_dir"], paths["plots_dir"]
         )
 
     if do_link_speed_validation:
         run_link_speed_validation(
-            study_area, setup, processed_link_stats, output_dir, plots_dir
+            configs["study_area"], setup, processed_link_stats, paths["output_dir"], paths["plots_dir"]
         )
 
     if do_vmt_validation:
@@ -716,9 +666,9 @@ def main():
     if generate_stats and processed_link_stats is not None:
         print("Generating comprehensive validation statistics...")
         stats_results = generate_validation_stats(
-            setup, processed_link_stats, output_dir, study_area, peak_hour
+            setup, processed_link_stats, paths["output_dir"], configs["study_area"], peak_hour
         )
-        print(f"Statistics saved to {output_dir}/{study_area}_validation_stats.json")
+        print(f"Statistics saved to {paths["output_dir"]}/{configs["study_area"]}_validation_stats.json")
 
         # Print a summary of the lowest speed hours
         lowest_speeds = stats_results["lowest_speeds"]
