@@ -389,7 +389,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     }
   }
 
-  private val TimeRestriction = """([^:]+)\|(\d{1,2})(?::(\d{2}))?-(\d{1,2})(?::(\d{2}))?""".r
+  private val TimeRestriction = """(\w+)\|(\d{1,2})(?::(\d{2}))?-(\d{1,2})(?::(\d{2}))?""".r
 
   private[parking] def parseTimeRestrictions(timeRestrictionsString: String): Map[VehicleCategory, Range] = {
 
