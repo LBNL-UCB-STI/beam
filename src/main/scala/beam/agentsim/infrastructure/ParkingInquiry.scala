@@ -71,18 +71,20 @@ object ParkingInquiry extends LazyLogging {
     case object Work extends ParkingActivityType
     case object EnRoute extends ParkingActivityType
     case object IDLE extends ParkingActivityType
+    case object Freight extends ParkingActivityType
   }
 
   def activityTypeStringToEnum(activityType: String): ParkingActivityType = {
     activityType.toLowerCase match {
-      case "home"                                     => ParkingActivityType.Home
-      case "work"                                     => ParkingActivityType.Work
-      case "charge"                                   => ParkingActivityType.Charge
-      case "wherever"                                 => ParkingActivityType.Wherever
-      case "idle"                                     => ParkingActivityType.IDLE
-      case otherType if otherType.contains("enroute") => ParkingActivityType.Charge
-      case otherType if otherType.contains("home")    => ParkingActivityType.Home
-      case otherType if otherType.contains("work")    => ParkingActivityType.Work
+      case "home"                                                         => ParkingActivityType.Home
+      case "work"                                                         => ParkingActivityType.Work
+      case "charge"                                                       => ParkingActivityType.Charge
+      case "wherever"                                                     => ParkingActivityType.Wherever
+      case "idle"                                                         => ParkingActivityType.IDLE
+      case "depot" | "commercial" | "loading" | "unloading" | "warehouse" => ParkingActivityType.Freight
+      case otherType if otherType.contains("enroute")                     => ParkingActivityType.Charge
+      case otherType if otherType.contains("home")                        => ParkingActivityType.Home
+      case otherType if otherType.contains("work")                        => ParkingActivityType.Work
       case otherType =>
         logger.debug(s"This Parking Activity Type ($otherType) has not been defined")
         ParkingActivityType.Wherever

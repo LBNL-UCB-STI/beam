@@ -84,6 +84,7 @@ object VehicleCategory {
   case object Class456Vocational extends VehicleCategory // Class 4-6 (GVWR 14001-26000 lbs.)
   case object Class78Vocational extends VehicleCategory // CLass 7&8 (GVWR 26001-33,000 lbs.)
   case object Class78Tractor extends VehicleCategory // Class 7&8 Tractor (GVWR >33,000 lbs.)
+  case object AnyCategory extends VehicleCategory // Used for parking zones
 
   def fromString(value: String): VehicleCategory =
     try { fromStringOptional(value).get }
@@ -99,7 +100,8 @@ object VehicleCategory {
     Class2b3Vocational,
     Class456Vocational,
     Class78Vocational,
-    Class78Tractor
+    Class78Tractor,
+    AnyCategory
   )
 
   private def fromStringOptional(value: String): Option[VehicleCategory] = {

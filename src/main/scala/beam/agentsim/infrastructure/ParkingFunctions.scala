@@ -233,16 +233,18 @@ class ParkingFunctions(
       Set(ParkingType.Public)
     } else if (inquiry.searchMode == ParkingSearchMode.Init) {
       inquiry.parkingActivityType match {
-        case ParkingActivityType.Home => Set(ParkingType.Residential)
-        case ParkingActivityType.Work => Set(ParkingType.Workplace)
-        case _                        => Set(ParkingType.Public)
+        case ParkingActivityType.Home    => Set(ParkingType.Residential)
+        case ParkingActivityType.Work    => Set(ParkingType.Workplace)
+        case ParkingActivityType.Freight => Set(ParkingType.Depot)
+        case _                           => Set(ParkingType.Public)
       }
     } else {
       inquiry.parkingActivityType match {
-        case ParkingActivityType.Home   => Set(ParkingType.Residential, ParkingType.Public)
-        case ParkingActivityType.Work   => Set(ParkingType.Workplace, ParkingType.Public)
-        case ParkingActivityType.Charge => Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
-        case _                          => Set(ParkingType.Public)
+        case ParkingActivityType.Home    => Set(ParkingType.Residential, ParkingType.Public)
+        case ParkingActivityType.Work    => Set(ParkingType.Workplace, ParkingType.Public)
+        case ParkingActivityType.Charge  => Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
+        case ParkingActivityType.Freight => Set(ParkingType.Commercial, ParkingType.Depot)
+        case _                           => Set(ParkingType.Public)
       }
     }
   }
