@@ -138,8 +138,10 @@ class Population(
         .collectionAsScalaIterable(household.getVehicleIds)
         .map { vid =>
           val bv = beamScenario.privateVehicles(BeamVehicle.createId(vid))
+          val managerType =
+            if (bv.isFreightVehicle) VehicleManager.TypeEnum.Freight else VehicleManager.TypeEnum.Household
           val reservedFor =
-            VehicleManager.createOrGetReservedFor(household.getId.toString, VehicleManager.TypeEnum.Household)
+            VehicleManager.createOrGetReservedFor(household.getId.toString, managerType)
           bv.vehicleManagerId.set(reservedFor.managerId)
           bv.id -> bv
         }

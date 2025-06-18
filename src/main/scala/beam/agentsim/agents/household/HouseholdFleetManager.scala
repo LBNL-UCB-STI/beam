@@ -62,6 +62,7 @@ class HouseholdFleetManager(
       logger.debug(s"ResolvedParkingResponses ($triggerId, $xs)")
       xs.foreach { case (id, resp) =>
         val veh = vehiclesInternal(id)
+        val person = trackingVehicleAssignmentAtInitialization(id)
         veh.setManager(Some(self))
         veh.spaceTime = SpaceTime(resp.stall.locationUTM.getX, resp.stall.locationUTM.getY, 0)
         veh.setMustBeDrivenHome(false)
@@ -71,7 +72,7 @@ class HouseholdFleetManager(
           stall = resp.stall,
           locationWGS = geo.utm2Wgs(resp.stall.locationUTM),
           vehicleId = id,
-          driverId = "None"
+          driverId = person.toString
         )
         eventsManager.processEvent(parkEvent)
         if (resp.stall.chargingPointType.isDefined) {
@@ -98,19 +99,30 @@ class HouseholdFleetManager(
         val workingPersonsList =
           homeAndStartingWorkLocations.filter(_._2.parkingActivityType == ParkingActivityType.Work).keys.toBuffer
         vehicles.toList.map { case (id, vehicle) =>
-          val personId: Id[Person] =
-            if (workingPersonsList.nonEmpty) workingPersonsList.remove(0)
-            else
+          val personId: Id[Person] = {
+            if (vehicle.isFreightVehicle) {
+              homeAndStartingWorkLocations
+                .find(_._2.parkingActivityType == ParkingActivityType.Freight)
+                .map(_._1)
+                .getOrElse(
+                  throw new RuntimeException(
+                    s"Freight vehicle ${vehicle.id} has no assigned person with Freight parking activity"
+                  )
+                )
+            } else if (workingPersonsList.isEmpty) {
               homeAndStartingWorkLocations
                 .find(_._2.parkingActivityType == ParkingActivityType.Home)
                 .map(_._1)
                 .getOrElse(homeAndStartingWorkLocations.keys.head)
+            } else workingPersonsList.remove(0)
+          }
           trackingVehicleAssignmentAtInitialization.put(vehicle.id, personId)
           val HomeAndStartingWorkLocation(_, activityType, location, endTime) = homeAndStartingWorkLocations(personId)
           val inquiry = ParkingInquiry.init(
             SpaceTime(location, 0),
             activityType,
             VehicleManager.getReservedFor(vehicle.vehicleManagerId.get).get,
+            personId = Option(personId),
             beamVehicle = Option(vehicle),
             triggerId = triggerId,
             searchMode = ParkingSearchMode.Init,
