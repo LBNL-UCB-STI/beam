@@ -260,9 +260,15 @@ class HouseholdFleetManager(
 
       // Pipe my car through the parking manager
       // and complete initialization only when I got them all.
+      val reservedFor = VehicleManager.getReservedFor(vehicle.vehicleManagerId.get()).get
+      val activityType = if (reservedFor.managerType == VehicleManager.TypeEnum.Freight) {
+        ParkingActivityType.Freight.toString
+      } else {
+        ParkingActivityType.Wherever.toString
+      }
       val responseFuture = parkingManager ? ParkingInquiry.init(
         inquiry.whereWhen,
-        "wherever",
+        activityType,
         VehicleManager.getReservedFor(vehicle.vehicleManagerId.get()).get,
         Some(vehicle),
         triggerId = inquiry.triggerId,

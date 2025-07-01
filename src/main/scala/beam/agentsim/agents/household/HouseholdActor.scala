@@ -238,9 +238,6 @@ object HouseholdActor {
             person.getSelectedPlan.getPlanElements.asScala.find(_.isInstanceOf[Activity]) map { element =>
               val act = element.asInstanceOf[Activity]
               val parkingActivityType = ParkingInquiry.activityTypeStringToEnum(act.getType)
-              if (isFreightCarrier && parkingActivityType != ParkingActivityType.Freight) {
-                print("test")
-              }
               val endTime = act.getEndTime.orElseGet(() => DateUtils.getEndOfTime(beamServices.beamScenario.beamConfig))
               person.getId -> HomeAndStartingWorkLocation(
                 parkingActivityType,

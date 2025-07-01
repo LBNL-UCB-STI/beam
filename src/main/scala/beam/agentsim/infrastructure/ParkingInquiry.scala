@@ -108,7 +108,7 @@ object ParkingInquiry extends LazyLogging {
         } else if (lowerType.contains("work")) {
           ParkingActivityType.Work
         } else {
-          logger.debug(s"This Parking Activity Type ($lowerType) has not been defined")
+          logger.info(s"This Parking Activity Type ($lowerType) has not been defined")
           ParkingActivityType.Wherever
         }
     }
