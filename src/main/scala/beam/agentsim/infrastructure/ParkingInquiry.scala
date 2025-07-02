@@ -80,6 +80,12 @@ object ParkingInquiry extends LazyLogging {
     "work"       -> ParkingActivityType.Work,
     "charge"     -> ParkingActivityType.Charge,
     "wherever"   -> ParkingActivityType.Wherever,
+    "eatout"     -> ParkingActivityType.Wherever,
+    "othdiscr" -> ParkingActivityType.Wherever,
+    "othmaint" -> ParkingActivityType.Wherever,
+    "school"     -> ParkingActivityType.Wherever,
+    "escort"   -> ParkingActivityType.Wherever,
+    "social"     -> ParkingActivityType.Wherever,
     "idle"       -> ParkingActivityType.IDLE,
     "depot"      -> ParkingActivityType.Freight,
     "commercial" -> ParkingActivityType.Freight,
@@ -108,7 +114,7 @@ object ParkingInquiry extends LazyLogging {
         } else if (lowerType.contains("work")) {
           ParkingActivityType.Work
         } else {
-          logger.info(s"This Parking Activity Type ($lowerType) has not been defined")
+          logger.debug(s"This Parking Activity Type ($lowerType) has not been defined")
           ParkingActivityType.Wherever
         }
     }
