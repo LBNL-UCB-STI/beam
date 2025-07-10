@@ -104,11 +104,19 @@ class HouseholdFleetManager(
               homeAndStartingWorkLocations
                 .find(_._2.parkingActivityType == ParkingActivityType.Freight)
                 .map(_._1)
-                .getOrElse(
+                .getOrElse {
+                  homeAndStartingWorkLocations.foreach { case (personId, location) =>
+                    println(s"Person ID: $personId")
+                    println(s"  Parking Activity Type: ${location.parkingActivityType}")
+                    println(s"  Activity Type: ${location.activityType}")
+                    println(s"  Activity Location: ${location.activityLocation}")
+                    println(s"  Activity End Time: ${location.activityEndTime}")
+                    println("---")
+                  }
                   throw new RuntimeException(
                     s"Freight vehicle ${vehicle.id} has no assigned person with Freight parking activity"
                   )
-                )
+                }
             } else if (workingPersonsList.isEmpty) {
               homeAndStartingWorkLocations
                 .find(_._2.parkingActivityType == ParkingActivityType.Home)
