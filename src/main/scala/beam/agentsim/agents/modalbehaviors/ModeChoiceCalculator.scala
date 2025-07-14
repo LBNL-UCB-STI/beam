@@ -123,9 +123,10 @@ trait ModeChoiceCalculator {
   }
 
   def computeAllDayUtility(
-    trips: ListBuffer[EmbodiedBeamTrip],
+    trips: Map[EmbodiedBeamTrip, Map[String, Double]],
     person: Person,
-    attributesOfIndividual: AttributesOfIndividual
+    attributesOfIndividual: AttributesOfIndividual,
+    overrideAttributes: Boolean = false
   ): Double
 
   final def chooseRandomAlternativeIndex(alternatives: Seq[EmbodiedBeamTrip]): Int = {

@@ -35,6 +35,7 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
+import kamon.Kamon
 import org.apache.commons.lang3.StringUtils
 import org.jfree.data.category.DefaultCategoryDataset
 import org.matsim.api.core.v01.Scenario
@@ -592,17 +593,31 @@ class BeamSim @Inject() (
       "dumpMatsimStuffAtTheBeginningOfSimulation in the beginning of simulation",
       x => logger.info(x)
     ) {
-      // `DumpDataAtEnd` during `notifyShutdown` dumps network, plans, person attributes and other things.
-      // Reusing it to get `outputPersonAttributes.xml.gz` which is needed for warmstart
-      val dumper = beamServices.injector.getInstance(classOf[DumpDataAtEnd])
-      dumper match {
-        case listener: ShutdownListener =>
-          val event = new ShutdownEvent(beamServices.matsimServices, false)
-          // Create files
-          listener.notifyShutdown(event)
-          dumpHouseholdAttributes
+      // Get the specific logger and save its original level
+      val dumpLogger = org.apache.log4j.Logger.getLogger("org.matsim.core.controler.corelisteners.DumpDataAtEndImpl")
+      val originalLevel = dumpLogger.getLevel
 
-        case _ => logger.warn(s"dumper is not `ShutdownListener` - $dumper")
+      // Temporarily set log level to WARN to suppress ERROR messages
+      dumpLogger.setLevel(org.apache.log4j.Level.WARN)
+
+      try {
+        val dumper = beamServices.injector.getInstance(classOf[DumpDataAtEnd])
+        dumper match {
+          case listener: ShutdownListener =>
+            val event = new ShutdownEvent(beamServices.matsimServices, false)
+            try {
+              // Create files
+              listener.notifyShutdown(event)
+              dumpHouseholdAttributes()
+            } catch {
+              case ex: Throwable =>
+                logger.error(s"Exception during initial data dump: ${ex.getMessage}")
+            }
+          case _ => logger.warn(s"dumper is not `ShutdownListener` - $dumper")
+        }
+      } finally {
+        // Restore original logging configuration
+        dumpLogger.setLevel(originalLevel)
       }
     }
   }
@@ -659,6 +674,7 @@ class BeamSim @Inject() (
     logger.info("Actor system shut down")
 
     deleteMATSimOutputFiles(event.getServices.getIterationNumber)
+    Kamon.stopModules()
 
     // simulation python scripts
     for {

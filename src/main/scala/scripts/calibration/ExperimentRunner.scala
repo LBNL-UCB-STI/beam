@@ -85,7 +85,7 @@ case class ExperimentRunner()(implicit experimentData: SigoptExperimentData) ext
     }
     if (objectiveFunctionClassName.equals("CountsObjectiveFunction")) {
       val outpath = Paths.get(
-        ioController.getIterationFilename(runConfig.controler().getLastIteration, "countscompare.txt")
+        ioController.getIterationFilename(runConfig.controler().getLastIteration, "countsCompare.txt")
       )
       CountsObjectiveFunction.evaluateFromRun(outpath.toAbsolutePath.toString)
     } else if (objectiveFunctionClassName.equals("ModeChoiceObjectiveFunction_RMSPE") && benchmarkFileExists) {
@@ -120,7 +120,7 @@ case class ExperimentRunner()(implicit experimentData: SigoptExperimentData) ext
         )
     } else if (objectiveFunctionClassName.equals("ModeChoiceAndCountsObjectiveFunction") && benchmarkFileExists) {
       var outpath = Paths.get(
-        ioController.getIterationFilename(runConfig.controler().getLastIteration, "countscompare.txt")
+        ioController.getIterationFilename(runConfig.controler().getLastIteration, "countsCompare.txt")
       )
       val countsObjVal = CountsObjectiveFunction.evaluateFromRun(outpath.toAbsolutePath.toString)
 

@@ -73,25 +73,52 @@ object ParkingInquiry extends LazyLogging {
     case object Commercial extends ParkingActivityType
     case object Depot extends ParkingActivityType
     case object IDLE extends ParkingActivityType
+    case object Freight extends ParkingActivityType
   }
 
+  // Pre-compiled lookup table for exact matches (O(1) lookup)
+  private val exactMatches = Map(
+    "home"       -> ParkingActivityType.Home,
+    "work"       -> ParkingActivityType.Work,
+    "charge"     -> ParkingActivityType.Charge,
+    "wherever"   -> ParkingActivityType.Wherever,
+    "eatout"     -> ParkingActivityType.Wherever,
+    "othdiscr"   -> ParkingActivityType.Wherever,
+    "othmaint"   -> ParkingActivityType.Wherever,
+    "school"     -> ParkingActivityType.Wherever,
+    "escort"     -> ParkingActivityType.Wherever,
+    "social"     -> ParkingActivityType.Wherever,
+    "idle"       -> ParkingActivityType.IDLE,
+    "depot"      -> ParkingActivityType.Freight,
+    "commercial" -> ParkingActivityType.Freight,
+    "loading"    -> ParkingActivityType.Freight,
+    "unloading"  -> ParkingActivityType.Freight,
+    "warehouse"  -> ParkingActivityType.Freight
+  )
+
+  // Pre-compiled prefix patterns for startsWith checks
+  private val freightPrefixes = Set("depot", "commercial", "loading", "unloading", "warehouse")
+
   def activityTypeStringToEnum(activityType: String): ParkingActivityType = {
-    activityType.toLowerCase match {
-      case "depot"                                      => ParkingActivityType.Depot
-      case "home"                                       => ParkingActivityType.Home
-      case "work"                                       => ParkingActivityType.Work
-      case "charge"                                     => ParkingActivityType.Charge
-      case "wherever"                                   => ParkingActivityType.Wherever
-      case "idle"                                     => ParkingActivityType.IDLE
-      case otherType if otherType.contains("home")      => ParkingActivityType.Home
-      case otherType if otherType.contains("work")      => ParkingActivityType.Work
-      case otherType if otherType.contains("unloading") => ParkingActivityType.Commercial
-      case otherType if otherType.contains("loading")   => ParkingActivityType.Commercial
-      case otherType if otherType.contains("depot")     => ParkingActivityType.Depot
-      case otherType if otherType.contains("warehouse") => ParkingActivityType.Depot
-      case otherType =>
-        logger.debug(s"This Parking Activity Type ($otherType) has not been defined")
-        ParkingActivityType.Wherever
+    val lowerType = activityType.toLowerCase
+
+    // Try exact match first (fastest - O(1))
+    exactMatches.get(lowerType) match {
+      case Some(result) => result
+      case None         =>
+        // Check prefixes (only if exact match failed)
+        if (freightPrefixes.exists(lowerType.startsWith)) {
+          ParkingActivityType.Freight
+        } else if (lowerType.contains("enroute")) {
+          ParkingActivityType.Charge
+        } else if (lowerType.contains("home")) {
+          ParkingActivityType.Home
+        } else if (lowerType.contains("work")) {
+          ParkingActivityType.Work
+        } else {
+          logger.debug(s"This Parking Activity Type ($lowerType) has not been defined")
+          ParkingActivityType.Wherever
+        }
     }
   }
 

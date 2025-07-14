@@ -628,6 +628,7 @@ object HouseholdActor {
           val parkingDuration = endTime - tick
           for {
             ParkingInquiryResponse(stall, _, _) <- sendParkingOrChargingInquiry(
+              personId,
               vehicle,
               activityType,
               location,
@@ -656,6 +657,7 @@ object HouseholdActor {
     }
 
     private def sendParkingOrChargingInquiry(
+      person: Id[Person],
       vehicle: BeamVehicle,
       activityType: String,
       location: Coord,
@@ -666,6 +668,7 @@ object HouseholdActor {
         SpaceTime(location, 0),
         activityType,
         VehicleManager.getReservedFor(vehicle.vehicleManagerId.get).get,
+        personId = Option(person),
         beamVehicle = Option(vehicle),
         triggerId = triggerId,
         searchMode = ParkingSearchMode.Init,

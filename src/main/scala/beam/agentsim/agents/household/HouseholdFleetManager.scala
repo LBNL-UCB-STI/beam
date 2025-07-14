@@ -63,6 +63,7 @@ class HouseholdFleetManager(
       logger.debug(s"ResolvedParkingResponses ($triggerId, $xs)")
       xs.foreach { case (id, resp) =>
         val veh = vehiclesInternal(id)
+        val person = trackingVehicleAssignmentAtInitialization(id)
         veh.setManager(Some(self))
         veh.spaceTime = SpaceTime(resp.stall.locationUTM.getX, resp.stall.locationUTM.getY, 0)
         veh.setMustBeDrivenHome(false)
@@ -72,7 +73,7 @@ class HouseholdFleetManager(
           stall = resp.stall,
           locationWGS = geo.utm2Wgs(resp.stall.locationUTM),
           vehicleId = id,
-          driverId = "None"
+          driverId = person.toString
         )
         eventsManager.processEvent(parkEvent)
         if (resp.stall.chargingPointType.isDefined) {
@@ -101,15 +102,31 @@ class HouseholdFleetManager(
           .keys
           .toBuffer
         vehicles.toList.map { case (id, vehicle) =>
-          val personId: Id[Person] =
-            if (isFreightCarrier) whoDrivesThisFreightVehicle(id)
-            else if (workingPersonsList.nonEmpty) workingPersonsList.remove(0)
-            else
-              householdMembersToActivityTypeAndLocation
+          val personId: Id[Person] = {
+            if (vehicle.isFreightVehicle) {
+              homeAndStartingWorkLocations
+                .find(_._2.parkingActivityType == ParkingActivityType.Freight)
+                .map(_._1)
+                .getOrElse {
+                  homeAndStartingWorkLocations.foreach { case (personId, location) =>
+                    println(s"Person ID: $personId")
+                    println(s"  Parking Activity Type: ${location.parkingActivityType}")
+                    println(s"  Activity Type: ${location.activityType}")
+                    println(s"  Activity Location: ${location.activityLocation}")
+                    println(s"  Activity End Time: ${location.activityEndTime}")
+                    println("---")
+                  }
+                  throw new RuntimeException(
+                    s"Freight vehicle ${vehicle.id} has no assigned person with Freight parking activity"
+                  )
+                }
+            } else if (workingPersonsList.isEmpty) {
+              homeAndStartingWorkLocations
                 .find(_._2.parkingActivityType == ParkingActivityType.Home)
                 .map(_._1)
                 .getOrElse(householdMembersToActivityTypeAndLocation.keys.head)
-
+} else workingPersonsList.remove(0)
+          }
           trackingVehicleAssignmentAtInitialization.put(vehicle.id, personId)
           val ActivityTypeAndLocation(_, activityType, location, endTime) =
             householdMembersToActivityTypeAndLocation(personId)
@@ -117,6 +134,7 @@ class HouseholdFleetManager(
             SpaceTime(location, 0),
             activityType,
             VehicleManager.getReservedFor(vehicle.vehicleManagerId.get).get,
+            personId = Option(personId),
             beamVehicle = Option(vehicle),
             triggerId = triggerId,
             searchMode = ParkingSearchMode.Init,
@@ -199,7 +217,7 @@ class HouseholdFleetManager(
             requireVehicleCategoryAvailable match {
               case Some(requiredType) if vehicles.values.exists(_.beamVehicleType.vehicleCategory == requiredType) =>
                 logger.warn(s"Emergency vehicle generation for type $requiredType failed")
-              case Some(requiredType) =>
+              case Some(_) =>
                 logger.debug(s"Ignoring vehicle request because it isn't for the right category")
               case None =>
             }
@@ -254,9 +272,15 @@ class HouseholdFleetManager(
 
       // Pipe my car through the parking manager
       // and complete initialization only when I got them all.
+      val reservedFor = VehicleManager.getReservedFor(vehicle.vehicleManagerId.get()).get
+      val activityType = if (reservedFor.managerType == VehicleManager.TypeEnum.Freight) {
+        ParkingActivityType.Freight.toString
+      } else {
+        ParkingActivityType.Wherever.toString
+      }
       val responseFuture = parkingManager ? ParkingInquiry.init(
         inquiry.whereWhen,
-        "wherever",
+        activityType,
         VehicleManager.getReservedFor(vehicle.vehicleManagerId.get()).get,
         Some(vehicle),
         triggerId = inquiry.triggerId,

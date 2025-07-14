@@ -54,34 +54,34 @@ class StudyAreaTripFilterTest extends AnyFunSuite with Matchers {
     numPass = 1,
     beamLeg = beamLeg,
     currentTripMode = None,
-    primaryFuelConsumed = 1.0,
-    secondaryFuelConsumed = 0.0,
-    endLegPrimaryFuelLevel = 1.0,
-    endLegSecondaryFuelLevel = 0.0,
+    primaryFuelConsumed = 1.0f,
+    secondaryFuelConsumed = 0.0f,
+    endLegPrimaryFuelLevel = 1.0f,
+    endLegSecondaryFuelLevel = 0.0f,
     amountPaid = 0,
-    payloadIds = IndexedSeq.empty,
-    weight = 0.0,
+    payloadIds = Array.empty,
+    weight = 0.0f,
     emissionsProfile = None,
-    riders = Vector.empty
+    riders = Array.empty
   )
 
   test("Should recognize that PTE is inside study area if both start and end are inside of study area") {
     val pteInsideStudyArea =
-      defaultPte.copy(startX = -97.763074, startY = 30.235920, endX = -97.687817, endY = 30.303643)
+      defaultPte.copy(startX = -97.763074f, startY = 30.235920f, endX = -97.687817f, endY = 30.303643f)
     studyAreaTripFilter.considerPathTraversal(pteInsideStudyArea) shouldBe true
   }
   test("Should recognize that PTE is outside of study area if only start is outside of study area") {
-    val pte = defaultPte.copy(startX = -97.792733, startY = 30.177015, endX = -97.687817, endY = 30.303643)
+    val pte = defaultPte.copy(startX = -97.792733f, startY = 30.177015f, endX = -97.687817f, endY = 30.303643f)
     studyAreaTripFilter.considerPathTraversal(pte) shouldBe false
   }
 
   test("Should recognize that PTE is outside of study area if only end is outside of study area") {
-    val pte = defaultPte.copy(startX = -97.763074, startY = 30.235920, endX = -97.661009, endY = 30.372633)
+    val pte = defaultPte.copy(startX = -97.763074f, startY = 30.235920f, endX = -97.661009f, endY = 30.372633f)
     studyAreaTripFilter.considerPathTraversal(pte) shouldBe false
   }
 
   test("Should recognize that PTE is outside of study area if both start and end are outside of study area") {
-    val pte = defaultPte.copy(startX = -97.792733, startY = 30.177015, endX = -97.661009, endY = 30.372633)
+    val pte = defaultPte.copy(startX = -97.792733f, startY = 30.177015f, endX = -97.661009f, endY = 30.372633f)
     studyAreaTripFilter.considerPathTraversal(pte) shouldBe false
   }
 }

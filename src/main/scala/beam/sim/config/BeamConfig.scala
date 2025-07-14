@@ -45,6 +45,7 @@ object BeamConfig {
       fractionOfPlansWithSingleActivity: scala.Double,
       h3taz: BeamConfig.Beam.Agentsim.H3taz,
       lastIteration: scala.Int,
+      lastTransitTrip: java.lang.String,
       populationAdjustment: java.lang.String,
       randomSeedForPopulationSampling: scala.Option[scala.Int],
       scenarios: BeamConfig.Beam.Agentsim.Scenarios,
@@ -618,6 +619,7 @@ object BeamConfig {
 
           case class MultinomialLogit(
             params: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MultinomialLogit.Params,
+            units: java.lang.String,
             utility_scale_factor: scala.Double
           )
 
@@ -633,6 +635,7 @@ object BeamConfig {
               ride_hail_pooled_intercept: scala.Double,
               ride_hail_subscription: scala.Double,
               ride_hail_transit_intercept: scala.Double,
+              time: scala.Double,
               transfer: scala.Double,
               transit_crowding: scala.Double,
               transit_crowding_VOT_multiplier: scala.Double,
@@ -665,6 +668,7 @@ object BeamConfig {
                   ride_hail_transit_intercept =
                     if (c.hasPathOrNull("ride_hail_transit_intercept")) c.getDouble("ride_hail_transit_intercept")
                     else 0.0,
+                  time = if (c.hasPathOrNull("time")) c.getDouble("time") else 0.022,
                   transfer = if (c.hasPathOrNull("transfer")) c.getDouble("transfer") else -1.4,
                   transit_crowding = if (c.hasPathOrNull("transit_crowding")) c.getDouble("transit_crowding") else 0.0,
                   transit_crowding_VOT_multiplier =
@@ -692,6 +696,7 @@ object BeamConfig {
                   if (c.hasPathOrNull("params")) c.getConfig("params")
                   else com.typesafe.config.ConfigFactory.parseString("params{}")
                 ),
+                units = if (c.hasPathOrNull("units")) c.getString("units") else "dollars",
                 utility_scale_factor =
                   if (c.hasPathOrNull("utility_scale_factor")) c.getDouble("utility_scale_factor") else 1.0
               )
@@ -2439,6 +2444,7 @@ object BeamConfig {
             else com.typesafe.config.ConfigFactory.parseString("h3taz{}")
           ),
           lastIteration = if (c.hasPathOrNull("lastIteration")) c.getInt("lastIteration") else 0,
+          lastTransitTrip = if (c.hasPathOrNull("lastTransitTrip")) c.getString("lastTransitTrip") else "28:00:00",
           populationAdjustment =
             if (c.hasPathOrNull("populationAdjustment")) c.getString("populationAdjustment") else "DEFAULT_ADJUSTMENT",
           randomSeedForPopulationSampling =
@@ -4256,7 +4262,8 @@ object BeamConfig {
       fractionOfIterationsToDisableInnovation: scala.Double,
       maxAgentPlanMemorySize: scala.Int,
       planSelectionBeta: scala.Double,
-      replanningPenaltyInDollars: scala.Double
+      replanningPenaltyInDollars: scala.Double,
+      subtractExpectedScores: scala.Boolean
     )
 
     object Replanning {
@@ -4300,7 +4307,8 @@ object BeamConfig {
             if (c.hasPathOrNull("maxAgentPlanMemorySize")) c.getInt("maxAgentPlanMemorySize") else 5,
           planSelectionBeta = if (c.hasPathOrNull("planSelectionBeta")) c.getDouble("planSelectionBeta") else 1.0,
           replanningPenaltyInDollars =
-            if (c.hasPathOrNull("replanningPenaltyInDollars")) c.getDouble("replanningPenaltyInDollars") else 100.0
+            if (c.hasPathOrNull("replanningPenaltyInDollars")) c.getDouble("replanningPenaltyInDollars") else 100.0,
+          subtractExpectedScores = !c.hasPathOrNull("subtractExpectedScores") || c.getBoolean("subtractExpectedScores")
         )
       }
     }

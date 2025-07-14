@@ -93,6 +93,38 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
     schedule.map(keyVal => s"${keyVal._1.toString} -> ${keyVal._2.toString}").mkString("--")
   }
 
+  /**
+    * Replace a specific leg in the schedule with a new one (typically with an updated start time)
+    * Finds the leg with matching path regardless of start time
+    *
+    * @param oldLeg The leg to find (may not match exactly on start time)
+    * @param newLeg The replacement leg
+    * @return Updated PassengerSchedule with the leg replaced
+    */
+  def replaceLegWithSamePath(oldLeg: BeamLeg, newLeg: BeamLeg): PassengerSchedule = {
+    // Try exact match first
+    if (schedule.contains(oldLeg)) {
+      val manifest = schedule(oldLeg)
+      new PassengerSchedule(schedule - oldLeg + (newLeg -> manifest))
+    } else {
+      // Try to find by matching mode, duration and path (ignoring start time)
+      val matchingLeg = schedule.keys.find { leg =>
+        leg.mode == oldLeg.mode &&
+        leg.duration == oldLeg.duration &&
+        BeamPath.compare(leg.travelPath, oldLeg.travelPath) == 0
+      }
+
+      matchingLeg match {
+        case Some(leg) =>
+          val manifest = schedule(leg)
+          new PassengerSchedule(schedule - leg + (newLeg -> manifest))
+        case None =>
+          // No matching leg found, return unchanged
+          this
+      }
+    }
+  }
+
 }
 
 //Specialized copy of Ordering.by[Tuple2] so we can control compare

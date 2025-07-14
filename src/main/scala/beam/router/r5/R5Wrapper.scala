@@ -507,11 +507,6 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       profileRequest.fromLat = from.getY
       profileRequest.toLon = to.getX
       profileRequest.toLat = to.getY
-      profileRequest.maxRides = vehicle.mode match {
-        case CAR | BIKE => 2
-        case WALK       => 3
-        case _          => 3
-      }
 
       val walkToVehicleDuration = maybeWalkToVehicle(vehicle).map(leg => leg.beamLeg.duration).getOrElse(0)
       profileRequest.fromTime = request.departureTime + walkToVehicleDuration
@@ -729,8 +724,6 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             )
         }
 
-      val transitPaths = latency("getpath-transit-time", Metrics.VerboseLevel) {
-        accessStopsByMode.flatMap { case (mode, stopVisitor) =>
           val modeSpecificBuffer = mode match {
             case LegMode.WALK         => beamConfig.beam.routing.r5.accessBufferTimeSeconds.walk
             case LegMode.BICYCLE      => beamConfig.beam.routing.r5.accessBufferTimeSeconds.bike
@@ -738,10 +731,6 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             case LegMode.CAR_PARK     => beamConfig.beam.routing.r5.accessBufferTimeSeconds.car
             case LegMode.CAR          => beamConfig.beam.routing.r5.accessBufferTimeSeconds.car
             case _                    => 0
-          }
-          profileRequest.maxRides = mode match {
-            case LegMode.WALK => 3
-            case _            => 2
           }
           profileRequest.fromTime = request.departureTime
           profileRequest.toTime = request.departureTime + modeSpecificBuffer + 61

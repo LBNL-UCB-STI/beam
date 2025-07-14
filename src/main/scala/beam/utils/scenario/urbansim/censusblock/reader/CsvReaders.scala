@@ -18,7 +18,8 @@ class CsvPersonReader(path: String) extends BaseCsvReader[InputPersonInfo](path)
         householdId = record.get("household_id"),
         age = record.get("age").toInt,
         sex = Sex.determineSex(record.get("sex").toInt),
-        industry = Option(record.get("industry"))
+        industry = Option(record.get("industry")),
+        valueOfTime = Option(record.get("value_of_time")).map(_.toDouble)
       )
     }
   }
@@ -40,7 +41,9 @@ class CsvPlanReader(path: String) extends BaseCsvReader[InputPlanElement](path) 
         ActivityType = Option(record.get("ActivityType")),
         x = Option(record.get("x")).map(_.toDouble),
         y = Option(record.get("y")).map(_.toDouble),
-        departureTime = Option(record.get("departure_time")).map(_.toDouble)
+        departureTime = Option(record.get("departure_time")).map(_.toDouble),
+        expectedDurationMinutes = Option(record.get("trip_dur_min")).map(_.toString.toDouble),
+        expectedCostDollars = Option(record.get("trip_cost_dollars")).map(_.toString.toDouble)
       )
     }
   }
@@ -54,7 +57,7 @@ class CsvHouseholdReader(path: String) extends BaseCsvReader[InputHousehold](pat
       InputHousehold(
         householdId = record.get("household_id"),
         cars = Try(record.get("cars").toInt).getOrElse(record.get("auto_ownership").toInt),
-        income = record.get("income").toInt,
+        income = Math.round(record.get("income").toFloat),
         blockId = record.get("block_id").toLong
       )
     }

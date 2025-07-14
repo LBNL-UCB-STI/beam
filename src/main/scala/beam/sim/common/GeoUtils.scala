@@ -96,7 +96,9 @@ trait GeoUtils extends ExponentialLazyLogging {
         distUTMInMeters(matsimUtmCoord, wgs2Utm(coordWGS))
       }
       val distUTM = distUTMInMeters(wgs2Utm(coordWGS), wgs2Utm(new v01.Coord(closest.wgsCoord.x, closest.wgsCoord.y)))
-      notExponentialLogger.warn(s"""Will return closest to the corner: $closest which is $distUTM meters far away""")
+      notExponentialLogger.warn(
+        s"""Will return closest to the corner: $closest which is $distUTM meters far away from request at $coordWGS"""
+      )
       closest.edgeIndex
     } else {
       theSplit.edge

@@ -21,7 +21,8 @@ class ParquetPersonReader(path: String) extends BaseParquetReader[InputPersonInf
       householdId = record.get("household_id").toString.split("\\.")(0),
       age = record.get("age").toString.toDouble.toInt,
       sex = Sex.determineSex(record.get("sex").toString.toDouble.toInt),
-      industry = industryField
+      industry = industryField,
+      valueOfTime = Try(record.get("value_of_time")).map(_.toString.toDouble).toOption // TODO: probably a better way
     )
   }
 }
@@ -36,11 +37,13 @@ class ParquetPlanReader(path: String) extends BaseParquetReader[InputPlanElement
       personId = personId,
       planElementIndex = record.get("PlanElementIndex").toString.toInt,
       activityElement = ActivityType.determineActivity(record.get("ActivityElement").toString),
-      tripMode = Option(record.get("trip_mode")).map(_.toString),
-      ActivityType = Option(record.get("ActivityType")).map(_.toString),
+      tripMode = Option(record.get("trip_mode")).map(_.toString).filterNot(_ == "nan"),
+      ActivityType = Option(record.get("ActivityType")).map(_.toString).filterNot(_ == "nan"),
       x = Option(record.get("x")).map(_.toString.toDouble),
       y = Option(record.get("y")).map(_.toString.toDouble),
-      departureTime = Option(record.get("departure_time")).map(_.toString.toDouble)
+      departureTime = Option(record.get("departure_time")).map(_.toString.toDouble),
+      expectedDurationMinutes = Option(record.get("trip_dur_min")).map(_.toString.toDouble),
+      expectedCostDollars = Option(record.get("trip_cost_dollars")).map(_.toString.toDouble)
     )
   }
 }

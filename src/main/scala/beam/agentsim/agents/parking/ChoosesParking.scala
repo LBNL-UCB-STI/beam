@@ -370,10 +370,19 @@ trait ChoosesParking extends {
 
   when(ChoosingParkingSpot) {
     case Event(ParkingInquiryResponse(stall, _, _), data) =>
+      val tick = _currentTick.getOrElse(0)
       val distanceThresholdToIgnoreWalking =
         beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
-      val nextLeg =
-        data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
+      val existingLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
+
+      val (startLegTriggerTick, nextLeg, fixedData) = if (existingLeg.startTime < tick) {
+        val rescheduledLeg = existingLeg.updateStartTime(tick)
+        val newSchedule = data.passengerSchedule.replaceLegWithSamePath(existingLeg, rescheduledLeg)
+        (tick, rescheduledLeg, data.asInstanceOf[BasePersonData].copy(passengerSchedule = newSchedule))
+      } else {
+        (existingLeg.startTime, existingLeg, data)
+      }
+
       currentBeamVehicle.setReservedParkingStall(Some(stall))
       val distance =
         beamServices.geo.distUTMInMeters(stall.locationUTM, beamServices.geo.wgs2Utm(nextLeg.travelPath.endPoint.loc))
@@ -382,15 +391,15 @@ trait ChoosesParking extends {
         val (_, triggerId) = releaseTickAndTriggerId()
         scheduler ! CompletionNotice(
           triggerId,
-          Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self))
+          Vector(ScheduleTrigger(StartLegTrigger(startLegTriggerTick, nextLeg), self))
         )
-        val updatedData = data match {
+        val updatedData = fixedData match {
           case data: BasePersonData => data.copy(enrouteData = EnrouteData())
-          case _                    => data
+          case _                    => fixedData
         }
         goto(WaitingToDrive) using updatedData
       } else {
-        val (updatedData, isEnrouting) = data match {
+        val (updatedData, isEnrouting) = fixedData match {
           case data: BasePersonData if data.enrouteData.isInEnrouteState =>
             val updatedEnrouteData =
               data.enrouteData.copy(hasReservedFastChargerStall =
@@ -398,7 +407,7 @@ trait ChoosesParking extends {
               )
             (data.copy(enrouteData = updatedEnrouteData), updatedEnrouteData.isEnrouting)
           case _ =>
-            (data, false)
+            (fixedData, false)
         }
         updatedData match {
           case data: BasePersonData if data.enrouteData.isInEnrouteState && !isEnrouting =>
@@ -406,7 +415,7 @@ trait ChoosesParking extends {
             val (tick, triggerId) = releaseTickAndTriggerId()
             scheduler ! CompletionNotice(
               triggerId,
-              Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self))
+              Vector(ScheduleTrigger(StartLegTrigger(startLegTriggerTick, nextLeg), self))
             )
             handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, beamServices, eventsManager)
             goto(WaitingToDrive) using data.copy(enrouteData = EnrouteData())

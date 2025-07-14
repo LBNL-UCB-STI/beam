@@ -56,6 +56,8 @@ case class PlanElement(
   legMode: Option[String],
   legDepartureTime: Option[String],
   legTravelTime: Option[String],
+  legExpectedTravelTime: Option[Double],
+  legExpectedCost: Option[Double],
   legRouteType: Option[String],
   legRouteStartLink: Option[String],
   legRouteEndLink: Option[String],

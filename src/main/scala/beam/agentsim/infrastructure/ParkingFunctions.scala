@@ -247,7 +247,8 @@ class ParkingFunctions(
         case Home  => Set(ParkingType.Residential)
         case Work  => Set(ParkingType.Workplace)
         case Depot => Set(ParkingType.Depot)
-        case _     => Set(ParkingType.Public)
+        case ParkingActivityType.Freight => Set(ParkingType.Depot)
+        case_     => Set(ParkingType.Public)
       }
     } else {
       inquiry.parkingActivityType match {
@@ -256,7 +257,8 @@ class ParkingFunctions(
         case Charge     => Set(ParkingType.Public)
         case Commercial => Set(ParkingType.Commercial)
         case Depot      => Set(ParkingType.Depot)
-        case _          => Set(ParkingType.Public)
+        case ParkingActivityType.Freight => Set(ParkingType.Commercial, ParkingType.Depot)
+        case_          => Set(ParkingType.Public)
       }
     }
   }
