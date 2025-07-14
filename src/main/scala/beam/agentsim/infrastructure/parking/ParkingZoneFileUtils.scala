@@ -5,7 +5,6 @@ import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles.{VehicleCategory, VehicleManager}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
-import beam.agentsim.infrastructure.power.SitePowerManager
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
@@ -59,7 +58,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     * @param maybeChargingPoint charging point type
     * @return a row describing infinite free parking at this TAZ
     */
-  def defaultParkingRow(
+  private def defaultParkingRow(
     geoId: Id[TAZ],
     parkingType: ParkingType,
     maybeChargingPoint: Option[ChargingPointType],
@@ -70,7 +69,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       parkingType.toString, // parkingType
       PricingModel.FlatFee(0).toString, // pricingModel
       maybeChargingPoint.map(_.toString).getOrElse("NoCharger"), // chargingPointType
-      ParkingZone.UbiqiutousParkingAvailability.toString, // numStalls
+      ParkingZone.UbiquitousParkingAvailability.toString, // numStalls
       "0", // feeInCents
       defaultReservedFor.toString, // reservedFor
       "", // timeRestrictions
@@ -413,7 +412,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       }
     }
 
-    // values look like Class456Vocational:00:00-14:00|Car:14:00-18:00|Bike:18:00-24:00
+    // values look like Class456Vocational|00:00-14:00;Car|14:00-18:00;Bike|18:00-24:00;
     Option(timeRestrictionsString)
       .getOrElse("")
       .split(';')
@@ -487,7 +486,6 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       val newCostInDollarsString = (feeInCents * parkingCostScalingFactor / 100.0).toString
       val reservedFor = validateReservedFor(reservedForString, beamConfig, defaultReservedFor)
       // parse this row from the source file
-      val taz = tazString.toUpperCase.createId[TAZ]
       val parkingType = ParkingType(parkingTypeString)
       val pricingModel = PricingModel(pricingModelString, newCostInDollarsString)
       val timeRestrictions = parseTimeRestrictions(timeRestrictionsString)
@@ -496,11 +494,18 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       val parkingZoneIdMaybe =
         if (isBlank(parkingZoneIdString)) Some(ParkingZone.createId(rowNumber.toString))
         else Some(ParkingZone.createId(parkingZoneIdString))
-      val linkMaybe = !isBlank(locationXString) && !isBlank(locationYString) match {
-        case true if beamServices.isDefined =>
-          val coord = new Coord(locationXString.toDouble, locationYString.toDouble)
+
+      val coordMaybe: Option[Coord] = for {
+        xLoc <- Option(locationXString).filterNot(isBlank)
+        yLoc <- Option(locationYString).filterNot(isBlank)
+        x    <- Try(xLoc.toDouble).toOption
+        y    <- Try(yLoc.toDouble).toOption
+      } yield new Coord(x, y)
+
+      val linkMaybe = coordMaybe match {
+        case Some(coord) if beamServices.isDefined =>
           Some(NetworkUtils.getNearestLink(beamServices.get.beamScenario.network, beamServices.get.geo.wgs2Utm(coord)))
-        case false if beamServices.isDefined && reservedFor.managerType == VehicleManager.TypeEnum.Household =>
+        case None if beamServices.isDefined && reservedFor.managerType == VehicleManager.TypeEnum.Household =>
           getHouseholdLocation(beamServices.get, reservedFor.managerId) map { homeCoord =>
             NetworkUtils.getNearestLink(
               beamServices.get.beamScenario.network,
@@ -509,6 +514,41 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
           }
         case _ => None
       }
+
+      val geoMap = beamServices.map(_.beamScenario.tazTreeMap)
+
+      val tazMaybe: Option[Id[TAZ]] = (Option(tazString), geoMap) match {
+        case (Some(tazId), _) =>
+          Some(tazId.toUpperCase.createId[TAZ])
+        case (None, Some(tazTreeMap)) =>
+          // Try to get TAZ from link
+          val tazFromLink = for {
+            link <- linkMaybe
+            taz  <- tazTreeMap.getTAZfromLink(link.getId)
+          } yield taz.tazId
+
+          // If that fails, try getting TAZ from coordinates
+          tazFromLink.orElse {
+            for {
+              bs    <- beamServices
+              coord <- coordMaybe
+              utmCoord = bs.geo.wgs2Utm(coord)
+              taz = tazTreeMap.getTAZ(utmCoord)
+            } yield taz.tazId
+          }
+        case _ => None
+      }
+
+      // Handle the taz result separately, with meaningful error messages if needed
+      val taz = tazMaybe.getOrElse {
+        if (geoMap.isEmpty)
+          throw new IllegalArgumentException("Missing tazTreeMap: cannot determine TAZ for parking zone")
+        else if (linkMaybe.isEmpty && coordMaybe.isEmpty)
+          throw new IllegalArgumentException("Missing location data: cannot determine TAZ for parking zone")
+        else
+          throw new IllegalArgumentException("Failed to determine TAZ for parking zone")
+      }
+
       val sitePowerManagerMaybe = if (isBlank(sitePowerManagerString)) None else Some(sitePowerManagerString)
       val energyStorageCapacityMaybe =
         if (isBlank(energyStorageCapacityString)) None else Some(energyStorageCapacityString.toDouble)
@@ -568,14 +608,34 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
   }
 
   private def validateCsvRow(csvRow: jMap): Boolean = {
-    val allRequiredPresented = Seq("taz", "parkingType", "pricingModel", "chargingPointType", "numStalls", "feeInCents")
+    // Check required fields are present and non-empty
+    val allRequiredPresented = Seq("parkingType", "pricingModel", "chargingPointType", "numStalls", "feeInCents")
       .forall(key => {
         val value = csvRow.get(key)
         value != null && value.nonEmpty
       })
-    allRequiredPresented &&
-    Try(csvRow.get("numStalls").toDouble).toOption.exists(_ >= 0) &&
-    Try(csvRow.get("feeInCents").toDouble).toOption.exists(_ >= 0)
+
+    // Check that either TAZ or both location coordinates are provided
+    val hasTaz = Option(csvRow.get("taz")).exists(_.nonEmpty)
+    val hasLocationX = Option(csvRow.get("locationX")).exists(_.nonEmpty)
+    val hasLocationY = Option(csvRow.get("locationY")).exists(_.nonEmpty)
+    val hasCoordinates = hasLocationX && hasLocationY
+
+    // Validate that at least one location identifier is present
+    val hasLocationIdentifier = hasTaz || hasCoordinates
+
+    // Validate numeric fields
+    val validNumericFields =
+      Try(csvRow.get("numStalls").toDouble).toOption.exists(_ >= 0) &&
+      Try(csvRow.get("feeInCents").toDouble).toOption.exists(_ >= 0)
+
+    // Coordinates must be valid numbers if provided
+    val validCoordinates = (!hasLocationX && !hasLocationY) ||
+      (hasCoordinates &&
+      Try(csvRow.get("locationX").toDouble).isSuccess &&
+      Try(csvRow.get("locationY").toDouble).isSuccess)
+
+    allRequiredPresented && hasLocationIdentifier && validNumericFields && validCoordinates
   }
 
   /**
@@ -720,17 +780,17 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
   def rideHailParkingOutputDataDescriptor: OutputDataDescriptor =
     OutputDataDescriptorObject("ParkingZoneFileUtils", s"ridehailParking.csv")(
       """
-      taz                         | Taz id where the parking zone resides                             
-      parkingType                 | Parking type: Residential, Workplace, Public                                      
-      pricingModel                | Pricing model                                        
-      chargingPointType           | Charging point type                                           
-      numStalls                   | Number of stalls                                   
-      feeInCents                  | Fee in cents                                     
-      reservedFor                 | Id of Vehicle Manager this zone is reserver for                                     
-      timeRestrictions            | Time restrictions for vehicle categories                                           
-      parkingZoneId               | Parking zone id                                       
-      locationX                   | X part of a concrete location of this parking zone (if defined)                                   
-      locationY                   | Y part of a concrete location of this parking zone (if defined)                                   
+      taz                         | Taz id where the parking zone resides
+      parkingType                 | Parking type: Residential, Workplace, Public
+      pricingModel                | Pricing model
+      chargingPointType           | Charging point type
+      numStalls                   | Number of stalls
+      feeInCents                  | Fee in cents
+      reservedFor                 | Id of Vehicle Manager this zone is reserver for
+      timeRestrictions            | Time restrictions for vehicle categories
+      parkingZoneId               | Parking zone id
+      locationX                   | X part of a concrete location of this parking zone (if defined)
+      locationY                   | Y part of a concrete location of this parking zone (if defined)
       sitePowerManager            | Site power manager
       energyStorageCapacityInKWh  | Energy storage capacity in KWh
       energyStorageSOC            | Energy storage state of charge

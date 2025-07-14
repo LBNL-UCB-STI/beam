@@ -5,10 +5,8 @@ import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.infrastructure.HierarchicalParkingManager._
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.ParkingZone.UbiqiutousParkingAvailability
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
-import beam.router.BeamRouter.Location
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.matsim_conversion.ShapeUtils
@@ -66,17 +64,10 @@ class HierarchicalParkingManager(
     )
   )
 
-  val DefaultParkingZone: ParkingZone =
-    ParkingZone.defaultInit(
-      TAZ.DefaultTAZId,
-      ParkingType.Public,
-      UbiqiutousParkingAvailability
-    )
-
   /**
     * For each TAZ it contains a Map: ParkingZoneDescription -> ParkingZoneTreeMap
     */
-  protected val tazSearchMap: Map[Id[TAZ], Map[ParkingZoneDescription, QuadTree[ParkingZone]]] =
+  private val tazSearchMap: Map[Id[TAZ], Map[ParkingZoneDescription, QuadTree[ParkingZone]]] =
     createDescriptionToZonesMapForEachTaz(parkingZones, tazMap.idToTAZMapping)
 
   if (checkThatNumberOfStallsMatch) {
@@ -103,7 +94,7 @@ class HierarchicalParkingManager(
       searchFunctions.get.searchForParkingStall(inquiry)
 
     val (parkingStall: ParkingStall, parkingZone: ParkingZone) =
-      if (TAZ.isSpecialTazId(tazParkingStall.tazId)) tazParkingStall -> DefaultParkingZone
+      if (TAZ.isSpecialTazId(tazParkingStall.tazId)) tazParkingStall -> ParkingZone.DefaultParkingZone
       else {
         val descriptionToZone = tazSearchMap(tazParkingZone.tazId)
         findAppropriateLinkParkingZoneWithinTaz(tazParkingZone, descriptionToZone, inquiry.destinationUtm.loc) match {
@@ -118,7 +109,8 @@ class HierarchicalParkingManager(
               "Cannot find link parking parking zone for taz zone {}. Parallel changing of stallsAvailable?",
               tazParkingZone
             )
-            lastResortStallAndZone(inquiry.destinationUtm.loc)
+            val (newStall, _) = ParkingStall.lastResortStall(inquiry.destinationUtm.loc, new Random(seed))
+            newStall
         }
       }
 
@@ -171,7 +163,7 @@ class HierarchicalParkingManager(
     */
   override def processReleaseParkingStall(release: ReleaseParkingStall): Boolean = {
     val parkingZoneId = release.stall.parkingZoneId
-    if (parkingZoneId == ParkingZone.DefaultParkingZoneId) {
+    if (parkingZoneId == ParkingZone.DefaultParkingZone.parkingZoneId) {
       // this is an infinitely available resource; no update required
       logger.debug("Releasing a stall in the default/emergency zone")
       true
@@ -238,7 +230,7 @@ object HierarchicalParkingManager {
     timeRestrictions: Map[VehicleCategory, Range]
   )
 
-  object ParkingZoneDescription {
+  private object ParkingZoneDescription {
 
     def describeParkingZone(zone: ParkingZone): ParkingZoneDescription = {
       new ParkingZoneDescription(

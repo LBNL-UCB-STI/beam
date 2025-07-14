@@ -310,18 +310,6 @@ class BeamPlan extends Plan {
     }
   }
 
-  def lastTripOfCurrentTour(idx: Int): Boolean = {
-    if (idx <= 1) {
-      false
-    } else if (idx + 2 < activities.size) {
-      val nextTrip = getTourContaining(idx + 2)
-      val currentTrip = getTourContaining(idx + 1)
-      (nextTrip.tourId != currentTrip.tourId)
-    } else {
-      true
-    }
-  }
-
   def tourIndexOfElement(planElement: PlanElement): Int = {
     (for (tour <- tours.zipWithIndex if tour._1 == getTourContaining(planElement))
       yield tour._2).head

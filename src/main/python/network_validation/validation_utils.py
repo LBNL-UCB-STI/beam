@@ -1,11 +1,18 @@
+import json
+import os
 import time
+import zipfile
+from urllib.request import urlretrieve
 
+import contextily as ctx
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
+import osmnx as ox
 import pandas as pd
 import pyarrow.csv as pv
-import os
+import requests
+import seaborn as sns
 
 plt.style.use('ggplot')
 meter_to_mile = 0.000621371
@@ -20,20 +27,18 @@ fsystem_to_roadclass_lookup = {1.0: 'Interstate',
                                7.0: 'Local'}
 roadclass_to_fsystem_lookup = {value: key for key, value in fsystem_to_roadclass_lookup.items()}
 beam_to_roadclass_lookup = {'motorway': fsystem_to_roadclass_lookup[1.0],
-                            'motorway_link': fsystem_to_roadclass_lookup[2.0],
+                            'motorway_link': fsystem_to_roadclass_lookup[2.0],  # Links connect to lower classes
                             'trunk': fsystem_to_roadclass_lookup[2.0],
-                            'trunk_link': fsystem_to_roadclass_lookup[2.0],
+                            'trunk_link': fsystem_to_roadclass_lookup[3.0],     # One class down
                             'primary': fsystem_to_roadclass_lookup[3.0],
-                            'primary_link': fsystem_to_roadclass_lookup[4.0],
+                            'primary_link': fsystem_to_roadclass_lookup[4.0],   # One class down
                             'secondary': fsystem_to_roadclass_lookup[4.0],
-                            'secondary_link': fsystem_to_roadclass_lookup[5.0],
+                            'secondary_link': fsystem_to_roadclass_lookup[5.0], # One class down
                             'tertiary': fsystem_to_roadclass_lookup[5.0],
-                            'tertiary_link': fsystem_to_roadclass_lookup[6.0],
+                            'tertiary_link': fsystem_to_roadclass_lookup[6.0],  # One class down
                             'unclassified': fsystem_to_roadclass_lookup[6.0],
-                            'residential': fsystem_to_roadclass_lookup[7.0],
-                            'living_street': fsystem_to_roadclass_lookup[7.0],
-                            'road': fsystem_to_roadclass_lookup[7.0],
-                            np.nan: fsystem_to_roadclass_lookup[7.0]}
+                            'residential': fsystem_to_roadclass_lookup[7.0]
+                           }
 state_fips_to_code = {
     '01': 'AL', '02': 'AK', '04': 'AZ', '05': 'AR', '06': 'CA',
     '08': 'CO', '09': 'CT', '10': 'DE', '11': 'DC', '12': 'FL',
@@ -91,7 +96,6 @@ def agg_npmrds_to_hourly_speed(npmrds_data, observed_speed_weight):
 
 
 def process_and_extend_link_stats(model_network, link_stats, assume_daylight_savings):
-
     dfs = []
     for link_stat in link_stats:
         df = pv.read_csv(link_stat.file_path).to_pandas()
@@ -199,7 +203,8 @@ def process_regional_npmrds_station(region_boundary, npmrds_geo_file, npmrds_sce
     print(">> Select TMC within region boundaries")
     regional_npmrds_station_out = gpd.overlay(npmrds_station_proj, region_boundary, how='intersection')
     regional_npmrds_station_out['scenario'] = npmrds_scenario_label
-    regional_npmrds_station_out.loc[:, 'road_class'] = regional_npmrds_station_out.loc[:, 'F_System'].map(fsystem_to_roadclass_lookup)
+    regional_npmrds_station_out.loc[:, 'road_class'] = regional_npmrds_station_out.loc[:, 'F_System'].map(
+        fsystem_to_roadclass_lookup)
     regional_npmrds_station_out.rename(columns={'Tmc': 'tmc'}, inplace=True)
     return regional_npmrds_station_out
 
@@ -261,127 +266,238 @@ def run_hourly_speed_mapping_by_road_class(npmrds_hourly_link_speed, link_stats)
     return pd.concat([beam_hourly_speed, npmrds_hourly_speed], axis=0)
 
 
-def download_taz_shapefile(state_fips_code, year, output_dir):
-    import requests
+def download_nhts_data(nhts_output_file, area_name, state_fips_code=None,
+                       cbsa_codes=None, year=2017, download=True, extract=True, process=True):
     """
-    Download TAZ shapefiles for a given state-level FIPS code.
+    Download, extract, and process NHTS data with filtering by state FIPS code
+    and/or CBSA codes.
+    Stores filtered data under directory with area name: data_nhts_dir/area_name/
 
     Parameters:
-    - fips_code: String or integer representing the state-level FIPS code.
-    - output_dir: Directory to save the downloaded ZIP file.
+    - nhts_output_file: Path to save the downloaded NHTS zip file
+    - area_name: Name of the area for organizing filtered data
+    - state_fips_code: String representing the state FIPS code (e.g., '06' for California)
+    - cbsa_codes: List of CBSA codes (e.g., [41860] for San Francisco-Oakland-Hayward, CA)
+    - year: NHTS survey year (default: 2017)
+    - download: Boolean to control if download should occur
+    - extract: Boolean to control if extraction should occur
+    - process: Boolean to control if processing should occur
+
+    Returns:
+    - Dictionary of filtered DataFrames
     """
-    # Ensure the FIPS code is a string, padded to 2 characters
-    fips_code_str = str(state_fips_code).zfill(2)
-
-    # Construct the download URL
-    base_url = f"https://www2.census.gov/geo/tiger/TIGER2010/TAZ/2010/"
-    filename = f"tl_{year}_{fips_code_str}_taz10.zip"
-    download_url = base_url + filename
-
-    # Make the output directory if it doesn't exist
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    # Full path for saving the file
-    output_path = os.path.join(output_dir, filename)
-
-    # Start the download
-    print(f"Downloading TAZ shapefile for FIPS code {state_fips_code} from {download_url}")
-    try:
-        response = requests.get(download_url)
-        response.raise_for_status()  # This will check for errors
-
-        # Write the content of the response to a ZIP file
-        with open(output_path, 'wb') as file:
-            file.write(response.content)
-
-        print(f"File saved to {output_path}")
-
-    except requests.RequestException as e:
-        print(f"Error downloading the file: {e}")
-
-    return output_path
-
-
-def collect_taz_boundaries(state_fips_code, year, output_dir):
-    from zipfile import ZipFile
-    state_geo_zip = output_dir + f"/tl_{year}_{state_fips_code}_taz10.zip"
-    if not os.path.exists(state_geo_zip):
-        state_geo_zip = download_taz_shapefile(state_fips_code, year, output_dir)
-    """
-    Read a shapefile from a ZIP archive, filter geometries by county FIPS codes,
-    and write the result to a GeoJSON file.
-
-    Parameters:
-    - zip_file_path: Path to the ZIP file containing the shapefile.
-    - county_fips_codes: List of county FIPS codes to filter by.
-    - output_geojson_path: Path to save the filtered data as a GeoJSON file.
-    """
-    # Extract the shapefile from the ZIP archive
-    with ZipFile(state_geo_zip, 'r') as zip_ref:
-        # Extract all files to a temporary directory
-        temp_dir = "temp_shp"
-        zip_ref.extractall(temp_dir)
-
-        # Find the .shp file in the extracted files
-        shapefile_name = [f for f in os.listdir(temp_dir) if f.endswith('.shp')][0]
-        shapefile_path = os.path.join(temp_dir, shapefile_name)
-
-        # Read the shapefile into a GeoDataFrame
-        gdf = gpd.read_file(shapefile_path)
-
-        # Clean up the temporary directory
-        for filename in os.listdir(temp_dir):
-            os.remove(os.path.join(temp_dir, filename))
-        os.rmdir(temp_dir)
-
-        return gdf
-
-
-def collect_geographic_boundaries(state_fips_code, county_fips_codes, year, study_area_geo_path, projected_coordinate_system, geo_level):
-    from pygris import counties, block_groups
-
-    if geo_level == 'county':
-        # Define fips code for selected counties
-        geo_data = counties(state=state_fips_code, year=year, cb=True, cache=True)
-    elif geo_level == 'cbg':
-        # Define fips code for selected counties
-        geo_data = block_groups(state=state_fips_code, year=year, cb=True, cache=True)
-    elif geo_level == 'taz':
-        geo_data = collect_taz_boundaries(state_fips_code, year, os.path.dirname(study_area_geo_path))
+    # Set URL based on year
+    if year >= 2016:
+        url = "https://nhts.ornl.gov/assets/2016/download/csv.zip"
     else:
-        raise ValueError("Unsupported geographic level. Choose 'counties' or 'cbgs'.")
+        print(f"Error: NHTS data for year {year} is not supported.")
+        return None
 
-    countyfp_columns = [col for col in geo_data.columns if col.startswith('COUNTYFP')]
-    mask = geo_data[countyfp_columns].apply(lambda x: x.isin(county_fips_codes)).any(axis=1)
-    selected_geo = geo_data[mask]
+    data_nhts_dir = os.path.dirname(nhts_output_file)
 
-    # def string_to_double(s):
-    #     return float(s if s != "" else "0")
-    #
-    # # Prepare columns and mask
-    # aland_columns = [col for col in selected_geo.columns if col.startswith('ALAND')]
-    # awater_columns = [col for col in selected_geo.columns if col.startswith('AWATER')]
-    # for col in aland_columns + awater_columns:
-    #     selected_geo.loc[:, col] = selected_geo[col].apply(string_to_double)
-    # mask = pd.Series([False] * len(selected_geo), index=selected_geo.index)
-    #
-    # for aland_col, awater_col in zip(aland_columns, awater_columns):
-    #     # AWATER should not be more than three times ALAND
-    #     mask |= (selected_geo[aland_col] > 0) & (selected_geo[awater_col] < 3 * selected_geo[aland_col])
-    #
-    # # Apply the mask to filter selected_geo
-    # selected_geo = selected_geo[mask]
+    # Create area-specific directory
+    area_dir = os.path.join(data_nhts_dir, area_name)
+    os.makedirs(area_dir, exist_ok=True)
+    print(f"Created directory for area: {area_dir}")
 
-    base_name, extension = os.path.splitext(study_area_geo_path)
+    # Create a filter description for file naming
+    filter_desc = ""
+    if state_fips_code:
+        filter_desc += f"fips_{state_fips_code}"
+    if cbsa_codes:
+        filter_desc += f"_cbsa_{'_'.join(map(str, cbsa_codes))}"
 
-    study_area_geo_projected_path = base_name+"_epsg"+str(projected_coordinate_system)+extension
-    selected_geo.to_crs(epsg=projected_coordinate_system).to_file(study_area_geo_projected_path, driver="GeoJSON")
+    # Save filter information to a JSON file for reference
+    filter_info = {
+        "area_name": area_name,
+        "state_fips_code": state_fips_code,
+        "cbsa_codes": cbsa_codes,
+        "year": year,
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+    }
 
-    selected_geo_wgs84 = selected_geo.to_crs(epsg=4326)
-    selected_geo_wgs84.to_file(base_name+"_wgs84"+extension, driver="GeoJSON")
-    return selected_geo_wgs84
+    with open(os.path.join(area_dir, "filter_info.json"), "w") as f:
+        json.dump(filter_info, f, indent=2)
 
+    # Check if the file already exists
+    if os.path.exists(nhts_output_file):
+        file_size = os.path.getsize(nhts_output_file) / (1024 * 1024)  # Size in MB
+        print(f"File {nhts_output_file} already exists ({file_size:.1f} MB). Skipping download.")
+    else:
+        print(f"Downloading NHTS {year} data...")
+        # Download the file with progress reporting
+        response = requests.get(url, stream=True)
+        if response.status_code == 200:
+            total_size = int(response.headers.get('content-length', 0))
+            downloaded = 0
+            start_time = time.time()
+
+            with open(nhts_output_file, "wb") as file:
+                for chunk in response.iter_content(chunk_size=1024 * 1024):  # 1MB chunks
+                    if chunk:
+                        file.write(chunk)
+                        downloaded += len(chunk)
+
+                        # Calculate and display progress
+                        percent = int(100 * downloaded / total_size) if total_size > 0 else 0
+                        elapsed = time.time() - start_time
+                        rate = downloaded / (1024 * 1024 * elapsed) if elapsed > 0 else 0
+
+                        print(
+                            f"\rDownloading: {percent}% ({downloaded / (1024 * 1024):.1f}MB of {total_size / (1024 * 1024):.1f}MB) at {rate:.1f} MB/s",
+                            end="")
+
+            print(f"\nDownloaded {nhts_output_file}")
+        else:
+            print(f"Failed to download. Status code: {response.status_code}")
+            print(f"Response: {response.text[:500]}...")
+            return None
+
+    # Create a temporary directory for extraction
+    temp_extract_dir = os.path.join(data_nhts_dir, "temp_extract")
+    os.makedirs(temp_extract_dir, exist_ok=True)
+
+    # Check if data has already been extracted to temp directory
+    extracted_files_exist = os.path.exists(f"{temp_extract_dir}/hhpub.csv") or os.path.exists(
+        f"{temp_extract_dir}/trippub.csv")
+
+    if not extracted_files_exist and extract:
+        # Extract the downloaded ZIP file to temp directory
+        print("\nExtracting files to temporary directory...")
+        try:
+            with zipfile.ZipFile(nhts_output_file, "r") as zip_ref:
+                zip_ref.extractall(temp_extract_dir)
+            print("Files extracted successfully")
+        except zipfile.BadZipFile:
+            print("Error: The downloaded file is not a valid ZIP file.")
+            print("The file may be corrupted. Please try downloading again.")
+            return None
+        except Exception as e:
+            print(f"Error extracting files: {str(e)}")
+            return None
+    elif extract:
+        extract_again = input("Data files already exist in temp directory. Extract again? (y/n): ").lower() == 'y'
+        if extract_again:
+            print("\nExtracting files to temporary directory...")
+            try:
+                with zipfile.ZipFile(nhts_output_file, "r") as zip_ref:
+                    zip_ref.extractall(temp_extract_dir)
+                print("Files extracted successfully")
+            except Exception as e:
+                print(f"Error extracting files: {str(e)}")
+                return None
+        else:
+            print("Skipping extraction.")
+    else:
+        print("Skipping extraction.")
+
+    # List the extracted files
+    files = os.listdir(temp_extract_dir)
+    print(f"\nFiles in temporary extraction directory: {len(files)} files")
+
+    # Process key datasets with focus on filtered areas
+    datasets = {
+        "Households": "hhpub.csv",
+        "Persons": "perpub.csv",
+        "Trips": "trippub.csv",
+        "Vehicles": "vehpub.csv"
+    }
+
+    filtered_dfs = {}
+
+    if not process:
+        print("Skipping data processing as requested.")
+        return None
+
+    for dataset_name, filename in datasets.items():
+        # Define output path in the area-specific directory
+        area_output_file = os.path.join(area_dir, filename)
+
+        # Check if filtered file already exists in area directory
+        if os.path.exists(area_output_file):
+            process_this = input(
+                f"Filtered {dataset_name} data already exists in {area_name} directory. Process again? (y/n): ").lower() == 'y'
+            if not process_this:
+                filtered_dfs[dataset_name] = pd.read_csv(area_output_file)
+                print(f"Loaded existing filtered {dataset_name} data from {area_name} directory.")
+                continue
+
+        if filename in files:
+            print(f"\nProcessing {dataset_name} dataset...")
+            file_path = os.path.join(temp_extract_dir, filename)
+
+            # Load the CSV file
+            df = pd.read_csv(file_path)
+            print(f"Total records: {len(df)}")
+
+            # Apply filters
+            filtered_df = df.copy()
+
+            # Find columns for filtering
+            # 1. Find any column containing the word "FIPS" for state FIPS
+            state_fips_column = None
+            state_fips_columns = [col for col in df.columns if 'STFIPS' in col or ('FIPS' in col and 'ST' in col)]
+
+            if state_fips_columns:
+                state_fips_column = state_fips_columns[0]
+                print(f"Found state FIPS column: {state_fips_column}")
+
+            # 2. Find any column containing CBSA
+            cbsa_column = None
+            cbsa_columns = [col for col in df.columns if 'CBSA' in col]
+
+            if cbsa_columns:
+                cbsa_column = cbsa_columns[0]
+                print(f"Found CBSA column: {cbsa_column}")
+
+            # Apply filtering based on available columns and parameters
+            filter_applied = False
+
+            # 1. Filter by CBSA if provided and column exists
+            if cbsa_codes and cbsa_column and cbsa_column in df.columns:
+                filtered_df = filtered_df[filtered_df[cbsa_column].isin(cbsa_codes)]
+                print(f"Records after CBSA filter: {len(filtered_df)}")
+                filter_applied = True
+
+            # 2. Filter by state FIPS if provided and column exists
+            if state_fips_code and state_fips_column and state_fips_column in df.columns:
+                # Convert to integer for comparison if the column is numeric
+                if pd.api.types.is_numeric_dtype(filtered_df[state_fips_column]):
+                    filtered_df = filtered_df[filtered_df[state_fips_column] == int(state_fips_code)]
+                else:
+                    # Otherwise treat as string
+                    filtered_df[state_fips_column] = filtered_df[state_fips_column].astype(str)
+                    filtered_df = filtered_df[filtered_df[state_fips_column] == state_fips_code]
+                print(f"Records after state FIPS filter: {len(filtered_df)}")
+                filter_applied = True
+
+            if not filter_applied:
+                print("Warning: No filters applied. No matching columns found for the provided filter criteria.")
+                print(f"Available columns: {', '.join(df.columns[:10])}...")
+
+            # Save filtered data to area-specific directory
+            filtered_df.to_csv(area_output_file, index=False)
+            print(f"Filtered data saved to {area_output_file}")
+
+            # Store in dictionary
+            filtered_dfs[dataset_name] = filtered_df
+
+            # Display sample data
+            print("\nSample data (first 3 rows):")
+            print(filtered_df.head(3))
+
+            # Display column information
+            print(f"\nNumber of columns: {len(filtered_df.columns)}")
+            print(f"Sample columns: {filtered_df.columns[:5].tolist()}")
+        else:
+            print(f"\nWarning: {filename} not found in extracted files")
+
+    # Optionally clean up temporary extraction directory
+    print("Cleaning up temporary extraction directory")
+    import shutil
+    shutil.rmtree(temp_extract_dir)
+    print(f"Removed temporary directory: {temp_extract_dir}")
+    return filtered_dfs
 
 def map_cbg_to_taz(cbg_gdf, cbg_id_col, taz_gdf, taz_id_col, projected_coordinate_system, cbg_taz_map_csv):
     print(f"Mapping CBG to TAZ geometries")
@@ -429,7 +545,6 @@ def prepare_npmrds_data(
         # output
         npmrds_station_geo, npmrds_data_csv, npmrds_hourly_speed_csv, npmrds_hourly_speed_by_road_class_csv,
         beam_network_car_links_geo, beam_npmrds_network_map_geo):
-
     if os.path.exists(npmrds_station_geo):
         print(f"Reading {npmrds_station_geo}")
         regional_npmrds_station = gpd.read_file(npmrds_station_geo)
@@ -443,7 +558,8 @@ def prepare_npmrds_data(
         regional_npmrds_data = pv.read_csv(npmrds_data_csv).to_pandas()
     else:
         print("Process NPMRDS data")
-        regional_npmrds_data = process_regional_npmrds_data(npmrds_raw_data_csv, npmrds_label, regional_npmrds_station['tmc'].unique())
+        regional_npmrds_data = process_regional_npmrds_data(npmrds_raw_data_csv, npmrds_label,
+                                                            regional_npmrds_station['tmc'].unique())
         regional_npmrds_data.to_csv(npmrds_data_csv, index=False)
 
     if os.path.exists(npmrds_hourly_speed_csv):
@@ -496,7 +612,8 @@ class LinkStats:
 
 
 class SpeedValidationSetup:
-    def __init__(self, npmrds_hourly_speed_csv, npmrds_hourly_speed_by_road_class_csv, beam_network_mapped_to_npmrds_geo):
+    def __init__(self, npmrds_hourly_speed_csv, npmrds_hourly_speed_by_road_class_csv,
+                 beam_network_mapped_to_npmrds_geo):
         st = time.time()
         print("Loading data ...")
         self.npmrds_hourly_speed = pv.read_csv(npmrds_hourly_speed_csv).to_pandas()
@@ -654,5 +771,306 @@ class SpeedValidationSetup:
         save_filtered_data(speed_param, "min_speed_all_roads")
 
 
+def plot(G, name):
+    fig, ax = ox.plot.plot_graph(
+        G,
+        bgcolor="#FFFFFF",  # Light background
+        #         node_color="#00FFAA",      # Bright teal nodes
+        node_color="#333333",  # Bright teal nodes
+        node_size=0.02,
+        node_edgecolor='none',  # Node size  2.5
+        #         node_alpha=0.8,            # Node transparency
+        #         node_edgecolor="#333333",  # Dark edges around nodes
+        node_zorder=3,  # Nodes above edges
+        edge_color="#FF5A5F",  # Bright coral edges
+        edge_linewidth=0.2,  # Edge thickness 0.5
+        edge_alpha=0.8,  # Edge transparency
+        show=False,  # Do not display immediately
+        close=False  # Keep the plot open for saving
+    )
+
+    ctx.add_basemap(ax, source=ctx.providers.CartoDB.Positron, zoom=20)
+
+    # 3. Calculate statistics
+    num_nodes = len(G.nodes)
+    num_edges = len(G.edges)
+    # Total length in meters
+    total_length = sum(data.get('length', 0) for u, v, key, data in G.edges(keys=True, data=True))
+
+    # 4. Add title with statistics
+    title = (
+        f"Nodes: {num_nodes} | Edges: {num_edges} | Total Length: {total_length / 1000:.2f} km"
+    )
+    ax.set_title(title, fontsize=15, fontweight='bold', color='black', pad=20)
+
+    # 5. Save the figure with 600 DPI
+    fig.savefig(f'{name}', dpi=600, bbox_inches='tight')
 
 
+def download_h5_data(url: str, output_path: str) -> str:
+    """
+    Download H5 data file if it doesn't exist locally and explore its structure.
+
+    Parameters:
+    -----------
+    url : str
+        URL to download the H5 file from
+    output_path : str
+        Local path to save the downloaded file
+
+    Returns:
+    --------
+    str
+        Path to the H5 file
+    """
+    import h5py
+    # Check if file exists locally first
+    if not os.path.exists(output_path):
+        print(f"\nDownloading H5 data from {url}...")
+        urlretrieve(url, output_path)
+        print("✓ H5 data downloaded")
+    else:
+        print("\nUsing existing H5 data file")
+
+    # Explore H5 file structure
+    print("\nExploring H5 file structure...")
+
+    def print_structure(name, obj):
+        """Helper function to print H5 structure"""
+        if isinstance(obj, h5py.Dataset):
+            try:
+                shape = obj.shape
+                dtype = obj.dtype
+                print(f"Dataset: {name}")
+                print(f"  Shape: {shape}")
+                print(f"  Type: {dtype}")
+
+                # Print first few items for small datasets or sample for large ones
+                if len(obj.shape) > 0:
+                    if obj.shape[0] > 0:
+                        sample_size = min(3, obj.shape[0])
+                        print("  Sample data:")
+                        print(obj[:sample_size])
+            except Exception as e:
+                print(f"  Error reading dataset: {e}")
+        else:
+            print(f"Group: {name}")
+
+    with h5py.File(output_path, 'r') as f:
+        print("\nFile structure:")
+        print("==============")
+        f.visititems(print_structure)
+
+        # List all root level groups/datasets
+        print("\nRoot level items:")
+        for key in f.keys():
+            print(f"- {key}")
+
+    return output_path
+
+####################################################################################################
+####################################################################################################
+########################################## VMT Validation ##########################################
+####################################################################################################
+####################################################################################################
+
+def read_events(event_file, veh_types_file, batch, scenario):
+    events = pd.read_csv(event_file)
+    events['batch'] = batch
+    events['scenario'] = scenario
+    # Merge with vehicle types
+    veh_types = pd.read_csv(veh_types_file)
+    events_veh_types = events.merge(
+        veh_types[['vehicleTypeId', 'vehicleCategory', 'primaryFuelType', 'secondaryFuelType']],
+        left_on='vehicleType',
+        right_on='vehicleTypeId'
+    )
+    return events_veh_types
+
+
+def get_ft_path_traversals(_events):
+    columns = ['time', 'type', 'vehicleType', 'vehicle', 'secondaryFuelLevel',
+               'primaryFuelLevel', 'driver', 'mode', 'seatingCapacity', 'startX',
+               'startY', 'endX', 'endY', 'capacity', 'arrivalTime', 'departureTime',
+               'secondaryFuel', 'secondaryFuelType', 'primaryFuelType',
+               'numPassengers', 'length', 'primaryFuel', 'runName', 'runLabel']
+
+    # Filter path traversals
+    pt = _events[_events['type'] == 'PathTraversal'].copy()
+    pt = pt[pt['vehicle'].str.startswith('freight', na=False)]
+    pt = pt[columns]
+
+    if pt[pt['vehicle'].str.contains('-emergency-', na=False)].shape[0] > 0:
+        print("This is a bug")
+
+    # Set energy type and codes
+    pt.loc[pt['vehicleType'].str.contains('E-PHEV', case=False, na=False), 'energyType'] = 'Electric'
+    pt.loc[pt['vehicleType'].str.contains('E-PHEV', case=False, na=False), 'energyTypeCode'] = 'PHEV'
+    pt.loc[pt['vehicleType'].str.contains('H2FC', case=False, na=False), 'energyType'] = 'Hydrogen'
+    pt.loc[pt['vehicleType'].str.contains('H2FC', case=False, na=False), 'energyTypeCode'] = 'H2FC'
+
+    # Set vehicle categories
+    pt['vehicleCategory'] = 'Class 4-6 Vocational'
+    pt.loc[pt['vehicleType'].str.contains('-hdt-', na=False), 'vehicleCategory'] = 'Class 7&8 Tractor'
+    pt.loc[pt['vehicleType'].str.contains('-hdv-', na=False), 'vehicleCategory'] = 'Class 7&8 Vocational'
+
+    # Set business type
+    pt['business'] = 'B2B'
+    pt.loc[pt['vehicle'].str.startswith('freightVehicle-b2c-', na=False), 'business'] = 'B2C'
+
+    print("PT formatted")
+    return pt
+
+
+def average_speed_vector(distances, speeds):
+    """Calculate average speed for vectors of distances and speeds"""
+    if any(speed == 0 for speed in speeds):
+        raise ValueError("Speeds must be non-zero.")
+
+    total_distance = sum(distances)
+    total_time = sum(d / s for d, s in zip(distances, speeds))
+
+    return total_distance / total_time
+
+
+def process_ft_path_traversals(_runs, _batch, _output_dir, _expansion_factor):
+    # Calculate summary statistics
+    runs_summary = _runs[_runs["batch"] == _batch].groupby(
+        ['energyTypeCode', 'vehicleClass', 'business', 'batch', 'scenario']
+    ).agg({
+        'length': lambda x: _expansion_factor * sum(x / 1609.344) / 1e6,  # MVMT
+        'primaryFuel': lambda x: _expansion_factor * sum(x / 3.6e12)  # GWH
+    }).reset_index()
+
+    runs_summary.columns = ['energyTypeCode', 'vehicleClass', 'business', 'runLabel', 'MVMT', 'GWH']
+
+    # Create energy and vehicles types column
+    runs_summary['energyAndVehiclesTypes'] = runs_summary['energyTypeCode'] + ' ' + runs_summary['vehicleClass']
+
+    # Convert to categorical with specified order
+    runs_summary['energyAndVehiclesTypes'] = pd.Categorical(
+        runs_summary['energyAndVehiclesTypes'],
+        categories=[
+            "Diesel Class 4-6 Vocational",
+            "Diesel Class 7&8 Vocational",
+            "Diesel Class 7&8 Tractor",
+            "BEV Class 7&8 Vocational"
+        ]
+    )
+
+    # Save summary to CSV
+    runs_summary.to_csv(
+        os.path.join(_output_dir, f"{_batch}_VMT-and-GWH-by-powertrain-class.csv"),
+        index=False
+    )
+
+    plot_results(runs_summary,
+                 validation,
+                 ["azure3", "darkgray", "azure4", "deepskyblue2"],
+                 _output_dir,
+                 _batch)
+
+    return runs_summary
+
+
+def read_vmt_frm_hpms(hpms_geo_file, study_area_geoid):
+    # Read and process HPMS data
+    link_aadt = gpd.read_file(hpms_geo_file)
+    link_aadt = link_aadt[link_aadt['GEOID'].str.startswith(study_area_geoid)]
+    """Calculate HPMS AADT statistics"""
+    link_aadt = link_aadt.copy()
+    link_aadt['Volume_hpms'] = link_aadt['AADT_Combi'] + link_aadt['AADT_Singl']
+    link_aadt['VMT_hpms'] = link_aadt['Volume_hpms'] * link_aadt.geometry.length / 1609.0
+
+    vmt_hpms = link_aadt['VMT_hpms'].sum()
+
+    # Calculate HPMS components
+    vmt_hpms_international = (vmt_hpms * 0.22) / 1e6
+    vmt_hpms_through_traffic = (vmt_hpms * 0.1) / 1e6
+    vmt_hpms_national = (vmt_hpms * 0.68) / 1e6
+
+    # Create validation DataFrame
+    validation = pd.DataFrame({
+        'label': ['HPMS'] * 3,
+        'source': ['National', 'International', 'Through Traffic'],
+        'MVMT': [vmt_hpms_national, vmt_hpms_international, vmt_hpms_through_traffic]
+    })
+
+    validation['source'] = pd.Categorical(
+        validation['source'],
+        categories=['Through Traffic', 'International', 'National']
+    )
+
+    return validation
+
+
+def validate_vmt(baseline_summary, work_dir):
+    # Read and process HPMS data
+    link_aadt = gpd.read_file(os.path.join(work_dir, "validation_data/HPMS/WA_HPMS_with_GEOID_LANEMILE.geojson"))
+    link_aadt = link_aadt[link_aadt['GEOID'].str.startswith(('53061', '53033', '53035', '53053'))]
+    link_aadt_dt = get_hpms_aadt(link_aadt)
+
+    vmt_hpms = link_aadt_dt['VMT_hpms'].sum()
+    beam_baseline = baseline_summary[baseline_summary['runLabel'] == "Baseline"]['MVMT'].sum()
+
+    # Calculate HPMS components
+    vmt_hpms_international = (vmt_hpms * 0.22) / 1e6
+    vmt_hpms_through_traffic = (vmt_hpms * 0.1) / 1e6
+    vmt_hpms_national = (vmt_hpms * 0.68) / 1e6
+
+    # Create validation DataFrame
+    validation = pd.DataFrame({
+        'label': ['FAMOS'] * 3 + ['HPMS'] * 3,
+        'source': ['National', 'International', 'Through Traffic'] * 2,
+        'MVMT': [beam_baseline, 0.0, 0.0, vmt_hpms_national, vmt_hpms_international, vmt_hpms_through_traffic]
+    })
+
+    validation['source'] = pd.Categorical(
+        validation['source'],
+        categories=['Through Traffic', 'International', 'National']
+    )
+
+    return validation
+
+
+def plot_results(baseline_summary, validation, baseline_summary_colors, baseline_output_dir, baseline_runs_name):
+    # Plot VMT validation
+    plt.figure(figsize=(7, 4))
+    sns.barplot(data=validation, x='label', y='MVMT', hue='source')
+    plt.title('Total VMT')
+    plt.xlabel('Source')
+    plt.ylabel('Million VMT')
+    plt.savefig(os.path.join(baseline_output_dir, f"{baseline_runs_name}_vmt_validation.png"))
+    plt.close()
+
+    # Plot VMT by powertrain class
+    plt.figure(figsize=(7, 4))
+    g = sns.barplot(
+        data=baseline_summary,
+        x='runLabel',
+        y='MVMT',
+        hue='energyAndVehiclesTypes',
+        palette=baseline_summary_colors
+    )
+    plt.title('Total Truck Travel - Baseline')
+    plt.xlabel('Scenario')
+    plt.ylabel('VMT')
+    plt.xticks(rotation=0)
+    plt.savefig(os.path.join(baseline_output_dir, f"{baseline_runs_name}_VMT-by-powertrain-class.png"))
+    plt.close()
+
+    # Plot Energy consumption
+    plt.figure(figsize=(7, 4))
+    g = sns.barplot(
+        data=baseline_summary,
+        x='runLabel',
+        y='GWH',
+        hue='energyAndVehiclesTypes',
+        palette=baseline_summary_colors
+    )
+    plt.title('Energy Consumption - Baseline')
+    plt.xlabel('Scenario')
+    plt.ylabel('GWh')
+    plt.xticks(rotation=0)
+    plt.savefig(os.path.join(baseline_output_dir, f"{baseline_runs_name}_GWH-by-powertrain-class.png"))
+    plt.close()

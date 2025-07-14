@@ -370,6 +370,8 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
       None,
       None,
       None,
+      None,
+      None,
       Seq(),
       None
     )
@@ -404,6 +406,8 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
     None,
     None,
     None,
+    None,
+    None,
     Seq.empty,
     None
   )
@@ -423,6 +427,8 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
       None,
       None,
       Some(mode),
+      None,
+      None,
       None,
       None,
       None,

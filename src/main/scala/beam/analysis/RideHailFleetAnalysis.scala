@@ -109,28 +109,28 @@ class RideHailFleetAnalysisInternal(
             if (ev && isCAV) {
               collectEvent(
                 rideHailEvCav,
-                pathTraversalEvent.copy(time = pathTraversalEvent.departureTime.toDouble - 0.5),
+                pathTraversalEvent.copy(time = pathTraversalEvent.departureTime - 0.5f),
                 vehicle,
                 pathTraversalEvent.time
               )
             } else if (ev && !isCAV) {
               collectEvent(
                 ridehailEvNonCav,
-                pathTraversalEvent.copy(time = pathTraversalEvent.departureTime.toDouble - 0.5),
+                pathTraversalEvent.copy(time = pathTraversalEvent.departureTime - 0.5f),
                 vehicle,
                 pathTraversalEvent.time
               )
             } else if (!ev && isCAV) {
               collectEvent(
                 rideHailNonEvCav,
-                pathTraversalEvent.copy(time = pathTraversalEvent.departureTime.toDouble - 0.5),
+                pathTraversalEvent.copy(time = pathTraversalEvent.departureTime - 0.5f),
                 vehicle,
                 pathTraversalEvent.time
               )
             } else if (!ev && !isCAV) {
               collectEvent(
                 rideHailNonEvNonCav,
-                pathTraversalEvent.copy(time = pathTraversalEvent.departureTime.toDouble - 0.5),
+                pathTraversalEvent.copy(time = pathTraversalEvent.departureTime - 0.5f),
                 vehicle,
                 pathTraversalEvent.time
               )

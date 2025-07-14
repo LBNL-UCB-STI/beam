@@ -1,8 +1,8 @@
 package beam.utils.scenario.urbansim.censusblock.entities
 
 import java.util
-
 import beam.utils.scenario.urbansim.censusblock.EntityTransformer
+import org.apache.commons.lang3.math.NumberUtils
 
 import scala.annotation.switch
 
@@ -31,7 +31,8 @@ case class InputPersonInfo(
   householdId: String,
   age: Int,
   sex: Sex,
-  industry: Option[String]
+  industry: Option[String],
+  valueOfTime: Option[Double]
 )
 
 object InputPersonInfo extends EntityTransformer[InputPersonInfo] {
@@ -42,7 +43,8 @@ object InputPersonInfo extends EntityTransformer[InputPersonInfo] {
     val age = getIfNotNull(rec, "age").toInt
     val sex = Sex.determineSex(getIfNotNull(rec, "sex").toInt)
     val industry = Option(rec.get("industry"))
+    val valueOfTime = Option(NumberUtils.toDouble(rec.get("value_of_time")))
 
-    InputPersonInfo(personId, householdId, age, sex, industry)
+    InputPersonInfo(personId, householdId, age, sex, industry, valueOfTime)
   }
 }

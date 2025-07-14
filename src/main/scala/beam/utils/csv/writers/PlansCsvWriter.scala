@@ -25,6 +25,8 @@ object PlansCsvWriter extends ScenarioCsvWriter {
     "activityEndTime",
     "legMode",
     "legDepartureTime",
+    "trip_dur_min",
+    "trip_cost_dollars",
     "legTravelTime",
     "legRouteType",
     "legRouteStartLink",
@@ -96,6 +98,12 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           legMode = mode,
           legDepartureTime = leg.getDepartureTime.toOption.map(_.toString),
           legTravelTime = leg.getTravelTime.toOption.map(_.toString),
+          legExpectedTravelTime =
+            Option(leg.getAttributes.getAttribute("trip_dur_min")).map(_.toString).filterNot(_.isEmpty).map(_.toDouble),
+          legExpectedCost = Option(leg.getAttributes.getAttribute("trip_cost_dollars"))
+            .map(_.toString)
+            .filterNot(_.isEmpty)
+            .map(_.toDouble),
           legRouteType = route.map(_.getRouteType),
           legRouteStartLink = route.map(_.getStartLinkId.toString),
           legRouteEndLink = route.map(_.getEndLinkId.toString),
@@ -121,6 +129,8 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           legMode = None,
           legDepartureTime = None,
           legTravelTime = None,
+          legExpectedTravelTime = None,
+          legExpectedCost = None,
           legRouteType = None,
           legRouteStartLink = None,
           legRouteEndLink = None,
@@ -158,6 +168,8 @@ object PlansCsvWriter extends ScenarioCsvWriter {
       planInfo.activityEndTime.map(_.toString).getOrElse(""),
       planInfo.legMode.getOrElse(""),
       planInfo.legDepartureTime.getOrElse(""),
+      planInfo.legExpectedTravelTime.getOrElse(""),
+      planInfo.legExpectedCost.getOrElse(""),
       planInfo.legTravelTime.getOrElse(""),
       planInfo.legRouteType.getOrElse(""),
       planInfo.legRouteStartLink.getOrElse(""),

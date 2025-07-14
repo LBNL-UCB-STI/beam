@@ -70,6 +70,8 @@ object CsvPlanElementReader extends PlanElementReader {
       legMode = Option(rec.get("legMode")),
       legDepartureTime = Option(rec.get("legDepartureTime")),
       legTravelTime = Option(rec.get("legTravelTime")),
+      legExpectedTravelTime = Option(rec.get("trip_dur_min")).map(_.toDouble),
+      legExpectedCost = Option(rec.get("trip_cost_dollars")).map(_.toDouble),
       legRouteType = Option(rec.get("legRouteType")),
       legRouteStartLink = Option(rec.get("legRouteStartLink")),
       legRouteEndLink = Option(rec.get("legRouteEndLink")),
@@ -96,8 +98,10 @@ object XmlPlanElementReader extends PlanElementReader {
         }
       }
       .collect {
-        case (person, plan, planIdx, act: Activity, planElIdx) => toPlanElement(act, plan, planIdx, person, planElIdx)
-        case (person, plan, planIdx, leg: Leg, planElIdx)      => toPlanElement(leg, plan, planIdx, person, planElIdx)
+        case (person, plan, planIdx, act: Activity, planElIdx) if act != null =>
+          toPlanElement(act, plan, planIdx, person, planElIdx)
+        case (person, plan, planIdx, leg: Leg, planElIdx) if leg != null =>
+          toPlanElement(leg, plan, planIdx, person, planElIdx)
       }
       .toArray
   }
@@ -162,6 +166,8 @@ object XmlPlanElementReader extends PlanElementReader {
       legMode = None,
       legDepartureTime = None,
       legTravelTime = None,
+      legExpectedTravelTime = None,
+      legExpectedCost = None,
       legRouteType = None,
       legRouteStartLink = None,
       legRouteEndLink = None,
@@ -190,9 +196,17 @@ object XmlPlanElementReader extends PlanElementReader {
       activityLocationX = None,
       activityLocationY = None,
       activityEndTime = None,
-      legMode = Option(leg.getMode),
+      legMode = Option(leg).map(_.getMode),
       legDepartureTime = leg.getDepartureTime.toOption.map(_.toString),
       legTravelTime = leg.getTravelTime.toOption.map(_.toString),
+      legExpectedTravelTime = Option(leg.getAttributes.getAttribute("trip_dur_min"))
+        .filter(_.toString.nonEmpty)
+        .map(_.toString)
+        .map(_.toDouble),
+      legExpectedCost = Option(leg.getAttributes.getAttribute("trip_cost_dollars"))
+        .filter(_.toString.nonEmpty)
+        .map(_.toString)
+        .map(_.toDouble),
       legRouteType = Option(leg.getRoute).map(_.getRouteType),
       legRouteStartLink = Option(leg.getRoute).map(_.getStartLinkId.toString),
       legRouteEndLink = Option(leg.getRoute).map(_.getEndLinkId.toString),

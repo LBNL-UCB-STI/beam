@@ -29,6 +29,7 @@ trait GeoUtils extends ExponentialLazyLogging {
   def localCRS: String
   val defaultMaxRadiusForMapSearch = 20000
   private lazy val notExponentialLogger = Logger(LoggerFactory.getLogger(getClass.getName))
+  private var cachedEdges: Option[Array[(EdgeWithCoord, GpxPoint)]] = None
 
   lazy val utm2Wgs: GeotoolsTransformation =
     new GeotoolsTransformation(localCRS, "EPSG:4326")
@@ -95,7 +96,9 @@ trait GeoUtils extends ExponentialLazyLogging {
         distUTMInMeters(matsimUtmCoord, wgs2Utm(coordWGS))
       }
       val distUTM = distUTMInMeters(wgs2Utm(coordWGS), wgs2Utm(new v01.Coord(closest.wgsCoord.x, closest.wgsCoord.y)))
-      notExponentialLogger.warn(s"""Will return closest to the corner: $closest which is $distUTM meters far away""")
+      notExponentialLogger.warn(
+        s"""Will return closest to the corner: $closest which is $distUTM meters far away from request at $coordWGS"""
+      )
       closest.edgeIndex
     } else {
       theSplit.edge
@@ -141,7 +144,7 @@ trait GeoUtils extends ExponentialLazyLogging {
       theSplit = streetLayer.findSplit(coord.getY, coord.getX, maxRadius, streetMode)
     }
     if (theSplit == null) {
-      notExponentialLogger.warn(
+      notExponentialLogger.debug(
         s"The split is `null` for StreetLayer.BoundingBox: ${streetLayer.getEnvelope}, coord: $coord, maxRadius: $maxRadius, street mode $streetMode"
       )
     }
@@ -149,25 +152,27 @@ trait GeoUtils extends ExponentialLazyLogging {
   }
 
   def getEdgesCloseToBoundingBox(streetLayer: StreetLayer): Array[(EdgeWithCoord, GpxPoint)] = {
-    val cursor = streetLayer.edgeStore.getCursor()
-    val iter = new Iterator[EdgeStore#Edge] {
-      override def hasNext: Boolean = cursor.advance()
+    cachedEdges.getOrElse {
 
-      override def next(): EdgeStore#Edge = cursor
-    }
+      val cursor = streetLayer.edgeStore.getCursor()
+      val iter = new Iterator[EdgeStore#Edge] {
+        override def hasNext: Boolean = cursor.advance()
 
-    val boundingBox = streetLayer.envelope
-
-    val insideBoundingBox = iter
-      .flatMap { edge =>
-        Option(edge.getGeometry.getBoundary.getCoordinate).map { coord =>
-          EdgeWithCoord(edge.getEdgeIndex, coord)
-        }
+        override def next(): EdgeStore#Edge = cursor
       }
-      .withFilter(x => boundingBox.contains(x.wgsCoord))
-      .toArray
 
-    /*
+      val boundingBox = streetLayer.envelope
+
+      val insideBoundingBox = iter
+        .flatMap { edge =>
+          Option(edge.getGeometry.getBoundary.getCoordinate).map { coord =>
+            EdgeWithCoord(edge.getEdgeIndex, coord)
+          }
+        }
+        .withFilter(x => boundingBox.contains(x.wgsCoord))
+        .toArray
+
+      /*
     min => x0,y0
     max => x1,y1
 x0,y1 (TOP LEFT)    ._____._____. x1,y1 (TOP RIGHT)
@@ -177,37 +182,39 @@ x0,y1 (TOP LEFT)    ._____._____. x1,y1 (TOP RIGHT)
                     |           |
                     |           |
 x0,y0 (BOTTOM LEFT) ._____._____. x1, y0 (BOTTOM RIGHT)
-     */
+       */
 
-    val bottomLeft = new Coord(boundingBox.getMinX, boundingBox.getMinY)
-    val topLeft = new Coord(boundingBox.getMinX, boundingBox.getMaxY)
-    val topRight = new Coord(boundingBox.getMaxX, boundingBox.getMaxY)
-    val bottomRight = new Coord(boundingBox.getMaxX, boundingBox.getMinY)
-    val midLeft = new Coord((bottomLeft.getX + topLeft.getX) / 2, (bottomLeft.getY + topLeft.getY) / 2)
-    val midTop = new Coord((topLeft.getX + topRight.getX) / 2, (topLeft.getY + topRight.getY) / 2)
-    val midRight = new Coord((topRight.getX + bottomRight.getX) / 2, (topRight.getY + bottomRight.getY) / 2)
-    val midBottom = new Coord((bottomLeft.getX + bottomRight.getX) / 2, (bottomLeft.getY + bottomRight.getY) / 2)
+      val bottomLeft = new Coord(boundingBox.getMinX, boundingBox.getMinY)
+      val topLeft = new Coord(boundingBox.getMinX, boundingBox.getMaxY)
+      val topRight = new Coord(boundingBox.getMaxX, boundingBox.getMaxY)
+      val bottomRight = new Coord(boundingBox.getMaxX, boundingBox.getMinY)
+      val midLeft = new Coord((bottomLeft.getX + topLeft.getX) / 2, (bottomLeft.getY + topLeft.getY) / 2)
+      val midTop = new Coord((topLeft.getX + topRight.getX) / 2, (topLeft.getY + topRight.getY) / 2)
+      val midRight = new Coord((topRight.getX + bottomRight.getX) / 2, (topRight.getY + bottomRight.getY) / 2)
+      val midBottom = new Coord((bottomLeft.getX + bottomRight.getX) / 2, (bottomLeft.getY + bottomRight.getY) / 2)
 
-    val corners = Array(
-      GpxPoint("BottomLeft", bottomLeft),
-      GpxPoint("TopLeft", topLeft),
-      GpxPoint("TopRight", topRight),
-      GpxPoint("BottomRight", bottomRight),
-      GpxPoint("MidLeft", midLeft),
-      GpxPoint("MidTop", midTop),
-      GpxPoint("MidRight", midRight),
-      GpxPoint("MidBottom", midBottom)
-    )
+      val corners = Array(
+        GpxPoint("BottomLeft", bottomLeft),
+        GpxPoint("TopLeft", topLeft),
+        GpxPoint("TopRight", topRight),
+        GpxPoint("BottomRight", bottomRight),
+        GpxPoint("MidLeft", midLeft),
+        GpxPoint("MidTop", midTop),
+        GpxPoint("MidRight", midRight),
+        GpxPoint("MidBottom", midBottom)
+      )
 
-    val closestEdges = corners.map { gpxPoint =>
-      val utmCornerCoord = wgs2Utm(gpxPoint.wgsCoord)
-      val closestEdge: EdgeWithCoord = insideBoundingBox.minBy { x =>
-        val utmCoord = wgs2Utm(new Coord(x.wgsCoord.x, x.wgsCoord.y))
-        distUTMInMeters(utmCornerCoord, utmCoord)
+      val closestEdges = corners.map { gpxPoint =>
+        val utmCornerCoord = wgs2Utm(gpxPoint.wgsCoord)
+        val closestEdge: EdgeWithCoord = insideBoundingBox.minBy { x =>
+          val utmCoord = wgs2Utm(new Coord(x.wgsCoord.x, x.wgsCoord.y))
+          distUTMInMeters(utmCornerCoord, utmCoord)
+        }
+        (closestEdge, gpxPoint)
       }
-      (closestEdge, gpxPoint)
+      cachedEdges = Some(closestEdges)
+      closestEdges
     }
-    closestEdges
   }
 }
 

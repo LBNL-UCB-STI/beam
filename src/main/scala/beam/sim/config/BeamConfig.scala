@@ -45,6 +45,7 @@ object BeamConfig {
       fractionOfPlansWithSingleActivity: scala.Double,
       h3taz: BeamConfig.Beam.Agentsim.H3taz,
       lastIteration: scala.Int,
+      lastTransitTrip: java.lang.String,
       populationAdjustment: java.lang.String,
       randomSeedForPopulationSampling: scala.Option[scala.Int],
       scenarios: BeamConfig.Beam.Agentsim.Scenarios,
@@ -618,6 +619,7 @@ object BeamConfig {
 
           case class MultinomialLogit(
             params: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MultinomialLogit.Params,
+            units: java.lang.String,
             utility_scale_factor: scala.Double
           )
 
@@ -633,6 +635,7 @@ object BeamConfig {
               ride_hail_pooled_intercept: scala.Double,
               ride_hail_subscription: scala.Double,
               ride_hail_transit_intercept: scala.Double,
+              time: scala.Double,
               transfer: scala.Double,
               transit_crowding: scala.Double,
               transit_crowding_VOT_multiplier: scala.Double,
@@ -665,6 +668,7 @@ object BeamConfig {
                   ride_hail_transit_intercept =
                     if (c.hasPathOrNull("ride_hail_transit_intercept")) c.getDouble("ride_hail_transit_intercept")
                     else 0.0,
+                  time = if (c.hasPathOrNull("time")) c.getDouble("time") else 0.022,
                   transfer = if (c.hasPathOrNull("transfer")) c.getDouble("transfer") else -1.4,
                   transit_crowding = if (c.hasPathOrNull("transit_crowding")) c.getDouble("transit_crowding") else 0.0,
                   transit_crowding_VOT_multiplier =
@@ -692,6 +696,7 @@ object BeamConfig {
                   if (c.hasPathOrNull("params")) c.getConfig("params")
                   else com.typesafe.config.ConfigFactory.parseString("params{}")
                 ),
+                units = if (c.hasPathOrNull("units")) c.getString("units") else "dollars",
                 utility_scale_factor =
                   if (c.hasPathOrNull("utility_scale_factor")) c.getDouble("utility_scale_factor") else 1.0
               )
@@ -2439,6 +2444,7 @@ object BeamConfig {
             else com.typesafe.config.ConfigFactory.parseString("h3taz{}")
           ),
           lastIteration = if (c.hasPathOrNull("lastIteration")) c.getInt("lastIteration") else 0,
+          lastTransitTrip = if (c.hasPathOrNull("lastTransitTrip")) c.getString("lastTransitTrip") else "28:00:00",
           populationAdjustment =
             if (c.hasPathOrNull("populationAdjustment")) c.getString("populationAdjustment") else "DEFAULT_ADJUSTMENT",
           randomSeedForPopulationSampling =
@@ -2881,7 +2887,11 @@ object BeamConfig {
 
       case class Output(
         activity_sim_skimmer: scala.Option[BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer],
-        emissions: BeamConfig.Beam.Exchange.Output.Emissions
+        activitySimSkimsEnabled: scala.Boolean,
+        emissions: BeamConfig.Beam.Exchange.Output.Emissions,
+        generateSkimsForAllModes: scala.Boolean,
+        generateSkimsForRideHailTransit: scala.Boolean,
+        sendNonChosenTripsToSkimmer: scala.Boolean
       )
 
       object Output {
@@ -2907,7 +2917,7 @@ object BeamConfig {
           }
 
           case class Secondary(
-            beamModeFilter: scala.List[java.lang.String],
+            beamModeFilter: scala.Option[scala.List[java.lang.String]],
             enabled: scala.Boolean,
             taz: BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz
           )
@@ -2945,8 +2955,8 @@ object BeamConfig {
                 c: com.typesafe.config.Config
               ): BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz = {
                 BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz(
-                  filePath = c.getString("filePath"),
-                  tazIdFieldName = c.getString("tazIdFieldName"),
+                  filePath = if (c.hasPathOrNull("filePath")) c.getString("filePath") else "''",
+                  tazIdFieldName = if (c.hasPathOrNull("tazIdFieldName")) c.getString("tazIdFieldName") else "''",
                   tazMapping =
                     if (c.hasPathOrNull("tazMapping"))
                       scala.Some(
@@ -2960,7 +2970,8 @@ object BeamConfig {
 
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary = {
               BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary(
-                beamModeFilter = $_L$_str(c.getList("beamModeFilter")),
+                beamModeFilter =
+                  if (c.hasPathOrNull("beamModeFilter")) scala.Some($_L$_str(c.getList("beamModeFilter"))) else None,
                 enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
                 taz = BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz(
                   if (c.hasPathOrNull("taz")) c.getConfig("taz")
@@ -3009,10 +3020,18 @@ object BeamConfig {
               if (c.hasPathOrNull("activity-sim-skimmer"))
                 scala.Some(BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer(c.getConfig("activity-sim-skimmer")))
               else None,
+            activitySimSkimsEnabled =
+              c.hasPathOrNull("activitySimSkimsEnabled") && c.getBoolean("activitySimSkimsEnabled"),
             emissions = BeamConfig.Beam.Exchange.Output.Emissions(
               if (c.hasPathOrNull("emissions")) c.getConfig("emissions")
               else com.typesafe.config.ConfigFactory.parseString("emissions{}")
-            )
+            ),
+            generateSkimsForAllModes =
+              c.hasPathOrNull("generateSkimsForAllModes") && c.getBoolean("generateSkimsForAllModes"),
+            generateSkimsForRideHailTransit =
+              c.hasPathOrNull("generateSkimsForRideHailTransit") && c.getBoolean("generateSkimsForRideHailTransit"),
+            sendNonChosenTripsToSkimmer =
+              !c.hasPathOrNull("sendNonChosenTripsToSkimmer") || c.getBoolean("sendNonChosenTripsToSkimmer")
           )
         }
       }
@@ -4243,7 +4262,8 @@ object BeamConfig {
       fractionOfIterationsToDisableInnovation: scala.Double,
       maxAgentPlanMemorySize: scala.Int,
       planSelectionBeta: scala.Double,
-      replanningPenaltyInDollars: scala.Double
+      replanningPenaltyInDollars: scala.Double,
+      subtractExpectedScores: scala.Boolean
     )
 
     object Replanning {
@@ -4287,7 +4307,8 @@ object BeamConfig {
             if (c.hasPathOrNull("maxAgentPlanMemorySize")) c.getInt("maxAgentPlanMemorySize") else 5,
           planSelectionBeta = if (c.hasPathOrNull("planSelectionBeta")) c.getDouble("planSelectionBeta") else 1.0,
           replanningPenaltyInDollars =
-            if (c.hasPathOrNull("replanningPenaltyInDollars")) c.getDouble("replanningPenaltyInDollars") else 100.0
+            if (c.hasPathOrNull("replanningPenaltyInDollars")) c.getDouble("replanningPenaltyInDollars") else 100.0,
+          subtractExpectedScores = !c.hasPathOrNull("subtractExpectedScores") || c.getBoolean("subtractExpectedScores")
         )
       }
     }
@@ -4532,6 +4553,7 @@ object BeamConfig {
         numberOfSamples: scala.Int,
         osmMapdbFile: java.lang.String,
         suboptimalMinutes: scala.Int,
+        suboptimalMinutesForDriveAccess: scala.Int,
         transitAlternativeList: java.lang.String,
         travelTimeNoiseFraction: scala.Double
       )
@@ -4617,6 +4639,9 @@ object BeamConfig {
               if (c.hasPathOrNull("osmMapdbFile")) c.getString("osmMapdbFile")
               else "/test/input/beamville/r5/osm.mapdb",
             suboptimalMinutes = if (c.hasPathOrNull("suboptimalMinutes")) c.getInt("suboptimalMinutes") else 10,
+            suboptimalMinutesForDriveAccess =
+              if (c.hasPathOrNull("suboptimalMinutesForDriveAccess")) c.getInt("suboptimalMinutesForDriveAccess")
+              else 2,
             transitAlternativeList =
               if (c.hasPathOrNull("transitAlternativeList")) c.getString("transitAlternativeList") else "SUBOPTIMAL",
             travelTimeNoiseFraction =

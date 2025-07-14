@@ -22,8 +22,8 @@ class SimpleRideHailUtilizationTest extends AnyFunSuite with Matchers {
     arrivalTime = 1,
     mode = BeamMode.CAR,
     legLength = 1,
-    linkIds = IndexedSeq.empty,
-    linkTravelTime = IndexedSeq.empty,
+    linkIds = Array.empty,
+    linkTravelTime = Array.empty,
     startX = 0,
     startY = 0,
     endX = 1,
@@ -36,10 +36,10 @@ class SimpleRideHailUtilizationTest extends AnyFunSuite with Matchers {
     None,
     None,
     None,
-    IndexedSeq.empty,
-    0.0,
+    Array.empty,
+    0.0f,
     None,
-    riders = Vector()
+    riders = Array.empty
   )
 
   test("Should ignore non-ridehail vehicles") {

@@ -30,40 +30,46 @@ isCav <- function(x) {
   return(x >= 4)
 }
 
+### Test
+# work_folder <- normalizePath("~/Workspace/Data/Scenarios/sfbay/validation_data/BEAM")
+# speed <- readCsv(pp(work_folder, "/sfbay_residential_simpl_network.csv.gz"))
+# ggplot(speed, aes(x=speed_beam-speed_npmrds)) + geom_histogram() + xlim(0, 100)
+
+
 # emission
-emfac_sf_file <- normalizePath('~/Workspace/Models/emfac/2018/SF_2018_Annual_fleet_data_population_20240311153419.csv')
-emfac_sf <- readCsv(emfac_sf_file)
-emfac_sf_normalized <- emfac_sf[,.(sum_population=(sum(population))),by=.(vehicle_class, fuel)]
-emfac_sf_normalized$share_population <- emfac_sf_normalized$sum_population/sum(emfac_sf_normalized$sum_population)
+# emfac_sf_file <- normalizePath('~/Workspace/Models/emfac/2018/SF_2018_Annual_fleet_data_population_20240311153419.csv')
+# emfac_sf <- readCsv(emfac_sf_file)
+# emfac_sf_normalized <- emfac_sf[,.(sum_population=(sum(population))),by=.(vehicle_class, fuel)]
+# emfac_sf_normalized$share_population <- emfac_sf_normalized$sum_population/sum(emfac_sf_normalized$sum_population)
 
 ###
 
 # Create a sample data frame
-data <- data.frame(
-  Name = c("John", "Jane", "Bob", "Alice", "John", "Jane", "Bob", "Alice"),
-  Age = c(25, 30, 35, 40, 27, 32, 38, 42),
-  City = c("New York", "London", "Paris", "Tokyo", "New York", "London", "Paris", "Tokyo"),
-  Gender = c("M", "F", "M", "F", "M", "F", "M", "F")
-)
+# data <- data.frame(
+#   Name = c("John", "Jane", "Bob", "Alice", "John", "Jane", "Bob", "Alice"),
+#   Age = c(25, 30, 35, 40, 27, 32, 38, 42),
+#   City = c("New York", "London", "Paris", "Tokyo", "New York", "London", "Paris", "Tokyo"),
+#   Gender = c("M", "F", "M", "F", "M", "F", "M", "F")
+# )
 
 # Load the required packages
-library(dplyr)
-library(stringr)
+# library(dplyr)
+# library(stringr)
 
 # Group the data frame by 'City' and 'Gender', and concatenate 'Name' into a new column
-grouped <- data %>%
-  group_by(City, Gender) %>%
-  summarise(Names = str_c(Name, collapse = ", "))
-
-print(grouped)
+# grouped <- data %>%
+#   group_by(City, Gender) %>%
+#   summarise(Names = str_c(Name, collapse = ", "))
+# 
+# print(grouped)
 
 ### RouteE
+# work_folder <- normalizePath("~/Workspace/Data/FREIGHT/seattle")
+# household <- readCsv(pp(work_folder, "/households.csv.gz"))
+# ggplot(household, aes(x=income/1000)) + geom_histogram() + xlim(0, 100)
 
-work_folder <- normalizePath("~/Workspace/Data/FREIGHT/seattle")
-household <- readCsv(pp(work_folder, "/households.csv.gz"))
-ggplot(household, aes(x=income/1000)) + geom_histogram() + xlim(0, 100)
 
-
+##
 work_folder <- normalizePath("~/Workspace/Data/FREIGHT/seattle")
 geo <- geojson_sf(pp(work_folder, "/validation/npmrds/Seattle_counties.geojson"))
 

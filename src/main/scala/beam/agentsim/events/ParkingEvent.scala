@@ -2,7 +2,7 @@ package beam.agentsim.events
 
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.{ParkingType, PricingModel}
+import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZoneId, PricingModel}
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.common.GeoUtils
 import com.typesafe.scalalogging.LazyLogging
@@ -22,7 +22,8 @@ case class ParkingEvent(
   locationWGS: Coord,
   parkingType: ParkingType,
   pricingModel: Option[PricingModel],
-  chargingPointType: Option[ChargingPointType]
+  chargingPointType: Option[ChargingPointType],
+  parkingZoneId: Id[ParkingZoneId]
 ) extends Event(time)
     with ScalaEvent
     with LazyLogging {
@@ -54,6 +55,7 @@ case class ParkingEvent(
     attr.put(ATTRIBUTE_PRICING_MODEL, pricingModelString)
     attr.put(ATTRIBUTE_CHARGING_TYPE, chargingPointString)
     attr.put(ATTRIBUTE_PARKING_TAZ, tazId.toString)
+    attr.put(ATTRIBUTE_PARKING_ZONE_ID, parkingZoneId.toString)
 
     attr
   }
@@ -71,6 +73,7 @@ object ParkingEvent {
   val ATTRIBUTE_PRICING_MODEL: String = "pricingModel"
   val ATTRIBUTE_CHARGING_TYPE: String = "chargingPointType"
   val ATTRIBUTE_PARKING_TAZ: String = "parkingTaz"
+  val ATTRIBUTE_PARKING_ZONE_ID: String = "parkingZoneId"
 
   def apply(
     time: Double,
@@ -88,7 +91,8 @@ object ParkingEvent {
       locationWGS = locationWGS,
       parkingType = stall.parkingType,
       pricingModel = stall.pricingModel,
-      chargingPointType = stall.chargingPointType
+      chargingPointType = stall.chargingPointType,
+      parkingZoneId = stall.parkingZoneId
     )
   }
 
@@ -105,6 +109,17 @@ object ParkingEvent {
     val pricingModel: Option[PricingModel] =
       attr.get(ATTRIBUTE_PRICING_MODEL).flatMap(PricingModel(_, attr.getOrElse(ATTRIBUTE_COST, "0")))
     val chargingPointType: Option[ChargingPointType] = attr.get(ATTRIBUTE_CHARGING_TYPE).flatMap(ChargingPointType(_))
-    new ParkingEvent(time, driverId, vehicleId, tazId, locationWGS, parkingType, pricingModel, chargingPointType)
+    val parkingZoneId = Id.create(attr(ATTRIBUTE_PARKING_ZONE_ID), classOf[ParkingZoneId])
+    new ParkingEvent(
+      time,
+      driverId,
+      vehicleId,
+      tazId,
+      locationWGS,
+      parkingType,
+      pricingModel,
+      chargingPointType,
+      parkingZoneId
+    )
   }
 }

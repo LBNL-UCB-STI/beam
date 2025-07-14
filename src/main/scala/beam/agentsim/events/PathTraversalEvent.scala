@@ -30,76 +30,69 @@ case class PathTraversalEvent(
   arrivalTime: Int,
   mode: BeamMode,
   legLength: Double,
-  linkIds: IndexedSeq[Int],
-  linkTravelTime: IndexedSeq[Double],
-  startX: Double,
-  startY: Double,
-  endX: Double,
-  endY: Double,
-  primaryFuelConsumed: Double,
-  secondaryFuelConsumed: Double,
-  endLegPrimaryFuelLevel: Double,
-  endLegSecondaryFuelLevel: Double,
-  amountPaid: Double,
+  linkIds: Array[Int],
+  linkTravelTime: Array[Float],
+  startX: Float,
+  startY: Float,
+  endX: Float,
+  endY: Float,
+  primaryFuelConsumed: Float,
+  secondaryFuelConsumed: Float,
+  endLegPrimaryFuelLevel: Float,
+  endLegSecondaryFuelLevel: Float,
+  amountPaid: Float,
   fromStopIndex: Option[Int],
   toStopIndex: Option[Int],
   currentTripMode: Option[String],
-  payloadIds: IndexedSeq[Id[PayloadPlan]],
-  weight: Double,
+  payloadIds: Array[Id[PayloadPlan]],
+  weight: Float,
   emissionsProfile: Option[EmissionsProfile],
-  riders: IndexedSeq[Id[Person]] = Vector()
+  riders: Array[Id[Person]] = Array()
 ) extends Event(time)
     with ScalaEvent {
   import PathTraversalEvent._
 
   def capacity: Int = seatingCapacity + standingRoomCapacity
 
-  def linkIdsJava: util.List[Int] = linkIds.asJava
+  def linkIdsJava: util.List[Int] = linkIds.toList.asJava
 
   override def getEventType: String = "PathTraversal"
 
-  private val filledAttrs: AtomicReference[util.Map[String, String]] =
-    new AtomicReference[util.Map[String, String]](null)
-
   override def getAttributes: util.Map[String, String] = {
-    if (filledAttrs.get() != null) filledAttrs.get()
-    else {
-      val attr = super.getAttributes()
-      attr.put(ATTRIBUTE_VEHICLE_ID, vehicleId.toString)
-      attr.put(ATTRIBUTE_DRIVER_ID, driverId)
-      attr.put(ATTRIBUTE_VEHICLE_TYPE, vehicleType)
-      attr.put(ATTRIBUTE_LENGTH, legLength.toString)
-      attr.put(ATTRIBUTE_NUM_PASS, numberOfPassengers.toString)
+    val attr = super.getAttributes
+    attr.put(ATTRIBUTE_VEHICLE_ID, vehicleId.toString)
+    attr.put(ATTRIBUTE_DRIVER_ID, driverId)
+    attr.put(ATTRIBUTE_VEHICLE_TYPE, vehicleType)
+    attr.put(ATTRIBUTE_LENGTH, legLength.toString)
+    attr.put(ATTRIBUTE_NUM_PASS, numberOfPassengers.toString)
 
-      attr.put(ATTRIBUTE_DEPARTURE_TIME, departureTime.toString)
-      attr.put(ATTRIBUTE_ARRIVAL_TIME, arrivalTime.toString)
-      attr.put(ATTRIBUTE_MODE, mode.value)
-      attr.put(ATTRIBUTE_LINK_IDS, linkIds.mkString(","))
-      attr.put(ATTRIBUTE_LINK_TRAVEL_TIME, linkTravelTime.map(FormatUtils.DECIMAL_3.format).mkString(","))
-      attr.put(ATTRIBUTE_PRIMARY_FUEL_TYPE, primaryFuelType)
-      attr.put(ATTRIBUTE_SECONDARY_FUEL_TYPE, secondaryFuelType)
-      attr.put(ATTRIBUTE_PRIMARY_FUEL, primaryFuelConsumed.toString)
-      attr.put(ATTRIBUTE_SECONDARY_FUEL, secondaryFuelConsumed.toString)
-      attr.put(ATTRIBUTE_VEHICLE_CAPACITY, capacity.toString)
+    attr.put(ATTRIBUTE_DEPARTURE_TIME, departureTime.toString)
+    attr.put(ATTRIBUTE_ARRIVAL_TIME, arrivalTime.toString)
+    attr.put(ATTRIBUTE_MODE, mode.value)
+    attr.put(ATTRIBUTE_LINK_IDS, linkIds.mkString(","))
+    attr.put(ATTRIBUTE_LINK_TRAVEL_TIME, linkTravelTime.map(FormatUtils.DECIMAL_3.format).mkString(","))
+    attr.put(ATTRIBUTE_PRIMARY_FUEL_TYPE, primaryFuelType)
+    attr.put(ATTRIBUTE_SECONDARY_FUEL_TYPE, secondaryFuelType)
+    attr.put(ATTRIBUTE_PRIMARY_FUEL, primaryFuelConsumed.toString)
+    attr.put(ATTRIBUTE_SECONDARY_FUEL, secondaryFuelConsumed.toString)
+    attr.put(ATTRIBUTE_VEHICLE_CAPACITY, capacity.toString)
 
-      attr.put(ATTRIBUTE_START_COORDINATE_X, startX.toString)
-      attr.put(ATTRIBUTE_START_COORDINATE_Y, startY.toString)
-      attr.put(ATTRIBUTE_END_COORDINATE_X, endX.toString)
-      attr.put(ATTRIBUTE_END_COORDINATE_Y, endY.toString)
-      attr.put(ATTRIBUTE_END_LEG_PRIMARY_FUEL_LEVEL, endLegPrimaryFuelLevel.toString)
-      attr.put(ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL, endLegSecondaryFuelLevel.toString)
-      attr.put(ATTRIBUTE_SEATING_CAPACITY, seatingCapacity.toString)
-      attr.put(ATTRIBUTE_TOLL_PAID, amountPaid.toString)
-      attr.put(ATTRIBUTE_FROM_STOP_INDEX, fromStopIndex.map(_.toString).getOrElse(""))
-      attr.put(ATTRIBUTE_TO_STOP_INDEX, toStopIndex.map(_.toString).getOrElse(""))
-      attr.put(ATTRIBUTE_CURRENT_TRIP_MODE, currentTripMode.getOrElse(""))
-      attr.put(ATTRIBUTE_PAYLOAD_IDS, payloadIds.mkString(","))
-      attr.put(ATTRIBUTE_WEIGHT, weight.toString)
-      attr.put(ATTRIBUTE_RIDERS, ridersToStr(riders))
-      attr.put(EMISSIONS_PROFILE, emissionsProfile.map(BeamVehicleUtils.buildEmissionsString).getOrElse(""))
-      filledAttrs.set(attr)
-      attr
-    }
+    attr.put(ATTRIBUTE_START_COORDINATE_X, startX.toString)
+    attr.put(ATTRIBUTE_START_COORDINATE_Y, startY.toString)
+    attr.put(ATTRIBUTE_END_COORDINATE_X, endX.toString)
+    attr.put(ATTRIBUTE_END_COORDINATE_Y, endY.toString)
+    attr.put(ATTRIBUTE_END_LEG_PRIMARY_FUEL_LEVEL, endLegPrimaryFuelLevel.toString)
+    attr.put(ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL, endLegSecondaryFuelLevel.toString)
+    attr.put(ATTRIBUTE_SEATING_CAPACITY, seatingCapacity.toString)
+    attr.put(ATTRIBUTE_TOLL_PAID, amountPaid.toString)
+    attr.put(ATTRIBUTE_FROM_STOP_INDEX, fromStopIndex.map(_.toString).getOrElse(""))
+    attr.put(ATTRIBUTE_TO_STOP_INDEX, toStopIndex.map(_.toString).getOrElse(""))
+    attr.put(ATTRIBUTE_CURRENT_TRIP_MODE, currentTripMode.getOrElse(""))
+    attr.put(ATTRIBUTE_PAYLOAD_IDS, payloadIds.mkString(","))
+    attr.put(ATTRIBUTE_WEIGHT, weight.toString)
+    attr.put(ATTRIBUTE_RIDERS, ridersToStr(riders))
+    attr.put(EMISSIONS_PROFILE, emissionsProfile.map(BeamVehicleUtils.buildEmissionsString).getOrElse(""))
+    attr
   }
 }
 
@@ -146,15 +139,15 @@ object PathTraversalEvent {
     numPass: Int,
     beamLeg: BeamLeg,
     currentTripMode: Option[String],
-    primaryFuelConsumed: Double,
-    secondaryFuelConsumed: Double,
-    endLegPrimaryFuelLevel: Double,
-    endLegSecondaryFuelLevel: Double,
-    amountPaid: Double,
-    payloadIds: IndexedSeq[Id[PayloadPlan]],
-    weight: Double,
+    primaryFuelConsumed: Float,
+    secondaryFuelConsumed: Float,
+    endLegPrimaryFuelLevel: Float,
+    endLegSecondaryFuelLevel: Float,
+    amountPaid: Float,
+    payloadIds: Array[Id[PayloadPlan]],
+    weight: Float,
     emissionsProfile: Option[EmissionsProfile],
-    riders: IndexedSeq[Id[Person]]
+    riders: Array[Id[Person]]
   ): PathTraversalEvent = {
     new PathTraversalEvent(
       time = time,
@@ -171,11 +164,11 @@ object PathTraversalEvent {
       mode = beamLeg.mode,
       legLength = beamLeg.travelPath.distanceInM,
       linkIds = beamLeg.travelPath.linkIds,
-      linkTravelTime = beamLeg.travelPath.linkTravelTime,
-      startX = beamLeg.travelPath.startPoint.loc.getX,
-      startY = beamLeg.travelPath.startPoint.loc.getY,
-      endX = beamLeg.travelPath.endPoint.loc.getX,
-      endY = beamLeg.travelPath.endPoint.loc.getY,
+      linkTravelTime = beamLeg.travelPath.linkTravelTime.map(_.toFloat),
+      startX = beamLeg.travelPath.startPoint.loc.getX.toFloat,
+      startY = beamLeg.travelPath.startPoint.loc.getY.toFloat,
+      endX = beamLeg.travelPath.endPoint.loc.getX.toFloat,
+      endY = beamLeg.travelPath.endPoint.loc.getY.toFloat,
       primaryFuelConsumed = primaryFuelConsumed,
       secondaryFuelConsumed = secondaryFuelConsumed,
       endLegPrimaryFuelLevel = endLegPrimaryFuelLevel,
@@ -209,23 +202,23 @@ object PathTraversalEvent {
     val mode: BeamMode = BeamMode.fromString(attr(ATTRIBUTE_MODE)).get
     val legLength: Double = attr(ATTRIBUTE_LENGTH).toDouble
     val linkIdsAsStr = Option(attr(ATTRIBUTE_LINK_IDS)).getOrElse("")
-    val linkIds: IndexedSeq[Int] = if (linkIdsAsStr == "") IndexedSeq.empty else linkIdsAsStr.split(",").map(_.toInt)
+    val linkIds: Array[Int] = if (linkIdsAsStr == "") Array.empty else linkIdsAsStr.split(",").map(_.toInt)
     val linkTravelTimeStr = attr.getOrElse(ATTRIBUTE_LINK_TRAVEL_TIME, "")
-    val linkTravelTime: IndexedSeq[Double] =
-      if (linkTravelTimeStr == null || linkTravelTimeStr == "") IndexedSeq.empty
-      else linkTravelTimeStr.split(",").map(_.toDouble)
-    val startX: Double = attr(ATTRIBUTE_START_COORDINATE_X).toDouble
-    val startY: Double = attr(ATTRIBUTE_START_COORDINATE_Y).toDouble
-    val endX: Double = attr(ATTRIBUTE_END_COORDINATE_X).toDouble
-    val endY: Double = attr(ATTRIBUTE_END_COORDINATE_Y).toDouble
-    val primaryFuelConsumed: Double = attr(ATTRIBUTE_PRIMARY_FUEL).toDouble
-    val secondaryFuelConsumed: Double = attr(ATTRIBUTE_SECONDARY_FUEL).toDouble
-    val endLegPrimaryFuelLevel: Double = attr(ATTRIBUTE_END_LEG_PRIMARY_FUEL_LEVEL).toDouble
-    val endLegSecondaryFuelLevel: Double = attr(ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL).toDouble
-    val amountPaid: Double = attr(ATTRIBUTE_TOLL_PAID).toDouble
-    val payloadIds: IndexedSeq[Id[PayloadPlan]] = payloadsFromStr(attr.getOrElse(ATTRIBUTE_PAYLOAD_IDS, ""))
-    val weight: Double = attr.get(ATTRIBUTE_WEIGHT).fold(0.0)(_.toDouble)
-    val riders: IndexedSeq[Id[Person]] = ridersFromStr(attr.getOrElse(ATTRIBUTE_RIDERS, ""))
+    val linkTravelTime: Array[Float] =
+      if (linkTravelTimeStr == null || linkTravelTimeStr == "") Array.empty
+      else linkTravelTimeStr.split(",").map(_.toFloat)
+    val startX: Float = attr(ATTRIBUTE_START_COORDINATE_X).toFloat
+    val startY: Float = attr(ATTRIBUTE_START_COORDINATE_Y).toFloat
+    val endX: Float = attr(ATTRIBUTE_END_COORDINATE_X).toFloat
+    val endY: Float = attr(ATTRIBUTE_END_COORDINATE_Y).toFloat
+    val primaryFuelConsumed: Float = attr(ATTRIBUTE_PRIMARY_FUEL).toFloat
+    val secondaryFuelConsumed: Float = attr(ATTRIBUTE_SECONDARY_FUEL).toFloat
+    val endLegPrimaryFuelLevel: Float = attr(ATTRIBUTE_END_LEG_PRIMARY_FUEL_LEVEL).toFloat
+    val endLegSecondaryFuelLevel: Float = attr(ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL).toFloat
+    val amountPaid: Float = attr(ATTRIBUTE_TOLL_PAID).toFloat
+    val payloadIds: Array[Id[PayloadPlan]] = payloadsFromStr(attr.getOrElse(ATTRIBUTE_PAYLOAD_IDS, ""))
+    val weight: Float = attr.get(ATTRIBUTE_WEIGHT).fold(0.0f)(_.toFloat)
+    val riders: Array[Id[Person]] = ridersFromStr(attr.getOrElse(ATTRIBUTE_RIDERS, ""))
     val fromStopIndex: Option[Int] =
       attr.get(ATTRIBUTE_FROM_STOP_INDEX).flatMap(Option(_)).flatMap(x => if (x == "") None else Some(x.toInt))
     val toStopIndex: Option[Int] =
@@ -268,20 +261,20 @@ object PathTraversalEvent {
     )
   }
 
-  private def ridersFromStr(ridersStr: String): IndexedSeq[Id[Person]] = {
+  private def ridersFromStr(ridersStr: String): Array[Id[Person]] = {
     if (ridersStr.isEmpty) {
-      Vector()
+      Array()
     } else {
-      ridersStr.split(":").toIndexedSeq.map(Id.create(_, classOf[Person]))
+      ridersStr.split(":").map(Id.create(_, classOf[Person]))
     }
   }
 
-  private def payloadsFromStr(str: String): IndexedSeq[Id[PayloadPlan]] = {
-    if (str.isEmpty) IndexedSeq.empty
+  private def payloadsFromStr(str: String): Array[Id[PayloadPlan]] = {
+    if (str.isEmpty) Array.empty
     else str.split(',').map(_.createId[PayloadPlan])
   }
 
-  private def ridersToStr(riders: IndexedSeq[Id[Person]]): String = {
+  private def ridersToStr(riders: Array[Id[Person]]): String = {
     riders.mkString(":")
   }
 }

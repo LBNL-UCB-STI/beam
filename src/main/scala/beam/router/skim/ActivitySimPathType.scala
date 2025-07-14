@@ -2,9 +2,7 @@ package beam.router.skim
 
 import beam.agentsim.agents.ridehail.RideHailVehicleId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode._
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.router.skim.ActivitySimMetric._
 import org.matsim.api.core.v01.population.Activity
 
 sealed trait ActivitySimPathType
@@ -48,7 +46,9 @@ object ActivitySimPathType {
     val (_, longestCarLegId) = tryGetLongestLegId(trip, isCar)
     val (longestWalkTransitLeg, longestWalkTransitLegId) = tryGetLongestLegId(trip, isTransit)
 
-    if (longestCarLegId.isEmpty || longestWalkTransitLeg.isEmpty || longestWalkTransitLegId.isEmpty) {
+    if (trip.legs.exists(_.isRideHail)) {
+      OTHER // Stub for when we merge in RH_TRANSIT mode from the Cruise branch
+    } else if (longestCarLegId.isEmpty || longestWalkTransitLeg.isEmpty || longestWalkTransitLegId.isEmpty) {
       OTHER
     } else if (longestCarLegId.get > longestWalkTransitLegId.get) {
       longestWalkTransitLeg.map(leg => leg.beamLeg.mode) match {

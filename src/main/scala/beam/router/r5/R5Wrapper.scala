@@ -34,6 +34,7 @@ import org.matsim.vehicles.Vehicle
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util
+import java.util.concurrent.ConcurrentHashMap
 import java.util.function.IntFunction
 import java.util.{Collections, Optional}
 import scala.collection.JavaConverters._
@@ -82,6 +83,19 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       Try(link.getFreespeed).getOrElse(0.0)
     )
   }.toMap
+
+  private lazy val precomputedRestrictions: Map[RoutingVehicleCategory, Map[Long, Boolean]] = {
+    val categories = RoutingVehicleCategory.values
+    categories.map { category =>
+      val categoryRestrictions = osmIdToRoadRestriction.map { case (osmId, restrictions) =>
+        osmId -> restrictions.isRestricted(
+          category,
+          Double.MaxValue
+        )
+      }
+      category -> categoryRestrictions
+    }.toMap
+  }
 
   private val linkRadiusMeters: Double =
     beamConfig.beam.routing.r5.linkRadiusMeters
@@ -493,6 +507,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       profileRequest.fromLat = from.getY
       profileRequest.toLon = to.getX
       profileRequest.toLat = to.getY
+
       val walkToVehicleDuration = maybeWalkToVehicle(vehicle).map(leg => leg.beamLeg.duration).getOrElse(0)
       profileRequest.fromTime = request.departureTime + walkToVehicleDuration
       profileRequest.toTime =
@@ -620,10 +635,16 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       val egressRouters = mutable.Map[LegMode, StreetRouter]()
       val egressStopsByMode = mutable.Map[LegMode, StopVisitor]()
       profileRequest.reverseSearch = true
+      val isCarEgress = egressVehicles.exists(_.mode == CAR)
       for (vehicle <- egressVehicles) {
         val (costPerMile, costPerMinute) = getVehicleCosts(vehicle)
         val theDestination = if (mainRouteToVehicle) {
-          destinationVehicle.get.locationUTM.loc
+          if (destinationVehicle.isDefined) {
+            destinationVehicle.get.locationUTM.loc
+          } else {
+            logger.error("Route requested with egress vehicles that don't exist")
+            request.destinationUTM
+          }
         } else {
           request.destinationUTM
         }
@@ -678,10 +699,20 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           egressStopsByMode.put(legMode, stopVisitor)
         }
       }
+      if (isCarEgress) {
+        profileRequest.maxRides = 2
+        profileRequest.suboptimalMinutes = beamConfig.beam.routing.r5.suboptimalMinutesForDriveAccess
+      } else {
+        profileRequest.maxRides = 3
+        profileRequest.suboptimalMinutes = beamConfig.beam.routing.r5.suboptimalMinutes
+      }
 
       val departureTimeToDominatingList: IntFunction[DominatingList] = (departureTime: Int) =>
         beamConfig.beam.routing.r5.transitAlternativeList.toLowerCase match {
-          case "suboptimal" if !mainRouteRideHailTransit =>
+          case "suboptimal" if !mainRouteRideHailTransit && !isCarEgress =>
+            // Note: We now disallow multiple responses for
+            // drive_transit. We should turn this back on if it is
+            // very important to the analysis
             new SuboptimalDominatingList(
               profileRequest.suboptimalMinutes
             )
@@ -693,9 +724,6 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             )
         }
 
-      val transitPaths = latency("getpath-transit-time", Metrics.VerboseLevel) {
-        profileRequest.fromTime = request.departureTime
-        accessStopsByMode.flatMap { case (mode, stopVisitor) =>
           val modeSpecificBuffer = mode match {
             case LegMode.WALK         => beamConfig.beam.routing.r5.accessBufferTimeSeconds.walk
             case LegMode.BICYCLE      => beamConfig.beam.routing.r5.accessBufferTimeSeconds.bike
@@ -704,6 +732,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             case LegMode.CAR          => beamConfig.beam.routing.r5.accessBufferTimeSeconds.car
             case _                    => 0
           }
+          profileRequest.fromTime = request.departureTime
           profileRequest.toTime = request.departureTime + modeSpecificBuffer + 61
           // Important to allow 61 seconds for transit schedules to be considered! Along with any other buffers
           val router = new McRaptorSuboptimalPathProfileRouter(
@@ -1270,7 +1299,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         streetMode: StreetMode,
         req: ProfileRequest
       ): Float = {
-        ttc(startTime + durationSeconds, edge.getEdgeIndex, streetMode).floatValue().ceil
+        math.ceil(ttc(startTime + durationSeconds, edge.getEdgeIndex, streetMode).toFloat).toFloat
       }
     }
   }
@@ -1281,15 +1310,28 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     shouldApplyBicycleScaleFactor: Boolean = false
   ): TravelTimeByLinkCalculator = {
     val profileRequest = createProfileRequest
+
+    // Cache the maximum velocity for this vehicle type
+    val vehicleMaxSpeed = vehicleType.maxVelocity.getOrElse(Double.MaxValue)
+
     (time: Double, linkId: Int, streetMode: StreetMode) => {
-      val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-      val maxSpeed: Double = vehicleType.maxVelocity.getOrElse(profileRequest.getSpeedForMode(streetMode))
-      val minTravelTime = edge.getLengthM / maxSpeed
-      if (streetMode == StreetMode.CAR) {
-        carWeightCalculator.calcTravelTime(linkId, travelTime, Some(vehicleType), time, shouldAddNoise)
-      } else if (streetMode == StreetMode.BICYCLE && shouldApplyBicycleScaleFactor) {
-        val scaleFactor = bikeLanesAdjustment.scaleFactor(vehicleType, linkId)
-        minTravelTime * scaleFactor
+      // Get the edge length, using the cache
+      val edgeLength = transportNetwork.streetLayer.edgeStore.lengths_mm.get(linkId / 2) / 1000.0
+
+      // Calculate the mode-specific speed
+      val maxSpeed: Double = if (streetMode == StreetMode.CAR) {
+        Math.min(vehicleMaxSpeed, profileRequest.getSpeedForMode(streetMode))
+      } else {
+        profileRequest.getSpeedForMode(streetMode)
+      }
+
+      val minTravelTime = edgeLength / maxSpeed
+
+      if (streetMode == StreetMode.BICYCLE && shouldApplyBicycleScaleFactor) {
+        //note we're not explicitly checking that it is a Bike VehicleType
+        minTravelTime * bikeLanesAdjustment.bikeScaleFactor(linkId)
+      } else if (streetMode == StreetMode.CAR) {
+        carWeightCalculator.calcTravelTime(linkId, travelTime, maxSpeed, time, shouldAddNoise, edgeLength)
       } else {
         minTravelTime
       }
@@ -1309,19 +1351,20 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     perMinuteCost: Double = 0.0
   ): TravelCostCalculator = { (edge: EdgeStore#Edge, legDurationSeconds: Int, traversalTimeSeconds: Float) =>
     {
+      val osmId = edge.getOSMID
+      val category = RoutingVehicleCategory.fromCategory(vehicleType.vehicleCategory)
       val roadRestrictionWeightMultiplier: Float =
-        if (
-          osmIdToRoadRestriction
-            .get(edge.getOSMID)
-            .exists(
-              _.isRestricted(
-                vehicleType.vehicleCategory,
-                vehicleType.restrictRoadsByFreeSpeedInMeterPerSecond.getOrElse(Double.MaxValue)
-              )
-            )
-        )
+        if (precomputedRestrictions.getOrElse(category, Map.empty).getOrElse(osmId, false)) {
           workerParams.beamConfig.beam.agentsim.agents.vehicles.roadRestrictionWeightMultiplier.toFloat
-        else 1f
+        } else {
+          vehicleType.restrictRoadsByFreeSpeedInMeterPerSecond.map(maxSpeed =>
+            osmIdToRoadRestriction.get(osmId).exists(_.isRestricted(vehicleType.vehicleCategory, maxSpeed))
+          ) match {
+            case Some(true) =>
+              workerParams.beamConfig.beam.agentsim.agents.vehicles.roadRestrictionWeightMultiplier.toFloat
+            case _ => 1f
+          }
+        }
 
       val fare: Double = traversalTimeSeconds / 60.0 * perMinuteCost + edge.getLengthM / METERS_IN_MILE * perMileCost
 
@@ -1345,16 +1388,34 @@ object R5Wrapper {
   private val HeavyHeavyDutyTruckTag = "hgv"
   private val LightAndMediumHeavyDutyTruckTag = "mdv"
 
+  sealed trait RoutingVehicleCategory
+
+  private object RoutingVehicleCategory {
+    case object HeavyDuty extends RoutingVehicleCategory
+    case object MediumDuty extends RoutingVehicleCategory
+    case object Other extends RoutingVehicleCategory
+
+    val values: Set[RoutingVehicleCategory] = Set(HeavyDuty, MediumDuty, Other)
+
+    def fromCategory(category: VehicleCategory.VehicleCategory): RoutingVehicleCategory = category match {
+      case VehicleCategory.Class78Tractor | VehicleCategory.Class78Vocational      => HeavyDuty
+      case VehicleCategory.Class456Vocational | VehicleCategory.Class2b3Vocational => MediumDuty
+      case _                                                                       => Other
+    }
+  }
+
   private case class RoadRestrictions(hhdt: Boolean, lmhdt: Boolean, freeSpeed: Double) {
 
-    def isRestricted(category: VehicleCategory.VehicleCategory, speedThreshold: Double): Boolean = {
+    def isRestricted(category: RoutingVehicleCategory, speedThreshold: Double): Boolean = {
       category match {
-        case VehicleCategory.Class78Tractor     => !hhdt
-        case VehicleCategory.Class78Vocational  => !hhdt
-        case VehicleCategory.Class456Vocational => !lmhdt
-        case VehicleCategory.Class2b3Vocational => !lmhdt
-        case _                                  => freeSpeed > speedThreshold
+        case RoutingVehicleCategory.HeavyDuty  => !hhdt
+        case RoutingVehicleCategory.MediumDuty => !lmhdt
+        case RoutingVehicleCategory.Other      => freeSpeed > speedThreshold
       }
+    }
+
+    def isRestricted(category: VehicleCategory.VehicleCategory, speedThreshold: Double): Boolean = {
+      isRestricted(RoutingVehicleCategory.fromCategory(category), speedThreshold)
     }
   }
 }

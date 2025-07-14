@@ -36,7 +36,7 @@ class RoutingFrameworkTravelTimeCalculatorSpec extends AnyFlatSpec with Matchers
 
   "RoutingFrameworkTravelTimeCalculator" must "create hour to travel infos map properly" in {
     val infos = calculator.generateHour2Events(
-      Lists.newArrayList(event(3500, IndexedSeq(1, 2, 3, 4, 5), IndexedSeq(30.0, 40.0, 40.0, 1300.0, 2500.0)))
+      Lists.newArrayList(event(3500, Array(1, 2, 3, 4, 5), Array(30.0f, 40.0f, 40.0f, 1300.0f, 2500.0f)))
     )
     val expectedInfos = Map(1 -> Seq(TravelInfo(IndexedSeq(4, 5))), 0 -> Seq(TravelInfo(IndexedSeq(1, 2, 3))))
 
@@ -90,8 +90,8 @@ class RoutingFrameworkTravelTimeCalculatorSpec extends AnyFlatSpec with Matchers
 
   private def event(
     departureTime: Int,
-    linkIds: IndexedSeq[Int],
-    linkTravelTime: IndexedSeq[Double]
+    linkIds: Array[Int],
+    linkTravelTime: Array[Float]
   ): PathTraversalEvent = {
     val e = mock(classOf[PathTraversalEvent])
     when(e.departureTime).thenReturn(departureTime)

@@ -25,7 +25,7 @@ public class FuelUsageGraphTest {
 
         @Override
         public void handleEvent(Event event) {
-            if (event instanceof PathTraversalEvent ) {
+            if (event instanceof PathTraversalEvent) {
                 fuelUsageStats.processStats(event);
             }
         }
@@ -49,7 +49,7 @@ public class FuelUsageGraphTest {
 
     @Test
     public void testShouldPassShouldReturnPathTraversalEventCarFuel() {
-        long expectedResult = 675705873L;
+        long expectedResult = 675705883L;
         int maxHour = getMaxHour(stats.keySet());
         long actualResult = getFuelageHoursDataCountOccurrenceAgainstMode(CAR, maxHour, stats);
         assertEquals(expectedResult, actualResult);
@@ -57,7 +57,7 @@ public class FuelUsageGraphTest {
 
     @Test
     public void testShouldPassShouldReturnPathTraversalBusFuel() {
-        long expectedResult = 135249995867L;
+        long expectedResult = 135249993216L;
         int maxHour = getMaxHour(stats.keySet());
         long actualResult = getFuelageHoursDataCountOccurrenceAgainstMode(BUS, maxHour, stats);
         assertEquals(expectedResult, actualResult);

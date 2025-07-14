@@ -56,9 +56,10 @@ class ModeChoiceTransitIfAvailable(val beamServices: BeamServices) extends ModeC
   ): Double = 0.0
 
   override def computeAllDayUtility(
-    trips: ListBuffer[EmbodiedBeamTrip],
+    trips: Map[EmbodiedBeamTrip, Map[String, Double]],
     person: Person,
-    attributesOfIndividual: AttributesOfIndividual
+    attributesOfIndividual: AttributesOfIndividual,
+    overrideAttributes: Boolean = false
   ): Double = 0.0
 }
 

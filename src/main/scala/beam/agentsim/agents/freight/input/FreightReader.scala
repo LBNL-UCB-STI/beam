@@ -42,7 +42,7 @@ trait FreightReader {
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
   ): IndexedSeq[FreightCarrier]
 
-  def calculatePayloadWeights(plans: IndexedSeq[PayloadPlan]): IndexedSeq[(Set[Id[PayloadPlan]], Double)] = {
+  private def calculatePayloadWeights(plans: IndexedSeq[PayloadPlan]): IndexedSeq[(Set[Id[PayloadPlan]], Double)] = {
     plans.foldLeft(IndexedSeq((Set.empty[Id[PayloadPlan]], 0.0))) {
       case (acc, PayloadPlan(payloadId, _, _, _, weight, Unloading, _, _, _, _, _, _, _)) =>
         val (payloads, payloadWeight) = acc.last
@@ -107,8 +107,8 @@ trait FreightReader {
     householdsFactory: HouseholdsFactory
   ): IndexedSeq[(FreightCarrier, Household, Plan, Person, Id[BeamVehicle])] = {
     carriers.flatMap { carrier =>
-      val freightHouseholdId = createHouseholdId(carrier.carrierId)
-      val household = householdsFactory.createHousehold(freightHouseholdId)
+      val freightCarrierId = createHouseholdId(carrier.carrierId)
+      val household = householdsFactory.createHousehold(freightCarrierId)
       household.setIncome(new IncomeImpl(0, Income.IncomePeriod.year))
       carrier.tourMap.map { case (vehicleId, tours) =>
         val personId = createPersonId(carrier.carrierId, vehicleId)
@@ -139,7 +139,7 @@ trait FreightReader {
       powertrain,
       vehicleType,
       vehicleManagerId = new AtomicReference(
-        VehicleManager.createOrGetReservedFor(carrierId.toString, VehicleManager.TypeEnum.Freight).managerId
+        VehicleManager.createOrGetReservedFor(carrierId.toString, Some(VehicleManager.TypeEnum.Freight)).managerId
       ),
       randomSeed
     )
@@ -147,7 +147,7 @@ trait FreightReader {
     vehicle
   }
 
-  protected def createFreightActivity(
+  private def createFreightActivity(
     activityType: String,
     locationUTM: Coord,
     endTime: Int,
@@ -161,7 +161,7 @@ trait FreightReader {
     act
   }
 
-  protected def createFreightLeg(departureTime: Int): Leg = {
+  private def createFreightLeg(departureTime: Int): Leg = {
     val leg = PopulationUtils.createLeg(BeamMode.CAR.value)
     leg.setDepartureTime(departureTime)
     leg
@@ -169,7 +169,7 @@ trait FreightReader {
 }
 
 object FreightReader {
-  val FREIGHT_ID_PREFIX = "freight"
+  val CARRIER_ID_PREFIX = "carrier"
   val FREIGHT_REQUEST_TYPE = "FreightRequestType"
   val PAYLOAD_WEIGHT_IN_KG = "PayloadWeightInKg"
   val PAYLOAD_IDS = "PayloadIds"
