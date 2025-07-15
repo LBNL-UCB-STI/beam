@@ -110,8 +110,8 @@ trait FreightReader {
     householdsFactory: HouseholdsFactory
   ): IndexedSeq[(FreightCarrier, Household, Plan, Person, Id[BeamVehicle])] = {
     carriers.flatMap { carrier =>
-      val freightHouseholdId = createHouseholdId(carrier.carrierId)
-      val household = householdsFactory.createHousehold(freightHouseholdId)
+      val freightCarrierId = createHouseholdId(carrier.carrierId)
+      val household = householdsFactory.createHousehold(freightCarrierId)
       household.setIncome(new IncomeImpl(0, Income.IncomePeriod.year))
       carrier.tourMap.map { case (vehicleId, tours) =>
         val personId = createPersonId(carrier.carrierId, vehicleId)
@@ -142,7 +142,7 @@ trait FreightReader {
       powertrain,
       vehicleType,
       vehicleManagerId = new AtomicReference(
-        VehicleManager.createOrGetReservedFor(carrierId.toString, VehicleManager.TypeEnum.Freight).managerId
+        VehicleManager.createOrGetReservedFor(carrierId.toString, Some(VehicleManager.TypeEnum.Freight)).managerId
       ),
       randomSeed
     )
@@ -172,7 +172,7 @@ trait FreightReader {
 }
 
 object FreightReader {
-  val FREIGHT_ID_PREFIX = "freight"
+  val CARRIER_ID_PREFIX = "carrier"
   val FREIGHT_REQUEST_TYPE = "FreightRequestType"
   val PAYLOAD_WEIGHT_IN_KG = "PayloadWeightInKg"
   val PAYLOAD_IDS = "PayloadIds"

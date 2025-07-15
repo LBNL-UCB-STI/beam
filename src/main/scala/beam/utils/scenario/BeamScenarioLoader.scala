@@ -379,8 +379,7 @@ object BeamScenarioLoader extends ExponentialLazyLogging {
 
     val beamVehicleType = map(beamVehicleTypeId)
 
-    val vehicleManagerId =
-      VehicleManager.createOrGetReservedFor(info.householdId, VehicleManager.TypeEnum.Household).managerId
+    val vehicleManagerId = VehicleManager.createOrGetReservedFor(info.householdId).managerId
     val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
     new BeamVehicle(
       beamVehicleId,

@@ -47,7 +47,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     val id = GenericCsvReader.getIfNotNull(rec, "id")
     val rideHailManagerIdStr = GenericCsvReader.getIfNotNull(rec, "rideHailManagerId")
     val rideHailManagerId =
-      VehicleManager.createOrGetReservedFor(rideHailManagerIdStr, VehicleManager.TypeEnum.RideHail).managerId
+      VehicleManager.createOrGetReservedFor(rideHailManagerIdStr, Some(VehicleManager.TypeEnum.RideHail)).managerId
     val vehicleType = GenericCsvReader.getIfNotNull(rec, "vehicleType")
     val initialLocationX = GenericCsvReader.getIfNotNull(rec, "initialLocationX").toDouble
     val initialLocationY = GenericCsvReader.getIfNotNull(rec, "initialLocationY").toDouble
@@ -629,15 +629,15 @@ class ProceduralRideHailFleetInitializer(
   val realDistribution: UniformRealDistributionEnhanced = new UniformRealDistributionEnhanced()
   realDistribution.reseedRandomGenerator(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
-  val passengerPopulation: Iterable[Person] = scenario.getPopulation.getPersons
+  private val passengerPopulation: Iterable[Person] = scenario.getPopulation.getPersons
     .values()
     .asScala
-    .filterNot(_.getId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX))
+    .filterNot(_.getId.toString.startsWith(FreightReader.CARRIER_ID_PREFIX))
 
-  val passengerHousehold: Iterable[Household] = scenario.getHouseholds.getHouseholds
+  private val passengerHousehold: Iterable[Household] = scenario.getHouseholds.getHouseholds
     .values()
     .asScala
-    .filterNot(_.getId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX))
+    .filterNot(_.getId.toString.startsWith(FreightReader.CARRIER_ID_PREFIX))
 
   private def computeNumRideHailAgents: Long = {
     val fleet: Double = beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet

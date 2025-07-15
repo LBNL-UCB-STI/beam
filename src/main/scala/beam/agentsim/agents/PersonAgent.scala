@@ -1140,15 +1140,15 @@ class PersonAgent(
 
       val nextAct = nextActivity(basePersonData).get
       val nextCoord = nextAct.getCoord
+      // Change -- just switch back to walk_transit
       // Have to give up my mode as well, perhaps there's no option left for driving.
-      _experiencedBeamPlan.putStrategy(nextAct, TripModeChoiceStrategy(mode = None))
-      val (updatedTourMode, updatedTourPersonalVehicle): (Option[BeamTourMode], Option[Id[BeamVehicle]]) =
-        if (nextAct.getType.equalsIgnoreCase("Home")) { (None, None) }
-        else { (basePersonData.currentTourMode, basePersonData.currentTourPersonalVehicle) }
+//      _experiencedBeamPlan.putStrategy(nextAct, TripModeChoiceStrategy(mode = None))
+//      val (updatedTourMode, updatedTourPersonalVehicle): (Option[BeamTourMode], Option[Id[BeamVehicle]]) =
+//        if (nextAct.getType.equalsIgnoreCase("Home")) { (None, None) }
+//        else { (basePersonData.currentTourMode, basePersonData.currentTourPersonalVehicle) }
       goto(ChoosingMode) using ChoosesModeData(
         basePersonData.copy(
-          currentTripMode = None,
-          currentTourMode = updatedTourMode,
+          currentTripMode = Some(WALK_TRANSIT),
           currentTrip = None,
           restOfCurrentTrip = List.empty[EmbodiedBeamLeg],
           currentTourPersonalVehicle = updatedTourPersonalVehicle,

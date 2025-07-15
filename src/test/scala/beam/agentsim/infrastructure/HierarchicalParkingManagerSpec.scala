@@ -48,8 +48,8 @@ class HierarchicalParkingManagerSpec
   val randomSeed: Int = 0
 
   // a coordinate in the center of the UTM coordinate system
-  val coordCenterOfUTM = new Coord(500000, 5000000)
-  val centerSpaceTime = SpaceTime(coordCenterOfUTM, 0)
+  val coordCenterOfUTM: Coord = new Coord(500000, 5000000)
+  val centerSpaceTime: SpaceTime = SpaceTime(coordCenterOfUTM, 0)
 
   val beamConfig: BeamConfig = BeamConfig(system.settings.config)
   val geo = new GeoUtilsImpl(beamConfig)
@@ -82,12 +82,9 @@ class HierarchicalParkingManagerSpec
       } {
 
         val inquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 10)
-        val envelope = new Envelope(
-          inquiry.destinationUtm.loc.getX + 100,
-          inquiry.destinationUtm.loc.getX - 100,
-          inquiry.destinationUtm.loc.getY + 100,
-          inquiry.destinationUtm.loc.getY - 100
-        )
+        val (expectedStall: ParkingStall, _) =
+          ParkingStall.lastResortStall(inquiry.destinationUtm.loc, new Random(randomSeed))
+
         val response = parkingManager.processParkingInquiry(inquiry)
         assert(response.triggerId == 10)
         assert(response.stall.tazId.toString == "emergency")
@@ -116,12 +113,8 @@ class HierarchicalParkingManagerSpec
       )
 
       val inquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 34347)
-      val envelope = new Envelope(
-        inquiry.destinationUtm.loc.getX + 100,
-        inquiry.destinationUtm.loc.getX - 100,
-        inquiry.destinationUtm.loc.getY + 100,
-        inquiry.destinationUtm.loc.getY - 100
-      )
+      val (expectedStall: ParkingStall, _) =
+        ParkingStall.lastResortStall(inquiry.destinationUtm.loc, new Random(randomSeed))
 
       val response = parkingManager.processParkingInquiry(inquiry)
       assert(response.triggerId == 34347)

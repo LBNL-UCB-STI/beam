@@ -177,6 +177,7 @@ trait ChoosesParking extends {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
   protected lazy val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamServices.beamConfig)
+  var latestParkingInquiry: Option[ParkingInquiry] = None
 
   private def buildParkingInquiry(data: BasePersonData): ParkingInquiry = {
     val firstLeg = data.restOfCurrentTrip.head

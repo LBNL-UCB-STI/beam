@@ -58,7 +58,10 @@ object InfrastructureUtils extends LazyLogging {
         (
           beamConfig.beam.agentsim.agents.freight.carrierParkingFilePath.getOrElse(""),
           VehicleManager
-            .createOrGetReservedFor(beamConfig.beam.agentsim.agents.freight.name, VehicleManager.TypeEnum.Freight),
+            .createOrGetReservedFor(
+              beamConfig.beam.agentsim.agents.freight.name,
+              Some(VehicleManager.TypeEnum.Freight)
+            ),
           Seq(ParkingType.Workplace)
         )
       )
@@ -66,7 +69,7 @@ object InfrastructureUtils extends LazyLogging {
       val ridehailParkingFiles = beamConfig.beam.agentsim.agents.rideHail.managers.map(managerConfig =>
         (
           managerConfig.initialization.parking.filePath,
-          VehicleManager.createOrGetReservedFor(managerConfig.name, VehicleManager.TypeEnum.RideHail),
+          VehicleManager.createOrGetReservedFor(managerConfig.name, Some(VehicleManager.TypeEnum.RideHail)),
           Seq(ParkingType.Workplace)
         )
       )

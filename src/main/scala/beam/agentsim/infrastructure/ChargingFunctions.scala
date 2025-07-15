@@ -2,7 +2,7 @@ package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleManager}
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType.{Charging, Home, Working}
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType._
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
@@ -121,7 +121,8 @@ class ChargingFunctions(
     val verifyCharger = inquiry.beamVehicle.isDefined &&
       inquiry.beamVehicle.get.beamVehicleType.chargingCapability.isDefined && (
         inquiry.searchMode == ParkingSearchMode.EnRouteCharging ||
-        inquiry.parkingActivityType == Charging
+        inquiry.parkingActivityType == Charging ||
+        inquiry.parkingActivityType == EnRoute
       )
     if (!verifyCharger) {
       return true
@@ -300,7 +301,8 @@ class ChargingFunctions(
       inquiry.parkingActivityType match {
         case Home     => Set(ParkingType.Residential)
         case Working  => Set(ParkingType.Workplace)
-        case Charging => Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
+        case Charging => Set(ParkingType.Workplace, ParkingType.Depot, ParkingType.Public, ParkingType.Residential)
+        case Freight  => Set(ParkingType.Commercial, ParkingType.Depot, ParkingType.Public)
         case _        => Set(ParkingType.Public)
       }
     } else super[ParkingFunctions].getPreferredParkingTypes(inquiry)

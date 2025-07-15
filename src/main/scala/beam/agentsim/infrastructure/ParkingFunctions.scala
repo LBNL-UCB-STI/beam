@@ -2,6 +2,7 @@ package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType._
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode.DoubleParkingAllowed
 import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
@@ -109,6 +110,7 @@ class ParkingFunctions(
   ): Boolean = {
     if (zone.chargingPointType.isDefined)
       throw new RuntimeException("ParkingFunctions expect only stalls without charging points")
+
     val preferredParkingTypes = getPreferredParkingTypes(inquiry)
     val canCarParkHere: Boolean = canThisCarParkHere(zone, inquiry, preferredParkingTypes)
     canCarParkHere
@@ -125,29 +127,28 @@ class ParkingFunctions(
   ): Option[ParkingZoneSearchResult] = {
     val output = parkingZoneSearchResult match {
       case Some(result) => result
-      case _ if inquiry.searchMode == DoubleParkingAllowed && searchDoubleParkingRadius > 0 =>
-        val newStall = ParkingStall.doubleParkingStall(
-          tazTreeMap.getTAZ(inquiry.destinationUtm.loc).tazId,
+      case _
+          if inquiry.searchMode == DoubleParkingAllowed && searchDoubleParkingRadius > 0 && inquiry.parkingActivityType == ParkingActivityType.Freight =>
+        val (newStall, parkingZone) = ParkingStall.obstructiveStallAtLocation(
           inquiry.destinationUtm.loc,
-          inquiry.activityType
+          tazTreeMap.getTAZ(inquiry.destinationUtm.loc).tazId,
+          inquiry.parkingActivityType
         )
-        ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
+        ParkingZoneSearch.ParkingZoneSearchResult(newStall, parkingZone)
+      case _ if inquiry.parkingActivityType == ParkingActivityType.Home =>
+        val (newStall, zone) = ParkingStall.defaultStall(
+          inquiry.destinationUtm.loc,
+          tazTreeMap.getTAZ(inquiry.destinationUtm.loc).tazId,
+          ParkingType.Residential,
+          inquiry.parkingActivityType,
+          costInDollars = 0.0
+        )
+        ParkingZoneSearch.ParkingZoneSearchResult(newStall, zone)
       case _ =>
-        inquiry.parkingActivityType match {
-          case ParkingActivityType.Home if inquiry.searchMode != ParkingSearchMode.EnRouteCharging =>
-            val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm.loc, inquiry.activityType)
-            ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
-          case _ =>
-            // didn't find any stalls, so, as a last resort, create a very expensive stall
-            val boxAroundRequest = new Envelope(
-              inquiry.destinationUtm.loc.getX + 100,
-              inquiry.destinationUtm.loc.getX - 100,
-              inquiry.destinationUtm.loc.getY + 100,
-              inquiry.destinationUtm.loc.getY - 100
-            )
-            val newStall = ParkingStall.lastResortStall(boxAroundRequest, new Random(seed))
-            ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
-        }
+        // didn't find any stalls, so, as a last resort, create a very expensive stall
+        val (newStall, zone) =
+          ParkingStall.lastResortStall(inquiry.destinationUtm.loc, new Random(seed), inquiry.parkingActivityType)
+        ParkingZoneSearch.ParkingZoneSearchResult(newStall, zone)
     }
     Some(output)
   }
@@ -218,7 +219,12 @@ class ParkingFunctions(
         .forall(_.contains(inquiry.destinationUtm.time % (24 * 3600)))
     )
 
-    validParkingType && isValidTime
+    val isValidManager =
+      inquiry.beamVehicle.forall { vehicle =>
+        zone.reservedFor == VehicleManager.AnyManager || vehicle.vehicleManagerId.get() == zone.reservedFor.managerId
+      }
+
+    validParkingType && isValidTime && isValidManager
   }
 
   /**
@@ -230,21 +236,24 @@ class ParkingFunctions(
   protected def getPreferredParkingTypes(inquiry: ParkingInquiry): Set[ParkingType] = {
     // a lookup for valid parking types based on this inquiry
     if (inquiry.searchMode == ParkingSearchMode.EnRouteCharging) {
-      Set(ParkingType.Public)
+      inquiry.parkingActivityType match {
+        case Freight => Set(ParkingType.Commercial, ParkingType.Depot)
+        case _       => Set(ParkingType.Public, ParkingType.Depot)
+      }
     } else if (inquiry.searchMode == ParkingSearchMode.Init) {
       inquiry.parkingActivityType match {
-        case ParkingActivityType.Home    => Set(ParkingType.Residential)
-        case ParkingActivityType.Working => Set(ParkingType.Workplace)
-        case ParkingActivityType.Freight => Set(ParkingType.Depot)
-        case _                           => Set(ParkingType.Public)
+        case Home    => Set(ParkingType.Residential)
+        case Working => Set(ParkingType.Workplace)
+        case Freight => Set(ParkingType.Depot)
+        case _       => Set(ParkingType.Public)
       }
     } else {
       inquiry.parkingActivityType match {
-        case ParkingActivityType.Home     => Set(ParkingType.Residential, ParkingType.Public)
-        case ParkingActivityType.Working  => Set(ParkingType.Workplace, ParkingType.Public)
-        case ParkingActivityType.Charging => Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
-        case ParkingActivityType.Freight  => Set(ParkingType.Commercial, ParkingType.Depot)
-        case _                            => Set(ParkingType.Public)
+        case Home     => Set(ParkingType.Residential, ParkingType.Public)
+        case Working  => Set(ParkingType.Workplace, ParkingType.Public)
+        case Charging => Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential, ParkingType.Depot)
+        case Freight  => Set(ParkingType.Commercial, ParkingType.Depot, ParkingType.Public)
+        case _        => Set(ParkingType.Public)
       }
     }
   }

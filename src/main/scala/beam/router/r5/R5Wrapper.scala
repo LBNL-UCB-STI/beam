@@ -1,10 +1,10 @@
 package beam.router.r5
 
 import beam.agentsim.agents.choice.mode.DrivingCost
-import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.ridehail.RideHailVehicleId.{getFleetName, isRideHail}
+import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory}
+import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.IntermodalUse._
 import beam.router.BeamRouter._
@@ -16,7 +16,6 @@ import beam.router.model.BeamLeg.dummyLeg
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model._
 import beam.router.skim.SkimsUtils.{getRideHailCost, getRideHailManagerCosts}
-import beam.router.r5.R5Wrapper._
 import beam.router.{Modes, Router, RoutingWorker}
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import beam.utils.MeasureUnitConversion.METERS_IN_MILE
@@ -34,7 +33,6 @@ import org.matsim.vehicles.Vehicle
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util
-import java.util.concurrent.ConcurrentHashMap
 import java.util.function.IntFunction
 import java.util.{Collections, Optional}
 import scala.collection.JavaConverters._

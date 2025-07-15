@@ -25,11 +25,7 @@ object FreightRequestType extends Enum[FreightRequestType] {
   def isWarehouse(value: String): Boolean = value.toLowerCase().contains(Warehouse.toString.toLowerCase())
 }
 
-case class FreightTour(
-  tourId: Id[FreightTour],
-  departureTimeInSec: Int,
-  maxTourDurationInSec: Int
-)
+case class FreightTour(tourId: Id[FreightTour], departureTimeInSec: Int, maxTourDurationInSec: Int)
 
 case class PayloadPlan(
   payloadId: Id[PayloadPlan],

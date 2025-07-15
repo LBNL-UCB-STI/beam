@@ -455,7 +455,8 @@ class BeamMobsimIteration(
     if (beamServices.beamConfig.beam.agentsim.agents.rideHail.managers.size == 1) {
       val managerConfig = beamConfig.beam.agentsim.agents.rideHail.managers.head
       val rhmName = managerConfig.name
-      val rideHailManagerId = VehicleManager.createOrGetReservedFor(rhmName, VehicleManager.TypeEnum.RideHail).managerId
+      val rideHailManagerId =
+        VehicleManager.createOrGetReservedFor(rhmName, Some(VehicleManager.TypeEnum.RideHail)).managerId
       val rideHailFleetInitializer = rideHailFleetInitializerProvider.get(rhmName)
       Props(
         new RideHailManager(
