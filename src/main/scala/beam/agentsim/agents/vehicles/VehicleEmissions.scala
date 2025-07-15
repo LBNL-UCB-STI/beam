@@ -303,9 +303,7 @@ object VehicleEmissions extends LazyLogging {
       data: BeamVehicle.VehicleActivityData,
       vehicleActivity: Class[_ <: org.matsim.api.core.v01.events.Event]
     ): Boolean = {
-      vehicleActivity == classOf[LeavingParkingEvent] && data.parkingActivityType.exists(
-        List(LoadingUnloading, Warehousing, Hotelling).contains
-      )
+      vehicleActivity == classOf[LeavingParkingEvent] && data.parkingActivityType.contains(Freight)
     }
 
     def identifyProcesses(
@@ -477,7 +475,7 @@ object VehicleEmissions extends LazyLogging {
           val idlingHours: Double =
             data.parkingActivityType match {
 
-              case Some(Hotelling) =>
+              case Some(Idling) => // Hotelling
                 val vehicleParkingInSec = data.parkingDuration.getOrElse(0.0)
                 val operationDurationInSec =
                   data.linkStartTime - operationTimeMap.getOrElseUpdate(data.vehicleId, data.activityStartTime)

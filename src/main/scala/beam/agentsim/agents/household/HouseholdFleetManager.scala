@@ -272,7 +272,7 @@ class HouseholdFleetManager(
       val activityType = if (reservedFor.managerType == VehicleManager.TypeEnum.Freight) {
         ParkingActivityType.Freight.toString
       } else {
-        ParkingActivityType.Wherever.toString
+        ParkingActivityType.Miscellaneous.toString
       }
       val responseFuture = parkingManager ? ParkingInquiry.init(
         inquiry.whereWhen,
