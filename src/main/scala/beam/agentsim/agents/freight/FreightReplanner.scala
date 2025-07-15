@@ -164,7 +164,7 @@ class FreightReplanner(
       payloadPlan.requestType match {
         case FreightRequestType.Unloading =>
           Dropoff(serviceId, payloadPlan.locationUTM, payloadPlan.weightInKg, payloadPlan.operationDurationInSec)
-        case FreightRequestType.Loading =>
+        case FreightRequestType.Loading | FreightRequestType.Warehouse =>
           Pickup(serviceId, payloadPlan.locationUTM, payloadPlan.weightInKg, payloadPlan.operationDurationInSec)
       }
     }

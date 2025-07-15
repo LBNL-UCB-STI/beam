@@ -3,8 +3,8 @@ package beam.agentsim.infrastructure
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.ParkingInquiry.{activityTypeStringToEnum, ParkingActivityType, ParkingSearchMode}
-import beam.agentsim.infrastructure.parking.ParkingMNL
+import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
+import beam.agentsim.infrastructure.parking.{ParkingMNL, ParkingType}
 import beam.agentsim.scheduler.HasTriggerId
 import beam.utils.ParkingManagerIdGenerator
 import com.typesafe.scalalogging.LazyLogging
@@ -42,7 +42,7 @@ case class ParkingInquiry(
   originUtm: Option[SpaceTime] = None,
   triggerId: Long
 ) extends HasTriggerId {
-  val parkingActivityType: ParkingActivityType = activityTypeStringToEnum(activityType)
+  val parkingActivityType: ParkingActivityType = ParkingActivityType.fromString(activityType)
 
   val departureLocation: Option[Coord] = searchMode match {
     case ParkingSearchMode.EnRouteCharging => beamVehicle.map(_.spaceTime).orElse(originUtm).map(_.loc)
@@ -65,59 +65,61 @@ object ParkingInquiry extends LazyLogging {
 
   object ParkingActivityType extends Enum[ParkingActivityType] {
     val values: immutable.IndexedSeq[ParkingActivityType] = findValues
-    case object Charge extends ParkingActivityType
-    case object Wherever extends ParkingActivityType
+    case object Charging extends ParkingActivityType
+    case object Miscellaneous extends ParkingActivityType
     case object Home extends ParkingActivityType
-    case object Work extends ParkingActivityType
+    case object Working extends ParkingActivityType
     case object EnRoute extends ParkingActivityType
-    case object IDLE extends ParkingActivityType
+    case object Idling extends ParkingActivityType
     case object Freight extends ParkingActivityType
-  }
 
-  // Pre-compiled lookup table for exact matches (O(1) lookup)
-  private val exactMatches = Map(
-    "home"       -> ParkingActivityType.Home,
-    "work"       -> ParkingActivityType.Work,
-    "charge"     -> ParkingActivityType.Charge,
-    "wherever"   -> ParkingActivityType.Wherever,
-    "eatout"     -> ParkingActivityType.Wherever,
-    "othdiscr"   -> ParkingActivityType.Wherever,
-    "othmaint"   -> ParkingActivityType.Wherever,
-    "school"     -> ParkingActivityType.Wherever,
-    "escort"     -> ParkingActivityType.Wherever,
-    "social"     -> ParkingActivityType.Wherever,
-    "idle"       -> ParkingActivityType.IDLE,
-    "depot"      -> ParkingActivityType.Freight,
-    "commercial" -> ParkingActivityType.Freight,
-    "loading"    -> ParkingActivityType.Freight,
-    "unloading"  -> ParkingActivityType.Freight,
-    "warehouse"  -> ParkingActivityType.Freight
-  )
+    // Pre-compiled lookup table for exact matches (O(1) lookup)
+    private val exactMatches = Map(
+      "home"       -> ParkingActivityType.Home,
+      "work"       -> ParkingActivityType.Working,
+      "charge"     -> ParkingActivityType.Charging,
+      "wherever"   -> ParkingActivityType.Miscellaneous,
+      "eatout"     -> ParkingActivityType.Miscellaneous,
+      "othdiscr"   -> ParkingActivityType.Miscellaneous,
+      "othmaint"   -> ParkingActivityType.Miscellaneous,
+      "school"     -> ParkingActivityType.Miscellaneous,
+      "escort"     -> ParkingActivityType.Miscellaneous,
+      "social"     -> ParkingActivityType.Miscellaneous,
+      "idle"       -> ParkingActivityType.Idling,
+      "depot"      -> ParkingActivityType.Freight,
+      "commercial" -> ParkingActivityType.Freight,
+      "loading"    -> ParkingActivityType.Freight,
+      "unloading"  -> ParkingActivityType.Freight,
+      "warehouse"  -> ParkingActivityType.Freight
+    )
 
-  // Pre-compiled prefix patterns for startsWith checks
-  private val freightPrefixes = Set("depot", "commercial", "loading", "unloading", "warehouse")
+    // Pre-compiled prefix patterns for startsWith checks
+    private val freightPrefixes = Set("depot", "commercial", "loading", "unloading", "warehouse")
 
-  def activityTypeStringToEnum(activityType: String): ParkingActivityType = {
-    val lowerType = activityType.toLowerCase
+    def fromString(activityType: String): ParkingActivityType = {
+      val lowerType = activityType.toLowerCase
 
-    // Try exact match first (fastest - O(1))
-    exactMatches.get(lowerType) match {
-      case Some(result) => result
-      case None         =>
-        // Check prefixes (only if exact match failed)
-        if (freightPrefixes.exists(lowerType.startsWith)) {
-          ParkingActivityType.Freight
-        } else if (lowerType.contains("enroute")) {
-          ParkingActivityType.Charge
-        } else if (lowerType.contains("home")) {
-          ParkingActivityType.Home
-        } else if (lowerType.contains("work")) {
-          ParkingActivityType.Work
-        } else {
-          logger.debug(s"This Parking Activity Type ($lowerType) has not been defined")
-          ParkingActivityType.Wherever
-        }
+      // Try exact match first (fastest - O(1))
+      exactMatches.get(lowerType) match {
+        case Some(result) => result
+        case None         =>
+          // Check prefixes (only if exact match failed)
+          if (freightPrefixes.exists(lowerType.startsWith)) {
+            ParkingActivityType.Freight
+          } else if (lowerType.contains("enroute")) {
+            ParkingActivityType.Charging
+          } else if (lowerType.contains("home")) {
+            ParkingActivityType.Home
+          } else if (lowerType.contains("work")) {
+            ParkingActivityType.Working
+          } else {
+            logger.debug(s"This Parking Activity Type ($lowerType) has not been defined")
+            ParkingActivityType.Miscellaneous
+          }
+      }
     }
+
+    def fromParkingType(parkingType: ParkingType): ParkingActivityType = fromString(parkingType.toString)
   }
 
   def init(

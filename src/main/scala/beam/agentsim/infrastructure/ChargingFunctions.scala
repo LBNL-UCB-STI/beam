@@ -2,7 +2,7 @@ package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleManager}
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType.{Charge, EnRoute, Home, Work}
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType.{Charging, Home, Working}
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
@@ -68,8 +68,8 @@ class ChargingFunctions(
     */
   private def ifChargeActivityThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
     inquiry.parkingActivityType match {
-      case Charge => zone.chargingPointType.exists(ChargingPointType.isFastCharger)
-      case _      => true // if it is not Charge activity then it does not matter
+      case Charging => zone.chargingPointType.exists(ChargingPointType.isFastCharger)
+      case _        => true // if it is not Charge activity then it does not matter
     }
   }
 
@@ -121,8 +121,7 @@ class ChargingFunctions(
     val verifyCharger = inquiry.beamVehicle.isDefined &&
       inquiry.beamVehicle.get.beamVehicleType.chargingCapability.isDefined && (
         inquiry.searchMode == ParkingSearchMode.EnRouteCharging ||
-        inquiry.parkingActivityType == Charge ||
-        inquiry.parkingActivityType == EnRoute
+        inquiry.parkingActivityType == Charging
       )
     if (!verifyCharger) {
       return true
@@ -139,13 +138,13 @@ class ChargingFunctions(
   }
 
   private def isHomeWorkOrOvernight(inquiry: ParkingInquiry): Boolean = {
-    val isHomeOrWork = List(Home, Work).contains(inquiry.parkingActivityType)
+    val isHomeOrWork = List(Home, Working).contains(inquiry.parkingActivityType)
     val isOvernight = inquiry.searchMode == ParkingSearchMode.Init
     isHomeOrWork || isOvernight
   }
 
   private def hasLongParkingDurationButNotCharge(inquiry: ParkingInquiry): Boolean = {
-    inquiry.parkingDuration > 3600.0 && inquiry.searchMode != ParkingSearchMode.EnRouteCharging && inquiry.parkingActivityType != Charge
+    inquiry.parkingDuration > 3600.0 && inquiry.searchMode != ParkingSearchMode.EnRouteCharging && inquiry.parkingActivityType != Charging
   }
 
   /**
@@ -299,10 +298,10 @@ class ChargingFunctions(
     import ParkingSearchMode._
     if (parkingConfig.forceParkingType && !List(EnRouteCharging, Init).contains(inquiry.searchMode)) {
       inquiry.parkingActivityType match {
-        case Home   => Set(ParkingType.Residential)
-        case Work   => Set(ParkingType.Workplace)
-        case Charge => Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
-        case _      => Set(ParkingType.Public)
+        case Home     => Set(ParkingType.Residential)
+        case Working  => Set(ParkingType.Workplace)
+        case Charging => Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
+        case _        => Set(ParkingType.Public)
       }
     } else super[ParkingFunctions].getPreferredParkingTypes(inquiry)
   }

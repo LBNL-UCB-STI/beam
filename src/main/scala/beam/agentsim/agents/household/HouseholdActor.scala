@@ -237,7 +237,7 @@ object HouseholdActor {
             }
             person.getSelectedPlan.getPlanElements.asScala.find(_.isInstanceOf[Activity]) map { element =>
               val act = element.asInstanceOf[Activity]
-              val parkingActivityType = ParkingInquiry.activityTypeStringToEnum(act.getType)
+              val parkingActivityType = ParkingActivityType.fromString(act.getType)
               val endTime = act.getEndTime.orElseGet(() => DateUtils.getEndOfTime(beamServices.beamScenario.beamConfig))
               person.getId -> HomeAndStartingWorkLocation(
                 parkingActivityType,
@@ -307,7 +307,7 @@ object HouseholdActor {
         if (cavs.nonEmpty) {
           val workingPersonsList =
             householdMembersToActivityTypeAndLocation
-              .filter(_._2.parkingActivityType == ParkingActivityType.Work)
+              .filter(_._2.parkingActivityType == ParkingActivityType.Working)
               .keys
               .toBuffer
           cavs.foreach { cav =>

@@ -9,7 +9,7 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
+import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
@@ -175,7 +175,7 @@ class ZonalParkingManagerSpec
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
-            "work",
+            ParkingActivityType.Working,
             VehicleManager.AnyManager
           )
         val response1 = zonalParkingManager.processParkingInquiry(firstInquiry)
@@ -239,7 +239,7 @@ class ZonalParkingManagerSpec
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
-            "work",
+            ParkingActivityType.Working,
             VehicleManager.AnyManager
           )
 
@@ -594,7 +594,7 @@ class ZonalParkingManagerSpec
         None,
         Some(pricingModel),
         parkingType,
-        "init",
+        ParkingActivityType.Miscellaneous,
         reservedFor = reservedFor
       )
     assert(

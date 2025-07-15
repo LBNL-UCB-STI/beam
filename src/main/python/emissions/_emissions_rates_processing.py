@@ -16,37 +16,8 @@ sys.path.insert(0, parent_dir)
 
 # Now use absolute import
 from python.utils.files_utils import check_files
+from python.utils.study_area_config import emissions_config
 
-# Now use absolute import
-emissions_processes = [
-    "RUNEX",
-    "IDLEX",
-    "STREX",
-    "DIURN",
-    "HOTSOAK",
-    "RUNLOSS",
-    "PMTW",
-    "PMBW",
-    "PRDUST"
-]
-
-pollutant_columns = {
-    'CH4': 'rate_ch4_gram_float',
-    'CO': 'rate_co_gram_float',
-    'CO2': 'rate_co2_gram_float',
-    'HC': 'rate_hc_gram_float',
-    'NH3': 'rate_nh3_gram_float',
-    'NOx': 'rate_nox_gram_float',
-    'PM': 'rate_pm_gram_float',
-    'PM10': 'rate_pm10_gram_float',
-    'PM2_5': 'rate_pm2_5_gram_float',
-    'ROG': 'rate_rog_gram_float',
-    'SOx': 'rate_sox_gram_float',
-    'TOG': 'rate_tog_gram_float',
-    'BC_V1': 'rate_bc_gram_float',
-    'BC_V2': 'rate_bcm_gram_float',
-    'BC_V3': 'rate_bch_gram_float'
-}
 
 def calculate_road_dust_emissions(silt_loading, rainy_days):
     """
@@ -212,9 +183,9 @@ def pivot_rates_for_beam(df_raw):
         index_.append("speed_time")
     pivot_df = df_raw.pivot_table(index=index_, columns='pollutant', values='emission_rate', aggfunc='first',
                                   fill_value=0).reset_index()
-    pivot_df = pivot_df.rename(columns=pollutant_columns)
+    pivot_df = pivot_df.rename(columns=emissions_config["pollutants"])
     # Add missing columns with default values
-    for col in pollutant_columns.values():
+    for col in emissions_config["pollutants"].values():
         if col not in pivot_df.columns:
             pivot_df[col] = 0.0
     pivot_df.insert(0, 'speed_mph_float_bins', "")
@@ -227,9 +198,12 @@ def process_rates_group(df, row):
     df_subset = df[mask]
     df_output_list = []
 
+    # # Extract PM-related pollutant columns
+    # pm_columns = [value for key, value in emissions_config["pollutants"].items() if key.startswith('PM')]
+
     # Add progress bar for processing each emissions process
     print(f"Processing emissions for county: {row['county']}, emfacId: {row['emfacId']}")
-    for process in tqdm(emissions_processes, desc="Processing emission processes"):
+    for process in tqdm(emissions_config["processes"], desc="Processing emission processes"):
         df_temp = df_subset[df_subset['process'] == process]
         if not df_temp.empty:
             if process in ['RUNEX', 'PMBW']:
@@ -240,6 +214,15 @@ def process_rates_group(df, row):
                                                                [0.0, 3600.0])
             else:
                 df_temp = pivot_rates_for_beam(df_temp)
+
+            # if emissions_version == "EMFAC2021":
+            #     if process == 'PMTW' and row.get('fuel').isin(['Elec', 'Phe']):
+            #         # Apply 15% increase to PM-related columns
+            #         # EMFAC2021 underestimated tire wear emissions for electric vehicles
+            #         # https://ww2.arb.ca.gov/sites/default/files/2024-11/3rd%20Workshop%20Draft%20Slides%20FINAL%20ADA.pdf
+            #         for col in pm_columns:
+            #             df_temp[col] = df_temp[col] * 1.15
+
             df_output_list.append(df_temp)
 
     return pd.concat(df_output_list, ignore_index=True) if df_output_list else pd.DataFrame()
@@ -350,10 +333,6 @@ def process_emfac_rates(
     # Use parallel processing with fewer, larger chunks
     with Pool(num_cores) as pool:
         with tqdm(total=num_cores, desc="Processing chunks") as pbar:
-            def update_progress(*args):
-                pbar.update()
-                return args[0]
-
             # Use imap to process chunks sequentially with progress updates
             df_output_list = []
             for result in pool.imap(process_chunk, [(chunk, emissions_rates) for chunk in chunks]):
@@ -369,7 +348,6 @@ def process_emfac_rates(
 
     # Count rows before filtering
     total_rows_before = len(df_output)
-    filtered_out = df_output[(df_output[emission_columns] == 0).all(axis=1)]
     df_output = df_output[~(df_output[emission_columns] == 0).all(axis=1)]
     # Count rows after filtering
     total_rows_after = len(df_output)
@@ -391,7 +369,7 @@ def process_emfac_emissions(study_area, scenario_name, work_dir, config, format_
     emfac_rates_by_model_year_file = os.path.join(work_dir, emfac_config['emfac_rates_by_model_year_file'])
     emfac_emission_rate_output_file = os.path.join(
         work_dir,
-        f"{config["rates"]["output_dir"]}/{study_area}_emfac_rates_{scenario_name}.csv"
+        f"{config["run"]["emissions_dir"]}/{study_area}_emfac_rates_{scenario_name}.csv"
     )
 
     if check_files([emfac_emission_rate_output_file], config["override_rates"]):
@@ -420,7 +398,7 @@ def process_black_carbon(study_area, scenario_name, work_dir, config, format_fun
     bc_rates_by_model_year_file = os.path.join(work_dir, black_carbon_config['black_carbon_rates_file'])
     bc_emission_rate_output_file = os.path.join(
         work_dir,
-        f"{config["rates"]["output_dir"]}/{study_area}_black_carbon_rates_{scenario_name}.csv"
+        f"{config["run"]["emissions_dir"]}/{study_area}_black_carbon_rates_{scenario_name}.csv"
     )
 
     if check_files([bc_emission_rate_output_file], config["override_rates"]):
@@ -465,7 +443,7 @@ def process_road_dust(study_area, scenario_name, work_dir, config, emfac_ids):
     _silt_loading_file = os.path.join(work_dir, road_dust_config['silt_loading_file'])
     road_dust_output_file = os.path.join(
         work_dir,
-        f"{config["rates"]["output_dir"]}/{study_area}_paved_road_dust_rates_{scenario_name}.csv"
+        f"{config["run"]["emissions_dir"]}/{study_area}_paved_road_dust_rates_{scenario_name}.csv"
     )
 
     # Check if the output file already exists
@@ -533,10 +511,15 @@ def process_emissions_rates(_study_area, _scenario_name, _work_dir, config, form
     """
     # File paths for outputs
     rates_config = config["rates"]
-    combined_rate_file = os.path.join(_work_dir, f"{rates_config["output_dir"]}/{_study_area}_emissions_rates_{_scenario_name}.csv")
+    combined_rate_file = os.path.join(_work_dir, f"{config["run"]["output_dir"]}/{_study_area}_emissions_rates_{_scenario_name}.csv")
 
     # Ensure output directory exists
     os.makedirs(os.path.dirname(combined_rate_file), exist_ok=True)
+
+    # Specify the columns you want to appear first
+    first_cols = [
+        "scenario", "emfacId", "county", "speed_mph_float_bins", "time_minutes_float_bins", "road_category", "process"
+    ]
 
     if check_files([combined_rate_file], config["override_rates"]):
         print(f"Loading existing combined rates from: {combined_rate_file}")
@@ -564,29 +547,45 @@ def process_emissions_rates(_study_area, _scenario_name, _work_dir, config, form
             if 'emfac' in rates_config:
                 print(f"\nProcessing EMFAC emissions for scenario '{_scenario_name}'")
                 emfac_rates = process_emfac_emissions(_study_area, _scenario_name, _work_dir, config, format_func)
-                if not emfac_rates.empty:
-                    dfs.append(emfac_rates)
-                    emfac_ids.update(emfac_rates["emfacId"].unique())
-                    print(f"Added {len(emfac_rates)} EMFAC emission rows")
-                else:
-                    print("No EMFAC emissions were processed")
                 pbar.update(1)
             else:
+                emfac_rates = None
                 print(f"Skipping EMFAC processing for scenario '{_scenario_name}' as no config is provided.")
 
             # Process black carbon emissions if configured
             if 'black_carbon' in rates_config:
                 print(f"\nProcessing Black Carbon emissions for scenario '{_scenario_name}'")
                 black_carbon_rates = process_black_carbon(_study_area, _scenario_name, _work_dir, config, format_func)
-                if not black_carbon_rates.empty:
-                    dfs.append(black_carbon_rates)
-                    emfac_ids.update(black_carbon_rates["emfacId"].unique())
-                    print(f"Added {len(black_carbon_rates)} Black Carbon emission rows")
-                else:
-                    print("No Black Carbon emissions were processed")
                 pbar.update(1)
             else:
+                black_carbon_rates = None
                 print(f"Skipping Black Carbon processing for scenario '{_scenario_name}' as no config is provided.")
+
+            if emfac_rates is not None and black_carbon_rates is not None:
+                emfac_bc_keys = ["emfacId", "county", "speed_mph_float_bins", "time_minutes_float_bins", "process"]
+                # Filter black_carbon_rates to keep only key columns and columns starting with "rate_bc"
+                bc_cols_to_keep = [col for col in black_carbon_rates.columns if col.startswith("rate_bc")]
+                bc_rates_filtered = black_carbon_rates[emfac_bc_keys + bc_cols_to_keep]
+                # Filter emfac_rates to keep everything except columns starting with "rate_bc"
+                emfac_cols_to_keep = [col for col in emfac_rates.columns if not col.startswith("rate_bc")]
+                emfac_rates_filtered = emfac_rates[emfac_cols_to_keep]
+                # Merge the filtered dataframes
+                emfac_bc_rates = pd.merge(emfac_rates_filtered, bc_rates_filtered, on=emfac_bc_keys,how='outer')
+                print(f"Merged EMFAC and Black Carbon rates. Shape: {emfac_bc_rates.shape}")
+            elif emfac_rates is not None:
+                emfac_bc_rates = emfac_rates
+                print(f"Using EMFAC rates only. Shape: {emfac_rates.shape}")
+            elif black_carbon_rates is not None:
+                emfac_bc_rates = black_carbon_rates
+                print(f"Using Black Carbon rates only. Shape: {black_carbon_rates.shape}")
+            else:
+                emfac_bc_rates = pd.DataFrame()  # Create empty DataFrame if both are None
+                print("No emission rates available.")
+
+            if not emfac_bc_rates.empty:
+                dfs.append(emfac_bc_rates)
+                emfac_ids.update(emfac_bc_rates["emfacId"].unique())
+                print(f"Added {len(emfac_bc_rates)} emission rows")
 
             # Process road dust emissions if configured
             if 'road_dust' in rates_config:
@@ -639,11 +638,6 @@ def process_emissions_rates(_study_area, _scenario_name, _work_dir, config, form
             # Report on final combined size
             print(f"Combined rates shape: {_combined_rates.shape}")
 
-            # Specify the columns you want to appear first
-            first_cols = [
-                "scenario", "emfacId", "county", "speed_mph_float_bins", "time_minutes_float_bins", "road_category",
-                "process"
-            ]
             remaining_cols = [col for col in _combined_rates.columns if col not in first_cols]
             _combined_rates = _combined_rates[first_cols + remaining_cols]
 
@@ -670,7 +664,7 @@ def process_emfac_population(_study_area, _scenario_name, _work_dir, config, for
     """
     _emfac_population_output_file = os.path.join(
         _work_dir,
-        f"{config["rates"]["output_dir"]}/{_study_area}_emfac_population_{_scenario_name}.csv"
+        f"{config["run"]["emissions_dir"]}/{_study_area}_emfac_population_{_scenario_name}.csv"
     )
 
     # Ensure output directory exists
@@ -810,7 +804,7 @@ def process_emfac_vmt(_study_area, _scenario_name, _work_dir, config, format_fun
     """
     _emfac_vmt_output_file = os.path.join(
         _work_dir,
-        f"{config["rates"]["output_dir"]}/{_study_area}_emfac_vmt_{_scenario_name}.csv"
+        f"{config["run"]["emissions_dir"]}/{_study_area}_emfac_vmt_{_scenario_name}.csv"
     )
 
     # Ensure output directory exists

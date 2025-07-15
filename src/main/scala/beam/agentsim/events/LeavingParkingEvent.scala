@@ -23,6 +23,7 @@ case class LeavingParkingEvent(
   parkingType: ParkingType,
   pricingModel: Option[PricingModel],
   ChargingPointType: Option[ChargingPointType],
+  linkIds: IndexedSeq[Int],
   emissionsProfile: Option[EmissionsProfile]
 ) extends Event(time)
     with ScalaEvent {
@@ -42,6 +43,7 @@ case class LeavingParkingEvent(
     attr.put(ATTRIBUTE_EMISSIONS_PROFILE, emissionsProfile.map(BeamVehicleUtils.buildEmissionsString).getOrElse(""))
     attr.put(ATTRIBUTE_PARKING_DURATION, parkingDuration.toString)
     attr.put(ATTRIBUTE_COST, pricingModel.map(_.costInDollars.toString).getOrElse("0"))
+    attr.put(ATTRIBUTE_LINK_IDS, linkIds.mkString(","))
     attr
   }
 }
@@ -74,6 +76,7 @@ object LeavingParkingEvent {
   val ATTRIBUTE_DRIVER_ID: String = "driver"
   val ATTRIBUTE_EMISSIONS_PROFILE: String = "emissions"
   val ATTRIBUTE_PARKING_DURATION: String = "duration"
+  val ATTRIBUTE_LINK_IDS: String = "links"
 
   def apply(
     time: Double,
@@ -93,6 +96,7 @@ object LeavingParkingEvent {
       stall.parkingType,
       stall.pricingModel,
       stall.chargingPointType,
+      stall.link.map(_.getId.toString.toInt).toIndexedSeq,
       emissionsProfile
     )
   }
@@ -112,6 +116,8 @@ object LeavingParkingEvent {
     val chargingPointType: Option[ChargingPointType] = attr.get(ATTRIBUTE_CHARGING_TYPE).flatMap(ChargingPointType(_))
     val emissionsProfile = attr.get(ATTRIBUTE_EMISSIONS_PROFILE).flatMap(BeamVehicleUtils.parseEmissionsString(_))
     val duration: Double = attr.get(ATTRIBUTE_PARKING_DURATION).map(_.toDouble).getOrElse(0.0)
+    val linkIdsAsStr = Option(attr(ATTRIBUTE_LINK_IDS)).getOrElse("")
+    val linkIds: IndexedSeq[Int] = if (linkIdsAsStr == "") IndexedSeq.empty else linkIdsAsStr.split(",").map(_.toInt)
     LeavingParkingEvent(
       time,
       personId,
@@ -122,6 +128,7 @@ object LeavingParkingEvent {
       parkingType,
       pricingModel,
       chargingPointType,
+      linkIds,
       emissionsProfile
     )
   }

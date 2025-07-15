@@ -45,7 +45,7 @@ def generate_network_name(config: dict) -> str:
     Example output: sfbay-area-cbg7000-network or sfbay-area-cbg7000-ferry-network
     """
     # Get study area
-    study_area = config["study_area"]
+    study_area = config["area"]["name"]
     layers = config["network"]["graph_layers"]
 
     # Get residential geographic level and density
@@ -53,7 +53,6 @@ def generate_network_name(config: dict) -> str:
         density_value = str(layers["residential"]["min_density_per_km2"])
         residential_geo_level = f"-{layers["residential"]["geo_level"]}{density_value}"
     else:
-        density_value = ""
         residential_geo_level = ""
 
     # Ferry suffix
@@ -256,17 +255,72 @@ fastsim_routee_files = {
     }
 }
 
+
+########## Emissions #########
+
+emissions_config = {
+    "pollutants": {
+        'CH4': 'rate_ch4_gram_float',
+        'CO': 'rate_co_gram_float',
+        'CO2': 'rate_co2_gram_float',
+        'HC': 'rate_hc_gram_float',
+        'NH3': 'rate_nh3_gram_float',
+        'NOx': 'rate_nox_gram_float',
+        'PM': 'rate_pm_gram_float',
+        'PM10': 'rate_pm10_gram_float',
+        'PM2_5': 'rate_pm2_5_gram_float',
+        'ROG': 'rate_rog_gram_float',
+        'SOx': 'rate_sox_gram_float',
+        'TOG': 'rate_tog_gram_float',
+        'BC': 'rate_bc_gram_float',
+        'BCm': 'rate_bcm_gram_float',
+        'BCh': 'rate_bch_gram_float'
+    },
+    "processes" : [
+        "RUNEX", "IDLEX", "STREX", "DIURN", "HOTSOAK", "RUNLOSS", "PMTW", "PMBW", "PRDUST"
+    ]
+}
+
+########## Vehicle Types #########
+vehicle_types_config = {
+    "columns": [
+        "vehicleTypeId",
+        "seatingCapacity",
+        "standingRoomCapacity",
+        "lengthInMeter",
+        "primaryFuelType",
+        "primaryFuelConsumptionInJoulePerMeter",
+        "primaryFuelCapacityInJoule",
+        "primaryVehicleEnergyFile",
+        "secondaryFuelType",
+        "secondaryFuelConsumptionInJoulePerMeter",
+        "secondaryVehicleEnergyFile",
+        "secondaryFuelCapacityInJoule",
+        "automationLevel",
+        "maxVelocity",
+        "passengerCarUnit",
+        "rechargeLevel2RateLimitInWatts",
+        "rechargeLevel3RateLimitInWatts",
+        "vehicleCategory",
+        "sampleProbabilityWithinCategory",
+        "sampleProbabilityString"
+    ]
+}
+
 ########## SF Bay Area #########
 
 sfbay_area_config = {
     # Base paths
     "work_dir": os.path.expanduser("~/Workspace/Simulation/sfbay"),
-    "study_area": "sfbay",
-    "state_fips": "06",
-    # 087 Santa Cruz
-    # 113 Yolo
-    "county_fips": ['001', '013', '041', '055', '075', '081', '085', '095', '097'],
-    "census_year": 2018,
+
+    "area": {
+        "name": "sfbay",
+        "state_fips": "06",
+        # 087 Santa Cruz
+        # 113 Yolo
+        "county_fips": ['001', '013', '041', '055', '075', '081', '085', '095', '097'],
+        "census_year": 2018,
+    },
 
     "geo": {
         "utm_epsg": 26910, # NAD83 / UTM zone 10N
@@ -337,8 +391,14 @@ sfbay_area_config = {
         "2018-Baseline" : {
             "override_rates": False,
             "override_fleet": True,
-            "rates": {
+            "run": {
                 "output_dir": "emissions/20240123",
+                "events_file": "beam-runs/20240123/2018-Baseline/0.events.csv.gz",
+                "emissions_skims_file": "beam-runs/20240123/2018-Baseline/0.events.csv.gz",
+                "link_stats_file": "beam-runs/20240123/2018-Baseline/0.linkstats.csv.gz",
+                "sample_portion": 0.1,
+            },
+            "rates": {
                 "filters": {
                     "season_month": "Annual",
                     "calendar_year": 2018,
@@ -348,14 +408,17 @@ sfbay_area_config = {
                     "include_nan": True
                 },
                 "emfac": {
+                    "version": "EMFAC2021",
                     "emfac_rates_by_model_year_file": f"emissions/rates/emfac/imputed_MTC_emission_rate_agg_NH3_added_2018_2025_2030_2040_2050.csv",
                     "emfac_vmt_by_model_year_file": f"emissions/rates/emfac/Default_Statewide_2018_2025_2030_2040_2050_Annual_vmt_20240612233346.csv",
                     "emfac_pop_by_model_year_file": f"emissions/rates/emfac/Default_Statewide_2018_2025_2030_2040_2050_Annual_population_20240612233346.csv"
                 },
                 "black_carbon": {
+                    "version": "",
                     "black_carbon_rates_file": f"emissions/rates/black_carbon/emfac_bc_rate_three_ver_2018.csv",
                 },
                 "road_dust": {
+                    "version": "",
                     "rainy_days_file": f"emissions/rates/road_dust/CA_input/rainy_days.csv",
                     "silt_loading_file": f"emissions/rates/road_dust/CA_input/silt_loading.csv",
                 }
@@ -363,19 +426,20 @@ sfbay_area_config = {
             "beam" : {
                 "carriers_file": f"beam-ft/20240123/2018-Baseline/carriers--2018-Baseline.csv",
                 "payloads_file": f"beam-ft/20240123/2018-Baseline/payloads--2018-Baseline.csv",
+                "tours_file": f"beam-ft/20240123/2018-Baseline/tours--2018-Baseline.csv",
                 "ft_vehicle_types_file": f"vehicle-tech/vehicleTypes--frism--2018-Baseline.csv",
-                "pax_vehicles_file": f"beam-pax/2023-Baseline/vehicles--atlas--2023-Baseline.csv.gz",
-                "pax_vehicle_types_file": f"vehicle-tech/vehicleTypes--atlas--2023-Baseline.csv"
+                "pax_vehicles_file": f"beam-pax/vehicles--atlas--2017-Baseline.csv.gz",
+                "pax_vehicle_types_file": f"vehicle-tech/vehicleTypes--atlas--2017-Baseline.csv"
             },
             "mapping": {
                 "fleet": {
                     "ignore_beam_passenger_distribution": False,
-                    "ignore_beam_freight_distribution": False
+                    "ignore_beam_freight_distribution": False,
+                    "model_year_bins": [1993, 2006, 2018]
                 },
                 "atlas":{
                     "enable_atlas_emfac_crosswalk": True,
                     "emfac": f"atlas/atlas-emfac-xwalk.csv",
-                    "routee": f"atlas/vehicle_type_mapping_baseline.csv",
                     "alternatives": {
                         "car": ['car'],
                         "suv": ['suv', 'car', 'truck'],

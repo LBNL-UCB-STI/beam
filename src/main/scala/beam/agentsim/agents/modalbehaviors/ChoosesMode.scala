@@ -616,7 +616,7 @@ trait ChoosesMode {
               .map(_.beamLeg)
           val egressSegment =
             rhTransitTrip.get.legs.reverse.takeWhile(!_.beamLeg.mode.isTransit).reverse.map(_.beamLeg)
-          val (accessId, accessResult) =
+          val (accessId, _) =
             if (
               (accessSegment.map(_.travelPath.distanceInM).sum > 0) & accessSegment
                 .exists(l => l.mode.isRideHail | l.mode == CAR)
@@ -625,7 +625,7 @@ trait ChoosesMode {
             } else {
               (None, Some(RideHailResponse.dummyWithError(RideHailNotRequestedError)))
             }
-          val (egressId, egressResult) =
+          val (egressId, _) =
             if (
               (egressSegment.map(_.travelPath.distanceInM).sum > 0) & egressSegment
                 .exists(l => l.mode.isRideHail | l.mode == CAR)
@@ -2376,9 +2376,9 @@ trait ChoosesMode {
                 ).vehicle.isSharedVehicle =>
               beamVehicles(veh).vehicle.setMustBeDrivenHome(true)
             case Some(veh)
-                if currentPlanMode.contains(BIKE_TRANSIT) && isLastTripWithinTour(destinationActivity) && !beamVehicles(
-                  veh
-                ).vehicle.isSharedVehicle =>
+                if currentPlanMode.contains(BIKE_TRANSIT) && isLastTripWithinTour(destinationActivity) && !beamVehicles
+                  .get(veh)
+                  .exists(_.vehicle.isSharedVehicle) =>
               beamVehicles(veh).vehicle.setMustBeDrivenHome(false)
             case _ =>
           }

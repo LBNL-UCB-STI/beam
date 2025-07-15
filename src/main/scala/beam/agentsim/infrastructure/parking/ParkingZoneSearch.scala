@@ -3,7 +3,7 @@ package beam.agentsim.infrastructure.parking
 import beam.agentsim.agents.choice.logit.MultinomialLogit
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleManager.{ReservedFor, TypeEnum}
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
+import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode.DoubleParkingAllowed
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging._
@@ -77,7 +77,7 @@ object ParkingZoneSearch {
     random: Random,
     originUTM: Option[Location],
     reservedFor: ReservedFor,
-    activityType: String
+    parkingActivityType: ParkingActivityType
   )
 
   /**
@@ -231,7 +231,7 @@ object ParkingZoneSearch {
                 parkingZone.chargingPointType,
                 parkingZone.pricingModel,
                 parkingType,
-                params.activityType,
+                params.parkingActivityType,
                 parkingZone.reservedFor,
                 parkingZone.link
               )

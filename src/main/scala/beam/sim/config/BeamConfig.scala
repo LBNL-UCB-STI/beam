@@ -1666,6 +1666,7 @@ object BeamConfig {
           downsamplingMethod: java.lang.String,
           dummySharedBike: BeamConfig.Beam.Agentsim.Agents.Vehicles.DummySharedBike,
           dummySharedCar: BeamConfig.Beam.Agentsim.Agents.Vehicles.DummySharedCar,
+          emissions: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions,
           enroute: BeamConfig.Beam.Agentsim.Agents.Vehicles.Enroute,
           fractionOfInitialVehicleFleet: scala.Double,
           fractionOfPeopleWithBicycle: scala.Double,
@@ -1799,6 +1800,79 @@ object BeamConfig {
               BeamConfig.Beam.Agentsim.Agents.Vehicles.DummySharedCar(
                 vehicleTypeId =
                   if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "sharedVehicle-sharedCar"
+              )
+            }
+          }
+
+          case class Emissions(
+            events: scala.Boolean,
+            pollutantsFilter: scala.List[java.lang.String],
+            ratesFilter: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.RatesFilter,
+            skims: scala.Boolean,
+            workdayIdleTimeFraction: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.WorkdayIdleTimeFraction
+          )
+
+          object Emissions {
+
+            case class RatesFilter(
+              county: scala.List[java.lang.String],
+              grade: scala.List[java.lang.String],
+              roadCategory: scala.List[java.lang.String],
+              soakTime: scala.List[java.lang.String],
+              speed: scala.List[java.lang.String],
+              weight: scala.List[java.lang.String]
+            )
+
+            object RatesFilter {
+
+              def apply(
+                c: com.typesafe.config.Config
+              ): BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.RatesFilter = {
+                BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.RatesFilter(
+                  county = $_L$_str(c.getList("county")),
+                  grade = $_L$_str(c.getList("grade")),
+                  roadCategory = $_L$_str(c.getList("roadCategory")),
+                  soakTime = $_L$_str(c.getList("soakTime")),
+                  speed = $_L$_str(c.getList("speed")),
+                  weight = $_L$_str(c.getList("weight"))
+                )
+              }
+            }
+
+            case class WorkdayIdleTimeFraction(
+              bus: scala.Double,
+              class456: scala.Double,
+              class78t: scala.Double,
+              class78v: scala.Double
+            )
+
+            object WorkdayIdleTimeFraction {
+
+              def apply(
+                c: com.typesafe.config.Config
+              ): BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.WorkdayIdleTimeFraction = {
+                BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.WorkdayIdleTimeFraction(
+                  bus = if (c.hasPathOrNull("bus")) c.getDouble("bus") else 0.3554,
+                  class456 = if (c.hasPathOrNull("class456")) c.getDouble("class456") else 0.3327,
+                  class78t = if (c.hasPathOrNull("class78t")) c.getDouble("class78t") else 0.1281,
+                  class78v = if (c.hasPathOrNull("class78v")) c.getDouble("class78v") else 0.3129
+                )
+              }
+            }
+
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions = {
+              BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions(
+                events = c.hasPathOrNull("events") && c.getBoolean("events"),
+                pollutantsFilter = $_L$_str(c.getList("pollutantsFilter")),
+                ratesFilter = BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.RatesFilter(
+                  if (c.hasPathOrNull("ratesFilter")) c.getConfig("ratesFilter")
+                  else com.typesafe.config.ConfigFactory.parseString("ratesFilter{}")
+                ),
+                skims = !c.hasPathOrNull("skims") || c.getBoolean("skims"),
+                workdayIdleTimeFraction = BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.WorkdayIdleTimeFraction(
+                  if (c.hasPathOrNull("workdayIdleTimeFraction")) c.getConfig("workdayIdleTimeFraction")
+                  else com.typesafe.config.ConfigFactory.parseString("workdayIdleTimeFraction{}")
+                )
               )
             }
           }
@@ -2008,6 +2082,10 @@ object BeamConfig {
               dummySharedCar = BeamConfig.Beam.Agentsim.Agents.Vehicles.DummySharedCar(
                 if (c.hasPathOrNull("dummySharedCar")) c.getConfig("dummySharedCar")
                 else com.typesafe.config.ConfigFactory.parseString("dummySharedCar{}")
+              ),
+              emissions = BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions(
+                if (c.hasPathOrNull("emissions")) c.getConfig("emissions")
+                else com.typesafe.config.ConfigFactory.parseString("emissions{}")
               ),
               enroute = BeamConfig.Beam.Agentsim.Agents.Vehicles.Enroute(
                 if (c.hasPathOrNull("enroute")) c.getConfig("enroute")
@@ -2888,7 +2966,6 @@ object BeamConfig {
       case class Output(
         activity_sim_skimmer: scala.Option[BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer],
         activitySimSkimsEnabled: scala.Boolean,
-        emissions: BeamConfig.Beam.Exchange.Output.Emissions,
         generateSkimsForAllModes: scala.Boolean,
         generateSkimsForRideHailTransit: scala.Boolean,
         sendNonChosenTripsToSkimmer: scala.Boolean
@@ -2995,25 +3072,6 @@ object BeamConfig {
           }
         }
 
-        case class Emissions(
-          events: scala.Boolean,
-          pollutantsToFilterOut: scala.Option[scala.List[java.lang.String]],
-          skims: scala.Boolean
-        )
-
-        object Emissions {
-
-          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output.Emissions = {
-            BeamConfig.Beam.Exchange.Output.Emissions(
-              events = c.hasPathOrNull("events") && c.getBoolean("events"),
-              pollutantsToFilterOut =
-                if (c.hasPathOrNull("pollutantsToFilterOut")) scala.Some($_L$_str(c.getList("pollutantsToFilterOut")))
-                else None,
-              skims = c.hasPathOrNull("skims") && c.getBoolean("skims")
-            )
-          }
-        }
-
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output = {
           BeamConfig.Beam.Exchange.Output(
             activity_sim_skimmer =
@@ -3022,10 +3080,6 @@ object BeamConfig {
               else None,
             activitySimSkimsEnabled =
               c.hasPathOrNull("activitySimSkimsEnabled") && c.getBoolean("activitySimSkimsEnabled"),
-            emissions = BeamConfig.Beam.Exchange.Output.Emissions(
-              if (c.hasPathOrNull("emissions")) c.getConfig("emissions")
-              else com.typesafe.config.ConfigFactory.parseString("emissions{}")
-            ),
             generateSkimsForAllModes =
               c.hasPathOrNull("generateSkimsForAllModes") && c.getBoolean("generateSkimsForAllModes"),
             generateSkimsForRideHailTransit =
@@ -3437,7 +3491,7 @@ object BeamConfig {
             eventsToWrite =
               if (c.hasPathOrNull("eventsToWrite")) c.getString("eventsToWrite")
               else
-                "PersonArrivalEvent,PersonDepartureEvent,ActivityEndEvent,ActivityStartEvent,PersonEntersVehicleEvent,PersonLeavesVehicleEvent,ModeChoiceEvent,PathTraversalEvent,ReserveRideHailEvent,ReplanningEvent,RefuelSessionEvent,ChargingPlugInEvent,ChargingPlugOutEvent,ParkingEvent,LeavingParkingEvent,PersonCostEvent,TeleportationEvent",
+                "PersonArrivalEvent,PersonDepartureEvent,ActivityEndEvent,ActivityStartEvent,PersonEntersVehicleEvent,PersonLeavesVehicleEvent,ModeChoiceEvent,PathTraversalEvent,ReserveRideHailEvent,ReplanningEvent,RefuelSessionEvent,ChargingPlugInEvent,ChargingPlugOutEvent,ParkingEvent,LeavingParkingEvent,PersonCostEvent,TeleportationEvent,ShiftEvent",
             fileOutputFormats = if (c.hasPathOrNull("fileOutputFormats")) c.getString("fileOutputFormats") else "csv"
           )
         }

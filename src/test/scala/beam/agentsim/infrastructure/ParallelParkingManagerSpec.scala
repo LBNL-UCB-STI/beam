@@ -8,6 +8,7 @@ import beam.agentsim.agents.BeamvilleFixtures
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.parking.PricingModel.FlatFee
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
@@ -162,7 +163,7 @@ class ParallelParkingManagerSpec
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
-            "work",
+            ParkingActivityType.Working,
             VehicleManager.AnyManager
           )
         val response1 = parkingManager.processParkingInquiry(firstInquiry)
@@ -227,7 +228,7 @@ class ParallelParkingManagerSpec
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
-            "work",
+            ParkingActivityType.Working,
             VehicleManager.AnyManager
           )
 
@@ -387,7 +388,7 @@ class ParallelParkingManagerSpec
         None,
         Some(pricingModel),
         parkingType,
-        "init",
+        ParkingActivityType.Miscellaneous,
         reservedFor = reservedFor
       )
     assert(

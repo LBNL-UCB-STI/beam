@@ -1,6 +1,6 @@
 package beam.agentsim.agents.freight.input
 
-import beam.agentsim.agents.freight.FreightRequestType.{Loading, Unloading}
+import beam.agentsim.agents.freight.FreightRequestType.{Loading, Unloading, Warehouse}
 import beam.agentsim.agents.freight.input.FreightReader.{FREIGHT_REQUEST_TYPE, PAYLOAD_IDS, PAYLOAD_WEIGHT_IN_KG}
 import beam.agentsim.agents.freight.{FreightCarrier, FreightRequestType, FreightTour, PayloadPlan}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -42,12 +42,15 @@ trait FreightReader {
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
   ): IndexedSeq[FreightCarrier]
 
-  def calculatePayloadWeights(plans: IndexedSeq[PayloadPlan]): IndexedSeq[(Set[Id[PayloadPlan]], Double)] = {
+  private def calculatePayloadWeights(plans: IndexedSeq[PayloadPlan]): IndexedSeq[(Set[Id[PayloadPlan]], Double)] = {
     plans.foldLeft(IndexedSeq((Set.empty[Id[PayloadPlan]], 0.0))) {
       case (acc, PayloadPlan(payloadId, _, _, _, weight, Unloading, _, _, _, _, _, _, _)) =>
         val (payloads, payloadWeight) = acc.last
         acc :+ (payloads - payloadId, payloadWeight - weight)
       case (acc, PayloadPlan(payloadId, _, _, _, weight, Loading, _, _, _, _, _, _, _)) =>
+        val (payloads, payloadWeight) = acc.last
+        acc :+ (payloads + payloadId, payloadWeight + weight)
+      case (acc, PayloadPlan(payloadId, _, _, _, weight, Warehouse, _, _, _, _, _, _, _)) =>
         val (payloads, payloadWeight) = acc.last
         acc :+ (payloads + payloadId, payloadWeight + weight)
     }
@@ -147,7 +150,7 @@ trait FreightReader {
     vehicle
   }
 
-  protected def createFreightActivity(
+  private def createFreightActivity(
     activityType: String,
     locationUTM: Coord,
     endTime: Int,
@@ -161,7 +164,7 @@ trait FreightReader {
     act
   }
 
-  protected def createFreightLeg(departureTime: Int): Leg = {
+  private def createFreightLeg(departureTime: Int): Leg = {
     val leg = PopulationUtils.createLeg(BeamMode.CAR.value)
     leg.setDepartureTime(departureTime)
     leg
