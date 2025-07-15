@@ -203,7 +203,8 @@ object PersonAgent {
     numberOfReplanningAttempts: Int = 0,
     failedTrips: IndexedSeq[EmbodiedBeamTrip] = IndexedSeq.empty,
     lastUsedParkingStall: Option[ParkingStall] = None,
-    enrouteData: EnrouteData = EnrouteData()
+    enrouteData: EnrouteData = EnrouteData(),
+    mostRecentDeniedBoardingLeg: Option[EmbodiedBeamLeg] = None // ADDED THIS LINE
   ) extends PersonData
       with ExponentialLazyLogging {
 
@@ -675,7 +676,8 @@ class PersonAgent(
             numberOfReplanningAttempts = 0,
             failedTrips = IndexedSeq.empty,
             enrouteData = EnrouteData(),
-            passengerSchedule = PassengerSchedule()
+            passengerSchedule = PassengerSchedule(),
+            mostRecentDeniedBoardingLeg = None // EXPLICITLY SET TO NONE FOR NEW TRIP
           ),
           SpaceTime(currentCoord, _currentTick.get),
           excludeModes =
@@ -877,7 +879,8 @@ class PersonAgent(
           passengerSchedule = PassengerSchedule(),
           failedTrips = data.failedTrips ++ data.currentTrip.map(trip =>
             trip.copy(legs = trip.legs.filter(_.beamLeg.startTime > _currentTick.getOrElse(-1)))
-          )
+          ),
+          mostRecentDeniedBoardingLeg = Some(data.nextLeg)
         ),
         currentLocation = SpaceTime(currentCoord, _currentTick.get),
         pendingChosenTrip = None,
@@ -888,8 +891,7 @@ class PersonAgent(
         excludeModes = excludedMode.toSet ++ (
           if (canUseCars(currentCoord, nextCoord)) Set.empty
           else Set(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
-        ),
-        mostRecentDeniedBoardingLeg = Some(data.nextLeg)
+        )
       )
   }
 
@@ -1156,7 +1158,8 @@ class PersonAgent(
           passengerSchedule = PassengerSchedule(),
           failedTrips = basePersonData.failedTrips ++ basePersonData.currentTrip.map(trip =>
             trip.copy(legs = trip.legs.filter(_.beamLeg.startTime > _currentTick.getOrElse(-1)))
-          )
+          ),
+          mostRecentDeniedBoardingLeg = basePersonData.restOfCurrentTrip.headOption
         ),
         SpaceTime(currentCoord, _currentTick.get),
         isWithinTripReplanning = true,
@@ -1166,8 +1169,7 @@ class PersonAgent(
         rideHail2TransitEgressResult = None,
         excludeModes =
           if (canUseCars(currentCoord, nextCoord)) Set.empty
-          else Set(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV),
-        mostRecentDeniedBoardingLeg = basePersonData.restOfCurrentTrip.headOption
+          else Set(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
       )
   }
 
@@ -1363,7 +1365,8 @@ class PersonAgent(
             currentTripMode = Some(replannedMode),
             numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1,
             passengerSchedule = PassengerSchedule(),
-            failedTrips = data.failedTrips ++ data.currentTrip.toVector
+            failedTrips = data.failedTrips ++ data.currentTrip.toVector,
+            mostRecentDeniedBoardingLeg = Some(data.nextLeg)
           ),
         currentLocation = SpaceTime(currentCoord, _currentTick.get),
         pendingChosenTrip = None,
