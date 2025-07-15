@@ -1407,8 +1407,7 @@ trait ChoosesMode {
             _,
             _,
             true,
-            _,
-            mostRecentFailedBoardingTrip
+            _
           ),
           _,
           _,
@@ -1520,7 +1519,7 @@ trait ChoosesMode {
           .filterNot(itin =>
             itin.vehiclesInTrip
               .filterNot(_.toString.startsWith("body"))
-              .exists(mostRecentFailedBoardingTrip.map(_.beamVehicleId).contains)
+              .exists(choosesModeData.personData.mostRecentDeniedBoardingLeg.map(_.beamVehicleId).contains)
           )
 
       val currentAct = currentActivity(personData)
@@ -1863,8 +1862,7 @@ trait ChoosesMode {
                   allAvailableStreetVehicles = updatedVehicles,
                   currentLocation = choosesModeData.currentLocation,
                   excludeModes = choosesModeData.excludeModes ++ choosesModeData.personData.currentTripMode,
-                  parkingRequestIds = Map.empty, // Clear any pending parking requests
-                  mostRecentDeniedBoardingLeg = choosesModeData.mostRecentDeniedBoardingLeg
+                  parkingRequestIds = Map.empty // Clear any pending parking requests
                 )
               }
             case _ =>
@@ -2565,12 +2563,12 @@ trait ChoosesMode {
     val shouldAlwaysQueryRideHailTransit =
       shouldAlwaysQueryTransit & beamScenario.beamConfig.beam.exchange.output.generateSkimsForRideHailTransit
 
-    val bufferToUse = choosesModeData.mostRecentDeniedBoardingLeg match {
+    val bufferToUse = choosesModeData.personData.mostRecentDeniedBoardingLeg match {
       case Some(transitLeg) =>
         // Get the departure time of the failed transit leg
         val failedTransitDepartureTime = transitLeg.beamLeg.startTime
-        // Buffer to skip just past this transit departure
-        (failedTransitDepartureTime - _currentTick.get) + BUFFER_PER_REPLANNING_ATTEMPT_IN_SEC
+        // Buffer to skip just past this transit departure, increasing with replanning attempts
+        (failedTransitDepartureTime - _currentTick.get) + (choosesModeData.personData.numberOfReplanningAttempts * BUFFER_PER_REPLANNING_ATTEMPT_IN_SEC)
 
       case None =>
         // Fallback to standard buffer if no failed transit leg
@@ -3219,8 +3217,7 @@ object ChoosesMode {
     excludeModes: Set[BeamMode] = Set.empty[BeamMode],
     availableAlternatives: Option[String] = None,
     routingFinished: Boolean = false,
-    routingRequestToLegMap: Map[Int, TripIdentifier] = Map.empty,
-    mostRecentDeniedBoardingLeg: Option[EmbodiedBeamLeg] = None
+    routingRequestToLegMap: Map[Int, TripIdentifier] = Map.empty
   ) extends PersonData {
     override def currentVehicle: VehicleStack = personData.currentVehicle
 
@@ -3246,7 +3243,7 @@ object ChoosesMode {
 
   }
 
-  private case class MobilityStatusWithLegs(
+  case class MobilityStatusWithLegs( // REMOVED `private` KEYWORD
     responses: Seq[(EmbodiedBeamTrip, EmbodiedBeamLeg, MobilityStatusResponse)]
   )
 
