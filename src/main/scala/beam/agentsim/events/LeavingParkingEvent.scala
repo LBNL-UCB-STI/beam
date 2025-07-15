@@ -24,7 +24,8 @@ case class LeavingParkingEvent(
   pricingModel: Option[PricingModel],
   ChargingPointType: Option[ChargingPointType],
   linkIds: IndexedSeq[Int],
-  emissionsProfile: Option[EmissionsProfile]
+  emissionsProfile: Option[EmissionsProfile],
+  parkingZoneId: Id[ParkingZoneId]
 ) extends Event(time)
     with ScalaEvent {
   import LeavingParkingEvent._
@@ -43,6 +44,7 @@ case class LeavingParkingEvent(
     attr.put(ATTRIBUTE_EMISSIONS_PROFILE, emissionsProfile.map(BeamVehicleUtils.buildEmissionsString).getOrElse(""))
     attr.put(ATTRIBUTE_PARKING_DURATION, parkingDuration.toString)
     attr.put(ATTRIBUTE_COST, pricingModel.map(_.costInDollars.toString).getOrElse("0"))
+    attr.put(ATTRIBUTE_PARKING_ZONE_ID, parkingZoneId.toString)
     attr.put(ATTRIBUTE_LINK_IDS, linkIds.mkString(","))
     attr
   }
@@ -77,6 +79,7 @@ object LeavingParkingEvent {
   val ATTRIBUTE_EMISSIONS_PROFILE: String = "emissions"
   val ATTRIBUTE_PARKING_DURATION: String = "duration"
   val ATTRIBUTE_LINK_IDS: String = "links"
+  val ATTRIBUTE_PARKING_ZONE_ID: String = "parkingZoneId"
 
   def apply(
     time: Double,
@@ -97,7 +100,8 @@ object LeavingParkingEvent {
       stall.pricingModel,
       stall.chargingPointType,
       stall.link.map(_.getId.toString.toInt).toIndexedSeq,
-      emissionsProfile
+      emissionsProfile,
+      parkingZoneId = stall.parkingZoneId
     )
   }
 
@@ -118,6 +122,7 @@ object LeavingParkingEvent {
     val duration: Double = attr.get(ATTRIBUTE_PARKING_DURATION).map(_.toDouble).getOrElse(0.0)
     val linkIdsAsStr = Option(attr(ATTRIBUTE_LINK_IDS)).getOrElse("")
     val linkIds: IndexedSeq[Int] = if (linkIdsAsStr == "") IndexedSeq.empty else linkIdsAsStr.split(",").map(_.toInt)
+    val parkingZoneId: Id[ParkingZoneId] = Id.create(attr(ATTRIBUTE_PARKING_ZONE_ID), classOf[ParkingZoneId])
     LeavingParkingEvent(
       time,
       personId,
@@ -129,7 +134,8 @@ object LeavingParkingEvent {
       pricingModel,
       chargingPointType,
       linkIds,
-      emissionsProfile
+      emissionsProfile,
+      parkingZoneId
     )
   }
 }

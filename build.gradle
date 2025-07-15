@@ -816,17 +816,30 @@ ext.getDockerRepository = { ->
     }
 }
 
-tasks.register('buildImageWithoutTags', DockerBuildImage) { dependsOn createDockerfile }
+tasks.register('buildImageWithoutTags', DockerBuildImage) {
+    dependsOn createDockerfile
+    platform = 'linux/amd64'
+}
 
 // one can build a docker image with command ./gradlew -Ptag=beammodel/beam:0.9.12 buildImage
 tasks.register('buildImage', DockerTagImage) {
     description 'Builds the Docker BEAM image, all code and test data are included into the image.'
-    group 'Docker'
+    group 'Docker '
 
     dependsOn buildImageWithoutTags
+
+    // Ensure platform compatibility
+    inputs.property("platform", "linux/amd64")
 
     tag = getDockerTag()
     repository = getDockerRepository()
     println("The new image will be tagged '$getDockerRepository:$getDockerTag'. To change use 'tag' project parameter, i.e. '-Ptag=<value>'")
     targetImageId buildImageWithoutTags.getImageId()
+
+    // Force OCI format compatibility
+    doFirst {
+        if (!project.hasProperty('tag')) {
+            throw new GradleException("Please specify a tag using -Ptag=repository:version")
+        }
+    }
 }

@@ -42,7 +42,7 @@ case class ParkingInquiry(
   originUtm: Option[SpaceTime] = None,
   triggerId: Long
 ) extends HasTriggerId {
-  val parkingActivityType: ParkingActivityType = ParkingActivityType.fromString(activityType)
+  val parkingActivityType: ParkingActivityType = ParkingActivityType.activityTypeStringToEnum(activityType)
 
   val departureLocation: Option[Coord] = searchMode match {
     case ParkingSearchMode.EnRouteCharging => beamVehicle.map(_.spaceTime).orElse(originUtm).map(_.loc)
@@ -70,31 +70,56 @@ object ParkingInquiry extends LazyLogging {
     case object Home extends ParkingActivityType
     case object Working extends ParkingActivityType
     case object Idling extends ParkingActivityType
-    case object Hotelling extends ParkingActivityType
-    case object LoadingUnloading extends ParkingActivityType
-    case object Warehousing extends ParkingActivityType
+    case object Freight extends ParkingActivityType
 
-    def fromString(activityType: String): ParkingActivityType = {
-      activityType.toLowerCase match {
-        case "home" | "residential"                     => ParkingActivityType.Home
-        case "work" | "workplace"                       => ParkingActivityType.Working
-        case "charge" | "charging"                      => ParkingActivityType.Charging
-        case "wherever" | "public" | "miscellaneous"    => ParkingActivityType.Miscellaneous
-        case "idle" | "idling" | "hotelling"            => ParkingActivityType.Idling
-        case "hotelling" | "overnight"                  => ParkingActivityType.Hotelling
-        case "commercial" | "loading" | "unloading"     => ParkingActivityType.LoadingUnloading
-        case "depot" | "warehouse" | "warehousing"      => ParkingActivityType.Warehousing
-        case otherType if otherType.contains("enroute") => ParkingActivityType.Charging
-        case otherType if otherType.contains("home")    => ParkingActivityType.Home
-        case otherType if otherType.contains("work")    => ParkingActivityType.Working
-        case otherType if otherType.contains("loading") => ParkingActivityType.LoadingUnloading
-        case otherType =>
-          logger.debug(s"This Parking Activity Type ($otherType) has not been defined")
-          ParkingActivityType.Miscellaneous
+    // Pre-compiled lookup table for exact matches (O(1) lookup)
+    private val exactMatches = Map(
+      "home"       -> ParkingActivityType.Home,
+      "work"       -> ParkingActivityType.Working,
+      "charge"     -> ParkingActivityType.Charging,
+      "wherever"   -> ParkingActivityType.Miscellaneous,
+      "eatout"     -> ParkingActivityType.Miscellaneous,
+      "othdiscr"   -> ParkingActivityType.Miscellaneous,
+      "othmaint"   -> ParkingActivityType.Miscellaneous,
+      "school"     -> ParkingActivityType.Miscellaneous,
+      "escort"     -> ParkingActivityType.Miscellaneous,
+      "social"     -> ParkingActivityType.Miscellaneous,
+      "idle"       -> ParkingActivityType.Idling,
+      "depot"      -> ParkingActivityType.Freight,
+      "warehouse" -> ParkingActivityType.Freight,
+      "commercial" -> ParkingActivityType.Freight,
+      "loading"    -> ParkingActivityType.Freight,
+      "unloading"  -> ParkingActivityType.Freight,
+      "hotelling"  -> ParkingActivityType.Freight
+    )
+
+    // Pre-compiled prefix patterns for startsWith checks
+    private val freightPrefixes = Set("depot", "commercial", "loading", "unloading", "warehouse", "hotelling")
+
+    def activityTypeStringToEnum(activityType: String): ParkingActivityType = {
+      val lowerType = activityType.toLowerCase
+
+      // Try exact match first (fastest - O(1))
+      exactMatches.get(lowerType) match {
+        case Some(result) => result
+        case None         =>
+          // Check prefixes (only if exact match failed)
+          if (freightPrefixes.exists(lowerType.startsWith)) {
+            ParkingActivityType.Freight
+          } else if (lowerType.contains("enroute")) {
+            ParkingActivityType.Charging
+          } else if (lowerType.contains("home")) {
+            ParkingActivityType.Home
+          } else if (lowerType.contains("work")) {
+            ParkingActivityType.Working
+          } else {
+            logger.debug(s"This Parking Activity Type ($lowerType) has not been defined")
+            ParkingActivityType.Miscellaneous
+          }
       }
     }
 
-    def fromParkingType(parkingType: ParkingType): ParkingActivityType = fromString(parkingType.toString)
+    def fromParkingType(parkingType: ParkingType): ParkingActivityType = activityTypeStringToEnum(parkingType.toString)
   }
 
   def init(

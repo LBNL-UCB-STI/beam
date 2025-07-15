@@ -2,7 +2,7 @@ package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleManager}
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType.{Charging, Home, Working}
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType._
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
@@ -301,6 +301,8 @@ class ChargingFunctions(
         case Home     => Set(ParkingType.Residential)
         case Working  => Set(ParkingType.Workplace)
         case Charging => Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
+        case Commercial => Set(ParkingType.Commercial)
+        case Depot      => Set(ParkingType.Depot)
         case _        => Set(ParkingType.Public)
       }
     } else super[ParkingFunctions].getPreferredParkingTypes(inquiry)

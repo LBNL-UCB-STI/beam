@@ -399,6 +399,31 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     }
   }
 
+  def vehicleEnergy(beamConfig: BeamConfig, vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]): VehicleEnergy = {
+    var vehiclePaths = IndexedSeq(
+      Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent.toString
+    )
+    beamConfig.beam.agentsim.agents.freight.vehicleTypesFilePath
+      .map(freightVehicleTypesFilePath => Paths.get(freightVehicleTypesFilePath).getParent.toString)
+      .foreach(freightVehiclePath => vehiclePaths = vehiclePaths :+ freightVehiclePath)
+
+    val vehicleCsvReader = new VehicleCsvReader(beamConfig)
+    val consumptionRateFilterStore =
+      new ConsumptionRateFilterStoreImpl(
+        vehicleCsvReader.getVehicleEnergyRecordsUsing,
+        vehiclePaths,
+        primaryConsumptionRateFilePathsByVehicleType =
+          vehicleTypes.values.map(x => (x, x.primaryVehicleEnergyFile)).toIndexedSeq,
+        secondaryConsumptionRateFilePathsByVehicleType =
+          vehicleTypes.values.map(x => (x, x.secondaryVehicleEnergyFile)).toIndexedSeq
+      )
+    // TODO Fix me once `TrieMap` is removed
+    new VehicleEnergy(
+      consumptionRateFilterStore,
+      vehicleCsvReader.getLinkToGradeRecordsUsing
+    )
+  }
+
   private def readPrivateVehicles(
     beamConfig: BeamConfig,
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]

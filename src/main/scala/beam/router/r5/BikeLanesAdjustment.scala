@@ -26,6 +26,10 @@ class BikeLanesAdjustment @Inject() (bikeLanesData: BikeLanesData) {
     }
   }
 
+  def bikeScaleFactor(linkId: LinkId): Double = {
+    scaleFactor(linkId)
+  }
+
   def scaleFactor(vehicleType: BeamVehicleType, linkId: LinkId): Double = {
     if (vehicleType.vehicleCategory == VehicleCategory.Bike) {
       scaleFactor(linkId)

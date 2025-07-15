@@ -15,7 +15,9 @@ import beam.agentsim.events.{ParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure._
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking._
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.scheduler.HasTriggerId
 import beam.router.BeamRouter.Location
 import beam.sim.config.BeamConfig
@@ -275,13 +277,13 @@ trait RideHailDepotManager extends {
     * @param triggerId Long
     * @return
     */
-  def sendChargingInquiry(
+  private def sendChargingInquiry(
     whenWhere: SpaceTime,
     beamVehicle: BeamVehicle,
     triggerId: Long
   ): Future[ParkingInquiryResponse] = {
     val (chargingTime, _) = beamVehicle.refuelingSessionDurationAndEnergyInJoulesForStall(
-      Some(ParkingStall.defaultFastChargingStall(whenWhere.loc)),
+      Some(RideHailDepotManager.getDefaultFastChargingStall(whenWhere.loc)),
       None,
       None,
       None
@@ -303,6 +305,17 @@ trait RideHailDepotManager extends {
 }
 
 object RideHailDepotManager {
+
+  private def getDefaultFastChargingStall(locationUTM: Location): ParkingStall = ParkingStall(
+    tazId = TAZ.DefaultTAZId,
+    parkingZoneId = ParkingZone.DefaultParkingZone.parkingZoneId,
+    locationUTM = locationUTM,
+    costInDollars = 0.0,
+    chargingPointType = Some(ChargingPointType.ChargingStationCcsComboType2),
+    pricingModel = Some(PricingModel.FlatFee(0)),
+    parkingType = ParkingType.Public,
+    reservedFor = VehicleManager.AnyManager
+  )
 
   sealed trait RefuelSource
   case object JustArrivedAtDepot extends RefuelSource
