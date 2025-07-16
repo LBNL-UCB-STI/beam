@@ -139,9 +139,9 @@ class Population(
         .map { vid =>
           val bv = beamScenario.privateVehicles(BeamVehicle.createId(vid))
           val managerType =
-            if (bv.isFreightVehicle) VehicleManager.TypeEnum.Freight else VehicleManager.TypeEnum.Household
+            if (bv.isFreight) VehicleManager.TypeEnum.Freight else VehicleManager.TypeEnum.Household
           val reservedFor =
-            VehicleManager.createOrGetReservedFor(household.getId.toString, managerType)
+            VehicleManager.createOrGetReservedFor(household.getId.toString, Some(managerType))
           bv.vehicleManagerId.set(reservedFor.managerId)
           bv.id -> bv
         }

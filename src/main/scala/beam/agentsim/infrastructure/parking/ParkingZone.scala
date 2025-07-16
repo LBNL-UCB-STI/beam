@@ -4,6 +4,7 @@ import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.agentsim.infrastructure.power.SitePowerManager
 import beam.agentsim.infrastructure.taz.TAZ
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
@@ -33,7 +34,6 @@ class ParkingZone(
   val pricingModel: Option[PricingModel],
   val timeRestrictions: Map[VehicleCategory, Range],
   val link: Option[Link],
-  val siteId: Id[SitePowerManager],
   val sitePowerManager: Option[String],
   val energyStorageCapacityInKWh: Option[Double],
   val energyStorageSOC: Option[Double]
@@ -82,7 +82,6 @@ object ParkingZone extends LazyLogging {
       TAZ.DefaultTAZId,
       ParkingType.Public,
       VehicleManager.AnyManager,
-      Some(SitePowerManager.createId(defaultParkingZoneId.toString)),
       UbiquitousParkingAvailability
     )
   }
@@ -94,7 +93,6 @@ object ParkingZone extends LazyLogging {
       TAZ.DefaultTAZId,
       ParkingType.Public,
       VehicleManager.AnyManager,
-      Some(SitePowerManager.createId(defaultParkingZoneId.toString)),
       UbiquitousParkingAvailability
     )
   }
@@ -106,7 +104,6 @@ object ParkingZone extends LazyLogging {
       TAZ.EmergencyTAZId,
       ParkingType.Public,
       VehicleManager.AnyManager,
-      Some(SitePowerManager.createId(defaultParkingZoneId.toString)),
       UbiquitousParkingAvailability
     )
   }

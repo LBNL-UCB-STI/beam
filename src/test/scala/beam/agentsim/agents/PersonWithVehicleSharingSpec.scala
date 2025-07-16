@@ -495,7 +495,7 @@ class PersonWithVehicleSharingSpec
         new Powertrain(0.0),
         vehicleType,
         vehicleManagerId = new AtomicReference(
-          VehicleManager.createOrGetReservedFor("shared-fleet-1", VehicleManager.TypeEnum.Shared).managerId
+          VehicleManager.createOrGetReservedFor("shared-fleet-1", Some(VehicleManager.TypeEnum.Shared)).managerId
         )
       )
       car1.setManager(Some(mockSharedVehicleFleet.ref))

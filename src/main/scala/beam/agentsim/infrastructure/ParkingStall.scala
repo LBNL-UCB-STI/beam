@@ -146,7 +146,7 @@ object ParkingStall {
       stallLocation,
       TAZ.EmergencyTAZId,
       ParkingType.Public,
-      ParkingZone.DefaultParkingZone,
+      ParkingZone.EmergencyParkingZone,
       activityType,
       costInDollars = 50.0
     )

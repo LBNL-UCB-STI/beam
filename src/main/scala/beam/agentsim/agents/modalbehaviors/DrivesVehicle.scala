@@ -748,7 +748,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
               None,
               id,
               parkingManager,
-              eventsManager
+              beamServices
             )
           case None =>
         }

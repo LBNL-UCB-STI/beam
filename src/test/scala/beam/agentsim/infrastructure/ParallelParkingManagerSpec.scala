@@ -79,9 +79,12 @@ class ParallelParkingManagerSpec
       } {
 
         val inquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 11)
-        val (expectedStall: ParkingStall, _) =
-          ParkingStall.lastResortStall(inquiry.destinationUtm.loc, new Random(randomSeed))
-
+        val envelope = new Envelope(
+          inquiry.destinationUtm.loc.getX + 100,
+          inquiry.destinationUtm.loc.getX - 100,
+          inquiry.destinationUtm.loc.getY + 100,
+          inquiry.destinationUtm.loc.getY - 100
+        )
         val response = parkingManager.processParkingInquiry(inquiry)
         assert(response.triggerId == 11)
         assert(response.stall.tazId.toString == "emergency")
@@ -106,9 +109,12 @@ class ParallelParkingManagerSpec
       )
 
       val inquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 173)
-      val (expectedStall: ParkingStall, _) =
-        ParkingStall.lastResortStall(inquiry.destinationUtm.loc, new Random(randomSeed))
-
+      val envelope = new Envelope(
+        inquiry.destinationUtm.loc.getX + 100,
+        inquiry.destinationUtm.loc.getX - 100,
+        inquiry.destinationUtm.loc.getY + 100,
+        inquiry.destinationUtm.loc.getY - 100
+      )
       val response = parkingManager.processParkingInquiry(inquiry)
       assert(response.triggerId == 173)
       assert(response.stall.tazId.toString == "emergency")

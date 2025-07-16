@@ -55,10 +55,9 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
   ): (EmissionsSkimmerKey, EmissionsSkimmerInternal) = {
     (
       EmissionsSkimmerKey(
-        line("linkId"),
+        line("linkId").toInt,
         line("vehicleTypeId"),
         line("hour").toInt,
-        line("tazId"),
         EmissionsProfile.withName(line("emissionsProcess"))
       ),
       EmissionsSkimmerInternal(
@@ -74,7 +73,6 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
           }.toMap
         ),
         line("travelTimeInSecond").toDouble,
-        line("energyInJoule").toDouble,
         line("parkingDurationInSecond").toDouble,
         line("observations").toInt,
         line("iterations").toInt
@@ -97,14 +95,14 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
     ) {
       val rhPTWithEmissions = mutable.ListBuffer[PathTraversalEvent]()
 
-      case class EmissionsTuple(link: String, hour: Int)
+      case class EmissionsTuple(link: Int, hour: Int)
 
       val lastVehicleShiftEvent = mutable.HashMap.empty[String, ShiftEvent]
       val lastVehiclePTEvent = mutable.HashMap.empty[String, PathTraversalEvent]
       val emissionsProcessLinkHour = mutable.HashMap.empty[EmissionsTuple, Int]
 
       def putRecords(fromTick: Int, linkId: Option[Int]): Unit = {
-        val key = EmissionsTuple(linkId.map(_.toString).getOrElse(""), math.floor(fromTick / 3600).toInt)
+        val key = EmissionsTuple(linkId.getOrElse(-1), math.floor(fromTick / 3600).toInt)
         emissionsProcessLinkHour.put(key, emissionsProcessLinkHour.getOrElse(key, 0) + 1)
       }
 
@@ -152,7 +150,7 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
       val skimsEmissions: Map[EmissionsSkimmerKey, EmissionsSkimmerInternal] = readSkims(outPath, 0)
       skimsEmissions shouldNot be(empty) withClue "Emissions skims should be generated."
 
-      val notSkimsLinks: Set[String] = skimsEmissions.keys
+      val notSkimsLinks: Set[Int] = skimsEmissions.keys
         .filter(ek => ek.emissionsProcess != VehicleEmissions.EmissionsProfile.IDLEX)
         .map(_.linkId)
         .toSet
@@ -161,7 +159,7 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
         .flatMap(pte => pte.linkIds)
         .foreach(linkId =>
           assert(
-            notSkimsLinks.contains(linkId.toString),
+            notSkimsLinks.contains(linkId),
             "All links from RH PathTraversal events should be in skims."
           )
         )

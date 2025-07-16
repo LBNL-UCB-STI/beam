@@ -1154,8 +1154,7 @@ class RideHailAgent(
       Some(energyCharged),
       id,
       parkingManager,
-      beamServices,
-      eventsManager
+      beamServices
     )
   }
 

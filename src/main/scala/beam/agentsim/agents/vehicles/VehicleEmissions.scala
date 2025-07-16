@@ -36,7 +36,7 @@ class VehicleEmissions(
   vehicleTypesBasePaths: IndexedSeq[String],
   vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
   linkToGradePercentFilePath: String,
-  pollutantsFilter: List[String],
+  pollutantsFilter: String,
   ratesFilter: RatesFilter
 ) {
   import VehicleEmissions._
@@ -57,7 +57,7 @@ class VehicleEmissions(
   private lazy val linkIdToGradePercentMap =
     BeamVehicleUtils.loadLinkIdToGradeMapFromCSV(csvParser, linkToGradePercentFilePath)
 
-  Emissions.setFilter(pollutantsFilter)
+  Emissions.setFilter(pollutantsFilter.split(","))
 
   def getEmissionsProfileInGram(
     vehicleActivityData: IndexedSeq[BeamVehicle.VehicleActivityData],
@@ -230,7 +230,7 @@ object VehicleEmissions extends LazyLogging {
 
     var filter: Option[List[EmissionType]] = None
 
-    def setFilter(emissionsStr: List[String]): Unit = {
+    def setFilter(emissionsStr: Array[String]): Unit = {
       filter match {
         case None =>
           val toKeep = emissionsStr.flatMap(fromString)

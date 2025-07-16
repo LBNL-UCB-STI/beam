@@ -120,8 +120,7 @@ trait ScaleUpCharging extends {
         None,
         personId,
         getParkingManager,
-        getBeamServices,
-        getBeamServices.matsimServices.getEvents
+        getBeamServices
       )
     case reply @ UnpluggingVehicle(tick, personId, vehicle, _, energyCharged) =>
       log.debug(s"Received UnpluggingVehicle: $reply")
@@ -131,8 +130,7 @@ trait ScaleUpCharging extends {
         Some(energyCharged),
         personId,
         getParkingManager,
-        getBeamServices,
-        getBeamServices.matsimServices.getEvents
+        getBeamServices
       )
   }
 

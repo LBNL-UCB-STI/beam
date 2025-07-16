@@ -13,7 +13,7 @@ import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.{ParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
+import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure._
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking._
@@ -160,8 +160,7 @@ trait RideHailDepotManager extends {
         None,
         this.id,
         parkingManager,
-        beamServices,
-        eventsManager
+        beamServices
       )
     } else {
       (chargingNetworkManager ? ChargingUnplugRequest(tick, this.id, beamVehicle, triggerId))
@@ -314,6 +313,7 @@ object RideHailDepotManager {
     chargingPointType = Some(ChargingPointType.ChargingStationCcsComboType2),
     pricingModel = Some(PricingModel.FlatFee(0)),
     parkingType = ParkingType.Public,
+    activityType = ParkingActivityType.Charging,
     reservedFor = VehicleManager.AnyManager
   )
 

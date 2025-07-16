@@ -315,10 +315,10 @@ object TourModes {
       trips.foreach { trip =>
         trip.tripClassifier match {
           case CAR | CAR_HOV2 | CAR_HOV3 =>
-            if (availableVehicles.forall(_.vehicle.isFreightVehicle) && availableVehicles.nonEmpty) {
+            if (availableVehicles.forall(_.vehicle.isFreight) && availableVehicles.nonEmpty) {
               outcome
                 .getOrElseUpdate(Some(FREIGHT_TOUR), mutable.Map.empty[EmbodiedBeamTrip, Option[BeamVehicle]])
-                .update(trip, findVehicle(_.vehicle.isFreightVehicle))
+                .update(trip, findVehicle(_.vehicle.isFreight))
             } else if (currentTourPersonalVehicle.nonEmpty) {
               if (availableVehicles.map(_.id).contains(currentTourPersonalVehicle.get)) {
                 outcome
@@ -461,7 +461,7 @@ object TourModes {
         vehicles: Vector[VehicleOrToken],
         firstOrLastLeg: Boolean
       ): Seq[BeamMode] = {
-        if (vehicles.exists(_.vehicle.isFreightVehicle)) {
+        if (vehicles.exists(_.vehicle.isFreight)) {
           allowedBeamModes
         } else {
           Seq.empty[BeamMode]

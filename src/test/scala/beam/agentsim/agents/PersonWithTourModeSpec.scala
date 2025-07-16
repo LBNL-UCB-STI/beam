@@ -1004,7 +1004,8 @@ class PersonWithTourModeSpec
       val inq = mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
 
       val vehicleType = beamScenario.vehicleTypes(Id.create("sharedVehicle-sharedCar", classOf[BeamVehicleType]))
-      val managerId = VehicleManager.createOrGetReservedFor("shared-fleet-1", VehicleManager.TypeEnum.Shared).managerId
+      val managerId =
+        VehicleManager.createOrGetReservedFor("shared-fleet-1", Some(VehicleManager.TypeEnum.Shared)).managerId
       // I give it a car to use.
       val vehicle = new BeamVehicle(
         Id.create("sharedVehicle-sharedCar", classOf[BeamVehicle]),

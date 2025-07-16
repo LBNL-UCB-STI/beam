@@ -109,7 +109,8 @@ class HierarchicalParkingManager(
               "Cannot find link parking parking zone for taz zone {}. Parallel changing of stallsAvailable?",
               tazParkingZone
             )
-            val (newStall, _) = ParkingStall.lastResortStall(inquiry.destinationUtm.loc, new Random(seed))
+            val (newStall, _) =
+              ParkingStall.lastResortStall(inquiry.destinationUtm.loc, new Random(seed), inquiry.parkingActivityType)
             newStall
         }
       }
@@ -199,17 +200,6 @@ class HierarchicalParkingManager(
         } yield totalStalls).getOrElse(0)
         if (tazStalls != linkStalls) Some(taz.tazId) else None
       }
-  }
-
-  private def lastResortStallAndZone(location: Location) = {
-    val boxAroundRequest = new Envelope(
-      location.getX + 100,
-      location.getX - 100,
-      location.getY + 100,
-      location.getY - 100
-    )
-    val newStall = ParkingStall.lastResortStall(boxAroundRequest, new Random(seed))
-    newStall -> DefaultParkingZone
   }
 }
 

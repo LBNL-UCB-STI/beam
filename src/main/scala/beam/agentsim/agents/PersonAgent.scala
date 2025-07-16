@@ -1142,10 +1142,10 @@ class PersonAgent(
       val nextCoord = nextAct.getCoord
       // Change -- just switch back to walk_transit
       // Have to give up my mode as well, perhaps there's no option left for driving.
-//      _experiencedBeamPlan.putStrategy(nextAct, TripModeChoiceStrategy(mode = None))
-//      val (updatedTourMode, updatedTourPersonalVehicle): (Option[BeamTourMode], Option[Id[BeamVehicle]]) =
-//        if (nextAct.getType.equalsIgnoreCase("Home")) { (None, None) }
-//        else { (basePersonData.currentTourMode, basePersonData.currentTourPersonalVehicle) }
+      _experiencedBeamPlan.putStrategy(nextAct, TripModeChoiceStrategy(mode = None))
+      val (updatedTourMode, updatedTourPersonalVehicle): (Option[BeamTourMode], Option[Id[BeamVehicle]]) =
+        if (nextAct.getType.equalsIgnoreCase("Home")) { (None, None) }
+        else { (basePersonData.currentTourMode, basePersonData.currentTourPersonalVehicle) }
       goto(ChoosingMode) using ChoosesModeData(
         basePersonData.copy(
           currentTripMode = Some(WALK_TRANSIT),
@@ -1186,14 +1186,14 @@ class PersonAgent(
       stay using updatedData
     case Event(UnpluggingVehicle(tick, _, vehicle, _, energyCharged), data: BasePersonData) =>
       log.debug(s"Vehicle ${vehicle.id} ended charging and it is not handled by the CNM at tick $tick")
-      handleReleasingParkingSpot(tick, vehicle, Some(energyCharged), id, parkingManager, beamServices, eventsManager)
+      handleReleasingParkingSpot(tick, vehicle, Some(energyCharged), id, parkingManager, beamServices)
       goto(ProcessingNextLegOrStartActivity) using data
     case Event(UnhandledVehicle(tick, _, vehicle, _), data: BasePersonData) =>
       log.error(
         s"Vehicle ${vehicle.id} is not handled by the CNM at tick $tick. Something is broken." +
         s"the agent will now disconnect the vehicle ${currentBeamVehicle.id} to let the simulation continue!"
       )
-      handleReleasingParkingSpot(tick, vehicle, None, id, parkingManager, beamServices, eventsManager)
+      handleReleasingParkingSpot(tick, vehicle, None, id, parkingManager, beamServices)
       goto(ProcessingNextLegOrStartActivity) using data
   }
 
