@@ -13,7 +13,6 @@ import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import pandas as pd
 import seaborn as sns
 
 from _validation_utils import prepare_npmrds_data, fsystem_to_roadclass_lookup, LinkStats, SpeedValidationSetup
@@ -24,7 +23,6 @@ parent_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, parent_dir)
 plt.style.use('ggplot')
 
-from python.utils.study_area_config import get_area_config, generate_network_name
 from _data_collection_utils import collect_geographic_boundaries
 
 
@@ -60,79 +58,48 @@ def setup_directories(batch, scenario, config):
     return study_area_dir, run_dir, output_dir, plots_dir
 
 
-def prepare_npmrds_files(study_area, batch, scenario, config):
-    """
-    Prepare NPMRDS files if they don't exist already
-
-    Parameters:
-    -----------
-    study_area : str
-        Name of the study area (e.g., "sfbay", "seattle")
-    run_dir : str
-        Directory where the run data is stored
-    network_dir : str
-        Directory where the network data is stored
-    config : dict
-        Configuration dictionary containing study area settings
-
-    Returns:
-    --------
-    tuple
-        Paths to the NPMRDS hourly speed CSV, road class CSV, and network map geojson
-    """
-    network_name = generate_network_name(config)
-    network_dir = f'{config["work_dir"]}/network/{network_name}'
-    run_dir = f"{config["work_dir"]}/beam-runs/{batch}/{scenario}"
-    npmrds_hourly_speed_csv = f"{run_dir}/{study_area}_npmrds_hourly_speeds.csv"
-    npmrds_hourly_speed_by_road_class_csv = f"{run_dir}/{study_area}_npmrds_hourly_speed_by_road_class.csv"
-    beam_network_mapped_to_npmrds_geo = f"{run_dir}/{study_area}_network_mapped_to_npmrds.geojson"
-    beam_network_car_links_geo = f"{run_dir}/{study_area}_network_car_only.geojson"
-
-    area_config = config["area"]
-    network_config = config["network"]
-    geo_config = config["geo"]
-
-    if not (os.path.exists(npmrds_hourly_speed_csv) or
-            os.path.exists(npmrds_hourly_speed_by_road_class_csv) or
-            os.path.exists(beam_network_mapped_to_npmrds_geo)):
+def prepare_npmrds_files(configs, paths):
+    if not (os.path.exists(paths["npmrds_hourly_speed_csv"]) or
+            os.path.exists(paths["npmrds_hourly_speed_by_road_class_csv"]) or
+            os.path.exists(paths["beam_network_mapped_to_npmrds_geo"])):
         # Collect geographic boundaries
         region_boundary_wgs84 = collect_geographic_boundaries(
-            area_config["state_fips"],
-            area_config["county_fips"],
-            area_config["census_year"],
-            study_area,
+            configs["state_fips"],
+            configs["county_fips"],
+            configs["census_year"],
+            configs["study_area"],
             geo_level='county',
-            work_dir=f'{config["work_dir"]}/geo'
+            work_dir=f'{paths["geo_dir"]}'
         )
-
-        # Get configuration sections
-        config_npmrds = network_config["validation"]["npmrds"]
 
         # Prepare NPMRDS data
         regional_npmrds_station, _, beam_npmrds_network_map, _ = prepare_npmrds_data(
             # input
-            npmrds_label=f"NPMRDS_{config_npmrds['year']}",
-            npmrds_raw_geo=f"{config['work_dir']}/{config_npmrds['geo']}",
-            npmrds_raw_data_csv=f'{config["work_dir"]}/{config_npmrds["data"]}',
+            npmrds_label=configs['npmrds_label'],
+            npmrds_raw_geo=paths["npmrds_raw_geo"],
+            npmrds_raw_data_csv=paths["npmrds_raw_data_csv"],
             npmrds_observed_speed_weight=0.5,
             region_boundary=region_boundary_wgs84,
-            beam_network_csv_input=f"{network_dir}/network.csv.gz",
-            projected_crs_epsg=geo_config["utm_epsg"],
+            beam_network_csv_input=paths["network_csv"],
+            projected_crs_epsg=configs["utm_epsg"],
             distance_buffer_m=20,
             # output
-            npmrds_station_geo=f"{run_dir}/{study_area}_npmrds_station.geojson",
-            npmrds_data_csv=f"{run_dir}/{study_area}_npmrds_data.csv",
-            npmrds_hourly_speed_csv=npmrds_hourly_speed_csv,
-            npmrds_hourly_speed_by_road_class_csv=npmrds_hourly_speed_by_road_class_csv,
-            beam_network_car_links_geo=f"{run_dir}/{study_area}_network_car_only.geojson",
-            beam_npmrds_network_map_geo=beam_network_mapped_to_npmrds_geo
+            npmrds_station_geo=paths["npmrds_station_geo"],
+            npmrds_data_csv=paths["npmrds_data_csv"],
+            npmrds_hourly_speed_csv=paths["npmrds_hourly_speed_csv"],
+            npmrds_hourly_speed_by_road_class_csv=paths["npmrds_hourly_speed_by_road_class_csv"],
+            beam_network_car_links_geo=paths["beam_network_car_links_geo"],
+            beam_npmrds_network_map_geo=paths["beam_network_mapped_to_npmrds_geo"]
         )
 
         # Generate plots
-        plot_validation_maps(study_area, run_dir, region_boundary_wgs84,
+        plot_validation_maps(configs["study_area"], paths["run_dir"], region_boundary_wgs84,
                              regional_npmrds_station, beam_npmrds_network_map)
 
-    return npmrds_hourly_speed_csv, npmrds_hourly_speed_by_road_class_csv, beam_network_mapped_to_npmrds_geo, beam_network_car_links_geo
+    return (paths["npmrds_hourly_speed_csv"],
+            paths["npmrds_hourly_speed_by_road_class_csv"],
+            paths["beam_network_mapped_to_npmrds_geo"],
+            paths["beam_network_car_links_geo"])
 
 
 def plot_validation_maps(study_area, run_dir, region_boundary, npmrds_station, network_map):
@@ -169,45 +136,6 @@ def plot_validation_maps(study_area, run_dir, region_boundary, npmrds_station, n
     plt.title("BEAM Network and NPMRDS Stations")
     fig.savefig(f"{run_dir}/{study_area}_network_mapped_to_npmrds.png", dpi=300)
     plt.show(block=False)
-
-
-def setup_link_stats(batch, scenario, config):
-    """
-    Set up link statistics data
-
-    Parameters:
-    -----------
-    study_area_dir : str
-        Directory where study area data is stored
-    batch : str
-        Batch identifier
-    scenario : str
-        Scenario name
-    run_dir : str
-        Directory where the run data is stored
-
-    Returns:
-    --------
-    tuple
-        link_stats, vehicle_types_files
-    """
-    run_dir = f"{config["work_dir"]}/beam-runs/{batch}/{scenario}"
-    batch_label = batch.replace("-", "")
-    scenario_label = scenario.replace("_", "-")
-
-    link_stats = [
-        LinkStats(scenario=f"{batch}_{scenario_label}", demand_fraction=0.1,
-                  file_path=os.path.join(run_dir, "3.linkstats.csv.gz"))
-    ]
-
-    vehicle_types_files = [(
-        batch_label,
-        scenario_label,
-        f"{config["work_dir"]}/beam-runs/{batch}/{scenario}/0.events.csv.gz",
-        f"{config["work_dir"]}/beam-freight/{batch}/{scenario}/vehicle-tech/ft-vehicletypes--{batch_label}--{scenario_label}.csv"
-    )]
-
-    return link_stats, vehicle_types_files
 
 
 def run_network_speed_validation(study_area, setup, processed_link_stats, output_dir, plots_dir):
@@ -650,279 +578,58 @@ def generate_validation_stats(setup, processed_link_stats, output_dir, study_are
     return stats_results
 
 
-def save_stats_to_file(stats_results, output_dir, study_area, peak_hour):
-    """
-    Save statistics to CSV files
-
-    Parameters:
-    -----------
-    stats_results : dict
-        Dictionary containing all the statistics
-    output_dir : str
-        Directory to save output data
-    study_area : str
-        Name of the study area
-    peak_hour : int
-        The peak hour (e.g., 9 for 9 AM)
-    """
-    # Network validation
-    network_stats = stats_results["network_validation"]
-
-    # Overall stats including peak hour
-    network_overall_df = pd.DataFrame({
-        'metric': ['overall_avg_speed', f'avg_speed_hour_{peak_hour}'],
-        'value': [network_stats['overall_avg_speed'], network_stats[f'avg_speed_hour_{peak_hour}']],
-        'peak_hour': [None, peak_hour]  # Add peak hour info
-    })
-    network_overall_df.to_csv(f"{output_dir}/{study_area}_network_overall_stats.csv", index=False)
-
-    # Road class stats
-    network_road_class_rows = []
-    for road_class, speed in network_stats['avg_speed_by_road_class'].items():
-        network_road_class_rows.append({
-            'road_class': road_class,
-            'avg_speed': speed,
-            'peak_hour_used': peak_hour  # Add peak hour info
-        })
-
-    network_road_class_df = pd.DataFrame(network_road_class_rows)
-    network_road_class_df.to_csv(f"{output_dir}/{study_area}_network_road_class_stats.csv", index=False)
-
-    # Mode stats (if available)
-    if 'avg_speed_by_mode' in network_stats:
-        network_mode_rows = []
-        for mode, speed in network_stats['avg_speed_by_mode'].items():
-            row_data = {
-                'mode': mode,
-                'avg_speed': speed,
-                'peak_hour_used': peak_hour  # Add peak hour info
-            }
-            if f'avg_speed_hour_{peak_hour}_by_mode' in network_stats:
-                row_data[f'avg_speed_hour_{peak_hour}'] = network_stats[f'avg_speed_hour_{peak_hour}_by_mode'].get(mode,
-                                                                                                                   float(
-                                                                                                                       'nan'))
-
-            network_mode_rows.append(row_data)
-
-        network_mode_df = pd.DataFrame(network_mode_rows)
-        network_mode_df.to_csv(f"{output_dir}/{study_area}_network_mode_stats.csv", index=False)
-
-    # Link validation
-    link_stats = stats_results["link_validation"]
-
-    # Overall stats including peak hour
-    link_overall_df = pd.DataFrame({
-        'metric': ['overall_avg_speed', f'avg_speed_hour_{peak_hour}'],
-        'value': [link_stats['overall_avg_speed'], link_stats[f'avg_speed_hour_{peak_hour}']],
-        'peak_hour': [None, peak_hour]  # Add peak hour info
-    })
-    link_overall_df.to_csv(f"{output_dir}/{study_area}_link_overall_stats.csv", index=False)
-
-    # Road class stats
-    link_road_class_rows = []
-    for road_class, speed in link_stats['avg_speed_by_road_class'].items():
-        link_road_class_rows.append({
-            'road_class': road_class,
-            'avg_speed': speed,
-            'peak_hour_used': peak_hour  # Add peak hour info
-        })
-
-    link_road_class_df = pd.DataFrame(link_road_class_rows)
-    link_road_class_df.to_csv(f"{output_dir}/{study_area}_link_road_class_stats.csv", index=False)
-
-    # Mode stats (if available)
-    if 'avg_speed_by_mode' in link_stats:
-        link_mode_rows = []
-        for mode, speed in link_stats['avg_speed_by_mode'].items():
-            row_data = {
-                'mode': mode,
-                'avg_speed': speed,
-                'peak_hour_used': peak_hour  # Add peak hour info
-            }
-            if f'avg_speed_hour_{peak_hour}_by_mode' in link_stats:
-                row_data[f'avg_speed_hour_{peak_hour}'] = link_stats[f'avg_speed_hour_{peak_hour}_by_mode'].get(mode,
-                                                                                                                float(
-                                                                                                                    'nan'))
-
-            link_mode_rows.append(row_data)
-
-        link_mode_df = pd.DataFrame(link_mode_rows)
-        link_mode_df.to_csv(f"{output_dir}/{study_area}_link_mode_stats.csv", index=False)
-
-    # NPMRDS Stats (if available)
-    npmrds_stats = stats_results.get("npmrds", {})
-    if npmrds_stats:
-        # Overall stats including peak hour
-        npmrds_overall_df = pd.DataFrame({
-            'metric': ['overall_avg_speed', f'avg_speed_hour_{peak_hour}'],
-            'value': [npmrds_stats.get('overall_avg_speed', float('nan')),
-                      npmrds_stats.get(f'avg_speed_hour_{peak_hour}', float('nan'))],
-            'peak_hour': [None, peak_hour]  # Add peak hour info
-        })
-        npmrds_overall_df.to_csv(f"{output_dir}/{study_area}_npmrds_overall_stats.csv", index=False)
-
-        # Road class stats
-        if 'avg_speed_by_road_class' in npmrds_stats:
-            npmrds_road_class_rows = []
-            for road_class, speed in npmrds_stats['avg_speed_by_road_class'].items():
-                row_data = {
-                    'road_class': road_class,
-                    'avg_speed': speed,
-                    'peak_hour_used': peak_hour  # Add peak hour info
-                }
-                if f'avg_speed_hour_{peak_hour}_by_road_class' in npmrds_stats:
-                    row_data[f'avg_speed_hour_{peak_hour}'] = npmrds_stats[
-                        f'avg_speed_hour_{peak_hour}_by_road_class'].get(road_class, float('nan'))
-
-                npmrds_road_class_rows.append(row_data)
-
-            npmrds_road_class_df = pd.DataFrame(npmrds_road_class_rows)
-            npmrds_road_class_df.to_csv(f"{output_dir}/{study_area}_npmrds_road_class_stats.csv", index=False)
-
-    # Create a special file combining all data sources for peak hour (9 AM)
-    peak_hour_stats = {
-        'metadata': {
-            'peak_hour': peak_hour,
-            'study_area': study_area
-        },
-        'network_overall': network_stats.get(f'avg_speed_hour_{peak_hour}', float('nan')),
-        'link_overall': link_stats.get(f'avg_speed_hour_{peak_hour}', float('nan'))
-    }
-
-    if npmrds_stats:
-        peak_hour_stats['npmrds_overall'] = npmrds_stats.get(f'avg_speed_hour_{peak_hour}', float('nan'))
-        if f'avg_speed_hour_{peak_hour}_by_road_class' in npmrds_stats:
-            peak_hour_stats['npmrds_by_road_class'] = npmrds_stats[f'avg_speed_hour_{peak_hour}_by_road_class']
-
-    # Add mode data if available
-    if f'avg_speed_hour_{peak_hour}_by_mode' in network_stats:
-        peak_hour_stats['network_by_mode'] = network_stats[f'avg_speed_hour_{peak_hour}_by_mode']
-
-    if f'avg_speed_hour_{peak_hour}_by_mode' in link_stats:
-        peak_hour_stats['link_by_mode'] = link_stats[f'avg_speed_hour_{peak_hour}_by_mode']
-
-    # Save peak hour stats to JSON
-    with open(f"{output_dir}/{study_area}_peak_hour_{peak_hour}_stats.json", 'w') as f:
-        json.dump(peak_hour_stats, f, indent=4)
-
-    # Create a simple CSV for peak hour comparison
-    peak_hour_rows = [
-        {'data_source': 'network', 'metric': 'overall', 'speed': peak_hour_stats['network_overall'],
-         'peak_hour': peak_hour},
-        {'data_source': 'link', 'metric': 'overall', 'speed': peak_hour_stats['link_overall'], 'peak_hour': peak_hour}
-    ]
-
-    if 'npmrds_overall' in peak_hour_stats:
-        peak_hour_rows.append({
-            'data_source': 'npmrds',
-            'metric': 'overall',
-            'speed': peak_hour_stats['npmrds_overall'],
-            'peak_hour': peak_hour
-        })
-
-    # Add road class data for NPMRDS
-    if 'npmrds_by_road_class' in peak_hour_stats:
-        for road_class, speed in peak_hour_stats['npmrds_by_road_class'].items():
-            peak_hour_rows.append({
-                'data_source': 'npmrds',
-                'metric': f'road_class_{road_class}',
-                'speed': speed,
-                'peak_hour': peak_hour
-            })
-
-    # Add mode data
-    if 'network_by_mode' in peak_hour_stats:
-        for mode, speed in peak_hour_stats['network_by_mode'].items():
-            peak_hour_rows.append({
-                'data_source': 'network',
-                'metric': f'mode_{mode}',
-                'speed': speed,
-                'peak_hour': peak_hour
-            })
-
-    if 'link_by_mode' in peak_hour_stats:
-        for mode, speed in peak_hour_stats['link_by_mode'].items():
-            peak_hour_rows.append({
-                'data_source': 'link',
-                'metric': f'mode_{mode}',
-                'speed': speed,
-                'peak_hour': peak_hour
-            })
-
-    peak_hour_df = pd.DataFrame(peak_hour_rows)
-    peak_hour_df.to_csv(f"{output_dir}/{study_area}_peak_hour_{peak_hour}_stats.csv", index=False)
-
-    # Create a comparative stats file (BEAM vs NPMRDS)
-    if npmrds_stats:
-        # Overall comparison
-        comparison_rows = [{
-            'metric': 'overall_avg_speed',
-            'network': network_stats.get('overall_avg_speed', float('nan')),
-            'link': link_stats.get('overall_avg_speed', float('nan')),
-            'npmrds': npmrds_stats.get('overall_avg_speed', float('nan')),
-            'peak_hour_used': peak_hour  # Add peak hour info
-        }, {
-            'metric': f'avg_speed_hour_{peak_hour}',
-            'network': network_stats.get(f'avg_speed_hour_{peak_hour}', float('nan')),
-            'link': link_stats.get(f'avg_speed_hour_{peak_hour}', float('nan')),
-            'npmrds': npmrds_stats.get(f'avg_speed_hour_{peak_hour}', float('nan')),
-            'peak_hour': peak_hour  # Add peak hour info
-        }]
-
-        # Road class comparisons (if available)
-        if ('avg_speed_by_road_class' in network_stats and
-                'avg_speed_by_road_class' in link_stats and
-                'avg_speed_by_road_class' in npmrds_stats):
-
-            # Get the union of all road classes
-            all_road_classes = set()
-            all_road_classes.update(network_stats['avg_speed_by_road_class'].keys())
-            all_road_classes.update(link_stats['avg_speed_by_road_class'].keys())
-            all_road_classes.update(npmrds_stats['avg_speed_by_road_class'].keys())
-
-            for road_class in all_road_classes:
-                comparison_rows.append({
-                    'metric': f'avg_speed_road_class_{road_class}',
-                    'network': network_stats['avg_speed_by_road_class'].get(road_class, float('nan')),
-                    'link': link_stats['avg_speed_by_road_class'].get(road_class, float('nan')),
-                    'npmrds': npmrds_stats['avg_speed_by_road_class'].get(road_class, float('nan')),
-                    'peak_hour_used': peak_hour  # Add peak hour info
-                })
-
-        comparison_df = pd.DataFrame(comparison_rows)
-        comparison_df.to_csv(f"{output_dir}/{study_area}_beam_npmrds_comparison.csv", index=False)
-
-
 def main():
     """
     Main function to run the validation process
     """
     # Configuration
-    study_area = "sfbay"  # or "seattle"
-    batch = "20240123"
-    scenario = "2018-Baseline-FC10-0-1"
     peak_hour = 8
     do_link_speed_validation = True
     do_network_speed_validation = True
     do_vmt_validation = False
     generate_stats = True  # Flag to control stats generation
+    work_dir = os.path.expanduser("~/Workspace/Simulation/sfbay")
+    configs = {
+        "study_area": "sfbay",
+        "batch": "calibration",
+        "scenario": "2018-Baseline-20250702-FC08-0",
+        "state_fips": "06",
+        "county_fips": ['001', '013', '041', '055', '075', '081', '085', '095', '097'],
+        "census_year": 2018,
+        "npmrds_label": f"NPMRDS_2018",
+        "utm_epsg": 26910
+    }
+    paths = {
+        "work_dir": work_dir,
+        "link_stats_file": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/6.linkstats.csv.gz",
+        "events_file": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/6.events.csv.gz",
+        "network_csv": f"{work_dir}/network/sfbay-area-cbg5500-network/network.csv.gz",
+
+        "run_dir": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}",
+        "data_dir": f"{work_dir}/beam-freight/{configs["batch"]}/{configs["scenario"]}",
+        "geo_dir": f"{work_dir}/geo",
+        "output_dir": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/validation_output",
+        "plots_dir": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/validation_output/plots",
+        "vehicle_types_file": f"{work_dir}/beam-freight/{configs["batch"]}/{configs["scenario"]}/vehicle-tech/ft-vehicletypes--{configs["batch"]}--{configs["scenario"]}.csv",
+        "npmrds_hourly_speed_csv": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/{configs["study_area"]}_npmrds_hourly_speeds.csv",
+        "npmrds_hourly_speed_by_road_class_csv": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/{configs["study_area"]}_npmrds_hourly_speed_by_road_class.csv",
+        "beam_network_mapped_to_npmrds_geo": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/{configs["study_area"]}_network_mapped_to_npmrds.geojson",
+        "beam_network_car_links_geo": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/{configs["study_area"]}_network_car_only.geojson",
+        "npmrds_station_geo": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/{configs["study_area"]}_npmrds_station.geojson",
+        "npmrds_data_csv": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/{configs["study_area"]}_npmrds_data.csv",
+        "npmrds_raw_geo": f"{work_dir}/validation/npmrds/California.shp",
+        "npmrds_raw_data_csv": f'{work_dir}/validation/npmrds/al_ca_oct2018_1hr_trucks_pax.csv',
+    }
 
     # Load configuration
-    config = get_area_config(study_area)
-    config["network"]["graph_layers"]["residential"]["min_density_per_km2"] = 5500
-
-    # Create output directories
-    output_dir = f"{config["work_dir"]}/beam-runs/{batch}/{scenario}/validation_output"
-    plots_dir = f"{output_dir}/plots"
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
-    Path(plots_dir).mkdir(parents=True, exist_ok=True)
-
-    # Setup link stats
-    link_stats, vehicle_types_files = setup_link_stats(batch, scenario, config)
+    Path(paths["output_dir"]).mkdir(parents=True, exist_ok=True)
+    Path(paths["plots_dir"]).mkdir(parents=True, exist_ok=True)
+    link_stats = [LinkStats(scenario=f"{configs["batch"]}_{configs["scenario"]}", demand_fraction=0.1, file_path=paths["link_stats_file"])]
+    vehicle_types_files = [(configs["batch"], configs["scenario"], paths["events_file"], paths["vehicle_types_file"])]
 
     # Prepare NPMRDS files
     npmrds_hourly_speed_csv, npmrds_hourly_speed_by_road_class_csv, beam_network_mapped_to_npmrds_geo, beam_network_car_links_geo = \
-        prepare_npmrds_files(study_area, batch, scenario, config)
+        prepare_npmrds_files(configs, paths)
 
     # Initialize validation setup
     setup = SpeedValidationSetup(
@@ -944,12 +651,12 @@ def main():
     # Run validations as requested
     if do_network_speed_validation:
         run_network_speed_validation(
-            study_area, setup, processed_link_stats, output_dir, plots_dir
+            configs["study_area"], setup, processed_link_stats, paths["output_dir"], paths["plots_dir"]
         )
 
     if do_link_speed_validation:
         run_link_speed_validation(
-            study_area, setup, processed_link_stats, output_dir, plots_dir
+            configs["study_area"], setup, processed_link_stats, paths["output_dir"], paths["plots_dir"]
         )
 
     if do_vmt_validation:
@@ -959,9 +666,9 @@ def main():
     if generate_stats and processed_link_stats is not None:
         print("Generating comprehensive validation statistics...")
         stats_results = generate_validation_stats(
-            setup, processed_link_stats, output_dir, study_area, peak_hour
+            setup, processed_link_stats, paths["output_dir"], configs["study_area"], peak_hour
         )
-        print(f"Statistics saved to {output_dir}/{study_area}_validation_stats.json")
+        print(f"Statistics saved to {paths["output_dir"]}/{configs["study_area"]}_validation_stats.json")
 
         # Print a summary of the lowest speed hours
         lowest_speeds = stats_results["lowest_speeds"]

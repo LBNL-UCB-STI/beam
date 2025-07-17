@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
+from utils.files_utils import sanitize_name
+
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(os.path.dirname(current_dir))
