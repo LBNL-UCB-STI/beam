@@ -109,12 +109,12 @@ class HouseholdFleetManager(
                 .map(_._1)
                 .getOrElse {
                   householdMembersToActivityTypeAndLocation.foreach { case (personId, location) =>
-                    println(s"Person ID: $personId")
-                    println(s"  Parking Activity Type: ${location.parkingActivityType}")
-                    println(s"  Activity Type: ${location.activityType}")
-                    println(s"  Activity Location: ${location.activityLocation}")
-                    println(s"  Activity End Time: ${location.activityEndTime}")
-                    println("---")
+                    logger.error(s"Person ID: $personId")
+                    logger.error(s"  Parking Activity Type: ${location.parkingActivityType}")
+                    logger.error(s"  Activity Type: ${location.activityType}")
+                    logger.error(s"  Activity Location: ${location.activityLocation}")
+                    logger.error(s"  Activity End Time: ${location.activityEndTime}")
+                    logger.error("---")
                   }
                   throw new RuntimeException(
                     s"Freight vehicle ${vehicle.id} has no assigned person with Freight parking activity"
