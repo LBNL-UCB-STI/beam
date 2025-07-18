@@ -296,10 +296,10 @@ class GenericFreightReader(
         if (isGoodsCarrier)
           if (carrierIdStr == null || carrierIdStr.isBlank) NO_CARRIER_ID
           else carrierIdStr.createId
-        else s"$CARRIER_ID_PREFIX-$carrierIdStr".createId[FreightCarrier]
+        else s"$FREIGHT_ID_PREFIX-$carrierIdStr".createId[FreightCarrier]
       val tourId: Id[FreightTour] = get("tourId").createId
       val vehicleId: Id[BeamVehicle] =
-        if (isGoodsCarrier) NO_VEHICLE_ID else Id.createVehicleId(s"${CARRIER_ID_PREFIX}Vehicle-$vehicleIdStr")
+        if (isGoodsCarrier) NO_VEHICLE_ID else Id.createVehicleId(s"$FREIGHT_ID_PREFIX-$vehicleIdStr")
       val vehicleTypeId: Id[BeamVehicleType] = if (isGoodsCarrier) "no-type".createId else get("vehicleTypeId").createId
       if (!existingAllTours.contains(tourId)) {
         logger.error(f"Following freight carrier row discarded because tour $tourId was filtered out: $row")
@@ -380,15 +380,9 @@ class GenericFreightReader(
   }
 
   @Override
-  def createPersonId(carrierId: Id[FreightCarrier], vehicleId: Id[BeamVehicle]): Id[Person] = {
-    val updatedVehicleId = vehicleId.toString.replace(s"${CARRIER_ID_PREFIX}Vehicle-", "")
-    Id.createPersonId(s"${CARRIER_ID_PREFIX}Driver-$updatedVehicleId")
-  }
+  def createPersonId(vehicleId: Id[BeamVehicle]): Id[Person] = vehicleId.toString.createId
 
   @Override
-  def createHouseholdId(carrierId: Id[FreightCarrier]): Id[Household] = {
-    val updatedCarrierId = carrierId.toString.replace(CARRIER_ID_PREFIX + "Carrier-", "")
-    s"carrier-$updatedCarrierId".createId
-  }
+  def createHouseholdId(carrierId: Id[FreightCarrier]): Id[Household] = carrierId.toString.createId
 
 }

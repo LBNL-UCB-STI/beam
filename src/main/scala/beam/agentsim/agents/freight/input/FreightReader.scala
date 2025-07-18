@@ -32,7 +32,7 @@ trait FreightReader {
 
   def readPayloadPlans(): Map[Id[PayloadPlan], PayloadPlan]
 
-  def createPersonId(carrierId: Id[FreightCarrier], vehicleId: Id[BeamVehicle]): Id[Person]
+  def createPersonId(vehicleId: Id[BeamVehicle]): Id[Person]
 
   def createHouseholdId(carrierId: Id[FreightCarrier]): Id[Household]
 
@@ -114,7 +114,7 @@ trait FreightReader {
       val household = householdsFactory.createHousehold(freightCarrierId)
       household.setIncome(new IncomeImpl(0, Income.IncomePeriod.year))
       carrier.tourMap.map { case (vehicleId, tours) =>
-        val personId = createPersonId(carrier.carrierId, vehicleId)
+        val personId = createPersonId(vehicleId)
         val person = populationFactory.createPerson(personId)
         val currentPlan: Plan = createPersonPlan(carrier, tours, carrier.plansPerTour, person)
         person.addPlan(currentPlan)
@@ -172,7 +172,7 @@ trait FreightReader {
 }
 
 object FreightReader {
-  val CARRIER_ID_PREFIX = "carrier"
+  val FREIGHT_ID_PREFIX = "freight"
   val FREIGHT_REQUEST_TYPE = "FreightRequestType"
   val PAYLOAD_WEIGHT_IN_KG = "PayloadWeightInKg"
   val PAYLOAD_IDS = "PayloadIds"

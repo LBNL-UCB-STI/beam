@@ -64,7 +64,7 @@ class FreightReplanner(
   ): Iterable[Plan] = {
     routes.groupBy(_.vehicle.id).map { case (vehicleIdStr, routes) =>
       val vehicleId = Id.createVehicleId(vehicleIdStr)
-      val person = population.get(freightReader.createPersonId(freightCarrier.carrierId, vehicleId))
+      val person = population.get(freightReader.createPersonId(vehicleId))
       val toursAndPlans = routes.zipWithIndex.map { case (route, i) =>
         convertToFreightTourWithPayloadPlans(
           s"${route.vehicle.id}-$i".createId,

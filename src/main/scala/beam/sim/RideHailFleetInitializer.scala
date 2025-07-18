@@ -632,12 +632,12 @@ class ProceduralRideHailFleetInitializer(
   private val passengerPopulation: Iterable[Person] = scenario.getPopulation.getPersons
     .values()
     .asScala
-    .filterNot(_.getId.toString.startsWith(FreightReader.CARRIER_ID_PREFIX))
+    .filterNot(_.getId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX))
 
   private val passengerHousehold: Iterable[Household] = scenario.getHouseholds.getHouseholds
     .values()
     .asScala
-    .filterNot(_.getId.toString.startsWith(FreightReader.CARRIER_ID_PREFIX))
+    .filterNot(_.getId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX))
 
   private def computeNumRideHailAgents: Long = {
     val fleet: Double = beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
