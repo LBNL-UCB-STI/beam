@@ -633,9 +633,9 @@ trait ChoosesParking extends {
       goto(WaitingToDrive) using data.copy(
         currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
         restOfCurrentTrip = newRestOfTrip.toList,
+        currentVehicle = newVehicle,
         passengerSchedule = newPassengerSchedule,
-        currentLegPassengerScheduleIndex = 0,
-        currentVehicle = newVehicle
+        currentLegPassengerScheduleIndex = 0
       )
   }
 }
