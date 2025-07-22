@@ -592,7 +592,8 @@ def main():
     configs = {
         "study_area": "sfbay",
         "batch": "calibration",
-        "scenario": "2018-Baseline-20250714-FC08-1",
+        "scenario": "2018-Baseline-20250716-FC08-4",
+        "iteration": 12,
         "state_fips": "06",
         "county_fips": ['001', '013', '041', '055', '075', '081', '085', '095', '097'],
         "census_year": 2018,
@@ -601,8 +602,8 @@ def main():
     }
     paths = {
         "work_dir": work_dir,
-        "link_stats_file": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/10.linkstats.csv.gz",
-        "events_file": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/10.events.csv.gz",
+        "link_stats_file": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/{configs["iteration"]}.linkstats.csv.gz",
+        "events_file": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/{configs["iteration"]}.events.csv.gz",
         "network_csv": f"{work_dir}/network/sfbay-area-cbg5500-network/network.csv.gz",
 
         "run_dir": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}",

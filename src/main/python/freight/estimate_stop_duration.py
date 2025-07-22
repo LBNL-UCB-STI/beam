@@ -518,12 +518,12 @@ def process_austin_survey_data(survey_file_path):
     return operation_dict, weight_dict, base_durations, weight_factors, operation_factors, variability_factors
 
 
-def update_operation_duration(study_area_config, payloads, tours, carriers, vehicle_types):
+def update_operation_duration(config, payloads, tours, carriers, vehicle_types):
     """
     Update operation durations based on factors extracted from survey data.
     """
-    survey_file_path = os.path.join(study_area_config["work_dir"],
-                                    study_area_config["freight"]["stops_data"])
+    survey_file_path = os.path.join(config["work_dir"],
+                                    config["stops_data"])
 
     # Create and load the model
     duration_model = SimpleStopDurationModel()

@@ -14,8 +14,9 @@ from pandas import DataFrame
 from pyrosm import OSM
 from scipy.spatial import cKDTree
 from shapely.geometry import Point
+import hashlib
 
-from estimate_stop_duration import update_operation_duration
+# from estimate_stop_duration import update_operation_duration
 
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -26,49 +27,80 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, parent_dir)
 
-# Now use absolute import
-from python.utils.study_area_config import get_area_config
-from python.utils.study_area_config import generate_network_name
-from python.utils.study_area_config import constants
-
-
 warnings.filterwarnings('ignore')
 
+fastsim_routee_files = {
+    "primary_powertrain": {
+        "md-D-Diesel": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(Diesel,_2020,_no_program).csv",
+        "md-E-BE": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(BEV,_2025,_no_program).csv",
+        "md-E-H2FC": np.nan,
+        "md-E-PHEV": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(BEV,_2025,_no_program).csv",
+        "hdt-D-Diesel": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(Diesel,_2020,_no_program).csv",
+        "hdt-E-BE": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(BEV,_2025,_no_program).csv",
+        "hdt-E-H2FC": np.nan,
+        "hdt-E-PHEV": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(BEV,_2025,_no_program).csv",
+        "hdv-D-Diesel": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(Diesel,_2020,_no_program).csv",
+        "hdv-E-BE": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(BEV,_2025,_no_program).csv",
+        "hdv-E-H2FC": np.nan,
+        "hdv-E-PHEV": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(BEV,_2025,_no_program).csv"
+    },
+    "secondary_powertrain": {
+        "md-D-Diesel": np.nan,
+        "md-E-BE": np.nan,
+        "md-E-H2FC": np.nan,
+        "md-E-PHEV": ("Diesel", 9595.796035186175,1.2e16, # max_fuel_capacity_in_joule
+                      "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(HEV,_2025,_no_program).csv"),
+        "hdt-D-Diesel": np.nan,
+        "hdt-E-BE": np.nan,
+        "hdt-E-H2FC": np.nan,
+        "hdt-E-PHEV": ("Diesel", 13817.086117829229, 1.2e16, # max_fuel_capacity_in_joule
+                       "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(HEV,_2025,_no_program).csv"),
+        "hdv-D-Diesel": np.nan,
+        "hdv-E-BE": np.nan,
+        "hdv-E-H2FC": np.nan,
+        "hdv-E-PHEV": ("Diesel",14026.761465378302, 1.2e16, # max_fuel_capacity_in_joule
+                       "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(HEV,_2025,_no_program).csv")
+    }
+}
+
+area_config = {
+    "sfbay": {
+
+    },
+    "seattle": {
+        "work_dir": os.path.expanduser("~/Workspace/Simulation/seattle"),
+        "network_osm_pbf": os.path.expanduser("~/Workspace/Simulation/seattle/network/seattle-area-cbg412-ferry-network/seattle-area-cbg412-ferry-network.osm.pbf"),
+        "utm_epsg": 32048,
+        "year": 2018,
+        "primary_powertrain": fastsim_routee_files["primary_powertrain"],
+        "secondary_powertrain": fastsim_routee_files["secondary_powertrain"],
+        "batch": "20250721",
+        "scenario": "Baseline",
+        "frism_version": 1.5,
+    }
+}
+
 # ************************************************************************************************
 
-AREA = "sfbay" # sfbay
-BATCH_NAME = "20240123"
-SCENARIO_NAME = "Baseline"
-SCENARIO_SUFFIX = ""
-FRISM_VERSION = 1.0
-# Coordinate snapping constants
+AREA = "seattle" # sfbay
+FRISM_VERSION = 1.5
+SNAP_COORDINATES = True
 BUFFER_DISTANCE_METERS = 100  # 100 meters
 MAX_DISTANCE_METERS = 200000  # 200km
-STUDY_AREA_CONFIG = get_area_config(AREA)
-STUDY_AREA_CONFIG["network"]["graph_layers"]["residential"]["min_density_per_km2"] = 5500
-SNAP_COORDINATES = True
+CHUNK_SIZE = 10000  # this affects speed and parallelization of the script
+JOULE_PER_METER_BASE_RATE = 1.213e8  # Base rate for joules per meter, used in fuel consumption calculations
+CONFIG = area_config[AREA]
+# SCENARIO_SUFFIX = ""
 
 # ************************************************************************************************
 
-
-
-
 # System and general constants
-CHUNK_SIZE = 10000  # this affects speed and parallelization of the script
-CONFIG_NAME = generate_network_name(STUDY_AREA_CONFIG)
-NETWORK_DIR = f'{STUDY_AREA_CONFIG["work_dir"]}/network/{CONFIG_NAME}'
-NETWORK_OSM_PBF = f'{NETWORK_DIR}/{CONFIG_NAME}.osm.pbf'
-UTM_CRS = STUDY_AREA_CONFIG["geo"]["utm_epsg"]
-YEAR = STUDY_AREA_CONFIG["census_year"]
-SCENARIO_LABEL = SCENARIO_NAME.replace("_", "")
-PRIMARY_ENERGY_PROFILE = STUDY_AREA_CONFIG["fastsim_routee_files"]["primary_powertrain"]
-SECONDARY_ENERGY_PROFILE = STUDY_AREA_CONFIG["fastsim_routee_files"]["secondary_powertrain"]
-
+SCENARIO_LABEL = CONFIG["scenario"].replace("_", "")
 # File paths and directories
-DIRECTORY_INPUT = f'{STUDY_AREA_CONFIG["work_dir"]}/frism/{BATCH_NAME}/{SCENARIO_NAME}'
-DIRECTORY_BATCH = f'{STUDY_AREA_CONFIG["work_dir"]}/beam-ft/{BATCH_NAME}'
-DIRECTORY_OUTPUT = f'{DIRECTORY_BATCH}/{YEAR}-{SCENARIO_LABEL}{SCENARIO_SUFFIX}'
-DIRECTORY_VEHICLE_TECH = f'{STUDY_AREA_CONFIG["work_dir"]}/vehicle-tech'
+DIRECTORY_INPUT = f'{CONFIG["work_dir"]}/frism/{CONFIG["batch"]}/{CONFIG["scenario"]}'
+DIRECTORY_BATCH = f'{CONFIG["work_dir"]}/beam-ft/{CONFIG["batch"]}'
+DIRECTORY_OUTPUT = f'{DIRECTORY_BATCH}/{CONFIG["year"]}-{SCENARIO_LABEL}'
+DIRECTORY_VEHICLE_TECH = f'{CONFIG["work_dir"]}/vehicle-tech'
 DIRECTORY_SCENARIO = f'{DIRECTORY_OUTPUT}'
 # if SNAP_COORDINATES:
 #     # Define the snapped directory path
@@ -125,9 +157,9 @@ def load_osm_network(pbf_path, min_distance_from_edge):
     print(f"Creating {str(int(BUFFER_DISTANCE_METERS / 1000))}km road buffer...")
     # Convert to UTM for proper metric distances
     try:
-        edges_utm = edges.to_crs(epsg=UTM_CRS)
+        edges_utm = edges.to_crs(epsg=CONFIG["utm_epsg"])
     except Exception as e:
-        raise ValueError(f"Failed to convert to UTM (EPSG:{UTM_CRS}): {str(e)}")
+        raise ValueError(f"Failed to convert to UTM (EPSG:{CONFIG["utm_epsg"]}): {str(e)}")
 
     # Create buffer in UTM coordinates (where distances are in meters)
     buffered_edges = edges_utm.copy()
@@ -404,7 +436,7 @@ def process_points_chunk_vectorized(
     points_gdf = gpd.GeoDataFrame(
         geometry=[Point(x, y) for x, y in points_chunk],
         crs=4326
-    ).to_crs(UTM_CRS)
+    ).to_crs(CONFIG["utm_epsg"])
 
     for idx, (point_utm, orig_point) in enumerate(zip(points_gdf.geometry, points_chunk)):
         try:
@@ -439,7 +471,7 @@ def process_points_chunk_vectorized(
                 # Convert back to original CRS (WGS84)
                 point_updated = gpd.GeoDataFrame(
                     geometry=[Point(new_x_utm, new_y_utm)],
-                    crs=UTM_CRS
+                    crs=CONFIG["utm_epsg"]
                 ).to_crs(4326).geometry[0]
 
                 result = (
@@ -575,7 +607,30 @@ def snap_coordinates_when_too_far(_df: pd.DataFrame,
 
     return result_df, coordinate_lookup
 
+def short_hash(s, length=7):
+    return hashlib.md5(s.encode()).hexdigest()[:length]
 
+
+def check_collisions(series, hash_func):
+    """Check for hash collisions in a pandas series"""
+    hash_map = {}
+    collisions = []
+
+    for idx, value in series.items():
+        hash_val = hash_func(value)
+        if hash_val in hash_map:
+            collisions.append({
+                'hash': hash_val,
+                'original1': hash_map[hash_val],
+                'original2': value,
+                'index1': hash_map[f"{hash_val}_idx"],
+                'index2': idx
+            })
+        else:
+            hash_map[hash_val] = value
+            hash_map[f"{hash_val}_idx"] = idx
+
+    return collisions
 
 #############################
 ## MAIN
@@ -584,6 +639,8 @@ if __name__ == '__main__':
     # Add these at the beginning of your main code, after the variables section
     # Dictionary to store vehicle class and fuel rate mappings
     vehicle_class_fuel_rates = {}
+    hashes = set()
+    collisions = 0
 
     for filename in sorted(os.listdir(DIRECTORY_INPUT)):
         filepath = f'{DIRECTORY_INPUT}/{filename}'
@@ -603,10 +660,27 @@ if __name__ == '__main__':
             df['carrierId'] = df.apply(lambda row: add_prefix(f'', 'carrierId', row, False), axis=1).tolist()
             df['vehicleTypeId'] = df.apply(
                 lambda row: add_prefix('', 'vehicleTypeId', row, to_num=True, store_dict=None, veh_type=True,
-                                       suffix=f"-{YEAR}-{SCENARIO_LABEL}"),
+                                       suffix=f""),
                 axis=1).tolist()
-            df['vehicleId'] = df.apply(lambda row: add_prefix(row['carrierId'] + '-', 'vehicleId', row),
-                                       axis=1).tolist()
+            df['vehicleTypeIdScenario'] = df.apply(
+                lambda row: add_prefix('', 'vehicleTypeId', row, to_num=True, store_dict=None, veh_type=True,
+                                       suffix=f"-{CONFIG["year"]}-{SCENARIO_LABEL}"),
+                axis=1).tolist()
+            df['vehicleIdOrig'] = df.apply(
+                lambda row: add_prefix(f'{business_type}--', 'vehicleId', row),
+                axis=1).tolist()
+
+            # Check for collisions before applying hash
+            collisions = check_collisions(df['vehicleIdOrig'], short_hash)
+            if collisions:
+                print(f"WARNING: {len(collisions)} hash collisions detected!")
+                for collision in collisions:
+                    print(f"Hash {collision['hash']}: '{collision['original1']}' and '{collision['original2']}'")
+                print("Consider increasing hash length")
+            else:
+                print(f"No collisions found with {short_hash.__defaults__[0]}-character hashes")
+
+            df['vehicleId'] = df['vehicleIdOrig'].apply(short_hash)
             # df['tourId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'tourId', row), axis=1)
             df['tourId'] = df.apply(
                 lambda row: add_prefix(f'{business_type}-', 'tourId', row, True, _tourId_with_prefix),
@@ -664,7 +738,7 @@ if __name__ == '__main__':
 
             for _, row in df.iterrows():
                 veh_type_id = add_prefix('', 'veh_type_id', row, to_num=True,
-                                         store_dict=None, veh_type=True, suffix=f"-{YEAR}-{SCENARIO_LABEL}")
+                                         store_dict=None, veh_type=True, suffix=f"-{CONFIG["year"]}-{SCENARIO_LABEL}")
                 vehicle_types_ids.append(veh_type_id)
 
                 original_veh_type_id = add_prefix('', 'veh_type_id', row, to_num=True,
@@ -675,23 +749,25 @@ if __name__ == '__main__':
                 fuel_type = row['primary_fuel_type']
 
                 # Check if this is a PHEV vehicle
-                if 'PHEV' in str(row['veh_type_id']):
-                    if f"{veh_class}-Electricity" in vehicle_class_fuel_rates and f"{veh_class}-{fuel_type}" in vehicle_class_fuel_rates:
-                        # Primary
-                        primary_fuel_types.append('Electricity')
-                        fuel_rate_1 = vehicle_class_fuel_rates[f"{veh_class}-Electricity"]
-                        primary_fuel_consumption.append(constants["joule_per_meter_base_rate"] / (float(fuel_rate_1) * 1609.34))
-                        primary_fuel_capacities.append(12000000000000000 * 0.25)  # 25% of standard capacity
+                if ('PHEV' in str(row['veh_type_id']) and
+                        f"{veh_class}-Electricity" in vehicle_class_fuel_rates and
+                        f"{veh_class}-{fuel_type}" in vehicle_class_fuel_rates):
 
-                        # Secondary
-                        secondary_fuel_types.append(fuel_type)
-                        fuel_rate_2 = vehicle_class_fuel_rates[f"{veh_class}-{fuel_type}"]
-                        secondary_fuel_consumption.append(constants["joule_per_meter_base_rate"] / (float(fuel_rate_2) * 1609.34))
-                        secondary_fuel_capacities.append(12000000000000000 * 0.75)  # 75% of standard capacity
+                    # Primary
+                    primary_fuel_types.append('Electricity')
+                    fuel_rate_1 = vehicle_class_fuel_rates[f"{veh_class}-Electricity"]
+                    primary_fuel_consumption.append(JOULE_PER_METER_BASE_RATE / (float(fuel_rate_1) * 1609.34))
+                    primary_fuel_capacities.append(12000000000000000 * 0.25)  # 25% of standard capacity
+
+                    # Secondary
+                    secondary_fuel_types.append(fuel_type)
+                    fuel_rate_2 = vehicle_class_fuel_rates[f"{veh_class}-{fuel_type}"]
+                    secondary_fuel_consumption.append(JOULE_PER_METER_BASE_RATE / (float(fuel_rate_2) * 1609.34))
+                    secondary_fuel_capacities.append(12000000000000000 * 0.75)  # 75% of standard capacity
                 else:
                     # For non-PHEV vehicles, use standard processing
                     primary_fuel_types.append(row["primary_fuel_type"])
-                    primary_fuel_consumption.append(constants["joule_per_meter_base_rate"] /
+                    primary_fuel_consumption.append(JOULE_PER_METER_BASE_RATE /
                                                     (np.float64(row["primary_fuel_rate"]) * 1609.34))
                     primary_fuel_capacities.append(12000000000000000)
                     secondary_fuel_types.append(np.nan)
@@ -708,13 +784,13 @@ if __name__ == '__main__':
                 "primaryFuelConsumptionInJoulePerMeter": primary_fuel_consumption,
                 "primaryFuelCapacityInJoule": primary_fuel_capacities,
                 "primaryVehicleEnergyFile": [
-                    PRIMARY_ENERGY_PROFILE[index] if index in PRIMARY_ENERGY_PROFILE else np.nan
+                    CONFIG["primary_powertrain"][index] if index in CONFIG["primary_powertrain"] else np.nan
                     for index in original_vehicle_types_ids],
                 "secondaryFuelType": secondary_fuel_types,
                 "secondaryFuelConsumptionInJoulePerMeter": secondary_fuel_consumption,
                 "secondaryFuelCapacityInJoule": secondary_fuel_capacities,
                 "secondaryVehicleEnergyFile": [
-                    SECONDARY_ENERGY_PROFILE[index][3] if index in SECONDARY_ENERGY_PROFILE else np.nan for
+                    CONFIG["secondary_powertrain"][index][3] if index in CONFIG["secondary_powertrain"] and isinstance(CONFIG["secondary_powertrain"][index], (list, tuple, np.ndarray)) else np.nan for
                     index in original_vehicle_types_ids],
                 "automationLevel": list(np.repeat(1, len(df.index))),
                 "maxVelocity": df["max_speed(mph)"],
@@ -729,11 +805,13 @@ if __name__ == '__main__':
             }
 
             df2 = pd.DataFrame(vehicles_techs)
-            df2["vehicleCategory"] = np.where(df2["vehicleTypeId"].str.contains('hdv'), 'Class78Vocational',
+            df2["vehicleCategory"] = np.where(df2["vehicleTypeId"].str.startswith('hdv'), 'Class78Vocational',
                                               df2.vehicleCategory)
-            df2["vehicleCategory"] = np.where(df2["vehicleTypeId"].str.contains('hdt'), 'Class78Tractor',
+            df2["vehicleCategory"] = np.where(df2["vehicleTypeId"].str.startswith('hdt'), 'Class78Tractor',
                                               df2.vehicleCategory)
-            df2["vehicleCategory"] = np.where(df2["vehicleTypeId"].str.contains('ld'), 'Class2b3Vocational',
+            df2["vehicleCategory"] = np.where(df2["vehicleTypeId"].str.startswith('ld3'), 'Class2b3Vocational',
+                                              df2.vehicleCategory)
+            df2["vehicleCategory"] = np.where(df2["vehicleTypeId"].str.startswith('ld1'), 'Class12aVocational',
                                               df2.vehicleCategory)
 
             if _vehicle_types is None:
@@ -745,12 +823,12 @@ if __name__ == '__main__':
 
 
     _vehicle_types.to_csv(
-        f'{DIRECTORY_VEHICLE_TECH}/ft-vehicletypes--{BATCH_NAME.replace("-", "")}--{YEAR}-{SCENARIO_LABEL}.csv',
+        f'{DIRECTORY_VEHICLE_TECH}/ft-vehicletypes--{CONFIG["batch"].replace("-", "")}--{CONFIG["year"]}-{SCENARIO_LABEL}.csv',
         index=False)
 
     # Load OSM network and create buffer
     _osm_edges_utm = load_osm_network(
-        NETWORK_OSM_PBF,
+        CONFIG["network_osm_pbf"],
         min_distance_from_edge=BUFFER_DISTANCE_METERS
     )
 
@@ -776,7 +854,7 @@ if __name__ == '__main__':
             _coordinate_lookup
         )
     # Write
-    _carriers.to_csv(f'{DIRECTORY_SCENARIO}/carriers--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
+    _carriers.to_csv(f'{DIRECTORY_SCENARIO}/carriers--{CONFIG["year"]}-{SCENARIO_LABEL}.csv', index=False)
 
     # tourId,departureTimeInSec,departureLocationZone,maxTourDurationInSec,departureLocationX,departureLocationY
     tours_renames = {
@@ -800,7 +878,7 @@ if __name__ == '__main__':
             _coordinate_lookup
         )
     # Write
-    _tours.to_csv(f'{DIRECTORY_SCENARIO}/tours--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
+    _tours.to_csv(f'{DIRECTORY_SCENARIO}/tours--{CONFIG["year"]}-{SCENARIO_LABEL}.csv', index=False)
 
     # Process payloads
     print("Processing payload plans...")
@@ -820,8 +898,8 @@ if __name__ == '__main__':
             _coordinate_lookup
         )
     _payload_plans["operationDurationInSecOG"] = _payload_plans["operationDurationInSec"]
-    _payload_plans = update_operation_duration(STUDY_AREA_CONFIG, _payload_plans, _tours, _carriers, _vehicle_types)
-    _payload_plans.to_csv(f'{DIRECTORY_SCENARIO}/payloads--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
+    #_payload_plans = update_operation_duration(CONFIG, _payload_plans, _tours, _carriers, _vehicle_types)
+    _payload_plans.to_csv(f'{DIRECTORY_SCENARIO}/payloads--{CONFIG["year"]}-{SCENARIO_LABEL}.csv', index=False)
 
     if _ondemand_plans is not None:
         print("Processing ondemand plans...")
@@ -835,12 +913,12 @@ if __name__ == '__main__':
                 "locationY",
                 _coordinate_lookup
             )
-        _ondemand_plans.to_csv(f'{DIRECTORY_SCENARIO}/ondemand--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
+        _ondemand_plans.to_csv(f'{DIRECTORY_SCENARIO}/ondemand--{CONFIG["year"]}-{SCENARIO_LABEL}.csv', index=False)
 
         # Create combined plans file with both regular plans and ondemand plans
         if _payload_plans is not None:
             print("Creating combined plans file of payloads and crowdshipments...")
             # Save the combined file
             pd.concat([_payload_plans, _ondemand_plans], ignore_index=True).to_csv(
-                f'{DIRECTORY_SCENARIO}/payloads+crowdshipments--{YEAR}-{SCENARIO_LABEL}.csv', index=False
+                f'{DIRECTORY_SCENARIO}/payloads+crowdshipments--{CONFIG["year"]}-{SCENARIO_LABEL}.csv', index=False
             )
