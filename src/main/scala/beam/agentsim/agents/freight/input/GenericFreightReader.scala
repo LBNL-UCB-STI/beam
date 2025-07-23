@@ -290,17 +290,20 @@ class GenericFreightReader(
 
       //carrierId,tourId,vehicleId,vehicleTypeId,warehouseZone,warehouseX,warehouseY
       val vehicleIdStr = get("vehicleId")
-      val isGoodsCarrier = vehicleIdStr == null || vehicleIdStr.isBlank
+      val isOnDemandShipment = vehicleIdStr == null || vehicleIdStr.isBlank
       val carrierIdStr = get("carrierId")
       val carrierId: Id[FreightCarrier] =
-        if (isGoodsCarrier)
-          if (carrierIdStr == null || carrierIdStr.isBlank) NO_CARRIER_ID
-          else carrierIdStr.createId
-        else s"$FREIGHT_ID_PREFIX-$carrierIdStr".createId[FreightCarrier]
+        if (isOnDemandShipment) {
+          if (carrierIdStr == null || carrierIdStr.isBlank) NO_CARRIER_ID else carrierIdStr.createId
+        } else if (carrierIdStr.startsWith(s"$FREIGHT_ID_PREFIX-")) carrierIdStr.createId
+        else s"$FREIGHT_ID_PREFIX-$carrierIdStr".createId
       val tourId: Id[FreightTour] = get("tourId").createId
       val vehicleId: Id[BeamVehicle] =
-        if (isGoodsCarrier) NO_VEHICLE_ID else Id.createVehicleId(s"$FREIGHT_ID_PREFIX-$vehicleIdStr")
-      val vehicleTypeId: Id[BeamVehicleType] = if (isGoodsCarrier) "no-type".createId else get("vehicleTypeId").createId
+        if (isOnDemandShipment) NO_VEHICLE_ID
+        else if (vehicleIdStr.startsWith(s"$FREIGHT_ID_PREFIX-")) vehicleIdStr.createId
+        else s"$FREIGHT_ID_PREFIX-$vehicleIdStr".createId
+      val vehicleTypeId: Id[BeamVehicleType] =
+        if (isOnDemandShipment) "no-type".createId else get("vehicleTypeId").createId
       if (!existingAllTours.contains(tourId)) {
         logger.error(f"Following freight carrier row discarded because tour $tourId was filtered out: $row")
         None

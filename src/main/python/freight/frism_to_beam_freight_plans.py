@@ -633,46 +633,70 @@ def check_collisions(series, hash_func):
 
     return collisions
 
-def resolve_vehicle_id_collisions(df, id_col='vehicleIdOrig', hash_func=None, check_collisions=None, hash_length=7):
+def resolve_vehicle_id_collisions(
+    df,
+    id_col='vehicleIdOrig',
+    hash_func=None,
+    check_collisions=None,
+    hash_length=7,
+    seen_ids=None,
+    seen_hashes=None
+):
     """
-    Ensures unique hash values for vehicle IDs in df by modifying duplicates.
-    Prints total collisions and total fixed vehicles.
-    Modifies df in-place.
+    Ensures unique hash values and original IDs across multiple DataFrames.
+    Modifies df in-place. Updates seen_ids and seen_hashes.
     """
     if hash_func is None or check_collisions is None:
         raise ValueError("Both hash_func and check_collisions must be provided")
+    if seen_ids is None:
+        seen_ids = set()
+    if seen_hashes is None:
+        seen_hashes = set()
 
-    # Wrap hash_func to include hash_length
+    # Step 1: Make original IDs unique across all files
+    suffix_map = {}
+    new_ids = []
+    orig_fixed_indices = set()
+    for idx, orig_id in enumerate(df[id_col]):
+        base_id = orig_id
+        count = 1
+        # Loop until we find a truly unique ID across all seen_ids
+        while orig_id in seen_ids:
+            count += 1
+            orig_id = f"{base_id}_{count}"
+        new_ids.append(orig_id)
+        if orig_id != base_id:
+            orig_fixed_indices.add(idx)
+        seen_ids.add(orig_id)
+    df[id_col] = new_ids
+
+    # Step 2: Make hashes unique across all files
     def hash_with_length(s):
         return hash_func(s, length=hash_length)
 
+    collision_fixed_indices = set()
     # Initial hash application
     df['vehicleId'] = df[id_col].apply(hash_with_length)
 
-    collisions = check_collisions(df[id_col], hash_with_length)
-    total_collisions = 0
-    fixed_vehicle_indices = set()
-    suffix_map = {}
+    for idx, hashed in enumerate(df['vehicleId']):
+        base_id = df.at[idx, id_col]
+        count = 1
+        # Loop until we find a unique hash across all seen_hashes
+        while hashed in seen_hashes:
+            count += 1
+            new_id = f"{base_id}_{count}"
+            df.at[idx, id_col] = new_id
+            hashed = hash_with_length(new_id)
+            collision_fixed_indices.add(idx)
+        df.at[idx, 'vehicleId'] = hashed
+        seen_hashes.add(hashed)
 
-    while collisions:
-        total_collisions += len(collisions)
-        for collision in collisions:
-            # Modify the second colliding ID
-            idx_to_modify = collision['index2']
-            orig_id = df.at[idx_to_modify, id_col]
-            count = suffix_map.get(orig_id, 1) + 1
-            suffix_map[orig_id] = count
-            new_id = f"{orig_id}_{count}"
-            df.at[idx_to_modify, id_col] = new_id
-            fixed_vehicle_indices.add(idx_to_modify)
-        # Recompute hashes after modification
-        df['vehicleId'] = df[id_col].apply(hash_with_length)
-        collisions = check_collisions(df[id_col], hash_with_length)
+    print(f"Hash length used: {hash_length}")
+    print(f"Total original ID duplicates fixed: {len(orig_fixed_indices)}")
+    print(f"Total hash collisions fixed: {len(collision_fixed_indices)}")
+    print(f"Total vehicles with modified IDs: {len(orig_fixed_indices | collision_fixed_indices)}")
 
-    print(f"Total collisions detected and fixed: {total_collisions}")
-    print(f"Total vehicles with modified IDs: {len(fixed_vehicle_indices)}")
-
-    return df
+    return df, seen_ids, seen_hashes
 
 def remove_third_segment(s):
     parts = s.split('-')
@@ -689,6 +713,8 @@ if __name__ == '__main__':
     # Add these at the beginning of your main code, after the variables section
     # Dictionary to store vehicle class and fuel rate mappings
     vehicle_class_fuel_rates = {}
+    seen_ids = set()
+    seen_hashes = set()
 
     for filename in sorted(os.listdir(DIRECTORY_INPUT)):
         filepath = f'{DIRECTORY_INPUT}/{filename}'
@@ -716,12 +742,15 @@ if __name__ == '__main__':
                 lambda row: add_prefix(f'{business_type}--', 'vehicleId', row),
                 axis=1).tolist()
             # Check for collisions before applying hash
-            resolve_vehicle_id_collisions(
+            df, seen_ids, seen_hashes = resolve_vehicle_id_collisions(
                 df,
                 id_col='vehicleIdOrig',
                 hash_func=short_hash,
-                check_collisions=check_collisions,
-                hash_length=5)
+                check_collisions=check_collisions,  # can be None, not used in this version
+                hash_length=5,
+                seen_ids=seen_ids,
+                seen_hashes=seen_hashes
+            )
             df['vehicleId'] = df.apply(
                 lambda row: add_prefix(f'ft-', 'vehicleId', row),
                 axis=1).tolist()
@@ -868,7 +897,7 @@ if __name__ == '__main__':
 
 
     _vehicle_types.to_csv(
-        f'{DIRECTORY_VEHICLE_TECH}/ft-vehicletypes--{CONFIG["batch"].replace("-", "")}--{CONFIG["year"]}-{SCENARIO_LABEL}.csv',
+        f'{DIRECTORY_VEHICLE_TECH}/vehicletypes--frism--{CONFIG["year"]}-{SCENARIO_LABEL}.csv',
         index=False)
 
     # Load OSM network and create buffer

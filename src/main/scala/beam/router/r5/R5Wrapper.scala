@@ -1052,6 +1052,13 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
   }
 
   private def timeLimitForVehicleCategory(vehicleCategory: VehicleCategory, default: Int): Int = {
+
+    /**
+      * maxTimeLimitForFreightInMinutes is a cutoff where R5 stops trying to find a route if the shortest route
+      * it longer than that value. It'll keep routing time from blowing up for really long routes.
+      * we override the default for freight because there are more really long trips that
+      * the router was failing to return routes for.
+      */
     vehicleCategory match {
       case VehicleCategory.Class456Vocational => beamConfig.beam.routing.r5.maxTimeLimitForFreightInMinutes
       case VehicleCategory.Class78Vocational  => beamConfig.beam.routing.r5.maxTimeLimitForFreightInMinutes
