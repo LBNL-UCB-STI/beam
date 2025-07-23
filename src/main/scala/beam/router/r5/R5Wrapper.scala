@@ -1053,7 +1053,6 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
 
   private def timeLimitForVehicleCategory(vehicleCategory: VehicleCategory, default: Int): Int = {
     vehicleCategory match {
-      case VehicleCategory.Class2b3Vocational => beamConfig.beam.routing.r5.maxTimeLimitForFreightInMinutes
       case VehicleCategory.Class456Vocational => beamConfig.beam.routing.r5.maxTimeLimitForFreightInMinutes
       case VehicleCategory.Class78Vocational  => beamConfig.beam.routing.r5.maxTimeLimitForFreightInMinutes
       case VehicleCategory.Class78Tractor     => beamConfig.beam.routing.r5.maxTimeLimitForFreightInMinutes
@@ -1414,9 +1413,9 @@ object R5Wrapper {
     val values: Set[RoutingVehicleCategory] = Set(HeavyDuty, MediumDuty, Other)
 
     def fromCategory(category: VehicleCategory.VehicleCategory): RoutingVehicleCategory = category match {
-      case VehicleCategory.Class78Tractor | VehicleCategory.Class78Vocational      => HeavyDuty
-      case VehicleCategory.Class456Vocational | VehicleCategory.Class2b3Vocational => MediumDuty
-      case _                                                                       => Other
+      case VehicleCategory.Class78Tractor | VehicleCategory.Class78Vocational => HeavyDuty
+      case VehicleCategory.Class456Vocational                                 => MediumDuty
+      case _                                                                  => Other
     }
   }
 

@@ -252,7 +252,7 @@ class ParkingFunctions(
         case Home     => Set(ParkingType.Residential, ParkingType.Public)
         case Working  => Set(ParkingType.Workplace, ParkingType.Public)
         case Charging => Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential, ParkingType.Depot)
-        case Freight  => Set(ParkingType.Commercial, ParkingType.Depot, ParkingType.Public)
+        case Freight  => Set(ParkingType.Commercial, ParkingType.Depot)
         case _        => Set(ParkingType.Public)
       }
     }
