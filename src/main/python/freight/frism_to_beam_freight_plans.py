@@ -908,7 +908,7 @@ if __name__ == '__main__':
         else:
             print(f'SKIPPING {filename}')
 
-
+    _vehicle_types.drop(columns=['index', 'Unnamed: 0'], errors='ignore', inplace=True)
     _vehicle_types.to_csv(
         f'{DIRECTORY_VEHICLE_TECH}/vehicletypes--frism--{CONFIG["year"]}-{SCENARIO_LABEL}.csv',
         index=False)
@@ -928,9 +928,8 @@ if __name__ == '__main__':
         'depot_zone_y': 'warehouseY',
         'true_depot_zone': 'mesoZone'
     }
-    carriers_drop = ['x', 'y', 'index']
     _carriers.rename(columns=carriers_renames, inplace=True)
-    _carriers.drop(carriers_drop, axis=1, inplace=True, errors='ignore')
+    _carriers.drop(['x', 'y', 'index', 'Unnamed: 0'], axis=1, inplace=True, errors='ignore')
     _carriers['warehouseZone'] = _carriers['warehouseZone'].astype(int)
     if SNAP_COORDINATES:
         _carriers, _coordinate_lookup = snap_coordinates_when_too_far(
@@ -955,7 +954,7 @@ if __name__ == '__main__':
     _tours['departureTimeInSec'] = _tours['departureTimeInSec'].astype(int)
     _tours['maxTourDurationInSec'] = _tours['maxTourDurationInSec'].astype(int)
     _tours['departureLocationZone'] = _tours['departureLocationZone'].astype(int)
-    _tours.drop(['index'], axis=1, inplace=True, errors='ignore')
+    _tours.drop(['index', 'Unnamed: 0'], axis=1, inplace=True, errors='ignore')
     if SNAP_COORDINATES:
         _tours, _coordinate_lookup = snap_coordinates_when_too_far(
             _tours,
@@ -986,6 +985,7 @@ if __name__ == '__main__':
         )
     _payload_plans["operationDurationInSecOG"] = _payload_plans["operationDurationInSec"]
     #_payload_plans = update_operation_duration(CONFIG, _payload_plans, _tours, _carriers, _vehicle_types)
+    _payload_plans.drop(columns=['index', 'Unnamed: 0'], errors='ignore', inplace=True)
     _payload_plans.to_csv(f'{DIRECTORY_SCENARIO}/payloads--{CONFIG["year"]}-{SCENARIO_LABEL}.csv', index=False)
 
     if _ondemand_plans is not None:
@@ -1000,6 +1000,7 @@ if __name__ == '__main__':
                 "locationY",
                 _coordinate_lookup
             )
+        _ondemand_plans.drop(columns=['index', 'Unnamed: 0'], errors='ignore', inplace=True)
         _ondemand_plans.to_csv(f'{DIRECTORY_SCENARIO}/ondemand--{CONFIG["year"]}-{SCENARIO_LABEL}.csv', index=False)
 
         # Create combined plans file with both regular plans and ondemand plans
