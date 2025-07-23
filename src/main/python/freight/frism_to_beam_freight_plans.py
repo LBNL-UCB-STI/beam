@@ -254,8 +254,9 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
     else:
         old = str(row[column])
     if veh_type:
-        old_updated = old.replace('_', '-').replace('b2b-', '').replace('b2c-', ''). \
-            replace('Battery Electric', 'BE').replace('H2 Fuel Cell', 'H2FC')
+        old_updated = old.replace('_', '-').replace('b2b-', '').replace('b2c-', '') \
+            .replace('Battery Electric', 'BE').replace('H2 Fuel Cell', 'H2FC') \
+            .replace('Diesel', 'Dsl').replace('Gasoline', 'Gas')
     else:
         old_updated = old.lower().replace('_', '-').replace('b2b-', '').replace('b2c-', '')
     second_prefix = ''
@@ -632,6 +633,55 @@ def check_collisions(series, hash_func):
 
     return collisions
 
+def resolve_vehicle_id_collisions(df, id_col='vehicleIdOrig', hash_func=None, check_collisions=None, hash_length=7):
+    """
+    Ensures unique hash values for vehicle IDs in df by modifying duplicates.
+    Prints total collisions and total fixed vehicles.
+    Modifies df in-place.
+    """
+    if hash_func is None or check_collisions is None:
+        raise ValueError("Both hash_func and check_collisions must be provided")
+
+    # Wrap hash_func to include hash_length
+    def hash_with_length(s):
+        return hash_func(s, length=hash_length)
+
+    # Initial hash application
+    df['vehicleId'] = df[id_col].apply(hash_with_length)
+
+    collisions = check_collisions(df[id_col], hash_with_length)
+    total_collisions = 0
+    fixed_vehicle_indices = set()
+    suffix_map = {}
+
+    while collisions:
+        total_collisions += len(collisions)
+        for collision in collisions:
+            # Modify the second colliding ID
+            idx_to_modify = collision['index2']
+            orig_id = df.at[idx_to_modify, id_col]
+            count = suffix_map.get(orig_id, 1) + 1
+            suffix_map[orig_id] = count
+            new_id = f"{orig_id}_{count}"
+            df.at[idx_to_modify, id_col] = new_id
+            fixed_vehicle_indices.add(idx_to_modify)
+        # Recompute hashes after modification
+        df['vehicleId'] = df[id_col].apply(hash_with_length)
+        collisions = check_collisions(df[id_col], hash_with_length)
+
+    print(f"Total collisions detected and fixed: {total_collisions}")
+    print(f"Total vehicles with modified IDs: {len(fixed_vehicle_indices)}")
+
+    return df
+
+def remove_third_segment(s):
+    parts = s.split('-')
+    if len(parts) >= 4:
+        # Remove the third part (index 2)
+        return '-'.join(parts[:2] + parts[3:])
+    else:
+        return s  # Return as is if not enough parts
+
 #############################
 ## MAIN
 
@@ -639,8 +689,6 @@ if __name__ == '__main__':
     # Add these at the beginning of your main code, after the variables section
     # Dictionary to store vehicle class and fuel rate mappings
     vehicle_class_fuel_rates = {}
-    hashes = set()
-    collisions = 0
 
     for filename in sorted(os.listdir(DIRECTORY_INPUT)):
         filepath = f'{DIRECTORY_INPUT}/{filename}'
@@ -658,29 +706,26 @@ if __name__ == '__main__':
             # df['carrierId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'carrierId', row), axis=1)
             # df['vehicleId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'vehicleId', row), axis=1)
             df['carrierId'] = df.apply(lambda row: add_prefix(f'', 'carrierId', row, False), axis=1).tolist()
+            df['vehicleTypeIdOrig'] = df['vehicleTypeId']
             df['vehicleTypeId'] = df.apply(
-                lambda row: add_prefix('', 'vehicleTypeId', row, to_num=True, store_dict=None, veh_type=True,
+                lambda row: add_prefix('ft-', 'vehicleTypeId', row, to_num=True, store_dict=None, veh_type=True,
                                        suffix=f""),
                 axis=1).tolist()
-            df['vehicleTypeIdScenario'] = df.apply(
-                lambda row: add_prefix('', 'vehicleTypeId', row, to_num=True, store_dict=None, veh_type=True,
-                                       suffix=f"-{CONFIG["year"]}-{SCENARIO_LABEL}"),
-                axis=1).tolist()
+            df['vehicleTypeId'] = df['vehicleTypeId'].apply(remove_third_segment)
             df['vehicleIdOrig'] = df.apply(
                 lambda row: add_prefix(f'{business_type}--', 'vehicleId', row),
                 axis=1).tolist()
-
             # Check for collisions before applying hash
-            collisions = check_collisions(df['vehicleIdOrig'], short_hash)
-            if collisions:
-                print(f"WARNING: {len(collisions)} hash collisions detected!")
-                for collision in collisions:
-                    print(f"Hash {collision['hash']}: '{collision['original1']}' and '{collision['original2']}'")
-                print("Consider increasing hash length")
-            else:
-                print(f"No collisions found with {short_hash.__defaults__[0]}-character hashes")
+            resolve_vehicle_id_collisions(
+                df,
+                id_col='vehicleIdOrig',
+                hash_func=short_hash,
+                check_collisions=check_collisions,
+                hash_length=5)
+            df['vehicleId'] = df.apply(
+                lambda row: add_prefix(f'ft-', 'vehicleId', row),
+                axis=1).tolist()
 
-            df['vehicleId'] = df['vehicleIdOrig'].apply(short_hash)
             # df['tourId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'tourId', row), axis=1)
             df['tourId'] = df.apply(
                 lambda row: add_prefix(f'{business_type}-', 'tourId', row, True, _tourId_with_prefix),
@@ -737,12 +782,12 @@ if __name__ == '__main__':
             secondary_fuel_capacities = []
 
             for _, row in df.iterrows():
-                veh_type_id = add_prefix('', 'veh_type_id', row, to_num=True,
-                                         store_dict=None, veh_type=True, suffix=f"-{CONFIG["year"]}-{SCENARIO_LABEL}")
+                veh_type_id = add_prefix('ft-', 'veh_type_id', row, to_num=True,
+                                         store_dict=None, veh_type=True, suffix=f"")
+                veh_type_id = remove_third_segment(veh_type_id)
                 vehicle_types_ids.append(veh_type_id)
 
-                original_veh_type_id = add_prefix('', 'veh_type_id', row, to_num=True,
-                                         store_dict=None, veh_type=True, suffix="")
+                original_veh_type_id = row["veh_type_id"]
                 original_vehicle_types_ids.append(original_veh_type_id)
 
                 veh_class = row['veh_class']
