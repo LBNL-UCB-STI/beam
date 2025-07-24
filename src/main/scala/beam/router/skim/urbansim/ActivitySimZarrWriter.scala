@@ -12,6 +12,8 @@ import com.bc.zarr.storage.FileSystemStore
 import java.nio.file.Paths
 import ucar.ma2.{Array => NetcdfArray}
 
+import scala.jdk.CollectionConverters.seqAsJavaListConverter
+
 object ActivitySimZarrWriter extends LazyLogging {
 
   def writeToZarr(
@@ -114,8 +116,8 @@ object ActivitySimZarrWriter extends LazyLogging {
           val attrs = zarrArray.getAttributes()
           attrs.put("mode", pathType)
           attrs.put("measure", metric.toString)
-          attrs.put("timePeriods", timePeriodNames.toList)
-          // No attrs.write() needed
+          attrs.put("timePeriods", timePeriodNames.toList.asJava)
+          zarrArray.writeAttributes(attrs)
 
           logger.debug(s"Successfully wrote dataset and attributes for '$matrixName'")
         }

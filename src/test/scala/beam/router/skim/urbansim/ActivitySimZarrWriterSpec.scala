@@ -77,7 +77,7 @@ class ActivitySimZarrWriterSpec extends AnyWordSpecLike with Matchers {
       arrayNames should contain("DRV_COM_WLK_TOTIVT")
       // Optionally, check attributes and data shape
       val arr = rootGroup.openArray("DRV_COM_WLK_TOTIVT")
-      arr.getShape shouldEqual Array(geoUnits.size, geoUnits.size, 3) // 3 time bins
+      arr.getShape shouldEqual Array(geoUnits.size, geoUnits.size, 5) // 5 time bins
       val attrs = arr.getAttributes
       attrs.get("mode") shouldBe "DRV_COM_WLK"
       attrs.get("measure") shouldBe "TOTIVT"
