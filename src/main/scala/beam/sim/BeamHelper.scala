@@ -840,7 +840,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
                 def getPath(filename: String): String = {
                   val csvPath = s"$baseFolder/$filename.csv.gz"
                   val parquetPath = s"$baseFolder/$filename.parquet"
-                  if (new java.io.File(parquetPath).exists()) parquetPath
+                  if (beamConfig.beam.exchange.scenario.fileFormat.equalsIgnoreCase("parquet")) parquetPath
                   else csvPath
                 }
 
