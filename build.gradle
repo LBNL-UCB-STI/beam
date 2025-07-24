@@ -142,6 +142,10 @@ configurations {
     scalaCompilerPlugin
 }
 
+dependencies {
+    scalaCompilerPlugin 'org.slf4j:slf4j-api:1.7.36'
+}
+
 
 configurations.all {
     resolutionStrategy {
@@ -159,6 +163,9 @@ configurations.all {
         force 'org.apache.parquet:parquet-encoding:1.12.3'
         force 'edu.ucar:cdm-core:5.8.0'
         force 'edu.ucar:netcdf4:5.8.0'
+
+        // Force slf4j-api to 1.7.36 to match logback-classic 1.2.3
+        force 'org.slf4j:slf4j-api:1.7.36'
     }
     exclude group: "log4j", module: "log4j"
     exclude group: "org.matsim", module: "matsim"
@@ -170,6 +177,9 @@ dependencies {
 
     // TODO FIXME
     implementation(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: '0.3.4')
+
+    // Explicitly add slf4j-api 1.7.36 to ensure SLF4J classes are on the compile classpath
+    api 'org.slf4j:slf4j-api:1.7.36'
 
     ////////////////////////////
     // Java dependencies
@@ -383,6 +393,20 @@ dependencies {
     // AWS S3
     implementation group: 'software.amazon.awssdk', name: 's3', version: '2.16.68'
     implementation group: 'org.ini4j', name: 'ini4j', version: '0.5.4'
+}
+
+
+task printRuntimeClasspath(type: JavaExec) {
+    mainClass = 'java.lang.Object' // Dummy main class, won't run
+    doFirst {
+        println "Runtime classpath:"
+        sourceSets.main.runtimeClasspath.each { file ->
+            println file.name
+        }
+    }
+    classpath = sourceSets.main.runtimeClasspath
+    // Prevent actual execution
+    enabled = false
 }
 
 // Autoformatting using scalafmt
