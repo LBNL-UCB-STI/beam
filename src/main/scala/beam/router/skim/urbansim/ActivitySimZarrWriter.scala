@@ -8,10 +8,9 @@ import beam.router.skim.ActivitySimTimeBin._
 import com.bc.zarr.DataType
 import com.typesafe.scalalogging.LazyLogging
 import com.bc.zarr.storage.FileSystemStore
+import ucar.ma2.{Index3D, Array => NetcdfArray}
 
 import java.nio.file.Paths
-import ucar.ma2.{Array => NetcdfArray}
-
 import scala.jdk.CollectionConverters.seqAsJavaListConverter
 
 object ActivitySimZarrWriter extends LazyLogging {
@@ -30,6 +29,8 @@ object ActivitySimZarrWriter extends LazyLogging {
     val geoUnitMapping = geoUnits.zipWithIndex.toMap
     val timePeriods = ActivitySimTimeBin.values.toIndexedSeq // Keep as enum values for index lookup
     val timePeriodNames = timePeriods.map(_.entryName)
+    val timePeriodLookup: Map[String, Int] =
+      timePeriods.map(_.entryName).zipWithIndex.toMap
 
     val groupedData = skimData.toSeq.groupBy { excerptData =>
       val pathType = excerptData.pathType match { // Standardize TNC names with fleet suffix
@@ -52,71 +53,107 @@ object ActivitySimZarrWriter extends LazyLogging {
     try {
       rootGroup = com.bc.zarr.ZarrGroup.create(store)
       logger.info("Root Zarr group created successfully")
+      val rootAttrs = rootGroup.getAttributes
+      rootAttrs.put("original_zone_ids", geoUnits.asJava)
+      rootGroup.writeAttributes(rootAttrs)
 
       var dataset_count = 0
+      val shape = Array[Int](geoUnits.size, geoUnits.size, timePeriods.size)
+      val netcdfArray = NetcdfArray.factory(ucar.ma2.DataType.FLOAT, shape)
+      val compressor = com.bc.zarr.CompressorFactory.create(
+        "blosc",
+        "cname",
+        "zstd",
+        "clevel",
+        "5",
+        "shuffle",
+        "1"
+      )
+      val chunkShape = Array[Int](shape(0), shape(1), shape(2))
+
+      val arrayParams = new com.bc.zarr.ArrayParams()
+        .shape(shape: _*)
+        .chunks(chunkShape: _*)
+        .dataType(DataType.f4)
+        .compressor(compressor)
+        .fillValue(Float.NaN)
+
+      // Store indices as coordinates
+      val originCoordParams = new com.bc.zarr.ArrayParams()
+        .shape(geoUnits.size)
+        .dataType(DataType.i4)
+        .fillValue(-1)
+      val originCoord = rootGroup.createArray("otaz", originCoordParams)
+      originCoord.write(geoUnits.indices.toArray, Array(geoUnits.size), Array(0))
+
+      // Similar for destination
+      val destCoord = rootGroup.createArray("dtaz", originCoordParams)
+      destCoord.write(geoUnits.indices.toArray, Array(geoUnits.size), Array(0))
+
+      // For time periods, use indices
+      val timeCoordParams = new com.bc.zarr.ArrayParams()
+        .shape(timePeriods.size)
+        .dataType(DataType.i4)
+        .fillValue(-1)
+      val timeCoord = rootGroup.createArray("time_period", timeCoordParams)
+      timeCoord.write(Array(0, 1, 2, 3, 4), Array(timePeriods.size), Array(0))
+
+      // Add labels as attributes
+      val timeAttrs = timeCoord.getAttributes()
+      timeAttrs.put("labels", timePeriodNames.asJava)
+      timeAttrs.put("_ARRAY_DIMENSIONS", java.util.Arrays.asList("time_period"))
+      timeCoord.writeAttributes(timeAttrs)
+
+      // Add _ARRAY_DIMENSIONS to coordinate arrays (optional but good practice)
+      val originAttrs = originCoord.getAttributes()
+      originAttrs.put("_ARRAY_DIMENSIONS", java.util.Arrays.asList("otaz"))
+      originCoord.writeAttributes(originAttrs)
+
+      val destAttrs = destCoord.getAttributes()
+      destAttrs.put("_ARRAY_DIMENSIONS", java.util.Arrays.asList("dtaz"))
+      destCoord.writeAttributes(destAttrs)
 
       groupedData.par.foreach { case ((pathType, metrics), excerpts) =>
-        metrics.par.foreach { metric =>
+        metrics.foreach { metric =>
           val matrixName = s"${pathType}_${metric}"
-          val shape = Array[Int](geoUnits.size, geoUnits.size, timePeriods.size)
           logger.debug(s"Creating dataset '$matrixName' with shape ${shape.mkString("x")}")
           dataset_count += 1
 
-//          val compressor = com.bc.zarr.CompressorFactory.create(
-//            "zlib"
-//          )
-          val compressor = com.bc.zarr.CompressorFactory.create(
-            "blosc",
-            "cname",
-            "zstd",
-            "clevel",
-            "5",
-            "shuffle",
-            "1"
-          )
-          val chunkShape = Array[Int](shape(0), shape(1), 1)
-
-          val arrayParams = new com.bc.zarr.ArrayParams()
-            .shape(shape: _*)
-            .chunks(chunkShape: _*)
-            .dataType(DataType.f4)
-            .compressor(compressor)
-            .fillValue(Float.NaN)
-
           val zarrArray = rootGroup.createArray(matrixName, arrayParams)
+
+          val zeroOffset = Array[Int](0, 0, 0)
+          val idx = new Index3D(shape)
+          java.util.Arrays.fill(netcdfArray.getStorage.asInstanceOf[Array[Float]], Float.NaN)
 
           excerpts.foreach { excerptData =>
             for {
-              row    <- geoUnitMapping.get(excerptData.originId)
-              column <- geoUnitMapping.get(excerptData.destinationId)
-              timeBinOpt = ActivitySimTimeBin.values.find(_.entryName == excerptData.timePeriodString)
-              if timeBinOpt.isDefined
-              timeIdx = timePeriods.indexOf(timeBinOpt.get)
+              row     <- geoUnitMapping.get(excerptData.originId)
+              column  <- geoUnitMapping.get(excerptData.destinationId)
+              timeIdx <- timePeriodLookup.get(excerptData.timePeriodString)
               if timeIdx >= 0
             } {
-              val offset = Array[Int](row, column, timeIdx)
-              val dataShape = Array[Int](1, 1, 1) // Single value shape
               val value = excerptData.getValue(metric).toFloat * getUnitConversion(metric)
-              // Create a NetcdfArray of shape (1) with the float value
-              val netcdfArray = NetcdfArray.factory(ucar.ma2.DataType.FLOAT, Array(1), Array(value))
-              // Extract 1D Java float array from NetcdfArray
-              val javaFloatArray = netcdfArray.get1DJavaArray(classOf[Float]).asInstanceOf[Array[Float]]
-              try {
-                zarrArray.write(javaFloatArray, dataShape, offset)
-              } catch {
-                case e: java.lang.NoSuchMethodError =>
-                  val value = excerptData.getValue(metric)
-                  val conversion = getUnitConversion(metric)
-                  logger.info(s"Writing value: $value (${value.getClass.getName}) with conversion: $conversion")
-                  logger.error(s"Failed to initialize data for $matrixName at offset $offset: ${e.getMessage}", e)
-              }
+              netcdfArray.setFloat(idx.set(row, column, timeIdx), value)
             }
+          }
+          try {
+            zarrArray.write(netcdfArray.get1DJavaArray(netcdfArray.getDataType), shape, zeroOffset)
+          } catch {
+            case e: java.lang.NoSuchMethodError =>
+              val conversion = getUnitConversion(metric)
+              logger.info(s"Writing value ($metric) with conversion: $conversion")
+              logger.error(
+                s"Failed to initialize data for $matrixName at offset ${zeroOffset.mkString("Array(", ", ", ")")}: ${e.getMessage}",
+                e
+              )
           }
 
           val attrs = zarrArray.getAttributes()
           attrs.put("mode", pathType)
           attrs.put("measure", metric.toString)
           attrs.put("timePeriods", timePeriodNames.toList.asJava)
+          attrs.put("_ARRAY_DIMENSIONS", java.util.Arrays.asList("otaz", "dtaz", "time_period"))
+
           zarrArray.writeAttributes(attrs)
 
           logger.debug(s"Successfully wrote dataset and attributes for '$matrixName'")

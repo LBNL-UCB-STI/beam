@@ -258,7 +258,7 @@ dependencies {
     implementation("com.github.LBNL-UCB-STI:jsprit-wrapper:v0.5.1")
     implementation("com.github.LBNL-UCB-STI:omx-java:v2.0.7")
 
-    implementation("com.github.LBNL-UCB-STI:jzarr:v0.4.9")
+    implementation("com.github.LBNL-UCB-STI:jzarr:v0.4.10")
     implementation "edu.ucar:cdm-core:5.8.0"
     implementation group: 'edu.ucar', name: 'netcdf4', version: '5.8.0'
     implementation group: 'org.lasersonlab', name: 'jblosc', version: '1.0.1'
