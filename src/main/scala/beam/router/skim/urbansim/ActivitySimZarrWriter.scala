@@ -10,6 +10,7 @@ import com.typesafe.scalalogging.LazyLogging
 import com.bc.zarr.storage.FileSystemStore
 
 import java.nio.file.Paths
+import ucar.ma2.{Array => NetcdfArray}
 
 object ActivitySimZarrWriter extends LazyLogging {
 
@@ -59,18 +60,18 @@ object ActivitySimZarrWriter extends LazyLogging {
           logger.debug(s"Creating dataset '$matrixName' with shape ${shape.mkString("x")}")
           dataset_count += 1
 
-          val compressor = com.bc.zarr.CompressorFactory.create(
-            "zlib"
-          )
 //          val compressor = com.bc.zarr.CompressorFactory.create(
-//            "blosc",
-//            "cname",
-//            "zstd",
-//            "clevel",
-//            "5",
-//            "shuffle",
-//            "1"
+//            "zlib"
 //          )
+          val compressor = com.bc.zarr.CompressorFactory.create(
+            "blosc",
+            "cname",
+            "zstd",
+            "clevel",
+            "5",
+            "shuffle",
+            "1"
+          )
           val chunkShape = Array[Int](shape(0), shape(1), 1)
 
           val arrayParams = new com.bc.zarr.ArrayParams()
@@ -94,11 +95,14 @@ object ActivitySimZarrWriter extends LazyLogging {
               val offset = Array[Int](row, column, timeIdx)
               val dataShape = Array[Int](1, 1, 1) // Single value shape
               val value = excerptData.getValue(metric).toFloat * getUnitConversion(metric)
-              val javaFloatArray = Array[Float](value) // Create primitive float array directly
+              // Create a NetcdfArray of shape (1) with the float value
+              val netcdfArray = NetcdfArray.factory(ucar.ma2.DataType.FLOAT, Array(1), Array(value))
+              // Extract 1D Java float array from NetcdfArray
+              val javaFloatArray = netcdfArray.get1DJavaArray(classOf[Float]).asInstanceOf[Array[Float]]
               try {
                 zarrArray.write(javaFloatArray, dataShape, offset)
               } catch {
-                case e: java.lang.RuntimeException =>
+                case e: java.lang.NoSuchMethodError =>
                   val value = excerptData.getValue(metric)
                   val conversion = getUnitConversion(metric)
                   logger.info(s"Writing value: $value (${value.getClass.getName}) with conversion: $conversion")

@@ -133,6 +133,7 @@ allprojects {
         maven { url "https://mvn.slimjars.com" }
         mavenLocal()
         maven { url "https://jitpack.io" }
+        maven { url "https://artifacts.unidata.ucar.edu/repository/unidata-all/" }
     }
 }
 
@@ -156,6 +157,8 @@ configurations.all {
         force 'org.apache.parquet:parquet-common:1.12.3'
         force 'org.apache.parquet:parquet-column:1.12.3'
         force 'org.apache.parquet:parquet-encoding:1.12.3'
+        force 'edu.ucar:cdm-core:5.8.0'
+        force 'edu.ucar:netcdf4:5.8.0'
     }
     exclude group: "log4j", module: "log4j"
     exclude group: "org.matsim", module: "matsim"
@@ -243,9 +246,13 @@ dependencies {
 
     implementation("com.uber:h3:3.7.2")
     implementation("com.github.LBNL-UCB-STI:jsprit-wrapper:v0.5.1")
-    implementation("com.github.LBNL-UCB-STI:omx-java:v2.0.2")
+    implementation("com.github.LBNL-UCB-STI:omx-java:v2.0.7")
 
-    implementation group: 'dev.zarr', name: 'jzarr', version: '0.4.2'
+    implementation("com.github.LBNL-UCB-STI:jzarr:v0.4.9")
+    implementation "edu.ucar:cdm-core:5.8.0"
+    implementation group: 'edu.ucar', name: 'netcdf4', version: '5.8.0'
+    implementation group: 'org.lasersonlab', name: 'jblosc', version: '1.0.1'
+    //    runtimeOnly group: 'org.slf4j', name: 'slf4j-jdk14', version: '1.7.36'
 
     testImplementation group: 'junit', name: 'junit', version: '4.8'
     testImplementation group: 'org.mockito', name: 'mockito-inline', version: '2.27.0'
@@ -797,6 +804,8 @@ tasks.register('createDockerfile', Dockerfile) {
     from 'zaneedell/beam-environment:jdk-11-4.01-v2'
     label(['maintainer': 'LBNL Beam Team'])
     workingDir("/app")
+    runCommand("apt-get update && apt-get install -y libblosc-dev")
+
     instruction 'RUN mkdir /app/output'
     // dependencies, resources and compiled Java classes
     copyFile("libs", "libs")
