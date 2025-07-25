@@ -26,7 +26,32 @@ object ActivitySimZarrWriter extends LazyLogging {
     val pathTypeToMatrixData: Map[ActivitySimPathType, MatrixData] =
       activitySimMatrixData.flatMap(md => md.pathTypes.map(_ -> md)).toMap
 
-    val geoUnitMapping = geoUnits.zipWithIndex.toMap
+    // Check if geoUnits are 1-based continuous integers
+    val isActivitySimFormat =
+      try {
+        val sorted = geoUnits.map(_.toInt).sorted
+        sorted == (1 to geoUnits.size).toList
+      } catch {
+        case _: NumberFormatException => false // Contains non-numeric IDs like "10091C"
+      }
+
+    // Build appropriate mapping based on format
+    val geoUnitMapping = if (isActivitySimFormat) {
+      // For ActivitySim format: map TAZ ID to its value minus 1
+      geoUnits.map { tazId =>
+        tazId -> (tazId.toInt - 1)
+      }.toMap
+    } else {
+      // For arbitrary TAZ IDs: map to position in list
+      geoUnits.zipWithIndex.toMap
+    }
+    // Create ActivitySim TAZ IDs (1-based)
+    val coordArray = if (isActivitySimFormat) {
+      geoUnits.map(_.toInt).sorted.toArray // [1, 2, 3, ..., 1454]
+    } else {
+      geoUnits.indices.toArray // [0, 1, 2, ..., n-1] for backwards compatibility
+    }
+
     val timePeriods = ActivitySimTimeBin.values.toIndexedSeq // Keep as enum values for index lookup
     val timePeriodNames = timePeriods.map(_.entryName)
     val timePeriodLookup: Map[String, Int] =
@@ -55,6 +80,7 @@ object ActivitySimZarrWriter extends LazyLogging {
       logger.info("Root Zarr group created successfully")
       val rootAttrs = rootGroup.getAttributes
       rootAttrs.put("original_zone_ids", geoUnits.asJava)
+      rootAttrs.put("taz_format", if (isActivitySimFormat) "activitysim" else "arbitrary")
       rootGroup.writeAttributes(rootAttrs)
 
       var dataset_count = 0
@@ -84,11 +110,11 @@ object ActivitySimZarrWriter extends LazyLogging {
         .dataType(DataType.i4)
         .fillValue(-1)
       val originCoord = rootGroup.createArray("otaz", originCoordParams)
-      originCoord.write(geoUnits.indices.toArray, Array(geoUnits.size), Array(0))
+      originCoord.write(coordArray, Array(geoUnits.size), Array(0)) // Write 1, 2, 3, ...
 
       // Similar for destination
       val destCoord = rootGroup.createArray("dtaz", originCoordParams)
-      destCoord.write(geoUnits.indices.toArray, Array(geoUnits.size), Array(0))
+      destCoord.write(coordArray, Array(geoUnits.size), Array(0)) // Write 1, 2, 3, ...
 
       // For time periods, use indices
       val timeCoordParams = new com.bc.zarr.ArrayParams()
