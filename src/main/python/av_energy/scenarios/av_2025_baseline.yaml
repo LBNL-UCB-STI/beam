@@ -1,0 +1,182 @@
+scenario: "2025 Baseline"
+
+# In 2025, total vehicle miles traveled (VMT) in the United States is projected to reach 3.3 trillion:
+# https://afdc.energy.gov/data/10315
+# According to BCG Boston Consultancy Group, https://www.consultancy.uk/news/2065/bcg-autonomous-car-market-to-hit-42-billion-by-2025
+# L0: 87.5%, L1: 7.3%, L2: 5.1$, L3: 0.1%, L4: 0.01%
+# Total US Fleet: 298.7 million units
+# A key projection from the Boston Consulting Group (BCG) states that "partially autonomous vehicles," which encompass both Level 1 and Level 2, will account for approximately 12.4% of all vehicles on the road by 2025. This provides the combined share for L1 and L2.
+# Default road category data (applies to all levels unless overridden)
+defaults:
+  vmt_split: # VMT split percentages by road category
+    # https://www.fhwa.dot.gov/policy/23cpr/es.cfm
+    rural_interstate: 0.076
+    rural_freeway: 0.009
+    rural_principal_arterial: 0.062
+    rural_minor_arterial: 0.046
+    rural_major_collector: 0.052
+    rural_minor_collector: 0.016
+    rural_local: 0.041
+    urban_interstate: 0.173
+    urban_freeway: 0.075
+    urban_principal_arterial: 0.155
+    urban_minor_arterial: 0.129
+    urban_major_collector: 0.064
+    urban_minor_collector: 0.004
+    urban_local: 0.097
+
+  speeds_mph: # Speed by road category (mph)
+    # data: using NPMRDS for California and California + 15mph for rural
+    rural_interstate: 72.6 # +15mph
+    rural_freeway: 72.31 # +15mph
+    rural_principal_arterial: 55.3 # +30mph
+    rural_minor_arterial: 53.58 # +30mph
+    rural_major_collector: 43.62 # +20mph
+    rural_minor_collector: 43.04 # +20mph
+    rural_local: 29.21 # +15mph
+    urban_interstate: 57.60
+    urban_freeway: 57.31
+    urban_principal_arterial: 25.30
+    urban_minor_arterial: 23.58
+    urban_major_collector: 23.62
+    urban_minor_collector: 23.04
+    urban_local: 14.21
+
+  utilization_rate: # Utilization lookup
+    rural_interstate: 0.5
+    rural_freeway: 0.55
+    rural_principal_arterial: 0.6
+    rural_minor_arterial: 0.65
+    rural_major_collector: 0.7
+    rural_minor_collector: 0.75
+    rural_local: 0.8
+    urban_interstate: 0.65
+    urban_freeway: 0.7
+    urban_principal_arterial: 0.75
+    urban_minor_arterial: 0.8
+    urban_major_collector: 0.85
+    urban_minor_collector: 0.9
+    urban_local: 0.95
+
+fleet:
+  - level: 0
+    driving_vmt_daily: 2887500000000 # 87.5% of 3.3 trillion VMT
+
+  # BMW 7 Series (2008), Cadillac STS (2008)
+  # Adaptive Cruise Control (ACC), Lane Keeping Assistant (LKA)
+  # Camera: Aptina MT9V024, 752x480(WVGA), <160 mW
+  # Radar: Bosch ACC2 Radar Sensor, 3.5 W
+  - level: 1
+    driving_vmt_daily: 240900000000 # 7.3% of 3.3 trillion VMT
+    compute_tdp_watt: 2.5 # EyeQ1, EyeQ2, EyeQ3 -- no redundancy needed, human is the redundancy
+    sensors_tdp_watt: 3.66 # 1 Camera + 1 Radar
+
+  # Ford Mustang Mach-E (2021) and F-150 (2021), HR-V (2021), Civic (2022), and ZR-V (2023), BMW iX (2022),
+  # Volkswagen Passat (2019–2020), Golf 8 (2020), and ID.4 (2021)
+  # Highway Pilot/Highway Assistant, Traffic Jam Assist, Lane Keep Assist
+  # Camera Onsemi AR0821, TDP: 0.520, 8.3 Megapixels (3848H x 2168V), 60 fps (https://www.onsemi.com/download/data-sheet/pdf/ar0821-pd-d.pdf)
+  # TDP 10 (chip + camera) Mobileye EyeQ5 Mid -- no redundancy needed, human is the redundancy
+  # Continental's ARS51x: 4.8 W
+  - level: 2
+    driving_vmt_daily: 168300000000 # 5.1% of 3.3 trillion VMT
+    compute_tdp_watt: 10 # Mobileye EyeQ5 Mid -- no redundancy needed, human is the redundancy
+    sensors_tdp_watt: 14.92 # 1 Camera + 3 Radar
+
+  # Tesla with HW3 (4 millions cars ~ 57% of the fleet) and HW4 (3 million cars ~ 43% of the fleet)
+  # Model 3, Y, X, S
+  # https://electrek.co/2025/04/14/tesla-tsla-replace-computer-4-million-cars-or-compensate-their-owners
+  # HW3 uses two FSD chips of 36W, 72W in total, initially for redundancy, but now used for performance
+  # HW4 uses two FSD chip of 80W, 160W in total, but with redundancy in processing, power, and the overall design
+  # power then would be 0.57*72+0.43*160 = 100.16W
+  # HW3 is potentially using camera Onsemi AR0136A, 1280x960 pixels (1.2-megapixel), 60 fps, 0.145W
+  # HW4 is potentially using Sony IMX490, max(4.6W), min(1.2)
+  # Camera Sony IMX490 # 0.57*8+0 + 0.43*12 = 10 cameras
+  # 1.2 Mpixels (1280x960) => 442.37 Mbit/s
+  # 5.4 megapixels (2896x1876) => 2174.31 Mbit/s
+  # side camera 1448x938 pixels => 326.01 Mbit/s
+  # Tesla: Has invested in its custom Dojo supercomputer, with a single ExaPOD comprising 10 cabinets and
+  # 3,000 D1 chips, delivering 1.1 exaflops
+  # Each custom D1 chip, which is the foundational building block of Tesla's Dojo supercomputer,
+  # has a Thermal Design Power (TDP) of approximately 400 watts. A single Dojo ExaPOD comprises 3,000 D1 chips
+  - level: 3
+    driving_vmt_daily: 3300000000 # 0.1% of 3.3 trillion VMT
+    compute_tdp_watt: 110 # 0.57*72+0.43*160 = 109.84W (Mixing HW3 and HW4)
+    sensors_tdp_watt: 12 # (0.75*0.145+0.43*2.5)*8 = 11.8375W (Mixing HW3 and HW4)
+    sensors_data_Mbit_per_second: 13272.885 # 0.43*(326.01+2174.31) + 0.57*442.37 = 1327.2885
+    training_tdp_watt: 1200000 # 3,000 D1 chips × 400 watts per chip = 1,200,000
+
+
+  # Total: at least 2491 AV
+  # 1500 waymo: https://waymo.com/blog/2025/05/scaling-our-fleet-through-us-manufacturing
+  # 20 Tesla: https://www.texasstandard.org/stories/austin-tesla-robotaxis-driverless-vehicles-atx-texas-accidents
+  # 500 Zoox: Toyota Highlander and Zoox cars
+  # https://www.reuters.com/business/autos-transportation/amazons-zoox-begin-testing-robotaxis-austin-miami-2024-06-05
+  # https://www.reuters.com/business/autos-transportation/zoox-launches-its-first-robotaxi-production-facility-taking-tesla-waymo-2025-06-18/
+  # 30 Aurora trucks: https://qz.com/aurora-says-it-will-be-mass-producing-driverless-trucks-1851141440
+  # 100 Kodiak trucks: https://kodiak.ai/news/kodiak-delivers-two-additional-driverless-trucks
+  # 100 Gatik trucks: https://www.foxbusiness.com/technology/self-driving-truck-company-expand-operations-combatting-nationwide-trucking-shortage
+  # 100 Nuro cars: https://techcrunch.com/2024/07/27/autonomous-delivery-startup-nuro-is-gearing-up-for-a-comeback/
+  # 41 Pony.ai cars: https://www.automotive-fleet.com/10173547/pony-ai-loses-permit-to-test-autonomous-vehicles-with-driver
+  # 100 IONIQ 5 cars: https://www.iotworldtoday.com/transportation-logistics/hyundai-avride-to-develop-self-driving-taxis
+  # x Waabi trucks and virtual: https://techcrunch.com/2025/02/04/waabi-and-volvo-team-up-to-build-self-driving-trucks-at-scale
+  # x Torc trucks: https://www.forbes.com/sites/richardbishop1/2024/11/20/torc-begins-testing-of-production-intent-driverless-trucks-in-texas/
+  # x Einride trucks: https://www.thedailyupside.com/industries/autos/driverless-trucking-startup-einride-may-be-planning-a-5-billion-us-ipo/
+  # Override road categories for level 4
+  # testing location types here: https://www.nhtsa.gov/automated-vehicle-test-tracking-tool
+  # 12% highway, 1% rural, 87% urban
+  # Nio and Pony.ai powered by four NVIDIA DRIVE Orin SoCs totaling 1,000 TOPS, 200W TDP each
+  # https://nvidianews.nvidia.com/news/volvo-cars-zoox-saic-and-more-join-growing-range-of-autonomous-vehicle-makers-using-new-nvidia-drive-solutions
+  # Pony.ai 6th generation (2022), 11 cameras , 7 lidars
+  # Sony IMX728, 8.39MP, 3856 x 2176 resolution at 15 fps, 2.27 Watts => 2985.984 Mbps
+  # Hesai's AT128 LiDAR sensor: https://autonews.gasgoo.com/icv/70033973.html => 111.8 Mbps, 29 W TDP
+  # Waymo: Leverages Google Cloud Platform, estimated to use the equivalent of approximately 4,000 NVIDIA H100 GPUs for its training infrastructure
+  # Waymo drives 20 million miles a day => https://waymo.com/blog/2020/04/off-road-but-not-offline--simulation27
+  - level: 4
+    driving_vmt_daily: 577333  # 577,333 estimated from Waymo (less than 0.01% of 3.3 trillion VMT)
+    simulation_vmt_daily: 40413333  # 40,413,333 estimated from Waymo
+    compute_tdp_watt: 800
+    sensors_tdp_watt: 227.97 # 11*2.27+7*29
+    sensors_data_Mbit_per_second: 33628.424 # 11*2985.984+7*111.8
+    training_tdp_watt: 2800000 # 4,000 H100 GPUs × 700 watts per GPU = 2,800,000
+    overrides:
+      vmt_split: # VMT split percentages by road category
+        rural_interstate: 0.0014
+        rural_freeway: 0.0014
+        rural_principal_arterial: 0.0014
+        rural_minor_arterial: 0.0014
+        rural_major_collector: 0.0014
+        rural_minor_collector: 0.0014
+        rural_local: 0.0014
+        urban_interstate: 0.06
+        urban_freeway: 0.06
+        urban_principal_arterial: 0.174
+        urban_minor_arterial: 0.174
+        urban_major_collector: 0.174
+        urban_minor_collector: 0.174
+        urban_local: 0.174
+
+    speeds_mph: # Speed by road category (mph), Capped by speed limit for level 4
+      # data: using NPMRDS for California and California + 15mph for rural
+      rural_interstate: 70
+      rural_freeway: 70
+      rural_principal_arterial: 55
+      rural_minor_arterial: 45
+      rural_major_collector: 43.62
+      rural_minor_collector: 43.04
+      rural_local: 25
+      urban_interstate: 55
+      urban_freeway: 55
+      urban_principal_arterial: 25.30
+      urban_minor_arterial: 23.58
+      urban_major_collector: 23.62
+      urban_minor_collector: 23.04
+      urban_local: 14.21
+
+  # Speculative level 4 * 2
+  - level: 5
+    driving_vmt_daily: 0
+    simulation_vmt_daily: 0
+    compute_tdp_watt: 1600
+    sensors_tdp_watt: 500
+    sensors_data_Mbit_per_second: 70000
+    training_tdp_watt: 5600000

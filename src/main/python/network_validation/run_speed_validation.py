@@ -580,151 +580,211 @@ def generate_validation_stats(setup, processed_link_stats, output_dir, study_are
 
 def main():
     """
-    Main function to run the validation process
+    Main function to run the validation process for multiple scenario/iteration combinations
     """
-    # Configuration
+    # Configuration - scenarios and iterations to process
+    scenario_iteration_combinations = [
+        ("2018-Baseline-20250721-FC08-2", 12),
+        ("2018-Baseline-20250721-FC08-3", 12),
+        ("2018-Baseline-20250721-FC08-4", 11),
+        ("2018-Baseline-20250721-FC08-5", 4),
+        ("2018-Baseline-20250721-FC08-6", 1),
+    ]
+
+    # Base configuration (common across all runs)
     peak_hour = 8
     do_link_speed_validation = True
     do_network_speed_validation = True
     do_vmt_validation = False
     generate_stats = True  # Flag to control stats generation
     work_dir = os.path.expanduser("~/Workspace/Simulation/sfbay")
-    configs = {
+
+    base_configs = {
         "study_area": "sfbay",
         "batch": "calibration",
-        "scenario": "2018-Baseline-20250716-FC08-4",
-        "iteration": 12,
         "state_fips": "06",
         "county_fips": ['001', '013', '041', '055', '075', '081', '085', '095', '097'],
         "census_year": 2018,
         "npmrds_label": f"NPMRDS_2018",
         "utm_epsg": 26910
     }
-    paths = {
-        "work_dir": work_dir,
-        "link_stats_file": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/{configs["iteration"]}.linkstats.csv.gz",
-        "events_file": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/{configs["iteration"]}.events.csv.gz",
-        "network_csv": f"{work_dir}/network/sfbay-area-cbg5500-network/network.csv.gz",
 
-        "run_dir": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}",
-        "data_dir": f"{work_dir}/beam-freight/{configs["batch"]}/{configs["scenario"]}",
-        "geo_dir": f"{work_dir}/geo",
-        "output_dir": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/validation_output",
-        "plots_dir": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/validation_output/plots",
-        "vehicle_types_file": f"{work_dir}/beam-freight/{configs["batch"]}/{configs["scenario"]}/vehicle-tech/ft-vehicletypes--{configs["batch"]}--{configs["scenario"]}.csv",
-        "npmrds_hourly_speed_csv": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/{configs["study_area"]}_npmrds_hourly_speeds.csv",
-        "npmrds_hourly_speed_by_road_class_csv": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/{configs["study_area"]}_npmrds_hourly_speed_by_road_class.csv",
-        "beam_network_mapped_to_npmrds_geo": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/{configs["study_area"]}_network_mapped_to_npmrds.geojson",
-        "beam_network_car_links_geo": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/{configs["study_area"]}_network_car_only.geojson",
-        "npmrds_station_geo": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/{configs["study_area"]}_npmrds_station.geojson",
-        "npmrds_data_csv": f"{work_dir}/beam-runs/{configs["batch"]}/{configs["scenario"]}/{configs["study_area"]}_npmrds_data.csv",
-        "npmrds_raw_geo": f"{work_dir}/validation/npmrds/California.shp",
-        "npmrds_raw_data_csv": f'{work_dir}/validation/npmrds/al_ca_oct2018_1hr_trucks_pax.csv',
-    }
+    # Loop through each scenario/iteration combination
+    for scenario, iteration in scenario_iteration_combinations:
+        print(f"\n{'=' * 60}")
+        print(f"Processing scenario: {scenario}, iteration: {iteration}")
+        print(f"{'=' * 60}")
 
-    # Load configuration
-    Path(paths["output_dir"]).mkdir(parents=True, exist_ok=True)
-    Path(paths["plots_dir"]).mkdir(parents=True, exist_ok=True)
-    link_stats = [LinkStats(scenario=f"{configs["batch"]}_{configs["scenario"]}", demand_fraction=0.1, file_path=paths["link_stats_file"])]
-    vehicle_types_files = [(configs["batch"], configs["scenario"], paths["events_file"], paths["vehicle_types_file"])]
+        # Update configs for this specific run
+        configs = base_configs.copy()
+        configs.update({
+            "scenario": scenario,
+            "iteration": iteration
+        })
 
-    # Prepare NPMRDS files
-    npmrds_hourly_speed_csv, npmrds_hourly_speed_by_road_class_csv, beam_network_mapped_to_npmrds_geo, beam_network_car_links_geo = \
-        prepare_npmrds_files(configs, paths)
+        # Update paths for this specific run
+        paths = {
+            "work_dir": work_dir,
+            "link_stats_file": f"{work_dir}/beam-runs/{configs['batch']}/{configs['scenario']}/{configs['iteration']}.linkstats.csv.gz",
+            "events_file": f"{work_dir}/beam-runs/{configs['batch']}/{configs['scenario']}/{configs['iteration']}.events.csv.gz",
+            "network_csv": f"{work_dir}/network/sfbay-area-cbg5500-network/network.csv.gz",
 
-    # Initialize validation setup
-    setup = SpeedValidationSetup(
-        npmrds_hourly_speed_csv=npmrds_hourly_speed_csv,
-        npmrds_hourly_speed_by_road_class_csv=npmrds_hourly_speed_by_road_class_csv,
-        beam_network_mapped_to_npmrds_geo=beam_network_mapped_to_npmrds_geo,
-        beam_network_car_links_geo=beam_network_car_links_geo
-    )
+            "run_dir": f"{work_dir}/beam-runs/{configs['batch']}/{configs['scenario']}",
+            "data_dir": f"{work_dir}/beam-freight/{configs['batch']}/{configs['scenario']}",
+            "geo_dir": f"{work_dir}/geo",
+            "output_dir": f"{work_dir}/beam-runs/{configs['batch']}/{configs['scenario']}/validation_output",
+            "plots_dir": f"{work_dir}/beam-runs/{configs['batch']}/{configs['scenario']}/validation_output/plots",
+            "vehicle_types_file": f"{work_dir}/beam-freight/{configs['batch']}/{configs['scenario']}/vehicle-tech/ft-vehicletypes--{configs['batch']}--{configs['scenario']}.csv",
+            "npmrds_hourly_speed_csv": f"{work_dir}/beam-runs/{configs['batch']}/{configs['scenario']}/{configs['study_area']}_npmrds_hourly_speeds.csv",
+            "npmrds_hourly_speed_by_road_class_csv": f"{work_dir}/beam-runs/{configs['batch']}/{configs['scenario']}/{configs['study_area']}_npmrds_hourly_speed_by_road_class.csv",
+            "beam_network_mapped_to_npmrds_geo": f"{work_dir}/beam-runs/{configs['batch']}/{configs['scenario']}/{configs['study_area']}_network_mapped_to_npmrds.geojson",
+            "beam_network_car_links_geo": f"{work_dir}/beam-runs/{configs['batch']}/{configs['scenario']}/{configs['study_area']}_network_car_only.geojson",
+            "npmrds_station_geo": f"{work_dir}/beam-runs/{configs['batch']}/{configs['scenario']}/{configs['study_area']}_npmrds_station.geojson",
+            "npmrds_data_csv": f"{work_dir}/beam-runs/{configs['batch']}/{configs['scenario']}/{configs['study_area']}_npmrds_data.csv",
+            "npmrds_raw_geo": f"{work_dir}/validation/npmrds/California.shp",
+            "npmrds_raw_data_csv": f'{work_dir}/validation/npmrds/al_ca_oct2018_1hr_trucks_pax.csv',
+        }
 
-    # Process link stats if needed
-    if do_link_speed_validation or do_network_speed_validation or do_vmt_validation or generate_stats:
-        print(f"Processing link stats: {link_stats}")
-        processed_link_stats = setup.process_these_link_stats(
-            link_stats=link_stats, assume_daylight_saving=True
-        )
-    else:
-        processed_link_stats = None
+        try:
+            # Check if required input files exist
+            if not os.path.exists(paths["link_stats_file"]):
+                print(f"Warning: Link stats file not found: {paths['link_stats_file']}")
+                print(f"Skipping scenario: {scenario}, iteration: {iteration}")
+                continue
 
-    # Run validations as requested
-    if do_network_speed_validation:
-        run_network_speed_validation(
-            configs["study_area"], setup, processed_link_stats, paths["output_dir"], paths["plots_dir"]
-        )
+            if not os.path.exists(paths["events_file"]):
+                print(f"Warning: Events file not found: {paths['events_file']}")
+                print(f"Skipping scenario: {scenario}, iteration: {iteration}")
+                continue
 
-    if do_link_speed_validation:
-        run_link_speed_validation(
-            configs["study_area"], setup, processed_link_stats, paths["output_dir"], paths["plots_dir"]
-        )
+            # Load configuration
+            Path(paths["output_dir"]).mkdir(parents=True, exist_ok=True)
+            Path(paths["plots_dir"]).mkdir(parents=True, exist_ok=True)
 
-    if do_vmt_validation:
-        run_vmt_validation(vehicle_types_files)
+            link_stats = [LinkStats(
+                scenario=f"{configs['batch']}_{configs['scenario']}",
+                demand_fraction=0.1,
+                file_path=paths["link_stats_file"]
+            )]
 
-    # Generate comprehensive statistics if requested
-    if generate_stats and processed_link_stats is not None:
-        print("Generating comprehensive validation statistics...")
-        stats_results = generate_validation_stats(
-            setup, processed_link_stats, paths["output_dir"], configs["study_area"], peak_hour
-        )
-        print(f"Statistics saved to {paths["output_dir"]}/{configs["study_area"]}_validation_stats.json")
+            vehicle_types_files = [(
+                configs["batch"],
+                configs["scenario"],
+                paths["events_file"],
+                paths["vehicle_types_file"]
+            )]
 
-        # Print a summary of the lowest speed hours
-        lowest_speeds = stats_results["lowest_speeds"]
-        highest_speeds = stats_results["highest_speeds"]
+            # Prepare NPMRDS files
+            print("Preparing NPMRDS files...")
+            npmrds_hourly_speed_csv, npmrds_hourly_speed_by_road_class_csv, beam_network_mapped_to_npmrds_geo, beam_network_car_links_geo = \
+                prepare_npmrds_files(configs, paths)
 
-        print("\n=== SPEED SUMMARY ===")
+            # Initialize validation setup
+            print("Initializing validation setup...")
+            setup = SpeedValidationSetup(
+                npmrds_hourly_speed_csv=npmrds_hourly_speed_csv,
+                npmrds_hourly_speed_by_road_class_csv=npmrds_hourly_speed_by_road_class_csv,
+                beam_network_mapped_to_npmrds_geo=beam_network_mapped_to_npmrds_geo,
+                beam_network_car_links_geo=beam_network_car_links_geo
+            )
 
-        print("\n--- LOWEST SPEEDS ---")
-        print(
-            f"Network overall: Hour {lowest_speeds['network']['overall']['hour']}: {lowest_speeds['network']['overall']['speed']:.2f} mph")
-        print(
-            f"Link overall: Hour {lowest_speeds['link']['overall']['hour']}: {lowest_speeds['link']['overall']['speed']:.2f} mph")
+            # Process link stats if needed
+            if do_link_speed_validation or do_network_speed_validation or do_vmt_validation or generate_stats:
+                print(f"Processing link stats: {link_stats}")
+                processed_link_stats = setup.process_these_link_stats(
+                    link_stats=link_stats, assume_daylight_saving=True
+                )
+            else:
+                processed_link_stats = None
 
-        if "hour" in lowest_speeds["npmrds"]["overall"]:
-            print(
-                f"NPMRDS overall: Hour {lowest_speeds['npmrds']['overall']['hour']}: {lowest_speeds['npmrds']['overall']['speed']:.2f} mph")
+            # Run validations as requested
+            if do_network_speed_validation:
+                print("Running network speed validation...")
+                run_network_speed_validation(
+                    configs["study_area"], setup, processed_link_stats, paths["output_dir"], paths["plots_dir"]
+                )
 
-        print("\nNetwork lowest speeds by road class:")
-        for road_class, data in sorted(lowest_speeds["network"]["by_road_class"].items()):
-            print(f"  {road_class}: Hour {data['hour']}: {data['speed']:.2f} mph")
+            if do_link_speed_validation:
+                print("Running link speed validation...")
+                run_link_speed_validation(
+                    configs["study_area"], setup, processed_link_stats, paths["output_dir"], paths["plots_dir"]
+                )
 
-        print("\nLink lowest speeds by road class:")
-        for road_class, data in sorted(lowest_speeds["link"]["by_road_class"].items()):
-            print(f"  {road_class}: Hour {data['hour']}: {data['speed']:.2f} mph")
+            if do_vmt_validation:
+                print("Running VMT validation...")
+                run_vmt_validation(vehicle_types_files)
 
-        if lowest_speeds["npmrds"]["by_road_class"]:
-            print("\nNPMRDS lowest speeds by road class:")
-            for road_class, data in sorted(lowest_speeds["npmrds"]["by_road_class"].items()):
-                print(f"  {road_class}: Hour {data['hour']}: {data['speed']:.2f} mph")
+            # Generate comprehensive statistics if requested
+            if generate_stats and processed_link_stats is not None:
+                print("Generating comprehensive validation statistics...")
+                stats_results = generate_validation_stats(
+                    setup, processed_link_stats, paths["output_dir"], configs["study_area"], peak_hour
+                )
+                print(f"Statistics saved to {paths['output_dir']}/{configs['study_area']}_validation_stats.json")
 
-        print("\n--- HIGHEST SPEEDS ---")
-        print(
-            f"Network overall: Hour {highest_speeds['network']['overall']['hour']}: {highest_speeds['network']['overall']['speed']:.2f} mph")
-        print(
-            f"Link overall: Hour {highest_speeds['link']['overall']['hour']}: {highest_speeds['link']['overall']['speed']:.2f} mph")
+                # Print a summary of the lowest speed hours
+                lowest_speeds = stats_results["lowest_speeds"]
+                highest_speeds = stats_results["highest_speeds"]
 
-        if "hour" in highest_speeds["npmrds"]["overall"]:
-            print(
-                f"NPMRDS overall: Hour {highest_speeds['npmrds']['overall']['hour']}: {highest_speeds['npmrds']['overall']['speed']:.2f} mph")
+                print(f"\n=== SPEED SUMMARY for {scenario} iteration {iteration} ===")
 
-        print("\nNetwork highest speeds by road class:")
-        for road_class, data in sorted(highest_speeds["network"]["by_road_class"].items()):
-            print(f"  {road_class}: Hour {data['hour']}: {data['speed']:.2f} mph")
+                print("\n--- LOWEST SPEEDS ---")
+                print(
+                    f"Network overall: Hour {lowest_speeds['network']['overall']['hour']}: {lowest_speeds['network']['overall']['speed']:.2f} mph")
+                print(
+                    f"Link overall: Hour {lowest_speeds['link']['overall']['hour']}: {lowest_speeds['link']['overall']['speed']:.2f} mph")
 
-        print("\nLink highest speeds by road class:")
-        for road_class, data in sorted(highest_speeds["link"]["by_road_class"].items()):
-            print(f"  {road_class}: Hour {data['hour']}: {data['speed']:.2f} mph")
+                if "hour" in lowest_speeds["npmrds"]["overall"]:
+                    print(
+                        f"NPMRDS overall: Hour {lowest_speeds['npmrds']['overall']['hour']}: {lowest_speeds['npmrds']['overall']['speed']:.2f} mph")
 
-        if highest_speeds["npmrds"]["by_road_class"]:
-            print("\nNPMRDS highest speeds by road class:")
-            for road_class, data in sorted(highest_speeds["npmrds"]["by_road_class"].items()):
-                print(f"  {road_class}: Hour {data['hour']}: {data['speed']:.2f} mph")
+                print("\nNetwork lowest speeds by road class:")
+                for road_class, data in sorted(lowest_speeds["network"]["by_road_class"].items()):
+                    print(f"  {road_class}: Hour {data['hour']}: {data['speed']:.2f} mph")
 
-    print("\nValidation complete!")
+                print("\nLink lowest speeds by road class:")
+                for road_class, data in sorted(lowest_speeds["link"]["by_road_class"].items()):
+                    print(f"  {road_class}: Hour {data['hour']}: {data['speed']:.2f} mph")
 
+                if lowest_speeds["npmrds"]["by_road_class"]:
+                    print("\nNPMRDS lowest speeds by road class:")
+                    for road_class, data in sorted(lowest_speeds["npmrds"]["by_road_class"].items()):
+                        print(f"  {road_class}: Hour {data['hour']}: {data['speed']:.2f} mph")
+
+                print("\n--- HIGHEST SPEEDS ---")
+                print(
+                    f"Network overall: Hour {highest_speeds['network']['overall']['hour']}: {highest_speeds['network']['overall']['speed']:.2f} mph")
+                print(
+                    f"Link overall: Hour {highest_speeds['link']['overall']['hour']}: {highest_speeds['link']['overall']['speed']:.2f} mph")
+
+                if "hour" in highest_speeds["npmrds"]["overall"]:
+                    print(
+                        f"NPMRDS overall: Hour {highest_speeds['npmrds']['overall']['hour']}: {highest_speeds['npmrds']['overall']['speed']:.2f} mph")
+
+                print("\nNetwork highest speeds by road class:")
+                for road_class, data in sorted(highest_speeds["network"]["by_road_class"].items()):
+                    print(f"  {road_class}: Hour {data['hour']}: {data['speed']:.2f} mph")
+
+                print("\nLink highest speeds by road class:")
+                for road_class, data in sorted(highest_speeds["link"]["by_road_class"].items()):
+                    print(f"  {road_class}: Hour {data['hour']}: {data['speed']:.2f} mph")
+
+                if highest_speeds["npmrds"]["by_road_class"]:
+                    print("\nNPMRDS highest speeds by road class:")
+                    for road_class, data in sorted(highest_speeds["npmrds"]["by_road_class"].items()):
+                        print(f"  {road_class}: Hour {data['hour']}: {data['speed']:.2f} mph")
+
+            print(f"\nValidation complete for scenario: {scenario}, iteration: {iteration}!")
+
+        except Exception as e:
+            print(f"Error processing scenario: {scenario}, iteration: {iteration}")
+            print(f"Error: {str(e)}")
+            print("Continuing with next scenario/iteration...")
+            continue
+
+    print(f"\n{'=' * 60}")
+    print("All validations complete!")
+    print(f"{'=' * 60}")
 
 if __name__ == "__main__":
     main()

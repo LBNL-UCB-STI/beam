@@ -1,0 +1,104 @@
+scenario: 2035 Custom High AV Adoption
+defaults:
+  vmt_split:
+    rural_interstate: 0.076
+    rural_freeway: 0.009
+    rural_principal_arterial: 0.062
+    rural_minor_arterial: 0.046
+    rural_major_collector: 0.052
+    rural_minor_collector: 0.016
+    rural_local: 0.041
+    urban_interstate: 0.173
+    urban_freeway: 0.075
+    urban_principal_arterial: 0.155
+    urban_minor_arterial: 0.129
+    urban_major_collector: 0.064
+    urban_minor_collector: 0.004
+    urban_local: 0.097
+  speeds_mph:
+    rural_interstate: 72.6
+    rural_freeway: 72.31
+    rural_principal_arterial: 55.3
+    rural_minor_arterial: 53.58
+    rural_major_collector: 43.62
+    rural_minor_collector: 43.04
+    rural_local: 29.21
+    urban_interstate: 57.6
+    urban_freeway: 57.31
+    urban_principal_arterial: 25.3
+    urban_minor_arterial: 23.58
+    urban_major_collector: 23.62
+    urban_minor_collector: 23.04
+    urban_local: 14.21
+  utilization_rate:
+    rural_interstate: 0.5
+    rural_freeway: 0.55
+    rural_principal_arterial: 0.6
+    rural_minor_arterial: 0.65
+    rural_major_collector: 0.7
+    rural_minor_collector: 0.75
+    rural_local: 0.8
+    urban_interstate: 0.65
+    urban_freeway: 0.7
+    urban_principal_arterial: 0.75
+    urban_minor_arterial: 0.8
+    urban_major_collector: 0.85
+    urban_minor_collector: 0.9
+    urban_local: 0.95
+fleet:
+- level: 0
+  compute_tdp_watt: 0
+  sensors_tdp_watt: 0
+  driving_vmt_daily: 8508931506
+- level: 1
+  compute_tdp_watt: 2.5
+  sensors_tdp_watt: 3.66
+  driving_vmt_daily: 545972602
+- level: 2
+  compute_tdp_watt: 10
+  sensors_tdp_watt: 14.92
+  driving_vmt_daily: 999232876
+- level: 3
+  compute_tdp_watt: 110
+  sensors_tdp_watt: 12
+  sensors_data_Mbit_per_second: 13272.885
+  training_tdp_watt: 1200000
+  driving_vmt_daily: 92712328
+- level: 4
+  simulation_vmt_daily: 40413333
+  compute_tdp_watt: 800
+  sensors_tdp_watt: 227.97
+  sensors_data_Mbit_per_second: 33628.424
+  training_tdp_watt: 2800000
+  overrides:
+    vmt_split:
+      rural_interstate: 0.0014
+      rural_freeway: 0.0014
+      rural_principal_arterial: 0.0014
+      rural_minor_arterial: 0.0014
+      rural_major_collector: 0.0014
+      rural_minor_collector: 0.0014
+      rural_local: 0.0014
+      urban_interstate: 0.06
+      urban_freeway: 0.06
+      urban_principal_arterial: 0.174
+      urban_minor_arterial: 0.174
+      urban_major_collector: 0.174
+      urban_minor_collector: 0.174
+      urban_local: 0.174
+  speeds_mph:
+    rural_interstate: 70
+    rural_freeway: 70
+    rural_principal_arterial: 55
+    rural_minor_arterial: 45
+    rural_major_collector: 43.62
+    rural_minor_collector: 43.04
+    rural_local: 25
+    urban_interstate: 55
+    urban_freeway: 55
+    urban_principal_arterial: 25.3
+    urban_minor_arterial: 23.58
+    urban_major_collector: 23.62
+    urban_minor_collector: 23.04
+    urban_local: 14.21
+  driving_vmt_daily: 154520547
