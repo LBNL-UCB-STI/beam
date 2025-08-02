@@ -61,7 +61,15 @@ class TAZTreeMap(
     val tazIds = tazQuadTree.values().asScala.map(_.tazId.toString).toSeq
     SortingUtil.sortAsIntegers(tazIds).getOrElse(tazIds.sorted)
   }
-  val orderedTazIds: Seq[String] = maybeZoneOrdering.map(order => order.map(_.toString)).getOrElse(sortedTazIds)
+
+  val orderedTazIds: Seq[String] = maybeZoneOrdering match {
+    case Some(ordering) =>
+      // Sort by the numeric value of the TAZ ID
+      val sorted = ordering.map(_.toString).sortBy(_.toInt)
+      sorted
+    case None =>
+      sortedTazIds
+  }
   val tazToTazMapping: mutable.HashMap[Id[TAZ], Id[TAZ]] = mutable.HashMap.empty[Id[TAZ], Id[TAZ]]
 
   def getTAZfromLink(linkId: Id[Link]): Option[TAZ] = {
@@ -239,7 +247,6 @@ object TAZTreeMap {
   private def initQuadTreeFromFile(filePath: String, tazIDFieldName: String): (QuadTree[TAZ], Seq[Id[TAZ]]) = {
     val features: util.Collection[SimpleFeature] = GeoReader.readFeatures(filePath)
     val quadTreeBounds: QuadTreeBounds = quadTreeExtentFromFeatures(features)
-    val mapping = features.asScala.map(x => Id.create(x.getAttribute(tazIDFieldName).toString, classOf[TAZ])).toSeq
 
     val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](
       quadTreeBounds.minx - mapBoundingBoxBufferMeters,
@@ -248,21 +255,31 @@ object TAZTreeMap {
       quadTreeBounds.maxy + mapBoundingBoxBufferMeters
     )
 
-    for (f <- features.asScala) {
-      f.getDefaultGeometry match {
+    // Create TAZ objects and preserve file order
+    val mapping = features.asScala.map { feature =>
+      feature.getDefaultGeometry match {
         case g: Geometry =>
+          val tazId = feature.getAttribute(tazIDFieldName).toString
           val taz = new TAZ(
-            String.valueOf(f.getAttribute(tazIDFieldName)),
+            tazId,
             new Coord(g.getCoordinate.x, g.getCoordinate.y),
             g.getArea,
             Some(g),
-            f.getProperties.asScala
+            feature.getProperties.asScala
               .find(_.getName.toString.toLowerCase.contains("county"))
-              .map(_.getValue.toString.toLowerCase) // Added county attribute to TAZ
+              .map(_.getValue.toString.toLowerCase)
           )
           tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
+
+          // Return the TAZ ID for ordering
+          Id.create(tazId, classOf[TAZ])
       }
-    }
+    }.toSeq
+
+    logger.info(s"Loaded ${mapping.length} TAZ zones from shapefile in file order")
+    logger.info(s"First 10 TAZ IDs in file order: ${mapping.take(10).map(_.toString).mkString(", ")}")
+    logger.info(s"These will map to ActivitySim TAZ IDs 1 through ${mapping.length}")
+
     (tazQuadTree, mapping)
   }
 
