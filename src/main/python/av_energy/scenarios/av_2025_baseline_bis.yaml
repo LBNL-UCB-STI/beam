@@ -59,10 +59,10 @@ defaults:
   training_config:
     gpu_utilization_rate: 0.75           # 75% average GPU utilization
     failed_runs_overhead_factor: 1.2     # 20% overhead for failed training runs
-    model_iterations_per_year: 24        # every other week model updates
-    continuous_training_factor: 0        # 0% of time spent on continuous learning
-    full_retraining_hours_per_iteration: 2160    # 90 days for full retraining
-    incremental_training_hours_per_iteration: 720  # 30 days for incremental training
+    model_iterations_per_year: 52        # every week model updates
+    continuous_training_factor: 0.2        # 20% of time spent on continuous learning
+    full_retraining_hours_per_iteration: 720    # 30 days for full retraining
+    incremental_training_hours_per_iteration: 336  # 2 weeks for incremental training
     cooling_power_ratio: 0.77             # Cooling power as ratio of compute power
     networking_power_ratio: 0.1          # Networking power for distributed training
     storage_power_ratio: 0.05            # Storage power for checkpoints and datasets
@@ -70,26 +70,31 @@ defaults:
 fleet:
   - level: 0
     driving_vmt_daily: 2887500000000  # 87.5% of 3.3 trillion VMT
+    fleet_size: 261362500 # 87.5% of 298.7 million units
 
   - level: 1
     driving_vmt_daily: 240900000000   # 7.3% of 3.3 trillion VMT
+    fleet_size: 21805100 # 7.3% of 298.7 million units
     compute_tdp_watt: 2.5
     sensors_tdp_watt: 3.66
 
   - level: 2
     driving_vmt_daily: 168300000000   # 5.1% of 3.3 trillion VMT
+    fleet_size: 15233700 # 5.1% of 298.7 million units
     compute_tdp_watt: 10
     sensors_tdp_watt: 14.92
 
   - level: 3
     driving_vmt_daily: 3300000000     # 0.1% of 3.3 trillion VMT
+    fleet_size: 298700 # 0.1% of 298.7 million units
     compute_tdp_watt: 110
     sensors_tdp_watt: 12
     sensors_data_Mbit_per_second: 13272  # Tesla HW3/HW4 mixed sensors
     training_tdp_watt: 1200000        # Tesla Dojo: 3,000 D1 chips × 400W
 
   - level: 4
-    driving_vmt_daily: 577333          # Waymo fleet estimated
+    driving_vmt_daily: 577333          # Waymo VMT estimated
+    fleet_size: 3031 # Waymo fleet estimated
     simulation_vmt_daily: 40413333     # Waymo simulation data
     compute_tdp_watt: 800
     sensors_tdp_watt: 227.97
@@ -129,6 +134,7 @@ fleet:
 
   - level: 5
     driving_vmt_daily: 0
+    fleet_size: 0
     simulation_vmt_daily: 0
     compute_tdp_watt: 0
     sensors_tdp_watt: 0

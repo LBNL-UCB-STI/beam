@@ -17,6 +17,46 @@ def load_scenario_config(yaml_file_path):
     return config
 
 
+def calculate_shared_infrastructure_energy(vehicle_config, defaults, utilization_hours):
+    """
+    Calculate shared infrastructure energy (datacenter storage and training) for the entire fleet.
+
+    Parameters:
+    vehicle_config (dict): Vehicle configuration
+    defaults (dict): Default configuration values
+    utilization_hours (float): Annual utilization hours per vehicle
+
+    Returns:
+    dict: Shared infrastructure energy breakdown
+    """
+    # Default datacenter config if not specified in YAML
+    default_datacenter_config = {
+        'preprocessing_compression_ratio': 100,
+        'data_retention_years': 5,
+        'storage_pue': 1.6,
+        'storage_power_per_tb_watt': 8,
+        'processing_power_per_tb_year_watt': 100
+    }
+
+    # Calculate datacenter storage energy for the entire fleet
+    datacenter_storage_results = calculate_datacenter_storage_energy(
+        vehicle_config, utilization_hours
+    )
+
+    # Calculate training infrastructure energy for the entire fleet
+    training_config = defaults.get('training_config', {})
+    training_results = calculate_training_infrastructure_energy(
+        vehicle_config, training_config
+    )
+
+    return {
+        'datacenter_storage_results': datacenter_storage_results,
+        'training_results': training_results,
+        'total_datacenter_storage_energy_twh': datacenter_storage_results['total_datacenter_storage_energy_twh'],
+        'total_training_infrastructure_energy_twh': training_results['total_training_infrastructure_energy_twh']
+    }
+
+
 def calculate_onboard_cooling_energy(compute_power_kw, sensors_power_kw, cooling_config):
     """
     Calculate cooling energy for onboard AV compute and sensors.
@@ -95,15 +135,15 @@ def calculate_data_transmission_energy(vehicle_config, utilization_hours):
     sensors_data_rate_mbps = vehicle_config.get('sensors_data_Mbit_per_second', 0)
 
     # Compression before transmission
-    compression_ratio = 10 # 10:1 compression before transmission
+    compression_ratio = 10  # 10:1 compression before transmission
     transmitted_data_rate_mbps = sensors_data_rate_mbps / compression_ratio
 
     # Vehicle transmission energy (5G/cellular modem)
-    vehicle_tx_power_per_mbps_watt = 0.5 # Vehicle 5G/cellular transmission power
+    vehicle_tx_power_per_mbps_watt = 0.5  # Vehicle 5G/cellular transmission power
     vehicle_tx_power_kw = (transmitted_data_rate_mbps * vehicle_tx_power_per_mbps_watt) / 1000
 
     # Network infrastructure energy per bit transmitted
-    network_energy_per_bit_nanojoules = 20 # Network infrastructure energy per bit
+    network_energy_per_bit_nanojoules = 20  # Network infrastructure energy per bit
     network_energy_per_bit_j = network_energy_per_bit_nanojoules * 1e-9  # J/bit
     bits_per_hour = transmitted_data_rate_mbps * 1e6 * 3600  # bits/hour
     network_power_kw = (bits_per_hour * network_energy_per_bit_j) / 3600 / 1000  # Convert to kW
@@ -122,14 +162,12 @@ def calculate_data_transmission_energy(vehicle_config, utilization_hours):
     }
 
 
-def calculate_datacenter_storage_energy(vehicle_config, datacenter_config, fleet_size, utilization_hours):
+def calculate_datacenter_storage_energy(vehicle_config, utilization_hours):
     """
     Calculate energy for data center storage of preprocessed data.
 
     Parameters:
     vehicle_config (dict): Vehicle configuration
-    datacenter_config (dict): Data center configuration
-    fleet_size (int): Number of vehicles in fleet
     utilization_hours (float): Annual utilization hours per vehicle
 
     Returns:
@@ -139,19 +177,19 @@ def calculate_datacenter_storage_energy(vehicle_config, datacenter_config, fleet
     sensors_data_rate_tb_hour = vehicle_config.get('sensors_data_Mbit_per_second', 0) / 8000
 
     # Preprocessing and compression
-    preprocessing_compression_ratio = 100 # 100:1 compression after preprocessing
+    preprocessing_compression_ratio = 100  # 100:1 compression after preprocessing
     processed_data_rate_tb_hour = sensors_data_rate_tb_hour / preprocessing_compression_ratio
 
     # Total fleet data generation
-    total_annual_data_tb = processed_data_rate_tb_hour * utilization_hours * fleet_size
+    total_annual_data_tb = processed_data_rate_tb_hour * utilization_hours * vehicle_config.get('fleet_size', 0)
 
     # Storage retention policy
-    data_retention_years = 5 # Years to retain training data
+    data_retention_years = 5  # Years to retain training data
     total_storage_capacity_tb = total_annual_data_tb * data_retention_years
 
     # Storage system energy
     storage_pue = 1.6  # Power Usage Effectiveness for storage systems
-    storage_power_per_tb_watt = 8 # Watts per TB including redundancy and cooling
+    storage_power_per_tb_watt = 8  # Watts per TB including redundancy and cooling
     storage_power_per_tb_kw = storage_power_per_tb_watt / 1000  # Including redundancy
 
     storage_power_kw = total_storage_capacity_tb * storage_power_per_tb_kw
@@ -178,7 +216,7 @@ def calculate_datacenter_storage_energy(vehicle_config, datacenter_config, fleet
     }
 
 
-def calculate_training_infrastructure_energy(vehicle_config, training_config, fleet_size):
+def calculate_training_infrastructure_energy(vehicle_config, training_config):
     """
     Calculate comprehensive training infrastructure energy including efficiency losses.
 
@@ -204,7 +242,7 @@ def calculate_training_infrastructure_energy(vehicle_config, training_config, fl
 
     # Training efficiency factors
     utilization_rate = training_config.get('gpu_utilization_rate', 0.75)  # 75% GPU utilization
-    parallelization_efficiency = 0.85 # 85% scaling efficiency for distributed training
+    parallelization_efficiency = 0.85  # 85% scaling efficiency for distributed training
     failed_runs_overhead = training_config.get('failed_runs_overhead_factor', 1.2)  # 20% overhead for failed runs
 
     # Model updates and iterations
@@ -287,7 +325,29 @@ def calculate_av_energy_consumption(vehicle_config, defaults):
             'onboard_storage_energy_twh': 0,
             'data_transmission_energy_twh': 0,
             'datacenter_storage_energy_twh': 0,
-            'training_infrastructure_energy_twh': 0
+            'training_infrastructure_energy_twh': 0,
+            'total_fleet_training_energy_twh': 0
+        }
+
+    # Get fleet size from vehicle config or use provided value
+
+    fleet_size = vehicle_config.get('fleet_size', 0)
+
+    # Handle zero fleet size (like Level 5 in your config)
+    if fleet_size == 0:
+        return {
+            'total_energy_twh': 0,
+            'total_utilization_time_hours': 0,
+            'breakdown_by_category': {},
+            'onboard_compute_energy_twh': 0,
+            'onboard_sensors_energy_twh': 0,
+            'onboard_cooling_energy_twh': 0,
+            'onboard_storage_energy_twh': 0,
+            'data_transmission_energy_twh': 0,
+            'datacenter_storage_energy_twh': 0,
+            'training_infrastructure_energy_twh': 0,
+            'total_fleet_training_energy_twh': 0,
+            'fleet_size': fleet_size
         }
 
     # Get configuration values (existing logic)
@@ -339,26 +399,33 @@ def calculate_av_energy_consumption(vehicle_config, defaults):
     onboard_cooling_power_kw = calculate_onboard_cooling_energy(compute_power_kw, sensors_power_kw, cooling_config)
     onboard_cooling_energy_twh = (onboard_cooling_power_kw * annual_utilization_hours) / 1e9
 
-    # NEW: Onboard data storage energy
-    storage_results = calculate_data_storage_energy(vehicle_config, annual_utilization_hours)
-    onboard_storage_energy_twh = storage_results['total_onboard_storage_energy_twh']
+    # NEW: Onboard data storage energy (only if vehicle has sensors)
+    onboard_storage_energy_twh = 0
+    storage_results = {'total_onboard_storage_energy_twh': 0}
+    if vehicle_config.get('sensors_data_Mbit_per_second', 0) > 0:
+        storage_results = calculate_data_storage_energy(vehicle_config, annual_utilization_hours)
+        onboard_storage_energy_twh = storage_results['total_onboard_storage_energy_twh']
 
-    # NEW: Data transmission energy
-    transmission_results = calculate_data_transmission_energy(vehicle_config, annual_utilization_hours)
-    data_transmission_energy_twh = transmission_results['total_transmission_energy_twh']
+    # NEW: Data transmission energy (only if vehicle has sensors)
+    data_transmission_energy_twh = 0
+    transmission_results = {'total_transmission_energy_twh': 0}
+    if vehicle_config.get('sensors_data_Mbit_per_second', 0) > 0:
+        transmission_results = calculate_data_transmission_energy(vehicle_config, annual_utilization_hours)
+        data_transmission_energy_twh = transmission_results['total_transmission_energy_twh']
 
-    datacenter_config = defaults.get('datacenter_config', {})
-    fleet_size = 1  # Per vehicle calculation
-    datacenter_storage_results = calculate_datacenter_storage_energy(
-        vehicle_config, datacenter_config, fleet_size, annual_utilization_hours
+    # NEW: Shared infrastructure energy calculation
+    shared_infrastructure = calculate_shared_infrastructure_energy(
+        vehicle_config, defaults, annual_utilization_hours
     )
-    datacenter_storage_energy_twh = datacenter_storage_results['total_datacenter_storage_energy_twh']
 
-    training_config = defaults.get('training_config', {})
-    training_results = calculate_training_infrastructure_energy(vehicle_config, training_config, fleet_size)
-    training_infrastructure_energy_twh = training_results['total_training_infrastructure_energy_twh']
+    # Datacenter storage: Scales with fleet size, so divide per vehicle
+    datacenter_storage_energy_twh = shared_infrastructure['total_datacenter_storage_energy_twh']
 
-    # Total energy including all infrastructure
+    # Training infrastructure: SHARED across entire fleet, calculate total and per-vehicle allocation
+    total_fleet_training_energy_twh = shared_infrastructure['total_training_infrastructure_energy_twh']
+    training_infrastructure_energy_twh = total_fleet_training_energy_twh  # For per-vehicle comparison only
+
+    # Total energy per vehicle (including allocated share of training)
     total_energy_twh = (
             onboard_compute_energy_twh +
             onboard_sensors_energy_twh +
@@ -384,26 +451,26 @@ def calculate_av_energy_consumption(vehicle_config, defaults):
         # Infrastructure energy breakdown
         'data_transmission_energy_twh': data_transmission_energy_twh,
         'datacenter_storage_energy_twh': datacenter_storage_energy_twh,
-        'training_infrastructure_energy_twh': training_infrastructure_energy_twh,
+        'training_infrastructure_energy_twh': training_infrastructure_energy_twh,  # Per-vehicle allocation
+
+        # Fleet-level training energy (the actual shared infrastructure)
+        'total_fleet_training_energy_twh': total_fleet_training_energy_twh,
 
         # Detailed breakdowns
         'storage_details': storage_results,
         'transmission_details': transmission_results,
-        'datacenter_storage_details': datacenter_storage_results,
-        'training_details': training_results,
-        'cooling_power_kw': onboard_cooling_power_kw
+        'datacenter_storage_details': shared_infrastructure['datacenter_storage_results'],
+        'training_details': shared_infrastructure['training_results'],
+        'cooling_power_kw': onboard_cooling_power_kw,
+        'fleet_size': fleet_size
     }
 
 
 def calculate_fleet_energy_consumption(fleet_config):
     """
-    Enhanced fleet energy calculation with full infrastructure accounting.
+    Enhanced fleet energy calculation with proper shared infrastructure accounting.
     """
     defaults = fleet_config['defaults']
-
-    # Calculate total fleet datacenter energy ONCE
-    total_fleet_vehicles = sum(config.get('driving_vmt_daily', 0) > 0 for config in fleet_config["fleet"])
-    fleet_datacenter_energy = 0
 
     fleet_results = {
         "scenario": fleet_config["scenario"],
@@ -424,37 +491,43 @@ def calculate_fleet_energy_consumption(fleet_config):
 
     for vehicle_config in fleet_config["fleet"]:
         level = vehicle_config["level"]
-        print(f"Calculating for level {level}...")
+        fleet_size = vehicle_config.get('fleet_size', 0)  # Get fleet size from YAML
+
+        print(f"Calculating for level {level} with fleet size {fleet_size:,} vehicles...")
 
         level_result = calculate_av_energy_consumption(vehicle_config, defaults)
         fleet_results["autonomy_levels"][f"level_{level}"] = level_result
 
-        # Add to fleet totals
-        totals = fleet_results["fleet_totals"]
-        totals["total_energy_twh"] += level_result["total_energy_twh"]
-        totals["total_utilization_time_hours"] += level_result["total_utilization_time_hours"]
-        totals["onboard_compute_energy_twh"] += level_result["onboard_compute_energy_twh"]
-        totals["onboard_sensors_energy_twh"] += level_result["onboard_sensors_energy_twh"]
-        totals["onboard_cooling_energy_twh"] += level_result["onboard_cooling_energy_twh"]
-        totals["onboard_storage_energy_twh"] += level_result["onboard_storage_energy_twh"]
-        totals["data_transmission_energy_twh"] += level_result["data_transmission_energy_twh"]
-        totals["datacenter_storage_energy_twh"] += level_result["datacenter_storage_energy_twh"]
-        totals["training_infrastructure_energy_twh"] += level_result["training_infrastructure_energy_twh"]
+        # Add to fleet totals (MULTIPLY by fleet_size for actual total energy)
+        if fleet_size > 0:
+            totals = fleet_results["fleet_totals"]
+            totals["total_energy_twh"] += level_result["total_energy_twh"]
+            totals["total_utilization_time_hours"] += level_result["total_utilization_time_hours"]
+            totals["onboard_compute_energy_twh"] += level_result["onboard_compute_energy_twh"]
+            totals["onboard_sensors_energy_twh"] += level_result["onboard_sensors_energy_twh"]
+            totals["onboard_cooling_energy_twh"] += level_result["onboard_cooling_energy_twh"]
+            totals["onboard_storage_energy_twh"] += level_result["onboard_storage_energy_twh"]
+            totals["data_transmission_energy_twh"] += level_result["data_transmission_energy_twh"]
+            totals["datacenter_storage_energy_twh"] += level_result["datacenter_storage_energy_twh"]
 
-        # Aggregate breakdown by category
-        for category, data in level_result["breakdown_by_category"].items():
-            if category not in totals["breakdown_by_category"]:
-                totals["breakdown_by_category"][category] = {
-                    'vmt': 0,
-                    'travel_time_hours': 0,
-                    'utilization_time_hours': 0
-                }
-            totals["breakdown_by_category"][category]['vmt'] += data['vmt']
-            totals["breakdown_by_category"][category]['travel_time_hours'] += data['travel_time_hours']
-            totals["breakdown_by_category"][category]['utilization_time_hours'] += data['utilization_time_hours']
+            # CRITICAL FIX: Use total_fleet_training_energy_twh (shared infrastructure)
+            # instead of per-vehicle allocation
+            totals["training_infrastructure_energy_twh"] += level_result["total_fleet_training_energy_twh"]
+
+            # Aggregate breakdown by category
+            for category, data in level_result["breakdown_by_category"].items():
+                if category not in totals["breakdown_by_category"]:
+                    totals["breakdown_by_category"][category] = {
+                        'vmt': 0,
+                        'travel_time_hours': 0,
+                        'utilization_time_hours': 0
+                    }
+                totals["breakdown_by_category"][category]['vmt'] += data['vmt']
+                totals["breakdown_by_category"][category]['travel_time_hours'] += data['travel_time_hours']
+                totals["breakdown_by_category"][category]['utilization_time_hours'] += data[
+                                                                                           'utilization_time_hours']
 
     return fleet_results
-
 
 def print_enhanced_fleet_summary(results):
     """
