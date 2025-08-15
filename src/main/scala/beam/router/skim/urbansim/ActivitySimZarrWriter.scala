@@ -23,8 +23,15 @@ object ActivitySimZarrWriter extends LazyLogging {
     logger.info(s"Starting writeToZarr with filePath: $filePath")
 
     // Build a map from path type to MatrixData for quick lookup
-    val pathTypeToMatrixData: Map[ActivitySimPathType, MatrixData] =
-      activitySimMatrixData.flatMap(md => md.pathTypes.map(_ -> md)).toMap
+    val pathTypeToMatrixData: Map[ActivitySimPathType, MatrixData] = (
+      for {
+        data     <- activitySimMatrixData
+        pathType <- data.pathTypes
+        limitedData = data.copy(metrics = data.metrics & ExcerptData.supportedActivitySimMetric)
+      } yield pathType -> limitedData
+    ).toMap
+
+    logger.info(s"pathTypeToMatrixData keys: ${pathTypeToMatrixData.keys.map(_.toString).mkString(", ")}")
 
     // Check if geoUnits are 1-based continuous integers
     val isActivitySimFormat =
@@ -57,8 +64,12 @@ object ActivitySimZarrWriter extends LazyLogging {
     val timePeriodLookup: Map[String, Int] =
       timePeriods.map(_.entryName).zipWithIndex.toMap
 
-    val groupedData = skimData.toSeq.groupBy { excerptData =>
-      val pathType = excerptData.pathType match { // Standardize TNC names with fleet suffix
+    val skimDataSeq = skimData.toSeq
+
+    logger.info(s"Total skim data entries: ${skimDataSeq.size}")
+
+    val groupedData = skimDataSeq.groupBy { excerptData =>
+      val pathType = excerptData.pathType match {
         case rideHailMode @ (TNC_SINGLE | TNC_SHARED) =>
           f"${rideHailMode.toString}_${excerptData.fleetName.toUpperCase}"
         case _ => excerptData.pathType.toString
@@ -68,6 +79,11 @@ object ActivitySimZarrWriter extends LazyLogging {
         pathTypeToMatrixData.get(excerptData.pathType).map(_.metrics).getOrElse(Set.empty[ActivitySimMetric])
       )
     }
+
+    val failuresAndSuccesses = skimDataSeq
+      .groupBy(_.pathType.toString)
+      .mapValues(v => (v.map(_.getValue(TRIPS)).sum, v.map(_.getValue(FAILURES)).sum))
+    logger.info(s"Total counts by path type: ${failuresAndSuccesses.mkString(", ")}")
 
     // --- Zarr Directory Store Implementation using com.bc.zarr ---
 
@@ -85,7 +101,9 @@ object ActivitySimZarrWriter extends LazyLogging {
 
       var dataset_count = 0
       val shape = Array[Int](geoUnits.size, geoUnits.size, timePeriods.size)
-      val netcdfArray = NetcdfArray.factory(ucar.ma2.DataType.FLOAT, shape)
+      val zeroOffset = Array[Int](0, 0, 0)
+      val idx = new Index3D(shape)
+
       val compressor = com.bc.zarr.CompressorFactory.create(
         "blosc",
         "cname",
@@ -139,39 +157,52 @@ object ActivitySimZarrWriter extends LazyLogging {
       destAttrs.put("_ARRAY_DIMENSIONS", java.util.Arrays.asList("dtaz"))
       destCoord.writeAttributes(destAttrs)
 
-      groupedData.par.foreach { case ((pathType, metrics), excerpts) =>
-        metrics.foreach { metric =>
+      logger.info(s"Grouped data has ${groupedData.size} unique path types and metrics combinations.")
+
+      groupedData.foreach { case ((pathType, metrics), excerpts) =>
+        logger.info(s"Processing path type: $pathType with metrics: ${metrics.mkString(", ")}")
+        val metricToArray = metrics.map { metric =>
           val matrixName = s"${pathType}_${metric}"
           logger.debug(s"Creating dataset '$matrixName' with shape ${shape.mkString("x")}")
           dataset_count += 1
 
           val zarrArray = rootGroup.createArray(matrixName, arrayParams)
 
-          val zeroOffset = Array[Int](0, 0, 0)
-          val idx = new Index3D(shape)
+          // Create a NetcdfArray to fill data
+          val netcdfArray = NetcdfArray.factory(ucar.ma2.DataType.FLOAT, shape)
           java.util.Arrays.fill(netcdfArray.getStorage.asInstanceOf[Array[Float]], Float.NaN)
 
-          excerpts.foreach { excerptData =>
-            for {
-              row     <- geoUnitMapping.get(excerptData.originId)
-              column  <- geoUnitMapping.get(excerptData.destinationId)
-              timeIdx <- timePeriodLookup.get(excerptData.timePeriodString)
-              if timeIdx >= 0
-            } {
+          (metric, (zarrArray, netcdfArray))
+        }.toMap
+
+        excerpts.foreach { excerptData =>
+          for {
+            row     <- geoUnitMapping.get(excerptData.originId)
+            column  <- geoUnitMapping.get(excerptData.destinationId)
+            timeIdx <- timePeriodLookup.get(excerptData.timePeriodString)
+            if timeIdx >= 0
+          } {
+            metricToArray.foreach { case (metric, (_, netcdfArray)) =>
               val value = excerptData.getValue(metric).toFloat * getUnitConversion(metric)
               netcdfArray.setFloat(idx.set(row, column, timeIdx), value)
             }
           }
-          try {
-            zarrArray.write(netcdfArray.get1DJavaArray(netcdfArray.getDataType), shape, zeroOffset)
-          } catch {
-            case e: java.lang.NoSuchMethodError =>
-              val conversion = getUnitConversion(metric)
-              logger.info(s"Writing value ($metric) with conversion: $conversion")
-              logger.error(
-                s"Failed to initialize data for $matrixName at offset ${zeroOffset.mkString("Array(", ", ", ")")}: ${e.getMessage}",
-                e
-              )
+        }
+
+        metricToArray.foreach { case (metric, (zarrArray, netcdfArray)) =>
+          {
+            try {
+              zarrArray.write(netcdfArray.get1DJavaArray(netcdfArray.getDataType), shape, zeroOffset)
+            } catch {
+              case e: java.lang.NoSuchMethodError =>
+                val conversion = getUnitConversion(metric)
+                logger.info(s"Writing value ($metric) with conversion: $conversion")
+                logger.error(
+                  s"Failed to initialize data for ${metric.toString} at offset ${zeroOffset
+                    .mkString("Array(", ", ", ")")}: ${e.getMessage}",
+                  e
+                )
+            }
           }
 
           val attrs = zarrArray.getAttributes()
@@ -182,13 +213,13 @@ object ActivitySimZarrWriter extends LazyLogging {
 
           zarrArray.writeAttributes(attrs)
 
-          logger.debug(s"Successfully wrote dataset and attributes for '$matrixName'")
+          logger.debug(s"Successfully wrote dataset and attributes for '${metric.toString}'")
         }
-      } // ADD SECOND BLOCK HERE
+      }
 
       logger.info(
         s"Zarr Directory Store written successfully with $dataset_count datasets."
-      ) // Report actual dataset count
+      )
 
     } finally {
       // No close method needed for rootGroup

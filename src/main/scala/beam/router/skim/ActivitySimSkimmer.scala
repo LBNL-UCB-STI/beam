@@ -336,6 +336,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
           .groupBy(_._1)
           .mapValues(_.flatMap(_._2))
       }
+      logger.info(s"Skim data size : ${excerptData.size}, mapped size: ${maybeTazExcerptData.map(_.size).getOrElse(0)}")
 
       val (defaultExcerptData, maybeMappedExcerptData) =
         maybeTazExcerptData match {
