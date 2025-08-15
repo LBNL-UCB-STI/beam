@@ -204,7 +204,14 @@ class HouseholdFleetManager(
                 s"Freight vehicle for person $personId not found in available vehicles. " +
                 s"Available vehicles: ${availableVehicles.map(_.id).mkString(", ")}"
               )
-              None
+              // If specific vehicle not found, try to find any vehicle of the required category
+              requireVehicleCategoryAvailable.flatMap { reqCat =>
+                availableVehicles.find(veh => veh.beamVehicleType.vehicleCategory == reqCat)
+              }
+            }
+            .orElse { // Fallback to any available vehicle if category-specific search fails
+              logger.debug("No specific or category-matching freight vehicle found. Trying any available vehicle.")
+              availableVehicles.headOption
             }
         case Some(requireVehicleCategory) =>
           availableVehicles.find(veh => veh.beamVehicleType.vehicleCategory == requireVehicleCategory)
@@ -267,9 +274,10 @@ class HouseholdFleetManager(
         inquiry.whereWhen,
         self
       )
-      logger.debug(
+      logger.warn(
         s"No vehicles available for category $category available for " +
-        s"person ${inquiry.personId.toString}, creating a new vehicle with id ${vehicle.id.toString}"
+        s"person ${inquiry.personId.toString} in available vehicles $availableVehicles" +
+        s", creating a new vehicle with id ${vehicle.id.toString}"
       )
 
       // Create a vehicle out of thin air

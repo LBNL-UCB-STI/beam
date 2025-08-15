@@ -282,8 +282,11 @@ object HouseholdActor {
         // NON CAV VEHICLES
         val vehiclesByCategories = vehicles.filter(!_._2.isCAV).groupBy(_._2.beamVehicleType.vehicleCategory)
         val vehiclesByAllCategories =
-          if (isFreightCarrier) vehiclesByCategories
-          else {
+          if (isFreightCarrier) {
+            val freightCategories = Seq(VehicleCategory.Class456Vocational) // Add other freight categories if needed
+            val emptyFreightVehicles = freightCategories.map(cat => cat -> Map[Id[BeamVehicle], BeamVehicle]()).toMap
+            emptyFreightVehicles ++ vehiclesByCategories
+          } else {
             //We should create a vehicle manager for cars and bikes for
             //all households in case they are generated during the simulation
             householdVehicleCategories
@@ -754,7 +757,7 @@ object HouseholdActor {
                   .toList
               )
               .headOption
-            logger.info(
+            logger.debug(
               s"Person $personId is requiring a vehicle that belongs to category $category" +
               s"Choosing a random vehicle of type $cat: ${chosenVeh.map(_.id).getOrElse("None")}"
             )
