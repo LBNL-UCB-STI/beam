@@ -11,6 +11,7 @@ import beam.agentsim.agents.choice.logit.TourModeChoiceModel
 import beam.agentsim.agents.choice.mode.TourModeChoiceMultinomialLogit
 import beam.agentsim.agents.freight.input.FreightReader
 import beam.agentsim.agents.household.CAVSchedule.RouteOrEmbodyRequest
+import beam.agentsim.agents.household.HouseholdActor.EmergencyHouseholdVehicleGenerator.sharedRandomGenerator
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavTripLegsResponse}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
@@ -741,6 +742,23 @@ object HouseholdActor {
                   classOf[BeamVehicleType]
                 )
               )
+          case cat @ (VehicleCategory.Class78Tractor | VehicleCategory.Class78Tractor |
+              VehicleCategory.Class456Vocational) =>
+            val chosenVeh = sharedRandomGenerator
+              .shuffle(
+                beamScenario.vehicleTypes
+                  .filter { vt =>
+                    vt._2.vehicleCategory == cat
+                  }
+                  .values
+                  .toList
+              )
+              .headOption
+            logger.info(
+              s"Person $personId is requiring a vehicle that belongs to category $category" +
+              s"Choosing a random vehicle of type $cat: ${chosenVeh.map(_.id).getOrElse("None")}"
+            )
+            chosenVeh
           case _ =>
             logger.warn(
               s"Person $personId is requiring a vehicle that belongs to category $category that is neither Car nor Bike"
@@ -757,9 +775,12 @@ object HouseholdActor {
       whenWhere: SpaceTime,
       manager: ActorRef
     ): BeamVehicle = {
+      val vehicleManagerType = if (personId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX)) {
+        VehicleManager.TypeEnum.Freight
+      } else { VehicleManager.TypeEnum.Household }
       val vehicleManagerId =
         VehicleManager
-          .createOrGetReservedFor(household.getId.toString, Some(VehicleManager.TypeEnum.Household))
+          .createOrGetReservedFor(household.getId.toString, Some(vehicleManagerType))
           .managerId
       val vehicle = new BeamVehicle(
         Id.createVehicleId(personId.toString + "-emergency-" + vehicleIndex),

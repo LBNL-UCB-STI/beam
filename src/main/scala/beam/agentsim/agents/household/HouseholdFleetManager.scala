@@ -199,8 +199,15 @@ class HouseholdFleetManager(
             .filter(_._2 == personId)
             .flatMap { case (vehicleId, _) => availableVehicles.find(_.id == vehicleId) }
             .headOption
+            .orElse {
+              logger.warn(
+                s"Freight vehicle for person $personId not found in available vehicles. " +
+                s"Available vehicles: ${availableVehicles.map(_.id).mkString(", ")}"
+              )
+              None
+            }
         case Some(requireVehicleCategory) =>
-          availableVehicles.find(veh => (veh.beamVehicleType.vehicleCategory == requireVehicleCategory))
+          availableVehicles.find(veh => veh.beamVehicleType.vehicleCategory == requireVehicleCategory)
         case _ => availableVehicles.headOption
       }
 

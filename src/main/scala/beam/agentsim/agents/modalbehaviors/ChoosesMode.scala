@@ -202,9 +202,10 @@ trait ChoosesMode {
             data.currentLocation,
             currentActivity(data.personData),
             tourMode match {
-              case Some(CAR_BASED)  => Some(VehicleCategory.Car)
-              case Some(BIKE_BASED) => Some(VehicleCategory.Bike)
-              case _                => None
+              case Some(CAR_BASED)    => Some(VehicleCategory.Car)
+              case Some(BIKE_BASED)   => Some(VehicleCategory.Bike)
+              case Some(FREIGHT_TOUR) => Some(VehicleCategory.Class456Vocational) // Default to smaller truck
+              case _                  => None
             }
           ) pipeTo self
         }
@@ -1891,7 +1892,7 @@ trait ChoosesMode {
     routingResponse: RoutingResponse,
     mode: BeamMode
   ) = {
-    availableStreetVehicles.find(_.streetVehicle.mode == CAR) match {
+    availableStreetVehicles.find(v => Seq(CAR, FREIGHT).contains(v.streetVehicle.mode)) match {
       case Some(availableVehicle) =>
         val bushwhackingLeg = RoutingWorker
           .createBushwackingTrip(
@@ -1935,7 +1936,7 @@ trait ChoosesMode {
       case _ =>
         logger.warn(
           f"Failed to create bushwhacking vehicle trip for agent ${routingResponse.request.flatMap(_.personId)} " +
-          "because no  vehicle are available"
+          s"because no vehicle are available. PersonData: ${stateData.toString}"
         )
         createExpensiveWalkTrip(currentPersonLocation, nextAct, routingResponse)
     }
@@ -3052,7 +3053,7 @@ trait ChoosesMode {
       case (Some(CAR_BASED), None) =>
         logger.error("Why are we going into a car based tour without a car?")
       case (None, _) =>
-        logger.info(s"Resetting tour mode to None for person ${this.id}")
+        logger.debug(s"Resetting tour mode to None for person ${this.id}")
       case _ =>
     }
     val currentTour = _experiencedBeamPlan.getTourContaining(nextActivity)
