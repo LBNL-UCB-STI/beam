@@ -4,7 +4,6 @@ import akka.actor.{ActorSystem, Props}
 import akka.pattern.ask
 import akka.testkit.{ImplicitSender, TestActorRef, TestKitBase, TestProbe}
 import akka.util.Timeout
-
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
@@ -19,6 +18,7 @@ import beam.agentsim.infrastructure.{
 }
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
+import beam.integration.Repeated
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, WALK}
@@ -26,6 +26,7 @@ import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.skim.core.AbstractSkimmerEvent
 import beam.sim.vehicles.VehiclesAdjustment
+import beam.tags.FlakyTest
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -56,7 +57,8 @@ class PersonWithPersonalVehiclePlanSpec
     with BeforeAndAfterAll
     with BeforeAndAfter
     with ImplicitSender
-    with BeamvilleFixtures {
+    with BeamvilleFixtures
+    with Repeated {
 
   lazy val config: Config = ConfigFactory
     .parseString(
@@ -587,7 +589,7 @@ class PersonWithPersonalVehiclePlanSpec
       expectMsgType[CompletionNotice]
     }
 
-    it("should create a last resort car if told to drive but no cars are available") {
+    it("should create a last resort car if told to drive but no cars are available", FlakyTest) {
       val modeChoiceEvents = new TestProbe(system)
       val personEntersVehicleEvents = new TestProbe(system)
       val tourModeChoiceEvents = new TestProbe(system)

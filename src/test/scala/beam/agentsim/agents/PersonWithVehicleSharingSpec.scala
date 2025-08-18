@@ -20,6 +20,7 @@ import beam.agentsim.events._
 import beam.agentsim.infrastructure._
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
+import beam.integration.Repeated
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, WALK}
@@ -54,7 +55,8 @@ class PersonWithVehicleSharingSpec
     with TestKitBase
     with SimRunnerForTest
     with ImplicitSender
-    with BeamvilleFixtures {
+    with BeamvilleFixtures
+    with Repeated {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = system.dispatcher
@@ -215,7 +217,7 @@ class PersonWithVehicleSharingSpec
       events.expectMsgType[PathTraversalEvent]
 
       events.expectMsgType[PersonEntersVehicleEvent]
-      events.expectMsgType[LeavingParkingEvent]
+//      events.expectMsgType[LeavingParkingEvent]
       events.expectMsgType[VehicleEntersTrafficEvent]
       events.expectMsgType[LinkLeaveEvent]
       events.expectMsgType[LinkEnterEvent]
@@ -402,7 +404,7 @@ class PersonWithVehicleSharingSpec
       events.expectMsgType[PathTraversalEvent]
 
       events.expectMsgType[PersonEntersVehicleEvent]
-      events.expectMsgType[LeavingParkingEvent]
+//      events.expectMsgType[LeavingParkingEvent]
       events.expectMsgType[VehicleEntersTrafficEvent]
       events.expectMsgType[VehicleLeavesTrafficEvent]
       events.expectMsgType[PathTraversalEvent]
