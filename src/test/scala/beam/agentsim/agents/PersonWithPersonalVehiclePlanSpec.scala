@@ -656,7 +656,8 @@ class PersonWithPersonalVehiclePlanSpec
           Vector(),
           Set(vehicleType),
           new RouteHistory(beamConfig),
-          VehiclesAdjustment.getVehicleAdjustment(beamScenario),
+          VehiclesAdjustment
+            .getVehicleAdjustment(beamScenario, adjustmentType = "SINGLE_TYPE", vehicleType = Some("BEV")),
           configHolder
         )
       )
