@@ -156,7 +156,7 @@ object Modes {
       )
 
     def fromString(stringMode: String): Option[BeamMode] = {
-      if (stringMode.equals("") || stringMode.equals("other")) {
+      if (stringMode.equals("") || stringMode.equals("other") || stringMode.equals("goods")) {
         None
       } else if (stringMode.equalsIgnoreCase("drive")) {
         Some(CAR)
