@@ -728,6 +728,7 @@ object HouseholdActor {
                 realDistribution,
                 Option(HouseholdId(household.getId.toString))
               )
+              .filterNot(_.isConnectedAutomatedVehicle)
               .headOption
               .orElse {
                 beamScenario.vehicleTypes.get(
