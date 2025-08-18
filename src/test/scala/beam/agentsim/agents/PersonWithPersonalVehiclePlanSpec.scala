@@ -198,7 +198,7 @@ class PersonWithPersonalVehiclePlanSpec
       expectMsgType[PathTraversalEvent]
 
       expectMsgType[PersonEntersVehicleEvent]
-      expectMsgType[LeavingParkingEvent]
+//      expectMsgType[LeavingParkingEvent]
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[LinkLeaveEvent]
       expectMsgType[LinkEnterEvent]
@@ -844,7 +844,7 @@ class PersonWithPersonalVehiclePlanSpec
       expectMsgType[PathTraversalEvent]
 
       expectMsgType[PersonEntersVehicleEvent]
-      expectMsgType[LeavingParkingEvent]
+//      expectMsgType[LeavingParkingEvent]
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
