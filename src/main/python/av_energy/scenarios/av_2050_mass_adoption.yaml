@@ -1,7 +1,7 @@
-scenario: 2035 Projected Adoption
+scenario: 2050 Projected Adoption
 defaults:
-  vmt_total: 3300000000000.0
-  fleet_total: 298700000
+  vmt_total: 3761999999999.9995
+  fleet_total: 340518000
   vmt_split:
     rural_interstate: 0.076
     rural_freeway: 0.009
@@ -60,34 +60,30 @@ defaults:
     networking_power_ratio: 0.1
     storage_power_ratio: 0.05
 fleet:
-- level: 0
-  fleet_share: 0.826
-  driving_vmt_daily: 8513457534
-  fleet_size: 770596
 - level: 1
-  fleet_share: 0.053
-  driving_vmt_daily: 546263013
-  fleet_size: 49445
+  fleet_share: 0.0001
+  driving_vmt_daily: 1391424
+  fleet_size: 125
   compute_tdp_watt: 2.5
   sensors_tdp_watt: 3.66
 - level: 2
-  fleet_share: 0.09699999999999999
-  driving_vmt_daily: 999764383
-  fleet_size: 90493
+  fleet_share: 0.001
+  driving_vmt_daily: 13914246
+  fleet_size: 1259
   compute_tdp_watt: 10
   sensors_tdp_watt: 14.92
 - level: 3
-  fleet_share: 0.009000000000000001
-  driving_vmt_daily: 92761643
-  fleet_size: 8396
+  fleet_share: 0.051
+  driving_vmt_daily: 709626575
+  fleet_size: 64231
   compute_tdp_watt: 110
   sensors_tdp_watt: 12
   sensors_data_Mbit_per_second: 13272
   training_tdp_watt: 1200000
 - level: 4
-  fleet_share: 0.015
-  driving_vmt_daily: 154602739
-  fleet_size: 13993
+  fleet_share: 0.073
+  driving_vmt_daily: 1015740000
+  fleet_size: 91939
   simulation_vmt_daily: 0
   compute_tdp_watt: 800
   sensors_tdp_watt: 227.97
@@ -124,3 +120,12 @@ fleet:
     urban_major_collector: 23.62
     urban_minor_collector: 23.04
     urban_local: 14.21
+- level: 5
+  fleet_share: 0.875
+  driving_vmt_daily: 12174965753
+  fleet_size: 1102018
+  simulation_vmt_daily: 0
+  compute_tdp_watt: 0
+  sensors_tdp_watt: 0
+  sensors_data_Mbit_per_second: 0
+  training_tdp_watt: 0
