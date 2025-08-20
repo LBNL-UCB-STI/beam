@@ -113,15 +113,15 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
 
     def checkFreightCarriers(freightCarriers: scala.IndexedSeq[FreightCarrier]): Unit = {
       freightCarriers should have size 2
-      val result = freightCarriers.find(_.carrierId == "freightCarrier-1".createId[FreightCarrier])
+      val result = freightCarriers.find(_.carrierId == "ft-1".createId[FreightCarrier])
       result should be('defined)
       val carrier1 = result.get
       carrier1.fleet should have size 2
       carrier1.payloadPlans should have size 7
       carrier1.tourMap should have size 2
-      carrier1.tourMap should contain key Id.createVehicleId("freightVehicle-2")
-      carrier1.tourMap(Id.createVehicleId("freightVehicle-2")) should have size 1
-      carrier1.tourMap(Id.createVehicleId("freightVehicle-2")).head should have(
+      carrier1.tourMap should contain key Id.createVehicleId("ft-2")
+      carrier1.tourMap(Id.createVehicleId("ft-2")) should have size 1
+      carrier1.tourMap(Id.createVehicleId("ft-2")).head should have(
         'tourId ("tour-1".createId[FreightTour]),
         'departureTimeInSec (1000),
         'maxTourDurationInSec (36000)
@@ -131,7 +131,7 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
       carrier1.plansPerTour("tour-2".createId) should have size 2
       carrier1.plansPerTour("tour-3".createId) should have size 3
 
-      val result2 = freightCarriers.find(_.carrierId == "freightCarrier-2".createId[FreightCarrier])
+      val result2 = freightCarriers.find(_.carrierId == "ft-2".createId[FreightCarrier])
       result2 should be('defined)
       val carrier2 = result2.get
       carrier2.fleet should have size 1
@@ -183,7 +183,7 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
       )
 
       personPlans should have size 3
-      val plan1 = personPlans(Id.createPersonId("freightDriver-1"))
+      val plan1 = personPlans(Id.createPersonId("ft-1"))
       plan1.getPlanElements should have size 15
       plan1.getPlanElements.get(2).asInstanceOf[Activity].getCoord should be(
         new Coord(169567.3017564815, 836.6518909569604)
@@ -208,7 +208,7 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
       plan1.getPlanElements.get(12).asInstanceOf[Activity].getCoord should be(
         new Coord(169576.80444138843, 3380.0075111142937)
       )
-      val plan4 = personPlans(Id.createPersonId("freightDriver-3"))
+      val plan4 = personPlans(Id.createPersonId("ft-3"))
       plan4.getPlanElements should have size 5
       plan4.getPlanElements.get(2).asInstanceOf[Activity].getCoord should be(
         new Coord(169900.11498160253, 3510.2356380579545)
