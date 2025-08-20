@@ -11,8 +11,10 @@ import org.matsim.api.core.v01.Coord
 case class UniformVehiclesAdjustment(beamScenario: BeamScenario) extends VehiclesAdjustment {
 
   private val vehicleTypesAndProbabilitiesByCategory: Map[(VehicleCategory, String), Array[(BeamVehicleType, Double)]] =
-    beamScenario.vehicleTypes.values.groupBy(x => (x.vehicleCategory, matchCarUse(x.id.toString))).map {
-      case (cat, vehTypes) =>
+    beamScenario.vehicleTypes.values
+      .filterNot(v => v.isConnectedAutomatedVehicle || v.isSharedVehicle)
+      .groupBy(x => (x.vehicleCategory, matchCarUse(x.id.toString)))
+      .map { case (cat, vehTypes) =>
         val probSum = vehTypes.map(_.sampleProbabilityWithinCategory).sum
         val cumulativeProbabilities = vehTypes
           .map(_.sampleProbabilityWithinCategory / probSum)
@@ -22,7 +24,7 @@ case class UniformVehiclesAdjustment(beamScenario: BeamScenario) extends Vehicle
         val vehTypeWithProbability =
           vehTypes.zip(cumulativeProbabilities).map { case (vehType, prob) => (vehType, prob) }.toArray
         (cat, vehTypeWithProbability)
-    }
+      }
 
   override def sampleVehicleTypesForHousehold(
     numVehicles: Int,
