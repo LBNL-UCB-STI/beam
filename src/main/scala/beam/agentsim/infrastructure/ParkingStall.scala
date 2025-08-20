@@ -134,10 +134,10 @@ object ParkingStall {
     activityType: ParkingActivityType
   ): (ParkingStall, ParkingZone) = {
     val boundingBox = new Envelope(
-      location.getX + 2000,
-      location.getX - 2000,
-      location.getY + 2000,
-      location.getY - 2000
+      location.getX + 1000,
+      location.getX - 1000,
+      location.getY + 1000,
+      location.getY - 1000
     )
     val x = random.nextDouble() * (boundingBox.getMaxX - boundingBox.getMinX) + boundingBox.getMinX
     val y = random.nextDouble() * (boundingBox.getMaxY - boundingBox.getMinY) + boundingBox.getMinY
