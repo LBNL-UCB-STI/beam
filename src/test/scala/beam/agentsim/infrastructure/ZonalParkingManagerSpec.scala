@@ -167,7 +167,7 @@ class ZonalParkingManagerSpec
           response.stall.locationUTM shouldBe inquiry.destinationUtm.loc
           response.stall.chargingPointType shouldBe None
           response.stall.parkingType shouldBe ParkingType.DoubleParking
-          response.stall.parkingZoneId shouldBe ParkingZone.DefaultParkingZone.parkingZoneId
+          response.stall.parkingZoneId shouldBe ParkingZone.ObstructiveParkingZone.parkingZoneId
         }
 
         result shouldBe defined
@@ -503,7 +503,7 @@ class ZonalParkingManagerSpec
       response.stall.locationUTM shouldBe inquiry.destinationUtm.loc
       response.stall.chargingPointType shouldBe None
       response.stall.parkingType shouldBe ParkingType.DoubleParking
-      response.stall.parkingZoneId shouldBe ParkingZone.DefaultParkingZone.parkingZoneId
+      response.stall.parkingZoneId shouldBe ParkingZone.ObstructiveParkingZone.parkingZoneId
     }
   }
 
