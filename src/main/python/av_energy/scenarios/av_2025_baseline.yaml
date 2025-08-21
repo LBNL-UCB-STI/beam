@@ -78,23 +78,23 @@ defaults:
 
 fleet:
   - level: 0
-    annual_driven_vmt: 2.8875e+12 # 87.5% of the fleet
+    annual_driven_vmt: 2887500000000 # 87.5% of the fleet
     fleet_size: 261362500 # 87.5% of the fleet
 
   - level: 1
-    annual_driven_vmt: 2.409e+11 # 7.3% of the fleet
+    annual_driven_vmt: 240900000000 # 7.3% of the fleet
     fleet_size: 21805100 # 7.3% of the fleet
     compute_tdp_watt: 2.5
     sensors_tdp_watt: 3.66
 
   - level: 2
-    annual_driven_vmt: 1.683e+11 # 5.1% of the fleet
+    annual_driven_vmt: 168300000000 # 5.1% of the fleet
     fleet_size: 15233700 # 5.1% of the fleet
     compute_tdp_watt: 10
     sensors_tdp_watt: 14.92
 
   - level: 3
-    annual_driven_vmt: 3.3e+09 # 0.1% of the fleet
+    annual_driven_vmt: 3300000000 # 0.1% of the fleet
     fleet_size: 298700 # 0.1% of the fleet
     compute_tdp_watt: 110
     sensors_tdp_watt: 12

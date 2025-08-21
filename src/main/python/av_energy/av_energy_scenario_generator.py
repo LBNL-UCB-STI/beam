@@ -60,8 +60,9 @@ class AVScenarioGenerator:
                     "urban_minor_collector": 0.9,
                     "urban_local": 0.95
                 },
-                "cooling_config": {
-                    "cooling_overhead_factor": 0.77
+                "vehicle_config": {
+                    "cooling_overhead_factor": 0.77,
+                    "transmitted_data_ratio": 0.0001
                 },
                 "training_config": {
                     "gpu_utilization_rate": 0.75,
@@ -82,30 +83,26 @@ class AVScenarioGenerator:
         self.fleet_configs = {
             0: {
                 "level": 0,
-                "fleet_share": 0.0,
-                "driving_vmt_daily": 0,
+                "annual_driven_vmt": 0,
                 "fleet_size": 0
             },
             1: {
                 "level": 1,
-                "fleet_share": 0.0,
-                "driving_vmt_daily": 0,
+                "annual_driven_vmt": 0,
                 "fleet_size": 0,
                 "compute_tdp_watt": 2.5,
                 "sensors_tdp_watt": 3.66
             },
             2: {
                 "level": 2,
-                "fleet_share": 0.0,
-                "driving_vmt_daily": 0,
+                "annual_driven_vmt": 0,
                 "fleet_size": 0,
                 "compute_tdp_watt": 10,
                 "sensors_tdp_watt": 14.92
             },
             3: {
                 "level": 3,
-                "fleet_share": 0.0,
-                "driving_vmt_daily": 0,
+                "annual_driven_vmt": 0,
                 "fleet_size": 0,
                 "compute_tdp_watt": 110,
                 "sensors_tdp_watt": 12,
@@ -114,10 +111,9 @@ class AVScenarioGenerator:
             },
             4: {
                 "level": 4,
-                "fleet_share": 0.0,
-                "driving_vmt_daily": 0,
+                "annual_driven_vmt": 0,
                 "fleet_size": 0,
-                "simulation_vmt_daily": 0,
+                "annual_simulated_vmt": 0,
                 "compute_tdp_watt": 800,
                 "sensors_tdp_watt": 227.97,
                 "sensors_data_Mbit_per_second": 33628,
@@ -159,10 +155,9 @@ class AVScenarioGenerator:
             },
             5: {
                 "level": 5,
-                "fleet_share": 0.0,
-                "driving_vmt_daily": 0,
+                "annual_driven_vmt": 0,
                 "fleet_size": 0,
-                "simulation_vmt_daily": 0,
+                "annual_simulated_vmt": 0,
                 "compute_tdp_watt": 0,
                 "sensors_tdp_watt": 0,
                 "sensors_data_Mbit_per_second": 0,
@@ -181,6 +176,7 @@ class AVScenarioGenerator:
 
         Args:
             scenario_name: Name for the scenario
+            demand_growth_rate: Growth factor for total demand (e.g., 1.14 for 14% growth)
             adoption_percentages: Dict mapping AV level to adoption percentage
 
         Returns:
@@ -188,21 +184,25 @@ class AVScenarioGenerator:
         """
         scenario = copy.deepcopy(self.base_template)
         scenario["scenario"] = scenario_name
-        self.base_fleet_size = int(self.base_fleet_size * demand_growth_rate)
-        self.base_total_vmt = self.base_total_vmt * demand_growth_rate
-        self.base_template["defaults"]["vmt_total"] = self.base_total_vmt
-        self.base_template["defaults"]["fleet_total"] = self.base_fleet_size
+
+        # Apply growth rate to base totals
+        current_fleet_size = int(self.base_fleet_size * demand_growth_rate)
+        current_total_vmt = int(self.base_total_vmt * demand_growth_rate)
+
+        # Update defaults with new totals
+        scenario["defaults"]["fleet_total"] = current_fleet_size
+        scenario["defaults"]["vmt_total"] = current_total_vmt
 
         # Generate fleet configurations
         for level in range(6):
             if level in adoption_percentages and adoption_percentages[level] > 0:
                 fleet_config = copy.deepcopy(self.fleet_configs[level])
 
-                # Calculate fleet size and VMT for this level
+                # Calculate fleet size and annual VMT for this level
                 adoption_rate = adoption_percentages[level] / 100.0
-                fleet_config["fleet_share"] = adoption_rate
-                fleet_config["fleet_size"] = int(self.base_fleet_size * adoption_rate/365)
-                fleet_config["driving_vmt_daily"] = int(self.base_total_vmt * adoption_rate/365)
+                fleet_config["fleet_size"] = int(current_fleet_size * adoption_rate)
+                fleet_config["annual_driven_vmt"] = int(current_total_vmt * adoption_rate)
+
                 scenario["fleet"].append(fleet_config)
 
         return scenario
@@ -218,7 +218,7 @@ class AVScenarioGenerator:
         for config in scenarios_config:
             scenario = self.generate_scenario(
                 config["name"],
-                config["total_vmt_trillion"],
+                config["demand_growth_rate"],
                 config["adoption_percentages"]
             )
             self.save_scenario(scenario, config["filename"])
@@ -228,8 +228,8 @@ def main():
     """Generate various AV adoption scenarios."""
     generator = AVScenarioGenerator()
 
-    print("\nGenerating custom scenario...")
-    custom_scenario = generator.generate_scenario(
+    print("\nGenerating 2035 scenario...")
+    scenario_2035 = generator.generate_scenario(
         scenario_name="2035 Projected Adoption",
         demand_growth_rate=1.14,  # 14% growth from 2025 to 2035
         adoption_percentages={
@@ -241,12 +241,11 @@ def main():
             5: 0
         }
     )
-    generator.save_scenario(custom_scenario, "scenarios/av_2035_projected_adoption.yaml")
+    generator.save_scenario(scenario_2035, "scenarios/av_2035_projected_adoption.yaml")
 
-
-    print("\nGenerating custom scenario...")
-    custom_scenario = generator.generate_scenario(
-        scenario_name="2050 Projected Adoption",
+    print("\nGenerating 2050 scenario...")
+    scenario_2050 = generator.generate_scenario(
+        scenario_name="2050 Mass Adoption",
         demand_growth_rate=1.35,  # 35% growth from 2025 to 2050
         adoption_percentages={
             0: 0,
@@ -257,8 +256,7 @@ def main():
             5: 87.5
         }
     )
-    generator.save_scenario(custom_scenario, "scenarios/av_2050_mass_adoption.yaml")
-
+    generator.save_scenario(scenario_2050, "scenarios/av_2050_mass_adoption.yaml")
 
     print("\nAll scenarios generated successfully!")
 

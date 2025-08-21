@@ -56,106 +56,108 @@ def calculate_av_energy_consumption(vehicle_config, defaults):
     dict: Comprehensive energy breakdown
     """
     level = vehicle_config['level']
-    # Get fleet size from vehicle config or use provided value
-    fleet_share = vehicle_config.get('fleet_share', 0)
-    fleet_size = vehicle_config.get('fleet_size', fleet_share * defaults.get('fleet_total', 0))
 
-    # Skip level 0 (no autonomous features)
-    # Handle zero fleet size (like Level 5)
+    # Get fleet size and annual VMT directly from config
+    fleet_size = vehicle_config.get('fleet_size', 0)
+
+    # Skip level 0 (no autonomous features) or zero fleet size
     if level == 0 or fleet_size == 0:
         return standard_zero_energy_result()
 
     # **************************************************
     # ============ Onboard computing energy ============
     # **************************************************
-    # Get configuration values (existing logic)
-    vmt_split = vehicle_config.get('overrides', {}).get('vmt_split', defaults['vmt_split'])
-    speeds_mph = vehicle_config.get('overrides', {}).get('speeds_mph', defaults['speeds_mph'])
-    power_utilization = vehicle_config.get('overrides', {}).get('utilization_rate', defaults['utilization_rate'])
-    transmitted_data_ratio = vehicle_config.get('transmitted_data_ratio', 0)
-    cooling_overhead = defaults.get('vehicle_config', {}).get('cooling_overhead_factor', 0.77)
-    sensors_data_rate_mbps = vehicle_config.get('sensors_data_Mbit_per_second', 0)
-    training_tdp_kw = vehicle_config.get('training_tdp_watt', 0)
-    training_config = defaults.get('training_config', {})
 
-    # Base power ratings (TDP)
-    compute_tdp_kw = vehicle_config.get('compute_tdp_watt', 0) / 1000
-    sensors_tdp_kw = vehicle_config.get('sensors_tdp_watt', 0) / 1000
-    annual_vmt = vehicle_config.get('driving_vmt_daily', fleet_share * defaults['vmt_total'])
+    annual_driven_vmt = vehicle_config.get('annual_driven_vmt', 0)
+    annual_compute_energy_twh = 0
+    annual_sensors_energy_twh = 0
+    annual_driving_hours = 0
 
-    # Calculate energy by road category
-    total_compute_energy = 0
-    total_sensors_energy = 0
-    total_driving_time = 0
-    breakdown_by_category = {}
+    if annual_driven_vmt > 0 and fleet_size > 0:
+        vmt_split = vehicle_config.get('overrides', {}).get('vmt_split', defaults['vmt_split'])
+        speeds_mph = vehicle_config.get('overrides', {}).get('speeds_mph', defaults['speeds_mph'])
+        power_utilization = vehicle_config.get('overrides', {}).get('utilization_rate', defaults['utilization_rate'])
+        compute_tdp_kw = vehicle_config.get('compute_tdp_watt', 0) / 1000
+        sensors_tdp_kw = vehicle_config.get('sensors_tdp_watt', 0) / 1000
 
-    for category in vmt_split.keys():
-        # Calculate time and distance for this category
-        vmt_category = vmt_split[category] * driving_vmt_daily
+        # Calculate energy by road category
+        total_compute_energy_kwh = 0
+        total_sensors_energy_kwh = 0
+        total_driving_time_hour = 0
+        breakdown_by_category = {}
 
-        if speeds_mph[category] == 0:
-            travel_time_category = 0
-            print(f"Warning: No speed data for {category}, setting travel time to 0")
-        else:
-            travel_time_category = vmt_category / speeds_mph[category]
+        for category in vmt_split.keys():
+            # Calculate time and distance for this category
+            vmt_category = vmt_split[category] * annual_driven_vmt
 
-        total_driving_time += travel_time_category
+            if speeds_mph[category] == 0:
+                travel_time_hour = 0
+                print(f"Warning: No speed data for {category}, setting travel time to 0")
+            else:
+                travel_time_hour = vmt_category / speeds_mph[category]
 
-        # Get power utilization for this category (directly from config)
-        power_util_category = power_utilization[category]
+            total_driving_time_hour += travel_time_hour
 
-        # Calculate actual power consumption for this category
-        actual_compute_power_kw = compute_tdp_kw * power_util_category
-        # Sensor power is assumed to be always used at max capacity
-        actual_sensors_power_kw = sensors_tdp_kw
+            # Get power utilization for this category (directly from config)
+            power_util_category = power_utilization[category]
 
-        # Calculate energy for this category
-        compute_energy_category = actual_compute_power_kw * travel_time_category
-        sensors_energy_category = actual_sensors_power_kw * travel_time_category
+            # Calculate actual power consumption for this category
+            actual_compute_power_kw = compute_tdp_kw * power_util_category
+            # We assume sensors are always at maximum usage when vehicle is driving
+            actual_sensors_power_kw = sensors_tdp_kw
 
-        total_compute_energy += compute_energy_category
-        total_sensors_energy += sensors_energy_category
+            # Calculate energy for this category
+            compute_energy_kwh = actual_compute_power_kw * travel_time_hour
+            sensors_energy_kwh = actual_sensors_power_kw * travel_time_hour
 
-        # Store breakdown for analysis
-        breakdown_by_category[category] = {
-            'vmt': vmt_category,
-            'speed_mph': speeds_mph[category],
-            'travel_time_hours': travel_time_category,
-            'power_utilization_factor': power_util_category,
-            'actual_compute_power_kw': actual_compute_power_kw,
-            'actual_sensors_power_kw': actual_sensors_power_kw,
-            'compute_energy_kwh': compute_energy_category,
-            'sensors_energy_kwh': sensors_energy_category
-        }
+            total_compute_energy_kwh += compute_energy_kwh
+            total_sensors_energy_kwh += sensors_energy_kwh
 
-    # Annual energy (multiply daily by 365)
-    annual_compute_energy_twh = (total_compute_energy * 365) / 1e9
-    annual_sensors_energy_twh = (total_sensors_energy * 365) / 1e9
-    annual_driving_hours = total_driving_time * 365
+            # Store breakdown for analysis
+            breakdown_by_category[category] = {
+                'vmt': vmt_category,
+                'speed_mph': speeds_mph[category],
+                'travel_time_hours': travel_time_hour,
+                'power_utilization_factor': power_util_category,
+                'actual_compute_power_kw': actual_compute_power_kw,
+                'actual_sensors_power_kw': actual_sensors_power_kw,
+                'compute_energy_kwh': compute_energy_kwh,
+                'sensors_energy_kwh': sensors_energy_kwh
+            }
+
+        # Annual energy
+        annual_compute_energy_twh = total_compute_energy_kwh / 1e9
+        annual_sensors_energy_twh = total_sensors_energy_kwh / 1e9
+        annual_driving_hours = total_driving_time_hour
 
     # **************************************************
     # ============ Onboard cooling energy ============
     # **************************************************
+    cooling_overhead = defaults.get('vehicle_config', {}).get('cooling_overhead_factor', 0.77)
     annual_onboard_cooling_energy_twh = (annual_compute_energy_twh + annual_sensors_energy_twh) * cooling_overhead
 
+
     # **************************************************
-    # ============ Onboard data storage energy (only if vehicle has sensors) ============
+    # ============ SENSORS ============
+    # **************************************************
+    sensors_data_rate_mbps = vehicle_config.get('sensors_data_Mbit_per_second', 0)
+    transmitted_data_ratio = defaults.get('vehicle_config', {}).get('transmitted_data_ratio', 0)
+
+    # **************************************************
+    # ============ Onboard data storage energy ============
     # **************************************************
     annual_onboard_storage_energy_twh = 0
     if sensors_data_rate_mbps > 0:
-        # Data generation rate (TB/hour from sensors)
-        # 1 Mbps = 1e6 bits/sec = 125,000 bytes/sec = 0.45 GB/hour = 0.00045 TB/hour
-        sensors_data_rate = sensors_data_rate_mbps * 0.00045  # Convert Mbps to TB/hour
-
-        # Storage capacity configuration
         buffer_factor = 1.5  # 50% buffer for data bursts and safety margin (industry standard)
         max_storage_hours = 24  # 24-hour rolling buffer (regulatory requirement for accident investigation)
-
-        # Power consumption parameters
-        # Samsung automotive SSD specifications (2-3W per TB)
-        power_per_tb_watt = 2.0  # Watts per TB for automotive-grade SSD idle consumption
-        # Intel automotive processors for compression/encryption
+        power_per_tb_watt = 2.0  # Watts per TB for automotive-grade SSD consumption
         processing_power_per_gbps_watt = 10  # Watts per Gbps for real-time data processing
+        mbps_to_tbh = 0.00045  # Conversion factor from Mbps to TB/hour
+        tbh_to_gbps = 2.222222 # Conversion factor from TB/hour to Gbps
+
+        # Data generation rate (TB/hour from sensors)
+        # 1 Mbps = 1e6 bits/sec = 125,000 bytes/sec = 0.45 GB/hour = 0.00045 TB/hour
+        sensors_data_rate = sensors_data_rate_mbps * mbps_to_tbh  # Convert Mbps to TB/hour
 
         # Calculate storage requirements
         required_storage_tb = sensors_data_rate * max_storage_hours * buffer_factor
@@ -163,7 +165,7 @@ def calculate_av_energy_consumption(vehicle_config, defaults):
 
         # Data processing energy (compression, encryption, formatting)
         # Convert TB/hour to Gbps for processing power calculation
-        data_rate_gbps = sensors_data_rate * 8000 / 3600  # TB/hour to Gbps (1 TB = 8000 Gb, 1 hour = 3600 sec)
+        data_rate_gbps = sensors_data_rate * tbh_to_gbps # TB/hour to Gbps (1 TB = 8000 Gb, 1 hour = 3600 sec)
         processing_power_kw = (data_rate_gbps * processing_power_per_gbps_watt) / 1000
 
         # Annual energy calculation
@@ -178,18 +180,16 @@ def calculate_av_energy_consumption(vehicle_config, defaults):
     annual_vehicle_tx_energy_twh = 0
     annual_network_energy_twh = 0
     if sensors_data_rate_mbps > 0:
+        compression_ratio = 4.5 # 3:1 to 6:1 for real-time automotive compression
+        vehicle_tx_power_per_mbps_watt = 0.5  # Watts per Mbps for 5G/cellular transmission
+        network_energy_per_bit_nanojoules = 25  # Network infrastructure energy per bit (higher for 5G)
 
-        # Compression before transmission
-        # 3:1 to 6:1 for real-time automotive compression
-        compression_ratio = 4.5
         transmitted_data_rate_mbps = (sensors_data_rate_mbps * transmitted_data_ratio) / compression_ratio
         # Vehicle transmission energy (5G/cellular modem)
         # Qualcomm 5G automotive modem specifications
-        vehicle_tx_power_per_mbps_watt = 0.5  # Watts per Mbps for 5G/cellular transmission
         vehicle_tx_power_kw = (transmitted_data_rate_mbps * vehicle_tx_power_per_mbps_watt) / 1000
 
         # Network infrastructure energy per bit transmitted
-        network_energy_per_bit_nanojoules = 25  # Network infrastructure energy per bit (higher for 5G)
         network_energy_per_bit_j = network_energy_per_bit_nanojoules * 1e-9  # Convert nJ to J per bit
         bits_per_hour = transmitted_data_rate_mbps * 1e6 * 3600  # Convert Mbps to bits/hour
         network_power_kw = (bits_per_hour * network_energy_per_bit_j) / 3600 / 1000  # Convert J/hour to kW
@@ -203,50 +203,58 @@ def calculate_av_energy_consumption(vehicle_config, defaults):
     # **************************************************
     annual_datacenter_storage_energy_twh = 0
     if sensors_data_rate_mbps > 0 and fleet_size > 0:
+        preprocessing_compression_ratio = 20  # 20:1 compression after preprocessing
+        data_retention_years = 5  # Years to retain training data
+        storage_pue = 1.3  # Modern datacenter PUE (updated from 1.6)
+        storage_power_per_tb_watt = 8  # Watts per TB including redundancy and cooling
+        processing_power_per_tb_year_watt = 100
+        mbps_to_tbh = 0.00045  # Conversion factor from Mbps to TB/hour
+        hours_per_year = 8760  # Number of hours in a year
+
         # Raw data generation per vehicle (TB/hour)
-        sensors_data_rate_tb_hour = sensors_data_rate_mbps * transmitted_data_ratio * 0.00045
+        sensors_data_rate_tb_hour = sensors_data_rate_mbps * transmitted_data_ratio * mbps_to_tbh
 
         # Preprocessing and compression at datacenter
-        preprocessing_compression_ratio = 20  # 20:1 compression after preprocessing
         processed_data_rate_tb_hour = sensors_data_rate_tb_hour / preprocessing_compression_ratio
 
-        # Total fleet data generation per year
+        # Data generation for entire fleet per year
         total_annual_data_tb = processed_data_rate_tb_hour * annual_driving_hours * fleet_size
 
         # Storage retention policy
-        data_retention_years = 5  # Years to retain training data
         total_storage_capacity_tb = total_annual_data_tb * data_retention_years
 
         # Storage system energy consumption
-        storage_pue = 1.3  # Modern datacenter PUE (updated from 1.6)
-        storage_power_per_tb_watt = 8  # Watts per TB including redundancy and cooling
-
         storage_power_kw = total_storage_capacity_tb * storage_power_per_tb_watt / 1000
         total_storage_power_with_pue_kw = storage_power_kw * storage_pue
 
         # Data processing power (ingestion, indexing, backup)
-        processing_power_per_tb_year_watt = 100
         annual_processing_power_kw = total_annual_data_tb * processing_power_per_tb_year_watt / 1000
         total_annual_processing_power_with_pue_kw = annual_processing_power_kw * storage_pue
 
-        # Annual datacenter storage energy (TWh per year)
-        annual_storage_energy_twh = (total_storage_power_with_pue_kw * 8760) / 1e9  # Storage infrastructure runs 24/7
-        annual_processing_energy_twh = (total_annual_processing_power_with_pue_kw * annual_driving_hours) / 1e9  # Processing infrastructure runs by annual_driving_hours
+        # Annual datacenter storage energy
+        annual_storage_energy_twh = (total_storage_power_with_pue_kw * hours_per_year) / 1e9  # Storage infrastructure runs 24/7
+        annual_processing_energy_twh = (total_annual_processing_power_with_pue_kw * annual_driving_hours) / 1e9  # Processing during driving hours
         annual_datacenter_storage_energy_twh = annual_storage_energy_twh + annual_processing_energy_twh
 
     # **************************************************
-    # ============ ANNUAL TRAINING INFRASTRUCTURE ENERGY ============
+    # ============ TRAINING INFRASTRUCTURE ENERGY (shared infrastructure, calculated per vehicle) ============
     # **************************************************
+    training_config = defaults.get('training_config', {})
+    training_tdp_kw = vehicle_config.get('training_tdp_watt', 0) / 1000
+
     annual_training_energy_twh = 0
     if training_tdp_kw > 0 and fleet_size > 0:
-        # Training efficiency factors
         utilization_rate = training_config.get('gpu_utilization_rate', 0.75)  # 75% GPU utilization
-        parallelization_efficiency = 0.85  # 85% scaling efficiency for distributed training
         failed_runs_overhead = training_config.get('failed_runs_overhead_factor', 1.2)  # 20% overhead for failed runs
-
-        # Model updates and iterations per year
         model_iterations_per_year = training_config.get('model_iterations_per_year', 24)  # Every 2 weeks
         continuous_training_factor = training_config.get('continuous_training_factor', 0.3)  # 30% continuous learning
+        full_retraining_hours_per_iteration = training_config.get('full_retraining_hours_per_iteration',2160)  # 90 days
+        incremental_training_hours_per_iteration = training_config.get('incremental_training_hours_per_iteration',720)  # 30 days
+        cooling_power_ratio = training_config.get('cooling_power_ratio', 0.77)  # 77% of compute power for cooling
+        networking_power_ratio = training_config.get('networking_power_ratio', 0.1)  # 10% of compute power
+        training_pue = 1.1  # Modern AI training center PUE (Google-class efficiency)
+        parallelization_efficiency = 0.85  # 85% scaling efficiency for distributed training
+        numhour_per_year = 8760  # Number of hours in a year
 
         # Effective training power accounting for efficiency losses
         effective_training_power_kw = (
@@ -256,24 +264,15 @@ def calculate_av_energy_consumption(vehicle_config, defaults):
                 (1 / utilization_rate)
         )
 
-        # Training time allocation per year
-        full_retraining_hours_per_iteration = training_config.get('full_retraining_hours_per_iteration', 2160)  # 90 days
-        incremental_training_hours_per_iteration = training_config.get('incremental_training_hours_per_iteration', 720)  # 30 days
-
         # Annual training hours
         annual_training_hours = (
                 full_retraining_hours_per_iteration * model_iterations_per_year * 0.25 +  # 25% full retraining
                 incremental_training_hours_per_iteration * model_iterations_per_year * 0.75 +  # 75% incremental
-                8760 * continuous_training_factor  # Continuous learning hours per year
+                continuous_training_factor * numhour_per_year  # Continuous learning hours per year
         )
 
         # Annual compute energy
         annual_compute_energy_twh = (effective_training_power_kw * annual_training_hours) / 1e9
-
-        # Training infrastructure energy with modern PUE
-        training_pue = 1.1  # Modern AI training center PUE (Google-class efficiency)
-        cooling_power_ratio = training_config.get('cooling_power_ratio', 0.77)  # 77% of compute power for cooling
-        networking_power_ratio = training_config.get('networking_power_ratio', 0.1)  # 10% of compute power
 
         # Annual infrastructure energy breakdown
         annual_cooling_energy_twh = (effective_training_power_kw * cooling_power_ratio * annual_training_hours) / 1e9
@@ -282,8 +281,7 @@ def calculate_av_energy_consumption(vehicle_config, defaults):
         # Total annual training infrastructure energy
         annual_training_energy_twh = (annual_compute_energy_twh + annual_cooling_energy_twh + annual_networking_energy_twh) * training_pue
 
-
-    # Total energy per vehicle (including allocated share of training)
+    # Total energy per vehicle
     annual_total_energy_twh = (
             annual_compute_energy_twh +
             annual_sensors_energy_twh +
@@ -312,10 +310,10 @@ def calculate_av_energy_consumption(vehicle_config, defaults):
         'annual_datacenter_storage_energy_twh': annual_datacenter_storage_energy_twh,
         'annual_training_energy_twh': annual_training_energy_twh,
 
-        # Detailed breakdowns
-        'fleet_size': fleet_size
+        # Metadata
+        'fleet_size': fleet_size,
+        'annual_driven_vmt': annual_driven_vmt
     }
-
 
 def calculate_fleet_energy_consumption(fleet_config):
     """
