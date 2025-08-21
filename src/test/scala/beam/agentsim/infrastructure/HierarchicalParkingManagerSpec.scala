@@ -83,10 +83,10 @@ class HierarchicalParkingManagerSpec
 
         val inquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 10)
         val envelope = new Envelope(
-          inquiry.destinationUtm.loc.getX + 100,
-          inquiry.destinationUtm.loc.getX - 100,
-          inquiry.destinationUtm.loc.getY + 100,
-          inquiry.destinationUtm.loc.getY - 100
+          inquiry.destinationUtm.loc.getX + 1000,
+          inquiry.destinationUtm.loc.getX - 1000,
+          inquiry.destinationUtm.loc.getY + 1000,
+          inquiry.destinationUtm.loc.getY - 1000
         )
         val response = parkingManager.processParkingInquiry(inquiry)
         assert(response.triggerId == 10)
@@ -117,10 +117,10 @@ class HierarchicalParkingManagerSpec
 
       val inquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 34347)
       val envelope = new Envelope(
-        inquiry.destinationUtm.loc.getX + 100,
-        inquiry.destinationUtm.loc.getX - 100,
-        inquiry.destinationUtm.loc.getY + 100,
-        inquiry.destinationUtm.loc.getY - 100
+        inquiry.destinationUtm.loc.getX + 1000,
+        inquiry.destinationUtm.loc.getX - 1000,
+        inquiry.destinationUtm.loc.getY + 1000,
+        inquiry.destinationUtm.loc.getY - 1000
       )
 
       val response = parkingManager.processParkingInquiry(inquiry)

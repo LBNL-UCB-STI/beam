@@ -110,6 +110,7 @@ object ParkingNetworkManager extends LazyLogging {
           emissionsProfile
         )
       )
+      currentBeamVehicle.unsetLastUsedStall() // Clear lastUsedStall after emitting LeavingParkingEvent
     }
   }
 }
