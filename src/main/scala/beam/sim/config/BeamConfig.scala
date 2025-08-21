@@ -4692,7 +4692,7 @@ object BeamConfig {
             maxTimeLimitForFreightInMinutes =
               if (c.hasPathOrNull("maxTimeLimitForFreightInMinutes")) c.getInt("maxTimeLimitForFreightInMinutes")
               else 300,
-            numberOfSamples = if (c.hasPathOrNull("numberOfSamples")) c.getInt("numberOfSamples") else 1,
+            numberOfSamples = if (c.hasPathOrNull("numberOfSamples")) c.getInt("numberOfSamples") else 0,
             osmMapdbFile =
               if (c.hasPathOrNull("osmMapdbFile")) c.getString("osmMapdbFile")
               else "/test/input/beamville/r5/osm.mapdb",
