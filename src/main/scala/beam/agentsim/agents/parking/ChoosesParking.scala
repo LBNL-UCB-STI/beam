@@ -75,17 +75,24 @@ object ChoosesParking {
         }
       }
       currentBeamVehicle.useParkingStall(stall)
+    }
+    if (currentBeamVehicle.reservedStall.isEmpty && currentBeamVehicle.stall.isDefined) {
+      logger.warn(
+        s"Vehicle ${currentBeamVehicle.id} parked at ${currentBeamVehicle.stall.get.locationUTM} without a prior reserved stall. Parking type: ${currentBeamVehicle.stall.get.parkingType}. This previously would have been a missing parking event"
+      )
+    }
+    currentBeamVehicle.stall.foreach { occupiedStall: ParkingStall =>
       val parkEvent = ParkingEvent(
         time = tick,
-        stall = stall,
-        locationWGS = geo.utm2Wgs(stall.locationUTM),
+        stall = occupiedStall,
+        locationWGS = geo.utm2Wgs(occupiedStall.locationUTM),
         vehicleId = currentBeamVehicle.id,
         driverId = driver.toString
       )
       eventsManager.processEvent(parkEvent) // nextLeg.endTime -> to fix repeated path traversal
       restOfTrip.foreach { legs =>
         if (legs.size >= 2 && legs.head.beamLeg.mode == BeamMode.CAR && legs(1).beamLeg.mode == BeamMode.WALK) {
-          val parkingSkimmerEvent = createParkingSkimmerEvent(tick, geo, tazTreeMap, nextActivity, stall, legs)
+          val parkingSkimmerEvent = createParkingSkimmerEvent(tick, geo, tazTreeMap, nextActivity, occupiedStall, legs)
           eventsManager.processEvent(parkingSkimmerEvent)
           val freightRequestType =
             nextActivity.flatMap(activity =>

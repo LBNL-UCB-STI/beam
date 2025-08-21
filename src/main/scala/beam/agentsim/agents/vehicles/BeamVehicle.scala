@@ -172,6 +172,12 @@ class BeamVehicle(
     }
   }
 
+  def unsetLastUsedStall(): Unit = {
+    stallRWLock.write {
+      lastUsedStallInternal = None
+    }
+  }
+
   def waitingToCharge(startTick: Int): Unit = {
     if (beamVehicleType.primaryFuelType == Electricity || beamVehicleType.secondaryFuelType.contains(Electricity)) {
       chargerRWLock.write {
