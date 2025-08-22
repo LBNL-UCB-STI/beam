@@ -28,8 +28,8 @@ class FreightReplannerSpec extends AnyWordSpecLike with Matchers with BeamHelper
       val rnd = new Random(100)
       val freightReader = FreightReader(beamServices)
       val replanner = new FreightReplanner(beamServices, beamServices.skims.od_skimmer, rnd, freightReader)
-      val carrier =
-        beamServices.beamScenario.freightCarriers.find(_.carrierId == "ft-1".createId[FreightCarrier]).get
+      val (carrierID, carrier) =
+        beamServices.beamScenario.freightCarriers.find(x => x._2.carrierId == "ft-1".createId[FreightCarrier]).get
       val routes = replanner.calculateRoutes(carrier, "singleTour", 0)
       routes should have size 3
       routes(0).vehicle.id should be("ft-1")
@@ -64,8 +64,8 @@ class FreightReplannerSpec extends AnyWordSpecLike with Matchers with BeamHelper
       val rnd = new Random(100)
       val freightReader = FreightReader(beamServices)
       val replanner = new FreightReplanner(beamServices, beamServices.skims.od_skimmer, rnd, freightReader)
-      val carrier =
-        beamServices.beamScenario.freightCarriers.find(_.carrierId == "ft-1".createId[FreightCarrier]).get
+      val (carrierID, carrier) =
+        beamServices.beamScenario.freightCarriers.find(x => x._2.carrierId == "ft-1".createId[FreightCarrier]).get
       val routes = replanner.calculateRoutes(carrier, "wholeFleet", 0)
       routes should have size 1
       routes(0).vehicle.id should be("ft-1")
@@ -83,8 +83,8 @@ class FreightReplannerSpec extends AnyWordSpecLike with Matchers with BeamHelper
       val rnd = new Random(100)
       val freightReader = FreightReader(beamServices)
       val replanner = new FreightReplanner(beamServices, beamServices.skims.od_skimmer, rnd, freightReader)
-      val carrier =
-        beamServices.beamScenario.freightCarriers.find(_.carrierId == "ft-2".createId[FreightCarrier]).get
+      val (carrierID, carrier) =
+        beamServices.beamScenario.freightCarriers.find(x => x._2.carrierId == "ft-1".createId[FreightCarrier]).get
       val routes = replanner.calculateRoutes(carrier, "wholeFleet", 0)
       routes should have size 2
       routes(0).vehicle.id should be("ft-3")
@@ -118,8 +118,8 @@ class FreightReplannerSpec extends AnyWordSpecLike with Matchers with BeamHelper
       val rnd = new Random(100)
       val freightReader = FreightReader(beamServices)
       val replanner = new FreightReplanner(beamServices, beamServices.skims.od_skimmer, rnd, freightReader)
-      val carrier =
-        beamServices.beamScenario.freightCarriers.find(_.carrierId == "ft-1".createId[FreightCarrier]).get
+      val (carrierID, carrier) =
+        beamServices.beamScenario.freightCarriers.find(x => x._2.carrierId == "ft-1".createId[FreightCarrier]).get
       replanner.replan(carrier)
       val person = beamServices.matsimServices.getScenario.getPopulation.getPersons
         .get(Id.createPersonId("ft-1"))

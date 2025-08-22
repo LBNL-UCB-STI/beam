@@ -177,7 +177,7 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
       }
 
       reader.generatePopulation(
-        readCarriers(s"$freightInputDir/vehicleTypes.csv", freightConfig),
+        readCarriers(s"$freightInputDir/vehicleTypes.csv", freightConfig).map(x => x.carrierId -> x).toMap,
         populationFactory,
         householdFactory
       )
