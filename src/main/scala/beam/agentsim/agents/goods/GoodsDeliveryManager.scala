@@ -65,31 +65,40 @@ private class GoodsDeliveryManager(
     * @return
     */
   override def loggedReceive: PartialFunction[Any, Unit] = { case TriggerWithId(InitializeTrigger(_), triggerId) =>
-    val triggers: IndexedSeq[ScheduleTrigger] = (for {
-      carrier <- beamScenario.goodsCarriers
-      tours   <- carrier.tourMap.values
-      tour    <- tours
-      plans = carrier.plansPerTour(tour.tourId)
-    } yield {
-      val (pickups, destinations) = plans.partition(plan => plan.requestType == FreightRequestType.Loading)
-      if (pickups.size != 1)
-        throw new IllegalArgumentException(
-          s"Number of loading types must be one. ${tour.tourId} has ${pickups.size} ones. "
-        )
-      if (destinations.isEmpty)
-        throw new IllegalArgumentException(
-          s"A Tour must have at least one unloading. ${tour.tourId} has no unloading. "
-        )
-      val rhmName: Option[String] = if (carrier.carrierId == NO_CARRIER_ID) None else Some(carrier.carrierId.toString)
-      val pickup = pickups.head
-      val requestTime = pickup.estimatedTimeOfArrivalInSec - 200
-      destinations.map(destination =>
-        ScheduleTrigger(GoodsDeliveryTrigger(requestTime, rhmName, pickup, destination), self)
-      )
-    }).flatten
+    val triggers: IndexedSeq[ScheduleTrigger] =
+      beamScenario.goodsCarriers.values.iterator.flatMap { carrier =>
+        carrier.tourMap.values.iterator.flatMap { tours =>
+          tours.iterator.flatMap { tour =>
+            val plans = carrier.plansPerTour(tour.tourId)
+            val (pickups, destinations) = plans.partition(_.requestType == FreightRequestType.Loading)
+
+            if (pickups.size != 1) {
+              throw new IllegalArgumentException(
+                s"Number of loading types must be one. ${tour.tourId} has ${pickups.size} ones."
+              )
+            }
+
+            if (destinations.isEmpty) {
+              throw new IllegalArgumentException(
+                s"A Tour must have at least one unloading. ${tour.tourId} has no unloading."
+              )
+            }
+
+            val rhmName: Option[String] =
+              if (carrier.carrierId == NO_CARRIER_ID) None else Some(carrier.carrierId.toString)
+            val pickup = pickups.head
+            val requestTime = pickup.estimatedTimeOfArrivalInSec - 200
+            destinations.iterator.map { destination =>
+              ScheduleTrigger(GoodsDeliveryTrigger(requestTime, rhmName, pickup, destination), self)
+            }
+          }
+        }
+      }.toIndexedSeq // Materialize final result as IndexedSeq
+
     if (triggers.nonEmpty && goodsRhmNames.isEmpty) {
-      throw new IllegalArgumentException("No ride-hail managers that operates with goods")
+      throw new IllegalArgumentException("No ride-hail managers that operate with goods")
     }
+
     triggers.foreach(scheduler ! _)
     scheduler ! CompletionNotice(triggerId)
     contextBecome(operate(Map.empty))

@@ -271,16 +271,34 @@ class GenericFreightReader(
         }.toMap
       val carrierPlanIds: Set[Id[PayloadPlan]] = plansPerTour.values.flatten.map(_.payloadId).toSet
       val payloadMap = carrierPlanIds.map(planId => planId -> plans(planId)).toMap
+      val fleetDistribution: Map[BeamVehicleType, Double] =
+        calculateFreightDistribution(vehicleMap).iterator.map { case (vehicleTypeId, share) =>
+          vehicleTypes(vehicleTypeId) -> share
+        }.toMap
 
       FreightCarrier(
         carrierId,
         tourMap,
         payloadMap,
         vehicleMap,
+        fleetDistribution,
         plansPerTour,
         warehouseLocationZone,
         warehouseLocationUTM
       )
+    }
+
+    def calculateFreightDistribution(fleet: Map[Id[BeamVehicle], BeamVehicle]): Map[Id[BeamVehicleType], Double] = {
+      if (fleet.isEmpty) Map.empty
+      else {
+        val total = fleet.size.toDouble
+        val counts = new scala.collection.mutable.HashMap[Id[BeamVehicleType], Int]()
+        fleet.valuesIterator.foreach { vehicle =>
+          val key = vehicle.beamVehicleType.id
+          counts.update(key, counts.getOrElse(key, 0) + 1)
+        }
+        counts.map { case (k, v) => (k, v / total) }.toMap
+      }
     }
 
     val errors: ListBuffer[ErrorInfo] = ListBuffer()

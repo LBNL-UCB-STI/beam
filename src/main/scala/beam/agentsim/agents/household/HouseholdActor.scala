@@ -279,44 +279,54 @@ object HouseholdActor {
         }
 
         // ****************************
-        // NON CAV VEHICLES
-        val vehiclesByCategories = vehicles.filter(!_._2.isCAV).groupBy(_._2.beamVehicleType.vehicleCategory)
-        val vehiclesByAllCategories =
-          if (isFreightCarrier) {
-            val freightCategories = Seq(VehicleCategory.Class456Vocational) // Add other freight categories if needed
-            val emptyFreightVehicles = freightCategories.map(cat => cat -> Map[Id[BeamVehicle], BeamVehicle]()).toMap
-            emptyFreightVehicles ++ vehiclesByCategories
-          } else {
-            //We should create a vehicle manager for cars and bikes for
-            //all households in case they are generated during the simulation
-            householdVehicleCategories
-              .map(cat => cat -> Map[Id[BeamVehicle], BeamVehicle]())
-              .toMap ++ vehiclesByCategories
-          }
-        val fleetManagers = vehiclesByAllCategories.map { case (category, vehiclesInCategory) =>
-          val fleetManager =
-            context.actorOf(
-              Props(
-                new HouseholdFleetManager(
+        // Decide prefix and categories based on carrier type
+        val (prefix, categories) =
+          if (isFreightCarrier)
+            (FreightReader.FREIGHT_ID_PREFIX, FreightReader.FREIGHT_CATEGORIES)
+          else
+            (FreightReader.PASSENGER_ID_PREFIX, householdVehicleCategories)
+
+        // Create empty category entries
+        // Group non-CAV vehicles by (prefix, category)
+        // Merge empty categories with actual vehicles
+        val vehiclesByAllCategories: Map[(String, VehicleCategory), Map[Id[BeamVehicle], BeamVehicle]] =
+          categories.map(cat => (prefix, cat) -> Map.empty[Id[BeamVehicle], BeamVehicle]).toMap ++
+          vehicles
+            .filterNot(_._2.isCAV)
+            .groupBy { case (_, vehicle) => (prefix, vehicle.beamVehicleType.vehicleCategory) }
+
+        val fleetManagers = vehiclesByAllCategories.map {
+          case (demandSupplyCategory @ (_, category), vehiclesInCategory) =>
+            val emergencyVehicleGeneratorMaybe =
+              if (generateEmergencyHousehold)
+                Some(
+                  new EmergencyHouseholdVehicleGenerator(
+                    household,
+                    beamScenario,
+                    vehiclesAdjustment,
+                    demandSupplyCategory
+                  )
+                )
+              else None
+            val fleetManager =
+              context.actorOf(
+                HouseholdFleetManager.props(
                   parkingManager,
                   chargingNetworkManager,
                   vehiclesInCategory,
                   householdMembersToActivityTypeAndLocation,
-                  if (generateEmergencyHousehold)
-                    Some(new EmergencyHouseholdVehicleGenerator(household, beamScenario, vehiclesAdjustment, category))
-                  else None,
+                  emergencyVehicleGeneratorMaybe,
                   whoDrivesThisFreightVehicle,
                   beamServices.matsimServices.getEvents,
                   beamServices.geo,
                   beamServices.beamConfig,
                   beamServices.beamConfig.beam.debug
-                )
-              ),
-              category.toString
-            )
-          context.watch(fleetManager)
-          schedulerRef ! ScheduleTrigger(InitializeTrigger(0), fleetManager)
-          fleetManager
+                ),
+                category.toString
+              )
+            context.watch(fleetManager)
+            schedulerRef ! ScheduleTrigger(InitializeTrigger(0), fleetManager)
+            fleetManager
         }
 
         // ****************************
@@ -703,8 +713,11 @@ object HouseholdActor {
     household: Household,
     beamScenario: BeamScenario,
     vehiclesAdjustment: VehiclesAdjustment,
-    defaultCategory: VehicleCategory
+    defaultDemandSupplyCategory: (String, VehicleCategory)
   ) extends LazyLogging {
+    import FreightReader._
+
+    private val (defaultDemand: String, defaultCategory: VehicleCategory) = defaultDemandSupplyCategory
 
     private val realDistribution: UniformRealDistributionEnhanced =
       EmergencyHouseholdVehicleGenerator.sharedRandomGenerator
@@ -714,9 +727,41 @@ object HouseholdActor {
       category: VehicleCategory,
       whenWhere: SpaceTime
     ): Option[BeamVehicleType] = {
-      if (defaultCategory == category) {
+      val demand = if (personId.toString.startsWith(FREIGHT_ID_PREFIX)) FREIGHT_ID_PREFIX else PASSENGER_ID_PREFIX
+      if (defaultCategory == category && demand == defaultDemand) {
         category match {
-          case VehicleCategory.Car =>
+          case cat if FREIGHT_CATEGORIES.contains(cat) && demand == FREIGHT_ID_PREFIX =>
+            val carrierId = Id.create(household.getId, classOf[beam.agentsim.agents.freight.FreightCarrier])
+            val carrier = beamScenario.freightCarriers.getOrElse(
+              carrierId,
+              throw new NoSuchElementException(s"Carrier with id $carrierId not found in the scenario")
+            )
+            val vehicleType = vehiclesAdjustment
+              .sampleVehicleTypesForCarrier(
+                numVehicles = 1,
+                fleetDistribution = carrier.fleetDistribution,
+                realDistribution
+              )
+              .headOption
+              .orElse {
+                logger.error(
+                  s"Vehicle type sampling returned no results for carrier ${carrier.carrierId} " +
+                  s"with fleet distribution ${carrier.fleetDistribution}. " +
+                  s"Falling back to dummy shared car vehicle type."
+                )
+                beamScenario.vehicleTypes.get(
+                  Id.create(
+                    beamScenario.beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId,
+                    classOf[BeamVehicleType]
+                  )
+                )
+              }
+            logger.error(
+              s"Person $personId is requiring an emergency vehicle that belongs to category $category. " +
+              s"Choosing a random vehicle of type $cat: ${vehicleType.map(_.id.toString).getOrElse("None")}"
+            )
+            vehicleType
+          case VehicleCategory.Car if demand == PASSENGER_ID_PREFIX =>
             vehiclesAdjustment
               .sampleVehicleTypesForHousehold(
                 1,
@@ -738,7 +783,7 @@ object HouseholdActor {
                   )
                 )
               }
-          case VehicleCategory.Bike =>
+          case VehicleCategory.Bike if demand == PASSENGER_ID_PREFIX =>
             beamScenario.vehicleTypes
               .get(
                 Id.create(
@@ -746,23 +791,6 @@ object HouseholdActor {
                   classOf[BeamVehicleType]
                 )
               )
-          case cat @ (VehicleCategory.Class78Tractor | VehicleCategory.Class78Tractor |
-              VehicleCategory.Class456Vocational) =>
-            val chosenVeh = sharedRandomGenerator
-              .shuffle(
-                beamScenario.vehicleTypes
-                  .filter { vt =>
-                    vt._2.vehicleCategory == cat
-                  }
-                  .values
-                  .toList
-              )
-              .headOption
-            logger.debug(
-              s"Person $personId is requiring a vehicle that belongs to category $category" +
-              s"Choosing a random vehicle of type $cat: ${chosenVeh.map(_.id).getOrElse("None")}"
-            )
-            chosenVeh
           case _ =>
             logger.warn(
               s"Person $personId is requiring a vehicle that belongs to category $category that is neither Car nor Bike"

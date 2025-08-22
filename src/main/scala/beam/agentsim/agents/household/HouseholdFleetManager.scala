@@ -11,7 +11,8 @@ import beam.agentsim.agents.freight.input.FreightReader
 import beam.agentsim.agents.household.HouseholdActor._
 import beam.agentsim.agents.household.HouseholdFleetManager.ResolvedParkingResponses
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
+import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.agentsim.events.{ParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
@@ -49,10 +50,12 @@ class HouseholdFleetManager(
   private implicit val executionContext: ExecutionContext = context.dispatcher
   private var nextVehicleIndex = 0
 
-  private val vehiclesInternal: collection.mutable.Map[Id[BeamVehicle], BeamVehicle] =
-    collection.mutable.Map(vehicles.toSeq: _*)
+  private val vehiclesInternal: collection.mutable.Map[Id[BeamVehicle], BeamVehicle] = mutable.Map.empty ++ vehicles
+  private lazy val vehicleTypes: Set[BeamVehicleType] = vehicles.values.map(_.beamVehicleType).toSet
 
-  private var availableVehicles: List[BeamVehicle] = Nil
+  private lazy val availableVehicleCategories: Set[VehicleCategory] =
+    vehicles.values.map(_.beamVehicleType.vehicleCategory).toSet
+  private val availableVehicles: mutable.Set[BeamVehicle] = mutable.Set.empty
   var triggerSender: Option[ActorRef] = None
 
   private val trackingVehicleAssignmentAtInitialization = mutable.HashMap.empty[Id[BeamVehicle], Id[Person]]
@@ -62,6 +65,9 @@ class HouseholdFleetManager(
     case ResolvedParkingResponses(triggerId, xs) =>
       logger.debug(s"ResolvedParkingResponses ($triggerId, $xs)")
       xs.foreach { case (id, resp) =>
+        if (id.toString.startsWith("ft-a29626")) {
+          logger.info(s"Received ResolvedParkingResponses for personId: ${id}")
+        }
         val veh = vehiclesInternal(id)
         val person = trackingVehicleAssignmentAtInitialization(id)
         veh.setManager(Some(self))
@@ -101,7 +107,7 @@ class HouseholdFleetManager(
           .filter(_._2.parkingActivityType == ParkingActivityType.Working)
           .keys
           .toBuffer
-        vehicles.toList.map { case (id, vehicle) =>
+        vehicles.map { case (id, vehicle) =>
           val personId: Id[Person] = {
             if (isFreightCarrier) {
               householdMembersToActivityTypeAndLocation
@@ -147,7 +153,7 @@ class HouseholdFleetManager(
             logger.debug(s"Overnight parking vehicle $vehicle")
             (parkingManager ? inquiry).mapTo[ParkingInquiryResponse].map(r => (id, r))
           }
-        }
+        }.toList
       }
       val futureOfList = Future.sequence(listOfFutures)
       val response = futureOfList.map(ResolvedParkingResponses(triggerId, _))
@@ -168,7 +174,7 @@ class HouseholdFleetManager(
       if (availableVehicles.contains(vehicle)) {
         logger.warn("I can't release vehicle {} because I have it already", vehicle.id)
       } else {
-        availableVehicles = vehicle :: availableVehicles
+        availableVehicles += vehicle
         logger.debug("Vehicle {} is now available", vehicle.id)
       }
 
@@ -183,38 +189,28 @@ class HouseholdFleetManager(
             s"${self.actorRef.path.parent.name} because I'm not its manager"
           )
         } else {
-          availableVehicles = vehicle :: availableVehicles
+          if (vehicle.id.toString.startsWith("ft-a29626")) {
+            logger.info(s"Received ReleaseVehicleAndReply for personId: ${vehicle.id}")
+          }
+          availableVehicles += vehicle
           logger.debug("Vehicle {} is now available", vehicle.id)
         }
         sender() ! Success
       }
 
     case GetVehicleTypes(triggerId) =>
-      sender() ! VehicleTypesResponse(vehicles.values.map(_.beamVehicleType).toSet, triggerId)
+      sender() ! VehicleTypesResponse(vehicleTypes, triggerId)
 
     case inquiry @ MobilityStatusInquiry(personId, _, _, requireVehicleCategoryAvailable, triggerId) =>
       val availableVehicleMaybe: Option[BeamVehicle] = requireVehicleCategoryAvailable match {
-        case Some(_) if personId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX) =>
-          whoDrivesThisFreightVehicle
-            .filter(_._2 == personId)
-            .flatMap { case (vehicleId, _) => availableVehicles.find(_.id == vehicleId) }
-            .headOption
-            .orElse {
-              logger.warn(
-                s"Freight vehicle for person $personId not found in available vehicles. " +
-                s"Available vehicles: ${availableVehicles.map(_.id).mkString(", ")}"
-              )
-              // If specific vehicle not found, try to find any vehicle of the required category
-              requireVehicleCategoryAvailable.flatMap { reqCat =>
-                availableVehicles.find(veh => veh.beamVehicleType.vehicleCategory == reqCat)
-              }
-            }
-            .orElse { // Fallback to any available vehicle if category-specific search fails
-              logger.debug("No specific or category-matching freight vehicle found. Trying any available vehicle.")
-              availableVehicles.headOption
-            }
         case Some(requireVehicleCategory) =>
-          availableVehicles.find(veh => veh.beamVehicleType.vehicleCategory == requireVehicleCategory)
+          availableVehicles.find(_.beamVehicleType.vehicleCategory == requireVehicleCategory)
+        case None if personId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX) =>
+          if (personId.toString.startsWith("ft-a29626")) {
+            logger.info(s"Received MobilityStatusInquiry for personId: ${personId}")
+          }
+          val assignedVehicleId = whoDrivesThisFreightVehicle.collectFirst { case (vehicleId, `personId`) => vehicleId }
+          availableVehicles.find(v => assignedVehicleId.contains(v.id))
         case _ => availableVehicles.headOption
       }
 
@@ -223,16 +219,21 @@ class HouseholdFleetManager(
           logger.debug("Vehicle {} is now taken", availableVehicle.id)
           availableVehicle.becomeDriver(sender)
           sender() ! MobilityStatusResponse(Vector(ActualVehicle(availableVehicle)), triggerId)
-          availableVehicles = availableVehicles.filter(_ != availableVehicle)
+          if (personId.toString.startsWith("ft-a29626")) {
+            logger.info(s"Removing vehicle ${availableVehicle.id} but we are still in MobilityStatusInquiry section")
+          }
+          availableVehicles -= availableVehicle
         case None if createAnEmergencyVehicle(inquiry).nonEmpty =>
           logger.debug(s"An emergency vehicle has been created!")
         case _ =>
           if (availableVehicles.isEmpty) {
             requireVehicleCategoryAvailable match {
-              case Some(requiredType) if vehicles.values.exists(_.beamVehicleType.vehicleCategory == requiredType) =>
+              case Some(requiredType) if availableVehicleCategories.contains(requiredType) =>
                 logger.warn(s"Emergency vehicle generation for type $requiredType failed")
               case Some(_) =>
                 logger.debug(s"Ignoring vehicle request because it isn't for the right category")
+              case None if personId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX) =>
+                logger.warn(s"Emergency vehicle generation for person $personId failed")
               case None =>
             }
 
@@ -315,6 +316,35 @@ class HouseholdFleetManager(
 }
 
 object HouseholdFleetManager {
+  import akka.actor.{ActorRef, Props}
+
+  def props(
+    parkingManager: ActorRef,
+    chargingNetworkManager: ActorRef,
+    vehiclesInCategory: Map[Id[BeamVehicle], BeamVehicle],
+    householdMembersToActivityTypeAndLocation: Map[Id[Person], ActivityTypeAndLocation],
+    emergencyGenerator: Option[EmergencyHouseholdVehicleGenerator],
+    whoDrivesThisFreightVehicle: Map[Id[BeamVehicle], Id[Person]],
+    events: EventsManager,
+    geo: GeoUtils,
+    beamConfig: BeamConfig,
+    debug: Debug
+  ): Props = {
+    Props(
+      new HouseholdFleetManager(
+        parkingManager,
+        chargingNetworkManager,
+        vehiclesInCategory,
+        householdMembersToActivityTypeAndLocation,
+        emergencyGenerator,
+        whoDrivesThisFreightVehicle,
+        events,
+        geo,
+        beamConfig,
+        debug
+      )
+    )
+  }
 
   case class ResolvedParkingResponses(triggerId: Long, xs: List[(Id[BeamVehicle], ParkingInquiryResponse)])
       extends HasTriggerId

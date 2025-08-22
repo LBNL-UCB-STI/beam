@@ -1,6 +1,6 @@
 package beam.agentsim.agents.freight
 
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.infrastructure.taz.TAZ
 import enumeratum.{Enum, EnumEntry}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -60,6 +60,7 @@ case class FreightCarrier(
   tourMap: Map[Id[BeamVehicle], IndexedSeq[FreightTour]],
   payloadPlans: Map[Id[PayloadPlan], PayloadPlan],
   fleet: Map[Id[BeamVehicle], BeamVehicle],
+  fleetDistribution: Map[BeamVehicleType, Double],
   plansPerTour: Map[Id[FreightTour], IndexedSeq[PayloadPlan]],
   warehouseLocationTaz: Option[Id[TAZ]],
   warehouseLocationUTM: Coord

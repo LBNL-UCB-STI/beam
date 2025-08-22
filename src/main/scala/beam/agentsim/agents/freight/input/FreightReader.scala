@@ -4,7 +4,7 @@ import beam.agentsim.agents.freight.FreightRequestType.{Loading, Unloading, Ware
 import beam.agentsim.agents.freight.input.FreightReader.{FREIGHT_REQUEST_TYPE, PAYLOAD_IDS, PAYLOAD_WEIGHT_IN_KG}
 import beam.agentsim.agents.freight.{FreightCarrier, FreightRequestType, FreightTour, PayloadPlan}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory, VehicleManager}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.Modes.BeamMode
@@ -105,25 +105,49 @@ trait FreightReader {
   }
 
   def generatePopulation(
-    carriers: IndexedSeq[FreightCarrier],
+    carriers: Map[Id[FreightCarrier], FreightCarrier],
     populationFactory: PopulationFactory,
     householdsFactory: HouseholdsFactory
   ): IndexedSeq[(FreightCarrier, Household, Plan, Person, Id[BeamVehicle])] = {
-    carriers.flatMap { carrier =>
+
+    // Pre-size the buffer to avoid ArrayBuffer resizing
+    val totalPersons = carriers.valuesIterator.map(_.tourMap.size).sum
+    val results =
+      new scala.collection.mutable.ArrayBuffer[(FreightCarrier, Household, Plan, Person, Id[BeamVehicle])](totalPersons)
+
+    // Iterate directly over carrier values (avoids tuple destructuring from Map)
+    val carrierIter = carriers.valuesIterator
+    while (carrierIter.hasNext) {
+      val carrier = carrierIter.next()
+
+      // Create one household per carrier
       val freightCarrierId = createHouseholdId(carrier.carrierId)
       val household = householdsFactory.createHousehold(freightCarrierId)
       household.setIncome(new IncomeImpl(0, Income.IncomePeriod.year))
-      carrier.tourMap.map { case (vehicleId, tours) =>
+
+      // Iterate directly over tourMap entries for this carrier
+      val tourIter = carrier.tourMap.iterator
+      while (tourIter.hasNext) {
+        val (vehicleId, tours) = tourIter.next()
+
+        // Create person and plan
         val personId = createPersonId(vehicleId)
         val person = populationFactory.createPerson(personId)
+
         val currentPlan: Plan = createPersonPlan(carrier, tours, carrier.plansPerTour, person)
         person.addPlan(currentPlan)
         person.setSelectedPlan(currentPlan)
+
+        // Link person and vehicle to household
         household.getMemberIds.add(personId)
         household.getVehicleIds.add(vehicleId)
-        (carrier, household, currentPlan, person, vehicleId)
+
+        // Append tuple to results
+        results += ((carrier, household, currentPlan, person, vehicleId))
       }
     }
+
+    results.result()
   }
 
   protected def createFreightVehicle(
@@ -173,11 +197,19 @@ trait FreightReader {
 
 object FreightReader {
   val FREIGHT_ID_PREFIX = "ft"
+  val PASSENGER_ID_PREFIX = "pax"
   val FREIGHT_REQUEST_TYPE = "FreightRequestType"
   val PAYLOAD_WEIGHT_IN_KG = "PayloadWeightInKg"
   val PAYLOAD_IDS = "PayloadIds"
   val NO_CARRIER_ID: Id[FreightCarrier] = Id.create("no-carrier-defined", classOf[FreightCarrier])
   val NO_VEHICLE_ID: Id[BeamVehicle] = Id.createVehicleId("no-vehicle-defined")
+
+  val FREIGHT_CATEGORIES: Seq[VehicleCategory.VehicleCategory] = Seq(
+    VehicleCategory.Class78Tractor,
+    VehicleCategory.Class78Vocational,
+    VehicleCategory.Class456Vocational,
+    VehicleCategory.Car
+  )
 
   def apply(
     beamConfig: BeamConfig,

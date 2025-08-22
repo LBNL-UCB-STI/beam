@@ -73,7 +73,7 @@ object ParkingZone extends LazyLogging {
   // it started with, it could be possible in the system to happen due to scheduler issues. if
   // it does, it would be more helpful for it to reflect with a reasonable number, ie., 1000001,
   // which would tell us that we had 1 extra releaseStall event.
-  val UbiquitousParkingAvailability: Int = 1000000
+  val UbiquitousParkingAvailability: Int = 10000
 
   val DefaultParkingZone: ParkingZone = {
     val defaultParkingZoneId: Id[ParkingZoneId] = Id.create("default", classOf[ParkingZoneId])

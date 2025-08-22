@@ -13,6 +13,7 @@ abstract class ParkingNetwork(parkingZones: Map[Id[ParkingZoneId], ParkingZone])
 
   // Core
   private var totalStallsInUse: Long = 0L
+
   private var totalStallsAvailable: Long = parkingZones.map(_._2.stallsAvailable).sum
 
   /**
@@ -28,6 +29,9 @@ abstract class ParkingNetwork(parkingZones: Map[Id[ParkingZoneId], ParkingZone])
     val ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, _, _, _) =
       searchFunctions.map(_.searchForParkingStall(inquiry)).get
     // reserveStall is false when agent is only seeking pricing information
+    if (inquiry.personId.map(_.toString).getOrElse("").startsWith("ft-a29626")) {
+      logger.info(s"parking stall for personId: ${inquiry.personId.get}, stall => ${parkingStall}")
+    }
     if (inquiry.reserveStall) {
       logger.debug(
         s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging"

@@ -261,6 +261,6 @@ object InfrastructureUtils extends LazyLogging {
     stalls: Map[Id[ParkingZoneId], ParkingZone]
   ): Map[Id[ParkingZoneId], ParkingZone] = {
     import VehicleManager._
-    stalls.filter(x => x._2.reservedFor.managerType != TypeEnum.RideHail)
+    stalls.filter(x => x._2.chargingPointType.nonEmpty && x._2.reservedFor.managerType != TypeEnum.RideHail)
   }
 }
