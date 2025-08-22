@@ -65,9 +65,6 @@ class HouseholdFleetManager(
     case ResolvedParkingResponses(triggerId, xs) =>
       logger.debug(s"ResolvedParkingResponses ($triggerId, $xs)")
       xs.foreach { case (id, resp) =>
-        if (id.toString.startsWith("ft-a29626")) {
-          logger.info(s"Received ResolvedParkingResponses for personId: ${id}")
-        }
         val veh = vehiclesInternal(id)
         val person = trackingVehicleAssignmentAtInitialization(id)
         veh.setManager(Some(self))
@@ -189,9 +186,6 @@ class HouseholdFleetManager(
             s"${self.actorRef.path.parent.name} because I'm not its manager"
           )
         } else {
-          if (vehicle.id.toString.startsWith("ft-a29626")) {
-            logger.info(s"Received ReleaseVehicleAndReply for personId: ${vehicle.id}")
-          }
           availableVehicles += vehicle
           logger.debug("Vehicle {} is now available", vehicle.id)
         }
@@ -203,14 +197,11 @@ class HouseholdFleetManager(
 
     case inquiry @ MobilityStatusInquiry(personId, _, _, requireVehicleCategoryAvailable, triggerId) =>
       val availableVehicleMaybe: Option[BeamVehicle] = requireVehicleCategoryAvailable match {
-        case Some(requireVehicleCategory) =>
-          availableVehicles.find(_.beamVehicleType.vehicleCategory == requireVehicleCategory)
-        case None if personId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX) =>
-          if (personId.toString.startsWith("ft-a29626")) {
-            logger.info(s"Received MobilityStatusInquiry for personId: ${personId}")
-          }
+        case _ if personId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX) =>
           val assignedVehicleId = whoDrivesThisFreightVehicle.collectFirst { case (vehicleId, `personId`) => vehicleId }
           availableVehicles.find(v => assignedVehicleId.contains(v.id))
+        case Some(requireVehicleCategory) =>
+          availableVehicles.find(_.beamVehicleType.vehicleCategory == requireVehicleCategory)
         case _ => availableVehicles.headOption
       }
 
@@ -219,12 +210,15 @@ class HouseholdFleetManager(
           logger.debug("Vehicle {} is now taken", availableVehicle.id)
           availableVehicle.becomeDriver(sender)
           sender() ! MobilityStatusResponse(Vector(ActualVehicle(availableVehicle)), triggerId)
-          if (personId.toString.startsWith("ft-a29626")) {
-            logger.info(s"Removing vehicle ${availableVehicle.id} but we are still in MobilityStatusInquiry section")
-          }
           availableVehicles -= availableVehicle
         case None if createAnEmergencyVehicle(inquiry).nonEmpty =>
-          logger.debug(s"An emergency vehicle has been created!")
+          if (personId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX)) {
+            logger.error(
+              s"An emergency vehicle has been created for freight personId: ${personId}. This is either because of bad freight plans or a bug within BEAM"
+            )
+          } else {
+            logger.debug(s"An emergency vehicle has been created!")
+          }
         case _ =>
           if (availableVehicles.isEmpty) {
             requireVehicleCategoryAvailable match {
@@ -232,8 +226,6 @@ class HouseholdFleetManager(
                 logger.warn(s"Emergency vehicle generation for type $requiredType failed")
               case Some(_) =>
                 logger.debug(s"Ignoring vehicle request because it isn't for the right category")
-              case None if personId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX) =>
-                logger.warn(s"Emergency vehicle generation for person $personId failed")
               case None =>
             }
 

@@ -34,9 +34,6 @@ class ParkingNetworkManager(beamServices: BeamServices, parkingNetworkMap: Parki
 
   override def loggedReceive: Receive = {
     case inquiry: ParkingInquiry =>
-      if (inquiry.personId.map(_.toString).getOrElse("").startsWith("ft-a29626")) {
-        log.info(s"Received parking inquiry for personId: ${inquiry.personId.get}")
-      }
       val resolvedParkingDuration = Math.max(inquiry.parkingDuration, agentSimConfig.schedulerParallelismWindow)
       val desirableMinimumParkingDuration =
         Math.max(resolvedParkingDuration, agentSimConfig.agents.parking.estimatedMinParkingDurationInSeconds)

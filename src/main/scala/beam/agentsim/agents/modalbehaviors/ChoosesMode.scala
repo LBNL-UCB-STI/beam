@@ -170,9 +170,6 @@ trait ChoosesMode {
       // If I am already on a tour in a vehicle, only that vehicle is available to me
       // Unless it's a walk based tour and I used that vehicle for egress on my first trip
       case (data: ChoosesModeData, _, tourMode @ Some(CAR_BASED | BIKE_BASED | FREIGHT_TOUR)) =>
-        if (this.id.toString.startsWith("ft-a29626")) {
-          logger.info(s"Received ChoosingMode for personId: ${this.id}")
-        }
         if (data.personData.currentTourPersonalVehicle.isDefined) {
           if (!beamVehicles.contains(data.personData.currentTourPersonalVehicle.get)) {
             logger.error(
@@ -215,9 +212,6 @@ trait ChoosesMode {
       // If we're on a walk based tour but using a vehicle for access/egress
       case (data: ChoosesModeData, Some(BIKE_TRANSIT | DRIVE_TRANSIT), Some(WALK_BASED))
           if data.personData.currentTourPersonalVehicle.isDefined =>
-        if (this.id.toString.startsWith("ft-a29626")) {
-          logger.info(s"Received ChoosingMode for personId: ${this.id}")
-        }
         val currentTourPersonalVehicleId = data.personData.currentTourPersonalVehicle.get
         if (data.isWithinTripReplanning) {
           logger.debug(
@@ -250,9 +244,6 @@ trait ChoosesMode {
         self ! MobilityStatusResponse(vehicles, getCurrentTriggerIdOrGenerate)
       // Only need to get available street vehicles if our mode requires such a vehicle
       case (data: ChoosesModeData, Some(CAR | CAR_HOV2 | CAR_HOV3 | DRIVE_TRANSIT), _) =>
-        if (this.id.toString.startsWith("ft-a29626")) {
-          logger.info(s"Received ChoosingMode for personId: ${this.id}")
-        }
         parentTourStrategy match {
           case Some(strategy)
               if strategy.tourMode.contains(CAR_BASED) && strategy.tourVehicle.exists(beamVehicles.contains) =>
@@ -304,9 +295,6 @@ trait ChoosesMode {
       // If we're on a walk based tour and have an egress vehicle defined we NEED to bring it home
       case (data: ChoosesModeData, None, Some(WALK_BASED))
           if currentTourStrategy.tourVehicle.isDefined && isLastTripWithinTour(nextAct) =>
-        if (this.id.toString.startsWith("ft-a29626")) {
-          logger.info(s"Received ChoosingMode for personId: ${this.id}")
-        }
         if (beamVehicles.contains(currentTourStrategy.tourVehicle.get)) {
           self ! MobilityStatusResponse(
             Vector(beamVehicles(currentTourStrategy.tourVehicle.get)),
@@ -327,9 +315,6 @@ trait ChoosesMode {
 
       // Finally, if we're starting from scratch, request all available vehicles
       case (data: ChoosesModeData, None, _) =>
-        if (this.id.toString.startsWith("ft-a29626")) {
-          logger.info(s"Received ChoosingMode for personId: ${this.id}")
-        }
         implicit val executionContext: ExecutionContext = context.system.dispatcher
         requestAvailableVehicles(
           vehicleFleets,
@@ -342,9 +327,6 @@ trait ChoosesMode {
             Some(CAV | RIDE_HAIL | RIDE_HAIL_POOLED | RIDE_HAIL_TRANSIT | WALK | WALK_TRANSIT),
             _
           ) =>
-        if (this.id.toString.startsWith("ft-a29626")) {
-          logger.info(s"Received ChoosingMode for personId: ${this.id}")
-        }
         self ! MobilityStatusResponse(Vector(), getCurrentTriggerIdOrGenerate)
       case (_, tripModeOption, tourModeOption) =>
         logger.error(
@@ -371,9 +353,6 @@ trait ChoosesMode {
     activity: Activity,
     requireVehicleCategoryAvailable: Option[VehicleCategory] = None
   ): Future[MobilityStatusResponse] = {
-    if (this.id.toString.startsWith("ft-a29626")) {
-      logger.info(s"Received ChoosingMode for personId: ${this.id}")
-    }
     implicit val executionContext: ExecutionContext = context.system.dispatcher
     Future
       .sequence(
