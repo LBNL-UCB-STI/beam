@@ -257,7 +257,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     profileRequest.wheelchair = false
     profileRequest.bikeTrafficStress = 4
     profileRequest.zoneId = transportNetwork.getTimeZone
-    profileRequest.monteCarloDraws = beamConfig.beam.routing.r5.numberOfSamples
+    profileRequest.monteCarloDraws = 0
     profileRequest.date = dates.localBaseDate
     // Doesn't calculate any fares, is just a no-op placeholder
     profileRequest.inRoutingFareCalculator = new SimpleInRoutingFareCalculator
@@ -781,7 +781,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     }
     profileResponse.recomputeStats(profileRequest)
 
-    val embodiedTrips = profileResponse.options.asScala.flatMap { option =>
+    val rawEmbodiedTrips = profileResponse.options.asScala.flatMap { option =>
       option.itinerary.asScala
         .map { itinerary =>
           // Using itinerary start as access leg's startTime
@@ -1003,6 +1003,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         }
     }
 
+    val embodiedTrips = deduplicateItineraries(rawEmbodiedTrips.toVector)
+
     val modesWeSearched =
       searchedModes(request, buildDirectCarRoute, buildDirectWalkRoute, isRouteForPerson, mainRouteRideHailTransit)
 
@@ -1195,6 +1197,18 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       travelPath = theTravelPath
     )
     beamLeg
+  }
+
+  private def deduplicateItineraries(trips: Vector[EmbodiedBeamTrip]): Vector[EmbodiedBeamTrip] = {
+    // Group trips by their vehicle sequences (ignoring minor timing differences)
+    val grouped = trips.groupBy { trip =>
+      trip.legs.filter(_.beamLeg.mode.isTransit).map(_.beamVehicleId).sorted
+    }
+
+    // For each group, keep only the trip with the earliest reasonable arrival time
+    grouped.values.map { similarTrips =>
+      similarTrips.minBy(_.legs.last.beamLeg.endTime)
+    }.toVector
   }
 
   /**

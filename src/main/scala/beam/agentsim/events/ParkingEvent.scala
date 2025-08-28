@@ -112,7 +112,7 @@ object ParkingEvent {
     val pricingModel: Option[PricingModel] =
       attr.get(ATTRIBUTE_PRICING_MODEL).flatMap(PricingModel(_, attr.getOrElse(ATTRIBUTE_COST, "0")))
     val chargingPointType: Option[ChargingPointType] = attr.get(ATTRIBUTE_CHARGING_TYPE).flatMap(ChargingPointType(_))
-    val parkingZoneId = Id.create(attr(ATTRIBUTE_PARKING_ZONE_ID), classOf[ParkingZoneId])
+    val parkingZoneId = Id.create(attr.getOrElse(ATTRIBUTE_PARKING_ZONE_ID, "-1"), classOf[ParkingZoneId])
     val linkIdsAsStr = Option(attr(ATTRIBUTE_LINK_IDS)).getOrElse("")
     val linkIds: IndexedSeq[Int] = if (linkIdsAsStr == "") IndexedSeq.empty else linkIdsAsStr.split(",").map(_.toInt)
     new ParkingEvent(

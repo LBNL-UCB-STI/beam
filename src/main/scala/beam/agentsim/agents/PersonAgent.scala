@@ -1077,7 +1077,10 @@ class PersonAgent(
         )
         if (currentBeamVehicle != body) {
           if (currentBeamVehicle.beamVehicleType.vehicleCategory != Bike) {
-            if (currentBeamVehicle.stall.isEmpty) logWarn("Expected currentBeamVehicle.stall to be defined.")
+            if (currentBeamVehicle.stall.isEmpty) {
+              //TODO: Check whether this is actually a problem!
+              logger.debug("Expected currentBeamVehicle.stall to be defined.")
+            }
           }
           if (
             (currentBeamVehicle.isSharedVehicle && !BeamVehicle.isEmergencyVehicle(

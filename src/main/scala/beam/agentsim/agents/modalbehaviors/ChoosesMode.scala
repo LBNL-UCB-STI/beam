@@ -1577,6 +1577,7 @@ trait ChoosesMode {
                   .orElse(
                     choosesModeData.personData.currentTourPersonalVehicle
                   )
+                  .orElse(getParentTourStrategy(personData).flatMap(_.tourVehicle))
             },
             passengerSchedule = PassengerSchedule()
           ),
@@ -1712,6 +1713,7 @@ trait ChoosesMode {
                   .get(chosenTrip)
                   .flatten // If we're on a subtour and it uses no vehicle, we still pass on any tour vehicle from parent tours
                   .orElse(personData.currentTourPersonalVehicle)
+                  .orElse(getParentTourStrategy(personData).flatMap(_.tourVehicle))
               ),
               pendingChosenTrip = Some(chosenTrip),
               availableAlternatives = availableAlts
@@ -1880,7 +1882,9 @@ trait ChoosesMode {
                 stay() using choosesModeData.copy(
                   personData = personData.copy(
                     currentTripMode = None,
-                    numberOfReplanningAttempts = personData.numberOfReplanningAttempts + 1
+                    numberOfReplanningAttempts = personData.numberOfReplanningAttempts + 1,
+                    currentTourPersonalVehicle = if (personData.hasDeparted) { personData.currentTourPersonalVehicle }
+                    else getParentTourStrategy(personData).flatMap(_.tourVehicle)
                   ),
                   allAvailableStreetVehicles = availableVehicles,
                   routingFinished = true,
@@ -1933,7 +1937,8 @@ trait ChoosesMode {
                 stay() using ChoosesModeData(
                   personData = personData.copy(
                     currentTripMode = None,
-                    currentTourPersonalVehicle = currentTourVehicle,
+                    currentTourPersonalVehicle = if (personData.hasDeparted) { personData.currentTourPersonalVehicle }
+                    else getParentTourStrategy(personData).flatMap(_.tourVehicle),
                     numberOfReplanningAttempts = personData.numberOfReplanningAttempts + 1,
                     deniedBoardingLegs = personData.deniedBoardingLegs
                   ),
@@ -2560,8 +2565,10 @@ trait ChoosesMode {
         // Get the departure time of the failed transit leg
         val failedTransitDepartureTime = transitLeg.beamLeg.startTime
         // Buffer to skip just past this transit departure, increasing with replanning attempts
-        (failedTransitDepartureTime - _currentTick.get) + (choosesModeData.personData.numberOfReplanningAttempts * BUFFER_PER_REPLANNING_ATTEMPT_IN_SEC)
-
+        math.max(
+          0,
+          failedTransitDepartureTime - _currentTick.get
+        ) + (choosesModeData.personData.numberOfReplanningAttempts * BUFFER_PER_REPLANNING_ATTEMPT_IN_SEC)
       case None =>
         // Fallback to standard buffer if no failed transit leg
         choosesModeData.personData.numberOfReplanningAttempts * BUFFER_PER_REPLANNING_ATTEMPT_IN_SEC
@@ -2900,14 +2907,20 @@ trait ChoosesMode {
     val availableModes: Seq[BeamMode] = availableModesForPerson(matsimPlan.getPerson, choosesModeData.excludeModes)
     val nextAct = nextActivity(choosesModeData.personData).get
     val departTime = _currentTick.get
+    val parentTourStrategy = getParentTourStrategy(choosesModeData.personData)
+
     currentTourStrategy.tourMode match {
       case Some(tourMode) =>
+        val effectiveTourVehicle = currentTourStrategy.tourVehicle.orElse(
+          parentTourStrategy.flatMap(_.tourVehicle)
+        )
+
         (
           Some(tourMode),
           firstLegItineraries.collect {
-            case itin if currentTourStrategy.tourVehicle.exists(itin.vehiclesInTrip.contains) =>
-              itin -> currentTourStrategy.tourVehicle
-            case itin if currentTourStrategy.tourVehicle.isEmpty && tourMode.isVehicleBased =>
+            case itin if effectiveTourVehicle.exists(itin.vehiclesInTrip.contains) =>
+              itin -> effectiveTourVehicle
+            case itin if effectiveTourVehicle.isEmpty && tourMode.isVehicleBased =>
               if (tourMode != FREIGHT_TOUR) {
                 logger.warn("Vehicle based tour mode without vehicle defined")
               }
@@ -2969,6 +2982,7 @@ trait ChoosesMode {
                           .contains(itin.tripClassifier) =>
                       itin.vehiclesInTrip
                         .find(availableVehicles.map(_.id).contains)
+                        .orElse(parentTourStrategy.flatMap(_.tourVehicle).filter(itin.vehiclesInTrip.contains))
                         .map(vid => itin -> Some(vid))
                   }
                   .flatten
@@ -2992,11 +3006,14 @@ trait ChoosesMode {
           case Some(tripMode) =>
             // If trip mode is already set, determine tour mode from that and available vehicles (sticking
             // with walk based tour if the only available vehicles are shared)
+            val effectiveCurrentTourPersonalVehicle = choosesModeData.personData.currentTourPersonalVehicle
+              .orElse(parentTourStrategy.flatMap(_.tourVehicle))
+
             val chosenTourModeAndVehicle =
               getTourModeAndVehicle(
                 firstLegItineraries.filter(_.tripClassifier == tripMode),
                 availableVehicles,
-                choosesModeData.personData.currentTourPersonalVehicle
+                effectiveCurrentTourPersonalVehicle // Use the inherited vehicle
               )
             val (chosenTourMode, chosenTourVehicleMap) = chosenTourModeAndVehicle.headOption match {
               case Some((tourMode, mapping)) => (tourMode, mapping)

@@ -76,7 +76,7 @@ object ParkingZone extends LazyLogging {
   val UbiquitousParkingAvailability: Int = 10000
 
   val DefaultParkingZone: ParkingZone = {
-    val defaultParkingZoneId: Id[ParkingZoneId] = Id.create("default", classOf[ParkingZoneId])
+    val defaultParkingZoneId: Id[ParkingZoneId] = Id.create("-1", classOf[ParkingZoneId])
     init(
       Some(defaultParkingZoneId),
       TAZ.DefaultTAZId,
