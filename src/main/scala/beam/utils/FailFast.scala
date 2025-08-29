@@ -44,6 +44,10 @@ object FailFast extends LazyLogging {
       throw new RuntimeException("There are RideHailManagers with the same name.")
     }
 
+    if (config.beam.routing.r5.numberOfSamples > 0) {
+      logger.error("R5 numberOfSamples > 0 is no longer supported and will be ignored. Please set it to 0.")
+    }
+
     /*
      * Pooling with timeout zero or non-pooling with non-zero don't mix yet
      */

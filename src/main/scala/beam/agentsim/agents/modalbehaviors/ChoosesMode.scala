@@ -1085,6 +1085,33 @@ trait ChoosesMode {
   private def isDummySharedVehicle(beamVehicleId: Id[BeamVehicle]): Boolean =
     dummySharedVehicles.exists(_.id == beamVehicleId)
 
+  /**
+    * Safely retrieves a vehicle ID from parent tour strategy, but only if that vehicle
+    * is actually available to the person. This prevents referencing vehicles that have
+    * been released, are in use elsewhere, or are otherwise unavailable.
+    *
+    * @param personData The current person data
+    * @param availableVehicles The vehicles currently available to this person
+    * @return The inherited vehicle ID if it exists and is available, None otherwise
+    */
+  private def getInheritedTourVehicle(
+    personData: BasePersonData,
+    availableVehicles: Vector[VehicleOrToken]
+  ): Option[Id[BeamVehicle]] = {
+    getParentTourStrategy(personData)
+      .flatMap(_.tourVehicle)
+      .filter { parentVehicleId =>
+        val isAvailable = availableVehicles.exists(_.id == parentVehicleId)
+        if (!isAvailable) {
+          logger.warn(
+            s"Person ${this.id}: Parent tour vehicle $parentVehicleId is not available. " +
+            s"Available vehicles: ${availableVehicles.map(_.id).mkString(", ")}"
+          )
+        }
+        isAvailable
+      }
+  }
+
   case object FinishingModeChoice extends BeamAgentState
 
   /**
@@ -1577,7 +1604,7 @@ trait ChoosesMode {
                   .orElse(
                     choosesModeData.personData.currentTourPersonalVehicle
                   )
-                  .orElse(getParentTourStrategy(personData).flatMap(_.tourVehicle))
+                  .orElse(getInheritedTourVehicle(choosesModeData.personData, allAvailableStreetVehicles))
             },
             passengerSchedule = PassengerSchedule()
           ),
@@ -1713,7 +1740,7 @@ trait ChoosesMode {
                   .get(chosenTrip)
                   .flatten // If we're on a subtour and it uses no vehicle, we still pass on any tour vehicle from parent tours
                   .orElse(personData.currentTourPersonalVehicle)
-                  .orElse(getParentTourStrategy(personData).flatMap(_.tourVehicle))
+                  .orElse(getInheritedTourVehicle(choosesModeData.personData, allAvailableStreetVehicles))
               ),
               pendingChosenTrip = Some(chosenTrip),
               availableAlternatives = availableAlts
@@ -1884,7 +1911,7 @@ trait ChoosesMode {
                     currentTripMode = None,
                     numberOfReplanningAttempts = personData.numberOfReplanningAttempts + 1,
                     currentTourPersonalVehicle = if (personData.hasDeparted) { personData.currentTourPersonalVehicle }
-                    else getParentTourStrategy(personData).flatMap(_.tourVehicle)
+                    else getInheritedTourVehicle(choosesModeData.personData, allAvailableStreetVehicles)
                   ),
                   allAvailableStreetVehicles = availableVehicles,
                   routingFinished = true,
@@ -1938,7 +1965,7 @@ trait ChoosesMode {
                   personData = personData.copy(
                     currentTripMode = None,
                     currentTourPersonalVehicle = if (personData.hasDeparted) { personData.currentTourPersonalVehicle }
-                    else getParentTourStrategy(personData).flatMap(_.tourVehicle),
+                    else getInheritedTourVehicle(choosesModeData.personData, allAvailableStreetVehicles),
                     numberOfReplanningAttempts = personData.numberOfReplanningAttempts + 1,
                     deniedBoardingLegs = personData.deniedBoardingLegs
                   ),
@@ -2911,9 +2938,8 @@ trait ChoosesMode {
 
     currentTourStrategy.tourMode match {
       case Some(tourMode) =>
-        val effectiveTourVehicle = currentTourStrategy.tourVehicle.orElse(
-          parentTourStrategy.flatMap(_.tourVehicle)
-        )
+        val effectiveTourVehicle = choosesModeData.personData.currentTourPersonalVehicle
+          .orElse(getInheritedTourVehicle(choosesModeData.personData, availableVehicles))
 
         (
           Some(tourMode),
