@@ -1076,12 +1076,12 @@ def main():
         payloads,
         duration_col1='operationDurationInMin',
         duration_col2='operationDurationInMinOG',
-        group_col='requestType',
+        group_col='activityType',
         output_file='outputs/mode_duration_vs_frism_duration_by_pudo.png'
     )
 
     plot_duration_vs_weight(
-        payloads[payloads["requestType"] == "loading"],
+        payloads[payloads["activityType"] == "loading"],
         duration_col='operationDurationInMin',
         weight_col='weightInLbs',
         group_col=None,
@@ -1089,7 +1089,7 @@ def main():
     )
 
     plot_duration_vs_weight(
-        payloads[payloads["requestType"] == "unloading"],
+        payloads[payloads["activityType"] == "unloading"],
         duration_col='operationDurationInMin',
         weight_col='weightInLbs',
         group_col=None,

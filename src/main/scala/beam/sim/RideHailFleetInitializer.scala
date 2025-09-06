@@ -1,7 +1,7 @@
 package beam.sim
 
 import akka.actor.ActorRef
-import beam.agentsim.agents.freight.input.FreightReader
+import beam.agentsim.agents.freight.FreightEntities.FREIGHT_ID_PREFIX
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailVehicleId, Shift}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory, VehicleManager}
@@ -19,7 +19,6 @@ import beam.utils.{OutputDataDescriptor, UniformRealDistributionEnhanced}
 import com.google.inject.Inject
 import com.typesafe.scalalogging.{LazyLogging, Logger}
 import org.apache.commons.io.FilenameUtils
-import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.locationtech.jts.geom.{Coordinate, Geometry, GeometryFactory}
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
@@ -632,12 +631,12 @@ class ProceduralRideHailFleetInitializer(
   private val passengerPopulation: Iterable[Person] = scenario.getPopulation.getPersons
     .values()
     .asScala
-    .filterNot(_.getId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX))
+    .filterNot(_.getId.toString.startsWith(FREIGHT_ID_PREFIX))
 
   private val passengerHousehold: Iterable[Household] = scenario.getHouseholds.getHouseholds
     .values()
     .asScala
-    .filterNot(_.getId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX))
+    .filterNot(_.getId.toString.startsWith(FREIGHT_ID_PREFIX))
 
   private def computeNumRideHailAgents: Long = {
     val fleet: Double = beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet

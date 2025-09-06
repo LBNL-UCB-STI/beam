@@ -566,7 +566,7 @@ def update_operation_duration(config, payloads, tours, carriers, vehicle_types):
         # Sample from the model
         duration_min = duration_model.sample_duration(
             row['vehicleCategory'],
-            row['requestType'],
+            row['activityType'],
             row['weightInKg'] * 2.20462,  # Convert kg to lbs
             randomize_factor=0
         )

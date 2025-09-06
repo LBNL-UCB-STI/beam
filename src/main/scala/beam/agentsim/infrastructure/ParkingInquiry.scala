@@ -1,5 +1,6 @@
 package beam.agentsim.infrastructure
 
+import beam.agentsim.agents.freight.FreightActivityType
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.SpaceTime
@@ -75,26 +76,32 @@ object ParkingInquiry extends LazyLogging {
 
     // Pre-compiled lookup table for exact matches (O(1) lookup)
     private val exactMatches = Map(
-      "home"       -> ParkingActivityType.Home,
-      "work"       -> ParkingActivityType.Working,
-      "charge"     -> ParkingActivityType.Charging,
-      "wherever"   -> ParkingActivityType.Miscellaneous,
-      "eatout"     -> ParkingActivityType.Miscellaneous,
-      "othdiscr"   -> ParkingActivityType.Miscellaneous,
-      "othmaint"   -> ParkingActivityType.Miscellaneous,
-      "school"     -> ParkingActivityType.Miscellaneous,
-      "escort"     -> ParkingActivityType.Miscellaneous,
-      "social"     -> ParkingActivityType.Miscellaneous,
-      "idle"       -> ParkingActivityType.Idling,
-      "depot"      -> ParkingActivityType.Freight,
-      "commercial" -> ParkingActivityType.Freight,
-      "loading"    -> ParkingActivityType.Freight,
-      "unloading"  -> ParkingActivityType.Freight,
-      "warehouse"  -> ParkingActivityType.Freight
+      "home"                                 -> ParkingActivityType.Home,
+      "work"                                 -> ParkingActivityType.Working,
+      "charge"                               -> ParkingActivityType.Charging,
+      "wherever"                             -> ParkingActivityType.Miscellaneous,
+      "eatout"                               -> ParkingActivityType.Miscellaneous,
+      "othdiscr"                             -> ParkingActivityType.Miscellaneous,
+      "othmaint"                             -> ParkingActivityType.Miscellaneous,
+      "school"                               -> ParkingActivityType.Miscellaneous,
+      "escort"                               -> ParkingActivityType.Miscellaneous,
+      "social"                               -> ParkingActivityType.Miscellaneous,
+      "idle"                                 -> ParkingActivityType.Idling,
+      "depot"                                -> ParkingActivityType.Freight,
+      "commercial"                           -> ParkingActivityType.Freight,
+      FreightActivityType.Loading.toString   -> ParkingActivityType.Freight,
+      FreightActivityType.Unloading.toString -> ParkingActivityType.Freight,
+      FreightActivityType.Warehouse.toString -> ParkingActivityType.Freight
     )
 
     // Pre-compiled prefix patterns for startsWith checks
-    private val freightPrefixes = Set("depot", "commercial", "loading", "unloading", "warehouse")
+    private val freightPrefixes = Set(
+      "depot",
+      "commercial",
+      FreightActivityType.Loading.toString,
+      FreightActivityType.Unloading.toString,
+      FreightActivityType.Warehouse.toString
+    )
 
     def fromString(activityType: String): ParkingActivityType = {
       val lowerType = activityType.toLowerCase

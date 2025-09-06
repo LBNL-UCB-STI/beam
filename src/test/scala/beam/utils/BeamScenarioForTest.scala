@@ -71,7 +71,7 @@ trait BeamScenarioForTest extends AnyFlatSpec {
       secondaryTazTreeMap = None,
       modeIncentives = null,
       h3taz = null,
-      goodsCarriers = IndexedSeq.empty,
+      goodsCarriers = Map.empty,
       freightCarriers = null,
       fixedActivitiesDurations = Map.empty
     )

@@ -131,8 +131,8 @@ class BeamRouterSpec extends AnyFlatSpec with BeamScenarioForTest {
       secondaryTazTreeMap = None,
       modeIncentives = null,
       h3taz = null,
-      goodsCarriers = IndexedSeq.empty,
-      freightCarriers = IndexedSeq.empty,
+      goodsCarriers = Map.empty,
+      freightCarriers = Map.empty,
       fixedActivitiesDurations = Map.empty[String, Double]
     )
   }

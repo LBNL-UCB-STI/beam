@@ -5,6 +5,7 @@ import akka.testkit.{ImplicitSender, TestKitBase}
 import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamvilleFixtures
+import beam.agentsim.agents.freight.FreightActivityType
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
@@ -155,7 +156,7 @@ class ZonalParkingManagerSpec
         } yield {
           val inquiry = ParkingInquiry.init(
             centerSpaceTime,
-            "Unloading",
+            FreightActivityType.Unloading.toString,
             searchMode = ParkingSearchMode.DoubleParkingAllowed,
             triggerId = 77239
           )
@@ -492,7 +493,7 @@ class ZonalParkingManagerSpec
       // sending double parking response
       val inquiry = ParkingInquiry.init(
         SpaceTime(taz4Location, 8 * 3600),
-        "Unloading",
+        FreightActivityType.Unloading.toString,
         searchMode = ParkingSearchMode.DoubleParkingAllowed,
         triggerId = 3739
       )

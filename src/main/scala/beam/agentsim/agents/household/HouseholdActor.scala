@@ -9,9 +9,9 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents._
 import beam.agentsim.agents.choice.logit.TourModeChoiceModel
 import beam.agentsim.agents.choice.mode.TourModeChoiceMultinomialLogit
-import beam.agentsim.agents.freight.input.FreightReader
+import beam.agentsim.agents.freight.FreightActivityType
+import beam.agentsim.agents.freight.FreightEntities._
 import beam.agentsim.agents.household.CAVSchedule.RouteOrEmbodyRequest
-import beam.agentsim.agents.household.HouseholdActor.EmergencyHouseholdVehicleGenerator.sharedRandomGenerator
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavTripLegsResponse}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
@@ -199,7 +199,7 @@ object HouseholdActor {
 
     private var members: Map[Id[Person], PersonIdWithActorRef] = Map()
 
-    private val isFreightCarrier: Boolean = household.getId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX)
+    private val isFreightCarrier: Boolean = household.getId.toString.startsWith(FREIGHT_ID_PREFIX)
 
     // Data need to execute CAV dispatch
     private val cavPlans: mutable.ListBuffer[CAVSchedule] = mutable.ListBuffer()
@@ -258,7 +258,7 @@ object HouseholdActor {
           householdMembersToActivityTypeAndLocation ++= Map(
             Id.createPersonId("NoDriver") -> ActivityTypeAndLocation(
               ParkingActivityType.Freight,
-              "Warehouse",
+              FreightActivityType.Warehouse.toString,
               fallbackInitialLocationCoord,
               DateUtils.getEndOfTime(beamServices.beamScenario.beamConfig)
             )
@@ -281,10 +281,8 @@ object HouseholdActor {
         // ****************************
         // Decide prefix and categories based on carrier type
         val (prefix, categories) =
-          if (isFreightCarrier)
-            (FreightReader.FREIGHT_ID_PREFIX, FreightReader.FREIGHT_CATEGORIES)
-          else
-            (FreightReader.PASSENGER_ID_PREFIX, householdVehicleCategories)
+          if (isFreightCarrier) (FREIGHT_ID_PREFIX, FREIGHT_CATEGORIES)
+          else (PASSENGER_ID_PREFIX, householdVehicleCategories)
 
         // Create empty category entries
         // Group non-CAV vehicles by (prefix, category)
@@ -715,7 +713,6 @@ object HouseholdActor {
     vehiclesAdjustment: VehiclesAdjustment,
     defaultDemandSupplyCategory: (String, VehicleCategory)
   ) extends LazyLogging {
-    import FreightReader._
 
     private val (defaultDemand: String, defaultCategory: VehicleCategory) = defaultDemandSupplyCategory
 
@@ -727,7 +724,8 @@ object HouseholdActor {
       category: VehicleCategory,
       whenWhere: SpaceTime
     ): Option[BeamVehicleType] = {
-      val demand = if (personId.toString.startsWith(FREIGHT_ID_PREFIX)) FREIGHT_ID_PREFIX else PASSENGER_ID_PREFIX
+      val demand =
+        if (personId.toString.startsWith(FREIGHT_ID_PREFIX)) FREIGHT_ID_PREFIX else PASSENGER_ID_PREFIX
       if (defaultCategory == category && demand == defaultDemand) {
         category match {
           case cat if FREIGHT_CATEGORIES.contains(cat) && demand == FREIGHT_ID_PREFIX =>
@@ -807,7 +805,7 @@ object HouseholdActor {
       whenWhere: SpaceTime,
       manager: ActorRef
     ): BeamVehicle = {
-      val vehicleManagerType = if (personId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX)) {
+      val vehicleManagerType = if (personId.toString.startsWith(FREIGHT_ID_PREFIX)) {
         VehicleManager.TypeEnum.Freight
       } else { VehicleManager.TypeEnum.Household }
       val vehicleManagerId =

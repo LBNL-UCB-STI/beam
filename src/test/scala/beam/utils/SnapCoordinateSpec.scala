@@ -352,7 +352,7 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper with 
       )
 
       intersection(
-        beamScenario.freightCarriers.flatMap(_.tourMap.values).flatten.toArray,
+        beamScenario.freightCarriers.values.flatMap(_.tourMap.values).flatten.toArray,
         path = s"$outputDir/${CsvFile.FreightTours}"
       ) shouldBe Set.empty
     }
@@ -380,7 +380,7 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper with 
       )
 
       intersection(
-        beamScenario.freightCarriers.flatMap(_.payloadPlans.values).toArray,
+        beamScenario.freightCarriers.values.flatMap(_.payloadPlans.values).toArray,
         path = s"$outputDir/${CsvFile.FreightPayloadPlans}"
       ) shouldBe Set.empty
     }
@@ -408,7 +408,7 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper with 
       )
 
       intersection(
-        beamScenario.freightCarriers.toArray,
+        beamScenario.freightCarriers.values.toArray,
         path = s"$outputDir/${CsvFile.FreightCarriers}"
       ) shouldBe Set.empty
     }

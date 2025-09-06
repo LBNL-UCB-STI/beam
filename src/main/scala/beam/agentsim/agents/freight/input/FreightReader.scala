@@ -1,10 +1,10 @@
 package beam.agentsim.agents.freight.input
 
-import beam.agentsim.agents.freight.FreightRequestType.{Loading, Unloading, Warehouse}
+import beam.agentsim.agents.freight.FreightActivityType.{Loading, Unloading, Warehouse}
 import beam.agentsim.agents.freight.input.FreightReader.{FREIGHT_REQUEST_TYPE, PAYLOAD_IDS, PAYLOAD_WEIGHT_IN_KG}
-import beam.agentsim.agents.freight.{FreightCarrier, FreightRequestType, FreightTour, PayloadPlan}
+import beam.agentsim.agents.freight.{FreightActivityType, FreightCarrier, FreightTour, PayloadPlan}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory, VehicleManager}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.Modes.BeamMode
@@ -44,13 +44,13 @@ trait FreightReader {
 
   private def calculatePayloadWeights(plans: IndexedSeq[PayloadPlan]): IndexedSeq[(Set[Id[PayloadPlan]], Double)] = {
     plans.foldLeft(IndexedSeq((Set.empty[Id[PayloadPlan]], 0.0))) {
-      case (acc, PayloadPlan(payloadId, _, _, _, weight, Unloading, _, _, _, _, _, _, _)) =>
+      case (acc, PayloadPlan(payloadId, _, _, _, weight, Unloading, _, _, _, _, _, _)) =>
         val (payloads, payloadWeight) = acc.last
         acc :+ (payloads - payloadId, payloadWeight - weight)
-      case (acc, PayloadPlan(payloadId, _, _, _, weight, Loading, _, _, _, _, _, _, _)) =>
+      case (acc, PayloadPlan(payloadId, _, _, _, weight, Loading, _, _, _, _, _, _)) =>
         val (payloads, payloadWeight) = acc.last
         acc :+ (payloads + payloadId, payloadWeight + weight)
-      case (acc, PayloadPlan(payloadId, _, _, _, weight, Warehouse, _, _, _, _, _, _, _)) =>
+      case (acc, PayloadPlan(payloadId, _, _, _, weight, Warehouse, _, _, _, _, _, _)) =>
         val (payloads, payloadWeight) = acc.last
         acc :+ (payloads + payloadId, payloadWeight + weight)
     }
@@ -62,38 +62,53 @@ trait FreightReader {
     plansPerTour: Map[Id[FreightTour], IndexedSeq[PayloadPlan]],
     person: Person
   ): Plan = {
-    val allToursPlanElements = tours.flatMap { tour =>
-      val tourInitialActivity =
-        createFreightActivity("Warehouse", carrier.warehouseLocationUTM, tour.departureTimeInSec, None)
-      val firstLeg: Leg = createFreightLeg(tour.departureTimeInSec)
-
-      val plans: IndexedSeq[PayloadPlan] = plansPerTour.get(tour.tourId) match {
-        case Some(value) => value
-        case None        => throw new IllegalArgumentException(s"Tour '${tour.tourId}' has no plans")
-      }
+    val allPlanElements = tours.flatMap { tour =>
+      val plans: IndexedSeq[PayloadPlan] =
+        plansPerTour
+          .getOrElse(tour.tourId, throw new IllegalArgumentException(s"Tour '${tour.tourId}' has no plans"))
+          .ensuring(_.nonEmpty, s"Tour '${tour.tourId}' has an empty plan list")
 
       val planElements: IndexedSeq[PlanElement] = plans.flatMap { plan =>
-        val activityEndTime = plan.estimatedTimeOfArrivalInSec + plan.operationDurationInSec
-        val activityType = plan.activityType
-        val activity = createFreightActivity(activityType, plan.locationUTM, activityEndTime, Some(plan.requestType))
-        val leg: Leg = createFreightLeg(activityEndTime)
-        Seq(activity, leg)
+        plan.sequenceRank match {
+          case rank if rank == plans.head.sequenceRank =>
+            val activity =
+              createFreightActivity(
+                FreightActivityType.Warehouse.toString,
+                carrier.warehouseLocationUTM,
+                tour.departureTimeInSec,
+                None
+              )
+            val leg = createFreightLeg(tour.departureTimeInSec)
+            Seq(activity, leg)
+
+          case rank if rank == plans.last.sequenceRank =>
+            val activity = createFreightActivity(
+              FreightActivityType.Warehouse.toString,
+              carrier.warehouseLocationUTM,
+              -1,
+              None
+            )
+            Seq(activity) // no leg for last
+
+          case _ =>
+            val actEndTime = plan.estimatedTimeOfArrivalInSec + plan.operationDurationInSec
+            val actType = plan.activityType.toString
+            val activity = createFreightActivity(actType, plan.locationUTM, actEndTime, Some(plan.activityType))
+            val leg = createFreightLeg(actEndTime)
+            Seq(activity, leg)
+        }
       }
 
-      val elements = tourInitialActivity +: firstLeg +: planElements
       val weightsToCarry: IndexedSeq[(Set[Id[PayloadPlan]], Double)] = calculatePayloadWeights(plans)
-      elements
+      planElements
         .collect { case leg: Leg => leg }
         .zip(weightsToCarry)
         .foreach { case (leg, (payloadIds, payloadWeight)) =>
           leg.getAttributes.putAttribute(PAYLOAD_IDS, payloadIds.toIndexedSeq)
           leg.getAttributes.putAttribute(PAYLOAD_WEIGHT_IN_KG, payloadWeight)
         }
-      elements
+      planElements
     }
-
-    val finalActivity = createFreightActivity("Warehouse", carrier.warehouseLocationUTM, -1, None)
-    val allPlanElements: IndexedSeq[PlanElement] = allToursPlanElements :+ finalActivity
 
     val currentPlan = PopulationUtils.createPlan(person)
     allPlanElements.foreach {
@@ -178,7 +193,7 @@ trait FreightReader {
     activityType: String,
     locationUTM: Coord,
     endTime: Int,
-    freightRequestType: Option[FreightRequestType]
+    freightRequestType: Option[FreightActivityType]
   ): Activity = {
     val act = PopulationUtils.createActivityFromCoord(activityType, locationUTM)
     if (endTime >= 0) {
@@ -196,20 +211,11 @@ trait FreightReader {
 }
 
 object FreightReader {
-  val FREIGHT_ID_PREFIX = "ft"
-  val PASSENGER_ID_PREFIX = "pax"
-  val FREIGHT_REQUEST_TYPE = "FreightRequestType"
+  val FREIGHT_REQUEST_TYPE = "FreightActivityType"
   val PAYLOAD_WEIGHT_IN_KG = "PayloadWeightInKg"
   val PAYLOAD_IDS = "PayloadIds"
   val NO_CARRIER_ID: Id[FreightCarrier] = Id.create("no-carrier-defined", classOf[FreightCarrier])
   val NO_VEHICLE_ID: Id[BeamVehicle] = Id.createVehicleId("no-vehicle-defined")
-
-  val FREIGHT_CATEGORIES: Seq[VehicleCategory.VehicleCategory] = Seq(
-    VehicleCategory.Class78Tractor,
-    VehicleCategory.Class78Vocational,
-    VehicleCategory.Class456Vocational,
-    VehicleCategory.Car
-  )
 
   def apply(
     beamConfig: BeamConfig,

@@ -5,7 +5,7 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.choice.mode.ModeChoiceRideHailIfAvailable
 import beam.agentsim.agents.freight.input.FreightReader.NO_CARRIER_ID
-import beam.agentsim.agents.freight.{FreightRequestType, PayloadPlan}
+import beam.agentsim.agents.freight.{FreightActivityType, PayloadPlan}
 import beam.agentsim.agents.goods.GoodsDeliveryManager.{GOODS_PREFIX, GoodsDeliveryTrigger}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
 import beam.agentsim.agents.ridehail._
@@ -70,7 +70,7 @@ private class GoodsDeliveryManager(
         carrier.tourMap.values.iterator.flatMap { tours =>
           tours.iterator.flatMap { tour =>
             val plans = carrier.plansPerTour(tour.tourId)
-            val (pickups, destinations) = plans.partition(_.requestType == FreightRequestType.Loading)
+            val (pickups, destinations) = plans.partition(_.activityType == FreightActivityType.Loading)
 
             if (pickups.size != 1) {
               throw new IllegalArgumentException(

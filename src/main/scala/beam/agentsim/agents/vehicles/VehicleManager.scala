@@ -1,9 +1,9 @@
 package beam.agentsim.agents.vehicles
 
+import beam.agentsim.agents.freight.FreightEntities.FREIGHT_ID_PREFIX
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
-import beam.agentsim.agents.freight.input.FreightReader.FREIGHT_ID_PREFIX
 
 import scala.collection.concurrent.TrieMap
 import scala.util.matching.Regex

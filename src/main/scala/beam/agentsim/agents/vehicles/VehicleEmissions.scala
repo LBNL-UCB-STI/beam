@@ -1,5 +1,6 @@
 package beam.agentsim.agents.vehicles
 
+import beam.agentsim.agents.freight.FreightActivityType
 import beam.agentsim.agents.vehicles.VehicleCategory.{
   Class456Vocational,
   Class78Tractor,
@@ -345,69 +346,74 @@ object VehicleEmissions extends LazyLogging {
       }
     }
 
-    def fromString(process: String): Option[EmissionsProcess] = process.toLowerCase match {
-      // Running Exhaust Emissions (RUNEX) that come out of the vehicle tailpipe while traveling on the road.
-      // TODO Embed it in PathTraversalEvent
-      // xVMT by speed bin => gram/veh-mile
-      case "running" | "runex" => Some(RUNEX)
+    def fromString(process: String): Option[EmissionsProcess] = {
+      val warehouse = FreightActivityType.Warehouse.toString
+      val loading = FreightActivityType.Loading.toString
+      val unloading = FreightActivityType.Unloading.toString
+      process.toLowerCase match {
+        // Running Exhaust Emissions (RUNEX) that come out of the vehicle tailpipe while traveling on the road.
+        // TODO Embed it in PathTraversalEvent
+        // xVMT by speed bin => gram/veh-mile
+        case "running" | "runex" => Some(RUNEX)
 
-      // Idle Exhaust Emissions (IDLEX) that come out of the vehicle tailpipe while it is operating but not traveling
-      // any significant distance. This process captures emissions from heavy-duty vehicles that idle for
-      // extended periods of time while loading or unloading goods. Idle exhaust is calculated only
-      // for heavy-duty trucks.
-      // TODO Embed it in LeavingParkingEvent when 1) it is freight Load/Unload 2) overnight parking
-      // xNumber of Idle Hours (xParking Hour) => gram/veh-idle hour
-      case "idling" | "idlex" | "extidlex" | "warehouse" | "loading" | "unloading" | "hotelling" => Some(IDLEX)
+        // Idle Exhaust Emissions (IDLEX) that come out of the vehicle tailpipe while it is operating but not traveling
+        // any significant distance. This process captures emissions from heavy-duty vehicles that idle for
+        // extended periods of time while loading or unloading goods. Idle exhaust is calculated only
+        // for heavy-duty trucks.
+        // TODO Embed it in LeavingParkingEvent when 1) it is freight Load/Unload 2) overnight parking
+        // xNumber of Idle Hours (xParking Hour) => gram/veh-idle hour
+        case "idling" | "idlex" | "extidlex" | "hotelling" | `warehouse` | `loading` | `unloading` => Some(IDLEX)
 
-      // Start Exhaust Tailpipe Emissions (STREX) that occur when starting a vehicle. These emissions are independent
-      // of running exhaust emissions and represent the emissions occurring during the initial time period when
-      // a vehicle’s emissions after treatment system is warming up. The magnitude of these emissions is dependent
-      // on how long the vehicle has been sitting prior to starting. Please note that STREX is defined differently
-      // for heavy-duty diesel trucks than for other vehicles.
-      // More details can be found in the EMFAC2014 Technical Support Document.
-      // TODO Embed it in LeavingParkingEvent
-      // xNumber of starts per Soak time => gram/veh-start
-      case "start" | "strex" => Some(STREX)
+        // Start Exhaust Tailpipe Emissions (STREX) that occur when starting a vehicle. These emissions are independent
+        // of running exhaust emissions and represent the emissions occurring during the initial time period when
+        // a vehicle’s emissions after treatment system is warming up. The magnitude of these emissions is dependent
+        // on how long the vehicle has been sitting prior to starting. Please note that STREX is defined differently
+        // for heavy-duty diesel trucks than for other vehicles.
+        // More details can be found in the EMFAC2014 Technical Support Document.
+        // TODO Embed it in LeavingParkingEvent
+        // xNumber of starts per Soak time => gram/veh-start
+        case "start" | "strex" => Some(STREX)
 
-      // Diurnal Evaporative HC Emissions (DIURN) that occur when rising ambient temperatures cause fuel evaporation
-      // from vehicles sitting throughout the day. These losses are from leaks in the fuel system, fuel hoses,
-      // connectors, as a result of the breakthrough of vapors from the carbon canister.
-      // TODO Embed it in LeavingParkingEvent
-      // xCold soak hours (xParking Hour) => gram/veh-hour
-      case "diurnal" | "diurn" => Some(DIURN)
+        // Diurnal Evaporative HC Emissions (DIURN) that occur when rising ambient temperatures cause fuel evaporation
+        // from vehicles sitting throughout the day. These losses are from leaks in the fuel system, fuel hoses,
+        // connectors, as a result of the breakthrough of vapors from the carbon canister.
+        // TODO Embed it in LeavingParkingEvent
+        // xCold soak hours (xParking Hour) => gram/veh-hour
+        case "diurnal" | "diurn" => Some(DIURN)
 
-      // Hot Soak Evaporative HC Emissions (HOTSOAK) that begin immediately from heated fuels after a car stops its
-      // engine operation and continue until the fuel tank reaches ambient temperature.
-      // TODO Embed it in LeavingParkingEvent
-      // xNumber of starts => gram/veh-start
-      case "hotsoak" => Some(HOTSOAK)
+        // Hot Soak Evaporative HC Emissions (HOTSOAK) that begin immediately from heated fuels after a car stops its
+        // engine operation and continue until the fuel tank reaches ambient temperature.
+        // TODO Embed it in LeavingParkingEvent
+        // xNumber of starts => gram/veh-start
+        case "hotsoak" => Some(HOTSOAK)
 
-      // Running Loss Evaporative HC Emissions (RUNLOSS) that occur as a result of hot fuel vapors escaping
-      // from the fuel system or overwhelming the carbon canister while the vehicle is operating.
-      // TODO Embed it in PathTraversalEvent and LeavingParkingEvent (loading/unloading/hotelling)
-      // xRunning hours (xVHT) => gram/veh-hour
-      case "runloss" => Some(RUNLOSS)
+        // Running Loss Evaporative HC Emissions (RUNLOSS) that occur as a result of hot fuel vapors escaping
+        // from the fuel system or overwhelming the carbon canister while the vehicle is operating.
+        // TODO Embed it in PathTraversalEvent and LeavingParkingEvent (loading/unloading/hotelling)
+        // xRunning hours (xVHT) => gram/veh-hour
+        case "runloss" => Some(RUNLOSS)
 
-      // Tire Wear Particulate Matter Emissions (PMTW) that originate from tires as a result of wear.
-      // TODO Embed it in PathTraversalEvent
-      // xVMT => gram/veh-mile
-      case "tirewear" | "pmtw" => Some(PMTW) // Embedded in PathTraversalEvent
+        // Tire Wear Particulate Matter Emissions (PMTW) that originate from tires as a result of wear.
+        // TODO Embed it in PathTraversalEvent
+        // xVMT => gram/veh-mile
+        case "tirewear" | "pmtw" => Some(PMTW) // Embedded in PathTraversalEvent
 
-      // Brake Wear Particulate Matter Emissions (PMBW) that originate from brake usage.
-      // TODO Embed it in PathTraversalEvent
-      // xVMT by speed bin => gram/veh-mile
-      case "brakewear" | "pmbw" => Some(PMBW)
+        // Brake Wear Particulate Matter Emissions (PMBW) that originate from brake usage.
+        // TODO Embed it in PathTraversalEvent
+        // xVMT by speed bin => gram/veh-mile
+        case "brakewear" | "pmbw" => Some(PMBW)
 
-      // Paved Road Dust Particulate Matter Emissions (PRDUST) calculated using EPA AP-42 methodology.
-      // Based on silt loading, vehicle weight, precipitation, and road type.
-      // E = k * (SL^0.91) * (W^1.02) * (1 - P/N/4) with PM2.5/PM10 fractions applied.
-      // xVMT => gram/veh-mile
-      case "dust" | "road_dust" | "paved_road_dust" | "prdust" => Some(PRDUST)
+        // Paved Road Dust Particulate Matter Emissions (PRDUST) calculated using EPA AP-42 methodology.
+        // Based on silt loading, vehicle weight, precipitation, and road type.
+        // E = k * (SL^0.91) * (W^1.02) * (1 - P/N/4) with PM2.5/PM10 fractions applied.
+        // xVMT => gram/veh-mile
+        case "dust" | "road_dust" | "paved_road_dust" | "prdust" => Some(PRDUST)
 
-      // if process is not recognized then RUNEX emission will be used
-      case _ =>
-        logger.warn(s"Unrecognized emission process: $process")
-        None
+        // if process is not recognized then RUNEX emission will be used
+        case _ =>
+          logger.warn(s"Unrecognized emission process: $process")
+          None
+      }
     }
 
     private val workdayIdleFactor: Map[

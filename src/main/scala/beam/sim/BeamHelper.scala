@@ -401,7 +401,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       val activityNameToDuration: Map[String, Double] =
         if (freightConfig.generateFixedActivitiesDurations) {
           plans.map { case (_, plan) =>
-            plan.activityType -> plan.operationDurationInSec.toDouble
+            plan.activityType.toString -> plan.operationDurationInSec.toDouble
           }
         } else {
           Map.empty
