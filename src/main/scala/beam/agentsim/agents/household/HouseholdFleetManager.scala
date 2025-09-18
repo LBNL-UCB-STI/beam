@@ -7,7 +7,7 @@ import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.freight.input.FreightReader
+import beam.agentsim.agents.freight.FreightEntities.FREIGHT_ID_PREFIX
 import beam.agentsim.agents.household.HouseholdActor._
 import beam.agentsim.agents.household.HouseholdFleetManager.ResolvedParkingResponses
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
@@ -197,7 +197,7 @@ class HouseholdFleetManager(
 
     case inquiry @ MobilityStatusInquiry(personId, _, _, requireVehicleCategoryAvailable, triggerId) =>
       val availableVehicleMaybe: Option[BeamVehicle] = requireVehicleCategoryAvailable match {
-        case _ if personId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX) =>
+        case _ if personId.toString.startsWith(FREIGHT_ID_PREFIX) =>
           val assignedVehicleId = whoDrivesThisFreightVehicle.collectFirst { case (vehicleId, `personId`) => vehicleId }
           availableVehicles.find(v => assignedVehicleId.contains(v.id))
         case Some(requireVehicleCategory) =>
@@ -212,7 +212,7 @@ class HouseholdFleetManager(
           sender() ! MobilityStatusResponse(Vector(ActualVehicle(availableVehicle)), triggerId)
           availableVehicles -= availableVehicle
         case None if createAnEmergencyVehicle(inquiry).nonEmpty =>
-          if (personId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX)) {
+          if (personId.toString.startsWith(FREIGHT_ID_PREFIX)) {
             logger.error(
               s"An emergency vehicle has been created for freight personId: ${personId}. This is either because of bad freight plans or a bug within BEAM"
             )

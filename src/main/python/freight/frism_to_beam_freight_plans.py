@@ -159,7 +159,7 @@ def load_osm_network(pbf_path, min_distance_from_edge):
     try:
         edges_utm = edges.to_crs(epsg=CONFIG["utm_epsg"])
     except Exception as e:
-        raise ValueError(f"Failed to convert to UTM (EPSG:{CONFIG["utm_epsg"]}): {str(e)}")
+        raise ValueError(f"Failed to convert to UTM (EPSG:{CONFIG['utm_epsg']}): {str(e)}")
 
     # Create buffer in UTM coordinates (where distances are in meters)
     buffered_edges = edges_utm.copy()
@@ -321,9 +321,9 @@ def format_payload(_payload_plans: pd.DataFrame) -> pd.DataFrame:
             1: 'delivery-only',
             3: 'pickup-delivery'
         })
-        _payload_plans['requestType'] = _payload_plans['requestType'].astype('object')
-        _payload_plans.loc[_payload_plans['weightInKg'] < 0, 'requestType'] = 'unloading'
-        _payload_plans.loc[_payload_plans['weightInKg'] >= 0, 'requestType'] = 'loading'
+        _payload_plans['activityType'] = ""
+        _payload_plans.loc[_payload_plans['weightInKg'] < 0, 'activityType'] = 'unloading'
+        _payload_plans.loc[_payload_plans['weightInKg'] >= 0, 'activityType'] = 'loading'
         _payload_plans['weightInKg'] = np.abs(_payload_plans['weightInKg'])
 
         _payload_plans['fleetType'] = _payload_plans['truck_mode'].map({
@@ -331,9 +331,9 @@ def format_payload(_payload_plans: pd.DataFrame) -> pd.DataFrame:
             'For-hire Truck': 'for-hire'
         }, na_action='ignore')
     else:
-        # _payload_plans['requestType'] = _payload_plans['requestType'].map({1: 'unloading', 0: 'loading'})
-        _payload_plans.loc[_payload_plans['weightInKg'] < 0, 'requestType'] = 'unloading'
-        _payload_plans.loc[_payload_plans['weightInKg'] >= 0, 'requestType'] = 'loading'
+        # _payload_plans['activityType'] = _payload_plans['activityType'].map({1: 'unloading', 0: 'loading'})
+        _payload_plans.loc[_payload_plans['weightInKg'] < 0, 'activityType'] = 'unloading'
+        _payload_plans.loc[_payload_plans['weightInKg'] >= 0, 'activityType'] = 'loading'
         _payload_plans['weightInKg'] = np.abs(_payload_plans['weightInKg'])
 
     # Clean up unnecessary columns
@@ -794,7 +794,8 @@ if __name__ == '__main__':
                     _ondemand_plans = pd.concat([_ondemand_plans, df])
             else:
                 df['tourId'] = df.apply(lambda row: _tourId_with_prefix[str(int(row['tourId']))], axis=1).tolist()
-                df['payloadId'] = df.apply(lambda row: add_prefix('', 'payloadId', row, False), axis=1).tolist()
+                # df['payloadId'] = df.apply(lambda row: add_prefix('', 'payloadId', row, False), axis=1).tolist()
+                df['payloadId'] = df['tourId'].astype(str) + '-' + df['sequenceRank'].astype(str)
                 _tourId_with_prefix = {}
                 if _payload_plans is None:
                     _payload_plans = df
@@ -985,7 +986,7 @@ if __name__ == '__main__':
         )
     _payload_plans["operationDurationInSecOG"] = _payload_plans["operationDurationInSec"]
     #_payload_plans = update_operation_duration(CONFIG, _payload_plans, _tours, _carriers, _vehicle_types)
-    _payload_plans.drop(columns=['index', 'Unnamed: 0'], errors='ignore', inplace=True)
+    _payload_plans.drop(columns=['index', 'Unnamed: 0', 'requestType'], errors='ignore', inplace=True)
     _payload_plans.to_csv(f'{DIRECTORY_SCENARIO}/payloads--{CONFIG["year"]}-{SCENARIO_LABEL}.csv', index=False)
 
     if _ondemand_plans is not None:

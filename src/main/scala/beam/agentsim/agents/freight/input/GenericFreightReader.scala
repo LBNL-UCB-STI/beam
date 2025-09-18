@@ -1,5 +1,6 @@
 package beam.agentsim.agents.freight.input
 
+import beam.agentsim.agents.freight.FreightEntities.FREIGHT_ID_PREFIX
 import beam.agentsim.agents.freight._
 import beam.agentsim.agents.freight.input.FreightReader._
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
@@ -114,14 +115,18 @@ class GenericFreightReader(
     val maybePlans = GenericCsvReader
       .readAsSeq[Option[PayloadPlan]](config.plansFilePath) { row =>
         def get(key: String): String = getRowValue(config.plansFilePath, row, key)
-        // payloadId,sequenceRank,tourId,payloadType,weightInKg,requestType,locationZone,locationX,locationY,
+        // payloadId,sequenceRank,tourId,payloadType,weightInKg,activityType,locationZone,locationX,locationY,
         // estimatedTimeOfArrivalInSec,arrivalTimeWindowInSecLower,arrivalTimeWindowInSecUpper,operationDurationInSec
-        val requestType = get("requestType").toLowerCase() match {
-          case "1" | "unloading" => FreightRequestType.Unloading
-          case "0" | "loading"   => FreightRequestType.Loading
+        val unloadingStr = FreightActivityType.Unloading.toString.toLowerCase
+        val loadingStr = FreightActivityType.Loading.toString.toLowerCase
+        val warehouseStr = FreightActivityType.Warehouse.toString.toLowerCase
+        val activityType = get("activityType").toLowerCase() match {
+          case "1" | `unloadingStr` => FreightActivityType.Unloading
+          case "0" | `loadingStr`   => FreightActivityType.Loading
+          case `warehouseStr`       => FreightActivityType.Warehouse
           case wrongValue =>
             throw new IllegalArgumentException(
-              s"Value of requestType $wrongValue is unexpected."
+              s"Value of activityType $wrongValue is unexpected."
             )
         }
         val operationDurationInSec = get("operationDurationInSec").toDouble.round.toInt
@@ -129,14 +134,6 @@ class GenericFreightReader(
         val payloadId = get("payloadId").createId[PayloadPlan]
         val locationX = row.get("locationX")
         val locationY = row.get("locationY")
-
-        val deliveryType: FreightDeliveryType = FreightDeliveryType(payloadId.toString)
-
-        val activityType = if (config.generateFixedActivitiesDurations) {
-          s"${deliveryType.value}|${requestType.toString}|$operationDurationInSec"
-        } else {
-          s"${deliveryType.value}|${requestType.toString}"
-        }
 
         extractCoordInUtmOrTaz(
           locationX,
@@ -152,7 +149,6 @@ class GenericFreightReader(
                 get("tourId").createId,
                 get("payloadType").createId[PayloadType],
                 get("weightInKg").toDouble,
-                requestType,
                 activityType,
                 locationZoneMaybe,
                 coord,

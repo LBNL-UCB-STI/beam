@@ -383,7 +383,7 @@ object DispatchProductType extends Enum[DispatchProductType] {
   case object POOLED extends DispatchProductType
 
 }
-//requestType: RideHailRequestType,
+//activityType: RideHailRequestType,
 //customer: VehiclePersonId,
 //pickUpLocation: Location,
 //departAt: BeamTime,

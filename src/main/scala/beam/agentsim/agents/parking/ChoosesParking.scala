@@ -4,7 +4,7 @@ import akka.pattern.pipe
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
-import beam.agentsim.agents.freight.FreightRequestType
+import beam.agentsim.agents.freight.FreightActivityType
 import beam.agentsim.agents.freight.input.FreightReader._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking._
@@ -96,7 +96,8 @@ object ChoosesParking {
           eventsManager.processEvent(parkingSkimmerEvent)
           val freightRequestType =
             nextActivity.flatMap(activity =>
-              Option(activity.getAttributes.getAttribute(FREIGHT_REQUEST_TYPE)).asInstanceOf[Option[FreightRequestType]]
+              Option(activity.getAttributes.getAttribute(FREIGHT_REQUEST_TYPE))
+                .asInstanceOf[Option[FreightActivityType]]
             )
           freightRequestType.foreach { requestType =>
             val freightSkimmerEvent = createFreightSkimmerEvent(tick, trip, parkingSkimmerEvent, requestType)
@@ -112,12 +113,12 @@ object ChoosesParking {
     tick: Int,
     trip: Option[EmbodiedBeamTrip],
     parkingSkimmerEvent: ParkingSkimmerEvent,
-    requestType: FreightRequestType
+    requestType: FreightActivityType
   ) = {
     val (loading, unloading) = requestType match {
-      case FreightRequestType.Unloading => (0, 1)
-      case FreightRequestType.Loading   => (1, 0)
-      case FreightRequestType.Warehouse => (0, 0)
+      case FreightActivityType.Unloading => (0, 1)
+      case FreightActivityType.Loading   => (1, 0)
+      case FreightActivityType.Warehouse => (0, 0)
     }
     val costPerMile = trip
       .map { trip =>
@@ -219,7 +220,11 @@ trait ChoosesParking extends {
       )
     } else {
       val searchModeChargeOrPark =
-        if (activityType.startsWith("Loading") || activityType.startsWith("Unloading"))
+        if (
+          activityType.startsWith(FreightActivityType.Loading.toString) || activityType.startsWith(
+            FreightActivityType.Unloading.toString
+          )
+        )
           ParkingSearchMode.DoubleParkingAllowed
         else if (
           isRefuelAtDestinationNeeded(currentBeamVehicle, activityType) && isEnoughTimeForRefueling(parkingDuration)

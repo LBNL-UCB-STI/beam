@@ -9,7 +9,7 @@ import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
 import beam.utils.BeamVehicleUtils
 import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import beam.utils.matsim_conversion.MatsimPlanConversion.{AttributesOps, IdOps}
-import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan, PopulationFactory}
+import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.households.{Household, HouseholdImpl, HouseholdsFactory}
 import org.mockito.ArgumentMatchers.any
@@ -92,7 +92,7 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
       plan7.tourId should be("tour-3".createId[FreightTour])
       plan7.payloadType should be("goods".createId[PayloadType])
       plan7.weightInKg should be(1500)
-      plan7.requestType should be(FreightRequestType.Loading)
+      plan7.activityType should be(FreightActivityType.Loading)
     }
 
     "read Freight Tours" in {
@@ -213,7 +213,7 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
       plan4.getPlanElements.get(2).asInstanceOf[Activity].getCoord should be(
         new Coord(169900.11498160253, 3510.2356380579545)
       )
-      plan4.getPlanElements.get(4).asInstanceOf[Activity].getType should be("Warehouse")
+      plan4.getPlanElements.get(4).asInstanceOf[Activity].getType should be(FreightActivityType.Warehouse.toString)
     }
   }
 

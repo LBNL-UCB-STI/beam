@@ -86,17 +86,11 @@ class FreightReplanner(
     val tour = FreightTour(tourId, route.startTime, route.duration * 2)
 
     val plans = route.activities.zipWithIndex.map { case (activity, i) =>
-      val requestType: FreightRequestType = activity.service match {
-        case _: Dropoff => FreightRequestType.Unloading
-        case _: Pickup  => FreightRequestType.Loading
+      val activityType: FreightActivityType = activity.service match {
+        case _: Dropoff => FreightActivityType.Unloading
+        case _: Pickup  => FreightActivityType.Loading
       }
       val payloadPlan = payloadPlans(activity.service.id.createId)
-
-      val activityType = if (freightConfig.generateFixedActivitiesDurations) {
-        s"${requestType.toString}|${payloadPlan.operationDurationInSec}"
-      } else {
-        requestType.toString
-      }
 
       PayloadPlan(
         activity.service.id.createId,
@@ -104,7 +98,6 @@ class FreightReplanner(
         tour.tourId,
         payloadPlan.payloadType,
         activity.service.capacity,
-        requestType,
         activityType,
         None,
         activity.service.location,
@@ -161,10 +154,10 @@ class FreightReplanner(
 
     def toService(payloadPlan: PayloadPlan): Service = {
       val serviceId = payloadPlan.payloadId.toString
-      payloadPlan.requestType match {
-        case FreightRequestType.Unloading =>
+      payloadPlan.activityType match {
+        case FreightActivityType.Unloading =>
           Dropoff(serviceId, payloadPlan.locationUTM, payloadPlan.weightInKg, payloadPlan.operationDurationInSec)
-        case FreightRequestType.Loading | FreightRequestType.Warehouse =>
+        case FreightActivityType.Loading | FreightActivityType.Warehouse =>
           Pickup(serviceId, payloadPlan.locationUTM, payloadPlan.weightInKg, payloadPlan.operationDurationInSec)
       }
     }

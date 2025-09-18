@@ -257,6 +257,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     profileRequest.wheelchair = false
     profileRequest.bikeTrafficStress = 4
     profileRequest.zoneId = transportNetwork.getTimeZone
+    // profileRequest.monteCarloDraws = beamConfig.beam.routing.r5.numberOfSamples
     profileRequest.monteCarloDraws = 0
     profileRequest.date = dates.localBaseDate
     // Doesn't calculate any fares, is just a no-op placeholder
