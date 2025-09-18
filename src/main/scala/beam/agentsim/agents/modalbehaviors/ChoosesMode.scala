@@ -1992,11 +1992,22 @@ trait ChoosesMode {
   ) = {
     availableStreetVehicles.find(v => Seq(CAR, FREIGHT).contains(v.streetVehicle.mode)) match {
       case Some(availableVehicle) =>
-        val bushwhackingLeg = RoutingWorker
+        val agentToVehicleLeg = RoutingWorker
           .createBushwackingTrip(
             currentPersonLocation.loc,
-            nextAct.getCoord,
+            availableVehicle.streetVehicle.locationUTM.loc,
             _currentTick.get,
+            createBodyStreetVehicle(currentPersonLocation),
+            beamServices.geo,
+            mode = BeamMode.WALK,
+            unbecomeDriverOnCompletion = false
+          )
+          .legs
+        val bushwhackingLeg = RoutingWorker
+          .createBushwackingTrip(
+            availableVehicle.streetVehicle.locationUTM.loc,
+            nextAct.getCoord,
+            agentToVehicleLeg.last.beamLeg.endTime,
             availableVehicle.streetVehicle,
             beamServices.geo,
             mode = mode,
@@ -2005,16 +2016,8 @@ trait ChoosesMode {
           .legs
           .head
         EmbodiedBeamTrip(
-          Vector(
-            EmbodiedBeamLeg.dummyLegAt(
-              _currentTick.get,
-              body.id,
-              isLastLeg = false,
-              beamServices.geo.utm2Wgs(currentPersonLocation.loc),
-              WALK,
-              body.beamVehicleType.id
-            )
-          ) :+ bushwhackingLeg :+
+          agentToVehicleLeg
+          :+ bushwhackingLeg :+
           EmbodiedBeamLeg.dummyLegAt(
             _currentTick.get + bushwhackingLeg.beamLeg.duration,
             availableVehicle.id,
