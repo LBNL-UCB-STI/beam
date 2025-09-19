@@ -280,14 +280,15 @@ object HouseholdActor {
 
         // ****************************
         // Decide prefix and categories based on carrier type
-        val prefix =
-          if (isFreightCarrier) FREIGHT_ID_PREFIX
-          else PASSENGER_ID_PREFIX
+        val (prefix, categories) =
+          if (isFreightCarrier) (FREIGHT_ID_PREFIX, List.empty[VehicleCategory])
+          else (PASSENGER_ID_PREFIX, householdVehicleCategories)
 
         // Create empty category entries
         // Group non-CAV vehicles by (prefix, category)
         // Merge empty categories with actual vehicles
         val vehiclesByAllCategories: Map[(String, VehicleCategory), Map[Id[BeamVehicle], BeamVehicle]] =
+          categories.map(cat => (prefix, cat) -> Map.empty[Id[BeamVehicle], BeamVehicle]).toMap ++
           vehicles
             .filterNot(_._2.isCAV)
             .groupBy { case (_, vehicle) => (prefix, vehicle.beamVehicleType.vehicleCategory.generalCategory) }
