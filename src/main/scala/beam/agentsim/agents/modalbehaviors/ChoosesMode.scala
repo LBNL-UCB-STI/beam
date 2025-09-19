@@ -2952,7 +2952,8 @@ trait ChoosesMode {
             case itin if effectiveTourVehicle.isEmpty && tourMode.isVehicleBased =>
               if (tourMode != FREIGHT_TOUR) {
                 logger.warn(
-                  f"Vehicle based tour mode without vehicle defined: Person ${this.id}, tour: $currentTourStrategy"
+                  f"Vehicle based tour mode without vehicle defined: Person ${this.id}, " +
+                  f"tour: $currentTourStrategy. Available vehicles: $availableVehicles"
                 )
               }
               itin -> itin.legs.find(l => l.asDriver && (l.beamLeg.mode != WALK)).map(_.beamVehicleId)
