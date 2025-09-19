@@ -75,14 +75,27 @@ object FuelType {
 }
 
 object VehicleCategory {
-  sealed trait VehicleCategory
+
+  sealed trait VehicleCategory {
+    def generalCategory: VehicleCategory = this
+  }
   case object Body extends VehicleCategory
   case object Bike extends VehicleCategory
   case object Car extends VehicleCategory // Class 1&2a (GVWR <= 8500 lbs.)
   case object MediumDutyPassenger extends VehicleCategory
-  case object Class456Vocational extends VehicleCategory // Class 4-6 (GVWR 14001-26000 lbs.)
-  case object Class78Vocational extends VehicleCategory // CLass 7&8 (GVWR 26001-33,000 lbs.)
-  case object Class78Tractor extends VehicleCategory // Class 7&8 Tractor (GVWR >33,000 lbs.)
+  case object Freight extends VehicleCategory
+
+  case object Class456Vocational extends VehicleCategory {
+    override def generalCategory: VehicleCategory = Freight // Class 4-6 (GVWR 14001-26000 lbs.)
+  }
+
+  case object Class78Vocational extends VehicleCategory {
+    override def generalCategory: VehicleCategory = Freight // CLass 7&8 (GVWR 26001-33,000 lbs.)
+  }
+
+  case object Class78Tractor extends VehicleCategory {
+    override def generalCategory: VehicleCategory = Freight // Class 7&8 Tractor (GVWR >33,000 lbs.)
+  }
 
   def fromString(value: String): VehicleCategory =
     try { fromStringOptional(value).get }
@@ -91,6 +104,7 @@ object VehicleCategory {
     }
 
   val values: Vector[VehicleCategory] = Vector(
+    // Note: not including Freight here because we can't instantiate it directly
     Body,
     Bike,
     Car,

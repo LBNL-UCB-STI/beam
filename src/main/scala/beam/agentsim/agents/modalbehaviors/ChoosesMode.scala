@@ -204,7 +204,7 @@ trait ChoosesMode {
             tourMode match {
               case Some(CAR_BASED)    => Some(VehicleCategory.Car)
               case Some(BIKE_BASED)   => Some(VehicleCategory.Bike)
-              case Some(FREIGHT_TOUR) => None // Any Class. No need for categories
+              case Some(FREIGHT_TOUR) => Some(VehicleCategory.Freight)
               case _                  => None
             }
           ) pipeTo self
@@ -2951,7 +2951,9 @@ trait ChoosesMode {
               itin -> effectiveTourVehicle
             case itin if effectiveTourVehicle.isEmpty && tourMode.isVehicleBased =>
               if (tourMode != FREIGHT_TOUR) {
-                logger.warn("Vehicle based tour mode without vehicle defined")
+                logger.warn(
+                  f"Vehicle based tour mode without vehicle defined: Person ${this.id}, tour: $currentTourStrategy"
+                )
               }
               itin -> itin.legs.find(l => l.asDriver && (l.beamLeg.mode != WALK)).map(_.beamVehicleId)
           }.toMap
