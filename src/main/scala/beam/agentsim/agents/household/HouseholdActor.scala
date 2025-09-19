@@ -727,7 +727,7 @@ object HouseholdActor {
         if (personId.toString.startsWith(FREIGHT_ID_PREFIX)) FREIGHT_ID_PREFIX else PASSENGER_ID_PREFIX
       if (defaultCategory == category && demand == defaultDemand) {
         category match {
-          case cat if FREIGHT_CATEGORIES.contains(cat) && demand == FREIGHT_ID_PREFIX =>
+          case cat if (cat.generalCategory == Freight) && (demand == FREIGHT_ID_PREFIX) =>
             val carrierId = Id.create(household.getId, classOf[beam.agentsim.agents.freight.FreightCarrier])
             val carrier = beamScenario.freightCarriers.getOrElse(
               carrierId,

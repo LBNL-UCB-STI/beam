@@ -79,11 +79,4 @@ case class FreightCarrier(
 object FreightEntities {
   val FREIGHT_ID_PREFIX = "ft"
   val PASSENGER_ID_PREFIX = "pax"
-
-  val FREIGHT_CATEGORIES: Seq[VehicleCategory.VehicleCategory] = Seq(
-    VehicleCategory.Class78Tractor,
-    VehicleCategory.Class78Vocational,
-    VehicleCategory.Class456Vocational,
-    VehicleCategory.Car
-  )
 }
