@@ -2942,6 +2942,10 @@ trait ChoosesMode {
     currentTourStrategy.tourMode match {
       case Some(tourMode) =>
         val effectiveTourVehicle = choosesModeData.personData.currentTourPersonalVehicle
+          .orElse(
+            // Check if current tour strategy has a vehicle that's available
+            currentTourStrategy.tourVehicle.filter(vehicleId => availableVehicles.exists(_.id == vehicleId))
+          )
           .orElse(getInheritedTourVehicle(choosesModeData.personData, availableVehicles))
 
         (
