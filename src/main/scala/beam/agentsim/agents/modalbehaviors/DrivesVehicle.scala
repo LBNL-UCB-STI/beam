@@ -389,18 +389,19 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         case data: BasePersonData => data.enrouteData.isEnrouting; case _ => false
       }
       if (!isLastLeg) {
+        val nextLeg =
+          data.passengerSchedule.schedule.keys.view
+            .drop(data.currentLegPassengerScheduleIndex + 1)
+            .head
+        val ableToPark = nextLeg.mode != BeamMode.WALK
         // we don't want to choose parking stall if vehicle is in enroute
-        if (data.hasParkingBehaviors && !isInEnrouteState) {
+        if (data.hasParkingBehaviors && !isInEnrouteState && ableToPark) {
           holdTickAndTriggerId(tick, triggerId)
           log.debug(s"state(DrivesVehicle.Driving) $id is going to ReadyToChooseParking")
           goto(ReadyToChooseParking) using data
             .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
             .asInstanceOf[T]
         } else {
-          val nextLeg =
-            data.passengerSchedule.schedule.keys.view
-              .drop(data.currentLegPassengerScheduleIndex + 1)
-              .head
           val startLegTriggerTick = if (nextLeg.startTime < tick) {
             logger.warn(s"Start time of next leg ${nextLeg.startTime} was less than current tick $tick.")
             tick
