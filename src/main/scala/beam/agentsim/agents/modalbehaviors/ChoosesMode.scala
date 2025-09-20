@@ -5,6 +5,7 @@ import akka.pattern.pipe
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
+import beam.agentsim.agents.freight.FreightEntities.FREIGHT_ID_PREFIX
 import beam.agentsim.agents.household.HouseholdActor.{
   MobilityStatusInquiry,
   MobilityStatusResponse,
@@ -268,7 +269,8 @@ trait ChoosesMode {
               vehicleFleets,
               data.currentLocation,
               currentActivity(data.personData),
-              Some(VehicleCategory.Car)
+              if (this.id.toString.startsWith(FREIGHT_ID_PREFIX)) { Some(VehicleCategory.Freight) }
+              else { Some(VehicleCategory.Car) }
             ) pipeTo self
         }
       case (data: ChoosesModeData, Some(BIKE | BIKE_TRANSIT), _) =>
