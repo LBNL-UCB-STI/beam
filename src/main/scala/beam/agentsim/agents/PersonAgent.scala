@@ -783,7 +783,6 @@ class PersonAgent(
     context: String
   ): Unit = {
     val availableVehicleIds = availableVehicles.map(_.id).toSet
-
     if (this.id.toString.startsWith("ft")) {
       if (newPersonData.currentTrip.exists(_.tripClassifier != CAR)) {
         logger.error("Why does the freight agent's trip classifier not have CAR")
@@ -791,7 +790,6 @@ class PersonAgent(
         logger.error("Why is our mode not CAR")
       }
     }
-
     // Check current tour strategy
     val currentTourStrategy = getCurrentTourStrategy(newPersonData)
     currentTourStrategy.tourVehicle match {
