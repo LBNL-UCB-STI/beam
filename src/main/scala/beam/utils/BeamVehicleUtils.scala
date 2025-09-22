@@ -2,7 +2,6 @@ package beam.utils
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.{Electricity, FuelType}
-import beam.agentsim.agents.vehicles.VehicleCategory.Freight
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.sim.common.{DoubleTypedRange, Range}
@@ -269,8 +268,8 @@ object BeamVehicleUtils extends LazyLogging {
     emissionsString: String,
     vehicleTypeId: Option[String] = None
   ): Option[VehicleEmissions.EmissionsProfile] = {
-    import VehicleEmissions.Emissions
-    import VehicleEmissions.EmissionsProfile
+    import VehicleEmissions.{Emissions, EmissionsProfile}
+
     import scala.util.Try
 
     // Regular expression pattern to match emission sources and their values.
