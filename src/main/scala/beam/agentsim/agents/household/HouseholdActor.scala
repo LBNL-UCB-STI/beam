@@ -216,73 +216,17 @@ object HouseholdActor {
     override def loggedReceive: Receive = {
 
       case TriggerWithId(InitializeTrigger(tick), triggerId) =>
-        householdMembersToActivityTypeAndLocation = household.members
-          .filter { person =>
-            person.getSelectedPlan.getPlanElements.asScala.exists {
-              case element if element.isInstanceOf[Leg] =>
-                val mode = element.asInstanceOf[Leg].getMode
-                // This previously only looked at CAR legs, which was messing up bike and drive transit tests by putting
-                // household vehicles in the wrong place. Does changing it to look at all driving modes mess things up?
-                (BeamMode.personalVehicleModes :+ BeamMode.FREIGHT).map(_.value).contains(mode)
-              case _ => false
-            }
-          }
-          .flatMap { person =>
-            if (isFreightCarrier) {
-              val vehicleIdFromPlans = Id.create(
-                PopulationUtils.getPersonAttribute(person, "vehicle").toString,
-                classOf[BeamVehicle]
-              )
-              whoDrivesThisFreightVehicle = whoDrivesThisFreightVehicle + (vehicleIdFromPlans -> person.getId)
-            }
-            person.getSelectedPlan.getPlanElements.asScala.find(_.isInstanceOf[Activity]) map { element =>
-              val act = element.asInstanceOf[Activity]
-              val parkingActivityType =
-                if (isFreightCarrier) ParkingActivityType.Freight else ParkingActivityType.fromString(act.getType)
-              val endTime = act.getEndTime.orElseGet(() => DateUtils.getEndOfTime(beamServices.beamScenario.beamConfig))
-              person.getId -> ActivityTypeAndLocation(
-                parkingActivityType,
-                act.getType,
-                act.getCoord,
-                endTime.toInt
-              )
-            }
-          }
-          .toMap
+        // Step 1: Extract freight vehicle assignments
+        whoDrivesThisFreightVehicle = extractFreightVehicleAssignments()
 
-        if (isFreightCarrier && whoDrivesThisFreightVehicle.isEmpty) {
-          log.error(
-            f"Empty whoDrivesThisFreightVehicle for freight carrier ${this.household}. This will cause problems"
-          )
-        }
+        // Step 2: Find household members with vehicle-using plans
+        val membersWithVehiclePlans = findMembersWithVehiclePlans()
 
-        if (
-          isFreightCarrier && !householdMembersToActivityTypeAndLocation.exists(
-            _._2.parkingActivityType == ParkingActivityType.Freight
-          )
-        ) {
-          householdMembersToActivityTypeAndLocation ++= Map(
-            Id.createPersonId("NoDriver") -> ActivityTypeAndLocation(
-              ParkingActivityType.Freight,
-              FreightActivityType.Warehouse.toString,
-              fallbackInitialLocationCoord,
-              DateUtils.getEndOfTime(beamServices.beamScenario.beamConfig)
-            )
-          )
-        } else if (
-          !isFreightCarrier && !householdMembersToActivityTypeAndLocation.exists(
-            _._2.parkingActivityType == ParkingActivityType.Home
-          )
-        ) {
-          householdMembersToActivityTypeAndLocation ++= Map(
-            Id.createPersonId("NoDriver") -> ActivityTypeAndLocation(
-              ParkingActivityType.Home,
-              "Home",
-              fallbackInitialLocationCoord,
-              DateUtils.getEndOfTime(beamServices.beamScenario.beamConfig)
-            )
-          )
-        }
+        // Step 3: Extract activity locations
+        householdMembersToActivityTypeAndLocation = extractActivityLocations(membersWithVehiclePlans)
+
+        // Step 4: Add fallback locations if needed
+        addFallbackLocationsIfNeeded()
 
         // ****************************
         // Decide prefix and categories based on carrier type
@@ -626,6 +570,74 @@ object HouseholdActor {
       case Terminated(_) =>
       // Do nothing
 
+    }
+
+    private def extractFreightVehicleAssignments(): Map[Id[BeamVehicle], Id[Person]] = {
+      if (!isFreightCarrier) return Map.empty
+
+      household.members.flatMap { person =>
+        Option(PopulationUtils.getPersonAttribute(person, "vehicle"))
+          .map { vehicleAttr =>
+            val vehicleId = Id.create(vehicleAttr.toString, classOf[BeamVehicle])
+            vehicleId -> person.getId
+          }
+      }.toMap
+    }
+
+    private def findMembersWithVehiclePlans(): List[Person] = {
+      val relevantModes = (BeamMode.personalVehicleModes :+ BeamMode.FREIGHT).map(_.value)
+
+      household.members.filter { person =>
+        person.getSelectedPlan.getPlanElements.asScala.exists {
+          case leg: Leg =>
+            relevantModes.contains(leg.getMode)
+          case _ => false
+        }
+      }.toList
+    }
+
+    private def extractActivityLocations(members: List[Person]): Map[Id[Person], ActivityTypeAndLocation] = {
+      members.flatMap { person =>
+        person.getSelectedPlan.getPlanElements.asScala
+          .collectFirst { case activity: Activity => activity }
+          .map { activity =>
+            val parkingActivityType = if (isFreightCarrier) {
+              ParkingActivityType.Freight
+            } else {
+              ParkingActivityType.fromString(activity.getType)
+            }
+
+            val endTime =
+              activity.getEndTime.orElseGet(() => DateUtils.getEndOfTime(beamServices.beamScenario.beamConfig))
+
+            person.getId -> ActivityTypeAndLocation(
+              parkingActivityType,
+              activity.getType,
+              activity.getCoord,
+              endTime.toInt
+            )
+          }
+      }.toMap
+    }
+
+    private def addFallbackLocationsIfNeeded(): Unit = {
+      val expectedParkingType = if (isFreightCarrier) ParkingActivityType.Freight else ParkingActivityType.Home
+      val fallbackActivityType = if (isFreightCarrier) FreightActivityType.Warehouse.toString else "Home"
+
+      if (!householdMembersToActivityTypeAndLocation.values.exists(_.parkingActivityType == expectedParkingType)) {
+        val fallbackLocation = ActivityTypeAndLocation(
+          expectedParkingType,
+          fallbackActivityType,
+          fallbackInitialLocationCoord,
+          DateUtils.getEndOfTime(beamServices.beamScenario.beamConfig)
+        )
+
+        householdMembersToActivityTypeAndLocation += (Id.createPersonId("NoDriver") -> fallbackLocation)
+      }
+
+      if (isFreightCarrier && whoDrivesThisFreightVehicle.isEmpty) {
+        log.error(f"Empty whoDrivesThisFreightVehicle for freight carrier ${this.household}")
+      }
     }
 
     private def completeInitialization(
