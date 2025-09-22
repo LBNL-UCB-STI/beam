@@ -250,6 +250,12 @@ object HouseholdActor {
           }
           .toMap
 
+        if (isFreightCarrier && whoDrivesThisFreightVehicle.isEmpty) {
+          log.error(
+            f"Empty whoDrivesThisFreightVehicle for freight carrier ${this.household}. This will cause problems"
+          )
+        }
+
         if (
           isFreightCarrier && !householdMembersToActivityTypeAndLocation.exists(
             _._2.parkingActivityType == ParkingActivityType.Freight
