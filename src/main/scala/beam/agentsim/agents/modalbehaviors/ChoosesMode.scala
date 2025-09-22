@@ -516,7 +516,7 @@ trait ChoosesMode {
         triggerId
       )
 
-      val newPersonData = choosesModeData.copy(
+      val newPersonData = choosesModeData.safeCopy(
         personData = personData
           .copy(currentTripMode = currentTripMode, currentTourMode = currentTourStrategy.tourMode),
         routingResponse = responsePlaceholders.routingResponse,
@@ -529,8 +529,9 @@ trait ChoosesMode {
         allAvailableStreetVehicles = remainingAvailableVehicles,
         cavTripLegs = responsePlaceholders.cavTripLegs,
         routingFinished = choosesModeData.routingFinished
-          || responsePlaceholders.routingResponse == RoutingResponse.dummyRoutingResponse
-      )
+          || responsePlaceholders.routingResponse == RoutingResponse.dummyRoutingResponse,
+        context = "After receiving MobilityStatusResponse and sending routing requests"
+      )(agent = this)
       stay() using newPersonData
     /*
      * Receive and store data needed for choice.
@@ -1103,14 +1104,7 @@ trait ChoosesMode {
     getParentTourStrategy(personData)
       .flatMap(_.tourVehicle)
       .filter { parentVehicleId =>
-        val isAvailable = availableVehicles.exists(_.id == parentVehicleId)
-        if (!isAvailable) {
-          logger.warn(
-            s"Person ${this.id}: Parent tour vehicle $parentVehicleId is not available. " +
-            s"Available vehicles: ${availableVehicles.map(_.id).mkString(", ")}"
-          )
-        }
-        isAvailable
+        availableVehicles.exists(_.id == parentVehicleId)
       }
   }
 
@@ -1589,7 +1583,7 @@ trait ChoosesMode {
       val availableAlts = Some(itinerariesOfCorrectMode.map(_.tripClassifier).mkString(":"))
 
       def gotoFinishingModeChoice(chosenTrip: EmbodiedBeamTrip) = {
-        goto(FinishingModeChoice) using choosesModeData.copy(
+        goto(FinishingModeChoice) using choosesModeData.safeCopy(
           personData = personData.copy(
             restOfCurrentTrip = List.empty[EmbodiedBeamLeg],
             currentTripMode = Some(chosenTrip.tripClassifier),
@@ -1611,8 +1605,9 @@ trait ChoosesMode {
             passengerSchedule = PassengerSchedule()
           ),
           pendingChosenTrip = Some(chosenTrip),
-          availableAlternatives = availableAlts
-        )
+          availableAlternatives = availableAlts,
+          context = "Going to finishing mode choice after filling in available alternatives"
+        )(agent = this)
       }
 
       // Debug logging for transit replanning loops
@@ -1734,7 +1729,7 @@ trait ChoosesMode {
             )
           }
           val dataForNextStep =
-            choosesModeData.copy(
+            choosesModeData.safeCopy(
               personData = personData.copy(
                 currentTripMode = Some(chosenTrip.tripClassifier),
                 currentTourMode = chosenCurrentTourMode,
@@ -1745,8 +1740,9 @@ trait ChoosesMode {
                   .orElse(getInheritedTourVehicle(choosesModeData.personData, allAvailableStreetVehicles))
               ),
               pendingChosenTrip = Some(chosenTrip),
-              availableAlternatives = availableAlts
-            )
+              availableAlternatives = availableAlts,
+              context = "After successfully selecting mode cohice alternative"
+            )(agent = this)
           goto(FinishingModeChoice) using dataForNextStep
         case None =>
           if (!choosesModeData.personData.currentTourMode.contains(FREIGHT_TOUR)) {
@@ -1836,9 +1832,11 @@ trait ChoosesMode {
                 s"activity ${_experiencedBeamPlan.getTripContaining(personData.currentActivityIndex)} " +
                 s"of plan ${_experiencedBeamPlan.activities.map(_.getType)}. Available vehicles ${beamVehicles.keys.toString()}"
               )
-              goto(ChoosingMode) using choosesModeData.copy(personData =
-                personData.copy(currentTourPersonalVehicle = None)
-              )
+              goto(ChoosingMode) using choosesModeData.safeUpdatePersonData(
+                personData.copy(currentTourPersonalVehicle = None),
+                context = "Replanning after giving up tour vehicle"
+              )(agent = this)
+
             case Some(mode) =>
               val odFailedSkimmerEvent = createFailedODSkimmerEvent(currentAct, nextAct, mode)
               eventsManager.processEvent(odFailedSkimmerEvent)
@@ -1908,7 +1906,7 @@ trait ChoosesMode {
                   updatedTripStrategy
                 )
 
-                stay() using choosesModeData.copy(
+                stay() using choosesModeData.safeCopy(
                   personData = personData.copy(
                     currentTripMode = None,
                     numberOfReplanningAttempts = personData.numberOfReplanningAttempts + 1,
@@ -1917,14 +1915,15 @@ trait ChoosesMode {
                   ),
                   allAvailableStreetVehicles = availableVehicles,
                   routingFinished = true,
-                  excludeModes = choosesModeData.excludeModes ++ choosesModeData.personData.currentTripMode
-                )
+                  excludeModes = choosesModeData.excludeModes ++ choosesModeData.personData.currentTripMode,
+                  context = "Retrying mode choice with existing routing responses after chosen mode wasn't available"
+                )(agent = this)
               } else {
-                val (updatedVehicles, currentTourVehicle) =
+                val (updatedVehicles, newCurrentTourVehicle) =
                   if (
                     (mode == DRIVE_TRANSIT || mode == BIKE_TRANSIT) && (isLastTripWithinTour(
                       nextAct
-                    ) || personData.numberOfReplanningAttempts > 5) && personData.currentTourPersonalVehicle.isDefined
+                    ) || personData.numberOfReplanningAttempts > 2) && personData.currentTourPersonalVehicle.isDefined
                   ) {
                     // Abandon the vehicle because we have no route to get it home
                     val vehicleId = personData.currentTourPersonalVehicle.get
@@ -1949,8 +1948,28 @@ trait ChoosesMode {
                     }
                     (remainingVehicles, None)
                   } else {
-                    (availableVehicles, personData.currentTourPersonalVehicle)
+                    // Handle other modes (including CAR)
+                    val newTourVehicle = if (personData.hasDeparted) {
+                      personData.currentTourPersonalVehicle
+                    } else {
+                      getInheritedTourVehicle(choosesModeData.personData, availableVehicles)
+                    }
+
+                    // If we're losing the tour vehicle, update the tour strategy to match
+                    if (personData.currentTourPersonalVehicle.isDefined && newTourVehicle.isEmpty) {
+                      logger.debug(
+                        s"Person ${this.id}: Clearing tour vehicle in strategy due to failed $mode mode choice"
+                      )
+                      updateTourModeStrategy(
+                        None, // Always reset tour mode when losing vehicle
+                        None, // Clear the vehicle to match person data
+                        nextActivity(choosesModeData.personData).get,
+                        availableVehicles
+                      )
+                    }
+                    (availableVehicles, newTourVehicle)
                   }
+
                 // Need to gather more routing options
                 self ! MobilityStatusResponse(availableVehicles, getCurrentTriggerId.get)
                 logger.debug(
@@ -1963,11 +1982,10 @@ trait ChoosesMode {
                   _experiencedBeamPlan.getTripContaining(nextActivity(choosesModeData.personData).get),
                   updatedTripStrategy
                 )
-                stay() using ChoosesModeData(
+                stay() using ChoosesModeData.validated(
                   personData = personData.copy(
                     currentTripMode = None,
-                    currentTourPersonalVehicle = if (personData.hasDeparted) { personData.currentTourPersonalVehicle }
-                    else getInheritedTourVehicle(choosesModeData.personData, allAvailableStreetVehicles),
+                    currentTourPersonalVehicle = newCurrentTourVehicle,
                     numberOfReplanningAttempts = personData.numberOfReplanningAttempts + 1,
                     deniedBoardingLegs = personData.deniedBoardingLegs
                   ),
@@ -1975,7 +1993,7 @@ trait ChoosesMode {
                   currentLocation = choosesModeData.currentLocation,
                   excludeModes = choosesModeData.excludeModes ++ choosesModeData.personData.currentTripMode,
                   parkingRequestIds = Map.empty // Clear any pending parking requests
-                )
+                )(agent = this, context = f"Replanning after failed mode choice, with planned mode $mode")
               }
             case _ =>
               // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
@@ -3172,7 +3190,7 @@ trait ChoosesMode {
   ): TourModeChoiceStrategy = {
     (newTourMode, newTourVehicle) match {
       case (Some(CAR_BASED), None) =>
-        logger.error("Why are we going into a car based tour without a car?")
+        logger.error(f"Why are we going into a car based tour without a car? Person: ${this.id}")
       case (None, _) =>
         logger.debug(s"Resetting tour mode to None for person ${this.id}")
       case _ =>
@@ -3290,6 +3308,137 @@ object ChoosesMode {
 
     override def legStartsAt: Option[Int] = None
 
+  }
+
+  object ChoosesModeData {
+
+    // Smart constructor for validated creation
+    def validated(
+      personData: BasePersonData,
+      currentLocation: SpaceTime,
+      pendingChosenTrip: Option[EmbodiedBeamTrip] = None,
+      routingResponse: Option[RoutingResponse] = None,
+      parkingResponses: Map[VehicleOnTrip, ParkingInquiryResponse] = Map.empty,
+      parkingRequestIds: Map[Int, VehicleOnTrip] = Map.empty,
+      rideHailResult: Option[RideHailResponse] = None,
+      rideHail2TransitRoutingResponse: Option[EmbodiedBeamTrip] = None,
+      rideHail2TransitRoutingRequestId: Option[Int] = None,
+      rideHail2TransitAccessResult: Option[RideHailResponse] = None,
+      rideHail2TransitAccessInquiryId: Option[Int] = None,
+      rideHail2TransitEgressResult: Option[RideHailResponse] = None,
+      rideHail2TransitEgressInquiryId: Option[Int] = None,
+      availablePersonalStreetVehicles: Vector[VehicleOrToken] = Vector(),
+      allAvailableStreetVehicles: Vector[VehicleOrToken] = Vector(),
+      expectedMaxUtilityOfLatestChoice: Option[Double] = None,
+      isWithinTripReplanning: Boolean = false,
+      cavTripLegs: Option[CavTripLegsResponse] = None,
+      excludeModes: Set[BeamMode] = Set.empty[BeamMode],
+      availableAlternatives: Option[String] = None,
+      routingFinished: Boolean = false,
+      routingRequestToLegMap: Map[Int, TripIdentifier] = Map.empty
+    )(implicit agent: PersonAgent, context: String): ChoosesModeData = {
+      agent.validateTourVehicleConsistency(
+        personData,
+        allAvailableStreetVehicles,
+        s"ChoosesModeData.validated: $context"
+      )
+      ChoosesModeData(
+        personData,
+        currentLocation,
+        pendingChosenTrip,
+        routingResponse,
+        parkingResponses,
+        parkingRequestIds,
+        rideHailResult,
+        rideHail2TransitRoutingResponse,
+        rideHail2TransitRoutingRequestId,
+        rideHail2TransitAccessResult,
+        rideHail2TransitAccessInquiryId,
+        rideHail2TransitEgressResult,
+        rideHail2TransitEgressInquiryId,
+        availablePersonalStreetVehicles,
+        allAvailableStreetVehicles,
+        expectedMaxUtilityOfLatestChoice,
+        isWithinTripReplanning,
+        cavTripLegs,
+        excludeModes,
+        availableAlternatives,
+        routingFinished,
+        routingRequestToLegMap
+      )
+    }
+  }
+
+  implicit class ChoosesModeDataOps(data: ChoosesModeData) {
+
+    def safeUpdatePersonData(
+      newPersonData: BasePersonData,
+      newAllAvailableStreetVehicles: Vector[VehicleOrToken] = data.allAvailableStreetVehicles,
+      context: String
+    )(implicit agent: PersonAgent): ChoosesModeData = {
+      agent.validateTourVehicleConsistency(
+        newPersonData,
+        newAllAvailableStreetVehicles,
+        s"ChoosesModeData.safeUpdatePersonData: $context"
+      )
+      data.copy(personData = newPersonData)
+    }
+
+    def safeCopy(
+      personData: BasePersonData = data.personData,
+      currentLocation: SpaceTime = data.currentLocation,
+      pendingChosenTrip: Option[EmbodiedBeamTrip] = data.pendingChosenTrip,
+      routingResponse: Option[RoutingResponse] = data.routingResponse,
+      parkingResponses: Map[VehicleOnTrip, ParkingInquiryResponse] = data.parkingResponses,
+      parkingRequestIds: Map[Int, VehicleOnTrip] = data.parkingRequestIds,
+      rideHailResult: Option[RideHailResponse] = data.rideHailResult,
+      rideHail2TransitRoutingResponse: Option[EmbodiedBeamTrip] = data.rideHail2TransitRoutingResponse,
+      rideHail2TransitRoutingRequestId: Option[Int] = data.rideHail2TransitRoutingRequestId,
+      rideHail2TransitAccessResult: Option[RideHailResponse] = data.rideHail2TransitAccessResult,
+      rideHail2TransitAccessInquiryId: Option[Int] = data.rideHail2TransitAccessInquiryId,
+      rideHail2TransitEgressResult: Option[RideHailResponse] = data.rideHail2TransitEgressResult,
+      rideHail2TransitEgressInquiryId: Option[Int] = data.rideHail2TransitEgressInquiryId,
+      availablePersonalStreetVehicles: Vector[VehicleOrToken] = data.availablePersonalStreetVehicles,
+      allAvailableStreetVehicles: Vector[VehicleOrToken] = data.allAvailableStreetVehicles,
+      expectedMaxUtilityOfLatestChoice: Option[Double] = data.expectedMaxUtilityOfLatestChoice,
+      isWithinTripReplanning: Boolean = data.isWithinTripReplanning,
+      cavTripLegs: Option[CavTripLegsResponse] = data.cavTripLegs,
+      excludeModes: Set[BeamMode] = data.excludeModes,
+      availableAlternatives: Option[String] = data.availableAlternatives,
+      routingFinished: Boolean = data.routingFinished,
+      routingRequestToLegMap: Map[Int, TripIdentifier] = data.routingRequestToLegMap,
+      context: String
+    )(implicit agent: PersonAgent): ChoosesModeData = {
+      agent.validateTourVehicleConsistency(
+        personData,
+        allAvailableStreetVehicles,
+        s"ChoosesModeData.safeCopy: $context"
+      )
+      data.copy(
+        personData = personData,
+        currentLocation = currentLocation,
+        pendingChosenTrip = pendingChosenTrip,
+        routingResponse = routingResponse,
+        parkingResponses = parkingResponses,
+        parkingRequestIds = parkingRequestIds,
+        rideHailResult = rideHailResult,
+        rideHail2TransitRoutingResponse = rideHail2TransitRoutingResponse,
+        rideHail2TransitRoutingRequestId = rideHail2TransitRoutingRequestId,
+        rideHail2TransitAccessResult = rideHail2TransitAccessResult,
+        rideHail2TransitAccessInquiryId = rideHail2TransitAccessInquiryId,
+        rideHail2TransitEgressResult = rideHail2TransitEgressResult,
+        rideHail2TransitEgressInquiryId = rideHail2TransitEgressInquiryId,
+        availablePersonalStreetVehicles = availablePersonalStreetVehicles,
+        allAvailableStreetVehicles = allAvailableStreetVehicles,
+        expectedMaxUtilityOfLatestChoice = expectedMaxUtilityOfLatestChoice,
+        isWithinTripReplanning = isWithinTripReplanning,
+        cavTripLegs = cavTripLegs,
+        excludeModes = excludeModes,
+        availableAlternatives = availableAlternatives,
+        routingFinished = routingFinished,
+        routingRequestToLegMap = routingRequestToLegMap
+      )
+    }
   }
 
   case class MobilityStatusWithLegs( // REMOVED `private` KEYWORD

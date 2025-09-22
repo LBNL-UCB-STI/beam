@@ -664,7 +664,8 @@ class PersonAgent(
         val currentTourModeChoiceStrategy = _experiencedBeamPlan.getTourStrategy[TourModeChoiceStrategy](nextAct)
         val currentCoord = currentActivity(data).getCoord
         val nextCoord = nextActivity(data).get.getCoord
-        goto(ChoosingMode) using ChoosesModeData(
+
+        goto(ChoosingMode) using ChoosesModeData.validated(
           personData = data.copy(
             // We current tour mode is defined in _experiencedBeamPlan.getTourStrategy
             // If we have the currentTourPersonalVehicle then we should use it
@@ -679,13 +680,13 @@ class PersonAgent(
             enrouteData = EnrouteData(),
             deniedBoardingLegs = Set.empty[EmbodiedBeamLeg]
           ),
-          SpaceTime(currentCoord, _currentTick.get),
+          currentLocation = SpaceTime(currentCoord, _currentTick.get),
+          allAvailableStreetVehicles = beamVehicles.values.toVector,
           excludeModes =
             if (canUseCars(currentCoord, nextCoord)) Set.empty
             else Set(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
-        )
+        )(agent = this, context = "ActivityEndTrigger -> ChoosingMode transition")
     }
-
   }
 
   when(Teleporting) {
@@ -754,6 +755,59 @@ class PersonAgent(
       goto(ProcessingNextLegOrStartActivity)
   }
 
+  def validateTourVehicleConsistency(
+    newPersonData: BasePersonData,
+    availableVehicles: Vector[VehicleOrToken],
+    context: String
+  ): Unit = {
+    val availableVehicleIds = availableVehicles.map(_.id).toSet
+
+    // Check current tour strategy
+    val currentTourStrategy = getCurrentTourStrategy(newPersonData)
+    currentTourStrategy.tourVehicle match {
+      case Some(currentTourVehicle) =>
+        if (!availableVehicleIds.contains(currentTourVehicle)) {
+          logger.warn(
+            s"Person ${this.id}: Current tour strategy references vehicle $currentTourVehicle " +
+            s"in $context, but it's not available. Available vehicles: ${availableVehicleIds.mkString(", ")}"
+          )
+        }
+        // Also check if personData is being reset to None while strategy has vehicle
+        if (newPersonData.currentTourPersonalVehicle.isEmpty) {
+          logger.warn(
+            s"Person ${this.id}: currentTourPersonalVehicle reset to None in $context, " +
+            s"but current tour strategy still references vehicle $currentTourVehicle"
+          )
+        }
+      case None => // No current tour vehicle, that's fine
+    }
+
+    // Check parent tour strategy
+    val parentTourStrategy = getParentTourStrategy(newPersonData)
+    parentTourStrategy.flatMap(_.tourVehicle) match {
+      case Some(parentTourVehicle) if currentTourStrategy.tourMode.exists(_.isVehicleBased) =>
+        if (!availableVehicleIds.contains(parentTourVehicle)) {
+          logger.warn(
+            s"Person ${this.id}: Parent tour strategy references vehicle $parentTourVehicle " +
+            s"in $context, but it's not available. Available vehicles: ${availableVehicleIds.mkString(", ")}"
+          )
+        }
+        // Also check if personData is being reset to None while parent strategy has vehicle
+        if (newPersonData.currentTourPersonalVehicle.isEmpty) {
+          logger.warn(
+            s"Person ${this.id}: currentTourPersonalVehicle reset to None in $context, " +
+            s"but parent tour strategy still references vehicle $parentTourVehicle"
+          )
+        }
+      case Some(parentTourVehicle) =>
+        logger.debug(
+          s"Person ${this.id}: Parent tour vehicle $parentTourVehicle not available, " +
+          s"but current tour is non-vehicle-based, so this is expected"
+        )
+      case _ => // No parent tour vehicle, that's fine
+    }
+  }
+
   private def canUseCars(currentCoord: Coord, nextCoord: Coord): Boolean = {
     currentCoord == null || beamScenario.trainStopQuadTree
       .getDisk(currentCoord.getX, currentCoord.getY, minDistanceToTrainStop)
@@ -811,7 +865,7 @@ class PersonAgent(
 
     val currentCoord = beamServices.geo.wgs2Utm(data.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc
     val nextCoord = nextActivity(data).get.getCoord
-    goto(ChoosingMode) using ChoosesModeData(
+    goto(ChoosingMode) using ChoosesModeData.validated(
       data.copy(
         currentTrip = None,
         restOfCurrentTrip = List.empty[EmbodiedBeamLeg],
@@ -831,7 +885,7 @@ class PersonAgent(
       excludeModes = (if (data.numberOfReplanningAttempts > 0) Set(RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT)
                       else Set()) ++ (if (canUseCars(currentCoord, nextCoord)) Set.empty[BeamMode]
                                       else Set(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV))
-    )
+    )(agent = this, context = "Handling failed ridehail reservation")
   }
 
   when(WaitingForReservationConfirmation) {
@@ -870,7 +924,7 @@ class PersonAgent(
           case _ => (WALK_TRANSIT, None)
         }
 
-      goto(ChoosingMode) using ChoosesModeData(
+      goto(ChoosingMode) using ChoosesModeData.validated(
         data.copy(
           currentTrip = None,
           restOfCurrentTrip = List.empty[EmbodiedBeamLeg],
@@ -892,6 +946,9 @@ class PersonAgent(
           if (canUseCars(currentCoord, nextCoord)) Set.empty
           else Set(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
         )
+      )(
+        agent = this,
+        context = f"Replanning after failed transit reservation with message ${firstErrorResponse.errorCode}"
       )
   }
 
@@ -1148,7 +1205,7 @@ class PersonAgent(
       val (updatedTourMode, updatedTourPersonalVehicle): (Option[BeamTourMode], Option[Id[BeamVehicle]]) =
         if (nextAct.getType.equalsIgnoreCase("Home")) { (None, None) }
         else { (basePersonData.currentTourMode, basePersonData.currentTourPersonalVehicle) }
-      goto(ChoosingMode) using ChoosesModeData(
+      goto(ChoosingMode) using ChoosesModeData.validated(
         basePersonData.copy(
           currentTrip = None,
           restOfCurrentTrip = List.empty[EmbodiedBeamLeg],
@@ -1170,7 +1227,7 @@ class PersonAgent(
         excludeModes =
           if (canUseCars(currentCoord, nextCoord)) Set.empty
           else Set(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
-      )
+      )(agent = this, context = "Replanning after failing to board transit vehicle")
   }
 
   when(EnrouteRefueling) {
@@ -1359,7 +1416,7 @@ class PersonAgent(
         }
 
       val nextCoord = nextAct.get.getCoord
-      goto(ChoosingMode) using ChoosesModeData(
+      goto(ChoosingMode) using ChoosesModeData.validated(
         personData = data
           .copy(
             currentTripMode = Some(replannedMode),
@@ -1376,7 +1433,7 @@ class PersonAgent(
         isWithinTripReplanning = true,
         excludeModes = excludedMode.toSet ++ (if (canUseCars(currentCoord, nextCoord)) Set.empty
                                               else Set(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV))
-      )
+      )(agent = this, context = "Replanning after showing up late to transit leg")
     // TRANSIT
     case Event(StateTimeout, data: BasePersonData) if data.hasNextLeg && data.nextLeg.beamLeg.mode.isTransit =>
       val resRequest = TransitReservationRequest(
@@ -1415,7 +1472,7 @@ class PersonAgent(
       )
 
       val nextCoord = nextActivity(data).get.getCoord
-      goto(ChoosingMode) using ChoosesModeData(
+      goto(ChoosingMode) using ChoosesModeData.validated(
         personData = data
           .copy(
             currentTripMode = None,
@@ -1431,7 +1488,7 @@ class PersonAgent(
         excludeModes =
           if (canUseCars(currentCoord, nextCoord)) Set.empty
           else Set(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
-      )
+      )(agent = this, context = "Replanning after missed CAV pickup")
     // CAV
     // TODO: Refactor so it uses literally the same code block as transit
     case Event(StateTimeout, data: BasePersonData) if data.hasNextLeg =>

@@ -267,7 +267,7 @@ class HouseholdFleetManager(
         inquiry.whereWhen,
         self
       )
-      logger.warn(
+      logger.debug(
         s"No vehicles available for category $category available for " +
         s"person ${inquiry.personId.toString} in available vehicles $availableVehicles" +
         s", creating a new vehicle with id ${vehicle.id.toString}"
