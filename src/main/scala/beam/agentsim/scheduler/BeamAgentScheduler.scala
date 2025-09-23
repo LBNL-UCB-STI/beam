@@ -468,11 +468,11 @@ class BeamAgentScheduler(
           scheduledTrigger.agent ! triggerWithId
         }
         if (
-          awaitingResponse.isEmpty || (nowInSeconds + 1) - awaitingResponse
+          (nowInSeconds == 0 && awaitingResponse.isEmpty) || (nowInSeconds > 0 && (awaitingResponse.isEmpty || (nowInSeconds + 1) - awaitingResponse
             .keySet()
-            .first() + 1 < maxWindow
+            .first() + 1 < maxWindow))
         ) {
-          if (nowInSeconds > 0 && nowInSeconds % 1800 == 0) {
+          if (nowInSeconds % 1800 == 0) {
             log.info(
               "Hour " + nowInSeconds / 3600.0 + " completed. Longest delay " + longestNowUpdateDelay + " ms. "
               + math.round(
