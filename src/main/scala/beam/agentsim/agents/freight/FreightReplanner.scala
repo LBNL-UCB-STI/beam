@@ -66,11 +66,7 @@ class FreightReplanner(
       val vehicleId = Id.createVehicleId(vehicleIdStr)
       val person = population.get(freightReader.createPersonId(vehicleId))
       val toursAndPlans = routes.zipWithIndex.map { case (route, i) =>
-        convertToFreightTourWithPayloadPlans(
-          s"${route.vehicle.id}-$i".createId,
-          route,
-          freightCarrier.payloadPlans
-        )
+        convertToFreightTourWithPayloadPlans(s"${route.vehicle.id}-$i".createId, route, freightCarrier.payloadPlans)
       }
       val tours = toursAndPlans.map(_._1)
       val plansPerTour = toursAndPlans.map { case (tour, plans) => tour.tourId -> plans }.toMap
@@ -83,7 +79,8 @@ class FreightReplanner(
     route: Route,
     payloadPlans: Map[Id[PayloadPlan], PayloadPlan]
   ): (FreightTour, IndexedSeq[PayloadPlan]) = {
-    val tour = FreightTour(tourId, route.startTime, route.duration * 2)
+    val schedulerParallelismWindow = beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow
+    val tour = FreightTour(tourId, Math.max(route.startTime, schedulerParallelismWindow + 1), route.duration * 2)
 
     val plans = route.activities.zipWithIndex.map { case (activity, i) =>
       val activityType: FreightActivityType = activity.service match {

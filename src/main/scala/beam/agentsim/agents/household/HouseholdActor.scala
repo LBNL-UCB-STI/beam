@@ -773,7 +773,7 @@ object HouseholdActor {
                 )
               }
             logger.error(
-              s"Person $personId is requiring an emergency vehicle that belongs to category $category. " +
+              s"Person $personId is requiring an emergency vehicle at time ${whenWhere.time} that belongs to category $category. " +
               s"Choosing a random vehicle of type $cat: ${vehicleType.map(_.id.toString).getOrElse("None")}"
             )
             vehicleType
