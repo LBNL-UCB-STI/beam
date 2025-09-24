@@ -435,7 +435,13 @@ trait ChoosesMode {
             s"isWithinTripReplanning: ${choosesModeData.isWithinTripReplanning}. " +
             s"Person ID: ${this.id}, Current Tick: ${_currentTick.getOrElse(-1)}, Full personData: $personData"
           )
-          None
+          if (this.id.toString.startsWith(FREIGHT_ID_PREFIX)) {
+            log.error(
+              "This is a freight trip even though we had WALK in our trip mode choice strategy. " +
+              s"Trip from _experiencedBeamPlan: ${_experiencedBeamPlan.getTripContaining(nextAct).leg}"
+            )
+            Some(CAR)
+          } else None
       }
 
       var availablePersonalStreetVehicles = {
@@ -1809,7 +1815,7 @@ trait ChoosesMode {
                 }
               )
               gotoFinishingModeChoice(teleportationTripWithoutRoute)
-            case Some(CAR) if choosesModeData.personData.currentTourMode.contains(FREIGHT_TOUR) =>
+            case Some(CAR) if this.id.toString.startsWith(FREIGHT_ID_PREFIX) =>
               logger.error(
                 f"Routing request for freight agent ${this.id} failed. Creating a bushwhacking CAR trip from " +
                 f"$currentPersonLocation to ${nextAct.getCoord}"
@@ -2037,16 +2043,16 @@ trait ChoosesMode {
           .head
         EmbodiedBeamTrip(
           agentToVehicleLeg
-          :+ bushwhackingLeg :+
-          EmbodiedBeamLeg.dummyLegAt(
-            _currentTick.get + bushwhackingLeg.beamLeg.duration,
+          :+ bushwhackingLeg
+          :+ EmbodiedBeamLeg.dummyLegAt(
+            bushwhackingLeg.beamLeg.endTime,
             availableVehicle.id,
-            isLastLeg = true,
+            isLastLeg = false,
             beamServices.geo.utm2Wgs(nextAct.getCoord),
             mode,
             availableVehicle.vehicle.beamVehicleType.id
           ) :+ EmbodiedBeamLeg.dummyLegAt(
-            _currentTick.get + bushwhackingLeg.beamLeg.duration,
+            bushwhackingLeg.beamLeg.endTime,
             body.id,
             isLastLeg = true,
             beamServices.geo.utm2Wgs(nextAct.getCoord),
