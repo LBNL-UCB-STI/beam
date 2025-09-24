@@ -83,7 +83,6 @@ class FreightReplanner(
     val departureTime = Math.max(route.startTime, schedulerParallelismWindow + 1)
     val maxTourDurationInSec = route.duration * 2
     val tour = FreightTour(tourId, departureTime, maxTourDurationInSec)
-    println(s"[tour:$tourId] Route start time: ${route.startTime}, departure time: $departureTime, tour: $tour")
 
     val plans = route.activities.zipWithIndex.map { case (activity, i) =>
       val activityType: FreightActivityType = activity.service match {

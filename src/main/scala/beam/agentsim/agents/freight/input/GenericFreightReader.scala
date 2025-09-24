@@ -32,6 +32,7 @@ class GenericFreightReader(
   rnd: Random,
   tazTree: TAZTreeMap,
   val snapLocationAndRemoveInvalidInputs: Boolean,
+  schedulerParallelismWindow: Int,
   val snapLocationHelper: SnapLocationHelper,
   networkMaybe: Option[Network] = None,
   val outputDirMaybe: Option[String] = None
@@ -54,7 +55,6 @@ class GenericFreightReader(
       .readAsSeq[Option[FreightTour]](config.toursFilePath) { row =>
         def get(key: String): String = getRowValue(config.toursFilePath, row, key)
         // tourId,departureTimeInSec,departureLocationZone,departureLocationX,departureLocationY,maxTourDurationInSec
-        val schedulerParallelismWindow = -1
         val tourId: Id[FreightTour] = get("tourId").createId[FreightTour]
         val departureTimeInSec = Math.max(get("departureTimeInSec").toInt, schedulerParallelismWindow + 1)
         val maxTourDurationInSec = get("maxTourDurationInSec").toInt
