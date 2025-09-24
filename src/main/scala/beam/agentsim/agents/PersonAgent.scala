@@ -601,11 +601,24 @@ class PersonAgent(
   ): Unit = {
     assert(currentActivity(data).getLinkId != null)
 
-    val tripId: String = _experiencedBeamPlan.trips
+    val (tripId: String, payloadWeightInKg: String, payloadIds: String) = _experiencedBeamPlan.trips
       .lift(data.currentActivityIndex + 1) match {
       case Some(trip) =>
-        trip.leg.map(l => Option(l.getAttributes.getAttribute("trip_id")).getOrElse("").toString).getOrElse("")
-      case None => ""
+        trip.leg
+          .map(l =>
+            (
+              Option(l.getAttributes.getAttribute("trip_id")).getOrElse(""),
+              Option(l.getAttributes.getAttribute("PayloadWeightInKg")).map(_.toString).getOrElse(""),
+              Option(l.getAttributes.getAttribute("PayloadIds"))
+                .map {
+                  case x: IndexedSeq[_] => x.mkString(",")
+                  case x: String        => x
+                }
+                .getOrElse("")
+            )
+          )
+          .getOrElse(("", "", ""))
+      case None => ("", "", "")
     }
 
     // We end our activity when we actually leave, not when we decide to leave, i.e. when we look for a bus or
@@ -625,7 +638,9 @@ class PersonAgent(
       id,
       currentActivity(data).getLinkId,
       currentTrip.tripClassifier.value,
-      tripId
+      tripId,
+      payloadIds,
+      payloadWeightInKg
     )
     eventsManager.processEvent(
       pde
@@ -761,6 +776,14 @@ class PersonAgent(
     context: String
   ): Unit = {
     val availableVehicleIds = availableVehicles.map(_.id).toSet
+
+    if (this.id.toString.startsWith("ft")) {
+      if (newPersonData.currentTrip.exists(_.tripClassifier != CAR)) {
+        logger.error("Why does the freight agent's trip classifier not have CAR")
+      } else if (newPersonData.currentTripMode.exists(m => m != CAR)) {
+        logger.error("Why is our mode not CAR")
+      }
+    }
 
     // Check current tour strategy
     val currentTourStrategy = getCurrentTourStrategy(newPersonData)
@@ -1589,6 +1612,9 @@ class PersonAgent(
             )
           )
           assert(activity.getLinkId != null)
+          if (currentTrip.tripClassifier.value.equalsIgnoreCase("walk") && id.toString.startsWith("ft")) {
+            logger.error("WALK FREIGHT TRIP!!!!!")
+          }
           eventsManager.processEvent(
             new PersonArrivalEvent(tick, id, activity.getLinkId, currentTrip.tripClassifier.value)
           )

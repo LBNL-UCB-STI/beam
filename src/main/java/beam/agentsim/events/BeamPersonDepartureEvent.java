@@ -26,44 +26,65 @@ import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.api.internal.HasPersonId;
 
 import java.util.Map;
+import java.util.Objects;
 
 public class BeamPersonDepartureEvent extends org.matsim.api.core.v01.events.PersonDepartureEvent implements HasPersonId {
 
-	public static final String EVENT_TYPE = "departure";
+    public static final String EVENT_TYPE = "departure";
 
-	public static final String ATTRIBUTE_PERSON = "person";
-	public static final String ATTRIBUTE_LINK = "link";
-	public static final String ATTRIBUTE_LEGMODE = "legMode";
+    public static final String ATTRIBUTE_PERSON = "person";
+    public static final String ATTRIBUTE_LINK = "link";
+    public static final String ATTRIBUTE_LEGMODE = "legMode";
 
-	public final static String ATTRIBUTE_TRIP_ID = "tripId";
-	private final String tripId;
+    public final static String ATTRIBUTE_TRIP_ID = "tripId";
+    public final static String PAYLOAD_WEIGHT_IN_KG = "PayloadWeightInKg";
+    public final static String PAYLOAD_IDS = "PayloadIds";
 
-	public BeamPersonDepartureEvent(final double time, final Id<Person> agentId, final Id<Link> linkId, final String legMode, final String tripId) {
-		super(time, agentId, linkId, legMode);
-		this.tripId = tripId;
-	}
+    private final String tripId;
+    private final String payloadIds;
+    private final String payloadWeightInKg;
+
+    public BeamPersonDepartureEvent(final double time, final Id<Person> agentId, final Id<Link> linkId, final String legMode, final String tripId, final String payloadIds, final String payloadWeightInKg) {
+        super(time, agentId, linkId, legMode);
+        this.tripId = tripId;
+        this.payloadIds = payloadIds;
+        this.payloadWeightInKg = payloadWeightInKg;
+    }
+
+    public BeamPersonDepartureEvent(final double time, final Id<Person> agentId, final Id<Link> linkId, final String legMode, final String tripId) {
+        super(time, agentId, linkId, legMode);
+        this.tripId = tripId;
+        this.payloadIds = "";
+        this.payloadWeightInKg = "";
+    }
 
 
-	public String getTripId() {
-		return this.tripId;
-	}
-	
-	@Override
-	public String getEventType() {
-		return EVENT_TYPE;
-	}
+    public String getTripId() {
+        return this.tripId;
+    }
 
-	@Override
-	public Map<String, String> getAttributes() {
-		Map<String, String> attr = super.getAttributes();
-		attr.put(ATTRIBUTE_PERSON, this.getPersonId().toString());
-		attr.put(ATTRIBUTE_LINK, (this.getLinkId() == null ? null : this.getLinkId().toString()));
-		if (this.getLegMode() != null) {
-			attr.put(ATTRIBUTE_LEGMODE, this.getLegMode());
-		}
-		if (this.tripId != null) {
-			attr.put(ATTRIBUTE_TRIP_ID, this.tripId);
-		}
-		return attr;
-	}
+    @Override
+    public String getEventType() {
+        return EVENT_TYPE;
+    }
+
+    @Override
+    public Map<String, String> getAttributes() {
+        Map<String, String> attr = super.getAttributes();
+        attr.put(ATTRIBUTE_PERSON, this.getPersonId().toString());
+        attr.put(ATTRIBUTE_LINK, (this.getLinkId() == null ? null : this.getLinkId().toString()));
+        if (this.getLegMode() != null) {
+            attr.put(ATTRIBUTE_LEGMODE, this.getLegMode());
+        }
+        if (!Objects.equals(this.payloadIds, "")) {
+            attr.put(PAYLOAD_IDS, this.payloadIds);
+        }
+        if (this.tripId != null) {
+            attr.put(ATTRIBUTE_TRIP_ID, this.tripId);
+        }
+        if (!Objects.equals(this.payloadWeightInKg, "")) {
+            attr.put(PAYLOAD_WEIGHT_IN_KG, this.payloadWeightInKg);
+        }
+        return attr;
+    }
 }
