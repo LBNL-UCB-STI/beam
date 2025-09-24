@@ -241,7 +241,10 @@ object HouseholdActor {
           categories.map(cat => (prefix, cat) -> Map.empty[Id[BeamVehicle], BeamVehicle]).toMap ++
           vehicles
             .filterNot(_._2.isCAV)
-            .groupBy { case (_, vehicle) => (prefix, vehicle.beamVehicleType.vehicleCategory.generalCategory) }
+            .groupBy {
+              case (_, _) if isFreightCarrier => (prefix, VehicleCategory.Freight)
+              case (_, vehicle)               => (prefix, vehicle.beamVehicleType.vehicleCategory.generalCategory)
+            }
 
         val fleetManagers = vehiclesByAllCategories.map {
           case (demandSupplyCategory @ (_, category), vehiclesInCategory) =>
