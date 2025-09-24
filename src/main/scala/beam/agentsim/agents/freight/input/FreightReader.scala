@@ -68,6 +68,10 @@ trait FreightReader {
           .getOrElse(tour.tourId, throw new IllegalArgumentException(s"Tour '${tour.tourId}' has no plans"))
           .ensuring(_.nonEmpty, s"Tour '${tour.tourId}' has an empty plan list")
 
+      if (tour.tourId.toString.contains("b2b-56520")) {
+        println(s"Tour '${tour.tourId}' has plans: ${plans.map(_.payloadId).mkString(", ")}")
+      }
+
       val planElements: IndexedSeq[PlanElement] = plans.flatMap { plan =>
         plan.sequenceRank match {
           case rank if rank == plans.head.sequenceRank =>

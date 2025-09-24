@@ -54,8 +54,9 @@ class GenericFreightReader(
       .readAsSeq[Option[FreightTour]](config.toursFilePath) { row =>
         def get(key: String): String = getRowValue(config.toursFilePath, row, key)
         // tourId,departureTimeInSec,departureLocationZone,departureLocationX,departureLocationY,maxTourDurationInSec
+        val schedulerParallelismWindow = -1
         val tourId: Id[FreightTour] = get("tourId").createId[FreightTour]
-        val departureTimeInSec = get("departureTimeInSec").toInt
+        val departureTimeInSec = Math.max(get("departureTimeInSec").toInt, schedulerParallelismWindow + 1)
         val maxTourDurationInSec = get("maxTourDurationInSec").toInt
         val departureLocationX = row.get("departureLocationX")
         val departureLocationY = row.get("departureLocationY")
