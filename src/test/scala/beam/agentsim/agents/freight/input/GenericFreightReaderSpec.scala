@@ -75,6 +75,7 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
       rnd,
       tazMap,
       snapLocationAndRemoveInvalidInputs = false,
+      schedulerParallelismWindow = 60,
       snapLocationHelperMock
     )
 
@@ -224,6 +225,7 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
       new Random(4324L),
       tazMap,
       snapLocationAndRemoveInvalidInputs = false,
+      schedulerParallelismWindow = 60,
       snapLocationHelperMock
     )
     val payloadPlans: Map[Id[PayloadPlan], PayloadPlan] = converter.readPayloadPlans()
@@ -236,6 +238,7 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
         new Random(73737L),
         tazMap,
         snapLocationAndRemoveInvalidInputs = false,
+        schedulerParallelismWindow = 60,
         snapLocationHelperMock
       ).readFreightCarriers(
         tours,
