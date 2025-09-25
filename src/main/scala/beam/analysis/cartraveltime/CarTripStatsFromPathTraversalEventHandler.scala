@@ -549,7 +549,11 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
 
       // We start driving in the very end of the first link => so we we didn't actually travel that link, so we should drop it for both driving and parking
       val linkIds = (driving.linkIds.drop(1) ++ parking.linkIds.drop(1)).map(lid => networkHelper.getLinkUnsafe(lid))
-      val freeFlowTravelTime: Double = calcFreeFlowDuration(freeFlowTravelTimeCalc, linkIds)
+      val freeFlowTravelTime: Double = if (linkIds.isEmpty) {
+        travelTime
+      } else {
+        calcFreeFlowDuration(freeFlowTravelTimeCalc, linkIds)
+      }
       val startCoordWGS = new Coord(driving.startX, driving.startY)
       val endCoordWGS = new Coord(parking.endX, parking.endY)
       val outputStats = if (travelTime > 0 & freeFlowTravelTime > 0 & length > 0) {
@@ -563,7 +567,7 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
           endCoordWGS = endCoordWGS
         )
       } else {
-        logger.warn("Bad path traversals {}", linkIds)
+        logger.warn("Bad path traversals for vehicle {}. Links: {}", driving.vehicleId.toString, linkIds)
         CarTripStat(
           vehicleId = driving.vehicleId.toString,
           travelTime = 0,
