@@ -239,6 +239,7 @@ dependencies {
 
     implementation(group: 'com.github.LBNL-UCB-STI.matsim', name: 'matsim', version: '12.0-beam-10') {
         exclude group: 'log4j', module: 'log4j'
+        changing = true
     }
 
     implementation "org.slf4j:slf4j-api:${slf4jVersion}"

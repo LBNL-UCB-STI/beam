@@ -72,8 +72,11 @@ import org.matsim.core.utils.misc.Time
 
 import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
+import scala.compat.java8.FunctionConverters.enrichAsJavaFunction
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters.asScalaBufferConverter
+import scala.util.Try
+import scala.language.existentials
 
 /**
   */
@@ -601,28 +604,34 @@ class PersonAgent(
   ): Unit = {
     assert(currentActivity(data).getLinkId != null)
 
-    val (tripId: String, payloadWeightInKg: String, payloadIds: String) = _experiencedBeamPlan.trips
-      .lift(data.currentActivityIndex + 1) match {
-      case Some(trip) =>
-        trip.leg
-          .map(l =>
-            (
-              Option(l.getAttributes.getAttribute("trip_id")).getOrElse(""),
-              Option(l.getAttributes.getAttribute("PayloadWeightInKg")).map(_.toString).getOrElse(""),
-              Option(l.getAttributes.getAttribute("PayloadIds"))
-                .map {
-                  case x: IndexedSeq[_] => x.mkString(",")
-                  case x: String        => x
-                }
-                .getOrElse("")
-            )
-          )
-          .getOrElse(("", "", ""))
-      case None => ("", "", "")
+    def convertToJavaList(value: Any): java.util.List[String] = {
+      import scala.jdk.CollectionConverters._
+      value match {
+        case v: scala.collection.immutable.Vector[_] => v.map(_.toString).asJava
+        case v: java.util.Vector[_]                  => new java.util.ArrayList(v.asInstanceOf[java.util.Vector[String]])
+        case v: java.util.List[_]                    => v.asInstanceOf[java.util.List[String]]
+        case v: scala.collection.Seq[_]              => v.map(_.toString).asJava
+        case v: String                               => java.util.Arrays.asList(v)
+        case _                                       => java.util.Collections.emptyList[String]()
+      }
     }
 
-    // We end our activity when we actually leave, not when we decide to leave, i.e. when we look for a bus or
-    // hail a ride. We stay at the party until our Uber is there.
+    val (tripId, payloadWeightInKg, payloadIds): (String, String, java.util.List[String]) =
+      _experiencedBeamPlan.trips.lift(data.currentActivityIndex + 1) match {
+        case Some(trip) =>
+          trip.leg
+            .map(l =>
+              (
+                Option(l.getAttributes.getAttribute("trip_id")).map(_.toString).getOrElse(""),
+                Option(l.getAttributes.getAttribute("PayloadWeightInKg")).map(_.toString).getOrElse(""),
+                Option(l.getAttributes.getAttribute("PayloadIds"))
+                  .map(convertToJavaList)
+                  .getOrElse(java.util.Collections.emptyList[String]())
+              )
+            )
+            .getOrElse(("", "", java.util.Collections.emptyList[String]()))
+        case None => ("", "", java.util.Collections.emptyList[String]())
+      }
 
     eventsManager.processEvent(
       new ActivityEndEvent(
@@ -642,9 +651,7 @@ class PersonAgent(
       payloadIds,
       payloadWeightInKg
     )
-    eventsManager.processEvent(
-      pde
-    )
+    eventsManager.processEvent(pde)
   }
 
   when(Uninitialized) { case Event(TriggerWithId(InitializeTrigger(_), triggerId), _) =>
@@ -1929,15 +1936,29 @@ class PersonAgent(
     eventsManager.processEvent(odVehicleTypeEvent)
   }
 
-  private def getPayloadDataFromPlan(
-    startingActivityIndex: Int
-  ): Option[(IndexedSeq[Id[PayloadPlan]], Double)] = {
+  private def getPayloadDataFromPlan(startingActivityIndex: Int): Option[(IndexedSeq[Id[PayloadPlan]], Double)] = {
     val currentLegIndex = startingActivityIndex * 2 + 1
     if (currentLegIndex < matsimPlan.getPlanElements.size()) { // matsim plan may contain only activities
       val planElement: PlanElement = matsimPlan.getPlanElements.get(currentLegIndex)
-      val payloadIds = planElement.getAttributes.getAttribute(PAYLOAD_IDS).asInstanceOf[IndexedSeq[Id[PayloadPlan]]]
-      val payloadWeight = planElement.getAttributes.getAttribute(PAYLOAD_WEIGHT_IN_KG).asInstanceOf[Double]
-      if (payloadIds != null) Some(payloadIds, payloadWeight) else None
+      val payloadIds = Option(planElement.getAttributes.getAttribute(PAYLOAD_IDS)) match {
+        case Some(attr) =>
+          attr match {
+            case str: String if str.nonEmpty =>
+              str.split(",").map(x => Id.create(x.trim, classOf[PayloadPlan])).toIndexedSeq
+            case vec: scala.collection.immutable.Vector[_] =>
+              vec.map(_.toString).map(x => Id.create(x, classOf[PayloadPlan])).toIndexedSeq
+            case list: java.util.List[_] =>
+              import scala.jdk.CollectionConverters._
+              list.asScala.map(_.toString).map(x => Id.create(x, classOf[PayloadPlan])).toIndexedSeq
+            case _ => IndexedSeq.empty[Id[PayloadPlan]]
+          }
+        case _ => IndexedSeq.empty[Id[PayloadPlan]]
+      }
+      val payloadWeight =
+        Option(planElement.getAttributes.getAttribute(PAYLOAD_WEIGHT_IN_KG)).flatMap(str =>
+          Try(str.asInstanceOf[Double]).toOption.orElse(Try(str.toString.toDouble).toOption)
+        )
+      if (payloadIds.nonEmpty) Some(payloadIds, payloadWeight.getOrElse(0.0)) else None
     } else
       None
   }

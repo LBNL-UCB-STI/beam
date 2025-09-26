@@ -1,5 +1,6 @@
 package beam.physsim.bprsim
 
+import beam.agentsim.events.BeamPersonDepartureEvent
 import beam.physsim.bprsim.SimEvent._
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.Link
@@ -61,7 +62,13 @@ class StartLegSimEvent(time: Double, priority: Int, person: Person, isCACC: Bool
   override def execute(scenario: Scenario, params: BPRSimParams): (List[Event], Some[SimEvent]) = {
     val events = List(
       new ActivityEndEvent(time, person.getId, linkId, previousActivity.getFacilityId, previousActivity.getType),
-      new PersonDepartureEvent(time + epsilon2, person.getId, linkId, leg.getMode)
+      new BeamPersonDepartureEvent(
+        time + epsilon2,
+        person.getId,
+        linkId,
+        leg.getMode,
+        Option(leg.getAttributes.getAttribute("tripId")).map(_.toString).getOrElse("")
+      )
     )
 
     val simEvent = leg.getMode match {
@@ -109,6 +116,9 @@ class EndLegSimEvent(
 
     val actStartEventTime = Math.max(time, nextAct.getStartTime.orElse(beam.UNDEFINED_TIME))
     val activityLinkId = nextAct.getLinkId
+    if (leg.getMode.equalsIgnoreCase("walk") && person.getId.toString.startsWith("ft")) {
+      println("SDFSDFSDFSD")
+    }
     val events = List(
       new VehicleLeavesTrafficEvent(time, person.getId, activityLinkId, createVehicleId(person), leg.getMode, 1.0),
       new PersonArrivalEvent(time + epsilon2, person.getId, activityLinkId, leg.getMode),
