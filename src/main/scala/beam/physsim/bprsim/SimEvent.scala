@@ -116,9 +116,6 @@ class EndLegSimEvent(
 
     val actStartEventTime = Math.max(time, nextAct.getStartTime.orElse(beam.UNDEFINED_TIME))
     val activityLinkId = nextAct.getLinkId
-    if (leg.getMode.equalsIgnoreCase("walk") && person.getId.toString.startsWith("ft")) {
-      println("SDFSDFSDFSD")
-    }
     val events = List(
       new VehicleLeavesTrafficEvent(time, person.getId, activityLinkId, createVehicleId(person), leg.getMode, 1.0),
       new PersonArrivalEvent(time + epsilon2, person.getId, activityLinkId, leg.getMode),

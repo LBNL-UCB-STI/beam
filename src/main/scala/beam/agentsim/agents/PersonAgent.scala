@@ -72,7 +72,6 @@ import org.matsim.core.utils.misc.Time
 
 import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
-import scala.compat.java8.FunctionConverters.enrichAsJavaFunction
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters.asScalaBufferConverter
 import scala.util.Try

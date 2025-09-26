@@ -77,6 +77,8 @@ case class FreightCarrier(
 )
 
 object FreightEntities {
+  // Attention: these prefixes are used in the serialization of Ids, so changing them might break compatibility
+  // When changing them make sure to modify java classes like: AgentSimToPhysSimPlanConverter.java
   val FREIGHT_ID_PREFIX = "ft"
   val PASSENGER_ID_PREFIX = "pax"
 }
