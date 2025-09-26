@@ -113,6 +113,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     private final List<PathTraversalEvent> traversalEventsForPhysSimulation = new LinkedList<>();
 
+    private static final String ATTRIBUTE_PAYLOAD_IDS = "payloads";
+    private static final String ATTRIBUTE_WEIGHT = "weight";
+
     public AgentSimToPhysSimPlanConverter(EventsManager eventsManager,
                                           TransportNetwork transportNetwork,
                                           OutputDirectoryHierarchy controlerIO,
@@ -451,6 +454,12 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 (Double) lastLeg.getAttributes().getAttribute("event_time"), pte.departureTime(), TOLERANCE) && (Objects.equals(lastLeg.getMode(), pte.mode().value()))
                 ? lastLeg : null;
         final Leg leg = createLeg(pte, connectedLeg, departureTimeShift);
+        if (driverId.startsWith("ft") && (leg != null)) {
+            final String payloadIdString = Arrays.stream(pte.payloadIds()).map(Object::toString).collect(Collectors.joining(","));
+            final String weightString = String.valueOf(pte.weight());
+            leg.getAttributes().putAttribute(ATTRIBUTE_PAYLOAD_IDS, payloadIdString);
+            leg.getAttributes().putAttribute(ATTRIBUTE_WEIGHT, weightString);
+        }
 
         if (leg == null) {
             return;

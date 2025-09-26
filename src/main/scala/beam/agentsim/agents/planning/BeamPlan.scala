@@ -1,5 +1,6 @@
 package beam.agentsim.agents.planning
 
+import beam.agentsim.agents.freight.FreightEntities.FREIGHT_ID_PREFIX
 import beam.agentsim.agents.planning.BeamPlan.atHome
 
 import java.{lang, util}
@@ -159,9 +160,10 @@ class BeamPlan extends Plan {
 //  }
 
   private def getTourModeFromMatsimLeg(leg: Leg): Option[BeamTourMode] = {
-    Option(leg.getAttributes.getAttribute("PayloadWeightInKg")) match {
-      case Some(_) => Some(BeamTourMode.FREIGHT_TOUR)
-      case _       => Option(leg.getAttributes.getAttribute("tour_mode")).flatMap(x => BeamTourMode.fromString(x.toString))
+    if (person.getId.toString.startsWith(FREIGHT_ID_PREFIX)) {
+      Some(BeamTourMode.FREIGHT_TOUR)
+    } else {
+      Option(leg.getAttributes.getAttribute("tour_mode")).flatMap(x => BeamTourMode.fromString(x.toString))
     }
   }
 
