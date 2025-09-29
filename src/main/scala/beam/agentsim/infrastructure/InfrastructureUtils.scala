@@ -62,7 +62,7 @@ object InfrastructureUtils extends LazyLogging {
               beamConfig.beam.agentsim.agents.freight.name,
               Some(VehicleManager.TypeEnum.Freight)
             ),
-          Seq(ParkingType.Workplace)
+          Seq(ParkingType.Commercial)
         )
       )
       // RIDEHAIL
@@ -70,7 +70,7 @@ object InfrastructureUtils extends LazyLogging {
         (
           managerConfig.initialization.parking.filePath,
           VehicleManager.createOrGetReservedFor(managerConfig.name, Some(VehicleManager.TypeEnum.RideHail)),
-          Seq(ParkingType.Workplace)
+          Seq(ParkingType.Public)
         )
       )
       (sharedFleetsParkingFiles ++ freightParkingFile ++ ridehailParkingFiles).toIndexedSeq

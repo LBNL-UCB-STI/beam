@@ -12,7 +12,10 @@ import scala.collection.immutable
   */
 case class PayloadType(value: String)
 
-sealed trait FreightActivityType extends EnumEntry { val value: String }
+sealed trait FreightActivityType extends EnumEntry {
+  val value: String
+  def toLowerCaseString: String = value.toLowerCase
+}
 
 object FreightActivityType extends Enum[FreightActivityType] {
 
