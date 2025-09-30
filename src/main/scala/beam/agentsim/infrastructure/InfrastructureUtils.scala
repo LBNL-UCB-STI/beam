@@ -46,6 +46,7 @@ object InfrastructureUtils extends LazyLogging {
           beamConfig.beam.agentsim.chargingNetworkManager.chargingPointCountScalingFactor,
           beamConfig.beam.agentsim.chargingNetworkManager.chargingPointCostScalingFactor
         )
+
     // ADD HERE ALL PARKING FILES THAT BELONGS TO VEHICLE MANAGERS
     val vehicleManagersParkingFiles: IndexedSeq[(String, ReservedFor, Seq[ParkingType])] = {
       // SHARED FLEET
@@ -76,19 +77,53 @@ object InfrastructureUtils extends LazyLogging {
       (sharedFleetsParkingFiles ++ freightParkingFile ++ ridehailParkingFiles).toIndexedSeq
     }
 
-    // CHARGING STALLS ARE LOADED HERE
-    val allStalls = loadStalls(
-      mainChargingFile,
-      vehicleManagersParkingFiles,
-      beamScenario.tazTreeMap.tazQuadTree,
-      chargingStallCountScalingFactor,
-      chargingCostScalingFactor,
-      beamScenario.beamConfig.matsim.modules.global.randomSeed,
-      beamScenario.beamConfig,
-      Some(beamServices)
-    )
-    val chargingStalls = loadChargingStalls(allStalls)
-    val rideHailChargingStalls = loadRideHailChargingStalls(allStalls)
+    // LOAD ALL STALLS
+    val (stallsForCharging, stallsForParking) =
+      if (
+        mainChargingFile == mainParkingFile &&
+        chargingStallCountScalingFactor == parkingStallCountScalingFactor &&
+        chargingCostScalingFactor == parkingCostScalingFactor
+      ) {
+        // If same file and same scaling factors, load once and use for both
+        val allStalls = loadStalls(
+          mainChargingFile,
+          vehicleManagersParkingFiles,
+          beamScenario.tazTreeMap.tazQuadTree,
+          chargingStallCountScalingFactor,
+          chargingCostScalingFactor,
+          beamScenario.beamConfig.matsim.modules.global.randomSeed,
+          beamScenario.beamConfig,
+          Some(beamServices)
+        )
+        (allStalls, allStalls)
+      } else {
+        // Different files or scaling factors - need to load separately
+        val chargingStalls = loadStalls(
+          mainChargingFile,
+          vehicleManagersParkingFiles,
+          beamScenario.tazTreeMap.tazQuadTree,
+          chargingStallCountScalingFactor,
+          chargingCostScalingFactor,
+          beamScenario.beamConfig.matsim.modules.global.randomSeed,
+          beamScenario.beamConfig,
+          Some(beamServices)
+        )
+        val parkingStalls = loadStalls(
+          mainParkingFile,
+          vehicleManagersParkingFiles,
+          beamScenario.tazTreeMap.tazQuadTree,
+          parkingStallCountScalingFactor,
+          parkingCostScalingFactor,
+          beamScenario.beamConfig.matsim.modules.global.randomSeed,
+          beamScenario.beamConfig,
+          Some(beamServices)
+        )
+        (chargingStalls, parkingStalls)
+      }
+
+    // FILTER CHARGING STALLS
+    val chargingStalls = loadChargingStalls(stallsForCharging)
+    val rideHailChargingStalls = loadRideHailChargingStalls(stallsForCharging)
 
     // CHARGING ZONES ARE BUILT HERE
     logger.info(s"building charging networks...")
@@ -101,20 +136,10 @@ object InfrastructureUtils extends LazyLogging {
     logger.info(s"public charging network has ${nonRhChargingNetwork.parkingZones.size} stations")
     logger.info(s"ride-hail charging network has ${rhChargingNetwork.parkingZones.size} depots")
 
-    // PARKING STALLS ARE LOADED HERE
+    // FILTER PARKING STALLS
     logger.info(s"loading stalls...")
-    val parkingStalls = loadParkingStalls(
-      loadStalls(
-        mainParkingFile,
-        vehicleManagersParkingFiles,
-        beamScenario.tazTreeMap.tazQuadTree,
-        parkingStallCountScalingFactor,
-        parkingCostScalingFactor,
-        beamScenario.beamConfig.matsim.modules.global.randomSeed,
-        beamScenario.beamConfig,
-        Some(beamServices)
-      )
-    )
+    val parkingStalls = loadParkingStalls(stallsForParking)
+
     logger.info(s"building parking networks...")
     val parkingNetwork = beamConfig.beam.agentsim.taz.parkingManager.method match {
       case "DEFAULT" =>

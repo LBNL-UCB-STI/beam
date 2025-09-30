@@ -708,7 +708,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     val result =
       generateDefaultParking(geoObjects, random, defaultReservedFor, parkingTypes, parkingLoadingAcc)
     logger.info(
-      s"generated ${result.totalRows} parking zones,one for each provided geo level, with ${result.parkingStallsPlainEnglish} stalls (${result.totalParkingStalls}) in system"
+      s"generated ${result.totalRows} default parking zones, one for each provided geo level, with ${result.parkingStallsPlainEnglish} stalls (${result.totalParkingStalls}) in system"
     )
     if (result.someRowsFailed) {
       logger.warn(s"${result.failedRows} rows of parking data failed to load")
