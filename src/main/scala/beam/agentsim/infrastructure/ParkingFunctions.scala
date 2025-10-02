@@ -8,6 +8,7 @@ import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, Parking
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Parking
 import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
@@ -18,10 +19,7 @@ class ParkingFunctions(
   tazTreeMap: TAZTreeMap,
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
-  minSearchRadius: Double,
-  maxSearchRadius: Double,
-  searchDoubleParkingRadius: Double,
-  searchMaxDistanceRelativeToEllipseFoci: Double,
+  searchRadiusConfig: BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters,
   estimatedMinParkingDurationInSeconds: Double,
   estimatedMeanEnRouteChargingDurationInSeconds: Double,
   fractionOfSameTypeZones: Double,
@@ -33,10 +31,7 @@ class ParkingFunctions(
       tazTreeMap,
       parkingZones,
       distanceFunction,
-      minSearchRadius,
-      maxSearchRadius,
-      searchDoubleParkingRadius,
-      searchMaxDistanceRelativeToEllipseFoci,
+      searchRadiusConfig,
       estimatedMinParkingDurationInSeconds,
       estimatedMeanEnRouteChargingDurationInSeconds,
       fractionOfSameTypeZones,
@@ -128,7 +123,7 @@ class ParkingFunctions(
     val output = parkingZoneSearchResult match {
       case Some(result) => result
       case _
-          if inquiry.searchMode == DoubleParkingAllowed && searchDoubleParkingRadius > 0 && inquiry.parkingActivityType == ParkingActivityType.Freight =>
+          if inquiry.searchMode == DoubleParkingAllowed && searchRadiusConfig.searchDoubleParkingRadius > 0 && inquiry.parkingActivityType == ParkingActivityType.Freight =>
         val (newStall, parkingZone) = ParkingStall.obstructiveStallAtLocation(
           inquiry.destinationUtm.loc,
           tazTreeMap.getTAZ(inquiry.destinationUtm.loc).tazId,

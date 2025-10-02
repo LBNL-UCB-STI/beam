@@ -20,8 +20,7 @@ class RideHailDepotFunctions(
   tazTreeMap: TAZTreeMap,
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
-  minSearchRadius: Double,
-  maxSearchRadius: Double,
+  searchRadiusConfig: BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters,
   fractionOfSameTypeZones: Double,
   minNumberOfSameTypeZones: Int,
   boundingBox: Envelope,
@@ -35,10 +34,7 @@ class RideHailDepotFunctions(
       tazTreeMap,
       parkingZones,
       distanceFunction,
-      minSearchRadius,
-      maxSearchRadius,
-      0.0,
-      0.0,
+      searchRadiusConfig,
       estimatedMinParkingDurationInSeconds,
       0.0,
       fractionOfSameTypeZones,
@@ -145,7 +141,7 @@ class RideHailDepotFunctions(
       case _ =>
         // didn't find any stalls, so, as a last resort, create a very expensive stall
         val (newStall, defaultZone) =
-          ParkingStall.lastResortStall(inquiry.destinationUtm.loc, new Random(seed), (inquiry.parkingActivityType))
+          ParkingStall.lastResortStall(inquiry.destinationUtm.loc, new Random(seed), inquiry.parkingActivityType)
         ParkingZoneSearch.ParkingZoneSearchResult(newStall, defaultZone)
     }
     Some(output)

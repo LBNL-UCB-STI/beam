@@ -3,6 +3,7 @@ package beam.agentsim.infrastructure
 import beam.agentsim.infrastructure.parking.{ParkingZone, ParkingZoneId}
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.sim.BeamServices
+import beam.sim.config.BeamConfig
 import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
 
@@ -22,6 +23,14 @@ object RideHailDepotNetwork {
   private val FractionOfSameTypeZones: Double = 0.2 // 20%
   private val MinNumberOfSameTypeZones: Int = 5
 
+  private val searchDistancesConfig = BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters(
+    freight = BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters.Freight(10.0, 200.0),
+    passenger =
+      BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters.Passenger(SearchStartRadius, SearchMaxRadius),
+    searchDoubleParkingRadius = 0,
+    searchMaxDistanceRelativeToEllipseFoci = 4.0
+  )
+
   def apply(
     parkingZones: Map[Id[ParkingZoneId], ParkingZone],
     tazTreeMap: TAZTreeMap,
@@ -34,8 +43,7 @@ object RideHailDepotNetwork {
           tazTreeMap,
           parkingZones,
           beamServices.geo.distUTMInMeters,
-          SearchStartRadius,
-          SearchMaxRadius,
+          searchDistancesConfig,
           FractionOfSameTypeZones,
           MinNumberOfSameTypeZones,
           boundingBox,

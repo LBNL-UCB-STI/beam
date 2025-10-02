@@ -8,9 +8,6 @@ import beam.sim.common.GeoUtils.toJtsCoordinate
 import beam.sim.config.BeamConfig
 import beam.utils.metrics.SimpleCounter
 import com.typesafe.scalalogging.LazyLogging
-import org.locationtech.jts.algorithm.ConvexHull
-import org.locationtech.jts.geom.prep.{PreparedGeometry, PreparedGeometryFactory}
-import org.locationtech.jts.geom.{Coordinate, Envelope, GeometryFactory}
 import de.lmu.ifi.dbs.elki.algorithm.clustering.kmeans.KMeansElkan
 import de.lmu.ifi.dbs.elki.algorithm.clustering.kmeans.initialization.RandomUniformGeneratedInitialMeans
 import de.lmu.ifi.dbs.elki.data.`type`.TypeUtil
@@ -21,6 +18,9 @@ import de.lmu.ifi.dbs.elki.database.relation.Relation
 import de.lmu.ifi.dbs.elki.datasource.ArrayAdapterDatabaseConnection
 import de.lmu.ifi.dbs.elki.distance.distancefunction.minkowski.SquaredEuclideanDistanceFunction
 import de.lmu.ifi.dbs.elki.utilities.random.RandomFactory
+import org.locationtech.jts.algorithm.ConvexHull
+import org.locationtech.jts.geom.prep.{PreparedGeometry, PreparedGeometryFactory}
+import org.locationtech.jts.geom.{Coordinate, Envelope, GeometryFactory}
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.JavaConverters._
@@ -35,9 +35,7 @@ class ParallelParkingManager(
   clusters: Vector[ParkingCluster],
   distanceFunction: (Coord, Coord) => Double,
   boundingBox: Envelope,
-  minSearchRadius: Double,
-  maxSearchRadius: Double,
-  searchDoubleParkingRadius: Double,
+  searchRadiusConfig: BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters,
   fractionOfSameTypeZones: Double,
   minNumberOfSameTypeZones: Int,
   seed: Int,
@@ -71,9 +69,7 @@ class ParallelParkingManager(
       tazTreeMap,
       distanceFunction,
       boundingBox,
-      minSearchRadius,
-      maxSearchRadius,
-      searchDoubleParkingRadius,
+      searchRadiusConfig,
       fractionOfSameTypeZones,
       minNumberOfSameTypeZones,
       seed,
@@ -182,9 +178,7 @@ object ParallelParkingManager extends LazyLogging {
       clusters,
       distanceFunction,
       boundingBox,
-      beamConfig.beam.agentsim.agents.parking.minSearchRadius,
-      beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
-      beamConfig.beam.agentsim.agents.parking.searchDoubleParkingRadius,
+      beamConfig.beam.agentsim.agents.parking.searchDistanceInMeters,
       beamConfig.beam.agentsim.agents.parking.fractionOfSameTypeZones,
       beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
       seed,

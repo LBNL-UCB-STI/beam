@@ -794,13 +794,10 @@ object BeamConfig {
           estimatedMinParkingDurationInSeconds: scala.Double,
           forceParkingType: scala.Boolean,
           fractionOfSameTypeZones: scala.Double,
-          maxSearchRadius: scala.Double,
           minNumberOfSameTypeZones: scala.Int,
-          minSearchRadius: scala.Double,
           multinomialLogit: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
           rangeAnxietyBuffer: scala.Double,
-          searchDoubleParkingRadius: scala.Double,
-          searchMaxDistanceRelativeToEllipseFoci: scala.Double
+          searchDistanceInMeters: BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters
         )
 
         object Parking {
@@ -851,6 +848,69 @@ object BeamConfig {
             }
           }
 
+          case class SearchDistanceInMeters(
+            freight: BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters.Freight,
+            passenger: BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters.Passenger,
+            searchDoubleParkingRadius: scala.Double,
+            searchMaxDistanceRelativeToEllipseFoci: scala.Double
+          )
+
+          object SearchDistanceInMeters {
+
+            case class Freight(
+              maxSearchRadius: scala.Double,
+              minSearchRadius: scala.Double
+            )
+
+            object Freight {
+
+              def apply(
+                c: com.typesafe.config.Config
+              ): BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters.Freight = {
+                BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters.Freight(
+                  maxSearchRadius = if (c.hasPathOrNull("maxSearchRadius")) c.getDouble("maxSearchRadius") else 200.00,
+                  minSearchRadius = if (c.hasPathOrNull("minSearchRadius")) c.getDouble("minSearchRadius") else 10.00
+                )
+              }
+            }
+
+            case class Passenger(
+              maxSearchRadius: scala.Double,
+              minSearchRadius: scala.Double
+            )
+
+            object Passenger {
+
+              def apply(
+                c: com.typesafe.config.Config
+              ): BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters.Passenger = {
+                BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters.Passenger(
+                  maxSearchRadius = if (c.hasPathOrNull("maxSearchRadius")) c.getDouble("maxSearchRadius") else 8046.72,
+                  minSearchRadius = if (c.hasPathOrNull("minSearchRadius")) c.getDouble("minSearchRadius") else 250.00
+                )
+              }
+            }
+
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters = {
+              BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters(
+                freight = BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters.Freight(
+                  if (c.hasPathOrNull("freight")) c.getConfig("freight")
+                  else com.typesafe.config.ConfigFactory.parseString("freight{}")
+                ),
+                passenger = BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters.Passenger(
+                  if (c.hasPathOrNull("passenger")) c.getConfig("passenger")
+                  else com.typesafe.config.ConfigFactory.parseString("passenger{}")
+                ),
+                searchDoubleParkingRadius =
+                  if (c.hasPathOrNull("searchDoubleParkingRadius")) c.getDouble("searchDoubleParkingRadius") else 0.0,
+                searchMaxDistanceRelativeToEllipseFoci =
+                  if (c.hasPathOrNull("searchMaxDistanceRelativeToEllipseFoci"))
+                    c.getDouble("searchMaxDistanceRelativeToEllipseFoci")
+                  else 4.0
+              )
+            }
+          }
+
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Parking = {
             BeamConfig.Beam.Agentsim.Agents.Parking(
               estimatedMeanEnRouteChargingDurationInSeconds =
@@ -864,22 +924,18 @@ object BeamConfig {
               forceParkingType = c.hasPathOrNull("forceParkingType") && c.getBoolean("forceParkingType"),
               fractionOfSameTypeZones =
                 if (c.hasPathOrNull("fractionOfSameTypeZones")) c.getDouble("fractionOfSameTypeZones") else 0.5,
-              maxSearchRadius = if (c.hasPathOrNull("maxSearchRadius")) c.getDouble("maxSearchRadius") else 8046.72,
               minNumberOfSameTypeZones =
                 if (c.hasPathOrNull("minNumberOfSameTypeZones")) c.getInt("minNumberOfSameTypeZones") else 10,
-              minSearchRadius = if (c.hasPathOrNull("minSearchRadius")) c.getDouble("minSearchRadius") else 250.00,
               multinomialLogit = BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit(
                 if (c.hasPathOrNull("multinomialLogit")) c.getConfig("multinomialLogit")
                 else com.typesafe.config.ConfigFactory.parseString("multinomialLogit{}")
               ),
               rangeAnxietyBuffer =
                 if (c.hasPathOrNull("rangeAnxietyBuffer")) c.getDouble("rangeAnxietyBuffer") else 20000.0,
-              searchDoubleParkingRadius =
-                if (c.hasPathOrNull("searchDoubleParkingRadius")) c.getDouble("searchDoubleParkingRadius") else 0.0,
-              searchMaxDistanceRelativeToEllipseFoci =
-                if (c.hasPathOrNull("searchMaxDistanceRelativeToEllipseFoci"))
-                  c.getDouble("searchMaxDistanceRelativeToEllipseFoci")
-                else 4.0
+              searchDistanceInMeters = BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters(
+                if (c.hasPathOrNull("searchDistanceInMeters")) c.getConfig("searchDistanceInMeters")
+                else com.typesafe.config.ConfigFactory.parseString("searchDistanceInMeters{}")
+              )
             )
           }
         }

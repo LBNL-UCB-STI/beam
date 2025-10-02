@@ -41,6 +41,7 @@ class ZonalParkingManagerSpec
     with BeamvilleFixtures
     with BeforeAndAfterAll
     with BeforeAndAfterEach {
+  import ZonalParkingManagerSpec.searchDistancesConfig
 
   lazy val config: Config = ConfigFactory
     .parseString(
@@ -359,17 +360,12 @@ class ZonalParkingManagerSpec
       Using.resource(Source.fromFile("test/input/beamville/parking/taz-parking.csv")) { source =>
         val parkingDescription: Iterator[String] = source.getLines()
         val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
-        val minSearchRadius = 1000.0
-        val maxSearchRadius = 16093.4 // meters, aka 10 miles
-        val searchDoubleParkingRadius = 100.0
         val zpm = ZonalParkingManager(
           parkingDescription,
           tazMap,
           boundingBox,
           geo.distUTMInMeters(_, _),
-          minSearchRadius,
-          maxSearchRadius,
-          searchDoubleParkingRadius,
+          searchDistancesConfig,
           randomSeed,
           beamConfig.beam.agentsim.agents.parking.multinomialLogit,
           beamConfig,
@@ -430,17 +426,12 @@ class ZonalParkingManagerSpec
           .split("\n")
           .toIterator
       val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
-      val minSearchRadius = 1000.0
-      val maxSearchRadius = 16093.4 // meters, aka 10 miles
-      val searchDoubleParkingRadius = 100.0
       val zpm = ZonalParkingManager(
         parkingDescription,
         tazMap,
         boundingBox,
         geo.distUTMInMeters(_, _),
-        minSearchRadius,
-        maxSearchRadius,
-        searchDoubleParkingRadius,
+        searchDistancesConfig,
         randomSeed,
         beamConfig.beam.agentsim.agents.parking.multinomialLogit,
         beamConfig,
@@ -470,17 +461,12 @@ class ZonalParkingManagerSpec
           .split("\n")
           .toIterator
       val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
-      val minSearchRadius = 1000.0
-      val maxSearchRadius = 16093.4 // meters, aka 10 miles
-      val searchDoubleParkingRadius = 100.0
       val zpm = ZonalParkingManager(
         parkingDescription,
         tazMap,
         boundingBox,
         geo.distUTMInMeters(_, _),
-        minSearchRadius,
-        maxSearchRadius,
-        searchDoubleParkingRadius,
+        searchDistancesConfig,
         randomSeed,
         beamConfig.beam.agentsim.agents.parking.multinomialLogit,
         beamConfig,
@@ -542,9 +528,7 @@ class ZonalParkingManagerSpec
         tazMap,
         geo.distUTMInMeters(_, _),
         boundingBox,
-        beamConfig.beam.agentsim.agents.parking.minSearchRadius,
-        beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
-        beamConfig.beam.agentsim.agents.parking.searchDoubleParkingRadius,
+        beamConfig.beam.agentsim.agents.parking.searchDistanceInMeters,
         beamConfig.beam.agentsim.agents.parking.fractionOfSameTypeZones,
         beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
         randomSeed,
@@ -636,6 +620,14 @@ class ZonalParkingManagerSpec
 
 object ZonalParkingManagerSpec {
 
+  private val searchDistancesConfig = BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters(
+    freight = BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters.Freight(10.0, 200.0),
+    passenger =
+      BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters.Passenger(1000.0, 16093.4), // meters, aka 10 miles
+    searchDoubleParkingRadius = 100.0,
+    searchMaxDistanceRelativeToEllipseFoci = 4.0
+  )
+
   def mockZonalParkingManager(
     beamConfig: BeamConfig,
     tazTreeMap: TAZTreeMap,
@@ -644,17 +636,12 @@ object ZonalParkingManagerSpec {
     boundingBox: Envelope,
     seed: Int
   ): ZonalParkingManager = {
-    val minSearchRadius = 1000.0
-    val maxSearchRadius = 16093.4 // meters, aka 10 miles
-    val searchDoubleParkingRadius = 100.0
     ZonalParkingManager(
       parkingDescription,
       tazTreeMap,
       boundingBox,
       geo.distUTMInMeters(_, _),
-      minSearchRadius,
-      maxSearchRadius,
-      searchDoubleParkingRadius,
+      searchDistancesConfig,
       seed,
       beamConfig.beam.agentsim.agents.parking.multinomialLogit,
       beamConfig,

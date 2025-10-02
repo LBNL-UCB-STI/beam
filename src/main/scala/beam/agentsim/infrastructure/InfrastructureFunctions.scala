@@ -6,6 +6,7 @@ import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch._
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.StrictLogging
 import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
@@ -16,10 +17,7 @@ abstract class InfrastructureFunctions(
   tazTreeMap: TAZTreeMap,
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
-  minSearchRadius: Double,
-  maxSearchRadius: Double,
-  searchDoubleParkingRadius: Double,
-  searchMaxDistanceRelativeToEllipseFoci: Double,
+  searchRadiusConfig: BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters,
   estimatedMinParkingDurationInSeconds: Double,
   estimatedMeanEnRouteChargingDurationInSeconds: Double,
   fractionOfSameTypeZones: Double,
@@ -81,10 +79,7 @@ abstract class InfrastructureFunctions(
 
   private val parkingZoneSearchConfiguration: ParkingZoneSearchConfiguration =
     ParkingZoneSearchConfiguration(
-      minSearchRadius,
-      maxSearchRadius,
-      searchDoubleParkingRadius,
-      searchMaxDistanceRelativeToEllipseFoci,
+      searchRadiusConfig,
       boundingBox,
       distanceFunction,
       estimatedMinParkingDurationInSeconds,

@@ -9,6 +9,7 @@ import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
+import beam.sim.config.BeamConfig
 import beam.utils.MathUtils
 import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
@@ -42,10 +43,7 @@ object ParkingZoneSearch {
     * @param searchExpansionFactor factor by which the radius is expanded
     */
   case class ParkingZoneSearchConfiguration(
-    searchStartRadius: Double,
-    searchMaxRadius: Double,
-    searchDoubleParkingRadius: Double,
-    searchMaxDistanceRelativeToEllipseFoci: Double,
+    searchRadiusConfig: BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters,
     boundingBox: Envelope,
     distanceFunction: (Coord, Coord) => Double,
     estimatedMinParkingDurationInSeconds: Double,
@@ -405,6 +403,17 @@ object ParkingZoneSearch {
       }
     }
 
+    private def getMinMaxSearchDistance(
+      config: ParkingZoneSearchConfiguration,
+      params: ParkingZoneSearchParams
+    ): (Double, Double) = {
+      if (params.parkingActivityType == ParkingActivityType.Freight) {
+        (config.searchRadiusConfig.freight.minSearchRadius, config.searchRadiusConfig.freight.maxSearchRadius)
+      } else {
+        (config.searchRadiusConfig.passenger.minSearchRadius, config.searchRadiusConfig.passenger.maxSearchRadius)
+      }
+    }
+
     def getInstance(
       config: ParkingZoneSearchConfiguration,
       params: ParkingZoneSearchParams
@@ -414,25 +423,30 @@ object ParkingZoneSearch {
           EnrouteSearch(
             params.originUTM.getOrElse(throw new RuntimeException("Enroute process is expecting an origin location")),
             params.destinationUTM,
-            config.searchMaxDistanceRelativeToEllipseFoci,
+            config.searchRadiusConfig.searchMaxDistanceRelativeToEllipseFoci,
             config.searchExpansionFactor,
             config.distanceFunction
           )
-        case DoubleParkingAllowed if config.searchDoubleParkingRadius > 0 =>
-          DestinationSearch(
-            params.destinationUTM,
-            math.min(config.searchStartRadius, config.searchDoubleParkingRadius),
-            math.min(config.searchMaxRadius, config.searchDoubleParkingRadius),
-            config.searchExpansionFactor
-          )
+
         case _ =>
+          val (minRadius, maxRadius) = getMinMaxSearchDistance(config, params)
+          val doubleParkingRadius = config.searchRadiusConfig.searchDoubleParkingRadius
+
+          val (startRadius, searchMaxRadius) = params.searchMode match {
+            case DoubleParkingAllowed if doubleParkingRadius > 0 =>
+              (math.min(minRadius, doubleParkingRadius), math.min(maxRadius, doubleParkingRadius))
+            case _ =>
+              (minRadius, maxRadius)
+          }
+
           DestinationSearch(
             params.destinationUTM,
-            config.searchStartRadius,
-            config.searchMaxRadius,
+            startRadius,
+            searchMaxRadius,
             config.searchExpansionFactor
           )
       }
     }
+
   }
 }
