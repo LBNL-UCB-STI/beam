@@ -10,6 +10,7 @@ import beam.sim.config.BeamConfig
 import beam.utils.logging.{LogActorState, LoggingMessageActor}
 import beam.utils.{DebugLib, FileUtils, StuckFinder}
 import com.google.common.collect.TreeMultimap
+import it.unimi.dsi.fastutil.longs.{Long2IntOpenHashMap, Long2ObjectOpenHashMap}
 
 import java.util.Comparator
 import java.util.concurrent.TimeUnit
@@ -79,7 +80,7 @@ object BeamAgentScheduler {
     // Compare is on 3 levels with higher priority (i.e. front of the queue) for:
     //   smaller tick => then higher priority value => then lower triggerId
     def compare(that: ScheduledTrigger): Int =
-      java.lang.Double.compare(that.triggerWithId.trigger.tick, triggerWithId.trigger.tick) match {
+      java.lang.Integer.compare(that.triggerWithId.trigger.tick, triggerWithId.trigger.tick) match {
         case 0 =>
           java.lang.Integer.compare(priority, that.priority) match {
             case 0 =>
@@ -106,7 +107,7 @@ object BeamAgentScheduler {
   object ScheduledTriggerComparator extends Comparator[ScheduledTrigger] {
 
     def compare(st1: ScheduledTrigger, st2: ScheduledTrigger): Int =
-      java.lang.Double
+      java.lang.Integer
         .compare(st1.triggerWithId.trigger.tick, st2.triggerWithId.trigger.tick) match {
         case 0 =>
           java.lang.Integer.compare(st2.priority, st1.priority) match {
@@ -135,19 +136,47 @@ class BeamAgentScheduler(
 
   private var started = false
 
+  private val stuckDetectionEnabled = beamConfig.beam.debug.stuckAgentDetection.enabled
+
   private val triggerQueue =
     new java.util.PriorityQueue[ScheduledTrigger](ScheduledTriggerComparator)
 
-  private val awaitingResponse: TreeMultimap[java.lang.Integer, ScheduledTrigger] = TreeMultimap
-    .create[
-      java.lang.Integer,
-      ScheduledTrigger
-    ]() //com.google.common.collect.Ordering.natural(), com.google.common.collect.Ordering.arbitrary())
-  private val triggerIdToTick: mutable.Map[Long, Integer] =
-    scala.collection.mutable.Map[Long, java.lang.Integer]()
+  private val awaitingByTick = new Array[java.util.ArrayList[ScheduledTrigger]](stopTick + 1)
+  private val activeTicks = new java.util.BitSet(stopTick + 1)
 
-  private val triggerIdToScheduledTrigger: mutable.Map[Long, ScheduledTrigger] =
-    scala.collection.mutable.Map[Long, ScheduledTrigger]()
+  // Helper methods to manage awaitingByTick and activeTicks
+  private def addAwaitingTrigger(tick: Int, trigger: ScheduledTrigger): Unit = {
+    var list = awaitingByTick(tick)
+    if (list == null) {
+      list = new java.util.ArrayList[ScheduledTrigger]()
+      awaitingByTick(tick) = list
+      activeTicks.set(tick)
+    }
+    list.add(trigger)
+  }
+
+  private def removeAwaitingTrigger(tick: Int, trigger: ScheduledTrigger): Boolean = {
+    val list = awaitingByTick(tick)
+    if (list != null && list.remove(trigger)) {
+      if (list.isEmpty) {
+        awaitingByTick(tick) = null
+        activeTicks.clear(tick)
+      }
+      true
+    } else false
+  }
+
+  private def getMinActiveTick: Int = {
+    val next = activeTicks.nextSetBit(0)
+    if (next == -1) Int.MaxValue else next
+  }
+
+  private def isAwaitingEmpty: Boolean = activeTicks.isEmpty
+
+  private val triggerIdToTick = new Long2IntOpenHashMap()
+  triggerIdToTick.defaultReturnValue(-1) // Return -1 for missing keys instead of 0
+
+  private val triggerIdToScheduledTrigger = new Long2ObjectOpenHashMap[ScheduledTrigger]()
 
   private var idCount: Long = 0L
   private var startSender: ActorRef = _
@@ -202,7 +231,7 @@ class BeamAgentScheduler(
       triggerQueue.add(
         ScheduledTrigger(triggerWithId, triggerToSchedule.agent, triggerToSchedule.priority)
       )
-      triggerIdToTick += (triggerWithId.triggerId -> triggerToSchedule.trigger.tick)
+      triggerIdToTick.put(triggerWithId.triggerId, triggerToSchedule.trigger.tick)
       //    log.info(s"recieved trigger to schedule $triggerToSchedule")
     }
   }
@@ -231,30 +260,26 @@ class BeamAgentScheduler(
       doSimStep(newNow)
 
     case notice @ CompletionNotice(triggerId: Long, newTriggers: Seq[ScheduleTrigger]) =>
-      // if (!newTriggers.filter(x=>x.agent.path.toString.contains("RideHailManager")).isEmpty){
-      // DebugLib.emptyFunctionForSettingBreakPoint()
-      // }
-
       newTriggers.foreach {
         scheduleTrigger
       }
-      val completionTickOpt = triggerIdToTick.get(triggerId)
-      if (
-        completionTickOpt.isEmpty || !triggerIdToTick
-          .contains(triggerId) || !awaitingResponse
-          .containsKey(completionTickOpt.get)
-      ) {
-        log.error(s"Received bad completion notice $notice from ${sender().path}")
+
+      val tick = triggerIdToTick.get(triggerId)
+      if (tick >= 0 && tick <= stopTick && awaitingByTick(tick) != null) {
+        Option(triggerIdToScheduledTrigger.get(triggerId)).foreach { trigger =>
+          if (removeAwaitingTrigger(tick, trigger)) {
+            if (stuckDetectionEnabled) {
+              stuckFinder.removeByKey(trigger)
+            }
+            maybeTriggerMeasurer.foreach(_.resolved(trigger.triggerWithId))
+            triggerIdToScheduledTrigger.remove(triggerId)
+          }
+        }
       } else {
-        val trigger = triggerIdToScheduledTrigger(triggerId)
-        awaitingResponse.remove(completionTickOpt.get, trigger)
-        val st = triggerIdToScheduledTrigger(triggerId)
-        awaitingResponse.remove(completionTickOpt.get, st)
-        stuckFinder.removeByKey(st)
-        triggerIdToScheduledTrigger -= triggerId
-        maybeTriggerMeasurer.foreach(_.resolved(trigger.triggerWithId))
+        log.error(s"Received bad completion notice $notice from ${sender().path}")
       }
-      triggerIdToTick -= triggerId
+
+      triggerIdToTick.remove(triggerId)
       if (started) doSimStep(nowInSeconds)
 
     case triggerToSchedule: ScheduleTrigger =>
@@ -300,56 +325,53 @@ class BeamAgentScheduler(
 
     case Monitor =>
       if (beamConfig.beam.debug.debugEnabled) {
-        val logStr =
-          s"""
-             |\tnowInSeconds=$nowInSeconds
-             |\tawaitingResponse.size=${awaitingResponse.size()}
-             |\ttriggerQueue.size=${triggerQueue.size}
-             |\ttriggerQueue.head=${Option(triggerQueue.peek())}
-             |\tawaitingResponse.head=$awaitingToString""".stripMargin
+        val minTick = getMinActiveTick
+        val awaitingSize = activeTicks.cardinality() // counts set bits
+        val awaitingHead = if (minTick < stopTick) awaitingByTick(minTick) else null
+
+        val logStr = s"""
+                        |\tnowInSeconds=$nowInSeconds
+                        |\tawaitingResponse.size=$awaitingSize
+                        |\ttriggerQueue.size=${triggerQueue.size}
+                        |\ttriggerQueue.head=${Option(triggerQueue.peek())}
+                        |\tawaitingResponse.head=$awaitingHead""".stripMargin
         log.info(logStr)
 
         // if RidehailManager at first position in queue, it is very likely, that we are stuck
-        awaitingResponse.values().asScala.take(1).foreach { x =>
-          if (x.agent.path.name.contains("RideHailManager")) {
-            rideHailManagerStuckDetectionLog match {
-              case RideHailManagerStuckDetectionLog(Some(tick), true)
-                  if tick == nowInSeconds => // still stuck, no need to print state again
-              case RideHailManagerStuckDetectionLog(Some(tick), false) if tick == nowInSeconds =>
-                // the time has not changed since set last monitor timeout and RidehailManager still blocking scheduler -> log state and try to remove stuckness
-                rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(Some(nowInSeconds), true)
-                x.agent ! LogActorState
-//                x.agent ! RecoverFromStuckness(x.triggerWithId.trigger.tick)
-              case _ =>
-                // register tick (to see, if it changes till next monitor timeout).
-                rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(Some(nowInSeconds), false)
+        if (minTick < stopTick && awaitingByTick(minTick) != null) {
+          val headTriggers = awaitingByTick(minTick).asScala
+          if (headTriggers.nonEmpty) {
+            val x = headTriggers.head
+            if (x.agent.path.name.contains("RideHailManager")) {
+              rideHailManagerStuckDetectionLog match {
+                case RideHailManagerStuckDetectionLog(Some(tick), true)
+                    if tick == nowInSeconds => // still stuck, no need to print state again
+                case RideHailManagerStuckDetectionLog(Some(tick), false) if tick == nowInSeconds =>
+                  // the time has not changed since set last monitor timeout and RidehailManager still blocking scheduler -> log state and try to remove stuckness
+                  rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(Some(nowInSeconds), true)
+                  x.agent ! LogActorState
+                case _ =>
+                  // register tick (to see, if it changes till next monitor timeout).
+                  rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(Some(nowInSeconds), false)
+              }
+            } else {
+              x.agent ! BeamAgentSchedulerTimer
             }
-          } else {
-            // Send to the stuck agent in order to spy it's internal state in debugger
-            x.agent ! BeamAgentSchedulerTimer
-//            monitorStuckDetectionState match {
-//              case Some(MonitorStuckDetectionState(tick, awaitingReponseSize, triggerQueueSize, Some(triggerQueueHead)))
-//                  if ((tick == nowInSeconds && awaitingReponseSize == awaitingResponse
-//                    .size()) && (triggerQueueSize == triggerQueue.size() && triggerQueueHead == triggerQueue.peek())) =>
-//                log.info("monitorStuckDetection removing agent: " + x.agent.path)
-//                terminateActor(x.agent)
-//
-//              case _ =>
-//            }
           }
         }
 
         monitorStuckDetectionState = Some(
           MonitorStuckDetectionState(
             nowInSeconds,
-            awaitingResponse.size(),
+            awaitingSize,
             triggerQueue.size,
             Some(triggerQueue.peek())
           )
         )
 
-        awaitingResponse.values().asScala.take(10).foreach(x => log.info("awaitingResponse:" + x.toString))
-
+        if (minTick < stopTick && awaitingByTick(minTick) != null) {
+          awaitingByTick(minTick).asScala.take(10).foreach(x => log.info("awaitingResponse:" + x.toString))
+        }
       }
 
     case SkipOverBadActors =>
@@ -395,7 +417,7 @@ class BeamAgentScheduler(
 
   //not thread safe (needs to be called only within actor receive or lifecycle methods)
   private def storeSchedulerState(): Unit = {
-    if (awaitingResponse.isEmpty) {
+    if (isAwaitingEmpty) {
       log.info("awaitingResponse is empty, nowInSeconds = {}", nowInSeconds)
     } else {
       val queueFile = s"$outputDir/scheduler_shutdown_dump_trigger_queue.txt.gz"
@@ -403,19 +425,23 @@ class BeamAgentScheduler(
       val sorted = (0 until math.min(triggerQueue.size(), 1024)).view.map(_ => triggerQueue.poll().toString + "\n")
       FileUtils.writeToFile(queueFile, (s"total queue size = ${triggerQueue.size()}\n" +: sorted).iterator)
       val awaitingResponseFile = s"$outputDir/scheduler_shutdown_dump_awaiting_response.txt.gz"
+      val allTriggers = activeTicks.stream().boxed().iterator().asScala.flatMap { tick =>
+        val list = awaitingByTick(tick)
+        if (list != null) list.asScala else Seq.empty
+      }
+      val awaitingCount = activeTicks.cardinality()
       log.info(
         "awaitingResponse.size = {}, saving to {}, nowInSeconds = {}",
-        awaitingResponse.size(),
+        awaitingCount,
         awaitingResponseFile,
         nowInSeconds
       )
-      val iterator = awaitingResponse.entries().iterator()
-      val triggers = (0 until math.min(awaitingResponse.size(), 1024)).view
-        .map(_ => iterator.next().getValue.toString + "\n")
+      val triggers = allTriggers.take(1024).map(_.toString + "\n")
       FileUtils.writeToFile(
         awaitingResponseFile,
-        (s"total awaitingResponse size = ${awaitingResponse.size()}\n" +: triggers).iterator
+        Iterator.single(s"total awaitingResponse size = $awaitingCount\n") ++ triggers
       )
+
       FileUtils.writeToFile(
         s"$outputDir/scheduler_shutdown_thread_dump.txt.gz",
         DebugLib.currentThreadsDump().asScala.iterator
@@ -424,16 +450,17 @@ class BeamAgentScheduler(
   }
 
   private def terminateActor(actor: ActorRef): Unit = {
-    awaitingResponse
-      .values()
-      .stream()
-      .filter(trigger => trigger.agent == actor)
-      .forEach(trigger => {
-        // We do not need to remove it from `awaitingResponse` or `stuckFunder`.
-        // We will do it a bit later when `CompletionNotice` will be received
-        self ! CompletionNotice(trigger.triggerWithId.triggerId, Nil)
-        log.error("Clearing trigger because agent died: " + trigger)
-      })
+    activeTicks.stream().forEach { tick =>
+      val list = awaitingByTick(tick)
+      if (list != null) {
+        list.asScala.filter(_.agent == actor).foreach { trigger =>
+          // We do not need to remove it from `awaitingResponse` or `stuckFunder`.
+          // We will do it a bit later when `CompletionNotice` will be received
+          self ! CompletionNotice(trigger.triggerWithId.triggerId, Nil)
+          log.error("Clearing trigger because agent died: " + trigger)
+        }
+      }
+    }
   }
 
   @tailrec
@@ -446,11 +473,8 @@ class BeamAgentScheduler(
         .tick <= stopTick
     ) {
       updateNow(newNow)
-      if (
-        awaitingResponse.isEmpty || nowInSeconds - awaitingResponse
-          .keySet()
-          .first() + 1 < maxWindow
-      ) {
+      val minTick = getMinActiveTick
+      if (isAwaitingEmpty || nowInSeconds - minTick + 1 < maxWindow) {
         while (
           !triggerQueue.isEmpty && triggerQueue
             .peek()
@@ -460,17 +484,19 @@ class BeamAgentScheduler(
         ) {
           val scheduledTrigger = this.triggerQueue.poll()
           val triggerWithId = scheduledTrigger.triggerWithId
-          awaitingResponse.put(triggerWithId.trigger.tick, scheduledTrigger)
-          stuckFinder.add(System.currentTimeMillis(), scheduledTrigger, true)
+          addAwaitingTrigger(triggerWithId.trigger.tick, scheduledTrigger)
+          if (stuckDetectionEnabled) {
+            stuckFinder.add(System.currentTimeMillis(), scheduledTrigger, true)
+          }
 
           triggerIdToScheduledTrigger.put(triggerWithId.triggerId, scheduledTrigger)
           maybeTriggerMeasurer.foreach(_.sent(triggerWithId, scheduledTrigger.agent))
           scheduledTrigger.agent ! triggerWithId
         }
+        val newMinTick = getMinActiveTick
         if (
-          awaitingResponse.isEmpty || (nowInSeconds + 1) - awaitingResponse
-            .keySet()
-            .first() + 1 < maxWindow
+          (nowInSeconds == 0 && isAwaitingEmpty) ||
+          (nowInSeconds > 0 && (isAwaitingEmpty || (nowInSeconds + 1) - newMinTick + 1 < maxWindow))
         ) {
           if (nowInSeconds > 0 && nowInSeconds % 1800 == 0) {
             log.info(
@@ -489,7 +515,7 @@ class BeamAgentScheduler(
 
     } else {
       updateNow(newNow)
-      if (awaitingResponse.isEmpty) {
+      if (isAwaitingEmpty) {
         val duration = Deadline.now - startedAt
         stuckAgentChecker.foreach(_.cancel)
         log.info(
@@ -541,10 +567,12 @@ class BeamAgentScheduler(
   }
 
   def awaitingToString: String = {
-    if (awaitingResponse.keySet().isEmpty) {
+    val minTick = getMinActiveTick
+    if (minTick == Int.MaxValue) {
       "empty"
     } else {
-      s"${awaitingResponse.get(awaitingResponse.keySet().first()).asScala.take(3)}"
+      val list = awaitingByTick(minTick)
+      if (list != null) s"${list.asScala.take(3)}" else "empty"
     }
   }
 

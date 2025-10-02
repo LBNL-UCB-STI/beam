@@ -216,6 +216,8 @@ dependencies {
     implementation "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.9.0"
     implementation "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
 
+    implementation 'it.unimi.dsi:fastutil:8.5.4'
+
     implementation(group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'v4.9.0') {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
         exclude group: 'org.slf4j', module: 'slf4j-simple'
