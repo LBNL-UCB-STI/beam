@@ -23,13 +23,13 @@ object FreightActivityType extends Enum[FreightActivityType] {
 
   case object Unloading extends FreightActivityType { override val value = "unloading" }
   case object Loading extends FreightActivityType { override val value = "loading" }
-  case object Warehouse extends FreightActivityType { override val value = "warehouse" }
+  case object Depot extends FreightActivityType { override val value = "depot" }
 
   def apply(s: String): FreightActivityType = {
     val normalized = s.trim.toLowerCase
     if (normalized.startsWith(Unloading.value) || normalized.contains(Unloading.value)) Unloading
     else if (normalized.startsWith(Loading.value) || normalized.contains(Loading.value)) Loading
-    else if (normalized.startsWith(Warehouse.value) || normalized.contains(Warehouse.value)) Warehouse
+    else if (normalized.startsWith(Depot.value) || normalized.contains(Depot.value)) Depot
     else throw new IllegalArgumentException(s"Unknown FreightActivityType: '$s'")
   }
 }
@@ -75,13 +75,12 @@ case class FreightCarrier(
   fleet: Map[Id[BeamVehicle], BeamVehicle],
   fleetDistribution: Map[BeamVehicleType, Double],
   plansPerTour: Map[Id[FreightTour], IndexedSeq[PayloadPlan]],
-  warehouseLocationTaz: Option[Id[TAZ]],
-  warehouseLocationUTM: Coord
+  depotLocationTaz: Option[Id[TAZ]],
+  depotLocationUTM: Coord
 )
 
 object FreightEntities {
   // Attention: these prefixes are used in the serialization of Ids, so changing them might break compatibility
   // When changing them make sure to modify java classes like: AgentSimToPhysSimPlanConverter.java
   val FREIGHT_ID_PREFIX = "ft"
-  val PASSENGER_ID_PREFIX = "pax"
 }

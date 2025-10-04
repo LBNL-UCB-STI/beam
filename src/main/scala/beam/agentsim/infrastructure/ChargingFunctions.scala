@@ -161,8 +161,8 @@ class ChargingFunctions(
     val chargeFastChargingOnly: Boolean = ifChargeActivityThenFastChargingOnly(zone, inquiry)
     val overnightStaySlowChargingOnly: Boolean = ifHomeWorkOrLongParkingDurationThenSlowChargingOnly(zone, inquiry)
     val validChargingCapability: Boolean = hasValidChargingCapability(zone, inquiry)
-    val preferredParkingTypes = getPreferredParkingTypes(inquiry)
-    val canCarParkHere: Boolean = canThisCarParkHere(zone, inquiry, preferredParkingTypes)
+    val allowedParkingTypes = getAllowedParkingTypes(inquiry)
+    val canCarParkHere: Boolean = canThisCarParkHere(zone, inquiry, allowedParkingTypes)
     rideHailFastChargingOnly && validChargingCapability && canCarParkHere && enRouteFastChargingOnly && chargeFastChargingOnly && overnightStaySlowChargingOnly
   }
 
@@ -292,16 +292,14 @@ class ChargingFunctions(
     } getOrElse SkimsUtils.distanceAndTime(BeamMode.CAR, origin, dest)._2
   }
 
-  override protected def getPreferredParkingTypes(inquiry: ParkingInquiry): Set[ParkingType] = {
-    import ParkingSearchMode._
-    if (parkingConfig.forceParkingType && !List(EnRouteCharging, Init).contains(inquiry.searchMode)) {
-      inquiry.parkingActivityType match {
-        case Home     => Set(ParkingType.Residential)
-        case Working  => Set(ParkingType.Workplace)
-        case Charging => Set(ParkingType.Workplace, ParkingType.Depot, ParkingType.Public, ParkingType.Residential)
-        case Freight  => Set(ParkingType.Commercial, ParkingType.Depot, ParkingType.Public)
-        case _        => Set(ParkingType.Public)
-      }
-    } else super[ParkingFunctions].getPreferredParkingTypes(inquiry)
+  override protected def getAllowedParkingTypes(inquiry: ParkingInquiry): Set[ParkingType] = {
+    inquiry.parkingActivityType match {
+      case Home              => Set(ParkingType.Residential)
+      case Working           => Set(ParkingType.Workplace)
+      case Charging          => Set(ParkingType.Depot, ParkingType.Public) // ridehail CAV fleet
+      case FreightOperations => Set(ParkingType.Commercial) // freight
+      case FreightDepot      => Set(ParkingType.Depot, ParkingType.Public, ParkingType.Commercial) // freight or ridehail
+      case _                 => Set(ParkingType.Public) // public is default
+    }
   }
 }

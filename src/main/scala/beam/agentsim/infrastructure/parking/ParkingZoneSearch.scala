@@ -1,12 +1,13 @@
 package beam.agentsim.infrastructure.parking
 
 import beam.agentsim.agents.choice.logit.MultinomialLogit
-import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleManager.{ReservedFor, TypeEnum}
-import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
+import beam.agentsim.agents.vehicles.VehicleUse.{Freight, VehicleUse}
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode.DoubleParkingAllowed
+import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging._
+import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.VehicleRestrictionKey
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import beam.sim.config.BeamConfig
@@ -75,7 +76,8 @@ object ParkingZoneSearch {
     random: Random,
     originUTM: Option[Location],
     reservedFor: ReservedFor,
-    parkingActivityType: ParkingActivityType
+    parkingActivityType: ParkingActivityType,
+    vehicleUse: VehicleUse
   )
 
   /**
@@ -276,7 +278,7 @@ object ParkingZoneSearch {
     parkingType: ParkingType,
     chargingPointType: Option[ChargingPointType],
     pricingModel: Option[PricingModel],
-    timeRestrictions: Map[VehicleCategory, Range]
+    timeRestrictions: Map[VehicleRestrictionKey, Range]
   )
 
   object ParkingZoneInfo {
@@ -407,7 +409,7 @@ object ParkingZoneSearch {
       config: ParkingZoneSearchConfiguration,
       params: ParkingZoneSearchParams
     ): (Double, Double) = {
-      if (params.parkingActivityType == ParkingActivityType.Freight) {
+      if (params.vehicleUse == Freight) {
         (config.searchRadiusConfig.freight.minSearchRadius, config.searchRadiusConfig.freight.maxSearchRadius)
       } else {
         (config.searchRadiusConfig.passenger.minSearchRadius, config.searchRadiusConfig.passenger.maxSearchRadius)

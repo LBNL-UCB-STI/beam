@@ -26,6 +26,7 @@ import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
+import beam.agentsim.agents.vehicles.VehicleUse.VehicleUse
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events.resources.ReservationErrorCode
 import beam.agentsim.events.{ModeChoiceEvent, ReplanningEvent, SpaceTime, TourModeChoiceEvent}
@@ -183,7 +184,7 @@ trait ChoosesMode {
               fleetManagers,
               data.currentLocation,
               currentActivity(data.personData),
-              tourMode match {
+              requireVehicleCategoryAvailable = tourMode match {
                 case Some(CAR_BASED)  => Some(VehicleCategory.Car)
                 case Some(BIKE_BASED) => Some(VehicleCategory.Bike)
                 case _                => None
@@ -202,11 +203,11 @@ trait ChoosesMode {
             fleetManagers,
             data.currentLocation,
             currentActivity(data.personData),
+            vehicleUse = if (tourMode.contains(FREIGHT_TOUR)) VehicleUse.Freight else VehicleUse.Passenger,
             tourMode match {
-              case Some(CAR_BASED)    => Some(VehicleCategory.Car)
-              case Some(BIKE_BASED)   => Some(VehicleCategory.Bike)
-              case Some(FREIGHT_TOUR) => Some(VehicleCategory.Freight)
-              case _                  => None
+              case Some(CAR_BASED)  => Some(VehicleCategory.Car)
+              case Some(BIKE_BASED) => Some(VehicleCategory.Bike)
+              case _                => None
             }
           ) pipeTo self
         }
@@ -235,7 +236,7 @@ trait ChoosesMode {
             vehicleFleets,
             data.currentLocation,
             currentActivity(data.personData),
-            Some(VehicleCategory.Car)
+            requireVehicleCategoryAvailable = Some(VehicleCategory.Car)
           ) pipeTo self
         }
       // Create teleportation vehicle if we are told to use teleportation
@@ -269,8 +270,10 @@ trait ChoosesMode {
               vehicleFleets,
               data.currentLocation,
               currentActivity(data.personData),
-              if (this.id.toString.startsWith(FREIGHT_ID_PREFIX)) { Some(VehicleCategory.Freight) }
-              else { Some(VehicleCategory.Car) }
+              vehicleUse =
+                if (this.id.toString.startsWith(FREIGHT_ID_PREFIX)) VehicleUse.Freight else VehicleUse.Passenger,
+              requireVehicleCategoryAvailable =
+                if (this.id.toString.startsWith(FREIGHT_ID_PREFIX)) None else Some(VehicleCategory.Car)
             ) pipeTo self
         }
       case (data: ChoosesModeData, Some(BIKE | BIKE_TRANSIT), _) =>
@@ -291,7 +294,7 @@ trait ChoosesMode {
               vehicleFleets,
               data.currentLocation,
               currentActivity(data.personData),
-              Some(VehicleCategory.Bike)
+              requireVehicleCategoryAvailable = Some(VehicleCategory.Bike)
             ) pipeTo self
         }
       // If we're on a walk based tour and have an egress vehicle defined we NEED to bring it home
@@ -311,7 +314,7 @@ trait ChoosesMode {
             vehicleFleets,
             data.currentLocation,
             currentActivity(data.personData),
-            Some(VehicleCategory.Car)
+            requireVehicleCategoryAvailable = Some(VehicleCategory.Car)
           ) pipeTo self
         }
 
@@ -353,6 +356,7 @@ trait ChoosesMode {
     vehicleFleets: Seq[ActorRef],
     location: SpaceTime,
     activity: Activity,
+    vehicleUse: VehicleUse = VehicleUse.Passenger,
     requireVehicleCategoryAvailable: Option[VehicleCategory] = None
   ): Future[MobilityStatusResponse] = {
     implicit val executionContext: ExecutionContext = context.system.dispatcher
@@ -363,6 +367,7 @@ trait ChoosesMode {
             id,
             location,
             activity,
+            vehicleUse,
             requireVehicleCategoryAvailable,
             getCurrentTriggerIdOrGenerate
           )

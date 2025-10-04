@@ -12,7 +12,8 @@ import beam.agentsim.agents.household.HouseholdActor._
 import beam.agentsim.agents.household.HouseholdFleetManager.ResolvedParkingResponses
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
+import beam.agentsim.agents.vehicles.VehicleUse.Freight
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager, VehicleUse}
 import beam.agentsim.events.{ParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
@@ -108,16 +109,15 @@ class HouseholdFleetManager(
           val personId: Id[Person] = {
             if (isFreightCarrier) {
               householdMembersToActivityTypeAndLocation
-                .find(_._2.parkingActivityType == ParkingActivityType.Freight)
+                .find(_._2.vehicleUse == VehicleUse.Freight)
                 .map(_._1)
                 .getOrElse {
                   householdMembersToActivityTypeAndLocation.foreach { case (personId, location) =>
-                    logger.error(s"Person ID: $personId")
-                    logger.error(s"  Parking Activity Type: ${location.parkingActivityType}")
-                    logger.error(s"  Activity Type: ${location.activityType}")
-                    logger.error(s"  Activity Location: ${location.activityLocation}")
-                    logger.error(s"  Activity End Time: ${location.activityEndTime}")
-                    logger.error("---")
+                    logger.error(
+                      s"Person ID: $personId; Parking Activity Type: ${location.parkingActivityType}; " +
+                      s"Activity Type: ${location.activityType}; Activity Location: ${location.activityLocation}; " +
+                      s"Activity End Time: ${location.activityEndTime}."
+                    )
                   }
                   throw new RuntimeException(
                     s"Freight vehicle ${vehicle.id} has no assigned person with Freight parking activity"
@@ -131,7 +131,7 @@ class HouseholdFleetManager(
             } else workingPersonsList.remove(0)
           }
           trackingVehicleAssignmentAtInitialization.put(vehicle.id, personId)
-          val ActivityTypeAndLocation(_, activityType, location, endTime) =
+          val ActivityTypeAndLocation(_, _, activityType, location, endTime) =
             householdMembersToActivityTypeAndLocation(personId)
           val inquiry = ParkingInquiry.init(
             SpaceTime(location, 0),
@@ -195,9 +195,9 @@ class HouseholdFleetManager(
     case GetVehicleTypes(triggerId) =>
       sender() ! VehicleTypesResponse(vehicleTypes, triggerId)
 
-    case inquiry @ MobilityStatusInquiry(personId, _, _, requireVehicleCategoryAvailable, triggerId) =>
+    case inquiry @ MobilityStatusInquiry(personId, _, _, vehicleUse, requireVehicleCategoryAvailable, triggerId) =>
       val availableVehicleMaybe: Option[BeamVehicle] = requireVehicleCategoryAvailable match {
-        case _ if personId.toString.startsWith(FREIGHT_ID_PREFIX) =>
+        case _ if vehicleUse == Freight =>
           val assignedVehicleId = whoDrivesThisFreightVehicle.collectFirst { case (vehicleId, `personId`) => vehicleId }
           availableVehicles.find(v => assignedVehicleId.contains(v.id))
         case Some(requireVehicleCategory) =>
@@ -212,13 +212,12 @@ class HouseholdFleetManager(
           sender() ! MobilityStatusResponse(Vector(ActualVehicle(availableVehicle)), triggerId)
           availableVehicles -= availableVehicle
         case None if createAnEmergencyVehicle(inquiry).nonEmpty =>
-          if (personId.toString.startsWith(FREIGHT_ID_PREFIX)) {
+          if (vehicleUse == Freight) {
             logger.error(
-              s"An emergency vehicle has been created for freight personId: ${personId}. This is either because of bad freight plans or a bug within BEAM"
+              s"An emergency vehicle has been created for freight personId: $personId. " +
+              s"This is either because of bad freight plans or a bug within BEAM"
             )
-          } else {
-            logger.debug(s"An emergency vehicle has been created!")
-          }
+          } else logger.debug(s"An emergency vehicle has been created!")
         case _ =>
           if (availableVehicles.isEmpty) {
             requireVehicleCategoryAvailable match {
@@ -280,15 +279,9 @@ class HouseholdFleetManager(
 
       // Pipe my car through the parking manager
       // and complete initialization only when I got them all.
-      val reservedFor = VehicleManager.getReservedFor(vehicle.vehicleManagerId.get()).get
-      val activityType = if (reservedFor.managerType == VehicleManager.TypeEnum.Freight) {
-        ParkingActivityType.Freight.toString
-      } else {
-        ParkingActivityType.Miscellaneous.toString
-      }
       val responseFuture = parkingManager ? ParkingInquiry.init(
         inquiry.whereWhen,
-        activityType,
+        inquiry.originActivity.getType,
         VehicleManager.getReservedFor(vehicle.vehicleManagerId.get()).get,
         Some(vehicle),
         triggerId = inquiry.triggerId,

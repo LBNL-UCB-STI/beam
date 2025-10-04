@@ -922,22 +922,22 @@ if __name__ == '__main__':
 
     _coordinate_lookup = {}
 
-    # carrierId,tourId,vehicleId,vehicleTypeId,warehouseZone,warehouseX,warehouseY,MESOZONE,BoundaryZONE
+    # carrierId,tourId,vehicleId,vehicleTypeId,depotZone,depotX,depotY,MESOZONE,BoundaryZONE
     carriers_renames = {
-        'depot_zone': 'warehouseZone',
-        'depot_zone_x': 'warehouseX',
-        'depot_zone_y': 'warehouseY',
+        'depot_zone': 'depotZone',
+        'depot_zone_x': 'depotX',
+        'depot_zone_y': 'depotY',
         'true_depot_zone': 'mesoZone'
     }
     _carriers.rename(columns=carriers_renames, inplace=True)
     _carriers.drop(['x', 'y', 'index', 'Unnamed: 0'], axis=1, inplace=True, errors='ignore')
-    _carriers['warehouseZone'] = _carriers['warehouseZone'].astype(int)
+    _carriers['depotZone'] = _carriers['depotZone'].astype(int)
     if SNAP_COORDINATES:
         _carriers, _coordinate_lookup = snap_coordinates_when_too_far(
             _carriers,
             _osm_edges_utm,
-            "warehouseX",
-            "warehouseY",
+            "depotX",
+            "depotY",
             _coordinate_lookup
         )
     # Write

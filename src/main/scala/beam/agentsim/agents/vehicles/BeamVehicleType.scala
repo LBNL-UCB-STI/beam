@@ -2,6 +2,7 @@ package beam.agentsim.agents.vehicles
 
 import beam.agentsim.agents.vehicles.FuelType._
 import beam.agentsim.agents.vehicles.VehicleCategory._
+import beam.agentsim.agents.vehicles.VehicleUse._
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import org.matsim.api.core.v01.Id
 
@@ -34,7 +35,8 @@ case class BeamVehicleType(
   wheelchairAccessible: Option[Boolean] = None,
   restrictRoadsByFreeSpeedInMeterPerSecond: Option[Double] = None,
   emissionsRatesFile: Option[String] = None,
-  emissionsRatesInGramsPerMile: Option[VehicleEmissions.EmissionsProfile] = None
+  emissionsRatesInGramsPerMile: Option[VehicleEmissions.EmissionsProfile] = None,
+  vehicleUse: VehicleUse = VehicleUse.Passenger
 ) {
   def isSharedVehicle: Boolean = id.toString.startsWith("sharedVehicle")
 
@@ -51,6 +53,16 @@ case class BeamVehicleType(
     val secondaryRange =
       secondaryFuelCapacityInJoule.getOrElse(0.0) / secondaryFuelConsumptionInJoulePerMeter.getOrElse(1.0)
     primaryRange + secondaryRange
+  }
+}
+
+object VehicleUse {
+  sealed trait VehicleUse
+  case object Passenger extends VehicleUse
+  case object Freight extends VehicleUse
+
+  def fromStringOptional(value: String): Option[VehicleUse] = {
+    Vector(Passenger, Freight).find(_.toString.equalsIgnoreCase(value))
   }
 }
 
@@ -76,26 +88,15 @@ object FuelType {
 
 object VehicleCategory {
 
-  sealed trait VehicleCategory {
-    def generalCategory: VehicleCategory = this
-  }
+  sealed trait VehicleCategory
   case object Body extends VehicleCategory
   case object Bike extends VehicleCategory
   case object Car extends VehicleCategory // Class 1&2a (GVWR <= 8500 lbs.)
   case object MediumDutyPassenger extends VehicleCategory
-  case object Freight extends VehicleCategory
 
-  case object Class456Vocational extends VehicleCategory {
-    override def generalCategory: VehicleCategory = Freight // Class 4-6 (GVWR 14001-26000 lbs.)
-  }
-
-  case object Class78Vocational extends VehicleCategory {
-    override def generalCategory: VehicleCategory = Freight // CLass 7&8 (GVWR 26001-33,000 lbs.)
-  }
-
-  case object Class78Tractor extends VehicleCategory {
-    override def generalCategory: VehicleCategory = Freight // Class 7&8 Tractor (GVWR >33,000 lbs.)
-  }
+  case object Class456Vocational extends VehicleCategory // Class 4-6 (GVWR 14001-26000 lbs.)
+  case object Class78Vocational extends VehicleCategory // CLass 7&8 (GVWR 26001-33,000 lbs.)
+  case object Class78Tractor extends VehicleCategory // Class 7&8 Tractor (GVWR >33,000 lbs.)
 
   def fromString(value: String): VehicleCategory =
     try { fromStringOptional(value).get }
@@ -114,7 +115,7 @@ object VehicleCategory {
     Class78Tractor
   )
 
-  private def fromStringOptional(value: String): Option[VehicleCategory] = {
+  def fromStringOptional(value: String): Option[VehicleCategory] = {
     values.find(_.toString.equalsIgnoreCase(value))
   }
 }

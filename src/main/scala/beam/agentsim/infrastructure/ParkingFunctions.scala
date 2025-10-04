@@ -2,9 +2,11 @@ package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.agents.vehicles.VehicleUse.Freight
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType._
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode.DoubleParkingAllowed
 import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
+import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.VehicleRestrictionKey
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
@@ -50,8 +52,8 @@ class ParkingFunctions(
     ParkingMNL.Parameters.ParkingTicketCost -> UtilityFunctionOperation.Multiplier(
       mnlParkingConfig.params.parkingPriceMultiplier
     ),
-    ParkingMNL.Parameters.HomeActivityPrefersResidentialParking -> UtilityFunctionOperation.Multiplier(
-      mnlParkingConfig.params.homeActivityPrefersResidentialParkingMultiplier
+    ParkingMNL.Parameters.ParkingTypePreference -> UtilityFunctionOperation.Multiplier(
+      mnlParkingConfig.params.parkingTypePreferenceMultiplier
     ),
     ParkingMNL.Parameters.EnrouteDetourCost -> UtilityFunctionOperation.Multiplier(
       mnlParkingConfig.params.enrouteDetourMultiplier
@@ -76,17 +78,16 @@ class ParkingFunctions(
 
     val parkingCostsPriceFactor: Double = parkingAlternative.costInDollars
 
-    val goingHome: Boolean =
-      inquiry.parkingActivityType == ParkingActivityType.Home && parkingAlternative.parkingType == ParkingType.Residential
-
-    val homeActivityPrefersResidentialFactor: Double = if (goingHome) 1.0 else 0.0
+    val parkingTypePreferences = getPreferredParkingTypes(inquiry)
+    val parkingTypePreferenceFactor: Double =
+      if (parkingTypePreferences.contains(parkingAlternative.parkingType)) 1.0 else 0.0
 
     val params: Map[ParkingMNL.Parameters, Double] = Map(
-      ParkingMNL.Parameters.RangeAnxietyCost                      -> 0.0,
-      ParkingMNL.Parameters.WalkingEgressCost                     -> distanceFactor,
-      ParkingMNL.Parameters.ParkingTicketCost                     -> parkingCostsPriceFactor,
-      ParkingMNL.Parameters.HomeActivityPrefersResidentialParking -> homeActivityPrefersResidentialFactor,
-      ParkingMNL.Parameters.EnrouteDetourCost                     -> 0.0
+      ParkingMNL.Parameters.RangeAnxietyCost      -> 0.0,
+      ParkingMNL.Parameters.WalkingEgressCost     -> distanceFactor,
+      ParkingMNL.Parameters.ParkingTicketCost     -> parkingCostsPriceFactor,
+      ParkingMNL.Parameters.ParkingTypePreference -> parkingTypePreferenceFactor,
+      ParkingMNL.Parameters.EnrouteDetourCost     -> 0.0
     )
 
     params
@@ -106,8 +107,8 @@ class ParkingFunctions(
     if (zone.chargingPointType.isDefined)
       throw new RuntimeException("ParkingFunctions expect only stalls without charging points")
 
-    val preferredParkingTypes = getPreferredParkingTypes(inquiry)
-    val canCarParkHere: Boolean = canThisCarParkHere(zone, inquiry, preferredParkingTypes)
+    val allowedParkingTypes = getAllowedParkingTypes(inquiry)
+    val canCarParkHere: Boolean = canThisCarParkHere(zone, inquiry, allowedParkingTypes)
     canCarParkHere
   }
 
@@ -123,7 +124,7 @@ class ParkingFunctions(
     val output = parkingZoneSearchResult match {
       case Some(result) => result
       case _
-          if inquiry.searchMode == DoubleParkingAllowed && searchRadiusConfig.searchDoubleParkingRadius > 0 && inquiry.parkingActivityType == ParkingActivityType.Freight =>
+          if inquiry.searchMode == DoubleParkingAllowed && searchRadiusConfig.searchDoubleParkingRadius > 0 && inquiry.vehicleUse == Freight =>
         val (newStall, parkingZone) = ParkingStall.obstructiveStallAtLocation(
           inquiry.destinationUtm.loc,
           tazTreeMap.getTAZ(inquiry.destinationUtm.loc).tazId,
@@ -208,11 +209,30 @@ class ParkingFunctions(
   ): Boolean = {
     val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
 
-    val isValidTime = inquiry.beamVehicle.forall(vehicle =>
-      zone.timeRestrictions
-        .get(vehicle.beamVehicleType.vehicleCategory)
-        .forall(_.contains(inquiry.destinationUtm.time % (24 * 3600)))
-    )
+    val isValidTime = {
+      val vehicleCategory = inquiry.beamVehicle.map(_.beamVehicleType.vehicleCategory)
+      val vehicleUse = inquiry.vehicleUse
+
+      val matchingRestrictions = zone.timeRestrictions.filter { case (key, _) =>
+        key match {
+          case VehicleRestrictionKey.CategoryOnly(cat) =>
+            vehicleCategory.contains(cat)
+          case VehicleRestrictionKey.UseOnly(use) =>
+            use == vehicleUse
+          case VehicleRestrictionKey.CategoryAndUse(cat, use) =>
+            vehicleCategory.contains(cat) && use == vehicleUse
+        }
+      }
+
+      if (matchingRestrictions.isEmpty) {
+        true // No restrictions apply to this vehicle
+      } else {
+        val currentTime = inquiry.destinationUtm.time % (24 * 3600)
+        matchingRestrictions.exists { case (_, range) =>
+          range.contains(currentTime)
+        }
+      }
+    }
 
     val isValidManager =
       inquiry.beamVehicle.forall { vehicle =>
@@ -228,27 +248,42 @@ class ParkingFunctions(
     * @param inquiry ParkingInquiry
     * @return
     */
-  protected def getPreferredParkingTypes(inquiry: ParkingInquiry): Set[ParkingType] = {
+  protected def getAllowedParkingTypes(inquiry: ParkingInquiry): Set[ParkingType] = {
+    // a lookup for valid parking types based on this inquiry
+    inquiry.parkingActivityType match {
+      case Home              => Set(ParkingType.Residential, ParkingType.Public, ParkingType.Commercial)
+      case Working           => Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Commercial)
+      case FreightOperations => Set(ParkingType.Public, ParkingType.Commercial)
+      case FreightDepot      => Set(ParkingType.Depot, ParkingType.Commercial, ParkingType.Public)
+      case _                 => Set(ParkingType.Public, ParkingType.Commercial)
+    }
+  }
+
+  // This methods is used by ChargingFunctions as well
+  // it is related to beam.agentsim.agents.parking.multinomialLogit.params.parkingTypePreferenceMultiplier
+  private def getPreferredParkingTypes(inquiry: ParkingInquiry): Set[ParkingType] = {
     // a lookup for valid parking types based on this inquiry
     if (inquiry.searchMode == ParkingSearchMode.EnRouteCharging) {
       inquiry.parkingActivityType match {
-        case Freight => Set(ParkingType.Commercial, ParkingType.Depot)
-        case _       => Set(ParkingType.Public, ParkingType.Depot)
+        case FreightOperations => Set(ParkingType.Commercial)
+        case FreightDepot      => Set(ParkingType.Commercial)
+        case _                 => Set(ParkingType.Public)
       }
     } else if (inquiry.searchMode == ParkingSearchMode.Init) {
       inquiry.parkingActivityType match {
-        case Home    => Set(ParkingType.Residential)
-        case Working => Set(ParkingType.Workplace)
-        case Freight => Set(ParkingType.Depot)
-        case _       => Set(ParkingType.Public)
+        case Home         => Set(ParkingType.Residential)
+        case Working      => Set(ParkingType.Workplace)
+        case FreightDepot => Set(ParkingType.Depot)
+        case _            => Set(ParkingType.Public)
       }
     } else {
       inquiry.parkingActivityType match {
-        case Home     => Set(ParkingType.Residential, ParkingType.Public)
-        case Working  => Set(ParkingType.Workplace, ParkingType.Public)
-        case Charging => Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential, ParkingType.Depot)
-        case Freight  => Set(ParkingType.Commercial, ParkingType.Depot)
-        case _        => Set(ParkingType.Public)
+        case Home              => Set(ParkingType.Residential)
+        case Working           => Set(ParkingType.Workplace)
+        case FreightOperations => Set(ParkingType.Commercial)
+        case FreightDepot      => Set(ParkingType.Depot)
+        case Charging          => Set(ParkingType.Depot)
+        case _                 => Set(ParkingType.Public)
       }
     }
   }

@@ -984,10 +984,10 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     while (generatedPopIter.hasNext) {
       val (carrier, household, plan, person, vehicleId) = generatedPopIter.next()
 
-      // Set household attributes (warehouse location)
-      val warehouseCoord = carrier.warehouseLocationUTM
-      HouseholdUtils.putHouseholdAttribute(household, "homecoordx", warehouseCoord.getX)
-      HouseholdUtils.putHouseholdAttribute(household, "homecoordy", warehouseCoord.getY)
+      // Set household attributes (depot location)
+      val depotCoord = carrier.depotLocationUTM
+      HouseholdUtils.putHouseholdAttribute(household, "homecoordx", depotCoord.getX)
+      HouseholdUtils.putHouseholdAttribute(household, "homecoordy", depotCoord.getY)
 
       // Link person to assigned freight vehicle
       PopulationUtils.putPersonAttribute(person, "vehicle", vehicleId.toString)

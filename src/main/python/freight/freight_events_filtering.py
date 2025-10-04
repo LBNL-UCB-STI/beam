@@ -36,7 +36,7 @@ data_filtered = data.loc[data.type.isin(["PathTraversal", "actstart", "actend"])
 print2(data_filtered.type.unique())
 data_filtered = data_filtered.loc[data_filtered.vehicle.str.startswith("freight", na=True)]
 print2(data_filtered.type.unique())
-data_filtered2 = data_filtered.loc[data_filtered.actType.isin(["Warehouse", "Unloading", "Loading"]) | data_filtered.actType.isnull()]
+data_filtered2 = data_filtered.loc[data_filtered.actType.isin(["Depot", "Unloading", "Loading"]) | data_filtered.actType.isnull()]
 print2(data_filtered.type.unique())
 # data_filtered2 = data_filtered[
 #     ["time","type","vehicleType","vehicle","secondaryFuelLevel",

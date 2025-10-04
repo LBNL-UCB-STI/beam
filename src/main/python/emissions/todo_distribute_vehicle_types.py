@@ -27,7 +27,7 @@ def unpacking_ft_vehicle_population_mesozones(carriers, mesozones_to_county_file
     mesozones_to_county_studyarea = mesozones_to_county[mesozones_to_county["NAME"].notna()][["MESOZONE", "NAME"]]
 
     # ### Mapping freight carriers with counties, payload and vehicle types ###
-    carriers_by_zone = pd.merge(carriers, mesozones_to_county_studyarea, left_on='warehouseZone',
+    carriers_by_zone = pd.merge(carriers, mesozones_to_county_studyarea, left_on='depotZone',
                                 right_on='MESOZONE', how='left')
     if not carriers_by_zone[carriers_by_zone['NAME'].isna()].empty:
         print(

@@ -2,7 +2,8 @@ package beam.agentsim.infrastructure.parking
 
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
-import beam.agentsim.agents.vehicles.{VehicleCategory, VehicleManager}
+import beam.agentsim.agents.vehicles.VehicleUse.VehicleUse
+import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory, VehicleManager, VehicleUse}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.agentsim.infrastructure.taz.TAZ
@@ -156,7 +157,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
           case Some(cp) => s"$cp"
         }
         val reservedFor = parkingZone.reservedFor.toString
-        val timeRestrictions = parkingZone.timeRestrictions.map(toString).mkString("|")
+        val timeRestrictions = VehicleRestrictionKey.formatTimeRestrictions(parkingZone.timeRestrictions)
         val parkingZoneIdStr = parkingZone.parkingZoneId.toString
         val (locationXStr, locationYStr) =
           parkingZone.link.map(link => (link.getCoord.getX.toString, link.getCoord.getY.toString)).getOrElse(("", ""))
@@ -389,47 +390,108 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     }
   }
 
-  private val TimeRestriction = """(\w+)\|(\d{1,2})(?::(\d{2}))?-(\d{1,2})(?::(\d{2}))?""".r
+  sealed trait VehicleRestrictionKey
 
-  private[parking] def parseTimeRestrictions(timeRestrictionsString: String): Map[VehicleCategory, Range] = {
+  object VehicleRestrictionKey {
+    case class CategoryOnly(category: VehicleCategory) extends VehicleRestrictionKey
+    case class UseOnly(use: VehicleUse) extends VehicleRestrictionKey
+    case class CategoryAndUse(category: VehicleCategory, use: VehicleUse) extends VehicleRestrictionKey
 
-    def parseTimeRestriction(timeRestrictionString: String): Option[(VehicleCategory, Range)] = {
-      timeRestrictionString match {
-        case TimeRestriction(
-              categoryStr,
-              hour1,
-              minute1,
-              hour2,
-              minute2
-            ) =>
-          val category = VehicleCategory.fromString(categoryStr)
-          val from = hour1.toInt * 3600 + Option(minute1).map(_.toInt).getOrElse(0) * 60
-          val to = hour2.toInt * 3600 + Option(minute2).map(_.toInt).getOrElse(0) * 60
-          Some(category -> Range(from, to))
-        case _ =>
-          logger.error(s"Cannot parse time restriction data: $timeRestrictionString")
-          None
+    // Updated regex to support Category, Use, or Category-Use format
+    private val TimeRestriction = """(\w+(?:-\w+)?)\|(\d{1,2})(?::(\d{2}))?-(\d{1,2})(?::(\d{2}))?""".r
+
+    // Helper to check if a vehicle matches this restriction
+    def matches(key: VehicleRestrictionKey, vehicleType: BeamVehicleType): Boolean = {
+      key match {
+        case CategoryOnly(cat) => vehicleType.vehicleCategory == cat
+        case UseOnly(use)      => vehicleType.vehicleUse == use
+        case CategoryAndUse(cat, use) =>
+          vehicleType.vehicleCategory == cat && vehicleType.vehicleUse == use
       }
     }
 
-    // values look like Class456Vocational|00:00-14:00;Car|14:00-18:00;Bike|18:00-24:00;
-    Option(timeRestrictionsString)
-      .getOrElse("")
-      .split(';')
-      .map(_.trim)
-      .filterNot(_.isEmpty)
-      .flatMap(parseTimeRestriction)
-      .toMap
+    def parseTimeRestrictions(timeRestrictionsString: String): Map[VehicleRestrictionKey, Range] = {
 
-  }
+      def parseTimeRestriction(timeRestrictionString: String): Option[(VehicleRestrictionKey, Range)] = {
+        timeRestrictionString match {
+          case TimeRestriction(
+                keyStr,
+                hour1,
+                minute1,
+                hour2,
+                minute2
+              ) =>
+            val key = parseRestrictionKey(keyStr)
+            key.map { k =>
+              val from = hour1.toInt * 3600 + Option(minute1).map(_.toInt).getOrElse(0) * 60
+              val to = hour2.toInt * 3600 + Option(minute2).map(_.toInt).getOrElse(0) * 60
+              k -> Range(from, to)
+            }
+          case _ =>
+            logger.error(s"Cannot parse time restriction data: $timeRestrictionString")
+            None
+        }
+      }
 
-  private def toString(restriction: (VehicleCategory, Range)): String = {
-    val (category, range) = restriction
-    val fromHour = range.start / 3600
-    val fromMin = range.start % 3600 / 60
-    val toHour = range.end / 3600
-    val toMin = range.end % 3600 / 60
-    "%s:%d:%02d-%d:%02d".format(category, fromHour, fromMin, toHour, toMin)
+      def parseRestrictionKey(keyStr: String): Option[VehicleRestrictionKey] = {
+        if (keyStr.contains("-")) {
+          // Format: Category-Use (e.g., "Car-Freight")
+          val parts = keyStr.split("-")
+          if (parts.length == 2) {
+            for {
+              category <- VehicleCategory.fromStringOptional(parts(0))
+              use      <- VehicleUse.fromStringOptional(parts(1))
+            } yield VehicleRestrictionKey.CategoryAndUse(category, use)
+          } else {
+            throw new RuntimeException(s"Invalid category-use format: $keyStr")
+          }
+        } else {
+          // Try Category first, then Use
+          VehicleCategory
+            .fromStringOptional(keyStr)
+            .map(VehicleRestrictionKey.CategoryOnly)
+            .orElse(
+              VehicleUse
+                .fromStringOptional(keyStr)
+                .map(VehicleRestrictionKey.UseOnly)
+            )
+            .orElse {
+              throw new RuntimeException(s"Unknown vehicle category or use: $keyStr")
+            }
+        }
+      }
+
+      // values look like:
+      // Car|00:00-14:00;Freight|14:00-18:00;Car-Freight|18:00-24:00;
+      Option(timeRestrictionsString)
+        .getOrElse("")
+        .split(';')
+        .map(_.trim)
+        .filterNot(_.isEmpty)
+        .flatMap(parseTimeRestriction)
+        .toMap
+    }
+
+    def formatTimeRestrictions(timeRestrictions: Map[VehicleRestrictionKey, Range]): String = {
+      timeRestrictions
+        .map { case (key, range) =>
+          toString(key, range)
+        }
+        .mkString(";")
+    }
+
+    private def toString(key: VehicleRestrictionKey, range: Range): String = {
+      val keyStr = key match {
+        case CategoryOnly(cat)        => cat.toString
+        case UseOnly(use)             => use.toString
+        case CategoryAndUse(cat, use) => s"$cat-$use"
+      }
+      val fromHour = range.start / 3600
+      val fromMin = range.start % 3600 / 60
+      val toHour = range.end / 3600
+      val toMin = range.end % 3600 / 60
+      "%s|%d:%02d-%d:%02d".format(keyStr, fromHour, fromMin, toHour, toMin)
+    }
   }
 
   private def getHouseholdLocation(beamServices: BeamServices, houseoldId: Id[_]): Option[Coord] = {
@@ -488,7 +550,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       // parse this row from the source file
       val parkingType = ParkingType(parkingTypeString)
       val pricingModel = PricingModel(pricingModelString, newCostInDollarsString)
-      val timeRestrictions = parseTimeRestrictions(timeRestrictionsString)
+      val timeRestrictions = VehicleRestrictionKey.parseTimeRestrictions(timeRestrictionsString)
       val chargingPoint = ChargingPointType(chargingTypeString)
       val numStalls = calculateNumStalls(numStallsString.toDouble, reservedFor, parkingStallCountScalingFactor)
       val parkingZoneIdMaybe =

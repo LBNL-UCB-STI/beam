@@ -9,7 +9,6 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents._
 import beam.agentsim.agents.choice.logit.TourModeChoiceModel
 import beam.agentsim.agents.choice.mode.TourModeChoiceMultinomialLogit
-import beam.agentsim.agents.freight.FreightActivityType
 import beam.agentsim.agents.freight.FreightEntities._
 import beam.agentsim.agents.household.CAVSchedule.RouteOrEmbodyRequest
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavTripLegsResponse}
@@ -24,6 +23,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent.{
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleCategory.{VehicleCategory, _}
+import beam.agentsim.agents.vehicles.VehicleUse.VehicleUse
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
@@ -115,6 +115,7 @@ object HouseholdActor {
     personId: Id[Person],
     whereWhen: SpaceTime,
     originActivity: Activity,
+    vehicleUse: VehicleUse,
     requireVehicleCategoryAvailable: Option[VehicleCategory],
     triggerId: Long
   ) extends HasTriggerId
@@ -211,6 +212,7 @@ object HouseholdActor {
       Map()
     private val trackingCAVAssignmentAtInitialization = mutable.HashMap.empty[Id[BeamVehicle], Id[Person]]
     private val householdVehicleCategories = List(Car, Bike)
+    // private val carrierVehicleCategories = List(Class78Tractor, Class78Vocational, Class456Vocational, Car)
     private var whoDrivesThisFreightVehicle: Map[Id[BeamVehicle], Id[Person]] = Map()
 
     override def loggedReceive: Receive = {
@@ -228,26 +230,29 @@ object HouseholdActor {
         // Step 4: Add fallback locations if needed
         addFallbackLocationsIfNeeded()
 
-        // ****************************
-        // Decide prefix and categories based on carrier type
-        val (prefix, categories) =
-          if (isFreightCarrier) (FREIGHT_ID_PREFIX, List.empty[VehicleCategory])
-          else (PASSENGER_ID_PREFIX, householdVehicleCategories)
-
         // Create empty category entries
         // Group non-CAV vehicles by (prefix, category)
         // Merge empty categories with actual vehicles
-        val vehiclesByAllCategories: Map[(String, VehicleCategory), Map[Id[BeamVehicle], BeamVehicle]] =
-          categories.map(cat => (prefix, cat) -> Map.empty[Id[BeamVehicle], BeamVehicle]).toMap ++
-          vehicles
+        val vehiclesByAllCategories: Map[(VehicleUse, Option[VehicleCategory]), Map[Id[BeamVehicle], BeamVehicle]] = {
+          val emptyEntries = if (isFreightCarrier) {
+            List((VehicleUse.Freight, None) -> Map.empty[Id[BeamVehicle], BeamVehicle])
+          } else {
+            householdVehicleCategories.map(cat =>
+              (VehicleUse.Passenger, Some(cat)) -> Map.empty[Id[BeamVehicle], BeamVehicle]
+            )
+          }
+          val groupedVehicles = vehicles
             .filterNot(_._2.isCAV)
-            .groupBy {
-              case (_, _) if isFreightCarrier => (prefix, VehicleCategory.Freight)
-              case (_, vehicle)               => (prefix, vehicle.beamVehicleType.vehicleCategory.generalCategory)
+            .groupBy { case (_, vehicle) =>
+              val category = if (isFreightCarrier) None else Some(vehicle.beamVehicleType.vehicleCategory)
+              (vehicle.beamVehicleType.vehicleUse, category)
             }
+            .map { case (key, vehicleSeq) => key -> vehicleSeq }
+          emptyEntries.toMap ++ groupedVehicles
+        }
 
         val fleetManagers = vehiclesByAllCategories.map {
-          case (demandSupplyCategory @ (_, category), vehiclesInCategory) =>
+          case (demandSupplyCategory @ (use, category), vehiclesInCategory) =>
             val emergencyVehicleGeneratorMaybe =
               if (generateEmergencyHousehold)
                 Some(
@@ -273,7 +278,7 @@ object HouseholdActor {
                   beamServices.beamConfig,
                   beamServices.beamConfig.beam.debug
                 ),
-                category.toString
+                category.map(cat => s"${use.toString}-${cat.toString}").getOrElse(use.toString)
               )
             context.watch(fleetManager)
             schedulerRef ! ScheduleTrigger(InitializeTrigger(0), fleetManager)
@@ -318,7 +323,7 @@ object HouseholdActor {
                   .map(_._1)
                   .getOrElse(householdMembersToActivityTypeAndLocation.keys.head)
             trackingCAVAssignmentAtInitialization.put(cav.id, personId)
-            val ActivityTypeAndLocation(_, _, location, _) = householdMembersToActivityTypeAndLocation(personId)
+            val ActivityTypeAndLocation(_, _, _, location, _) = householdMembersToActivityTypeAndLocation(personId)
             cav.spaceTime = SpaceTime(location, 0)
             schedulerRef ! ScheduleTrigger(InitializeTrigger(0), cavDriverRef)
             cav.setManager(Some(self))
@@ -436,7 +441,7 @@ object HouseholdActor {
 
         // COMPLETE INITIALIZATION FOR CAVS
         // THIS MEANS NO OPTIMAL SOLUTION WAS FOUND AND CAVS WILL BE PARKED
-        if (cavs.isEmpty) completeInitialization(tick, triggerId, Vector())
+        if (cavs.isEmpty) completeCAVInitialization(tick, triggerId, Vector())
 
       case RoutingResponses(tick, routingResponses, triggerId) =>
         // Check if there are any broken routes, for now we cancel the whole cav plan if this happens and give a warning
@@ -450,7 +455,7 @@ object HouseholdActor {
           personAndActivityToLegs = Map()
           personAndActivityToCav = Map()
           val (tick, triggerId) = releaseTickAndTriggerId()
-          completeInitialization(tick, triggerId, Vector())
+          completeCAVInitialization(tick, triggerId, Vector())
         } else {
           // Index the responses by Id
           val indexedResponses = routingResponses.map(resp => resp.requestId -> resp).toMap
@@ -535,7 +540,7 @@ object HouseholdActor {
 
       case ModifyPassengerScheduleAcks(acks, _) =>
         val (tick, triggerId) = releaseTickAndTriggerId()
-        completeInitialization(tick, triggerId, acks.flatMap(_.triggersToSchedule).toVector)
+        completeCAVInitialization(tick, triggerId, acks.flatMap(_.triggersToSchedule).toVector)
 
       case CavTripLegsRequest(person, originActivity) =>
         personAndActivityToLegs.get((person.personId, originActivity)) match {
@@ -604,46 +609,35 @@ object HouseholdActor {
         person.getSelectedPlan.getPlanElements.asScala
           .collectFirst { case activity: Activity => activity }
           .map { activity =>
-            val parkingActivityType = if (isFreightCarrier) {
-              ParkingActivityType.Freight
-            } else {
-              ParkingActivityType.fromString(activity.getType)
-            }
-
-            val endTime =
-              activity.getEndTime.orElseGet(() => DateUtils.getEndOfTime(beamServices.beamScenario.beamConfig))
-
             person.getId -> ActivityTypeAndLocation(
-              parkingActivityType,
+              ParkingActivityType.fromString(activity.getType),
+              if (isFreightCarrier) VehicleUse.Freight else VehicleUse.Passenger,
               activity.getType,
               activity.getCoord,
-              endTime.toInt
+              activity.getEndTime.orElseGet(() => DateUtils.getEndOfTime(beamServices.beamScenario.beamConfig)).toInt
             )
           }
       }.toMap
     }
 
     private def addFallbackLocationsIfNeeded(): Unit = {
-      val expectedParkingType = if (isFreightCarrier) ParkingActivityType.Freight else ParkingActivityType.Home
-      val fallbackActivityType = if (isFreightCarrier) FreightActivityType.Warehouse.toString else "Home"
-
-      if (!householdMembersToActivityTypeAndLocation.values.exists(_.parkingActivityType == expectedParkingType)) {
+      val fallbackParkingType = if (isFreightCarrier) ParkingActivityType.FreightDepot else ParkingActivityType.Home
+      if (!householdMembersToActivityTypeAndLocation.values.exists(_.parkingActivityType == fallbackParkingType)) {
         val fallbackLocation = ActivityTypeAndLocation(
-          expectedParkingType,
-          fallbackActivityType,
+          fallbackParkingType,
+          if (isFreightCarrier) VehicleUse.Freight else VehicleUse.Passenger,
+          fallbackParkingType.toString,
           fallbackInitialLocationCoord,
           DateUtils.getEndOfTime(beamServices.beamScenario.beamConfig)
         )
-
         householdMembersToActivityTypeAndLocation += (Id.createPersonId("NoDriver") -> fallbackLocation)
       }
-
       if (isFreightCarrier && whoDrivesThisFreightVehicle.isEmpty) {
         log.error(f"Empty whoDrivesThisFreightVehicle for freight carrier ${this.household}")
       }
     }
 
-    private def completeInitialization(
+    private def completeCAVInitialization(
       tick: Int,
       triggerId: Long,
       triggersToSchedule: Vector[ScheduleTrigger]
@@ -654,7 +648,7 @@ object HouseholdActor {
         .sequence(vehicles.filter(_._2.isCAV).values.map { vehicle =>
           vehicle.setManager(Some(self))
           val personId = trackingCAVAssignmentAtInitialization(vehicle.id)
-          val ActivityTypeAndLocation(_, activityType, location, endTime) =
+          val ActivityTypeAndLocation(_, _, activityType, location, endTime) =
             householdMembersToActivityTypeAndLocation(personId)
           val parkingDuration = endTime - tick
           for {
@@ -732,10 +726,10 @@ object HouseholdActor {
     household: Household,
     beamScenario: BeamScenario,
     vehiclesAdjustment: VehiclesAdjustment,
-    defaultDemandSupplyCategory: (String, VehicleCategory)
+    defaultDemandSupplyCategory: (VehicleUse, Option[VehicleCategory])
   ) extends LazyLogging {
 
-    private val (defaultDemand: String, defaultCategory: VehicleCategory) = defaultDemandSupplyCategory
+    private val (defaultVehicleUse: VehicleUse, defaultCategory: Option[VehicleCategory]) = defaultDemandSupplyCategory
 
     private val realDistribution: UniformRealDistributionEnhanced =
       EmergencyHouseholdVehicleGenerator.sharedRandomGenerator
@@ -745,11 +739,16 @@ object HouseholdActor {
       category: VehicleCategory,
       whenWhere: SpaceTime
     ): Option[BeamVehicleType] = {
-      val demand =
-        if (personId.toString.startsWith(FREIGHT_ID_PREFIX)) FREIGHT_ID_PREFIX else PASSENGER_ID_PREFIX
-      if (defaultCategory == category && demand == defaultDemand) {
+      val vehicleUse = if (personId.toString.startsWith(FREIGHT_ID_PREFIX)) VehicleUse.Freight else VehicleUse.Passenger
+
+      val categoryMatches = defaultCategory match {
+        case Some(cat) => cat == category
+        case None      => true // If no specific category, match any
+      }
+
+      if (defaultVehicleUse == vehicleUse && categoryMatches) {
         category match {
-          case cat if (cat.generalCategory == Freight) && (demand == FREIGHT_ID_PREFIX) =>
+          case _ if vehicleUse == VehicleUse.Freight =>
             val carrierId = Id.create(household.getId, classOf[beam.agentsim.agents.freight.FreightCarrier])
             val carrier = beamScenario.freightCarriers.getOrElse(
               carrierId,
@@ -776,11 +775,11 @@ object HouseholdActor {
                 )
               }
             logger.error(
-              s"Person $personId is requiring an emergency vehicle at time ${whenWhere.time} that belongs to category $category. " +
-              s"Choosing a random vehicle of type $cat: ${vehicleType.map(_.id.toString).getOrElse("None")}"
+              s"Person $personId is requiring an emergency vehicle at time ${whenWhere.time} that belongs to use $vehicleUse. " +
+              s"Choosing a random vehicle of type ${vehicleType.map(_.id.toString).getOrElse("None")}"
             )
             vehicleType
-          case VehicleCategory.Car if demand == PASSENGER_ID_PREFIX =>
+          case VehicleCategory.Car if vehicleUse == VehicleUse.Passenger =>
             vehiclesAdjustment
               .sampleVehicleTypesForHousehold(
                 1,
@@ -802,7 +801,7 @@ object HouseholdActor {
                   )
                 )
               }
-          case VehicleCategory.Bike if demand == PASSENGER_ID_PREFIX =>
+          case VehicleCategory.Bike if vehicleUse == VehicleUse.Passenger =>
             beamScenario.vehicleTypes
               .get(
                 Id.create(
@@ -851,6 +850,7 @@ object HouseholdActor {
 
   case class ActivityTypeAndLocation(
     parkingActivityType: ParkingActivityType,
+    vehicleUse: VehicleUse,
     activityType: String,
     activityLocation: Coord,
     activityEndTime: Int

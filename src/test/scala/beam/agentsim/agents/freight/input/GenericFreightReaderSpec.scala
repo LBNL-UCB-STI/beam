@@ -214,7 +214,7 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
       plan4.getPlanElements.get(2).asInstanceOf[Activity].getCoord should be(
         new Coord(169900.11498160253, 3510.2356380579545)
       )
-      plan4.getPlanElements.get(4).asInstanceOf[Activity].getType should be(FreightActivityType.Warehouse.toString)
+      plan4.getPlanElements.get(4).asInstanceOf[Activity].getType should be(FreightActivityType.Depot.toString)
     }
   }
 

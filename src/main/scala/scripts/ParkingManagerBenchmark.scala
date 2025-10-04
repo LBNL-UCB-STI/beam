@@ -86,7 +86,7 @@ object ParkingManagerBenchmark extends StrictLogging {
         |beam.agentsim.agents.parking.multinomialLogit.params.rangeAnxietyMultiplier = -0.5
         |beam.agentsim.agents.parking.multinomialLogit.params.distanceMultiplier = -0.086
         |beam.agentsim.agents.parking.multinomialLogit.params.parkingPriceMultiplier = -0.5
-        |beam.agentsim.agents.parking.multinomialLogit.params.homeActivityPrefersResidentialParkingMultiplier = 2.0
+        |beam.agentsim.agents.parking.multinomialLogit.params.parkingTypePreferenceMultiplier = 2.0
         |
         |parallel-parking-manager-dispatcher {
         |  executor = "thread-pool-executor"

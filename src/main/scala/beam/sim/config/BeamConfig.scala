@@ -792,7 +792,6 @@ object BeamConfig {
         case class Parking(
           estimatedMeanEnRouteChargingDurationInSeconds: scala.Double,
           estimatedMinParkingDurationInSeconds: scala.Double,
-          forceParkingType: scala.Boolean,
           fractionOfSameTypeZones: scala.Double,
           minNumberOfSameTypeZones: scala.Int,
           multinomialLogit: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
@@ -811,8 +810,8 @@ object BeamConfig {
             case class Params(
               distanceMultiplier: scala.Double,
               enrouteDetourMultiplier: scala.Double,
-              homeActivityPrefersResidentialParkingMultiplier: scala.Double,
               parkingPriceMultiplier: scala.Double,
+              parkingTypePreferenceMultiplier: scala.Double,
               rangeAnxietyMultiplier: scala.Double
             )
 
@@ -826,12 +825,12 @@ object BeamConfig {
                     if (c.hasPathOrNull("distanceMultiplier")) c.getDouble("distanceMultiplier") else -0.086,
                   enrouteDetourMultiplier =
                     if (c.hasPathOrNull("enrouteDetourMultiplier")) c.getDouble("enrouteDetourMultiplier") else -0.05,
-                  homeActivityPrefersResidentialParkingMultiplier =
-                    if (c.hasPathOrNull("homeActivityPrefersResidentialParkingMultiplier"))
-                      c.getDouble("homeActivityPrefersResidentialParkingMultiplier")
-                    else 1.0,
                   parkingPriceMultiplier =
                     if (c.hasPathOrNull("parkingPriceMultiplier")) c.getDouble("parkingPriceMultiplier") else -0.005,
+                  parkingTypePreferenceMultiplier =
+                    if (c.hasPathOrNull("parkingTypePreferenceMultiplier"))
+                      c.getDouble("parkingTypePreferenceMultiplier")
+                    else 1.0,
                   rangeAnxietyMultiplier =
                     if (c.hasPathOrNull("rangeAnxietyMultiplier")) c.getDouble("rangeAnxietyMultiplier") else -0.5
                 )
@@ -921,7 +920,6 @@ object BeamConfig {
                 if (c.hasPathOrNull("estimatedMinParkingDurationInSeconds"))
                   c.getDouble("estimatedMinParkingDurationInSeconds")
                 else 60.0,
-              forceParkingType = c.hasPathOrNull("forceParkingType") && c.getBoolean("forceParkingType"),
               fractionOfSameTypeZones =
                 if (c.hasPathOrNull("fractionOfSameTypeZones")) c.getDouble("fractionOfSameTypeZones") else 0.5,
               minNumberOfSameTypeZones =

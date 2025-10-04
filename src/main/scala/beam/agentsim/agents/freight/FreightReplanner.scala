@@ -156,7 +156,7 @@ class FreightReplanner(
       payloadPlan.activityType match {
         case FreightActivityType.Unloading =>
           Dropoff(serviceId, payloadPlan.locationUTM, payloadPlan.weightInKg, payloadPlan.operationDurationInSec)
-        case FreightActivityType.Loading | FreightActivityType.Warehouse =>
+        case FreightActivityType.Loading | FreightActivityType.Depot =>
           Pickup(serviceId, payloadPlan.locationUTM, payloadPlan.weightInKg, payloadPlan.operationDurationInSec)
       }
     }

@@ -1,6 +1,6 @@
 package beam.agentsim.agents.freight.input
 
-import beam.agentsim.agents.freight.FreightActivityType.{Loading, Unloading, Warehouse}
+import beam.agentsim.agents.freight.FreightActivityType.{Depot, Loading, Unloading}
 import beam.agentsim.agents.freight.input.FreightReader.{FREIGHT_REQUEST_TYPE, PAYLOAD_IDS, PAYLOAD_WEIGHT_IN_KG}
 import beam.agentsim.agents.freight.{FreightActivityType, FreightCarrier, FreightTour, PayloadPlan}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -50,7 +50,7 @@ trait FreightReader {
       case (acc, PayloadPlan(payloadId, _, _, _, weight, Loading, _, _, _, _, _, _)) =>
         val (payloads, payloadWeight) = acc.last
         acc :+ (payloads + payloadId, payloadWeight + weight)
-      case (acc, PayloadPlan(payloadId, _, _, _, weight, Warehouse, _, _, _, _, _, _)) =>
+      case (acc, PayloadPlan(payloadId, _, _, _, weight, Depot, _, _, _, _, _, _)) =>
         val (payloads, payloadWeight) = acc.last
         acc :+ (payloads + payloadId, payloadWeight + weight)
     }
@@ -73,8 +73,8 @@ trait FreightReader {
           case rank if rank == plans.head.sequenceRank =>
             val activity =
               createFreightActivity(
-                FreightActivityType.Warehouse.toString,
-                carrier.warehouseLocationUTM,
+                FreightActivityType.Depot.toString,
+                carrier.depotLocationUTM,
                 tour.departureTimeInSec,
                 None
               )
@@ -83,8 +83,8 @@ trait FreightReader {
 
           case rank if rank == plans.last.sequenceRank =>
             val activity = createFreightActivity(
-              FreightActivityType.Warehouse.toString,
-              carrier.warehouseLocationUTM,
+              FreightActivityType.Depot.toString,
+              carrier.depotLocationUTM,
               -1,
               None
             )

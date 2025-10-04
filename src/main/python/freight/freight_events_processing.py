@@ -132,7 +132,7 @@ def read_events_file(full_filename, run_name):
                 chunk['type'].isin(["PathTraversal", "actstart", "actend"]) &
                 chunk['vehicle'].str.startswith("freight", na=False) &
                 (
-                        chunk['actType'].str.split('|', expand=True)[0].isin(["Warehouse", "Unloading", "Loading"]) |
+                        chunk['actType'].str.split('|', expand=True)[0].isin(["Depot", "Unloading", "Loading"]) |
                         chunk['actType'].isnull()
                 )
         )

@@ -1,8 +1,9 @@
 package beam.agentsim.infrastructure
 
-import beam.agentsim.agents.freight.FreightActivityType
+import beam.agentsim.agents.freight.{FreightActivityType, FreightEntities}
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
+import beam.agentsim.agents.vehicles.VehicleUse.VehicleUse
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager, VehicleUse}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.parking.{ParkingMNL, ParkingType}
@@ -45,6 +46,18 @@ case class ParkingInquiry(
 ) extends HasTriggerId {
   val parkingActivityType: ParkingActivityType = ParkingActivityType.fromString(activityType)
 
+  val vehicleUse: VehicleUse = beamVehicle
+    .map(_.beamVehicleType.vehicleUse)
+    .getOrElse {
+      if (
+        personId.exists(_.toString.startsWith(FreightEntities.FREIGHT_ID_PREFIX)) ||
+        ParkingActivityType.freightActivities.contains(parkingActivityType)
+      )
+        VehicleUse.Freight
+      else
+        VehicleUse.Passenger
+    }
+
   val departureLocation: Option[Coord] = searchMode match {
     case ParkingSearchMode.EnRouteCharging => beamVehicle.map(_.spaceTime).orElse(originUtm).map(_.loc)
     case _                                 => None
@@ -72,7 +85,8 @@ object ParkingInquiry extends LazyLogging {
     case object Working extends ParkingActivityType
     case object EnRoute extends ParkingActivityType
     case object Idling extends ParkingActivityType
-    case object Freight extends ParkingActivityType
+    case object FreightOperations extends ParkingActivityType
+    case object FreightDepot extends ParkingActivityType
 
     // Pre-compiled lookup table for exact matches (O(1) lookup)
     private val exactMatches = Map(
@@ -87,21 +101,26 @@ object ParkingInquiry extends LazyLogging {
       "escort"                                        -> ParkingActivityType.Miscellaneous,
       "social"                                        -> ParkingActivityType.Miscellaneous,
       "idle"                                          -> ParkingActivityType.Idling,
-      "depot"                                         -> ParkingActivityType.Freight,
-      "commercial"                                    -> ParkingActivityType.Freight,
-      FreightActivityType.Loading.toLowerCaseString   -> ParkingActivityType.Freight,
-      FreightActivityType.Unloading.toLowerCaseString -> ParkingActivityType.Freight,
-      FreightActivityType.Warehouse.toLowerCaseString -> ParkingActivityType.Freight
+      "depot"                                         -> ParkingActivityType.FreightDepot,
+      "commercial"                                    -> ParkingActivityType.FreightOperations,
+      FreightActivityType.Loading.toLowerCaseString   -> ParkingActivityType.FreightOperations,
+      FreightActivityType.Unloading.toLowerCaseString -> ParkingActivityType.FreightOperations,
+      FreightActivityType.Depot.toLowerCaseString     -> ParkingActivityType.FreightDepot
     )
 
     // Pre-compiled prefix patterns for startsWith checks
-    private val freightPrefixes = Set(
-      "depot",
+    private val operationsPrefixes = Set(
       "commercial",
       FreightActivityType.Loading.toLowerCaseString,
-      FreightActivityType.Unloading.toLowerCaseString,
-      FreightActivityType.Warehouse.toLowerCaseString
+      FreightActivityType.Unloading.toLowerCaseString
     )
+
+    private val depotPrefixes = Set(
+      "depot",
+      FreightActivityType.Depot.toLowerCaseString
+    )
+
+    def freightActivities: Set[ParkingActivityType] = Set(FreightOperations, FreightDepot)
 
     def fromString(activityType: String): ParkingActivityType = {
       val lowerType = activityType.toLowerCase
@@ -111,8 +130,10 @@ object ParkingInquiry extends LazyLogging {
         case Some(result) => result
         case None         =>
           // Check prefixes (only if exact match failed)
-          if (freightPrefixes.exists(lowerType.startsWith)) {
-            ParkingActivityType.Freight
+          if (operationsPrefixes.exists(lowerType.startsWith)) {
+            ParkingActivityType.FreightOperations
+          } else if (depotPrefixes.exists(lowerType.startsWith)) {
+            ParkingActivityType.FreightDepot
           } else if (lowerType.contains("enroute")) {
             ParkingActivityType.Charging
           } else if (lowerType.contains("home")) {

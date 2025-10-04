@@ -311,7 +311,7 @@ networkFiltered<- network[
 # 
 # test2 <- events[startsWith(person, "freight-carrier")]
 
-# events_filtered <- events[(actType %in% c("Warehouse", "Unloading", "Loading")) | (type=="PathTraversal" & startsWith(vehicle,"freight"))]
+# events_filtered <- events[(actType %in% c("Depot", "Unloading", "Loading")) | (type=="PathTraversal" & startsWith(vehicle,"freight"))]
 # write.csv(
 #   events_filtered,
 #   file = pp(freightWorkDir, "/filtered.0.events.csv"),
@@ -419,11 +419,11 @@ energy_vehType_vmt[,.(MVMT=sum(MVMT)),by=.(energyType2,totVMTByScenario,scenario
 # all_pt[,`:=`(stopDuration = departureTime - arrivalTime)]
 # all_pt[,.(mean(stopDuration)),by=.(label)]
 # unloading <- events[actType=="Unloading"]
-# warehouse <- events[actType=="Warehouse"]
+# depot <- events[actType=="Depot"]
 # nrow(unloading[type=="actstart"])
 # nrow(unloading[type=="actend"])
-# nrow(warehouse[type=="actstart"])
-# nrow(warehouse[type=="actend"])
+# nrow(depot[type=="actstart"])
+# nrow(depot[type=="actend"])
 ##
 
 

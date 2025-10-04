@@ -1,10 +1,10 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.Resource.ReleaseParkingStall
-import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.infrastructure.HierarchicalParkingManager._
 import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.VehicleRestrictionKey
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
@@ -212,7 +212,7 @@ object HierarchicalParkingManager {
     reservedFor: ReservedFor,
     chargingPointType: Option[ChargingPointType],
     pricingModel: Option[PricingModel],
-    timeRestrictions: Map[VehicleCategory, Range]
+    timeRestrictions: Map[VehicleRestrictionKey, Range]
   )
 
   private object ParkingZoneDescription {

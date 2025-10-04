@@ -118,7 +118,7 @@ object ChoosesParking {
     val (loading, unloading) = requestType match {
       case FreightActivityType.Unloading => (0, 1)
       case FreightActivityType.Loading   => (1, 0)
-      case FreightActivityType.Warehouse => (0, 0)
+      case FreightActivityType.Depot     => (0, 0)
     }
     val costPerMile = trip
       .map { trip =>

@@ -304,7 +304,7 @@ object VehicleEmissions extends LazyLogging {
       data: BeamVehicle.VehicleActivityData,
       vehicleActivity: Class[_ <: org.matsim.api.core.v01.events.Event]
     ): Boolean = {
-      vehicleActivity == classOf[LeavingParkingEvent] && data.parkingActivityType.contains(Freight)
+      vehicleActivity == classOf[LeavingParkingEvent] && data.vehicleType.vehicleUse == VehicleUse.Freight
     }
 
     def identifyProcesses(
@@ -347,7 +347,7 @@ object VehicleEmissions extends LazyLogging {
     }
 
     def fromString(process: String): Option[EmissionsProcess] = {
-      val warehouse = FreightActivityType.Warehouse.toString
+      val depot = FreightActivityType.Depot.toString
       val loading = FreightActivityType.Loading.toString
       val unloading = FreightActivityType.Unloading.toString
       process.toLowerCase match {
@@ -362,7 +362,7 @@ object VehicleEmissions extends LazyLogging {
         // for heavy-duty trucks.
         // TODO Embed it in LeavingParkingEvent when 1) it is freight Load/Unload 2) overnight parking
         // xNumber of Idle Hours (xParking Hour) => gram/veh-idle hour
-        case "idling" | "idlex" | "extidlex" | "hotelling" | `warehouse` | `loading` | `unloading` => Some(IDLEX)
+        case "idling" | "idlex" | "extidlex" | "hotelling" | `depot` | `loading` | `unloading` => Some(IDLEX)
 
         // Start Exhaust Tailpipe Emissions (STREX) that occur when starting a vehicle. These emissions are independent
         // of running exhaust emissions and represent the emissions occurring during the initial time period when

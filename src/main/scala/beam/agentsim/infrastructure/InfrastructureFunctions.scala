@@ -132,7 +132,8 @@ abstract class InfrastructureFunctions(
         new Random(seed + inquiryHash),
         inquiry.departureLocation,
         inquiry.reservedFor,
-        inquiry.parkingActivityType
+        inquiry.parkingActivityType,
+        inquiry.vehicleUse
       )
 
     val closestZone =

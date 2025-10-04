@@ -256,7 +256,7 @@ class ChargingNetworkSpec
 
     }
 
-    it("should happen with the expected probability in respect to HomeActivityPrefersResidentialParking") {
+    it("should happen with the expected probability in respect to ParkingTypePreference") {
 
       val (tazTreeMap, _, searchRadius, tazSpacing) = createTazGrid(horizontalCount = 1, verticalCount = 1)
 
@@ -281,7 +281,7 @@ class ChargingNetworkSpec
         val expUtility =
           math.exp(
             (if (homeStall) 1.0 else 0.0) *
-            beamConfig.beam.agentsim.agents.parking.multinomialLogit.params.homeActivityPrefersResidentialParkingMultiplier
+            beamConfig.beam.agentsim.agents.parking.multinomialLogit.params.parkingTypePreferenceMultiplier
           )
         sumExpUtility += expUtility
         expectedProbability += Id.create[ParkingZoneId](s"$stallIndex", classOf[ParkingZoneId]) -> expUtility

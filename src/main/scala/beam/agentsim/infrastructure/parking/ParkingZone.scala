@@ -1,10 +1,9 @@
 package beam.agentsim.infrastructure.parking
 
-import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.power.SitePowerManager
+import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.VehicleRestrictionKey
 import beam.agentsim.infrastructure.taz.TAZ
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
@@ -32,7 +31,7 @@ class ParkingZone(
   val reservedFor: ReservedFor,
   val chargingPointType: Option[ChargingPointType],
   val pricingModel: Option[PricingModel],
-  val timeRestrictions: Map[VehicleCategory, Range],
+  val timeRestrictions: Map[VehicleRestrictionKey, Range],
   val link: Option[Link],
   val sitePowerManager: Option[String],
   val energyStorageCapacityInKWh: Option[Double],
@@ -124,7 +123,7 @@ object ParkingZone extends LazyLogging {
     maxStalls: Int = 0,
     chargingPointType: Option[ChargingPointType] = None,
     pricingModel: Option[PricingModel] = None,
-    timeRestrictions: Map[VehicleCategory, Range] = Map.empty,
+    timeRestrictions: Map[VehicleRestrictionKey, Range] = Map.empty,
     link: Option[Link] = None,
     sitePowerManager: Option[String] = None,
     energyStorageCapacityInKWh: Option[Double] = None,
@@ -154,7 +153,7 @@ object ParkingZone extends LazyLogging {
     maxStalls: Int = 0,
     chargingPointType: Option[ChargingPointType] = None,
     pricingModel: Option[PricingModel] = None,
-    timeRestrictions: Map[VehicleCategory, Range] = Map.empty,
+    timeRestrictions: Map[VehicleRestrictionKey, Range] = Map.empty,
     link: Option[Link] = None,
     sitePowerManager: Option[String] = None,
     energyStorageCapacityInKWh: Option[Double] = None,
