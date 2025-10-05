@@ -17,7 +17,7 @@
 [submodule "production/seattle"]
 	path = production/seattle
 	url = git@github.com:LBNL-UCB-STI/beam-data-seattle.git
-	branch = jl/pilates-freight
+	branch = develop
 [submodule "production/avproject-private"]
 	path = production/avproject-private
 	url = git@github.com:LBNL-UCB-STI/beam-data-avproject-private.git

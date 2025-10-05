@@ -65,7 +65,16 @@ fastsim_routee_files = {
 
 area_config = {
     "sfbay": {
-
+        "work_dir": os.path.expanduser("~/Workspace/Simulation/sfbay"),
+        "network_osm_pbf": os.path.expanduser(
+            "~/Workspace/Simulation/sfbay/network/sfbay-area-cbg5500-network/sfbay-area-cbg5500-network.osm.pbf"),
+        "utm_epsg": 26910,
+        "year": 2018,
+        "primary_powertrain": fastsim_routee_files["primary_powertrain"],
+        "secondary_powertrain": fastsim_routee_files["secondary_powertrain"],
+        "batch": "20250730",
+        "scenario": "Baseline",
+        "frism_version": 1.5,
     },
     "seattle": {
         "work_dir": os.path.expanduser("~/Workspace/Simulation/seattle"),
@@ -82,14 +91,14 @@ area_config = {
 
 # ************************************************************************************************
 
-AREA = "seattle" # sfbay
-FRISM_VERSION = 1.5
+AREA = "sfbay" # seattle or sfbay
 SNAP_COORDINATES = True
 BUFFER_DISTANCE_METERS = 100  # 100 meters
 MAX_DISTANCE_METERS = 200000  # 200km
 CHUNK_SIZE = 10000  # this affects speed and parallelization of the script
 JOULE_PER_METER_BASE_RATE = 1.213e8  # Base rate for joules per meter, used in fuel consumption calculations
 CONFIG = area_config[AREA]
+FRISM_VERSION = CONFIG["frism_version"]
 # SCENARIO_SUFFIX = ""
 
 # ************************************************************************************************
@@ -889,6 +898,7 @@ if __name__ == '__main__':
                 "sampleProbabilityWithinCategory": empty_vectors,
                 "sampleProbabilityString": empty_vectors,
                 "payloadCapacityInKg": df["payload_capacity_weight"],
+                "vehicleUse": "Freight",
                 "vehicleClass": df["veh_class"]
             }
 
