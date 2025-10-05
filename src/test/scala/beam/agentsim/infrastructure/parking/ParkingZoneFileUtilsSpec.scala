@@ -3,6 +3,7 @@ package beam.agentsim.infrastructure.parking
 import beam.agentsim.agents.vehicles.VehicleCategory.{Car, Class456Vocational, MediumDutyPassenger}
 import beam.agentsim.agents.vehicles.{VehicleCategory, VehicleManager}
 import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.VehicleRestrictionKey
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtilsSpec.PositiveTestData
 import beam.agentsim.infrastructure.taz.TAZ
 import org.matsim.api.core.v01.Id
@@ -154,9 +155,12 @@ class ParkingZoneFileUtilsSpec extends AnyWordSpec with Matchers {
     "Time restriction parser" when {
       "parses time restriction" should {
         "extract correct values" in {
-          val restrictions = ParkingZoneFileUtils.parseTimeRestrictions("Car|1-12;Class456Vocational|13:30-17")
+          val restrictions = VehicleRestrictionKey.parseTimeRestrictions("Car|1-12;Class456Vocational|13:30-17")
           restrictions should be(
-            Map(VehicleCategory.Car -> Range(3600, 43200), VehicleCategory.Class456Vocational -> Range(48600, 61200))
+            Map(
+              VehicleRestrictionKey.CategoryOnly(VehicleCategory.Car)                -> Range(3600, 43200),
+              VehicleRestrictionKey.CategoryOnly(VehicleCategory.Class456Vocational) -> Range(48600, 61200)
+            )
           )
         }
       }

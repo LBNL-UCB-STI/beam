@@ -123,6 +123,10 @@ object BeamVehicleUtils extends LazyLogging {
             parseEmissionsString(_, Some(vehicleTypeId.toString))
           )
         val emissionsRatesFile = Option(line.get("emissionsRatesFile"))
+        val vehicleUse =
+          Option(line.get("vehicleUse")).flatMap(VehicleUse.fromStringOptional).getOrElse {
+            if (payloadCapacity.exists(_ > 0)) VehicleUse.Freight else VehicleUse.Passenger
+          }
 
         val bvt = BeamVehicleType(
           vehicleTypeId,
@@ -153,7 +157,8 @@ object BeamVehicleUtils extends LazyLogging {
           wheelchairAccessible,
           restrictRoadsByFreeSpeed,
           emissionsRatesFile,
-          emissionsRatesInGramsPerMile
+          emissionsRatesInGramsPerMile,
+          vehicleUse = vehicleUse
         )
         z += ((vehicleTypeId, bvt))
     }.toMap
