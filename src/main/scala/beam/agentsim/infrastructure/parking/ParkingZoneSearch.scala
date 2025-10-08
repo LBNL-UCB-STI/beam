@@ -252,17 +252,8 @@ object ParkingZoneSearch {
             )
           }
         case Some(_) =>
-          if (params.vehicleUse == Freight) {
-            println(
-              s"ParkingZoneSearch: Freight search for activity type ${params.parkingActivityType} iteration #$iterations " +
-              s"found no zones, expanding search area and retrying..."
-            )
-          }
           _search(searchMode, parkingZoneIdsSeen, parkingZoneIdsSampled, iterations + 1)
         case None =>
-          println(
-            s"ParkingZoneSearch: Ending Freight search for activity type ${params.parkingActivityType} iteration #$iterations "
-          )
           None // exceeded max search distance
       }
     }
@@ -362,11 +353,11 @@ object ParkingZoneSearch {
   object SearchMode {
 
     case class DestinationSearch(
-      params: ParkingZoneSearchParams,
       destinationUTM: Location,
       searchStartRadius: Double,
       searchMaxRadius: Double,
-      expansionFactor: Double
+      expansionFactor: Double,
+      sampleSize: Int
     ) extends SearchMode {
       private var thisInnerRadius: Double = 0.0
       private var thisOuterRadius: Double = searchStartRadius
@@ -377,7 +368,13 @@ object ParkingZoneSearch {
         if (thisInnerRadius > searchMaxRadius) None
         else {
           val result =
-            searchQuadTree.getRing(destinationUTM.getX, destinationUTM.getY, thisInnerRadius, thisOuterRadius)
+            searchQuadTree.getRing(
+              destinationUTM.getX,
+              destinationUTM.getY,
+              thisInnerRadius,
+              thisOuterRadius,
+              sampleSize
+            )
           thisInnerRadius = thisOuterRadius
           thisOuterRadius = thisOuterRadius * expansionFactor
           Some(result)
@@ -390,7 +387,8 @@ object ParkingZoneSearch {
       destinationUTM: Location,
       searchMaxDistanceToFociInPercent: Double,
       expansionFactor: Double,
-      distanceFunction: (Coord, Coord) => Double
+      distanceFunction: (Coord, Coord) => Double,
+      sampleSize: Int
     ) extends SearchMode {
       private val startDistance: Double = distanceFunction(originUTM, destinationUTM) * 1.01
       private val maxDistance: Double = startDistance * searchMaxDistanceToFociInPercent
@@ -407,7 +405,8 @@ object ParkingZoneSearch {
             originUTM.getY,
             destinationUTM.getX,
             destinationUTM.getY,
-            thisInnerDistance
+            thisInnerDistance,
+            sampleSize
           )
           thisInnerDistance = thisInnerDistance * expansionFactor
           Some(result)
@@ -437,7 +436,8 @@ object ParkingZoneSearch {
             params.destinationUTM,
             config.searchParams.searchMaxDistanceRelativeToEllipseFoci,
             config.searchExpansionFactor,
-            config.distanceFunction
+            config.distanceFunction,
+            config.searchParams.searchSampleSize
           )
 
         case _ =>
@@ -450,11 +450,11 @@ object ParkingZoneSearch {
               (minRadius, maxRadius)
           }
           DestinationSearch(
-            params,
             params.destinationUTM,
             startRadius,
             searchMaxRadius,
-            config.searchExpansionFactor
+            config.searchExpansionFactor,
+            config.searchParams.searchSampleSize
           )
       }
     }

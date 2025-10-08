@@ -182,7 +182,6 @@ object R5Requester extends BeamHelper {
           if (shouldLog) {
             showRouteResponse("Three Modes in one shot", threeModesResp)
             showPlanDetails(home, startWgs, endWgs)
-            println
           }
         }
       }

@@ -144,24 +144,6 @@ class ParkingFunctions(
         ParkingZoneSearch.ParkingZoneSearchResult(newStall, zone)
       case _ =>
         // didn't find any stalls, so, as a last resort, create a very expensive stall
-        if (inquiry.vehicleUse == Freight) {
-          println("gotcha")
-          println(s"""ParkingInquiry(
-                      destinationUtm = ${inquiry.destinationUtm},
-                      activityType = "${inquiry.activityType}",
-                      reservedFor = ${inquiry.reservedFor},
-                      beamVehicle = ${inquiry.beamVehicle},
-                      remainingTripData = ${inquiry.remainingTripData},
-                      personId = ${inquiry.personId},
-                      valueOfTime = ${inquiry.valueOfTime},
-                      parkingDuration = ${inquiry.parkingDuration},
-                      reserveStall = ${inquiry.reserveStall},
-                      requestId = ${inquiry.requestId},
-                      searchMode = ${inquiry.searchMode},
-                      originUtm = ${inquiry.originUtm},
-                      triggerId = ${inquiry.triggerId}
-                    )""")
-        }
         val (newStall, zone) =
           ParkingStall.lastResortStall(inquiry.destinationUtm.loc, new Random(seed), inquiry.parkingActivityType)
         ParkingZoneSearch.ParkingZoneSearchResult(newStall, zone)
@@ -186,9 +168,7 @@ class ParkingFunctions(
     if (parkingZone.link.isDefined)
       (parkingZone.link.get.getCoord, parkingZone.link)
     else {
-
       val availability = parkingZone.availability
-
       if (linkQuadTree.nonEmpty || tazTreeMap.tazListContainsGeoms) {
         ParkingStallSampling.linkBasedSampling(
           new Random(seed),

@@ -112,23 +112,16 @@ object ShapeUtils {
         .filter(_.isDefined)
         .map(_.get)
         .toArray
-//      println(s"Total TAZ ${tazs.length}")
 
       val groupedTazs = groupTaz(tazs)
-//      println(s"Total grouped TAZ ${groupedTazs.size}")
 
       val (repeatedTaz, nonRepeatedMap) = groupedTazs.partition(i => i._2.length > 1)
-//      println(s"Total repeatedMap TAZ ${repeatedTaz.size}")
-//      println(s"Total nonRepeatedMap TAZ ${nonRepeatedMap.size}")
 
       val clearedTaz = clearRepeatedTaz(repeatedTaz)
-//      println(s"Total repeated cleared TAZ ${clearedTaz.length}")
 
       val nonRepeated = nonRepeatedMap.map(_._2.head).toArray
-//      println(s"Total non repeated TAZ ${nonRepeated.length}")
 
       val allNonRepeatedTaz = clearedTaz ++ nonRepeated
-//      println(s"Total all TAZ ${allNonRepeatedTaz.length}")
 
       for (t <- allNonRepeatedTaz) {
         val tazToWrite = new util.HashMap[String, Object]()

@@ -366,7 +366,6 @@ object ODSkims extends BeamHelper {
     val mode = BeamMode.CAR
     val vehicleTypeId = Id.create("Car", classOf[BeamVehicleType])
 
-    println("Ready")
     val s = System.currentTimeMillis()
     var total: Long = 0
     val count: Int = 10000000

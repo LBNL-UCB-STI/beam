@@ -28,7 +28,6 @@ class AsyncGreedyVehicleCentricMatching(
       })
       .map(result => greedyAssignment(result.flatten))
       .recover { case e =>
-        println(e.getMessage)
         List.empty[RideHailTrip]
       }
   }
