@@ -8,7 +8,7 @@ import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, Parking
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.VehicleRestrictionKey
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ}
 import beam.router.BeamRouter.Location
 import beam.sim.config.BeamConfig
 import beam.utils.MathUtils
@@ -59,7 +59,7 @@ object ParkingZoneSearch {
     * @param parkingMNLConfig utility function which evaluates [[ParkingAlternative]]s
     * @param zoneCollections a nested map lookup of [[ParkingZone]]s
     * @param parkingZones the stored state of all [[ParkingZone]]s
-    * @param zoneQuadTree [[ParkingZone]]s are associated with a TAZ, which are themselves stored in this Quad Tree
+    * @param searchQuadTree
     * @param random random number generator
     */
   case class ParkingZoneSearchParams(
@@ -112,8 +112,6 @@ object ParkingZoneSearch {
     link: Option[Link]
   )
 
-  case class SearchResult(zones: Set[TAZ], links: Option[Set[Link]], tazToLinks: Option[Map[TAZ, QuadTree[Link]]])
-
   /**
     * used within a search to track search data
     *
@@ -153,8 +151,8 @@ object ParkingZoneSearch {
     ): Option[ParkingZoneSearchResult] = {
       // a lookup of the (next) search ring for TAZs
       searchMode.lookupParkingZonesInNextSearchAreaUnlessThresholdReached(params.searchQuadTree) match {
-        case Some(theseZones) =>
-          // ParkingZones as as ParkingAlternatives
+        case Some(theseZones) if theseZones.zones.nonEmpty =>
+          // ParkingZones as ParkingAlternatives
           val alternatives: Set[ParkingSearchAlternative] = {
             for {
               zone           <- theseZones.zones
@@ -202,63 +200,70 @@ object ParkingZoneSearch {
             }
           }
 
-          if (alternatives.isEmpty) {
-            _search(searchMode, parkingZoneIdsSeen, parkingZoneIdsSampled, iterations + 1)
-          } else {
-            // remove any invalid parking alternatives
-            val alternativesToSample: Map[ParkingAlternative, Map[ParkingMNL.Parameters, Double]] =
-              alternatives.map { a =>
-                a.parkingAlternative -> a.utilityParameters
-              }.toMap
+          // remove any invalid parking alternatives
+          val alternativesToSample: Map[ParkingAlternative, Map[ParkingMNL.Parameters, Double]] =
+            alternatives.map { a =>
+              a.parkingAlternative -> a.utilityParameters
+            }.toMap
 
-            val mnl: MultinomialLogit[ParkingAlternative, ParkingMNL.Parameters] =
-              MultinomialLogit(
-                Map.empty,
-                params.parkingMNLConfig
-              )
+          val mnl: MultinomialLogit[ParkingAlternative, ParkingMNL.Parameters] =
+            MultinomialLogit(
+              Map.empty,
+              params.parkingMNLConfig
+            )
 
-            mnl.sampleAlternative(alternativesToSample, params.random).map { result =>
-              val ParkingAlternative(taz, parkingType, parkingZone, coordinate, costInDollars, _, linkMaybe) =
-                result.alternativeType
+          mnl.sampleAlternative(alternativesToSample, params.random).map { result =>
+            val ParkingAlternative(taz, parkingType, parkingZone, coordinate, costInDollars, _, linkMaybe) =
+              result.alternativeType
 
-              // create a new stall instance. you win!
-              val parkingStall = ParkingStall(
-                taz.tazId,
-                parkingZone.parkingZoneId,
-                coordinate,
-                costInDollars,
-                parkingZone.chargingPointType,
-                parkingZone.pricingModel,
-                parkingType,
-                params.parkingActivityType,
-                parkingZone.reservedFor,
-                linkMaybe
-              )
+            // create a new stall instance. you win!
+            val parkingStall = ParkingStall(
+              taz.tazId,
+              parkingZone.parkingZoneId,
+              coordinate,
+              costInDollars,
+              parkingZone.chargingPointType,
+              parkingZone.pricingModel,
+              parkingType,
+              params.parkingActivityType,
+              parkingZone.reservedFor,
+              linkMaybe
+            )
 
-              val theseParkingZoneIds: Set[Id[ParkingZoneId]] = alternatives.map {
-                _.parkingAlternative.parkingZone.parkingZoneId
-              }
-              val theseSampledParkingZoneIds
-                : List[(Id[ParkingZoneId], Option[ChargingPointType], ParkingType, Double)] =
-                alternativesToSample.map { altWithParams =>
-                  (
-                    altWithParams._1.parkingZone.parkingZoneId,
-                    altWithParams._1.parkingZone.chargingPointType,
-                    altWithParams._1.parkingType,
-                    altWithParams._1.costInDollars
-                  )
-
-                }.toList
-              ParkingZoneSearchResult(
-                parkingStall,
-                parkingZone,
-                theseParkingZoneIds ++ parkingZoneIdsSeen,
-                theseSampledParkingZoneIds ++ parkingZoneIdsSampled,
-                iterations = iterations
-              )
+            val theseParkingZoneIds: Set[Id[ParkingZoneId]] = alternatives.map {
+              _.parkingAlternative.parkingZone.parkingZoneId
             }
+            val theseSampledParkingZoneIds: List[(Id[ParkingZoneId], Option[ChargingPointType], ParkingType, Double)] =
+              alternativesToSample.map { altWithParams =>
+                (
+                  altWithParams._1.parkingZone.parkingZoneId,
+                  altWithParams._1.parkingZone.chargingPointType,
+                  altWithParams._1.parkingType,
+                  altWithParams._1.costInDollars
+                )
+
+              }.toList
+            ParkingZoneSearchResult(
+              parkingStall,
+              parkingZone,
+              theseParkingZoneIds ++ parkingZoneIdsSeen,
+              theseSampledParkingZoneIds ++ parkingZoneIdsSampled,
+              iterations = iterations
+            )
           }
-        case _ => None
+        case Some(_) =>
+          if (params.vehicleUse == Freight) {
+            println(
+              s"ParkingZoneSearch: Freight search for activity type ${params.parkingActivityType} iteration #$iterations " +
+              s"found no zones, expanding search area and retrying..."
+            )
+          }
+          _search(searchMode, parkingZoneIdsSeen, parkingZoneIdsSampled, iterations + 1)
+        case None =>
+          println(
+            s"ParkingZoneSearch: Ending Freight search for activity type ${params.parkingActivityType} iteration #$iterations "
+          )
+          None // exceeded max search distance
       }
     }
 
@@ -347,133 +352,17 @@ object ParkingZoneSearch {
     zones.groupBy(_.tazId).mapValues(new ParkingZoneCollection(_)).view.force
   }
 
-  trait SearchQuadTree {
-    def getRing(x: Double, y: Double, innerRadius: Double, outerRadius: Double): Option[SearchResult]
-    def getElliptical(x1: Double, y1: Double, x2: Double, y2: Double, innerRadius: Double): Option[SearchResult]
-  }
-
-  object SearchQuadTree {
-
-    private def buildQuadTreeFromLinks(links: Seq[Link]): QuadTree[Link] = {
-      if (links.isEmpty) {
-        new QuadTree[Link](-1, -1, 1, 1)
-      } else {
-        // Calculate bounds from links
-        val coords = links.flatMap { link =>
-          Seq(link.getFromNode.getCoord, link.getToNode.getCoord)
-        }
-
-        val minX = coords.map(_.getX).min
-        val maxX = coords.map(_.getX).max
-        val minY = coords.map(_.getY).min
-        val maxY = coords.map(_.getY).max
-
-        // Add small buffer
-        val buffer = 100.0
-        val quadTree = new QuadTree[Link](
-          minX - buffer,
-          minY - buffer,
-          maxX + buffer,
-          maxY + buffer
-        )
-
-        // Add links using their midpoint
-        links.foreach { link =>
-          val midX = 0.5 * (link.getFromNode.getCoord.getX + link.getToNode.getCoord.getX)
-          val midY = 0.5 * (link.getFromNode.getCoord.getY + link.getToNode.getCoord.getY)
-          quadTree.put(midX, midY, link)
-        }
-
-        quadTree
-      }
-    }
-
-    case class TAZQuadTree(tazQuadTree: QuadTree[TAZ]) extends SearchQuadTree {
-
-      override def getRing(x: Double, y: Double, innerRadius: Double, outerRadius: Double): Option[SearchResult] = {
-        val result = Set.newBuilder[TAZ]
-        tazQuadTree.getRing(x, y, innerRadius, outerRadius).forEach(taz => result += taz)
-        val tazs = result.result()
-        if (tazs.nonEmpty) Some(SearchResult(tazs, None, None)) else None
-      }
-
-      override def getElliptical(
-        x1: Double,
-        y1: Double,
-        x2: Double,
-        y2: Double,
-        radius: Double
-      ): Option[SearchResult] = {
-        val result = Set.newBuilder[TAZ]
-        tazQuadTree.getElliptical(x1, y1, x2, y2, radius).forEach(taz => result += taz)
-        val tazs = result.result()
-        if (tazs.nonEmpty) Some(SearchResult(tazs, None, None)) else None
-      }
-    }
-
-    case class LinkQuadTree(
-      linkQuadTree: QuadTree[Link],
-      linkIdToTAZMapping: mutable.HashMap[Id[Link], Id[TAZ]],
-      idToTAZMapping: mutable.HashMap[Id[TAZ], TAZ]
-    ) extends SearchQuadTree {
-
-      private def buildSearchResult(
-        tazToLinks: mutable.HashMap[TAZ, mutable.ArrayBuffer[Link]]
-      ): Option[SearchResult] = {
-        if (tazToLinks.isEmpty) None
-        else {
-          val tazSet = tazToLinks.keySet.toSet
-
-          // Pre-allocate with size hint
-          val linkSetBuilder = Set.newBuilder[Link]
-          linkSetBuilder.sizeHint(tazToLinks.values.map(_.size).sum)
-
-          // Single pass: build both linkSet and quadtrees
-          val tazToLinksQuadTree = tazToLinks.map { case (tazId, links) =>
-            linkSetBuilder ++= links // add to set while iterating
-            tazId -> buildQuadTreeFromLinks(links) // no need for .toSeq if buildQuadTree accepts ArrayBuffer
-          }.toMap
-
-          Some(SearchResult(tazSet, Some(linkSetBuilder.result()), Some(tazToLinksQuadTree)))
-        }
-      }
-
-      override def getRing(x: Double, y: Double, innerRadius: Double, outerRadius: Double): Option[SearchResult] = {
-        val tazToLinks = mutable.HashMap.empty[TAZ, mutable.ArrayBuffer[Link]]
-        linkQuadTree.getRing(x, y, innerRadius, outerRadius).forEach { link =>
-          val taz = idToTAZMapping(linkIdToTAZMapping(link.getId))
-          tazToLinks.getOrElseUpdate(taz, mutable.ArrayBuffer.empty[Link]) += link
-        }
-        buildSearchResult(tazToLinks)
-      }
-
-      override def getElliptical(
-        x1: Double,
-        y1: Double,
-        x2: Double,
-        y2: Double,
-        radius: Double
-      ): Option[SearchResult] = {
-        val tazToLinks = mutable.HashMap.empty[TAZ, mutable.ArrayBuffer[Link]]
-        linkQuadTree.getElliptical(x1, y1, x2, y2, radius).forEach { link =>
-          val taz = idToTAZMapping(linkIdToTAZMapping(link.getId))
-          tazToLinks.getOrElseUpdate(taz, mutable.ArrayBuffer.empty[Link]) += link
-        }
-        buildSearchResult(tazToLinks)
-      }
-    }
-  }
-
   trait SearchMode {
 
     def lookupParkingZonesInNextSearchAreaUnlessThresholdReached(
       searchQuadTree: SearchQuadTree
-    ): Option[SearchResult]
+    ): Option[SearchQuadTree.SearchQuadTreeResults]
   }
 
   object SearchMode {
 
     case class DestinationSearch(
+      params: ParkingZoneSearchParams,
       destinationUTM: Location,
       searchStartRadius: Double,
       searchMaxRadius: Double,
@@ -484,14 +373,14 @@ object ParkingZoneSearch {
 
       override def lookupParkingZonesInNextSearchAreaUnlessThresholdReached(
         searchQuadTree: SearchQuadTree
-      ): Option[SearchResult] = {
+      ): Option[SearchQuadTree.SearchQuadTreeResults] = {
         if (thisInnerRadius > searchMaxRadius) None
         else {
           val result =
             searchQuadTree.getRing(destinationUTM.getX, destinationUTM.getY, thisInnerRadius, thisOuterRadius)
           thisInnerRadius = thisOuterRadius
           thisOuterRadius = thisOuterRadius * expansionFactor
-          result
+          Some(result)
         }
       }
     }
@@ -509,9 +398,10 @@ object ParkingZoneSearch {
 
       override def lookupParkingZonesInNextSearchAreaUnlessThresholdReached(
         searchQuadTree: SearchQuadTree
-      ): Option[SearchResult] = {
-        if (thisInnerDistance >= maxDistance) None
-        else {
+      ): Option[SearchQuadTree.SearchQuadTreeResults] = {
+        if (thisInnerDistance >= maxDistance) {
+          None
+        } else {
           val result = searchQuadTree.getElliptical(
             originUTM.getX,
             originUTM.getY,
@@ -520,12 +410,12 @@ object ParkingZoneSearch {
             thisInnerDistance
           )
           thisInnerDistance = thisInnerDistance * expansionFactor
-          result
+          Some(result)
         }
       }
     }
 
-    def getMinMaxSearchDistance(
+    private def getMinMaxSearchDistance(
       config: ParkingZoneSearchConfiguration,
       params: ParkingZoneSearchParams
     ): (Double, Double) = {
@@ -560,6 +450,7 @@ object ParkingZoneSearch {
               (minRadius, maxRadius)
           }
           DestinationSearch(
+            params,
             params.destinationUTM,
             startRadius,
             searchMaxRadius,

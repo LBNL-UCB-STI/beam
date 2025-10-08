@@ -3,15 +3,14 @@ package beam.agentsim.infrastructure
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.ParkingZoneSearch.SearchQuadTree.{LinkQuadTree, TAZQuadTree}
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch._
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ, TAZTreeMap}
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.StrictLogging
 import org.locationtech.jts.geom.Envelope
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
 import scala.util.Random
@@ -132,10 +131,7 @@ abstract class InfrastructureFunctions(
         mnlMultiplierParameters,
         zoneCollections,
         parkingZones,
-        if (searchParams.enableLinkBasedSearch && tazTreeMap.linkQuadTree.isDefined)
-          LinkQuadTree(tazTreeMap.linkQuadTree.get, tazTreeMap.linkIdToTAZMapping, tazTreeMap.idToTAZMapping)
-        else
-          TAZQuadTree(tazTreeMap.tazQuadTree),
+        SearchQuadTree.getSearchQuadTree(tazTreeMap, searchParams.enableLinkBasedSearch),
         new Random(seed + inquiryHash),
         inquiry.departureLocation,
         inquiry.reservedFor,

@@ -3,9 +3,9 @@ package scripts
 import akka.actor.ActorSystem
 import akka.util.Timeout
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure._
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
-import beam.agentsim.infrastructure._
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.csv.CsvWriter
@@ -134,10 +134,15 @@ object ParkingManagerBenchmark extends StrictLogging {
     }
 
     try {
+      val geoUtils = new GeoUtils {
+        override def localCRS: String = "epsg:26910"
+        override def distUTMInMeters(x: Coord, y: Coord): Double = 0.0
+      }
+
       val scenario = readScenario(pathToPlans)
       logger.info(s"scenario contains ${scenario.getPopulation.getPersons.size()} people")
 
-      val tazTreeMap = TAZTreeMap.fromCsv(pathToTAZ)
+      val tazTreeMap = TAZTreeMap.fromCsv(pathToTAZ, geoUtils.localCRS)
       logger.info(s"TAZTreeMap size: ${tazTreeMap.getTAZs.size}")
 
       val network = NetworkUtilsExtensions.readNetwork(pathToNetwork)
@@ -145,11 +150,6 @@ object ParkingManagerBenchmark extends StrictLogging {
 
       val boundingBox: Envelope = getNetworkBoundingBox(network)
       logger.info(s"Bounding box: $boundingBox")
-
-      val geoUtils = new GeoUtils {
-        override def localCRS: String = "epsg:26910"
-        override def distUTMInMeters(x: Coord, y: Coord): Double = 0.0
-      }
 
       val beamConfig = BeamConfig(typeSafeConfig)
 

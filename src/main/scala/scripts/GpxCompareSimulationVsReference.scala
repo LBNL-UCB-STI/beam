@@ -32,7 +32,7 @@ object GpxCompareSimulationVsReference {
       val geo: beam.sim.common.GeoUtils = new GeoUtilsImpl(beamConfig)
 
       val tazTreeMap: TAZTreeMap =
-        taz.TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
+        taz.TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath, beamConfig.beam.spatial.localCRS)
 
       val mapReader: ICsvMapReader =
         new CsvMapReader(

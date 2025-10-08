@@ -63,10 +63,10 @@ class ParallelParkingManager(
     mapTazToWorker(workers) + (TAZ.EmergencyTAZId -> emergencyWorker) + (TAZ.DefaultTAZId -> emergencyWorker)
 
   protected def createWorker(cluster: ParkingCluster): Worker = {
-    val tazTreeMap = TAZTreeMap.fromSeq(cluster.tazes)
+    val subTazTreeMap = TAZTreeMap.fromSeq(cluster.tazes, tazTreeMap.scenarioCRS)
     val parkingNetwork = ZonalParkingManager(
       parkingZones,
-      tazTreeMap,
+      subTazTreeMap,
       distanceFunction,
       boundingBox,
       searchRadiusConfig,

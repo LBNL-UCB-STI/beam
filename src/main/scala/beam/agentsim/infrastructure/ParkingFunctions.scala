@@ -146,6 +146,21 @@ class ParkingFunctions(
         // didn't find any stalls, so, as a last resort, create a very expensive stall
         if (inquiry.vehicleUse == Freight) {
           println("gotcha")
+          println(s"""ParkingInquiry(
+                      destinationUtm = ${inquiry.destinationUtm},
+                      activityType = "${inquiry.activityType}",
+                      reservedFor = ${inquiry.reservedFor},
+                      beamVehicle = ${inquiry.beamVehicle},
+                      remainingTripData = ${inquiry.remainingTripData},
+                      personId = ${inquiry.personId},
+                      valueOfTime = ${inquiry.valueOfTime},
+                      parkingDuration = ${inquiry.parkingDuration},
+                      reserveStall = ${inquiry.reserveStall},
+                      requestId = ${inquiry.requestId},
+                      searchMode = ${inquiry.searchMode},
+                      originUtm = ${inquiry.originUtm},
+                      triggerId = ${inquiry.triggerId}
+                    )""")
         }
         val (newStall, zone) =
           ParkingStall.lastResortStall(inquiry.destinationUtm.loc, new Random(seed), inquiry.parkingActivityType)
@@ -171,14 +186,6 @@ class ParkingFunctions(
     if (parkingZone.link.isDefined)
       (parkingZone.link.get.getCoord, parkingZone.link)
     else {
-      // TODO I don't remember the logic behind the following lines, commenting out for now
-//      val availability = if (
-//        (parkingZone.reservedFor.managerType == VehicleManager.TypeEnum.Household) ||
-//        (inquiry.parkingActivityType == ParkingActivityType.Home && parkingZone.parkingType == ParkingType.Residential) ||
-//        (inquiry.parkingActivityType == ParkingActivityType.Working && parkingZone.parkingType == ParkingType.Workplace)
-//      ) {
-//        1.0
-//      } else { parkingZone.availability }
 
       val availability = parkingZone.availability
 
@@ -223,24 +230,28 @@ class ParkingFunctions(
     val isValidTime = {
       val vehicleCategory = inquiry.beamVehicle.map(_.beamVehicleType.vehicleCategory)
       val vehicleUse = inquiry.vehicleUse
+      val currentTime = inquiry.destinationUtm.time % (24 * 3600)
 
-      val matchingRestrictions = zone.timeRestrictions.filter { case (key, _) =>
-        key match {
-          case VehicleRestrictionKey.CategoryOnly(cat) =>
-            vehicleCategory.contains(cat)
-          case VehicleRestrictionKey.UseOnly(use) =>
-            use == vehicleUse
-          case VehicleRestrictionKey.CategoryAndUse(cat, use) =>
-            vehicleCategory.contains(cat) && use == vehicleUse
-        }
+      // Find all restrictions that are active at the current time
+      val activeRestrictions = zone.timeRestrictions.filter { case (_, range) =>
+        range.contains(currentTime)
       }
 
-      if (matchingRestrictions.isEmpty) {
-        true // No restrictions apply to this vehicle
+      if (activeRestrictions.isEmpty) {
+        // No restrictions active at this time - anyone can park
+        true
       } else {
-        val currentTime = inquiry.destinationUtm.time % (24 * 3600)
-        val withinRange = matchingRestrictions.exists { case (_, range) => range.contains(currentTime) }
-        withinRange
+        // There are active restrictions - check if this vehicle matches any of them
+        activeRestrictions.exists { case (key, _) =>
+          key match {
+            case VehicleRestrictionKey.CategoryAndUse(cat, use) =>
+              vehicleCategory.contains(cat) && use == vehicleUse
+            case VehicleRestrictionKey.CategoryOnly(cat) =>
+              vehicleCategory.contains(cat)
+            case VehicleRestrictionKey.UseOnly(use) =>
+              use == vehicleUse
+          }
+        }
       }
     }
 

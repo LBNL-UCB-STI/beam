@@ -300,7 +300,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     val gtfs = GTFSUtils.loadGTFS(beamConfig.beam.routing.r5.directory)
     val trainStopQuadTree = GTFSUtils.toQuadTree(GTFSUtils.trainStations(gtfs), new GeoUtilsImpl(beamConfig))
     val taz = beamConfig.beam.agentsim.taz
-    val tazMap = TAZTreeMap.getTazTreeMap(taz.filePath, Some(taz.tazIdFieldName))
+    val tazMap = TAZTreeMap.getTazTreeMap(taz.filePath, beamConfig.beam.spatial.localCRS, Some(taz.tazIdFieldName))
     tazMap.mapNetworkToTAZs(
       networkCoordinator.network,
       beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
