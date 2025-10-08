@@ -23,12 +23,12 @@ object RideHailDepotNetwork {
   private val FractionOfSameTypeZones: Double = 0.2 // 20%
   private val MinNumberOfSameTypeZones: Int = 5
 
-  private val searchDistancesConfig = BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters(
-    freight = BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters.Freight(10.0, 200.0),
-    passenger =
-      BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters.Passenger(SearchStartRadius, SearchMaxRadius),
+  private val searchDistancesConfig = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params(
+    freight = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params.Freight(10.0, 200.0),
+    passenger = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params.Passenger(SearchStartRadius, SearchMaxRadius),
     searchDoubleParkingRadius = 0,
-    searchMaxDistanceRelativeToEllipseFoci = 4.0
+    searchMaxDistanceRelativeToEllipseFoci = 4.0,
+    enableLinkBasedSearch = false
   )
 
   def apply(

@@ -12,7 +12,9 @@ import beam.router.Modes.BeamMode
 import beam.router.skim.{Skims, SkimsUtils}
 import beam.sim.config.BeamConfig
 import org.locationtech.jts.geom.Envelope
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.utils.collections.QuadTree
 
 class ChargingFunctions(
   tazTreeMap: TAZTreeMap,
@@ -27,7 +29,7 @@ class ChargingFunctions(
       tazTreeMap,
       parkingZones,
       distanceFunction,
-      parkingConfig.searchDistanceInMeters,
+      parkingConfig.search.params,
       parkingConfig.estimatedMinParkingDurationInSeconds,
       parkingConfig.estimatedMeanEnRouteChargingDurationInSeconds,
       parkingConfig.fractionOfSameTypeZones,
@@ -264,8 +266,10 @@ class ChargingFunctions(
     inquiry: ParkingInquiry,
     parkingZone: ParkingZone,
     taz: TAZ,
+    linkQuadTree: Option[QuadTree[Link]],
     inClosestZone: Boolean = false
-  ): Coord = super[ParkingFunctions].sampleParkingStallLocation(inquiry, parkingZone, taz, inClosestZone)
+  ): (Coord, Option[Link]) =
+    super[ParkingFunctions].sampleParkingStallLocation(inquiry, parkingZone, taz, linkQuadTree, inClosestZone)
 
   /**
     * getTravelTime

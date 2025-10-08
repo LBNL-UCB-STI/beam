@@ -49,10 +49,15 @@ class TAZTreeMap(
   private val stringIdToTAZMapping: mutable.HashMap[String, TAZ] = mutable.HashMap()
   val idToTAZMapping: mutable.HashMap[Id[TAZ], TAZ] = mutable.HashMap()
   private val cache: TrieMap[(Double, Double), TAZ] = TrieMap()
-  private val linkIdToTAZMapping: mutable.HashMap[Id[Link], Id[TAZ]] = mutable.HashMap.empty[Id[Link], Id[TAZ]]
+  val linkIdToTAZMapping: mutable.HashMap[Id[Link], Id[TAZ]] = mutable.HashMap.empty[Id[Link], Id[TAZ]]
 
   val tazToLinkIdMapping: mutable.HashMap[Id[TAZ], QuadTree[Link]] =
     mutable.HashMap.empty[Id[TAZ], QuadTree[Link]]
+
+  // adding this as an alternative to tazQuadTree: QuadTree[TAZ]
+  // it should be activated with TODO TBD
+  var linkQuadTree: Option[QuadTree[Link]] = None
+
   private val unmatchedLinkIds: mutable.ListBuffer[Id[Link]] = mutable.ListBuffer.empty[Id[Link]]
   lazy val tazListContainsGeoms: Boolean = tazQuadTree.values().asScala.headOption.exists(_.geometry.isDefined)
   private val failedLinkLookups: mutable.ListBuffer[Id[Link]] = mutable.ListBuffer.empty[Id[Link]]
@@ -169,8 +174,20 @@ class TAZTreeMap(
     failedLinkLookups.clear()
   }
 
-  def mapNetworkToTAZs(network: Network): Unit = {
+  def mapNetworkToTAZs(network: Network, buildLinkQuadTree: Boolean = false): Unit = {
     if (tazListContainsGeoms) {
+      // Initialize the global link quad tree
+      if (buildLinkQuadTree) {
+        linkQuadTree = Some(
+          new QuadTree[Link](
+            tazQuadTree.getMinEasting,
+            tazQuadTree.getMinNorthing,
+            tazQuadTree.getMaxEasting,
+            tazQuadTree.getMaxNorthing
+          )
+        )
+      }
+
       idToTAZMapping.keySet.foreach { id =>
         tazToLinkIdMapping(id) = new QuadTree[Link](
           tazQuadTree.getMinEasting,
@@ -179,6 +196,7 @@ class TAZTreeMap(
           tazQuadTree.getMaxNorthing
         )
       }
+
       network.getLinks.asScala.foreach {
         case (id, link) =>
           val linkEndCoord = link.getToNode.getCoord
@@ -186,6 +204,7 @@ class TAZTreeMap(
             0.5 * (link.getToNode.getCoord.getX + link.getFromNode.getCoord.getX),
             0.5 * (link.getToNode.getCoord.getY + link.getFromNode.getCoord.getY)
           )
+
           val foundTaz = TAZTreeMap.ringSearch(
             tazQuadTree,
             linkEndCoord,
@@ -200,6 +219,7 @@ class TAZTreeMap(
             case Some(taz) if link.getAllowedModes.contains("car") & link.getAllowedModes.contains("walk") =>
               try {
                 tazToLinkIdMapping(taz.tazId).put(linkMidpoint.getX, linkMidpoint.getY, link)
+                linkQuadTree.foreach(_.put(linkMidpoint.getX, linkMidpoint.getY, link))
               } catch {
                 case e: Throwable =>
                   unmatchedLinkIds += id
@@ -212,6 +232,7 @@ class TAZTreeMap(
           }
         case _ =>
       }
+
       val linksToTazMapping = tazToLinkIdMapping
         .map { case (x, y) => (x, y.size()) }
         .groupBy(x => Math.min(x._2, 10))
@@ -220,6 +241,7 @@ class TAZTreeMap(
         }
         .toSeq
         .sortBy(_._1)
+
       logger.info(
         "Completed mapping links to TAZs. Matched "
         + linkIdToTAZMapping.size.toString +
@@ -227,6 +249,7 @@ class TAZTreeMap(
         + unmatchedLinkIds.size.toString +
         " links"
       )
+      logger.info(s"Created linkQuadTree with ${linkQuadTree.map(_.size()).getOrElse(0)} links")
       logger.debug(s"Mapping of links to TAZs: $linksToTazMapping")
     }
   }

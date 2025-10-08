@@ -109,7 +109,7 @@ object FailFast extends LazyLogging {
       }
     }
 
-    val paxSearchRadiusCfg = config.beam.agentsim.agents.parking.searchDistanceInMeters.passenger
+    val paxSearchRadiusCfg = config.beam.agentsim.agents.parking.search.params.passenger
     if (paxSearchRadiusCfg.maxSearchRadius < paxSearchRadiusCfg.minSearchRadius) {
       throw new RuntimeException(
         s"Passenger maxSearchRadius of ${paxSearchRadiusCfg.maxSearchRadius} meters provided from config is less than " +
@@ -117,7 +117,7 @@ object FailFast extends LazyLogging {
       )
     }
 
-    val ftSearchRadiusCfg = config.beam.agentsim.agents.parking.searchDistanceInMeters.freight
+    val ftSearchRadiusCfg = config.beam.agentsim.agents.parking.search.params.freight
     if (ftSearchRadiusCfg.maxSearchRadius < ftSearchRadiusCfg.minSearchRadius) {
       throw new RuntimeException(
         s"Freight maxSearchRadius of ${ftSearchRadiusCfg.maxSearchRadius} meters provided from config is less than " +

@@ -14,6 +14,8 @@ import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Parking
 import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.network.Link
+import org.matsim.core.utils.collections.QuadTree
 
 import scala.util.Random
 
@@ -21,7 +23,7 @@ class ParkingFunctions(
   tazTreeMap: TAZTreeMap,
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
-  searchRadiusConfig: BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters,
+  searchRadiusConfig: BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params,
   estimatedMinParkingDurationInSeconds: Double,
   estimatedMeanEnRouteChargingDurationInSeconds: Double,
   fractionOfSameTypeZones: Double,
@@ -142,6 +144,9 @@ class ParkingFunctions(
         ParkingZoneSearch.ParkingZoneSearchResult(newStall, zone)
       case _ =>
         // didn't find any stalls, so, as a last resort, create a very expensive stall
+        if (inquiry.vehicleUse == Freight) {
+          println("gotcha")
+        }
         val (newStall, zone) =
           ParkingStall.lastResortStall(inquiry.destinationUtm.loc, new Random(seed), inquiry.parkingActivityType)
         ParkingZoneSearch.ParkingZoneSearchResult(newStall, zone)
@@ -160,19 +165,24 @@ class ParkingFunctions(
     inquiry: ParkingInquiry,
     parkingZone: ParkingZone,
     taz: TAZ,
+    linkQuadTree: Option[QuadTree[Link]],
     inClosestZone: Boolean = true
-  ): Coord = {
+  ): (Coord, Option[Link]) = {
     if (parkingZone.link.isDefined)
-      parkingZone.link.get.getCoord
+      (parkingZone.link.get.getCoord, parkingZone.link)
     else {
-      val availability = if (
-        (parkingZone.reservedFor.managerType == VehicleManager.TypeEnum.Household) ||
-        (inquiry.parkingActivityType == ParkingActivityType.Home && parkingZone.parkingType == ParkingType.Residential) ||
-        (inquiry.parkingActivityType == ParkingActivityType.Working && parkingZone.parkingType == ParkingType.Workplace)
-      ) {
-        1.0
-      } else { parkingZone.availability }
-      if (tazTreeMap.tazListContainsGeoms) {
+      // TODO I don't remember the logic behind the following lines, commenting out for now
+//      val availability = if (
+//        (parkingZone.reservedFor.managerType == VehicleManager.TypeEnum.Household) ||
+//        (inquiry.parkingActivityType == ParkingActivityType.Home && parkingZone.parkingType == ParkingType.Residential) ||
+//        (inquiry.parkingActivityType == ParkingActivityType.Working && parkingZone.parkingType == ParkingType.Workplace)
+//      ) {
+//        1.0
+//      } else { parkingZone.availability }
+
+      val availability = parkingZone.availability
+
+      if (linkQuadTree.nonEmpty || tazTreeMap.tazListContainsGeoms) {
         ParkingStallSampling.linkBasedSampling(
           new Random(seed),
           inquiry.destinationUtm.loc,
@@ -183,13 +193,14 @@ class ParkingFunctions(
           inClosestZone
         )
       } else {
-        ParkingStallSampling.availabilityAwareSampling(
+        val coord: Coord = ParkingStallSampling.availabilityAwareSampling(
           new Random(seed),
           inquiry.destinationUtm.loc,
           taz,
           availability,
           inClosestZone
         )
+        (coord, None)
       }
     }
   }
@@ -199,15 +210,15 @@ class ParkingFunctions(
     *
     * @param zone                  ParkingZone
     * @param inquiry               ParkingInquiry
-    * @param preferredParkingTypes Set[ParkingType]
+    * @param allowedParkingTypes Set[ParkingType]
     * @return
     */
   protected def canThisCarParkHere(
     zone: ParkingZone,
     inquiry: ParkingInquiry,
-    preferredParkingTypes: Set[ParkingType]
+    allowedParkingTypes: Set[ParkingType]
   ): Boolean = {
-    val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
+    val validParkingType: Boolean = allowedParkingTypes.contains(zone.parkingType)
 
     val isValidTime = {
       val vehicleCategory = inquiry.beamVehicle.map(_.beamVehicleType.vehicleCategory)
@@ -228,9 +239,8 @@ class ParkingFunctions(
         true // No restrictions apply to this vehicle
       } else {
         val currentTime = inquiry.destinationUtm.time % (24 * 3600)
-        matchingRestrictions.exists { case (_, range) =>
-          range.contains(currentTime)
-        }
+        val withinRange = matchingRestrictions.exists { case (_, range) => range.contains(currentTime) }
+        withinRange
       }
     }
 
@@ -239,7 +249,8 @@ class ParkingFunctions(
         zone.reservedFor == VehicleManager.AnyManager || vehicle.vehicleManagerId.get() == zone.reservedFor.managerId
       }
 
-    validParkingType && isValidTime && isValidManager
+    val canParkHere = validParkingType && isValidTime && isValidManager
+    canParkHere
   }
 
   /**

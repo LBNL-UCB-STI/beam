@@ -194,7 +194,7 @@ object ParkingManagerBenchmark extends StrictLogging {
               zones,
               tazTreeMap,
               geoUtils.distUTMInMeters,
-              beamConfig.beam.agentsim.agents.parking.searchDistanceInMeters,
+              beamConfig.beam.agentsim.agents.parking.search.params,
               boundingBox,
               seed,
               beamConfig.beam.agentsim.agents.parking.multinomialLogit,

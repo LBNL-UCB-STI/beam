@@ -27,7 +27,7 @@ object ParkingStallSampling extends ExponentialLazyLogging {
     taz: TAZ,
     inClosestZone: Boolean,
     maxDist: Double = maxOffsetDistance
-  ): Location = {
+  ): (Location, Option[Link]) = {
     maybeLinkQuadTree match {
       case Some(linkQuadTree) =>
         val allLinks = linkQuadTree.getDisk(requestLocation.getX, requestLocation.getY, maxDist).asScala
@@ -40,14 +40,21 @@ object ParkingStallSampling extends ExponentialLazyLogging {
         if (filteredLinks.isEmpty) {
           // TODO: expand radius rather than fall back on availability aware sampling
           logger.debug(s"Could not find a link for parking request at location: $requestLocation")
-          availabilityAwareSampling(rand, requestLocation, taz, availabilityRatio, inClosestZone)
+          val coord = availabilityAwareSampling(rand, requestLocation, taz, availabilityRatio, inClosestZone)
+          (coord, None)
         } else {
-          filteredLinks
-            .map(lnk => getClosestPointAlongLink(lnk, requestLocation, distanceFunction))
-            .minBy(loc => distanceFunction(loc, requestLocation))
+          val result: (Coord, Option[Link]) = {
+            val closestPoint = filteredLinks
+              .map(lnk => (lnk, getClosestPointAlongLink(lnk, requestLocation, distanceFunction)))
+              .minBy { case (_, loc) => distanceFunction(loc, requestLocation) }
+
+            (closestPoint._2, Some(closestPoint._1))
+          }
+          result
         }
       case _ =>
-        availabilityAwareSampling(rand, requestLocation, taz, availabilityRatio, inClosestZone)
+        val coord = availabilityAwareSampling(rand, requestLocation, taz, availabilityRatio, inClosestZone)
+        (coord, None)
     }
   }
 

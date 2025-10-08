@@ -12,7 +12,9 @@ import beam.router.Modes.BeamMode.CAR
 import beam.router.skim.Skims
 import beam.sim.config.BeamConfig
 import org.locationtech.jts.geom.Envelope
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.utils.collections.QuadTree
 
 import scala.util.Random
 
@@ -20,7 +22,7 @@ class RideHailDepotFunctions(
   tazTreeMap: TAZTreeMap,
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
-  searchRadiusConfig: BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters,
+  searchRadiusConfig: BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params,
   fractionOfSameTypeZones: Double,
   minNumberOfSameTypeZones: Int,
   boundingBox: Envelope,
@@ -130,7 +132,7 @@ class RideHailDepotFunctions(
             )
           ) =>
         logger.debug(
-          s"found ${parkingZonesSeen.length} parking zones over $iterations iterations"
+          s"found ${parkingZonesSeen.size} parking zones over $iterations iterations"
         )
         // override the sampled stall coordinate with the TAZ centroid -
         // we want all agents who park in this TAZ to park in the same location.
@@ -159,9 +161,10 @@ class RideHailDepotFunctions(
     inquiry: ParkingInquiry,
     parkingZone: ParkingZone,
     taz: TAZ,
+    linkQuadTree: Option[QuadTree[Link]],
     inClosestZone: Boolean = true
-  ): Coord = {
-    taz.coord
+  ): (Coord, Option[Link]) = {
+    (taz.coord, None)
   }
 
   /**
