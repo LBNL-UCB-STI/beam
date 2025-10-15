@@ -50,6 +50,21 @@ abstract class SearchQuadTree(scenarioCRS: String) {
     )
   }
 
+  // Convert radius from meters to degrees by transforming an offset point
+  private def transformRadius(centerX: Double, centerY: Double, radiusMeters: Double): Double = {
+    if (transform.isDefined) {
+      val (transformedCenterX, transformedCenterY) = transformCoord(centerX, centerY)
+      // Transform a point offset by the radius (in the original CRS, which is in meters)
+      val (transformedOffsetX, transformedOffsetY) = transformCoord(centerX + radiusMeters, centerY)
+      // Calculate the distance in the transformed space (degrees)
+      val dx = transformedOffsetX - transformedCenterX
+      val dy = transformedOffsetY - transformedCenterY
+      math.sqrt(dx * dx + dy * dy)
+    } else {
+      radiusMeters // No transformation needed
+    }
+  }
+
   // Public methods that transform coordinates before delegating to internal methods
   def getRing(
     x: Double,
@@ -59,7 +74,9 @@ abstract class SearchQuadTree(scenarioCRS: String) {
     sampleSize: Int
   ): SearchQuadTreeResults = {
     val (transformedX, transformedY) = transformCoord(x, y)
-    getRingInternal(transformedX, transformedY, innerRadius, outerRadius, sampleSize)
+    val innerRadiusTransformed = transformRadius(x, y, innerRadius)
+    val outerRadiusTransformed = transformRadius(x, y, outerRadius)
+    getRingInternal(transformedX, transformedY, innerRadiusTransformed, outerRadiusTransformed, sampleSize)
   }
 
   def getElliptical(
@@ -72,7 +89,18 @@ abstract class SearchQuadTree(scenarioCRS: String) {
   ): SearchQuadTreeResults = {
     val (transformedX1, transformedY1) = transformCoord(x1, y1)
     val (transformedX2, transformedY2) = transformCoord(x2, y2)
-    getEllipticalInternal(transformedX1, transformedY1, transformedX2, transformedY2, innerRadius, sampleSize)
+    // Use midpoint for radius transformation
+    val midX = (x1 + x2) / 2.0
+    val midY = (y1 + y2) / 2.0
+    val innerRadiusTransformed = transformRadius(midX, midY, innerRadius)
+    getEllipticalInternal(
+      transformedX1,
+      transformedY1,
+      transformedX2,
+      transformedY2,
+      innerRadiusTransformed,
+      sampleSize
+    )
   }
 
   // Abstract internal methods that implementations must provide
