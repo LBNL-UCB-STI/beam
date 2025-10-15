@@ -170,6 +170,8 @@ object ParkingZoneSearch {
               // Enhanced location sampling: prefer links if available
               val (stallLocation: Coord, linkLocation: Option[Link]) =
                 parkingZoneLocSamplingFunction(parkingZone, zoneLinks)
+              val (x, y) = params.searchQuadTree.transformCoordToScenarioCRS(stallLocation.getX, stallLocation.getY)
+              val stallLocationUTM = new Coord(x, y)
               // end-of-day parking durations are set to zero, which will be mis-interpreted here
               val parkingDuration = Math.max(
                 config.estimatedMinParkingDurationInSeconds.toInt, // at least a small duration of charging
@@ -186,7 +188,7 @@ object ParkingZoneSearch {
                   zone,
                   parkingZone.parkingType,
                   parkingZone,
-                  stallLocation,
+                  stallLocationUTM,
                   stallPriceInDollars,
                   parkingDuration,
                   linkLocation
@@ -218,9 +220,9 @@ object ParkingZoneSearch {
 
             // create a new stall instance. you win!
             val parkingStall = ParkingStall(
-              taz.tazId,
-              parkingZone.parkingZoneId,
-              coordinate,
+              tazId = taz.tazId,
+              parkingZoneId = parkingZone.parkingZoneId,
+              locationUTM = coordinate,
               costInDollars,
               parkingZone.chargingPointType,
               parkingZone.pricingModel,

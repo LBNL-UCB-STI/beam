@@ -17,37 +17,58 @@ abstract class SearchQuadTree(scenarioCRS: String) {
   private val logger = LoggerFactory.getLogger(this.getClass)
 
   // Coordinate transformation from scenarioCRS to internalCRS
-  private val transform: Option[MathTransform] = if (scenarioCRS != TAZTreeMap.internalCRS) {
-    try {
-      val sourceCRS = CRS.decode(scenarioCRS)
-      val targetCRS = CRS.decode(TAZTreeMap.internalCRS)
-      Some(CRS.findMathTransform(sourceCRS, targetCRS, true))
-    } catch {
-      case e: Exception =>
-        logger.error(
-          s"Failed to create coordinate transformation from $scenarioCRS to ${TAZTreeMap.internalCRS}",
-          e
-        )
-        None
+  private val (transform, inverseTransform): (Option[MathTransform], Option[MathTransform]) =
+    if (scenarioCRS != TAZTreeMap.internalCRS) {
+      try {
+        val sourceCRS = CRS.decode(scenarioCRS)
+        val targetCRS = CRS.decode(TAZTreeMap.internalCRS)
+        val forward = CRS.findMathTransform(sourceCRS, targetCRS, true)
+        val inverse = CRS.findMathTransform(targetCRS, sourceCRS, true)
+        (Some(forward), Some(inverse))
+      } catch {
+        case e: Exception =>
+          logger.error(
+            s"Failed to create coordinate transformation from $scenarioCRS to ${TAZTreeMap.internalCRS}",
+            e
+          )
+          (None, None)
+      }
+    } else {
+      (None, None)
     }
-  } else {
-    None
-  }
 
   private val geometryFactory = new GeometryFactory()
 
   // Cache for transformed coordinates - using thread-safe TrieMap
   private val transformCache = TrieMap.empty[(Double, Double), (Double, Double)]
+  private val inverseTransformCache = TrieMap.empty[(Double, Double), (Double, Double)]
 
-  // Concrete implementation of transformCoord with caching
+  // Transform from scenario CRS to internal CRS (e.g., UTM -> lat/lon)
   protected def transformCoord(x: Double, y: Double): (Double, Double) = {
     val key = (x, y)
+    transformCache.get(key) match {
+      case Some(result) => result
+      case None =>
+        val result = TAZTreeMap.transformSingleCoord(x, y, transform, geometryFactory)
+        transformCache.put(key, result)
+        // Populate inverse cache with the reverse mapping
+        inverseTransformCache.put(result, key)
+        result
+    }
+  }
 
-    transformCache.getOrElseUpdate(
-      key, {
-        TAZTreeMap.transformSingleCoord(x, y, transform, geometryFactory)
-      }
-    )
+  // Transform from internal CRS back to scenario CRS (e.g., lat/lon -> UTM)
+  def transformCoordToScenarioCRS(x: Double, y: Double): (Double, Double) = {
+    val key = (x, y)
+    inverseTransformCache.get(key) match {
+      case Some(result) => result
+      case None =>
+        val result = TAZTreeMap.transformSingleCoord(x, y, inverseTransform, geometryFactory)
+        inverseTransformCache.put(key, result)
+        // Populate forward cache with the reverse mapping
+        transformCache.put(result, key)
+        result
+    }
   }
 
   // Convert meters to latitude degrees
@@ -56,23 +77,36 @@ abstract class SearchQuadTree(scenarioCRS: String) {
   }
 
   // Convert meters to longitude degrees at a specific latitude
-  private def metersToLonDegrees(meters: Double, latitude: Double): Double = {
-    val metersPerDegLon = 111320.0 * math.cos(math.toRadians(latitude))
+  private def metersToLonDegrees(meters: Double, latitudeInDegrees: Double): Double = {
+    val metersPerDegLon = 111320.0 * math.cos(math.toRadians(latitudeInDegrees))
     meters / metersPerDegLon
   }
 
   /**
-    * Convert radius in meters to a single degrees value (safe for both lat & lon)
+    * Convert a radius in meters to a radius in degrees at a specific location
     */
-  private def transformRadius(latCoord: Double, radiusMeters: Double): Double = {
-    val deltaLat = metersToLatDegrees(radiusMeters)
-    val deltaLon = metersToLonDegrees(radiusMeters, latCoord)
+  private def metersRadiusToDegreesRadius(
+    originalXinUTM: Double,
+    originalYinUTM: Double,
+    radiusInMeters: Double
+  ): Double = {
+    if (transform.isDefined) {
+      // Transform the center point to WGS84 lat/lon
+      val (transformedXinWGS, transformedYinWGS) = transformCoord(originalXinUTM, originalYinUTM)
 
-    // Return the max to make sure search area fully covers radius in all directions
-    math.max(deltaLat, deltaLon)
+      // One is latitude (-90 to 90), one is longitude (-180 to 180)
+      val latitudeInDegrees = if (math.abs(transformedXinWGS) <= 90) transformedXinWGS else transformedYinWGS
+
+      val deltaLatInDegrees = metersToLatDegrees(radiusInMeters)
+      val deltaLonInDegrees = metersToLonDegrees(radiusInMeters, latitudeInDegrees)
+
+      // Use max to ensure search area fully covers the radius in all directions
+      math.max(deltaLatInDegrees, deltaLonInDegrees)
+    } else {
+      radiusInMeters // No transformation, keep in meters
+    }
   }
 
-  // Public methods that transform coordinates before delegating to internal methods
   def getRing(
     x: Double,
     y: Double,
@@ -80,10 +114,10 @@ abstract class SearchQuadTree(scenarioCRS: String) {
     outerRadius: Double,
     sampleSize: Int
   ): SearchQuadTreeResults = {
-    val (transformedX, transformedY) = transformCoord(x, y)
-    val innerRadiusTransformed = transformRadius(y, innerRadius)
-    val outerRadiusTransformed = transformRadius(y, outerRadius)
-    getRingInternal(transformedX, transformedY, innerRadiusTransformed, outerRadiusTransformed, sampleSize)
+    val (transformedXinWGS, transformedYinWGS) = transformCoord(x, y)
+    val innerRadiusInDegrees = metersRadiusToDegreesRadius(x, y, innerRadius)
+    val outerRadiusInDegrees = metersRadiusToDegreesRadius(x, y, outerRadius)
+    getRingInternal(transformedXinWGS, transformedYinWGS, innerRadiusInDegrees, outerRadiusInDegrees, sampleSize)
   }
 
   def getElliptical(
@@ -94,17 +128,20 @@ abstract class SearchQuadTree(scenarioCRS: String) {
     innerRadius: Double,
     sampleSize: Int
   ): SearchQuadTreeResults = {
-    val (transformedX1, transformedY1) = transformCoord(x1, y1)
-    val (transformedX2, transformedY2) = transformCoord(x2, y2)
-    // Use midpoint for radius transformation
-    val midY = (y1 + y2) / 2.0
-    val innerRadiusTransformed = transformRadius(midY, innerRadius)
+    val (transformedX1inWGS, transformedY1inWGS) = transformCoord(x1, y1)
+    val (transformedX2inWGS, transformedY2inWGS) = transformCoord(x2, y2)
+
+    // Use midpoint of original UTM coords for radius conversion
+    val midXinUTM = (x1 + x2) / 2.0
+    val midYinUTM = (y1 + y2) / 2.0
+    val innerRadiusInDegrees = metersRadiusToDegreesRadius(midXinUTM, midYinUTM, innerRadius)
+
     getEllipticalInternal(
-      transformedX1,
-      transformedY1,
-      transformedX2,
-      transformedY2,
-      innerRadiusTransformed,
+      transformedX1inWGS,
+      transformedY1inWGS,
+      transformedX2inWGS,
+      transformedY2inWGS,
+      innerRadiusInDegrees,
       sampleSize
     )
   }
