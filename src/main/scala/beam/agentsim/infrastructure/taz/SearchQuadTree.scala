@@ -1,6 +1,7 @@
 package beam.agentsim.infrastructure.taz
 
-import org.geotools.referencing.CRS
+import org.geotools.referencing.{CRS, GeodeticCalculator}
+import org.geotools.referencing.crs.DefaultGeographicCRS
 import org.locationtech.jts.geom.GeometryFactory
 import org.matsim.api.core.v01.network.Link
 import org.matsim.core.utils.collections.QuadTree
@@ -43,68 +44,126 @@ abstract class SearchQuadTree(scenarioCRS: String) {
   private val transformCache = TrieMap.empty[(Double, Double), (Double, Double)]
   private val inverseTransformCache = TrieMap.empty[(Double, Double), (Double, Double)]
 
+  // Cache for radius transformations - key is (lon, lat, radiusInMeters)
+  private val radiusCache = TrieMap.empty[(Double, Double, Double), Double]
+
+  // Thread-local GeodeticCalculator for efficient reuse
+  private val geodeticCalculator = new ThreadLocal[GeodeticCalculator] {
+    override def initialValue(): GeodeticCalculator = new GeodeticCalculator(DefaultGeographicCRS.WGS84)
+  }
+
   // Transform from scenario CRS to internal CRS (e.g., UTM -> lat/lon)
   protected def transformCoord(x: Double, y: Double): (Double, Double) = {
     val key = (x, y)
-    transformCache.get(key) match {
-      case Some(result) => result
-      case None =>
+    transformCache.getOrElseUpdate(
+      key, {
         val result = TAZTreeMap.transformSingleCoord(x, y, transform, geometryFactory)
-        transformCache.put(key, result)
-        // Populate inverse cache with the reverse mapping
-        inverseTransformCache.put(result, key)
+        // Only populate inverse cache if not already present to avoid race conditions
+        inverseTransformCache.putIfAbsent(result, key)
         result
-    }
+      }
+    )
   }
 
   // Transform from internal CRS back to scenario CRS (e.g., lat/lon -> UTM)
   def transformCoordToScenarioCRS(x: Double, y: Double): (Double, Double) = {
     val key = (x, y)
-    inverseTransformCache.get(key) match {
-      case Some(result) => result
-      case None =>
+    inverseTransformCache.getOrElseUpdate(
+      key, {
         val result = TAZTreeMap.transformSingleCoord(x, y, inverseTransform, geometryFactory)
-        inverseTransformCache.put(key, result)
-        // Populate forward cache with the reverse mapping
-        transformCache.put(result, key)
+        // Only populate forward cache if not already present to avoid race conditions
+        transformCache.putIfAbsent(result, key)
         result
-    }
-  }
-
-  // Convert meters to latitude degrees
-  private def metersToLatDegrees(meters: Double): Double = {
-    meters / 111320.0
-  }
-
-  // Convert meters to longitude degrees at a specific latitude
-  private def metersToLonDegrees(meters: Double, latitudeInDegrees: Double): Double = {
-    val metersPerDegLon = 111320.0 * math.cos(math.toRadians(latitudeInDegrees))
-    meters / metersPerDegLon
+      }
+    )
   }
 
   /**
-    * Convert a radius in meters to a radius in degrees at a specific location
+    * transformation
+    * Use GeodeticCalculator for accurate distance-to-degrees conversion
+    * This is the most accurate method using proper ellipsoid calculations
     */
-  private def metersRadiusToDegreesRadius(
-    originalXinUTM: Double,
-    originalYinUTM: Double,
+  private def metersRadiusToDegreesRadiusGeodetic(
+    lonInWGS: Double,
+    latInWGS: Double,
     radiusInMeters: Double
   ): Double = {
-    if (transform.isDefined) {
-      // Transform the center point to WGS84 lat/lon
-      val (transformedXinWGS, transformedYinWGS) = transformCoord(originalXinUTM, originalYinUTM)
+    if (radiusInMeters > 0) {
+      // Check cache first
+      val cacheKey = (lonInWGS, latInWGS, radiusInMeters)
+      radiusCache.getOrElseUpdate(
+        cacheKey, {
+          val calc = geodeticCalculator.get()
 
-      // One is latitude (-90 to 90), one is longitude (-180 to 180)
-      val latitudeInDegrees = if (math.abs(transformedXinWGS) <= 90) transformedXinWGS else transformedYinWGS
+          // Set the starting point
+          calc.setStartingGeographicPoint(lonInWGS, latInWGS)
 
-      val deltaLatInDegrees = metersToLatDegrees(radiusInMeters)
-      val deltaLonInDegrees = metersToLonDegrees(radiusInMeters, latitudeInDegrees)
+          // Calculate point at radius distance north (for latitude difference)
+          calc.setDirection(0, radiusInMeters) // 0 degrees = north
+          val northPoint = calc.getDestinationGeographicPoint
+          val deltaLat = math.abs(northPoint.getY - latInWGS)
 
-      // Use max to ensure search area fully covers the radius in all directions
-      math.max(deltaLatInDegrees, deltaLonInDegrees)
+          // Calculate point at radius distance east (for longitude difference)
+          calc.setDirection(90, radiusInMeters) // 90 degrees = east
+          val eastPoint = calc.getDestinationGeographicPoint
+          val deltaLon = math.abs(eastPoint.getX - lonInWGS)
+
+          // Return the maximum to ensure full coverage
+          math.max(deltaLat, deltaLon)
+        }
+      )
     } else {
-      radiusInMeters // No transformation, keep in meters
+      radiusInMeters // No transformation needed
     }
+  }
+
+  /**
+    * Radius transformation
+    * Solution 2: Use improved Haversine-based approximation (faster, still accurate)
+    * This uses the WGS84 ellipsoid parameters for better accuracy than simple 111320
+    */
+  private def metersRadiusToDegreesRadiusHaversine(
+    latInWGS: Double,
+    radiusInMeters: Double
+  ): Double = {
+    if (radiusInMeters > 0) {
+      // WGS84 ellipsoid parameters
+      val a = 6378137.0 // Equatorial radius in meters
+      val f = 1.0 / 298.257223563 // Flattening
+      val e2 = 2 * f - f * f // First eccentricity squared
+
+      val latRad = math.toRadians(latInWGS)
+      val sinLat = math.sin(latRad)
+      val cosLat = math.cos(latRad)
+
+      // Radius of curvature in the meridian (north-south)
+      val M = a * (1 - e2) / math.pow(1 - e2 * sinLat * sinLat, 1.5)
+
+      // Radius of curvature in the prime vertical (east-west)
+      val N = a / math.sqrt(1 - e2 * sinLat * sinLat)
+
+      // Convert meters to degrees
+      val deltaLat = radiusInMeters / M * (180.0 / math.Pi)
+      val deltaLon = radiusInMeters / (N * cosLat) * (180.0 / math.Pi)
+
+      // Return the maximum to ensure full coverage
+      math.max(deltaLat, math.abs(deltaLon))
+    } else {
+      radiusInMeters
+    }
+  }
+
+  // Choose which implementation to use based on your needs:
+  // - Geodetic: Most accurate, slightly slower
+  // - Haversine: Good accuracy, fast
+
+  private def metersRadiusToDegreesRadius(
+    lonInWGS: Double,
+    latInWGS: Double,
+    radiusInMeters: Double
+  ): Double = {
+    // metersRadiusToDegreesRadiusGeodetic(lonInWGS, latInWGS, radiusInMeters)  // Most accurate
+    metersRadiusToDegreesRadiusHaversine(latInWGS, radiusInMeters) // Best balance
   }
 
   def getRing(
@@ -114,10 +173,10 @@ abstract class SearchQuadTree(scenarioCRS: String) {
     outerRadius: Double,
     sampleSize: Int
   ): SearchQuadTreeResults = {
-    val (transformedXinWGS, transformedYinWGS) = transformCoord(x, y)
-    val innerRadiusInDegrees = metersRadiusToDegreesRadius(x, y, innerRadius)
-    val outerRadiusInDegrees = metersRadiusToDegreesRadius(x, y, outerRadius)
-    getRingInternal(transformedXinWGS, transformedYinWGS, innerRadiusInDegrees, outerRadiusInDegrees, sampleSize)
+    val (lonInWGS, latInWGS) = transformCoord(x, y)
+    val innerRadiusInDegrees = metersRadiusToDegreesRadius(lonInWGS, latInWGS, innerRadius)
+    val outerRadiusInDegrees = metersRadiusToDegreesRadius(lonInWGS, latInWGS, outerRadius)
+    getRingInternal(lonInWGS, latInWGS, innerRadiusInDegrees, outerRadiusInDegrees, sampleSize)
   }
 
   def getElliptical(
@@ -128,19 +187,19 @@ abstract class SearchQuadTree(scenarioCRS: String) {
     innerRadius: Double,
     sampleSize: Int
   ): SearchQuadTreeResults = {
-    val (transformedX1inWGS, transformedY1inWGS) = transformCoord(x1, y1)
-    val (transformedX2inWGS, transformedY2inWGS) = transformCoord(x2, y2)
+    val (lon1inWGS, lat1inWGS) = transformCoord(x1, y1)
+    val (lon2inWGS, lat2inWGS) = transformCoord(x2, y2)
 
     // Use midpoint of original UTM coords for radius conversion
-    val midXinUTM = (x1 + x2) / 2.0
-    val midYinUTM = (y1 + y2) / 2.0
-    val innerRadiusInDegrees = metersRadiusToDegreesRadius(midXinUTM, midYinUTM, innerRadius)
+    val midLonInWGS = (lon1inWGS + lon2inWGS) / 2.0
+    val midLatInWGS = (lat1inWGS + lat2inWGS) / 2.0
+    val innerRadiusInDegrees = metersRadiusToDegreesRadius(midLonInWGS, midLatInWGS, innerRadius)
 
     getEllipticalInternal(
-      transformedX1inWGS,
-      transformedY1inWGS,
-      transformedX2inWGS,
-      transformedY2inWGS,
+      lon1inWGS,
+      lat1inWGS,
+      lon2inWGS,
+      lat2inWGS,
       innerRadiusInDegrees,
       sampleSize
     )
@@ -181,28 +240,28 @@ object SearchQuadTree {
   case class SearchTAZQuadTree(tazTreeMap: TAZTreeMap) extends SearchQuadTree(tazTreeMap.scenarioCRS) {
 
     override def getRingInternal(
-      x: Double,
-      y: Double,
+      lon: Double,
+      lat: Double,
       innerRadius: Double,
       outerRadius: Double,
       sampleSize: Int = 100
     ): SearchQuadTreeResults = {
       val result = Set.newBuilder[TAZ]
-      tazTreeMap.tazQuadTree.getRing(x, y, innerRadius, outerRadius).forEach(taz => result += taz)
+      tazTreeMap.tazQuadTree.getRing(lon, lat, innerRadius, outerRadius).forEach(taz => result += taz)
       val tazs = result.result()
       SearchQuadTreeResults(tazs, None, None)
     }
 
     override def getEllipticalInternal(
-      x1: Double,
-      y1: Double,
-      x2: Double,
-      y2: Double,
+      lon1: Double,
+      lat1: Double,
+      lon2: Double,
+      lat2: Double,
       radius: Double,
       sampleSize: Int = 100
     ): SearchQuadTreeResults = {
       val result = Set.newBuilder[TAZ]
-      tazTreeMap.tazQuadTree.getElliptical(x1, y1, x2, y2, radius).forEach(taz => result += taz)
+      tazTreeMap.tazQuadTree.getElliptical(lon1, lat1, lon2, lat2, radius).forEach(taz => result += taz)
       val tazs = result.result()
       SearchQuadTreeResults(tazs, None, None)
     }
@@ -210,44 +269,45 @@ object SearchQuadTree {
 
   case class SearchLinkQuadTree(tazTreeMap: TAZTreeMap) extends SearchQuadTree(tazTreeMap.scenarioCRS) {
 
-    // The QuadTrees are already built in tazTreeMap.tazToLinkIdMapping during network initialization!
-    // We just need to use them instead of rebuilding from scratch
-
     private def buildSearchResult(
       tazToLinks: mutable.HashMap[TAZ, mutable.ArrayBuffer[Link]]
     ): SearchQuadTreeResults = {
       if (tazToLinks.isEmpty) {
         SearchQuadTreeResults(Set.empty, Some(Set.empty), Some(Map.empty))
       } else {
-        val numLinks = tazToLinks.values.map(_.size).sum
-
         val tazSet = tazToLinks.keySet.toSet
 
-        // Pre-allocate with size hint
+        // Build link set from all collected links
         val linkSetBuilder = Set.newBuilder[Link]
-        linkSetBuilder.sizeHint(numLinks)
+        var totalLinks = 0
+        tazToLinks.values.foreach { links =>
+          linkSetBuilder ++= links
+          totalLinks += links.size
+        }
+        linkSetBuilder.sizeHint(totalLinks)
 
-        // Single pass: build both linkSet and quad trees
+        // Build quad trees for each TAZ
         val tazToLinksQuadTree = tazToLinks.par
           .map { case (tazId, links) =>
             tazId -> TAZTreeMap.fromLinks(links, tazTreeMap.scenarioCRS)
           }
           .seq
           .toMap
+
         val finalLinkSet = linkSetBuilder.result()
         SearchQuadTreeResults(tazSet, Some(finalLinkSet), Some(tazToLinksQuadTree))
       }
     }
 
     override def getRingInternal(
-      x: Double,
-      y: Double,
+      lon: Double,
+      lat: Double,
       innerRadius: Double,
       outerRadius: Double,
       sampleSize: Int = 100
     ): SearchQuadTreeResults = {
       val tazToLinks = mutable.HashMap.empty[TAZ, mutable.ArrayBuffer[Link]]
-      tazTreeMap.linkQuadTree.get.getRing(x, y, innerRadius, outerRadius).asScala.take(sampleSize).foreach { link =>
+      tazTreeMap.linkQuadTree.get.getRing(lon, lat, innerRadius, outerRadius).asScala.take(sampleSize).foreach { link =>
         val taz = tazTreeMap.idToTAZMapping(tazTreeMap.linkIdToTAZMapping(link.getId))
         tazToLinks.getOrElseUpdate(taz, mutable.ArrayBuffer.empty[Link]) += link
       }
@@ -255,17 +315,18 @@ object SearchQuadTree {
     }
 
     override def getEllipticalInternal(
-      x1: Double,
-      y1: Double,
-      x2: Double,
-      y2: Double,
+      lon1: Double,
+      lat1: Double,
+      lon2: Double,
+      lat2: Double,
       radius: Double,
       sampleSize: Int = 100
     ): SearchQuadTreeResults = {
       val tazToLinks = mutable.HashMap.empty[TAZ, mutable.ArrayBuffer[Link]]
-      tazTreeMap.linkQuadTree.get.getElliptical(x1, y1, x2, y2, radius).asScala.take(sampleSize).foreach { link =>
-        val taz = tazTreeMap.idToTAZMapping(tazTreeMap.linkIdToTAZMapping(link.getId))
-        tazToLinks.getOrElseUpdate(taz, mutable.ArrayBuffer.empty[Link]) += link
+      tazTreeMap.linkQuadTree.get.getElliptical(lon1, lat1, lon2, lat2, radius).asScala.take(sampleSize).foreach {
+        link =>
+          val taz = tazTreeMap.idToTAZMapping(tazTreeMap.linkIdToTAZMapping(link.getId))
+          tazToLinks.getOrElseUpdate(taz, mutable.ArrayBuffer.empty[Link]) += link
       }
       buildSearchResult(tazToLinks)
     }
