@@ -30,7 +30,6 @@ plugins {
     id 'com.bmuschko.docker-java-application' version '9.4.0'
     id "cz.alenkacz.gradle.scalafmt" version "1.16.2"
     id "java-library"
-    id 'scala'
 }
 
 apply plugin: 'java'
@@ -45,8 +44,7 @@ apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
 
 group = 'beam'
-version = '1.0.beta.1'
-version = '0.9.13-beta-v6'
+version = '1.0.beta'
 
 description = """"""
 
@@ -247,7 +245,7 @@ dependencies {
     implementation "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.9.0"
     implementation "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
 
-    implementation(group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'v4.9.2') {
+    implementation(group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'v4.10.3') {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
         exclude group: 'org.slf4j', module: 'slf4j-simple'
     }

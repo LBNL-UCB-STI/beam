@@ -23,7 +23,6 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.scheduler.HasTriggerId
-import beam.router.BeamRouter.IntermodalUse.{Access, AccessAndOrEgress, IntermodalUse}
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR}
@@ -571,10 +570,7 @@ object BeamRouter {
 
       if (streetVehicles.exists(_.mode == CAR)) {
         if (withTransit) {
-          if (streetVehiclesUseIntermodalUse == AccessAndOrEgress)
-            complexity += 100 // "rh_transit"
-          else
-            complexity += 120 // "drive_transit"
+          complexity += 120 // "drive_transit"
         } else
           complexity += 60 // "car"
       } else if (streetVehicles.exists(_.mode == BIKE)) {
@@ -592,6 +588,14 @@ object BeamRouter {
       complexity
     }
   }
+
+  sealed trait IntermodalUse
+
+  case object Access extends IntermodalUse
+
+  case object Egress extends IntermodalUse
+
+  case object AccessAndEgress extends IntermodalUse
 
   /**
     * Message to respond a plan against a particular router request
