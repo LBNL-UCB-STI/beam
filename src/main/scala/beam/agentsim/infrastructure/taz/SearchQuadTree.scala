@@ -1,5 +1,7 @@
 package beam.agentsim.infrastructure.taz
 
+import beam.sim.BeamServices
+import beam.sim.config.BeamConfig
 import org.geotools.referencing.CRS
 import org.geotools.geometry.jts.JTS
 import org.locationtech.jts.geom.{Coordinate, GeometryFactory}
@@ -246,19 +248,32 @@ object SearchQuadTree {
     tazToLinks: Option[Map[TAZ, QuadTree[Link]]]
   )
 
-  def getSearchQuadTree(tazTreeMap: TAZTreeMap, enableLinkBasedSearch: Boolean): SearchQuadTree = {
+  def getSearchQuadTree(tazTreeMap: TAZTreeMap, enableLinkBasedSearch: Boolean, scenarioCRS: String): SearchQuadTree = {
     if (enableLinkBasedSearch && tazTreeMap.linkQuadTree.isDefined) {
-      SearchLinkQuadTree(tazTreeMap)
+      SearchLinkQuadTree(tazTreeMap, scenarioCRS)
     } else {
-      SearchTAZQuadTree(tazTreeMap)
+      SearchTAZQuadTree(tazTreeMap, scenarioCRS)
     }
+  }
+
+  def getSearchQuadTree(tazTreeMap: TAZTreeMap, beamConfig: BeamConfig): SearchQuadTree = {
+    val scenarioCRS = beamConfig.beam.spatial.localCRS
+    val enableLinkBasedSearch = beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
+    getSearchQuadTree(tazTreeMap, enableLinkBasedSearch, scenarioCRS)
+  }
+
+  def getSearchQuadTree(beamServices: BeamServices): SearchQuadTree = {
+    val scenarioCRS = beamServices.beamConfig.beam.spatial.localCRS
+    val enableLinkBasedSearch = beamServices.beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
+    getSearchQuadTree(beamServices.beamScenario.tazTreeMap, enableLinkBasedSearch, scenarioCRS)
   }
 
   /**
     * TAZ-based search implementation.
     * Searches directly in the TAZ QuadTree using projected coordinates.
     */
-  case class SearchTAZQuadTree(tazTreeMap: TAZTreeMap) extends SearchQuadTree(tazTreeMap.scenarioCRS) {
+  case class SearchTAZQuadTree(tazTreeMap: TAZTreeMap, override val scenarioCRS: String)
+      extends SearchQuadTree(scenarioCRS) {
 
     override def getRingInternal(
       x: Double,
@@ -300,7 +315,8 @@ object SearchQuadTree {
     * Link-based search implementation.
     * Searches in the Link QuadTree and groups results by TAZ.
     */
-  case class SearchLinkQuadTree(tazTreeMap: TAZTreeMap) extends SearchQuadTree(tazTreeMap.scenarioCRS) {
+  case class SearchLinkQuadTree(tazTreeMap: TAZTreeMap, override val scenarioCRS: String)
+      extends SearchQuadTree(scenarioCRS) {
 
     private def buildSearchResult(
       tazToLinks: mutable.HashMap[TAZ, mutable.ArrayBuffer[Link]]
@@ -322,7 +338,7 @@ object SearchQuadTree {
         // Build quad trees for each TAZ
         val tazToLinksQuadTree = tazToLinks.par
           .map { case (tazId, links) =>
-            tazId -> TAZTreeMap.fromLinks(links, tazTreeMap.scenarioCRS)
+            tazId -> TAZTreeMap.fromLinks(links)
           }
           .seq
           .toMap
