@@ -84,6 +84,120 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
   private val carWeightCalculator = new CarWeightCalculator(workerParams, travelTimeNoiseFraction)
   private val bikeLanesAdjustment = BikeLanesAdjustment(beamConfig)
 
+  // Create thread-local for each calculator type
+  private val turnCostCalculatorTL: ThreadLocal[TurnCostCalculator] =
+    ThreadLocal.withInitial(() =>
+      new TurnCostCalculator(transportNetwork.streetLayer, true) {
+        override def computeTurnCost(fromEdge: Int, toEdge: Int, streetMode: StreetMode): Int = 0
+      }
+    )
+
+  // Use a simpler approach: keep a small cache per thread
+  private val routerCache: ThreadLocal[java.util.ArrayDeque[StreetRouter]] =
+    ThreadLocal.withInitial(() => new java.util.ArrayDeque[StreetRouter](4))
+
+  private val routerPoolStats = new ThreadLocal[PoolStats]() {
+    override def initialValue(): PoolStats = new PoolStats()
+  }
+
+  private case class PoolStats(
+    var hits: Long = 0,
+    var misses: Long = 0,
+    var returns: Long = 0,
+    var discards: Long = 0,
+    var maxRouterPoolSize: Int = 0,
+    var maxStatePoolSize: Int = 0,
+    var maxStateInUse: Int = 0,
+    var totalStatePoolSize: Long = 0, // Sum for averaging
+    var statePoolSamples: Long = 0,
+    var lastLogTime: Long = System.currentTimeMillis()
+  )
+
+  private def returnRouter(router: StreetRouter): Unit = {
+    val cache = routerCache.get()
+    val stats = routerPoolStats.get()
+
+    // Parse the stats string (simple and effective)
+    val stateStats = router.getStatePoolStats()
+    // Regex to extract size=X
+    val sizePattern = "size=(\\d+)".r
+    val statePoolSize = sizePattern
+      .findFirstMatchIn(stateStats)
+      .map(_.group(1).toInt)
+      .getOrElse(0)
+
+    stats.maxStatePoolSize = Math.max(stats.maxStatePoolSize, statePoolSize)
+    stats.totalStatePoolSize += statePoolSize
+    stats.statePoolSamples += 1
+
+    if (cache.size() < 10) {
+      cache.offer(router)
+      stats.returns += 1
+      stats.maxRouterPoolSize = Math.max(stats.maxRouterPoolSize, cache.size())
+    } else {
+      stats.discards += 1
+    }
+  }
+
+  private def borrowRouter(
+    travelTimeCalc: TravelTimeCalculator,
+    travelCostCalc: TravelCostCalculator
+  ): StreetRouter = {
+    val cache = routerCache.get()
+    val stats = routerPoolStats.get()
+
+    val router = if (cache.isEmpty) {
+      stats.misses += 1
+      new StreetRouter(
+        transportNetwork.streetLayer,
+        travelTimeCalc,
+        turnCostCalculatorTL.get(),
+        travelCostCalc
+      )
+    } else {
+      stats.hits += 1
+      cache.poll()
+    }
+
+    router.reset()
+
+    // Log periodically
+    val now = System.currentTimeMillis()
+    val totalBorrows = stats.hits + stats.misses
+    if (totalBorrows % 1000 == 0 || (now - stats.lastLogTime) > 60000) {
+      val hitRate = if (totalBorrows > 0) (stats.hits * 100.0 / totalBorrows) else 0.0
+      val avgStatePoolSize =
+        if (stats.statePoolSamples > 0)
+          stats.totalStatePoolSize / stats.statePoolSamples
+        else 0
+
+      logger.info(
+        s"StreetRouter pool [thread=${Thread.currentThread().getId}]: " +
+        f"router_hit_rate=$hitRate%.1f%%, " +
+        f"router_pool=${cache.size()}/${stats.maxRouterPoolSize}, " +
+        f"state_pool_avg=$avgStatePoolSize, " +
+        f"state_pool_max=${stats.maxStatePoolSize}, " +
+        f"state_max_in_use=${stats.maxStateInUse}, " +
+        s"total_routes=$totalBorrows"
+      )
+      stats.lastLogTime = now
+    }
+
+    router
+  }
+
+  private def withRouter[T](
+    travelTimeCalc: TravelTimeCalculator,
+    travelCostCalc: TravelCostCalculator
+  )(f: StreetRouter => T): T = {
+    val router = borrowRouter(travelTimeCalc, travelCostCalc)
+    try {
+      f(router)
+    } finally {
+      returnRouter(router)
+    }
+  }
+
   def embodyWithCurrentTravelTime(
     leg: BeamLeg,
     vehicleId: Id[Vehicle],
@@ -162,33 +276,35 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       val directOption = new ProfileOption
       profileRequest.reverseSearch = false
       for (mode <- profileRequest.directModes.asScala) {
-
-        val streetRouter = new StreetRouter(
-          transportNetwork.streetLayer,
+        withRouter(
           travelTimeCalculator(
             vehicleType,
             profileRequest.fromTime,
             shouldAddNoise = !profileRequest.hasTransit
-          ), // Add error if it is not transit
-          turnCostCalculator,
-          travelCostCalculator(vehicleType, request.timeValueOfMoney, profileRequest.fromTime)
-        )
-        if (request.accessMode == LegMode.BICYCLE) {
-          streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
-        }
-        streetRouter.profileRequest = profileRequest
-        streetRouter.streetMode = toR5StreetMode(mode)
-        streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
-        if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon, linkRadiusMeters)) {
-          if (streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon, linkRadiusMeters)) {
-            latency("route-transit-time", Metrics.VerboseLevel) {
-              streetRouter.route() // latency 1
-            }
-            val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
-            if (lastState != null) {
-              val streetPath = new StreetPath(lastState, transportNetwork, false)
-              val streetSegment = new StreetSegment(streetPath, mode, transportNetwork.streetLayer)
-              directOption.addDirect(streetSegment, profileRequest.getFromTimeDateZD)
+          ),
+          travelCostCalculator(
+            vehicleType,
+            request.timeValueOfMoney,
+            profileRequest.fromTime
+          )
+        ) { streetRouter =>
+          if (request.accessMode == LegMode.BICYCLE) {
+            streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
+          }
+          streetRouter.profileRequest = profileRequest
+          streetRouter.streetMode = toR5StreetMode(mode)
+          streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
+          if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon, linkRadiusMeters)) {
+            if (streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon, linkRadiusMeters)) {
+              latency("route-transit-time", Metrics.VerboseLevel) {
+                streetRouter.route() // latency 1
+              }
+              val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
+              if (lastState != null) {
+                val streetPath = new StreetPath(lastState, transportNetwork, false)
+                val streetSegment = new StreetSegment(streetPath, mode, transportNetwork.streetLayer)
+                directOption.addDirect(streetSegment, profileRequest.getFromTimeDateZD)
+              }
             }
           }
         }
@@ -495,7 +611,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           profileRequest.fromTime,
           shouldAddNoise = !profileRequest.hasTransit
         ),
-        turnCostCalculator,
+        turnCostCalculatorTL.get(),
         travelCostCalculator(vehicleType, request.timeValueOfMoney, profileRequest.fromTime)
       )
       if (vehicle.mode == BeamMode.BIKE) {
@@ -542,31 +658,34 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
                 directOption.addDirect(streetSegment, profileRequest.getFromTimeDateZD)
               } else if (profileRequest.streetTime * 60 > streetRouter.timeLimitSeconds) {
                 val vehicleType = vehicleTypes(vehicle.vehicleTypeId)
-                val streetRouter = new StreetRouter(
-                  transportNetwork.streetLayer,
+                withRouter(
                   travelTimeCalculator(
                     vehicleType,
                     profileRequest.fromTime,
                     shouldAddNoise = !profileRequest.hasTransit
                   ),
-                  turnCostCalculator,
-                  travelCostCalculator(vehicleType, request.timeValueOfMoney, profileRequest.fromTime)
-                )
-                if (vehicle.mode == BeamMode.BIKE) {
-                  streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
-                }
-                streetRouter.profileRequest = profileRequest
-                streetRouter.streetMode = toR5StreetMode(vehicle.mode)
-                streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
-                streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon, linkRadiusMeters)
-                streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon, linkRadiusMeters)
-                streetRouter.route()
-                val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
-                if (lastState != null) {
-                  val streetPath = new StreetPath(lastState, transportNetwork, false)
-                  val streetSegment =
-                    new StreetSegment(streetPath, legMode, transportNetwork.streetLayer)
-                  directOption.addDirect(streetSegment, profileRequest.getFromTimeDateZD)
+                  travelCostCalculator(
+                    vehicleType,
+                    request.timeValueOfMoney,
+                    profileRequest.fromTime
+                  )
+                ) { streetRouter =>
+                  if (vehicle.mode == BeamMode.BIKE) {
+                    streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
+                  }
+                  streetRouter.profileRequest = profileRequest
+                  streetRouter.streetMode = toR5StreetMode(vehicle.mode)
+                  streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
+                  streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon, linkRadiusMeters)
+                  streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon, linkRadiusMeters)
+                  streetRouter.route()
+                  val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
+                  if (lastState != null) {
+                    val streetPath = new StreetPath(lastState, transportNetwork, false)
+                    val streetSegment =
+                      new StreetSegment(streetPath, legMode, transportNetwork.streetLayer)
+                    directOption.addDirect(streetSegment, profileRequest.getFromTimeDateZD)
+                  }
                 }
               }
             }
@@ -618,7 +737,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             profileRequest.fromTime,
             shouldAddNoise = !profileRequest.hasTransit
           ),
-          turnCostCalculator,
+          turnCostCalculatorTL.get(),
           travelCostCalculator(vehicleType, request.timeValueOfMoney, profileRequest.fromTime)
         )
         if (vehicle.mode == BeamMode.BIKE) {
