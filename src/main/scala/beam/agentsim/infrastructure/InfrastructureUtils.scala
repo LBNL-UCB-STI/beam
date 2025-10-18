@@ -4,7 +4,7 @@ import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.ParkingLoadingAccumulator
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.vehiclesharing.Fleets
@@ -153,6 +153,7 @@ object InfrastructureUtils extends LazyLogging {
           .init(
             parkingStalls,
             beamScenario.tazTreeMap,
+            SearchQuadTree.getSearchQuadTree(beamServices),
             geo.distUTMInMeters,
             beamConfig.beam.agentsim.agents.parking.search.params,
             envelopeInUTM,

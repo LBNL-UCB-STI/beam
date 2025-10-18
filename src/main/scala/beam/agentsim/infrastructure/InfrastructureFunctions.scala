@@ -17,6 +17,7 @@ import scala.util.Random
 
 abstract class InfrastructureFunctions(
   tazTreeMap: TAZTreeMap,
+  searchQuadTree: SearchQuadTree,
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
   searchParams: BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params,
@@ -131,7 +132,7 @@ abstract class InfrastructureFunctions(
         mnlMultiplierParameters,
         zoneCollections,
         parkingZones,
-        SearchQuadTree.getSearchQuadTree(tazTreeMap, searchParams.enableLinkBasedSearch),
+        searchQuadTree,
         new Random(seed + inquiryHash),
         inquiry.departureLocation,
         inquiry.reservedFor,

@@ -6,7 +6,7 @@ import beam.agentsim.infrastructure.HierarchicalParkingManager._
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.VehicleRestrictionKey
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.matsim_conversion.ShapeUtils
@@ -29,6 +29,7 @@ import scala.util.Random
 class HierarchicalParkingManager(
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   tazMap: TAZTreeMap,
+  searchQuadTree: SearchQuadTree,
   distanceFunction: (Coord, Coord) => Double,
   searchRadiusConfig: BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params,
   boundingBox: Envelope,
@@ -46,6 +47,7 @@ class HierarchicalParkingManager(
   override protected val searchFunctions: Option[InfrastructureFunctions] = Some(
     new ParkingFunctions(
       tazMap,
+      searchQuadTree,
       tazParkingZones,
       distanceFunction,
       searchRadiusConfig,
@@ -231,6 +233,7 @@ object HierarchicalParkingManager {
   def apply(
     parkingZones: Map[Id[ParkingZoneId], ParkingZone],
     tazMap: TAZTreeMap,
+    searchQuadTree: SearchQuadTree,
     distanceFunction: (Coord, Coord) => Double,
     searchRadiusConfig: BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params,
     boundingBox: Envelope,
@@ -242,6 +245,7 @@ object HierarchicalParkingManager {
     new HierarchicalParkingManager(
       parkingZones,
       tazMap,
+      searchQuadTree,
       distanceFunction,
       searchRadiusConfig,
       boundingBox,
@@ -255,6 +259,7 @@ object HierarchicalParkingManager {
   def init(
     parkingZones: Map[Id[ParkingZoneId], ParkingZone],
     tazMap: TAZTreeMap,
+    searchQuadTree: SearchQuadTree,
     distanceFunction: (Coord, Coord) => Double,
     searchRadiusConfig: BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params,
     boundingBox: Envelope,
@@ -266,6 +271,7 @@ object HierarchicalParkingManager {
     HierarchicalParkingManager(
       parkingZones,
       tazMap,
+      searchQuadTree,
       distanceFunction,
       searchRadiusConfig,
       boundingBox,

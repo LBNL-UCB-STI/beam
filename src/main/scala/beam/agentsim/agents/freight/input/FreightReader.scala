@@ -255,14 +255,15 @@ object FreightReader {
     geoUtils: GeoUtils,
     streetLayer: StreetLayer,
     network: Option[Network],
-    outputDirMaybe: Option[String]
+    outputDirMaybe: Option[String],
+    tazTreeMapMaybe: Option[TAZTreeMap]
   ): FreightReader = {
-    val tazMap =
+    val tazMap = tazTreeMapMaybe.getOrElse {
       TAZTreeMap.getTazTreeMap(
         beamConfig.beam.agentsim.taz.filePath,
-        beamConfig.beam.spatial.localCRS,
         Some(beamConfig.beam.agentsim.taz.tazIdFieldName)
       )
+    }
     apply(beamConfig, geoUtils, streetLayer, network, tazMap, outputDirMaybe)
   }
 

@@ -59,7 +59,7 @@ object ParkingZoneSearch {
     * @param parkingMNLConfig utility function which evaluates [[ParkingAlternative]]s
     * @param zoneCollections a nested map lookup of [[ParkingZone]]s
     * @param parkingZones the stored state of all [[ParkingZone]]s
-    * @param searchQuadTree
+    * @param searchQuadTree search quad tree for finding [[ParkingZone]]s
     * @param random random number generator
     */
   case class ParkingZoneSearchParams(
@@ -170,8 +170,7 @@ object ParkingZoneSearch {
               // Enhanced location sampling: prefer links if available
               val (stallLocation: Coord, linkLocation: Option[Link]) =
                 parkingZoneLocSamplingFunction(parkingZone, zoneLinks)
-              val (x, y) = params.searchQuadTree.transformCoordToScenarioCRS(stallLocation.getX, stallLocation.getY)
-              val stallLocationUTM = new Coord(x, y)
+
               // end-of-day parking durations are set to zero, which will be mis-interpreted here
               val parkingDuration = Math.max(
                 config.estimatedMinParkingDurationInSeconds.toInt, // at least a small duration of charging
@@ -188,7 +187,7 @@ object ParkingZoneSearch {
                   zone,
                   parkingZone.parkingType,
                   parkingZone,
-                  stallLocationUTM,
+                  stallLocation,
                   stallPriceInDollars,
                   parkingDuration,
                   linkLocation

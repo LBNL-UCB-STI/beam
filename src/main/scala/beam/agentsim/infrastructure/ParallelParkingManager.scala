@@ -1,9 +1,9 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.Resource.ReleaseParkingStall
-import beam.agentsim.infrastructure.ParallelParkingManager.{geometryFactory, ParkingCluster, Worker}
+import beam.agentsim.infrastructure.ParallelParkingManager.{ParkingCluster, Worker, geometryFactory}
 import beam.agentsim.infrastructure.parking.{ParkingNetwork, ParkingZone, ParkingZoneId}
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils.toJtsCoordinate
 import beam.sim.config.BeamConfig
 import beam.utils.metrics.SimpleCounter
@@ -36,6 +36,7 @@ class ParallelParkingManager(
   distanceFunction: (Coord, Coord) => Double,
   boundingBox: Envelope,
   searchRadiusConfig: BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params,
+  scenarioCRS: String,
   fractionOfSameTypeZones: Double,
   minNumberOfSameTypeZones: Int,
   seed: Int,
@@ -63,10 +64,11 @@ class ParallelParkingManager(
     mapTazToWorker(workers) + (TAZ.EmergencyTAZId -> emergencyWorker) + (TAZ.DefaultTAZId -> emergencyWorker)
 
   protected def createWorker(cluster: ParkingCluster): Worker = {
-    val subTazTreeMap = TAZTreeMap.fromSeq(cluster.tazes, tazTreeMap.scenarioCRS)
+    val subTazTreeMap = TAZTreeMap.fromSeq(cluster.tazes)
     val parkingNetwork = ZonalParkingManager(
       parkingZones,
       subTazTreeMap,
+      SearchQuadTree.getSearchQuadTree(subTazTreeMap, searchRadiusConfig.enableLinkBasedSearch, scenarioCRS),
       distanceFunction,
       boundingBox,
       searchRadiusConfig,
@@ -93,13 +95,7 @@ class ParallelParkingManager(
       val point = ParallelParkingManager.geometryFactory.createPoint(inquiry.destinationUtm.loc)
       w.cluster.convexHull.contains(point)
     }
-
-    val worker = foundCluster
-      .orElse(
-        tazToWorker.get(findTazId(inquiry))
-      )
-      .get
-
+    val worker = foundCluster.orElse(tazToWorker.get(findTazId(inquiry))).get
     parallelizationCounterOption.map(_.count(worker.cluster.presentation))
     worker.actor.processParkingInquiry(inquiry)
   }
@@ -179,6 +175,7 @@ object ParallelParkingManager extends LazyLogging {
       distanceFunction,
       boundingBox,
       beamConfig.beam.agentsim.agents.parking.search.params,
+      beamConfig.beam.spatial.localCRS,
       beamConfig.beam.agentsim.agents.parking.fractionOfSameTypeZones,
       beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
       seed,

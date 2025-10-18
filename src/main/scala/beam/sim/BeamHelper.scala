@@ -300,7 +300,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     val gtfs = GTFSUtils.loadGTFS(beamConfig.beam.routing.r5.directory)
     val trainStopQuadTree = GTFSUtils.toQuadTree(GTFSUtils.trainStations(gtfs), new GeoUtilsImpl(beamConfig))
     val taz = beamConfig.beam.agentsim.taz
-    val tazMap = TAZTreeMap.getTazTreeMap(taz.filePath, beamConfig.beam.spatial.localCRS, Some(taz.tazIdFieldName))
+    val tazMap = TAZTreeMap.getTazTreeMap(taz.filePath, Some(taz.tazIdFieldName))
     tazMap.mapNetworkToTAZs(
       networkCoordinator.network,
       beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
@@ -319,7 +319,8 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
         networkCoordinator.transportNetwork.streetLayer,
         Some(networkCoordinator.network),
         vehicleTypes,
-        outputDirMaybe
+        outputDirMaybe,
+        Some(tazMap)
       )
 
     val fixedActivitiesDurationsFromConfig: Map[String, Double] = {
@@ -372,7 +373,8 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     streetLayer: StreetLayer,
     networkMaybe: Option[Network],
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
-    outputDirMaybe: Option[String]
+    outputDirMaybe: Option[String],
+    tazMapMaybe: Option[TAZTreeMap]
   ): (
     Map[Id[FreightCarrier], FreightCarrier], // goodCarriers
     Map[Id[FreightCarrier], FreightCarrier], // all carriers
@@ -383,7 +385,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
 
     if (freightConfig.enabled) {
       val geoUtils = new GeoUtilsImpl(beamConfig)
-      val freightReader = FreightReader(beamConfig, geoUtils, streetLayer, networkMaybe, outputDirMaybe)
+      val freightReader = FreightReader(beamConfig, geoUtils, streetLayer, networkMaybe, outputDirMaybe, tazMapMaybe)
 
       // Read tours and payload plans from files
       val tours = freightReader.readFreightTours()

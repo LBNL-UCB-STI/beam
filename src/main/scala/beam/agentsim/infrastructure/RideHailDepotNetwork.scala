@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.infrastructure.parking.{ParkingZone, ParkingZoneId}
-import beam.agentsim.infrastructure.taz.TAZTreeMap
+import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZTreeMap}
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import org.locationtech.jts.geom.Envelope
@@ -42,6 +42,7 @@ object RideHailDepotNetwork {
       override val searchFunctions: Option[InfrastructureFunctions] = Some(
         new RideHailDepotFunctions(
           tazTreeMap,
+          SearchQuadTree.getSearchQuadTree(beamServices),
           parkingZones,
           beamServices.geo.distUTMInMeters,
           searchDistancesConfig,

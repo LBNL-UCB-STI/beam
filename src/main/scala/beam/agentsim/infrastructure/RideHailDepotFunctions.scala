@@ -7,7 +7,7 @@ import beam.agentsim.infrastructure.RideHailDepotFunctions.mnlMultiplierParamete
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingZoneSearchResult
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode.CAR
 import beam.router.skim.Skims
 import beam.sim.config.BeamConfig
@@ -20,6 +20,7 @@ import scala.util.Random
 
 class RideHailDepotFunctions(
   tazTreeMap: TAZTreeMap,
+  searchQuadTree: SearchQuadTree,
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
   searchRadiusConfig: BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params,
@@ -34,6 +35,7 @@ class RideHailDepotFunctions(
   depotsMap: Map[Id[ParkingZoneId], ChargingStation]
 ) extends InfrastructureFunctions(
       tazTreeMap,
+      searchQuadTree,
       parkingZones,
       distanceFunction,
       searchRadiusConfig,
