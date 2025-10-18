@@ -169,7 +169,9 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         transportNetwork.streetLayer,
         travelTimeCalc,
         turnCostCalculatorTL.get(),
-        travelCostCalc
+        travelCostCalc,
+        5000,
+        20000
       )
     } else {
       stats.hits += 1
@@ -181,7 +183,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     // Log periodically
     val now = System.currentTimeMillis()
     val totalBorrows = stats.hits + stats.misses
-    if (totalBorrows % 1000 == 0 || (now - stats.lastLogTime) > 60000) {
+    if (totalBorrows % 10000 == 0 || (now - stats.lastLogTime) > 300000) {
       val hitRate = if (totalBorrows > 0) (stats.hits * 100.0 / totalBorrows) else 0.0
       val avgStatePoolSize =
         if (stats.statePoolSamples > 0)
@@ -643,7 +645,9 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           profileRequest.fromTime,
           costPerMile,
           costPerMinute
-        )
+        ),
+        0, // These are ephemeral routers that are GC'd immediately, so no need to keep a pool
+        0
       )
       if (vehicle.mode == BeamMode.BIKE) {
         streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
@@ -784,7 +788,9 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             profileRequest.fromTime,
             costPerMile,
             costPerMinute
-          )
+          ),
+          0, // These are ephemeral routers that are GC'd immediately, so no need to keep a pool
+          0
         )
         if (vehicle.mode == BeamMode.BIKE) {
           streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
