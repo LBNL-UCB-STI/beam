@@ -15,6 +15,7 @@ import beam.router.gtfs.FareCalculator.{filterFaresOnTransfers, BeamFareSegment}
 import beam.router.model.BeamLeg.dummyLeg
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model._
+import beam.router.r5.BikeLanesAdjustment.bikeLanesAdjustment
 import beam.router.skim.SkimsUtils.{getRideHailCost, getRideHailManagerCosts}
 import beam.router.{Modes, Router, RoutingWorker}
 import beam.sim.metrics.{Metrics, MetricsSupport}
@@ -26,6 +27,7 @@ import com.conveyal.r5.profile._
 import com.conveyal.r5.streets._
 import com.conveyal.r5.transit.TransitLayer
 import com.typesafe.scalalogging.StrictLogging
+import gnu.trove.map.hash.TLongByteHashMap
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.Vehicle
@@ -82,14 +84,16 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     )
   }.toMap
 
-  private lazy val precomputedRestrictions: Map[RoutingVehicleCategory, Map[Long, Boolean]] = {
+  private lazy val precomputedRestrictions: Map[RoutingVehicleCategory, TLongByteHashMap] = {
     val categories = RoutingVehicleCategory.values
     categories.map { category =>
-      val categoryRestrictions = osmIdToRoadRestriction.map { case (osmId, restrictions) =>
-        osmId -> restrictions.isRestricted(
+      val categoryRestrictions = new TLongByteHashMap()
+      osmIdToRoadRestriction.foreach { case (osmId, restrictions) =>
+        val isRestricted = restrictions.isRestricted(
           category,
           Double.MaxValue
         )
+        categoryRestrictions.put(osmId, if (isRestricted) 1.toByte else 0.toByte)
       }
       category -> categoryRestrictions
     }.toMap
@@ -99,7 +103,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     beamConfig.beam.routing.r5.linkRadiusMeters
 
   private val carWeightCalculator = new CarWeightCalculator(workerParams, travelTimeNoiseFraction)
-  private val bikeLanesAdjustment = BikeLanesAdjustment(beamConfig)
+  private val bikeScaleFactor = bikeLanesAdjustment(beamConfig)
 
   def embodyWithCurrentTravelTime(
     leg: BeamLeg,
@@ -1366,7 +1370,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
 
       if (streetMode == StreetMode.BICYCLE && shouldApplyBicycleScaleFactor) {
         //note we're not explicitly checking that it is a Bike VehicleType
-        minTravelTime * bikeLanesAdjustment.bikeScaleFactor(linkId)
+        minTravelTime * bikeScaleFactor.scaleFactor(linkId)
       } else if (streetMode == StreetMode.CAR) {
         carWeightCalculator.calcTravelTime(linkId, travelTime, maxSpeed, time, shouldAddNoise, edgeLength)
       } else {
@@ -1390,8 +1394,10 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     {
       val osmId = edge.getOSMID
       val category = RoutingVehicleCategory.fromCategory(vehicleType.vehicleCategory)
+      val categoryRestrictions = precomputedRestrictions.getOrElse(category, new TLongByteHashMap())
+      val isRestricted = categoryRestrictions.get(osmId) == 1.toByte
       val roadRestrictionWeightMultiplier: Float =
-        if (precomputedRestrictions.getOrElse(category, Map.empty).getOrElse(osmId, false)) {
+        if (isRestricted) {
           workerParams.beamConfig.beam.agentsim.agents.vehicles.roadRestrictionWeightMultiplier.toFloat
         } else {
           vehicleType.restrictRoadsByFreeSpeedInMeterPerSecond.map(maxSpeed =>
