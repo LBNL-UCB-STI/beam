@@ -13,7 +13,7 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ, TAZTreeMap}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
@@ -526,9 +526,10 @@ class ZonalParkingManagerSpec
       val zonesMap = ZonalParkingManager(
         parkingZones,
         tazMap,
+        searchQuadTree = SearchQuadTree.getSearchQuadTree(tazMap, beamConfig),
         geo.distUTMInMeters(_, _),
         boundingBox,
-        beamConfig.beam.agentsim.agents.parking.searchDistanceInMeters,
+        beamConfig.beam.agentsim.agents.parking.search.params,
         beamConfig.beam.agentsim.agents.parking.fractionOfSameTypeZones,
         beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
         randomSeed,
@@ -620,12 +621,14 @@ class ZonalParkingManagerSpec
 
 object ZonalParkingManagerSpec {
 
-  private val searchDistancesConfig = BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters(
-    freight = BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters.Freight(10.0, 200.0),
+  private val searchDistancesConfig = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params(
+    freight = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params.Freight(10.0, 200.0),
     passenger =
-      BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters.Passenger(1000.0, 16093.4), // meters, aka 10 miles
+      BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params.Passenger(1000.0, 16093.4), // meters, aka 10 miles
     searchDoubleParkingRadius = 100.0,
-    searchMaxDistanceRelativeToEllipseFoci = 4.0
+    searchMaxDistanceRelativeToEllipseFoci = 4.0,
+    enableLinkBasedSearch = false,
+    searchSampleSize = 500
   )
 
   def mockZonalParkingManager(

@@ -7,7 +7,7 @@ import beam.agentsim.infrastructure.RideHailDepotFunctions.mnlMultiplierParamete
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingZoneSearchResult
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode.CAR
 import beam.router.skim.Skims
 import beam.sim.config.BeamConfig
@@ -20,7 +20,6 @@ import scala.util.Random
 
 class RideHailDepotFunctions(
   tazTreeMap: TAZTreeMap,
-  searchQuadTree: SearchQuadTree,
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
   searchRadiusConfig: BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params,
@@ -32,10 +31,10 @@ class RideHailDepotFunctions(
   rideHailConfig: BeamConfig.Beam.Agentsim.Agents.RideHail,
   skims: Skims,
   estimatedMinParkingDurationInSeconds: Double,
-  depotsMap: Map[Id[ParkingZoneId], ChargingStation]
+  depotsMap: Map[Id[ParkingZoneId], ChargingStation],
+  scenarioCRS: String
 ) extends InfrastructureFunctions(
       tazTreeMap,
-      searchQuadTree,
       parkingZones,
       distanceFunction,
       searchRadiusConfig,
@@ -44,7 +43,8 @@ class RideHailDepotFunctions(
       fractionOfSameTypeZones,
       minNumberOfSameTypeZones,
       boundingBox,
-      seed
+      seed,
+      scenarioCRS
     ) {
 
   override protected val mnlMultiplierParameters: Map[ParkingMNL.Parameters, UtilityFunctionOperation] =

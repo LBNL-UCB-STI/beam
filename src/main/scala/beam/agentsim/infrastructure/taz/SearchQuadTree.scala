@@ -1,14 +1,15 @@
 package beam.agentsim.infrastructure.taz
 
-import beam.sim.BeamServices
+import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.config.BeamConfig
-import org.geotools.referencing.CRS
 import org.geotools.geometry.jts.JTS
+import org.geotools.referencing.CRS
 import org.locationtech.jts.geom.{Coordinate, GeometryFactory}
 import org.matsim.api.core.v01.network.Link
 import org.matsim.core.utils.collections.QuadTree
 import org.slf4j.LoggerFactory
 
+import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
@@ -22,7 +23,7 @@ import scala.collection.mutable
   *
   * @param scenarioCRS The EPSG code of the coordinate reference system (e.g., "EPSG:32610" for UTM Zone 10N)
   */
-abstract class SearchQuadTree(val scenarioCRS: String) {
+abstract class SearchQuadTree(val tazTreeMap: TAZTreeMap, val scenarioCRS: String) {
   import SearchQuadTree._
 
   private val logger = LoggerFactory.getLogger(this.getClass)
@@ -34,7 +35,8 @@ abstract class SearchQuadTree(val scenarioCRS: String) {
     * Determines the conversion factor from meters to the CRS's native units.
     * Most projected CRS use meters, but some (like US state plane) use feet.
     */
-  protected val metersToProjectedUnits: Double = {
+
+  val metersToProjectedUnits: Double = {
     try {
       val crs = CRS.decode(scenarioCRS)
       val unitString = crs.getCoordinateSystem.getAxis(0).getUnit.toString.toLowerCase
@@ -81,6 +83,8 @@ abstract class SearchQuadTree(val scenarioCRS: String) {
 
   // Validate CRS on initialization
   {
+    println(s"CRS: $scenarioCRS")
+    println(s"Meters to projected units factor: $metersToProjectedUnits")
     if (!SearchQuadTree.isProjectedCRS(scenarioCRS)) {
       logger.warn(
         s"""
@@ -95,6 +99,15 @@ abstract class SearchQuadTree(val scenarioCRS: String) {
     } else {
       logger.info(s"Using projected CRS: $scenarioCRS")
     }
+  }
+
+  def getBounds: QuadTree.Rect = {
+    new QuadTree.Rect(
+      tazTreeMap.tazQuadTree.getMinEasting,
+      tazTreeMap.tazQuadTree.getMinNorthing,
+      tazTreeMap.tazQuadTree.getMaxEasting,
+      tazTreeMap.tazQuadTree.getMaxNorthing
+    )
   }
 
   /**
@@ -168,6 +181,10 @@ abstract class SearchQuadTree(val scenarioCRS: String) {
     outerRadius: Double,
     sampleSize: Int
   ): SearchQuadTreeResults = {
+    println(
+      s"Converted radii: inner=${metersToProjectedDistance(innerRadius)}, outer=${metersToProjectedDistance(outerRadius)} projected units"
+    )
+
     // Check distortion on first use
     checkDistortionOnce(x, y)
 
@@ -248,7 +265,7 @@ object SearchQuadTree {
     tazToLinks: Option[Map[TAZ, QuadTree[Link]]]
   )
 
-  def getSearchQuadTree(tazTreeMap: TAZTreeMap, enableLinkBasedSearch: Boolean, scenarioCRS: String): SearchQuadTree = {
+  def getSearchQuadTree(tazTreeMap: TAZTreeMap, scenarioCRS: String, enableLinkBasedSearch: Boolean): SearchQuadTree = {
     if (enableLinkBasedSearch && tazTreeMap.linkQuadTree.isDefined) {
       SearchLinkQuadTree(tazTreeMap, scenarioCRS)
     } else {
@@ -259,21 +276,23 @@ object SearchQuadTree {
   def getSearchQuadTree(tazTreeMap: TAZTreeMap, beamConfig: BeamConfig): SearchQuadTree = {
     val scenarioCRS = beamConfig.beam.spatial.localCRS
     val enableLinkBasedSearch = beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
-    getSearchQuadTree(tazTreeMap, enableLinkBasedSearch, scenarioCRS)
+    getSearchQuadTree(tazTreeMap, scenarioCRS, enableLinkBasedSearch)
   }
 
-  def getSearchQuadTree(beamServices: BeamServices): SearchQuadTree = {
-    val scenarioCRS = beamServices.beamConfig.beam.spatial.localCRS
-    val enableLinkBasedSearch = beamServices.beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
-    getSearchQuadTree(beamServices.beamScenario.tazTreeMap, enableLinkBasedSearch, scenarioCRS)
+  def getSearchQuadTree(beamScenario: BeamScenario): SearchQuadTree = {
+    val scenarioCRS = beamScenario.beamConfig.beam.spatial.localCRS
+    val enableLinkBasedSearch = beamScenario.beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
+    getSearchQuadTree(beamScenario.tazTreeMap, scenarioCRS, enableLinkBasedSearch)
   }
+
+  def getSearchQuadTree(beamServices: BeamServices): SearchQuadTree = getSearchQuadTree(beamServices.beamScenario)
 
   /**
     * TAZ-based search implementation.
     * Searches directly in the TAZ QuadTree using projected coordinates.
     */
-  case class SearchTAZQuadTree(tazTreeMap: TAZTreeMap, override val scenarioCRS: String)
-      extends SearchQuadTree(scenarioCRS) {
+  case class SearchTAZQuadTree(override val tazTreeMap: TAZTreeMap, override val scenarioCRS: String)
+      extends SearchQuadTree(tazTreeMap, scenarioCRS) {
 
     override def getRingInternal(
       x: Double,
@@ -315,8 +334,8 @@ object SearchQuadTree {
     * Link-based search implementation.
     * Searches in the Link QuadTree and groups results by TAZ.
     */
-  case class SearchLinkQuadTree(tazTreeMap: TAZTreeMap, override val scenarioCRS: String)
-      extends SearchQuadTree(scenarioCRS) {
+  case class SearchLinkQuadTree(override val tazTreeMap: TAZTreeMap, override val scenarioCRS: String)
+      extends SearchQuadTree(tazTreeMap, scenarioCRS) {
 
     private def buildSearchResult(
       tazToLinks: mutable.HashMap[TAZ, mutable.ArrayBuffer[Link]]

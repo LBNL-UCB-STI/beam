@@ -1,16 +1,17 @@
 package beam.agentsim.infrastructure.parking
 
-import scala.util.Random
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
-import org.locationtech.jts.geom.{Coordinate, Geometry, GeometryFactory, PrecisionModel}
-import org.matsim.api.core.v01.network.{Link, NetworkFactory, Node}
+import org.locationtech.jts.geom.{Coordinate, GeometryFactory, PrecisionModel}
+import org.matsim.api.core.v01.network.{Link, Node}
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.network.{LinkFactory, NetworkUtils}
+import org.matsim.core.network.NetworkUtils
 import org.matsim.core.utils.collections.QuadTree
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.util.Random
 
 class ParkingStallSamplingTestSpec extends AnyWordSpec with Matchers {
   val trialsPerTest: Int = 100
@@ -19,7 +20,7 @@ class ParkingStallSamplingTestSpec extends AnyWordSpec with Matchers {
       "100% availability" should {
         "place parking stall as close as possible to agent location" in new ParkingStallSamplingTestSpec.SquareTAZWorld {
           val availabilityRatio: Double = 1.0
-          val result: Coord = ParkingStallSampling.linkBasedSampling(
+          val (result: Coord, _) = ParkingStallSampling.linkBasedSampling(
             random,
             agent,
             tazTreeMap.tazToLinkIdMapping.get(taz.tazId),
@@ -35,7 +36,7 @@ class ParkingStallSamplingTestSpec extends AnyWordSpec with Matchers {
         "place stall on the closest link most of the time" in new ParkingStallSamplingTestSpec.SquareTAZWorld {
           val availabilityRatio: Double = 0.8
           val distances = (1 to 100).map { x =>
-            val result: Coord = ParkingStallSampling.linkBasedSampling(
+            val (result: Coord, _) = ParkingStallSampling.linkBasedSampling(
               random,
               agent,
               tazTreeMap.tazToLinkIdMapping.get(taz.tazId),
@@ -60,7 +61,7 @@ class ParkingStallSamplingTestSpec extends AnyWordSpec with Matchers {
         "place stall farther away more often" in new ParkingStallSamplingTestSpec.SquareTAZWorld {
           val availabilityRatio: Double = 0.3
           val distances = (1 to 100).map { x =>
-            val result: Coord = ParkingStallSampling.linkBasedSampling(
+            val (result: Coord, _) = ParkingStallSampling.linkBasedSampling(
               random,
               agent,
               tazTreeMap.tazToLinkIdMapping.get(taz.tazId),
@@ -290,7 +291,7 @@ object ParkingStallSamplingTestSpec {
     tazQuadTree.put(geometry.getCentroid.getX, geometry.getCentroid.getY, taz)
     val tazTreeMap = new TAZTreeMap(tazQuadTree)
 
-    tazTreeMap.mapNetworkToTAZs(network)
+    tazTreeMap.mapNetworkToTAZs(network.getLinks.asScala.toMap)
 
     val agent: Coord = new Coord(100.0, 100.0)
 

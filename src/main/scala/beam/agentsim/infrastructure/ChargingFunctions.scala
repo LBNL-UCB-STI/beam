@@ -18,7 +18,6 @@ import org.matsim.core.utils.collections.QuadTree
 
 class ChargingFunctions(
   tazTreeMap: TAZTreeMap,
-  searchQuadTree: SearchQuadTree,
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
   parkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking,
@@ -28,7 +27,6 @@ class ChargingFunctions(
   fuelPrice: Map[FuelType, Double]
 ) extends ParkingFunctions(
       tazTreeMap,
-      searchQuadTree,
       parkingZones,
       distanceFunction,
       parkingConfig.search.params,

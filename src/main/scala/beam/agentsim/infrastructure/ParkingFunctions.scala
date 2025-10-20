@@ -9,19 +9,18 @@ import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, Parking
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.VehicleRestrictionKey
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Parking
 import org.locationtech.jts.geom.Envelope
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
 import scala.util.Random
 
 class ParkingFunctions(
   tazTreeMap: TAZTreeMap,
-  searchQuadTree: SearchQuadTree,
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
   searchRadiusConfig: BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params,
@@ -31,10 +30,10 @@ class ParkingFunctions(
   minNumberOfSameTypeZones: Int,
   boundingBox: Envelope,
   seed: Int,
-  mnlParkingConfig: Parking.MultinomialLogit
+  mnlParkingConfig: Parking.MultinomialLogit,
+  scenarioCRS: String
 ) extends InfrastructureFunctions(
       tazTreeMap,
-      searchQuadTree,
       parkingZones,
       distanceFunction,
       searchRadiusConfig,
@@ -43,7 +42,8 @@ class ParkingFunctions(
       fractionOfSameTypeZones,
       minNumberOfSameTypeZones,
       boundingBox,
-      seed
+      seed,
+      scenarioCRS
     ) {
 
   override protected val mnlMultiplierParameters: Map[ParkingMNL.Parameters, UtilityFunctionOperation] = Map(

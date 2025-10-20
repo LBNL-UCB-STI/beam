@@ -354,6 +354,7 @@ object ParkingZoneSearch {
   object SearchMode {
 
     case class DestinationSearch(
+      params: ParkingZoneSearchParams,
       destinationUTM: Location,
       searchStartRadius: Double,
       searchMaxRadius: Double,
@@ -363,19 +364,63 @@ object ParkingZoneSearch {
       private var thisInnerRadius: Double = 0.0
       private var thisOuterRadius: Double = searchStartRadius
 
+      // Add this flag to only check once
+      private var densityChecked = false
+
       override def lookupParkingZonesInNextSearchAreaUnlessThresholdReached(
         searchQuadTree: SearchQuadTree
       ): Option[SearchQuadTree.SearchQuadTreeResults] = {
+
+        // Add TAZ density check here - only on first call
+        if (!densityChecked && params.vehicleUse == Freight) {
+          densityChecked = true
+
+          searchQuadTree match {
+            case tazSearch: SearchQuadTree.SearchTAZQuadTree =>
+              val tazQuadTree = tazSearch.tazTreeMap.tazQuadTree
+              val allTAZs = tazQuadTree.values()
+              println(s"Total TAZs in QuadTree: ${allTAZs.size()}")
+
+              // Find nearest TAZ
+              val nearestTAZ = tazQuadTree.getClosest(destinationUTM.getX, destinationUTM.getY)
+              if (nearestTAZ != null) {
+                // Assuming TAZ has a coord property - adjust based on your TAZ class
+                val distance = math.sqrt(
+                  math.pow(nearestTAZ.coord.getX - destinationUTM.getX, 2) +
+                  math.pow(nearestTAZ.coord.getY - destinationUTM.getY, 2)
+                )
+                println(s"Nearest TAZ is ${distance} projected units away")
+                println(s"That's ${distance / tazSearch.metersToProjectedUnits} meters")
+              }
+
+            case linkSearch: SearchQuadTree.SearchLinkQuadTree =>
+              println("Using link-based search, checking link density...")
+              val linkQuadTree = linkSearch.tazTreeMap.linkQuadTree.get
+              val nearestLink = linkQuadTree.getClosest(destinationUTM.getX, destinationUTM.getY)
+              if (nearestLink != null) {
+                val distance = math.sqrt(
+                  math.pow(nearestLink.getCoord.getX - destinationUTM.getX, 2) +
+                  math.pow(nearestLink.getCoord.getY - destinationUTM.getY, 2)
+                )
+                println(s"Nearest link is ${distance} projected units away")
+                println(s"That's ${distance / linkSearch.metersToProjectedUnits} meters")
+              }
+          }
+        }
+
+        // Rest of your existing code
         if (thisInnerRadius > searchMaxRadius) None
         else {
-          val result =
-            searchQuadTree.getRing(
-              destinationUTM.getX,
-              destinationUTM.getY,
-              thisInnerRadius,
-              thisOuterRadius,
-              sampleSize
-            )
+          val result = searchQuadTree.getRing(
+            destinationUTM.getX,
+            destinationUTM.getY,
+            thisInnerRadius,
+            thisOuterRadius,
+            sampleSize
+          )
+          if (result.zones.isEmpty && params.vehicleUse == Freight) {
+            println("Gotcha!")
+          }
           thisInnerRadius = thisOuterRadius
           thisOuterRadius = thisOuterRadius * expansionFactor
           Some(result)
@@ -451,6 +496,7 @@ object ParkingZoneSearch {
               (minRadius, maxRadius)
           }
           DestinationSearch(
+            params,
             params.destinationUTM,
             startRadius,
             searchMaxRadius,

@@ -1,6 +1,7 @@
 package beam.agentsim.infrastructure.taz
 
 import beam.agentsim.infrastructure.taz.TAZTreeMap.logger
+import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz.TazMapping
 import beam.utils.SnapCoordinateUtils.SnapLocationHelper
@@ -10,7 +11,7 @@ import beam.utils.matsim_conversion.ShapeUtils.{HasQuadBounds, QuadTreeBounds}
 import beam.utils.{FileUtils, SortingUtil}
 import org.locationtech.jts.geom.Geometry
 import org.matsim.api.core.v01.events.Event
-import org.matsim.api.core.v01.network.{Link, Network}
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
@@ -55,8 +56,9 @@ class TAZTreeMap(
     mutable.HashMap.empty[Id[TAZ], QuadTree[Link]]
 
   // adding this as an alternative to tazQuadTree: QuadTree[TAZ]
-  // it should be activated with TODO TBD
+  // it should be activated with beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
   var linkQuadTree: Option[QuadTree[Link]] = None
+  var searchQuadTree: Option[SearchQuadTree] = None
 
   private val unmatchedLinkIds: mutable.ListBuffer[Id[Link]] = mutable.ListBuffer.empty[Id[Link]]
   lazy val tazListContainsGeoms: Boolean = tazQuadTree.values().asScala.headOption.exists(_.geometry.isDefined)
@@ -170,10 +172,14 @@ class TAZTreeMap(
     failedLinkLookups.clear()
   }
 
-  def mapNetworkToTAZs(network: Network, buildLinkQuadTree: Boolean = false): Unit = {
+  private def mapNetworkToTAZs(
+    links: Map[Id[Link], Link],
+    scenarioCRS: String,
+    enableLinkBasedSearch: Boolean
+  ): Unit = {
     if (tazListContainsGeoms) {
       // Initialize the global link quad tree
-      if (buildLinkQuadTree) {
+      if (enableLinkBasedSearch) {
         linkQuadTree = Some(
           new QuadTree[Link](
             tazQuadTree.getMinEasting,
@@ -184,6 +190,8 @@ class TAZTreeMap(
         )
       }
 
+      searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(this, scenarioCRS, enableLinkBasedSearch))
+
       idToTAZMapping.keySet.foreach { id =>
         tazToLinkIdMapping(id) = new QuadTree[Link](
           tazQuadTree.getMinEasting,
@@ -193,7 +201,7 @@ class TAZTreeMap(
         )
       }
 
-      network.getLinks.asScala.foreach {
+      links.foreach {
         case (id, link) =>
           val linkEndCoord = link.getToNode.getCoord
           val linkMidpoint = new Coord(
@@ -248,6 +256,16 @@ class TAZTreeMap(
       logger.info(s"Created linkQuadTree with ${linkQuadTree.map(_.size()).getOrElse(0)} links")
       logger.debug(s"Mapping of links to TAZs: $linksToTazMapping")
     }
+  }
+
+  def apply(
+    tazTreeMap: TAZTreeMap,
+    links: Map[Id[Link], Link],
+    scenarioCRS: String,
+    enableLinkBasedSearch: Boolean
+  ): TAZTreeMap = {
+    tazTreeMap.mapNetworkToTAZs(links, scenarioCRS, enableLinkBasedSearch)
+    tazTreeMap
   }
 }
 
@@ -468,13 +486,36 @@ object TAZTreeMap {
     maybeTaz2Map
   }
 
-  def getTazTreeMap(filePath: String, tazIDFieldName: Option[String] = None): TAZTreeMap = {
+  def getTazTreeMap(
+    filePath: String,
+    scenarioCRS: String,
+    tazIDFieldName: Option[String],
+    beamScenario: BeamScenario
+  ): TAZTreeMap =
+    getTazTreeMap(
+      filePath,
+      scenarioCRS,
+      tazIDFieldName,
+      beamScenario.network.getLinks,
+      beamScenario.beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
+    )
+
+  def getTazTreeMap(
+    filePath: String,
+    scenarioCRS: String,
+    tazIDFieldName: Option[String] = None,
+    links: java.util.Map[Id[Link], _ <: Link] = new java.util.HashMap[Id[Link], Link](),
+    enableLinkBasedSearch: Boolean = false
+  ): TAZTreeMap = {
     try {
-      if (filePath.endsWith(".shp") || filePath.endsWith(".geojson")) {
+      val tazTreeMap = if (filePath.endsWith(".shp") || filePath.endsWith(".geojson")) {
         TAZTreeMap.fromGeoFile(filePath, tazIDFieldName.get)
       } else {
         TAZTreeMap.fromCsv(filePath)
       }
+      if (!links.isEmpty)
+        tazTreeMap.mapNetworkToTAZs(links.asScala.toMap, scenarioCRS, enableLinkBasedSearch)
+      tazTreeMap
     } catch {
       case fe: FileNotFoundException =>
         logger.error("No TAZ file found at given file path (using defaultTazTreeMap): %s" format filePath, fe)

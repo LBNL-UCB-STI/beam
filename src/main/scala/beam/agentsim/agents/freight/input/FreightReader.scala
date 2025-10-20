@@ -14,7 +14,7 @@ import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
 import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import com.conveyal.r5.streets.StreetLayer
-import org.matsim.api.core.v01.network.Network
+import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.PopulationUtils
@@ -261,7 +261,11 @@ object FreightReader {
     val tazMap = tazTreeMapMaybe.getOrElse {
       TAZTreeMap.getTazTreeMap(
         beamConfig.beam.agentsim.taz.filePath,
-        Some(beamConfig.beam.agentsim.taz.tazIdFieldName)
+        Some(beamConfig.beam.agentsim.taz.tazIdFieldName),
+        network
+          .map(_.getLinks)
+          .getOrElse(new java.util.HashMap[Id[Link], Link]()),
+        beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
       )
     }
     apply(beamConfig, geoUtils, streetLayer, network, tazMap, outputDirMaybe)

@@ -8,9 +8,8 @@ import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
-import beam.agentsim.infrastructure.RideHailDepotNetwork.{SearchMaxRadius, SearchStartRadius}
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ, TAZTreeMap}
 import beam.sim.BeamHelper
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.BeamConfig
@@ -55,11 +54,13 @@ class HierarchicalParkingManagerSpec
   val beamConfig: BeamConfig = BeamConfig(system.settings.config)
   val geo = new GeoUtilsImpl(beamConfig)
 
-  private val searchDistancesConfig = BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters(
-    freight = BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters.Freight(10.0, 200.0),
-    passenger = BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters.Passenger(250.0, 8000.0),
+  private val searchDistancesConfig = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params(
+    freight = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params.Freight(10.0, 200.0),
+    passenger = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params.Passenger(250.0, 8000.0),
     searchDoubleParkingRadius = 0,
-    searchMaxDistanceRelativeToEllipseFoci = 4.0
+    searchMaxDistanceRelativeToEllipseFoci = 4.0,
+    enableLinkBasedSearch = false,
+    searchSampleSize = 500
   )
 
   describe("HierarchicalParkingManager with no parking") {
@@ -77,6 +78,7 @@ class HierarchicalParkingManagerSpec
         parkingManager = HierarchicalParkingManager.init(
           Map.empty[Id[ParkingZoneId], ParkingZone],
           tazTreeMap,
+          searchQuadTree = SearchQuadTree.getSearchQuadTree(tazTreeMap, beamConfig),
           geo.distUTMInMeters,
           searchDistancesConfig,
           boundingBox,
@@ -110,6 +112,7 @@ class HierarchicalParkingManagerSpec
       val parkingManager = HierarchicalParkingManager.init(
         Map.empty[Id[ParkingZoneId], ParkingZone],
         tazTreeMap,
+        searchQuadTree = SearchQuadTree.getSearchQuadTree(tazTreeMap, beamConfig),
         geo.distUTMInMeters,
         searchDistancesConfig,
         boundingBox,
@@ -161,6 +164,7 @@ class HierarchicalParkingManagerSpec
         parkingManager = HierarchicalParkingManager.init(
           parking.zones.toMap,
           tazTreeMap,
+          searchQuadTree = SearchQuadTree.getSearchQuadTree(tazTreeMap, beamConfig),
           geo.distUTMInMeters,
           searchDistancesConfig,
           boundingBox,
@@ -232,6 +236,7 @@ class HierarchicalParkingManagerSpec
         parkingManager = HierarchicalParkingManager.init(
           parking.zones.toMap,
           tazTreeMap,
+          searchQuadTree = SearchQuadTree.getSearchQuadTree(tazTreeMap, beamConfig),
           geo.distUTMInMeters,
           searchDistancesConfig,
           boundingBox,
@@ -316,6 +321,7 @@ class HierarchicalParkingManagerSpec
         parkingManager = HierarchicalParkingManager.init(
           parking.zones.toMap,
           tazTreeMap,
+          searchQuadTree = SearchQuadTree.getSearchQuadTree(tazTreeMap, beamConfig),
           geo.distUTMInMeters,
           searchDistancesConfig,
           boundingBox,
@@ -364,6 +370,7 @@ class HierarchicalParkingManagerSpec
       val zpm = HierarchicalParkingManager.init(
         stalls,
         scenario.tazTreeMap,
+        searchQuadTree = SearchQuadTree.getSearchQuadTree(scenario),
         geo.distUTMInMeters,
         searchDistancesConfig,
         boundingBox,

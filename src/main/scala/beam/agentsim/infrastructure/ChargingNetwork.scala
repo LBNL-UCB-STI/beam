@@ -154,7 +154,6 @@ object ChargingNetwork extends LazyLogging {
       override val searchFunctions: Option[InfrastructureFunctions] = Some(
         new ChargingFunctions(
           tazTreeMap,
-          searchQuadTree,
           chargingZones,
           distanceFunction,
           beamConfig.beam.agentsim.agents.parking,
