@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
@@ -31,7 +31,6 @@ object ZonalParkingManager extends LazyLogging {
   def apply(
     parkingZones: Map[Id[ParkingZoneId], ParkingZone],
     tazTreeMap: TAZTreeMap,
-    searchQuadTree: SearchQuadTree,
     distanceFunction: (Coord, Coord) => Double,
     boundingBox: Envelope,
     searchRadiusConfig: BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params,
@@ -45,7 +44,6 @@ object ZonalParkingManager extends LazyLogging {
       override val searchFunctions: Option[InfrastructureFunctions] = Some(
         new ParkingFunctions(
           tazTreeMap,
-          searchQuadTree,
           parkingZones,
           distanceFunction,
           searchRadiusConfig,
@@ -76,7 +74,6 @@ object ZonalParkingManager extends LazyLogging {
     ZonalParkingManager(
       parkingZones,
       TAZTreeMap,
-      SearchQuadTree.getSearchQuadTree(TAZTreeMap, beamConfig),
       distanceFunction,
       envelopeInUTM,
       beamConfig.beam.agentsim.agents.parking.search.params,
@@ -114,7 +111,6 @@ object ZonalParkingManager extends LazyLogging {
     ZonalParkingManager(
       parking.zones.filter(_._2.chargingPointType.isEmpty).toMap,
       TAZTreeMap,
-      SearchQuadTree.getSearchQuadTree(TAZTreeMap, beamConfig),
       distanceFunction,
       boundingBox,
       searchRadiusConfig,

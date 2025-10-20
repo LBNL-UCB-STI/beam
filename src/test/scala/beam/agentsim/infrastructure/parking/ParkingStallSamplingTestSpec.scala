@@ -289,9 +289,13 @@ object ParkingStallSamplingTestSpec {
 
     val tazQuadTree = new QuadTree[TAZ](0.0, 0.0, 500.0, 500.0)
     tazQuadTree.put(geometry.getCentroid.getX, geometry.getCentroid.getY, taz)
-    val tazTreeMap = new TAZTreeMap(tazQuadTree)
 
-    tazTreeMap.mapNetworkToTAZs(network.getLinks.asScala.toMap)
+    val tazTreeMap = new TAZTreeMap(tazQuadTree)
+    tazTreeMap.mapNetworkToTAZs(
+      network.getLinks.asScala.toMap,
+      scenarioCRS = "EPSG:4326",
+      enableLinkBasedSearch = false
+    )
 
     val agent: Coord = new Coord(100.0, 100.0)
 

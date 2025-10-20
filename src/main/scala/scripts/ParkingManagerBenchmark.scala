@@ -5,7 +5,7 @@ import akka.util.Timeout
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure._
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.csv.CsvWriter
@@ -142,7 +142,7 @@ object ParkingManagerBenchmark extends StrictLogging {
       val scenario = readScenario(pathToPlans)
       logger.info(s"scenario contains ${scenario.getPopulation.getPersons.size()} people")
 
-      val tazTreeMap = TAZTreeMap.fromCsv(pathToTAZ)
+      val tazTreeMap = TAZTreeMap(pathToTAZ)
       logger.info(s"TAZTreeMap size: ${tazTreeMap.getTAZs.size}")
 
       val network = NetworkUtilsExtensions.readNetwork(pathToNetwork)
@@ -193,7 +193,6 @@ object ParkingManagerBenchmark extends StrictLogging {
             val parkingNetwork = HierarchicalParkingManager.init(
               zones,
               tazTreeMap,
-              SearchQuadTree.getSearchQuadTree(tazTreeMap, beamConfig),
               geoUtils.distUTMInMeters,
               beamConfig.beam.agentsim.agents.parking.search.params,
               boundingBox,

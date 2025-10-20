@@ -30,8 +30,7 @@ class ParkingFunctions(
   minNumberOfSameTypeZones: Int,
   boundingBox: Envelope,
   seed: Int,
-  mnlParkingConfig: Parking.MultinomialLogit,
-  scenarioCRS: String
+  mnlParkingConfig: Parking.MultinomialLogit
 ) extends InfrastructureFunctions(
       tazTreeMap,
       parkingZones,
@@ -42,8 +41,7 @@ class ParkingFunctions(
       fractionOfSameTypeZones,
       minNumberOfSameTypeZones,
       boundingBox,
-      seed,
-      scenarioCRS
+      seed
     ) {
 
   override protected val mnlMultiplierParameters: Map[ParkingMNL.Parameters, UtilityFunctionOperation] = Map(

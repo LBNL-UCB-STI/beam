@@ -259,8 +259,9 @@ object FreightReader {
     tazTreeMapMaybe: Option[TAZTreeMap]
   ): FreightReader = {
     val tazMap = tazTreeMapMaybe.getOrElse {
-      TAZTreeMap.getTazTreeMap(
+      TAZTreeMap(
         beamConfig.beam.agentsim.taz.filePath,
+        beamConfig.beam.spatial.localCRS,
         Some(beamConfig.beam.agentsim.taz.tazIdFieldName),
         network
           .map(_.getLinks)

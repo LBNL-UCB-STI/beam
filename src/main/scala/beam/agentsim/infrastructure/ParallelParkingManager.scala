@@ -3,7 +3,7 @@ package beam.agentsim.infrastructure
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.infrastructure.ParallelParkingManager.{geometryFactory, ParkingCluster, Worker}
 import beam.agentsim.infrastructure.parking.{ParkingNetwork, ParkingZone, ParkingZoneId}
-import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils.toJtsCoordinate
 import beam.sim.config.BeamConfig
 import beam.utils.metrics.SimpleCounter
@@ -36,7 +36,6 @@ class ParallelParkingManager(
   distanceFunction: (Coord, Coord) => Double,
   boundingBox: Envelope,
   searchRadiusConfig: BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params,
-  scenarioCRS: String,
   fractionOfSameTypeZones: Double,
   minNumberOfSameTypeZones: Int,
   seed: Int,
@@ -64,11 +63,10 @@ class ParallelParkingManager(
     mapTazToWorker(workers) + (TAZ.EmergencyTAZId -> emergencyWorker) + (TAZ.DefaultTAZId -> emergencyWorker)
 
   protected def createWorker(cluster: ParkingCluster): Worker = {
-    val subTazTreeMap = TAZTreeMap.fromSeq(cluster.tazes)
+    val subTazTreeMap = TAZTreeMap(cluster.tazes)
     val parkingNetwork = ZonalParkingManager(
       parkingZones,
       subTazTreeMap,
-      SearchQuadTree.getSearchQuadTree(subTazTreeMap, searchRadiusConfig.enableLinkBasedSearch, scenarioCRS),
       distanceFunction,
       boundingBox,
       searchRadiusConfig,
@@ -175,7 +173,6 @@ object ParallelParkingManager extends LazyLogging {
       distanceFunction,
       boundingBox,
       beamConfig.beam.agentsim.agents.parking.search.params,
-      beamConfig.beam.spatial.localCRS,
       beamConfig.beam.agentsim.agents.parking.fractionOfSameTypeZones,
       beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
       seed,

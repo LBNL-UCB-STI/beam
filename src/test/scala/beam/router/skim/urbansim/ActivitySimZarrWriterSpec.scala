@@ -1,7 +1,7 @@
 package beam.router.skim.urbansim
 
 import beam.agentsim.infrastructure.taz.TAZTreeMap
-import beam.router.skim.ActivitySimPathType.{DRV_COM_WLK, DRV_LOC_WLK, TNC_SINGLE, WLK_LOC_WLK, WLK_LRF_WLK}
+import beam.router.skim.ActivitySimPathType.{DRV_COM_WLK, WLK_LOC_WLK}
 import beam.router.skim.ActivitySimSkimmer.ExcerptData
 import com.bc.zarr.ZarrGroup
 import com.bc.zarr.storage.FileSystemStore
@@ -9,14 +9,12 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
 import java.nio.file.Paths
-import java.util
-import scala.collection.immutable.SortedSet
 import scala.jdk.CollectionConverters.asScalaBufferConverter
 
 class ActivitySimZarrWriterSpec extends AnyWordSpecLike with Matchers {
   "ActivitySimZarrWriter" should {
     "write all activitysim skims to a zarr directory" in {
-      val tazMap = TAZTreeMap.getTazTreeMap("test/input/sf-light/taz-centers.csv")
+      val tazMap = TAZTreeMap("test/input/sf-light/taz-centers.csv")
       val geoUnits = tazMap.orderedTazIds
       val TOTIVT_test = math.Pi // Choose an arbitrary non-integer value for testing
       val excerptData = IndexedSeq(

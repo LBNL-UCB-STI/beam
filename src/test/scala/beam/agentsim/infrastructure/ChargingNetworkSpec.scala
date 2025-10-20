@@ -13,7 +13,7 @@ import beam.agentsim.infrastructure.charging.ChargingPointType.CustomChargingPoi
 import beam.agentsim.infrastructure.charging.ElectricCurrentType
 import beam.agentsim.infrastructure.parking.PricingModel.FlatFee
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, ParkingZoneId}
-import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.skim.SkimsUtils
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.BeamConfig
@@ -512,7 +512,6 @@ object ChargingNetworkSpec {
     ChargingNetwork(
       parkingDescription,
       tazTreeMap,
-      SearchQuadTree.getSearchQuadTree(tazTreeMap,beamConfig),
       boundingBox,
       beamConfig,
       None,

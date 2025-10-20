@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure.taz
 
-import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.config.BeamConfig
+import beam.sim.{BeamScenario, BeamServices}
 import org.geotools.geometry.jts.JTS
 import org.geotools.referencing.CRS
 import org.locationtech.jts.geom.{Coordinate, GeometryFactory}
@@ -9,7 +9,6 @@ import org.matsim.api.core.v01.network.Link
 import org.matsim.core.utils.collections.QuadTree
 import org.slf4j.LoggerFactory
 
-import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
@@ -357,7 +356,7 @@ object SearchQuadTree {
         // Build quad trees for each TAZ
         val tazToLinksQuadTree = tazToLinks.par
           .map { case (tazId, links) =>
-            tazId -> TAZTreeMap.fromLinks(links)
+            tazId -> TAZTreeMap(links)
           }
           .seq
           .toMap

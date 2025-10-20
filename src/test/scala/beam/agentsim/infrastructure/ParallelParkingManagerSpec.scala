@@ -313,7 +313,7 @@ class ParallelParkingManagerSpec
 
   describe("ParallelParkingManager with loaded common data") {
     it("should return the correct stall") {
-      val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
+      val tazMap = taz.TAZTreeMap("test/input/beamville/taz-centers.csv")
       val stalls = InfrastructureUtils.loadStalls(
         "test/input/beamville/parking/taz-parking.csv",
         IndexedSeq.empty,

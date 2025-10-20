@@ -78,7 +78,6 @@ class HierarchicalParkingManagerSpec
         parkingManager = HierarchicalParkingManager.init(
           Map.empty[Id[ParkingZoneId], ParkingZone],
           tazTreeMap,
-          searchQuadTree = SearchQuadTree.getSearchQuadTree(tazTreeMap, beamConfig),
           geo.distUTMInMeters,
           searchDistancesConfig,
           boundingBox,
@@ -112,7 +111,6 @@ class HierarchicalParkingManagerSpec
       val parkingManager = HierarchicalParkingManager.init(
         Map.empty[Id[ParkingZoneId], ParkingZone],
         tazTreeMap,
-        searchQuadTree = SearchQuadTree.getSearchQuadTree(tazTreeMap, beamConfig),
         geo.distUTMInMeters,
         searchDistancesConfig,
         boundingBox,
@@ -164,7 +162,6 @@ class HierarchicalParkingManagerSpec
         parkingManager = HierarchicalParkingManager.init(
           parking.zones.toMap,
           tazTreeMap,
-          searchQuadTree = SearchQuadTree.getSearchQuadTree(tazTreeMap, beamConfig),
           geo.distUTMInMeters,
           searchDistancesConfig,
           boundingBox,
@@ -236,7 +233,6 @@ class HierarchicalParkingManagerSpec
         parkingManager = HierarchicalParkingManager.init(
           parking.zones.toMap,
           tazTreeMap,
-          searchQuadTree = SearchQuadTree.getSearchQuadTree(tazTreeMap, beamConfig),
           geo.distUTMInMeters,
           searchDistancesConfig,
           boundingBox,
@@ -321,7 +317,6 @@ class HierarchicalParkingManagerSpec
         parkingManager = HierarchicalParkingManager.init(
           parking.zones.toMap,
           tazTreeMap,
-          searchQuadTree = SearchQuadTree.getSearchQuadTree(tazTreeMap, beamConfig),
           geo.distUTMInMeters,
           searchDistancesConfig,
           boundingBox,
@@ -370,7 +365,6 @@ class HierarchicalParkingManagerSpec
       val zpm = HierarchicalParkingManager.init(
         stalls,
         scenario.tazTreeMap,
-        searchQuadTree = SearchQuadTree.getSearchQuadTree(scenario),
         geo.distUTMInMeters,
         searchDistancesConfig,
         boundingBox,

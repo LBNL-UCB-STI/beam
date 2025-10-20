@@ -13,7 +13,7 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
@@ -359,7 +359,7 @@ class ZonalParkingManagerSpec
 
       Using.resource(Source.fromFile("test/input/beamville/parking/taz-parking.csv")) { source =>
         val parkingDescription: Iterator[String] = source.getLines()
-        val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
+        val tazMap = taz.TAZTreeMap("test/input/beamville/taz-centers.csv")
         val zpm = ZonalParkingManager(
           parkingDescription,
           tazMap,
@@ -425,7 +425,7 @@ class ZonalParkingManagerSpec
           |4,Public,Block,NoCharger,20,0,Class456Vocational|0-17:30;Car|17:31-23:59,,b""".stripMargin
           .split("\n")
           .toIterator
-      val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
+      val tazMap = taz.TAZTreeMap("test/input/beamville/taz-centers.csv")
       val zpm = ZonalParkingManager(
         parkingDescription,
         tazMap,
@@ -460,7 +460,7 @@ class ZonalParkingManagerSpec
           |4,Public,Block,NoCharger,1,0,,,b""".stripMargin
           .split("\n")
           .toIterator
-      val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
+      val tazMap = taz.TAZTreeMap("test/input/beamville/taz-centers.csv")
       val zpm = ZonalParkingManager(
         parkingDescription,
         tazMap,
@@ -500,7 +500,7 @@ class ZonalParkingManagerSpec
 
       val sharedFleet1 = VehicleManager.createOrGetReservedFor("shared-fleet-1", Some(VehicleManager.TypeEnum.Shared))
       val sharedFleet2 = VehicleManager.createOrGetReservedFor("shared-fleet-2", Some(VehicleManager.TypeEnum.Shared))
-      val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
+      val tazMap = taz.TAZTreeMap("test/input/beamville/taz-centers.csv")
       val stalls = InfrastructureUtils.loadStalls(
         "test/test-resources/beam/agentsim/infrastructure/taz-parking.csv",
         IndexedSeq(
@@ -526,7 +526,6 @@ class ZonalParkingManagerSpec
       val zonesMap = ZonalParkingManager(
         parkingZones,
         tazMap,
-        searchQuadTree = SearchQuadTree.getSearchQuadTree(tazMap, beamConfig),
         geo.distUTMInMeters(_, _),
         boundingBox,
         beamConfig.beam.agentsim.agents.parking.search.params,

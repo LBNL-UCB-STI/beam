@@ -58,7 +58,7 @@ class TAZTreeMap(
   // adding this as an alternative to tazQuadTree: QuadTree[TAZ]
   // it should be activated with beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
   var linkQuadTree: Option[QuadTree[Link]] = None
-  var searchQuadTree: Option[SearchQuadTree] = None
+  var searchQuadTree: SearchQuadTree = _
 
   private val unmatchedLinkIds: mutable.ListBuffer[Id[Link]] = mutable.ListBuffer.empty[Id[Link]]
   lazy val tazListContainsGeoms: Boolean = tazQuadTree.values().asScala.headOption.exists(_.geometry.isDefined)
@@ -172,7 +172,7 @@ class TAZTreeMap(
     failedLinkLookups.clear()
   }
 
-  private def mapNetworkToTAZs(
+  def mapNetworkToTAZs(
     links: Map[Id[Link], Link],
     scenarioCRS: String,
     enableLinkBasedSearch: Boolean
@@ -190,7 +190,7 @@ class TAZTreeMap(
         )
       }
 
-      searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(this, scenarioCRS, enableLinkBasedSearch))
+      searchQuadTree = SearchQuadTree.getSearchQuadTree(this, scenarioCRS, enableLinkBasedSearch)
 
       idToTAZMapping.keySet.foreach { id =>
         tazToLinkIdMapping(id) = new QuadTree[Link](
@@ -276,10 +276,219 @@ object TAZTreeMap {
   val emptyTAZId: Id[TAZ] = Id.create("NA", classOf[TAZ])
   private val mapBoundingBoxBufferMeters: Double = 2e4 // Some links also extend beyond the convex hull of the TAZs
 
-  private def fromGeoFile(shapeFilePath: String, tazIDFieldName: String): TAZTreeMap = {
+  // ===== Apply Factory Methods =====
+
+  /**
+    * Create TAZTreeMap from a geofile (shapefile or geojson) with field name
+    */
+  def apply(shapeFilePath: String, tazIDFieldName: String): TAZTreeMap = {
     val (quadTree, mapping) = initQuadTreeFromFile(shapeFilePath, tazIDFieldName)
     new TAZTreeMap(quadTree, maybeZoneOrdering = Some(mapping))
   }
+
+  /**
+    * Create TAZTreeMap from a CSV file path
+    */
+  def apply(csvFile: String): TAZTreeMap = {
+    val lines: Seq[CsvTaz] = CsvTaz.readCsvFile(csvFile)
+    val quadTreeBounds: QuadTreeBounds = quadTreeExtentFromCsvFile(lines)
+    val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](
+      quadTreeBounds.minx - mapBoundingBoxBufferMeters,
+      quadTreeBounds.miny - mapBoundingBoxBufferMeters,
+      quadTreeBounds.maxx + mapBoundingBoxBufferMeters,
+      quadTreeBounds.maxy + mapBoundingBoxBufferMeters
+    )
+
+    for (l <- lines) {
+      val taz = new TAZ(l.id, new Coord(l.coordX, l.coordY), l.area, county = Some(l.county))
+      tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
+    }
+
+    new TAZTreeMap(tazQuadTree)
+  }
+
+  /**
+    * Create TAZTreeMap from a sequence of TAZ objects
+    */
+  def apply(tazes: Seq[TAZ]): TAZTreeMap = {
+    val quadTreeBounds: QuadTreeBounds = quadTreeExtentFromList(tazes)
+    val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](
+      quadTreeBounds.minx - mapBoundingBoxBufferMeters,
+      quadTreeBounds.miny - mapBoundingBoxBufferMeters,
+      quadTreeBounds.maxx + mapBoundingBoxBufferMeters,
+      quadTreeBounds.maxy + mapBoundingBoxBufferMeters
+    )
+
+    for (taz <- tazes) {
+      tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
+    }
+
+    new TAZTreeMap(tazQuadTree)
+  }
+
+  /**
+    * Create TAZTreeMap from a file path with optional link mapping
+    */
+  def apply(
+    filePath: String,
+    scenarioCRS: String,
+    tazIDFieldName: Option[String] = None,
+    links: java.util.Map[Id[Link], _ <: Link] = new java.util.HashMap[Id[Link], Link](),
+    enableLinkBasedSearch: Boolean = false
+  ): TAZTreeMap = {
+    try {
+      val tazTreeMap = if (filePath.endsWith(".shp") || filePath.endsWith(".geojson")) {
+        apply(filePath, tazIDFieldName.get)
+      } else {
+        apply(filePath)
+      }
+      if (!links.isEmpty)
+        tazTreeMap.mapNetworkToTAZs(links.asScala.toMap, scenarioCRS, enableLinkBasedSearch)
+      tazTreeMap
+    } catch {
+      case fe: FileNotFoundException =>
+        logger.error("No TAZ file found at given file path (using defaultTazTreeMap): %s" format filePath, fe)
+        defaultTazTreeMap
+      case e: Exception =>
+        logger.error(
+          "Exception occurred while reading from CSV file from path (using defaultTazTreeMap): %s" format e.getMessage,
+          e
+        )
+        defaultTazTreeMap
+    }
+  }
+
+  /**
+    * Create TAZTreeMap from a file path using BeamScenario
+    */
+  def apply(
+    filePath: String,
+    scenarioCRS: String,
+    tazIDFieldName: Option[String],
+    beamScenario: BeamScenario
+  ): TAZTreeMap =
+    apply(
+      filePath,
+      scenarioCRS,
+      tazIDFieldName,
+      beamScenario.network.getLinks,
+      beamScenario.beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
+    )
+
+  /**
+    * Create QuadTree[Link] from links sequence
+    */
+  def apply(links: Seq[Link]): QuadTree[Link] = {
+    if (links.isEmpty) {
+      return new QuadTree[Link](-1, -1, 1, 1)
+    }
+
+    // Calculate bounds
+    var minX = Double.MaxValue
+    var maxX = Double.MinValue
+    var minY = Double.MaxValue
+    var maxY = Double.MinValue
+
+    links.foreach { link =>
+      val fromX = link.getFromNode.getCoord.getX
+      val fromY = link.getFromNode.getCoord.getY
+      val toX = link.getToNode.getCoord.getX
+      val toY = link.getToNode.getCoord.getY
+
+      // Check both endpoints for bounds
+      if (fromX < minX) minX = fromX
+      if (fromX > maxX) maxX = fromX
+      if (fromY < minY) minY = fromY
+      if (fromY > maxY) maxY = fromY
+
+      if (toX < minX) minX = toX
+      if (toX > maxX) maxX = toX
+      if (toY < minY) minY = toY
+      if (toY > maxY) maxY = toY
+    }
+
+    val linkMidpoints = links.map { link =>
+      val fromX = link.getFromNode.getCoord.getX
+      val fromY = link.getFromNode.getCoord.getY
+      val toX = link.getToNode.getCoord.getX
+      val toY = link.getToNode.getCoord.getY
+
+      val midX = 0.5 * (fromX + toX)
+      val midY = 0.5 * (fromY + toY)
+
+      (link, midX, midY)
+    }
+
+    val buffer = 100.0
+    val quadTree = new QuadTree[Link](
+      minX - buffer,
+      minY - buffer,
+      maxX + buffer,
+      maxY + buffer
+    )
+
+    linkMidpoints.foreach { case (link, midX, midY) =>
+      quadTree.put(midX, midY, link)
+    }
+
+    quadTree
+  }
+
+  /**
+    * Create secondary TAZTreeMap with optional mapping configuration
+    */
+  def apply(
+    taz2Config: BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz,
+    taz1Config: BeamConfig.Beam.Agentsim.Taz,
+    tazMap: TAZTreeMap
+  ): Option[TAZTreeMap] = {
+    val maybeTaz2Map: Option[TAZTreeMap] =
+      try {
+        if (taz2Config.filePath.endsWith(".shp") || taz2Config.filePath.endsWith(".geojson")) {
+          val (quadTree, mapping) =
+            initQuadTreeFromFile(taz2Config.filePath, taz2Config.tazIdFieldName)
+          Some(new TAZTreeMap(quadTree, maybeZoneOrdering = Some(mapping)))
+        } else {
+          Some(apply(taz2Config.filePath))
+        }
+      } catch {
+        case fe: FileNotFoundException =>
+          logger.error("No secondary TAZ file found at given file path: %s" format taz2Config.filePath, fe)
+          None
+        case e: Exception =>
+          logger.error("Exception while reading secondary TAZ from CSV file from path: %s" format e.getMessage, e)
+          None
+      }
+
+    maybeTaz2Map.foreach { taz2Map =>
+      taz2Config.tazMapping match {
+        case Some(TazMapping(filePath, geoIdFieldNameKey, geoIdFieldNameValue)) if filePath.trim.nonEmpty =>
+          val isMappingIncomplete = geoIdFieldNameKey.trim.isEmpty || geoIdFieldNameValue.trim.isEmpty
+          val isKeyMatchingSecondaryTazIdField = geoIdFieldNameKey == taz2Config.tazIdFieldName
+          val isTaz2MapLargerThanTazMap = taz2Map.getSize > tazMap.getSize
+
+          val (indexTazMap, indexTazFieldName, mappedTazFieldName) =
+            if (!isMappingIncomplete && isKeyMatchingSecondaryTazIdField) {
+              (taz2Map, geoIdFieldNameKey, geoIdFieldNameValue)
+            } else if (!isMappingIncomplete) {
+              (tazMap, geoIdFieldNameKey, geoIdFieldNameValue)
+            } else if (isTaz2MapLargerThanTazMap) {
+              (taz2Map, taz2Config.tazIdFieldName, taz1Config.tazIdFieldName)
+            } else {
+              (tazMap, taz1Config.tazIdFieldName, taz2Config.tazIdFieldName)
+            }
+
+          readTazToTazMapCSVFile(indexTazMap, filePath, indexTazFieldName, mappedTazFieldName)
+        case _ =>
+          logger.warn("Instead we are generating a zonal mapping on the fly")
+          mapTAZToTAZ(taz2Map, tazMap)
+      }
+    }
+
+    maybeTaz2Map
+  }
+
+  // ===== Helper Methods =====
 
   private def initQuadTreeFromFile(filePath: String, tazIDFieldName: String): (QuadTree[TAZ], Seq[Id[TAZ]]) = {
     val features: util.Collection[SimpleFeature] = GeoReader.readFeatures(filePath)
@@ -345,196 +554,14 @@ object TAZTreeMap {
     ShapeUtils.quadTreeBounds(lines.map(_.coord))
   }
 
-  def fromCsv(csvFile: String): TAZTreeMap = {
-    val lines: Seq[CsvTaz] = CsvTaz.readCsvFile(csvFile)
-    val quadTreeBounds: QuadTreeBounds = quadTreeExtentFromCsvFile(lines)
-    val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](
-      quadTreeBounds.minx - mapBoundingBoxBufferMeters,
-      quadTreeBounds.miny - mapBoundingBoxBufferMeters,
-      quadTreeBounds.maxx + mapBoundingBoxBufferMeters,
-      quadTreeBounds.maxy + mapBoundingBoxBufferMeters
-    )
-
-    for (l <- lines) {
-      val taz = new TAZ(l.id, new Coord(l.coordX, l.coordY), l.area, county = Some(l.county))
-      tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
-    }
-
-    new TAZTreeMap(tazQuadTree)
-  }
-
-  def fromSeq(tazes: Seq[TAZ]): TAZTreeMap = {
-    val quadTreeBounds: QuadTreeBounds = quadTreeExtentFromList(tazes)
-    val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](
-      quadTreeBounds.minx - mapBoundingBoxBufferMeters,
-      quadTreeBounds.miny - mapBoundingBoxBufferMeters,
-      quadTreeBounds.maxx + mapBoundingBoxBufferMeters,
-      quadTreeBounds.maxy + mapBoundingBoxBufferMeters
-    )
-
-    for (taz <- tazes) {
-      tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
-    }
-
-    new TAZTreeMap(tazQuadTree)
-  }
-
-  def fromLinks(links: Seq[Link]): QuadTree[Link] = {
-    if (links.isEmpty) {
-      return new QuadTree[Link](-1, -1, 1, 1)
-    }
-
-    // Calculate bounds
-    var minX = Double.MaxValue
-    var maxX = Double.MinValue
-    var minY = Double.MaxValue
-    var maxY = Double.MinValue
-
-    links.foreach { link =>
-      val fromX = link.getFromNode.getCoord.getX
-      val fromY = link.getFromNode.getCoord.getY
-      val toX = link.getToNode.getCoord.getX
-      val toY = link.getToNode.getCoord.getY
-
-      // Check both endpoints for bounds
-      if (fromX < minX) minX = fromX
-      if (fromX > maxX) maxX = fromX
-      if (fromY < minY) minY = fromY
-      if (fromY > maxY) maxY = fromY
-
-      if (toX < minX) minX = toX
-      if (toX > maxX) maxX = toX
-      if (toY < minY) minY = toY
-      if (toY > maxY) maxY = toY
-    }
-
-    val linkMidpoints = links.map { link =>
-      val fromX = link.getFromNode.getCoord.getX
-      val fromY = link.getFromNode.getCoord.getY
-      val toX = link.getToNode.getCoord.getX
-      val toY = link.getToNode.getCoord.getY
-
-      val midX = 0.5 * (fromX + toX)
-      val midY = 0.5 * (fromY + toY)
-
-      (link, midX, midY)
-    }
-
-    val buffer = 100.0
-    val quadTree = new QuadTree[Link](
-      minX - buffer,
-      minY - buffer,
-      maxX + buffer,
-      maxY + buffer
-    )
-
-    linkMidpoints.foreach { case (link, midX, midY) =>
-      quadTree.put(midX, midY, link)
-    }
-
-    quadTree
-  }
-
-  def getSecondaryTazTreeMap(
-    taz2Config: BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz,
-    taz1Config: BeamConfig.Beam.Agentsim.Taz,
-    tazMap: TAZTreeMap
-  ): Option[TAZTreeMap] = {
-    val maybeTaz2Map: Option[TAZTreeMap] =
-      try {
-        if (taz2Config.filePath.endsWith(".shp") || taz2Config.filePath.endsWith(".geojson")) {
-          val (quadTree, mapping) =
-            initQuadTreeFromFile(taz2Config.filePath, taz2Config.tazIdFieldName)
-          Some(new TAZTreeMap(quadTree, maybeZoneOrdering = Some(mapping)))
-        } else {
-          Some(TAZTreeMap.fromCsv(taz2Config.filePath))
-        }
-      } catch {
-        case fe: FileNotFoundException =>
-          logger.error("No secondary TAZ file found at given file path: %s" format taz2Config.filePath, fe)
-          None
-        case e: Exception =>
-          logger.error("Exception while reading secondary TAZ from CSV file from path: %s" format e.getMessage, e)
-          None
-      }
-
-    maybeTaz2Map.foreach { taz2Map =>
-      taz2Config.tazMapping match {
-        case Some(TazMapping(filePath, geoIdFieldNameKey, geoIdFieldNameValue)) if filePath.trim.nonEmpty =>
-          val isMappingIncomplete = geoIdFieldNameKey.trim.isEmpty || geoIdFieldNameValue.trim.isEmpty
-          val isKeyMatchingSecondaryTazIdField = geoIdFieldNameKey == taz2Config.tazIdFieldName
-          val isTaz2MapLargerThanTazMap = taz2Map.getSize > tazMap.getSize
-
-          val (indexTazMap, indexTazFieldName, mappedTazFieldName) =
-            if (!isMappingIncomplete && isKeyMatchingSecondaryTazIdField) {
-              (taz2Map, geoIdFieldNameKey, geoIdFieldNameValue)
-            } else if (!isMappingIncomplete) {
-              (tazMap, geoIdFieldNameKey, geoIdFieldNameValue)
-            } else if (isTaz2MapLargerThanTazMap) {
-              (taz2Map, taz2Config.tazIdFieldName, taz1Config.tazIdFieldName)
-            } else {
-              (tazMap, taz1Config.tazIdFieldName, taz2Config.tazIdFieldName)
-            }
-
-          readTazToTazMapCSVFile(indexTazMap, filePath, indexTazFieldName, mappedTazFieldName)
-        case _ =>
-          logger.warn("Instead we are generating a zonal mapping on the fly")
-          mapTAZToTAZ(taz2Map, tazMap)
-      }
-    }
-
-    maybeTaz2Map
-  }
-
-  def getTazTreeMap(
-    filePath: String,
-    scenarioCRS: String,
-    tazIDFieldName: Option[String],
-    beamScenario: BeamScenario
-  ): TAZTreeMap =
-    getTazTreeMap(
-      filePath,
-      scenarioCRS,
-      tazIDFieldName,
-      beamScenario.network.getLinks,
-      beamScenario.beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
-    )
-
-  def getTazTreeMap(
-    filePath: String,
-    scenarioCRS: String,
-    tazIDFieldName: Option[String] = None,
-    links: java.util.Map[Id[Link], _ <: Link] = new java.util.HashMap[Id[Link], Link](),
-    enableLinkBasedSearch: Boolean = false
-  ): TAZTreeMap = {
-    try {
-      val tazTreeMap = if (filePath.endsWith(".shp") || filePath.endsWith(".geojson")) {
-        TAZTreeMap.fromGeoFile(filePath, tazIDFieldName.get)
-      } else {
-        TAZTreeMap.fromCsv(filePath)
-      }
-      if (!links.isEmpty)
-        tazTreeMap.mapNetworkToTAZs(links.asScala.toMap, scenarioCRS, enableLinkBasedSearch)
-      tazTreeMap
-    } catch {
-      case fe: FileNotFoundException =>
-        logger.error("No TAZ file found at given file path (using defaultTazTreeMap): %s" format filePath, fe)
-        defaultTazTreeMap
-      case e: Exception =>
-        logger.error(
-          "Exception occurred while reading from CSV file from path (using defaultTazTreeMap): %s" format e.getMessage,
-          e
-        )
-        defaultTazTreeMap
-    }
-  }
-
   private lazy val defaultTazTreeMap: TAZTreeMap = {
     val tazQuadTree: QuadTree[TAZ] = new QuadTree(-1, -1, 1, 1)
     val taz = new TAZ("0", new Coord(0.0, 0.0), 0.0)
     tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
     new TAZTreeMap(tazQuadTree)
   }
+
+  // ===== Random Location Generation =====
 
   def randomLocationInTAZ(
     taz: TAZ,
@@ -599,12 +626,15 @@ object TAZTreeMap {
     split
   }
 
+  // ===== Ring Search =====
+
   /**
-    * performs a concentric ring search from the present location to find elements up to the SearchMaxRadius
+    * Performs a concentric ring search from the present location to find elements up to the SearchMaxRadius
     * @param quadTree tree to search
     * @param searchCenter central location from which concentric discs will be built with an expanding radius
     * @param startRadius the beginning search radius
     * @param maxRadius search constrained to this maximum search radius
+    * @param radiusMultiplication factor to multiply radius by on each iteration
     * @param f function to check the elements. It must return Some if found an appropriate element and None otherwise.
     * @return the result of function f applied to the found element. None if there's no appropriate elements.
     */
@@ -632,6 +662,8 @@ object TAZTreeMap {
 
     _find(0.0, startRadius)
   }
+
+  // ===== TAZ to TAZ Mapping =====
 
   private def readTazToTazMapCSVFile(
     indexTazMap: TAZTreeMap,

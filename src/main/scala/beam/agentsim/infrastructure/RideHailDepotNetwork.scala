@@ -42,7 +42,6 @@ object RideHailDepotNetwork {
       override val searchFunctions: Option[InfrastructureFunctions] = Some(
         new RideHailDepotFunctions(
           tazTreeMap,
-          SearchQuadTree.getSearchQuadTree(beamServices),
           parkingZones,
           beamServices.geo.distUTMInMeters,
           searchDistancesConfig,

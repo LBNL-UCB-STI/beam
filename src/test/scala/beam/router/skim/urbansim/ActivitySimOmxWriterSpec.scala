@@ -1,14 +1,13 @@
 package beam.router.skim.urbansim
 
 import beam.agentsim.infrastructure.taz.TAZTreeMap
-import beam.router.skim.ActivitySimPathType.{DRV_COM_WLK, DRV_LOC_WLK, TNC_SINGLE, WLK_LOC_WLK, WLK_LRF_WLK}
+import beam.router.skim.ActivitySimPathType.{DRV_COM_WLK, TNC_SINGLE, WLK_LOC_WLK}
 import beam.router.skim.ActivitySimSkimmer.ExcerptData
 import omx.OmxFile
 import omx.OmxMatrix.OmxFloatMatrix
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
-import scala.collection.immutable.SortedSet
 import scala.jdk.CollectionConverters.asScalaSetConverter
 
 /**
@@ -18,7 +17,7 @@ class ActivitySimOmxWriterSpec extends AnyWordSpecLike with Matchers {
   "ActivitySimOmxWriter" should {
 
     "write all activitysim skims to an omx file" in {
-      val tazMap = TAZTreeMap.getTazTreeMap("test/input/sf-light/taz-centers.csv")
+      val tazMap = TAZTreeMap("test/input/sf-light/taz-centers.csv")
       val geoUnits = tazMap.orderedTazIds
       val excerptData = IndexedSeq(
         ExcerptData(

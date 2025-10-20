@@ -31,8 +31,7 @@ class RideHailDepotFunctions(
   rideHailConfig: BeamConfig.Beam.Agentsim.Agents.RideHail,
   skims: Skims,
   estimatedMinParkingDurationInSeconds: Double,
-  depotsMap: Map[Id[ParkingZoneId], ChargingStation],
-  scenarioCRS: String
+  depotsMap: Map[Id[ParkingZoneId], ChargingStation]
 ) extends InfrastructureFunctions(
       tazTreeMap,
       parkingZones,
@@ -43,8 +42,7 @@ class RideHailDepotFunctions(
       fractionOfSameTypeZones,
       minNumberOfSameTypeZones,
       boundingBox,
-      seed,
-      scenarioCRS
+      seed
     ) {
 
   override protected val mnlMultiplierParameters: Map[ParkingMNL.Parameters, UtilityFunctionOperation] =

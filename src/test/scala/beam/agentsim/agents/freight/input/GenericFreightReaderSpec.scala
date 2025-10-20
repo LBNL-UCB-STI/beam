@@ -28,7 +28,7 @@ import scala.util.Random
   */
 class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHelper {
   private val freightInputDir = s"${System.getenv("PWD")}/test/test-resources/beam/agentsim/freight"
-  private val tazMap: TAZTreeMap = TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
+  private val tazMap: TAZTreeMap = TAZTreeMap("test/input/beamville/taz-centers.csv")
 
   private val geoUtils = new GeoUtils {
     override def localCRS: String = "epsg:26910"
