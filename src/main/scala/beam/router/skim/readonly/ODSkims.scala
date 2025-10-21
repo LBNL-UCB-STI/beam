@@ -366,7 +366,6 @@ object ODSkims extends BeamHelper {
     val mode = BeamMode.CAR
     val vehicleTypeId = Id.create("Car", classOf[BeamVehicleType])
 
-    val s = System.currentTimeMillis()
     var total: Long = 0
     val count: Int = 10000000
     val vehicleType: BeamVehicleType = beamScenario.vehicleTypes(vehicleTypeId)
@@ -386,8 +385,5 @@ object ODSkims extends BeamHelper {
       )
       total += r.count
     }
-    val e = System.currentTimeMillis()
-    val diff = e - s
-    println(s"Took: $diff ms for $count, AVG per call: ${diff.toDouble / count}")
   }
 }

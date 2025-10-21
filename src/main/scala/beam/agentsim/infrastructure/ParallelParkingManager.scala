@@ -21,6 +21,7 @@ import de.lmu.ifi.dbs.elki.utilities.random.RandomFactory
 import org.locationtech.jts.algorithm.ConvexHull
 import org.locationtech.jts.geom.prep.{PreparedGeometry, PreparedGeometryFactory}
 import org.locationtech.jts.geom.{Coordinate, Envelope, GeometryFactory}
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.JavaConverters._
@@ -55,7 +56,8 @@ class ParallelParkingManager(
       new Coord(Double.PositiveInfinity, Double.PositiveInfinity),
       new PreparedGeometryFactory()
         .create(geometryFactory.createPoint(new Coordinate(Double.PositiveInfinity, Double.PositiveInfinity))),
-      "emergencyCluster"
+      "emergencyCluster",
+      Map.empty[Id[Link], Link]
     )
   )
 
@@ -63,7 +65,12 @@ class ParallelParkingManager(
     mapTazToWorker(workers) + (TAZ.EmergencyTAZId -> emergencyWorker) + (TAZ.DefaultTAZId -> emergencyWorker)
 
   protected def createWorker(cluster: ParkingCluster): Worker = {
-    val subTazTreeMap = TAZTreeMap(cluster.tazes)
+    val subTazTreeMap = TAZTreeMap(
+      cluster.tazes,
+      scenarioCRS = tazTreeMap.scenarioCRS,
+      links = cluster.links,
+      enableLinkBasedSearch = searchRadiusConfig.enableLinkBasedSearch
+    )
     val parkingNetwork = ZonalParkingManager(
       parkingZones,
       subTazTreeMap,
@@ -185,7 +192,8 @@ object ParallelParkingManager extends LazyLogging {
     tazes: Vector[TAZ],
     mean: Coord,
     convexHull: PreparedGeometry,
-    presentation: String
+    presentation: String,
+    links: Map[Id[Link], Link]
   )
 
   protected case class Worker(actor: ParkingNetwork, cluster: ParkingCluster)
@@ -212,7 +220,8 @@ object ParallelParkingManager extends LazyLogging {
           tazTreeMap.getTAZs.toVector,
           new Coord(0.0, 0.0),
           pgf.create(polygon),
-          "single-empty-cluster"
+          "single-empty-cluster",
+          collectLinksForTAZes(tazTreeMap, tazTreeMap.getTAZs.toVector)
         )
       )
     } else {
@@ -260,12 +269,43 @@ object ParallelParkingManager extends LazyLogging {
           .map(tazTreeMap.getTAZ(_).get) ++ empty
         val centroid = ch.getCentroid
         val clusterMeanStr = String.format("(%.2f, %.2f)", Double.box(centroid.getX), Double.box(centroid.getY))
-        ParkingCluster(tazes.toVector, new Coord(clu.getModel.getMean), convexHull, s"$idx-$clusterMeanStr")
+
+        // Collect all links within the TAZes of this cluster
+        val clusterLinks = collectLinksForTAZes(tazTreeMap, tazes.toVector)
+
+        ParkingCluster(
+          tazes.toVector,
+          new Coord(clu.getModel.getMean),
+          convexHull,
+          s"$idx-$clusterMeanStr",
+          clusterLinks
+        )
       }
       logger.info(s"Done clustering: ${clusters.size}")
       logger.info(s"TAZ distribution: ${clusters.map(_.tazes.size).mkString(", ")}")
       clusters
     }
+  }
+
+  /**
+    * Collects all links from the given TAZes using the tazTreeMap's link mapping.
+    * Optimized with direct Java iteration to avoid Scala collection wrapper overhead.
+    * @param tazTreeMap the TAZ tree map containing link mappings
+    * @param tazes sequence of TAZes to collect links from
+    * @return Set of links found within the TAZes
+    */
+  private def collectLinksForTAZes(tazTreeMap: TAZTreeMap, tazes: Iterable[TAZ]): Map[Id[Link], Link] = {
+    val linksMap = scala.collection.mutable.Map[Id[Link], Link]()
+    tazes.foreach { taz =>
+      tazTreeMap.tazToLinkIdMapping.get(taz.tazId).foreach { linkQuadTree =>
+        val iter = linkQuadTree.values().iterator()
+        while (iter.hasNext) {
+          val link = iter.next()
+          linksMap.put(link.getId, link)
+        }
+      }
+    }
+    linksMap.toMap
   }
 
   private def createDatabase(

@@ -131,7 +131,7 @@ abstract class InfrastructureFunctions(
         mnlMultiplierParameters,
         zoneCollections,
         parkingZones,
-        tazTreeMap.searchQuadTree,
+        tazTreeMap.searchQuadTree.get,
         new Random(seed + inquiryHash),
         inquiry.departureLocation,
         inquiry.reservedFor,

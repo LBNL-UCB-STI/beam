@@ -48,7 +48,7 @@ import com.google.inject.name.Names
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory, ConfigValueType, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
-import org.matsim.api.core.v01.network.{Link, Network}
+import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.{Activity, Population}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -68,7 +68,6 @@ import java.time.ZonedDateTime
 import java.util.Properties
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
-import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
 import scala.sys.process.Process
@@ -305,7 +304,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       taz.filePath,
       beamConfig.beam.spatial.localCRS,
       Some(taz.tazIdFieldName),
-      networkCoordinator.network.getLinks,
+      networkCoordinator.network.getLinks.asScala.toMap,
       beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
     )
     val taz2Map = if (beamConfig.beam.exchange.output.activity_sim_skimmer.exists(_.secondary.enabled)) {

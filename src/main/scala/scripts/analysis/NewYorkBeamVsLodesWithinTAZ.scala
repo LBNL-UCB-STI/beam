@@ -24,7 +24,7 @@ object NewYorkBeamVsLodesWithinTAZ {
     val pathToLodes = "test/input/external-data/NYC_LODES_and_distance.csv"
     val pathToTazes = "test/input/newyork/taz-centers.csv.gz"
 
-    val tazMap = TAZTreeMap(pathToTazes)
+    val tazMap = TAZTreeMap(filePath = pathToTazes, scenarioCRS = geoUtils.localCRS)
     val homeToWork: Seq[((Coord, Coord), Int)] =
       NewYorkHomeWorkLocationAnalysis
         .getHomeWorkLocations(pathToPlans, isUtmCoord = false)

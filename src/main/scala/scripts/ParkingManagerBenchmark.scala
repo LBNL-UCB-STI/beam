@@ -142,7 +142,7 @@ object ParkingManagerBenchmark extends StrictLogging {
       val scenario = readScenario(pathToPlans)
       logger.info(s"scenario contains ${scenario.getPopulation.getPersons.size()} people")
 
-      val tazTreeMap = TAZTreeMap(pathToTAZ)
+      val tazTreeMap = TAZTreeMap(filePath = pathToTAZ, scenarioCRS = geoUtils.localCRS)
       logger.info(s"TAZTreeMap size: ${tazTreeMap.getTAZs.size}")
 
       val network = NetworkUtilsExtensions.readNetwork(pathToNetwork)

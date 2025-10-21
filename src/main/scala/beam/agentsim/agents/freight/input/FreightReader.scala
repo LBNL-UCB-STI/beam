@@ -14,7 +14,7 @@ import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
 import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import com.conveyal.r5.streets.StreetLayer
-import org.matsim.api.core.v01.network.{Link, Network}
+import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.PopulationUtils
@@ -22,6 +22,7 @@ import org.matsim.households.{Household, HouseholdsFactory, Income, IncomeImpl}
 import org.matsim.vehicles.Vehicle
 
 import java.util.concurrent.atomic.AtomicReference
+import scala.collection.JavaConverters._
 import scala.util.Random
 
 trait FreightReader {
@@ -264,8 +265,8 @@ object FreightReader {
         beamConfig.beam.spatial.localCRS,
         Some(beamConfig.beam.agentsim.taz.tazIdFieldName),
         network
-          .map(_.getLinks)
-          .getOrElse(new java.util.HashMap[Id[Link], Link]()),
+          .map(_.getLinks.asScala.toMap)
+          .getOrElse(Map.empty),
         beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
       )
     }
