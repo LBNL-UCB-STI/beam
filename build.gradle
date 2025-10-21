@@ -610,8 +610,7 @@ def logGC = ["-XX:+PrintGCDetails", "-Xloggc:gc_${getCurrentTimestamp()}.log"]
 // Use following for remote debug mode
 def remoteDebug = ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
 
-def jfr = ["-XX:+UnlockCommercialFeatures", "-XX:+FlightRecorder",
-           "-XX:FlightRecorderOptions=defaultrecording=true,disk=true,maxage=10h,dumponexit=true,loglevel=info"]
+def jfr = ["-XX:StartFlightRecording=delay=30m,disk=true,maxage=150m,dumponexit=true"]
 
 // On the running machine there should be file /usr/lib/jvm/java-8-oracle/jre/lib/jfr/profile_heap_exception.jfc  with content from
 // https://pastebin.com/N3uuUfPz - it's Java Mission Control with metrics about heap allocation and details about exceptions

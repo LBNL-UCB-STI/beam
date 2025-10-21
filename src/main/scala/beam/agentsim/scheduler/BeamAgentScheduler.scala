@@ -73,20 +73,14 @@ object BeamAgentScheduler {
     * @param agent         recipient of this trigger
     * @param priority      schedule priority
     */
-  case class ScheduledTrigger(triggerWithId: TriggerWithId, agent: ActorRef, priority: Int)
-      extends Ordered[ScheduledTrigger] {
+  case class ScheduledTrigger(triggerWithId: TriggerWithId, agent: ActorRef) extends Ordered[ScheduledTrigger] {
 
-    // Compare is on 3 levels with higher priority (i.e. front of the queue) for:
-    //   smaller tick => then higher priority value => then lower triggerId
+    // Compare is on 2 levels with higher priority (i.e. front of the queue) for:
+    //   smaller tick => then lower triggerId
     def compare(that: ScheduledTrigger): Int =
-      java.lang.Double.compare(that.triggerWithId.trigger.tick, triggerWithId.trigger.tick) match {
+      java.lang.Integer.compare(that.triggerWithId.trigger.tick, triggerWithId.trigger.tick) match {
         case 0 =>
-          java.lang.Integer.compare(priority, that.priority) match {
-            case 0 =>
-              java.lang.Long
-                .compare(that.triggerWithId.triggerId, triggerWithId.triggerId)
-            case c => c
-          }
+          java.lang.Long.compare(that.triggerWithId.triggerId, triggerWithId.triggerId)
         case c => c
       }
   }
@@ -106,14 +100,9 @@ object BeamAgentScheduler {
   object ScheduledTriggerComparator extends Comparator[ScheduledTrigger] {
 
     def compare(st1: ScheduledTrigger, st2: ScheduledTrigger): Int =
-      java.lang.Double
-        .compare(st1.triggerWithId.trigger.tick, st2.triggerWithId.trigger.tick) match {
+      java.lang.Integer.compare(st1.triggerWithId.trigger.tick, st2.triggerWithId.trigger.tick) match {
         case 0 =>
-          java.lang.Integer.compare(st2.priority, st1.priority) match {
-            case 0 =>
-              java.lang.Long.compare(st1.triggerWithId.triggerId, st2.triggerWithId.triggerId)
-            case c => c
-          }
+          java.lang.Long.compare(st1.triggerWithId.triggerId, st2.triggerWithId.triggerId)
         case c => c
       }
   }
@@ -200,7 +189,7 @@ class BeamAgentScheduler(
     } else {
       val triggerWithId = TriggerWithId(triggerToSchedule.trigger, this.idCount)
       triggerQueue.add(
-        ScheduledTrigger(triggerWithId, triggerToSchedule.agent, triggerToSchedule.priority)
+        ScheduledTrigger(triggerWithId, triggerToSchedule.agent)
       )
       triggerIdToTick += (triggerWithId.triggerId -> triggerToSchedule.trigger.tick)
       //    log.info(s"recieved trigger to schedule $triggerToSchedule")
