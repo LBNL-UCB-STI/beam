@@ -115,7 +115,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
 
   // Use a simpler approach: keep a small cache per thread
   private val routerCache: ThreadLocal[java.util.ArrayDeque[StreetRouter]] =
-    ThreadLocal.withInitial(() => new java.util.ArrayDeque[StreetRouter](4))
+    ThreadLocal.withInitial(() => new java.util.ArrayDeque[StreetRouter](1))
 
   private val routerPoolStats = new ThreadLocal[PoolStats]() {
     override def initialValue(): PoolStats = new PoolStats()
@@ -174,7 +174,6 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         travelTimeCalc,
         turnCostCalculatorTL.get(),
         travelCostCalc,
-        5000,
         20000
       )
     } else {
@@ -650,8 +649,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           costPerMile,
           costPerMinute
         ),
-        0, // These are ephemeral routers that are GC'd immediately, so no need to keep a pool
-        0
+        0 // These are ephemeral routers that are GC'd immediately, so no need to keep a pool
       )
       if (vehicle.mode == BeamMode.BIKE) {
         streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
@@ -793,8 +791,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             costPerMile,
             costPerMinute
           ),
-          0, // These are ephemeral routers that are GC'd immediately, so no need to keep a pool
-          0
+          0 // These are ephemeral routers that are GC'd immediately, so no need to keep a pool
         )
         if (vehicle.mode == BeamMode.BIKE) {
           streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
