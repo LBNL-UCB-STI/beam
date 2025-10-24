@@ -47,23 +47,33 @@ object RoutingModel {
     mode: StreetMode,
     streetLayer: StreetLayer
   ): LinksTimesDistances = {
-    def exitTimeByEnterTimeAndLinkId(enterTime: Double, linkId: Int): Double =
-      enterTime + travelTimeByEnterTimeAndLinkId(enterTime, linkId, mode)
 
-    val traversalTimes = linkIds.view
-      .scanLeft(startTime.toDouble)(exitTimeByEnterTimeAndLinkId)
-      .sliding(2)
-      .map(pair => Math.max(pair.last - pair.head, 0))
-      .toVector
-    val cumulDistance =
-      linkIds.map(streetLayer.edgeStore.getCursor(_).getLengthM)
-    LinksTimesDistances(linkIds, traversalTimes, cumulDistance)
+    val numLinks = linkIds.length
+    val traversalTimes = new Array[Double](numLinks)
+    val distances = new Array[Double](numLinks)
+
+    // Manual loop - no intermediate collections, no boxing
+    var currentTime = startTime.toDouble
+    var i = 0
+    while (i < numLinks) {
+      val linkId = linkIds(i)
+      val travelTime = travelTimeByEnterTimeAndLinkId(currentTime, linkId, mode)
+      val exitTime = currentTime + travelTime
+
+      traversalTimes(i) = Math.max(exitTime - currentTime, 0.0)
+      distances(i) = streetLayer.edgeStore.getCursor(linkId).getLengthM
+
+      currentTime = exitTime
+      i += 1
+    }
+
+    LinksTimesDistances(linkIds.toArray, traversalTimes, distances)
   }
 
   case class LinksTimesDistances(
-    linkIds: IndexedSeq[Int],
-    travelTimes: Vector[Double],
-    distances: IndexedSeq[Double]
+    linkIds: Array[Int], // Primitive int[]
+    travelTimes: Array[Double], // Primitive double[]
+    distances: Array[Double] // Primitive double[]
   )
 
   case class TransitStopsInfo(
