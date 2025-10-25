@@ -43,13 +43,13 @@ class BeamFreeFlowTravelTime(networkHelper: NetworkHelper) extends BeamTravelTim
   }
 
   // Cache link free speeds for faster access
-  private val linkFreeSpeeds: Array[Double] = {
+  private val linkInverseFreeSpeeds: Array[Double] = {
     val maxLinkId = networkHelper.allLinks.map(link => Integer.parseInt(link.getId.toString)).max
 
     val speeds = new Array[Double](maxLinkId + 1)
     networkHelper.allLinks.foreach { link =>
       val id = Integer.parseInt(link.getId.toString)
-      speeds(id) = link.getFreespeed
+      speeds(id) = 1.0 / link.getFreespeed
     }
     speeds
   }
@@ -61,11 +61,11 @@ class BeamFreeFlowTravelTime(networkHelper: NetworkHelper) extends BeamTravelTim
 
   // Optimized method using integer ID
   override def getLinkTravelTime(linkId: Int, time: Double): Double = {
-    linkLengths(linkId) / linkFreeSpeeds(linkId)
+    linkLengths(linkId) * linkInverseFreeSpeeds(linkId)
   }
 
   // Further optimized method with pre-computed length
   override def getLinkTravelTime(linkId: Int, time: Double, linkLengthMeters: Double): Double = {
-    linkLengthMeters / linkFreeSpeeds(linkId)
+    linkLengthMeters * linkInverseFreeSpeeds(linkId)
   }
 }
