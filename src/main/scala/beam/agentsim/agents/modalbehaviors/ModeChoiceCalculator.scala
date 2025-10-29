@@ -225,4 +225,20 @@ object ModeChoiceCalculator {
   case object level3 extends AutomationLevel
   case object level4 extends AutomationLevel
   case object level5 extends AutomationLevel
+
+  sealed trait SituationKey
+
+  case class BikeSituation(
+    tripType: TripType,
+    ageGroup: AgeGroup
+  ) extends SituationKey
+
+  case class CarSituation(
+    timeSensitivity: TimeSensitivity,
+    congestionLevel: CongestionLevel,
+    roadwayType: RoadwayType,
+    automationLevel: AutomationLevel
+  ) extends SituationKey
+
+  object noParticularSituation extends SituationKey
 }

@@ -357,206 +357,206 @@ class ModeChoiceMultinomialLogit(
       level5   -> modalBehaviors.poolingMultiplier.Level5
     )
 
-  lazy val situationMultipliers: Map[BeamMode, Map[Set[SituationMultiplier], Double]] = {
-    val carMap = Map[Set[SituationMultiplier], Double](
-      Set(
+  lazy val situationMultipliers: Map[BeamMode, Map[SituationKey, Double]] = {
+    val carMap = Map[SituationKey, Double](
+      CarSituation(
         highSensitivity,
         highCongestion,
         highway,
         levelLE2
       ) -> modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor.LevelLE2,
-      Set(
+      CarSituation(
         highSensitivity,
         highCongestion,
         nonHighway,
         levelLE2
       ) -> modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor.LevelLE2,
-      Set(
+      CarSituation(
         highSensitivity,
         lowCongestion,
         highway,
         levelLE2
       ) -> modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor.LevelLE2,
-      Set(
+      CarSituation(
         highSensitivity,
         lowCongestion,
         nonHighway,
         levelLE2
       ) -> modalBehaviors.highTimeSensitivity.lowCongestion.nonHighwayFactor.LevelLE2,
-      Set(
+      CarSituation(
         lowSensitivity,
         highCongestion,
         highway,
         levelLE2
       ) -> modalBehaviors.lowTimeSensitivity.highCongestion.highwayFactor.LevelLE2,
-      Set(
+      CarSituation(
         lowSensitivity,
         highCongestion,
         nonHighway,
         levelLE2
       ) -> modalBehaviors.lowTimeSensitivity.highCongestion.nonHighwayFactor.LevelLE2,
-      Set(
+      CarSituation(
         lowSensitivity,
         lowCongestion,
         highway,
         levelLE2
       ) -> modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor.LevelLE2,
-      Set(
+      CarSituation(
         lowSensitivity,
         lowCongestion,
         nonHighway,
         levelLE2
       ) -> modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor.LevelLE2,
-      Set(
+      CarSituation(
         highSensitivity,
         highCongestion,
         highway,
         level3
       ) -> modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor.Level3,
-      Set(
+      CarSituation(
         highSensitivity,
         highCongestion,
         nonHighway,
         level3
       ) -> modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor.Level3,
-      Set(
+      CarSituation(
         highSensitivity,
         lowCongestion,
         highway,
         level3
       ) -> modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor.Level3,
-      Set(
+      CarSituation(
         highSensitivity,
         lowCongestion,
         nonHighway,
         level3
       ) -> modalBehaviors.highTimeSensitivity.lowCongestion.nonHighwayFactor.Level3,
-      Set(
+      CarSituation(
         lowSensitivity,
         highCongestion,
         highway,
         level3
       ) -> modalBehaviors.lowTimeSensitivity.highCongestion.highwayFactor.Level3,
-      Set(
+      CarSituation(
         lowSensitivity,
         highCongestion,
         nonHighway,
         level3
       ) -> modalBehaviors.lowTimeSensitivity.highCongestion.nonHighwayFactor.Level3,
-      Set(
+      CarSituation(
         lowSensitivity,
         lowCongestion,
         highway,
         level3
       ) -> modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor.Level3,
-      Set(
+      CarSituation(
         lowSensitivity,
         lowCongestion,
         nonHighway,
         level3
       ) -> modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor.Level3,
-      Set(
+      CarSituation(
         highSensitivity,
         highCongestion,
         highway,
         level4
       ) -> modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor.Level4,
-      Set(
+      CarSituation(
         highSensitivity,
         highCongestion,
         nonHighway,
         level4
       ) -> modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor.Level4,
-      Set(
+      CarSituation(
         highSensitivity,
         lowCongestion,
         highway,
         level4
       ) -> modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor.Level4,
-      Set(
+      CarSituation(
         highSensitivity,
         lowCongestion,
         nonHighway,
         level4
       ) -> modalBehaviors.highTimeSensitivity.lowCongestion.nonHighwayFactor.Level4,
-      Set(
+      CarSituation(
         lowSensitivity,
         highCongestion,
         highway,
         level4
       ) -> modalBehaviors.lowTimeSensitivity.highCongestion.highwayFactor.Level4,
-      Set(
+      CarSituation(
         lowSensitivity,
         highCongestion,
         nonHighway,
         level4
       ) -> modalBehaviors.lowTimeSensitivity.highCongestion.nonHighwayFactor.Level4,
-      Set(
+      CarSituation(
         lowSensitivity,
         lowCongestion,
         highway,
         level4
       ) -> modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor.Level4,
-      Set(
+      CarSituation(
         lowSensitivity,
         lowCongestion,
         nonHighway,
         level4
       ) -> modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor.Level4,
-      Set(
+      CarSituation(
         highSensitivity,
         highCongestion,
         highway,
         level5
       ) -> modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor.Level5,
-      Set(
+      CarSituation(
         highSensitivity,
         highCongestion,
         nonHighway,
         level5
       ) -> modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor.Level5,
-      Set(
+      CarSituation(
         highSensitivity,
         lowCongestion,
         highway,
         level5
       ) -> modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor.Level5,
-      Set(
+      CarSituation(
         highSensitivity,
         lowCongestion,
         nonHighway,
         level5
       ) -> modalBehaviors.highTimeSensitivity.lowCongestion.nonHighwayFactor.Level5,
-      Set(
+      CarSituation(
         lowSensitivity,
         highCongestion,
         highway,
         level5
       ) -> modalBehaviors.lowTimeSensitivity.highCongestion.highwayFactor.Level5,
-      Set(
+      CarSituation(
         lowSensitivity,
         highCongestion,
         nonHighway,
         level5
       ) -> modalBehaviors.lowTimeSensitivity.highCongestion.nonHighwayFactor.Level5,
-      Set(
+      CarSituation(
         lowSensitivity,
         lowCongestion,
         highway,
         level5
       ) -> modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor.Level5,
-      Set(
+      CarSituation(
         lowSensitivity,
         lowCongestion,
         nonHighway,
         level5
       ) -> modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor.Level5
     )
-    val bikeMap = Map[Set[SituationMultiplier], Double](
-      Set(commuteTrip, ageLE50)    -> modalBehaviors.bikeMultiplier.commute.ageLE50,
-      Set(commuteTrip, ageGT50)    -> modalBehaviors.bikeMultiplier.commute.ageGT50,
-      Set(nonCommuteTrip, ageLE50) -> modalBehaviors.bikeMultiplier.noncommute.ageLE50,
-      Set(nonCommuteTrip, ageGT50) -> modalBehaviors.bikeMultiplier.noncommute.ageLE50
+    val bikeMap = Map[SituationKey, Double](
+      BikeSituation(commuteTrip, ageLE50)    -> modalBehaviors.bikeMultiplier.commute.ageLE50,
+      BikeSituation(commuteTrip, ageGT50)    -> modalBehaviors.bikeMultiplier.commute.ageGT50,
+      BikeSituation(nonCommuteTrip, ageLE50) -> modalBehaviors.bikeMultiplier.noncommute.ageLE50,
+      BikeSituation(nonCommuteTrip, ageGT50) -> modalBehaviors.bikeMultiplier.noncommute.ageLE50
     )
     Map(BIKE -> bikeMap, CAR -> carMap)
   }

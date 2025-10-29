@@ -155,19 +155,19 @@ case class AttributesOfIndividual(
   private def getSituationForVOT(
     originActivity: Option[Activity],
     destinationActivity: Option[Activity]
-  ): Set[SituationMultiplier] = {
+  ): SituationKey = {
     (originActivity, destinationActivity, age) match {
       case (Some(origin), Some(destination), Some(travelerAge)) =>
         val ageBin =
           if (travelerAge > 50) { ageGT50 }
           else { ageLE50 }
         if (isCommute(destination, origin)) {
-          Set[SituationMultiplier](commuteTrip, ageBin)
+          BikeSituation(commuteTrip, ageBin)
         } else {
-          Set[SituationMultiplier](nonCommuteTrip, ageBin)
+          BikeSituation(nonCommuteTrip, ageBin)
         }
       case _ =>
-        Set[SituationMultiplier]()
+        noParticularSituation
     }
   }
 
@@ -212,7 +212,7 @@ case class AttributesOfIndividual(
   def getModeVotMultiplier(
     beamMode: Option[BeamMode],
     modeChoiceModel: ModeChoiceMultinomialLogit,
-    situation: Option[Set[SituationMultiplier]] = None
+    situation: Option[SituationKey] = None
   ): Double = {
     val situationMultiplier = beamMode match {
       case Some(mode) =>
@@ -261,7 +261,7 @@ case class AttributesOfIndividual(
     linkID: Int,
     travelTime: Double,
     isWorkTrip: Boolean = true,
-    situationMultipliers: Map[Set[SituationMultiplier], Double],
+    situationMultipliers: Map[SituationKey, Double],
     vehicleAutomationLevel: AutomationLevel,
     beamServices: BeamServices
   ): Double = {
@@ -271,7 +271,7 @@ case class AttributesOfIndividual(
       lowSensitivity
     }
     val (congestion, roadway) = getLinkCharacteristics(linkID, travelTime, beamServices)
-    situationMultipliers.getOrElse(Set(sensitivity, congestion, roadway, vehicleAutomationLevel), 1.0)
+    situationMultipliers.getOrElse(CarSituation(sensitivity, congestion, roadway, vehicleAutomationLevel), 1.0)
   }
 
 }
