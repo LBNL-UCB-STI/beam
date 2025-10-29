@@ -58,7 +58,6 @@ class TAZTreeMap(
 
   // adding this as an alternative to tazQuadTree: QuadTree[TAZ]
   // it should be activated with beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
-  var linkQuadTree: Option[QuadTree[Link]] = None
   var searchQuadTree: Option[SearchQuadTree] = None
 
   private val unmatchedLinkIds: mutable.ListBuffer[Id[Link]] = mutable.ListBuffer.empty[Id[Link]]
@@ -179,18 +178,6 @@ class TAZTreeMap(
     enableLinkBasedSearch: Boolean
   ): Unit = {
     if (tazListContainsGeoms) {
-      // Initialize the global link quad tree
-      if (enableLinkBasedSearch && links.nonEmpty) {
-        linkQuadTree = Some(
-          new QuadTree[Link](
-            tazQuadTree.getMinEasting,
-            tazQuadTree.getMinNorthing,
-            tazQuadTree.getMaxEasting,
-            tazQuadTree.getMaxNorthing
-          )
-        )
-      }
-
       if (links.nonEmpty) {
         idToTAZMapping.keySet.foreach { id =>
           tazToLinkIdMapping(id) = new QuadTree[Link](
@@ -200,6 +187,9 @@ class TAZTreeMap(
             tazQuadTree.getMaxNorthing
           )
         }
+        searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(this, scenarioCRS, enableLinkBasedSearch, Some(links)))
+      } else {
+        searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(this, scenarioCRS, enableLinkBasedSearch, None))
       }
 
       links.foreach {
@@ -211,20 +201,30 @@ class TAZTreeMap(
             0.5 * (linkEndCoord.getY + linkStartCoord.getY)
           )
 
-          linkQuadTree.foreach(_.put(linkMidpoint.getX, linkMidpoint.getY, link))
-          linkQuadTree.foreach(_.put(linkEndCoord.getX, linkEndCoord.getY, link))
-          linkQuadTree.foreach(_.put(linkStartCoord.getX, linkStartCoord.getY, link))
-
-          TAZTreeMap.ringSearch(
+          // Tier 1: Try to find TAZ whose geometry contains the link endpoint (most semantically correct)
+          // ringSearch expands in concentric rings, so first TAZ found whose geometry contains the point
+          // is in the closest ring with a geometrically matching TAZ
+          val tazOption = TAZTreeMap.ringSearch(
             tazQuadTree,
             linkEndCoord,
             100,
             1000000,
             radiusMultiplication = 1.5
           ) { taz =>
-            if (taz.geometry.exists(_.contains(GeometryUtils.createGeotoolsPoint(linkEndCoord)))) { Some(taz) }
-            else None
-          } match {
+            if (taz.geometry.exists(_.contains(GeometryUtils.createGeotoolsPoint(linkEndCoord)))) {
+              Some(taz) // Found a TAZ whose geometry contains the point
+            } else {
+              None // Keep searching for a TAZ with containing geometry
+            }
+          }
+
+          // Tier 2: If no TAZ geometry contains the point, fall back to absolute closest TAZ by distance
+          // This ensures every link is matched, even when it falls outside all TAZ boundaries
+          val closestTAZ = tazOption.orElse {
+            Option(tazQuadTree.getClosest(linkEndCoord.getX, linkEndCoord.getY))
+          }
+
+          closestTAZ match {
             case Some(taz) if link.getAllowedModes.contains("car") & link.getAllowedModes.contains("walk") =>
               try {
                 tazToLinkIdMapping(taz.tazId).put(linkMidpoint.getX, linkMidpoint.getY, link)
@@ -240,19 +240,9 @@ class TAZTreeMap(
           }
         case _ =>
       }
-
-      val linksToTazMapping = tazToLinkIdMapping
-        .map { case (x, y) => (x, y.size()) }
-        .groupBy(x => Math.min(x._2, 10))
-        .map { case (x, y) =>
-          (x, y.keys.map(_.toString))
-        }
-        .toSeq
-        .sortBy(_._1)
     }
-
-    searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(this, scenarioCRS, enableLinkBasedSearch))
   }
+
 }
 
 object TAZTreeMap {
@@ -275,7 +265,7 @@ object TAZTreeMap {
       tazTreeMap.mapNetworkToTAZs(links, scenarioCRS, enableLinkBasedSearch)
     } else {
       tazTreeMap.searchQuadTree = Some(
-        SearchQuadTree.getSearchQuadTree(tazTreeMap, scenarioCRS, enableLinkBasedSearch = false)
+        SearchQuadTree.getSearchQuadTree(tazTreeMap, scenarioCRS, enableLinkBasedSearch = false, links = None)
       )
     }
     tazTreeMap
@@ -471,7 +461,9 @@ object TAZTreeMap {
             useCache = false,
             maybeZoneOrdering = Some(mapping)
           )
-          tazTreeMap.searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(tazTreeMap, tazMap.scenarioCRS, false))
+          tazTreeMap.searchQuadTree = Some(
+            SearchQuadTree.getSearchQuadTree(tazTreeMap, tazMap.scenarioCRS, enableLinkBasedSearch = false, None)
+          )
           Some(tazTreeMap)
         } else {
           Some(apply(taz2Config.filePath, scenarioCRS = tazMap.scenarioCRS))
@@ -521,7 +513,9 @@ object TAZTreeMap {
     val taz = new TAZ("0", new Coord(0.0, 0.0), 0.0)
     tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
     val tazTreeMap = new TAZTreeMap(tazQuadTree, scenarioCRS = "", useCache = false, maybeZoneOrdering = None)
-    tazTreeMap.searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(tazTreeMap, "", false))
+    tazTreeMap.searchQuadTree = Some(
+      SearchQuadTree.getSearchQuadTree(tazTreeMap, "", enableLinkBasedSearch = false, None)
+    )
     tazTreeMap
   }
 

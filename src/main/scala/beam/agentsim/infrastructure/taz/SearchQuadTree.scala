@@ -6,6 +6,7 @@ import org.geotools.geometry.jts.JTS
 import org.geotools.referencing.CRS
 import org.locationtech.jts.geom.{Coordinate, GeometryFactory}
 import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.slf4j.LoggerFactory
 
@@ -258,24 +259,38 @@ object SearchQuadTree {
     tazToLinks: Option[Map[TAZ, QuadTree[Link]]]
   )
 
-  def getSearchQuadTree(tazTreeMap: TAZTreeMap, scenarioCRS: String, enableLinkBasedSearch: Boolean): SearchQuadTree = {
-    if (enableLinkBasedSearch && tazTreeMap.linkQuadTree.isDefined) {
-      SearchLinkQuadTree(tazTreeMap, scenarioCRS)
+  def getSearchQuadTree(
+    tazTreeMap: TAZTreeMap,
+    scenarioCRS: String,
+    enableLinkBasedSearch: Boolean,
+    links: Option[Map[Id[Link], Link]]
+  ): SearchQuadTree = {
+    if (enableLinkBasedSearch && links.nonEmpty) {
+      SearchLinkQuadTree(links.get, tazTreeMap, scenarioCRS)
     } else {
       SearchTAZQuadTree(tazTreeMap, scenarioCRS)
     }
   }
 
-  def getSearchQuadTree(tazTreeMap: TAZTreeMap, beamConfig: BeamConfig): SearchQuadTree = {
+  def getSearchQuadTree(
+    tazTreeMap: TAZTreeMap,
+    beamConfig: BeamConfig,
+    links: Option[Map[Id[Link], Link]]
+  ): SearchQuadTree = {
     val scenarioCRS = beamConfig.beam.spatial.localCRS
     val enableLinkBasedSearch = beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
-    getSearchQuadTree(tazTreeMap, scenarioCRS, enableLinkBasedSearch)
+    getSearchQuadTree(tazTreeMap, scenarioCRS, enableLinkBasedSearch, links)
   }
 
   def getSearchQuadTree(beamScenario: BeamScenario): SearchQuadTree = {
     val scenarioCRS = beamScenario.beamConfig.beam.spatial.localCRS
     val enableLinkBasedSearch = beamScenario.beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
-    getSearchQuadTree(beamScenario.tazTreeMap, scenarioCRS, enableLinkBasedSearch)
+    getSearchQuadTree(
+      beamScenario.tazTreeMap,
+      scenarioCRS,
+      enableLinkBasedSearch,
+      Some(beamScenario.network.getLinks.asScala.toMap)
+    )
   }
 
   def getSearchQuadTree(beamServices: BeamServices): SearchQuadTree = getSearchQuadTree(beamServices.beamScenario)
@@ -327,8 +342,32 @@ object SearchQuadTree {
     * Link-based search implementation.
     * Searches in the Link QuadTree and groups results by TAZ.
     */
-  case class SearchLinkQuadTree(override val tazTreeMap: TAZTreeMap, override val scenarioCRS: String)
-      extends SearchQuadTree(tazTreeMap, scenarioCRS) {
+  case class SearchLinkQuadTree(
+    links: Map[Id[Link], Link],
+    override val tazTreeMap: TAZTreeMap,
+    override val scenarioCRS: String
+  ) extends SearchQuadTree(tazTreeMap, scenarioCRS) {
+
+    val linkQuadTree: QuadTree[Link] = new QuadTree[Link](
+      tazTreeMap.tazQuadTree.getMinEasting,
+      tazTreeMap.tazQuadTree.getMinNorthing,
+      tazTreeMap.tazQuadTree.getMaxEasting,
+      tazTreeMap.tazQuadTree.getMaxNorthing
+    )
+
+    links.foreach {
+      case (_, link) if link.getAllowedModes.contains("car") & link.getAllowedModes.contains("walk") =>
+        val linkEndCoord = link.getToNode.getCoord
+        val linkStartCoord = link.getFromNode.getCoord
+        val linkMidpoint = new Coord(
+          0.5 * (linkEndCoord.getX + linkStartCoord.getX),
+          0.5 * (linkEndCoord.getY + linkStartCoord.getY)
+        )
+        linkQuadTree.put(linkMidpoint.getX, linkMidpoint.getY, link)
+        linkQuadTree.put(linkEndCoord.getX, linkEndCoord.getY, link)
+        linkQuadTree.put(linkStartCoord.getX, linkStartCoord.getY, link)
+      case _ =>
+    }
 
     private def buildSearchResult(
       tazToLinks: mutable.HashMap[TAZ, mutable.ArrayBuffer[Link]]
@@ -370,7 +409,7 @@ object SearchQuadTree {
       val tazToLinks = mutable.HashMap.empty[TAZ, mutable.ArrayBuffer[Link]]
 
       // Direct search in projected coordinates - deduplicate with Set, then sample
-      val uniqueLinks = tazTreeMap.linkQuadTree.get
+      val uniqueLinks = linkQuadTree
         .getRing(x, y, innerRadius, outerRadius)
         .asScala
         .toSet
@@ -382,6 +421,12 @@ object SearchQuadTree {
       }
 
       sampledLinks.foreach { link =>
+        if (
+          !tazTreeMap.linkIdToTAZMapping
+            .contains(link.getId) || !tazTreeMap.idToTAZMapping.contains(tazTreeMap.linkIdToTAZMapping(link.getId))
+        ) {
+          println("Test")
+        }
         val taz = tazTreeMap.idToTAZMapping(tazTreeMap.linkIdToTAZMapping(link.getId))
         tazToLinks.getOrElseUpdate(taz, mutable.ArrayBuffer.empty[Link]) += link
       }
@@ -400,7 +445,7 @@ object SearchQuadTree {
       val tazToLinks = mutable.HashMap.empty[TAZ, mutable.ArrayBuffer[Link]]
 
       // Direct search in projected coordinates - deduplicate with Set, then sample
-      val uniqueLinks = tazTreeMap.linkQuadTree.get
+      val uniqueLinks = linkQuadTree
         .getElliptical(x1, y1, x2, y2, radius)
         .asScala
         .toSet
