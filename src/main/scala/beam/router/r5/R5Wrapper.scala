@@ -20,13 +20,14 @@ import beam.router.skim.SkimsUtils.{getRideHailCost, getRideHailManagerCosts}
 import beam.router.{Modes, Router, RoutingWorker}
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import beam.utils.MeasureUnitConversion.METERS_IN_MILE
-import com.conveyal.r5.analyst.fare.SimpleInRoutingFareCalculator
+import com.conveyal.r5.analyst.fare.{InRoutingFareCalculator, SimpleInRoutingFareCalculator}
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.profile._
 import com.conveyal.r5.streets._
-import com.conveyal.r5.transit.TransitLayer
+import com.conveyal.r5.transit.{TransitLayer, TransportNetwork}
 import com.typesafe.scalalogging.StrictLogging
+import gnu.trove.map.TIntIntMap
 import gnu.trove.map.hash.{TLongByteHashMap, TLongObjectHashMap}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.router.util.TravelTime
@@ -41,10 +42,45 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.language.postfixOps
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 trait TravelTimeByLinkCalculator {
   def apply(time: Double, linkId: Int, streetMode: StreetMode): Double
+}
+
+/**
+  * Stateless travel time calculator that can be cached and reused across requests.
+  * Instead of capturing the search start time in a closure, it accepts it as a parameter.
+  */
+@SuppressWarnings(Array("UnusedMethodParameter"))
+private class BeamTravelTimeCalculator(
+  vehicleType: BeamVehicleType,
+  shouldAddNoise: Boolean,
+  shouldApplyBicycleScaleFactor: Boolean,
+  travelTimeByLinkCalc: TravelTimeByLinkCalculator
+) extends TravelTimeCalculator {
+
+  override def getTravelTimeSeconds(
+    edge: EdgeStore#Edge,
+    durationSeconds: Int,
+    streetMode: StreetMode,
+    req: ProfileRequest
+  ): Float = {
+    // Delegate to the 5-param version using req.fromTime
+    getTravelTimeSeconds(edge, durationSeconds, streetMode, req, req.fromTime)
+  }
+
+  override def getTravelTimeSeconds(
+    edge: EdgeStore#Edge,
+    durationSeconds: Int,
+    streetMode: StreetMode,
+    req: ProfileRequest,
+    searchStartTimeSeconds: Int // ← Uses this instead of captured value!
+  ): Float = {
+    // Calculate absolute time using the provided start time
+    val absoluteTime = searchStartTimeSeconds + durationSeconds
+    math.ceil(travelTimeByLinkCalc(absoluteTime, edge.getEdgeIndex, streetMode).toFloat).toFloat
+  }
 }
 
 class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNoiseFraction: Double)
@@ -68,6 +104,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     fareCalculator,
     tollCalculator
   ) = workerParams
+
+  private lazy val walkVehicleTypeId: Id[BeamVehicleType] = Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType])
 
   private lazy val osmIdToRoadRestriction: Map[Long, RoadRestrictions] = networkHelper.allLinks.flatMap { link =>
     for {
@@ -110,8 +148,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
   private val linkRadiusMeters: Double =
     beamConfig.beam.routing.r5.linkRadiusMeters
 
-  private val statePoolSize: Int = beamConfig.beam.routing.r5.statePoolSize
-  private val accessEgressStatePoolSize: Int = beamConfig.beam.routing.r5.accessEgressStatePoolSize
+  private val statePoolSize: Int = 200000 // beamConfig.beam.routing.r5.statePoolSize
+  private val accessEgressStatePoolSize: Int = 100000 // beamConfig.beam.routing.r5.accessEgressStatePoolSize
 
   private val carWeightCalculator = new CarWeightCalculator(workerParams, travelTimeNoiseFraction)
   private val bikeScaleFactor = bikeLanesAdjustment(beamConfig)
@@ -124,22 +162,209 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       }
     )
 
-  private val routerCachesByStatePool: ThreadLocal[java.util.Map[StatePool, java.util.ArrayDeque[StreetRouter]]] =
-    ThreadLocal.withInitial(() => new java.util.HashMap())
+  private case class RoutingVehicleConfig(
+    streetMode: StreetMode,
+    maxSpeedMps: Option[Double],
+    shouldAddNoise: Boolean,
+    shouldApplyBicycleScaleFactor: Boolean
+  )
+
+  private def getRoutingConfig(
+    vehicleType: BeamVehicleType,
+    shouldAddNoise: Boolean,
+    shouldApplyBicycleScaleFactor: Boolean
+  ): RoutingVehicleConfig = {
+    val streetMode = Modes.toR5StreetMode(vehicleType.vehicleCategory match {
+      case VehicleCategory.Car  => BeamMode.CAR
+      case VehicleCategory.Bike => BeamMode.BIKE
+      case _                    => BeamMode.WALK
+    })
+
+    RoutingVehicleConfig(
+      streetMode,
+      vehicleType.maxVelocity, // Only matters for cars
+      shouldAddNoise,
+      shouldApplyBicycleScaleFactor
+    )
+  }
+
+  private val travelTimeCalculatorCache: ThreadLocal[mutable.Map[
+    RoutingVehicleConfig,
+    BeamTravelTimeCalculator
+  ]] = ThreadLocal.withInitial(() => mutable.Map.empty)
+
+  private case class RouterCacheKey(statePool: StatePool, quantityToMinimize: StreetRouter.State.RoutingVariable)
+
+  private case class McRaptorRouterCacheKey(
+    streetMode: StreetMode,
+    listSupplierType: String
+  )
+
+  private val routerCaches: ThreadLocal[mutable.Map[RouterCacheKey, util.ArrayDeque[StreetRouter]]] =
+    ThreadLocal.withInitial(() => mutable.Map.empty[RouterCacheKey, util.ArrayDeque[StreetRouter]])
 
   private val statePoolCapacities: ThreadLocal[java.util.Map[StatePool, Int]] =
     ThreadLocal.withInitial(() => new java.util.HashMap()) // Hack to avoid changing R5 again
 
-  private def borrowRouterWithStatePool(
-    travelTimeCalc: TravelTimeCalculator,
-    travelCostCalc: TravelCostCalculator,
-    statePool: StatePool
-  ): StreetRouter = {
-    val cacheMap = routerCachesByStatePool.get()
-    val cache = cacheMap.computeIfAbsent(statePool, _ => new java.util.ArrayDeque[StreetRouter](1))
-    val statsMap = poolStatsMap.get()
+  private def getMcRaptorPoolSize(streetMode: StreetMode, listSupplierType: String): Int = {
+    (streetMode, listSupplierType) match {
+      case (StreetMode.WALK, "suboptimal")          => 2000000 // ← Was 100k, need at least 200k
+      case (StreetMode.WALK, "beam")                => 500000
+      case (StreetMode.CAR | StreetMode.BICYCLE, _) => 20000 // ← Was 100k, way too big
+      case _                                        => 100000
+    }
+  }
 
-    // Get or create stats for this specific pool
+  private val transferSegmentCache = mutable.Map.empty[(Int, Int), StreetSegment]
+
+  private val mcRaptorStatePools: ThreadLocal[mutable.Map[StreetMode, McRaptorStatePool]] =
+    ThreadLocal.withInitial(() => mutable.Map.empty[StreetMode, McRaptorStatePool])
+
+  private val mcRaptorRouterCaches
+    : ThreadLocal[mutable.Map[McRaptorRouterCacheKey, util.ArrayDeque[McRaptorSuboptimalPathProfileRouter]]] =
+    ThreadLocal.withInitial(() =>
+      mutable.Map.empty[McRaptorRouterCacheKey, util.ArrayDeque[McRaptorSuboptimalPathProfileRouter]]
+    )
+
+  private val mcRaptorPoolCapacities: ThreadLocal[java.util.Map[McRaptorStatePool, Int]] =
+    ThreadLocal.withInitial(() => new java.util.HashMap())
+
+  private def borrowMcRaptorRouter(
+    streetMode: StreetMode,
+    profileRequest: ProfileRequest,
+    accessTimes: java.util.Map[LegMode, gnu.trove.map.TIntIntMap],
+    egressTimes: java.util.Map[LegMode, gnu.trove.map.TIntIntMap],
+    departureTimeToDominatingList: IntFunction[DominatingList],
+    collapseParetoSurfaceToTime: InRoutingFareCalculator.Collater,
+    isDriveTransitRequest: Boolean
+  ): McRaptorSuboptimalPathProfileRouter = {
+
+    val listSupplierType =
+      if (isDriveTransitRequest) "beam"
+      else {
+        beamConfig.beam.routing.r5.transitAlternativeList.toLowerCase match {
+          case "suboptimal" => "suboptimal"
+          case _            => "beam"
+        }
+      }
+
+    val cacheKey = McRaptorRouterCacheKey(streetMode, listSupplierType)
+
+    // Get or create SHARED state pool for this mode
+    // All "WALK + suboptimal" McRaptors share one pool
+    val poolSize = getMcRaptorPoolSize(streetMode, listSupplierType)
+    val statePool = mcRaptorStatePools
+      .get()
+      .getOrElseUpdate(
+        streetMode, {
+          val pool = new McRaptorStatePool(poolSize)
+          mcRaptorPoolCapacities.get().put(pool, poolSize)
+          logger
+            .info(s"[MCRAPTOR-POOL-CREATE] mode=$streetMode, type=$listSupplierType, poolSize=$poolSize")
+          pool
+        }
+      )
+
+    // Get or create router cache
+    val routerCache =
+      mcRaptorRouterCaches.get().getOrElseUpdate(cacheKey, new util.ArrayDeque[McRaptorSuboptimalPathProfileRouter](5))
+
+    val stats = mcRaptorPoolStatsMap
+      .get()
+      .computeIfAbsent(
+        cacheKey,
+        _ =>
+          McRaptorPoolStats(
+            streetMode = streetMode,
+            listSupplierType = listSupplierType,
+            poolCapacity = getMcRaptorPoolSize(streetMode, listSupplierType)
+          )
+      )
+
+    val router = if (routerCache.isEmpty) {
+      stats.routerMisses += 1
+      // Create new router with the state pool
+      val newRouter = new McRaptorSuboptimalPathProfileRouter(
+        transportNetwork,
+        profileRequest,
+        accessTimes,
+        egressTimes,
+        departureTimeToDominatingList,
+        collapseParetoSurfaceToTime,
+        statePool
+      )
+      newRouter
+    } else {
+      stats.routerHits += 1
+      routerCache.poll()
+    }
+
+    // Reset the router for reuse
+    router.reset(profileRequest, accessTimes, egressTimes, departureTimeToDominatingList, collapseParetoSurfaceToTime)
+
+    router
+  }
+
+  private def returnMcRaptorRouter(
+    router: McRaptorSuboptimalPathProfileRouter,
+    r5mode: StreetMode,
+    isDriveTransitRequest: Boolean
+  ): Unit = {
+    val listSupplierType =
+      if (isDriveTransitRequest) "beam"
+      else {
+        beamConfig.beam.routing.r5.transitAlternativeList.toLowerCase match {
+          case "suboptimal" => "suboptimal"
+          case _            => "beam"
+        }
+      }
+
+    val cacheKey = McRaptorRouterCacheKey(r5mode, listSupplierType)
+    val routerCache =
+      mcRaptorRouterCaches.get().getOrElseUpdate(cacheKey, new util.ArrayDeque[McRaptorSuboptimalPathProfileRouter](5))
+
+    val stats = mcRaptorPoolStatsMap.get().get(cacheKey)
+
+    // Track state pool usage
+    val exhaustions = router.getStatePoolExhaustionsSinceReset
+    val maxInUse = router.getStatePoolMaxInUse
+
+    stats.totalRoutes += 1
+    stats.maxStatesInUse = Math.max(stats.maxStatesInUse, maxInUse)
+
+    if (exhaustions > 0) {
+      stats.routesWithExhaustion += 1
+      stats.totalExtraStates += exhaustions
+      stats.maxExtraInOneRoute = Math.max(stats.maxExtraInOneRoute, exhaustions)
+    }
+
+    // Log periodically
+    if (stats.totalRoutes % 500 == 0) {
+      logMcRaptorPoolStats(stats)
+    }
+
+    // Return router to cache
+    if (routerCache.size() < 5) {
+      routerCache.offer(router)
+      stats.routerReturns += 1
+      stats.maxCacheSize = Math.max(stats.maxCacheSize, routerCache.size())
+    } else {
+      stats.routerDiscards += 1
+    }
+  }
+
+  private def borrowRouterWithStatePool(
+    travelTimeCalculator: TravelTimeCalculator,
+    travelCostCalculator: TravelCostCalculator,
+    statePool: StatePool,
+    quantityToMinimize: StreetRouter.State.RoutingVariable // NEW parameter
+  ): StreetRouter = {
+
+    val cacheKey = RouterCacheKey(statePool, quantityToMinimize)
+    val cacheMap = routerCaches.get()
+    val cache = cacheMap.getOrElseUpdate(cacheKey, new util.ArrayDeque[StreetRouter](50))
+
+    val statsMap = poolStatsMap.get()
     val capacity = statePoolCapacities.get().getOrDefault(statePool, 0)
     val stats = statsMap.computeIfAbsent(
       statePool,
@@ -152,26 +377,52 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
 
     val router = if (cache.isEmpty) {
       stats.routerMisses += 1
-      new StreetRouter(
-        transportNetwork.streetLayer,
-        travelTimeCalc,
-        turnCostCalculatorTL.get(),
-        travelCostCalc,
-        statePool
+      val poolType = determinePoolType(statePool)
+      val threadId = Thread.currentThread.getId
+      val totalCaches = cacheMap.size
+      val totalRouters = cacheMap.values.map(_.size()).sum
+
+      logger.warn(
+        s"[CACHE-MISS] Creating new StreetRouter | " +
+        s"thread=$threadId, " +
+        s"pool=$poolType, " +
+        s"quantityToMinimize=$quantityToMinimize, " +
+        s"cache_empty=${cache.isEmpty}, " +
+        s"total_caches=$totalCaches, " +
+        s"total_routers_cached=$totalRouters, " +
+        s"miss_count=${stats.routerMisses}, " +
+        s"hit_count=${stats.routerHits}"
       )
+
+      val newRouter = new StreetRouter(
+        transportNetwork.streetLayer,
+        travelTimeCalculator,
+        turnCostCalculatorTL.get(),
+        travelCostCalculator,
+        statePool,
+        quantityToMinimize
+      )
+      newRouter
     } else {
       stats.routerHits += 1
       cache.poll()
     }
 
-    router.reset()
+    router.reset() // This won't change the comparator
+    // quantityToMinimize is already correct for this cache
     router
   }
 
-  private def returnRouterWithStatePool(router: StreetRouter, statePool: StatePool): Unit = {
-    val cacheMap = routerCachesByStatePool.get()
-    val cache = cacheMap.computeIfAbsent(statePool, _ => new java.util.ArrayDeque[StreetRouter](1))
+  private def returnRouterWithStatePool(
+    router: StreetRouter,
+    statePool: StatePool,
+    quantityToMinimize: StreetRouter.State.RoutingVariable
+  ): Unit = {
+    val cacheKey = RouterCacheKey(statePool, quantityToMinimize)
+    val cacheMap = routerCaches.get()
+    val cache = cacheMap.getOrElseUpdate(cacheKey, new util.ArrayDeque[StreetRouter](50))
     val statsMap = poolStatsMap.get()
+    val sizeBefore = cache.size()
 
     val capacity = statePoolCapacities.get().getOrDefault(statePool, 0)
     val stats = statsMap.computeIfAbsent(
@@ -202,8 +453,13 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     }
 
     // Return router to cache
-    if (cache.size() < 10) {
+    if (cache.size() < 50) {
       cache.offer(router)
+      logger.debug(
+        s"[ROUTER-RETURNED] thread=${Thread.currentThread.getId}, " +
+        s"pool=${determinePoolType(statePool)}, " +
+        s"cache_before=$sizeBefore, cache_after=${cache.size()}"
+      )
       stats.routerReturns += 1
       stats.maxCacheSize = Math.max(stats.maxCacheSize, cache.size())
     } else {
@@ -237,9 +493,29 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
   private val poolStatsMap: ThreadLocal[java.util.Map[StatePool, StatePoolStats]] =
     ThreadLocal.withInitial(() => new java.util.HashMap())
 
+  private case class McRaptorPoolStats(
+    streetMode: StreetMode,
+    listSupplierType: String,
+    poolCapacity: Int,
+    var routerHits: Long = 0,
+    var routerMisses: Long = 0,
+    var routerReturns: Long = 0,
+    var routerDiscards: Long = 0,
+    var maxCacheSize: Int = 0,
+    var totalRoutes: Long = 0,
+    var routesWithExhaustion: Long = 0,
+    var totalExtraStates: Long = 0,
+    var maxExtraInOneRoute: Int = 0,
+    var maxStatesInUse: Int = 0
+  )
+
+  // Separate map for McRaptor stats
+  private val mcRaptorPoolStatsMap: ThreadLocal[java.util.Map[McRaptorRouterCacheKey, McRaptorPoolStats]] =
+    ThreadLocal.withInitial(() => new java.util.HashMap())
+
   private def returnRouter(router: StreetRouter): Unit = {
     // Delegate to the unified method with mainRoutingPool
-    returnRouterWithStatePool(router, mainRoutingPool.get())
+    returnRouterWithStatePool(router, mainRoutingPool.get(), StreetRouter.State.RoutingVariable.WEIGHT)
   }
 
   private val mainRoutingPool: ThreadLocal[StatePool] =
@@ -256,7 +532,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     borrowRouterWithStatePool(
       travelTimeCalc,
       travelCostCalc,
-      mainRoutingPool.get() // ← Use the 100k pool!
+      mainRoutingPool.get(), // ← Use the 100k pool!
+      StreetRouter.State.RoutingVariable.WEIGHT
     )
   }
 
@@ -276,6 +553,33 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
   // ============================================================================
   // UNIFIED LOGGING
   // ============================================================================
+
+  private def logMcRaptorPoolStats(stats: McRaptorPoolStats): Unit = {
+    val exhaustionRate = if (stats.totalRoutes > 0) {
+      (stats.routesWithExhaustion * 100.0) / stats.totalRoutes
+    } else 0.0
+
+    val routerCacheEfficiency = if (stats.routerHits + stats.routerMisses > 0) {
+      (stats.routerHits * 100.0) / (stats.routerHits + stats.routerMisses)
+    } else 0.0
+
+    // Cap utilization at 100% for display, but show if it exceeded
+    val utilizationPct = if (stats.poolCapacity > 0) {
+      Math.min(100.0, (stats.maxStatesInUse * 100.0) / stats.poolCapacity)
+    } else 0.0
+
+    val exceededBy = Math.max(0, stats.maxStatesInUse - stats.poolCapacity)
+    val exceededMsg = if (exceededBy > 0) s", EXCEEDED by $exceededBy" else ""
+
+    logger.info(
+      s"McRaptorStatePool [${stats.streetMode}/${stats.listSupplierType}] @ thread ${Thread.currentThread.getId}: " +
+      s"capacity=${stats.poolCapacity}, " +
+      s"routes=${stats.totalRoutes}, " +
+      s"peak_usage=${stats.maxStatesInUse} (${f"$utilizationPct%.0f"}%%$exceededMsg), " +
+      s"exhausted=${stats.routesWithExhaustion} (${f"$exhaustionRate%.1f"}%), " +
+      s"router_cache_hits=${f"$routerCacheEfficiency%.1f"}%%"
+    )
+  }
 
   private def logPoolStats(stats: StatePoolStats): Unit = {
     val exhaustionRate = if (stats.totalRoutes > 0) {
@@ -307,7 +611,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       s"max_extra=${stats.maxExtraInOneRoute}, " +
       s"garbage=${f"$garbageGB%.2f"}GB, " +
       s"router_cache_hits=${f"$routerCacheEfficiency%.1f"}%% " +
-      s"(${stats.routerHits}/${stats.routerHits + stats.routerMisses})"
+      s"(${stats.routerHits}/${stats.routerHits + stats.routerMisses}) " +
+      s"discards=${stats.routerDiscards}"
     )
 
     // Warnings for exhaustion issues
@@ -449,11 +754,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       profileRequest.reverseSearch = false
       for (mode <- profileRequest.directModes.asScala) {
         withRouter(
-          travelTimeCalculator(
-            vehicleType,
-            profileRequest.fromTime,
-            shouldAddNoise = !profileRequest.hasTransit
-          ),
+          getTravelTimeCalculator(vehicleType, shouldAddNoise = !profileRequest.hasTransit),
           travelCostCalculator(
             vehicleType,
             request.timeValueOfMoney,
@@ -483,7 +784,12 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       }
       directOption.summary = directOption.generateSummary
       profileResponse.addOption(directOption)
-      profileResponse.recomputeStats(profileRequest)
+      try {
+        profileResponse.recomputeStats(profileRequest)
+      } catch {
+        case e: IllegalStateException if e.getMessage != null && e.getMessage.contains("No valid itineraries") =>
+          logger.debug(s"No transit paths found, returning ${profileResponse.getOptions.size} direct options (if any)")
+      }
       profileResponse
     } catch {
       case _: IllegalStateException =>
@@ -529,7 +835,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     profileRequest.bikeTrafficStress = 4
     profileRequest.zoneId = transportNetwork.getTimeZone
     // profileRequest.monteCarloDraws = beamConfig.beam.routing.r5.numberOfSamples
-    profileRequest.monteCarloDraws = 0
+    profileRequest.monteCarloDraws = 1
     profileRequest.date = dates.localBaseDate
     // Doesn't calculate any fares, is just a no-op placeholder
     profileRequest.inRoutingFareCalculator = new SimpleInRoutingFareCalculator
@@ -543,7 +849,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     buildDirectWalkRoute: Boolean
   ): RoutingResponse = {
     val routeCalcStarted = System.currentTimeMillis()
-    val routersToReturn = mutable.ArrayBuffer[(StreetRouter, StatePool)]()
+    val accessRoutersToReturn = mutable.ArrayBuffer[(StreetRouter, StatePool, StreetRouter.State.RoutingVariable)]()
+    val egressRoutersToReturn = mutable.ArrayBuffer[(StreetRouter, StatePool, StreetRouter.State.RoutingVariable)]()
 
     try {
       // For each street vehicle (including body, if available): Route from origin to street vehicle, from street vehicle to destination.
@@ -793,21 +1100,14 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           .getOrElseUpdate(
             r5mode, {
               val pool = new StatePool(accessEgressStatePoolSize) // Created once per thread per mode
-              logger.debug(
-                s"Created NEW StatePool for mode ${r5mode} on thread ${Thread.currentThread.getId} " +
-                s"(pool identity: ${System.identityHashCode(pool)})"
-              )
+              logger.debug(s"[POOL-CREATE] NEW access pool mode=$r5mode poolId=${System.identityHashCode(pool)}")
               statePoolCapacities.get().put(pool, accessEgressStatePoolSize) // Track capacity
               pool
             }
           )
         // Borrow from pool instead of creating new
         val streetRouter = borrowRouterWithStatePool(
-          travelTimeCalculator(
-            vehicleType,
-            profileRequest.fromTime,
-            shouldAddNoise = !profileRequest.hasTransit
-          ),
+          getTravelTimeCalculator(vehicleType, shouldAddNoise = !profileRequest.hasTransit),
           travelCostCalculator(
             vehicleType,
             request.timeValueOfMoney,
@@ -815,10 +1115,16 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             costPerMile,
             costPerMinute
           ),
-          accessStatePool // ← Pass the specific state pool
+          accessStatePool, // ← Pass the specific state pool
+          StreetRouter.State.RoutingVariable.DURATION_SECONDS
         )
-
-        routersToReturn += ((streetRouter, accessStatePool)) // Track for cleanup
+        accessRoutersToReturn += (
+          (
+            streetRouter,
+            accessStatePool,
+            StreetRouter.State.RoutingVariable.DURATION_SECONDS
+          )
+        )
 
         if (vehicle.mode == BeamMode.BIKE) {
           streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
@@ -849,7 +1155,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             streetRouter.setRoutingVisitor(stopVisitor)
             streetRouter.timeLimitSeconds = profileRequest.getMaxTimeSeconds(legMode)
             streetRouter.route()
-            accessRouters.put(legMode, streetRouter)
+
+            accessRouters.put(legMode, streetRouter) // For R5 API (keeps last per mode)
             accessStopsByMode.put(legMode, stopVisitor)
             if (calcDirectRoute && !mainRouteRideHailTransit) {
               // Not interested in direct options in the ride-hail-transit case,
@@ -865,11 +1172,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
                 } else if (profileRequest.streetTime * 60 > streetRouter.timeLimitSeconds) {
                   val vehicleType = vehicleTypes(vehicle.vehicleTypeId)
                   withRouter(
-                    travelTimeCalculator(
-                      vehicleType,
-                      profileRequest.fromTime,
-                      shouldAddNoise = !profileRequest.hasTransit
-                    ),
+                    getTravelTimeCalculator(vehicleType, shouldAddNoise = !profileRequest.hasTransit),
                     travelCostCalculator(
                       vehicleType,
                       request.timeValueOfMoney,
@@ -952,20 +1255,13 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             .getOrElseUpdate(
               r5mode, {
                 val pool = new StatePool(accessEgressStatePoolSize) // Created once per thread per mode
-                logger.debug(
-                  s"Created NEW StatePool for mode ${r5mode} on thread ${Thread.currentThread.getId} " +
-                  s"(pool identity: ${System.identityHashCode(pool)})"
-                )
+                logger.debug(s"[POOL-CREATE] NEW egress pool mode=$r5mode poolId=${System.identityHashCode(pool)}")
                 statePoolCapacities.get().put(pool, accessEgressStatePoolSize) // Track capacity
                 pool
               }
             )
           val streetRouter = borrowRouterWithStatePool(
-            travelTimeCalculator(
-              vehicleType,
-              profileRequest.fromTime,
-              shouldAddNoise = !profileRequest.hasTransit
-            ),
+            getTravelTimeCalculator(vehicleType, shouldAddNoise = !profileRequest.hasTransit),
             travelCostCalculator(
               vehicleType,
               request.timeValueOfMoney,
@@ -973,10 +1269,17 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
               costPerMile,
               costPerMinute
             ),
-            egressStatePool // Pass the specific state pool
+            egressStatePool, // Pass the specific state pool
+            StreetRouter.State.RoutingVariable.DURATION_SECONDS
           )
 
-          routersToReturn += ((streetRouter, egressStatePool)) // Track for cleanup
+          egressRoutersToReturn += (
+            (
+              streetRouter,
+              egressStatePool,
+              StreetRouter.State.RoutingVariable.DURATION_SECONDS
+            )
+          )
 
           if (vehicle.mode == BeamMode.BIKE) {
             streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
@@ -1014,9 +1317,11 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             if (isDriveTransitRequest) {
               profileRequest.suboptimalMinutes = beamConfig.beam.routing.r5.suboptimalMinutesForDriveAccess
               profileRequest.maxRides = 2
+              profileRequest.maxTripDurationMinutes = 120
             } else {
               profileRequest.suboptimalMinutes = beamConfig.beam.routing.r5.suboptimalMinutes
               profileRequest.maxRides = 3
+              profileRequest.maxTripDurationMinutes = 180
             }
 
             val departureTimeToDominatingList: IntFunction[DominatingList] = (departureTime: Int) =>
@@ -1058,16 +1363,50 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             }
             profileRequest.fromTime = request.departureTime
             profileRequest.toTime = request.departureTime + modeSpecificBuffer + 61
+
+            val accessModesSet = util.EnumSet.noneOf(classOf[LegMode])
+            accessStopsByMode.keys.foreach(mode => accessModesSet.add(mode))
+            profileRequest.accessModes = accessModesSet
+
+            val egressModesSet = util.EnumSet.noneOf(classOf[LegMode])
+            egressStopsByMode.keys.foreach(mode => egressModesSet.add(mode))
+            profileRequest.egressModes = egressModesSet
+
             // Important to allow 61 seconds for transit schedules to be considered! Along with any other buffers
-            val router = new McRaptorSuboptimalPathProfileRouter(
-              transportNetwork,
+            val isDriveTransitRequestForM = mode == LegMode.CAR || mode == LegMode.BICYCLE ||
+              egressVehicles.exists(v => Seq(CAR, BIKE).contains(v.mode))
+
+            val accessTimesJava = new java.util.HashMap[LegMode, TIntIntMap]()
+            accessTimesJava.put(mode, stopVisitor.stops)
+
+            val egressTimesJava = new java.util.HashMap[LegMode, TIntIntMap]()
+            egressStopsByMode.foreach { case (m, visitor) =>
+              egressTimesJava.put(m, visitor.stops)
+            }
+
+            val r5mode = Modes.toR5StreetMode(mode)
+
+            val router = borrowMcRaptorRouter(
+              r5mode,
               profileRequest,
-              Map(mode -> stopVisitor.stops).asJava,
-              egressStopsByMode.mapValues(_.stops).asJava,
+              accessTimesJava,
+              egressTimesJava,
               departureTimeToDominatingList,
-              null
+              null,
+              isDriveTransitRequestForM
             )
-            Try(router.getPaths.asScala).getOrElse(Nil)
+
+            try {
+              val paths = Try(router.getPaths.asScala) match {
+                case Success(p) => p
+                case Failure(e) =>
+                  logger.error(s"[MCRAPTOR-EXCEPTION] mode=$mode", e)
+                  Nil
+              }
+              paths
+            } finally {
+              returnMcRaptorRouter(router, r5mode, isDriveTransitRequest)
+            }
           }
 
           // Catch IllegalStateException in R5.StatsCalculator
@@ -1084,10 +1423,15 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         }
 
         latency("transfer-transit-time", Metrics.VerboseLevel) {
-          profileResponse.generateStreetTransfers(transportNetwork, profileRequest)
+          generateStreetTransfersWithPooling(profileResponse, transportNetwork, profileRequest)
         }
       }
-      profileResponse.recomputeStats(profileRequest)
+      try {
+        profileResponse.recomputeStats(profileRequest)
+      } catch {
+        case e: IllegalStateException if e.getMessage != null && e.getMessage.contains("No valid itineraries") =>
+          logger.debug(s"No transit paths found in calcRoute, returning ${profileResponse.getOptions.size} options")
+      }
 
       val rawEmbodiedTrips = profileResponse.options.asScala.flatMap { option =>
         option.itinerary.asScala
@@ -1166,8 +1510,15 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
                 .getOrElse(throw new RuntimeException())
               val tripId = segmentPattern.tripIds.get(transitJourneyID.time)
               val route = transportNetwork.transitLayer.routes.get(tripPattern.getRouteIdx)
-              val fromStop = tripPattern.getStops.get(segmentPattern.fromIndex)
-              val toStop = tripPattern.getStops.get(segmentPattern.toIndex)
+              val r5TripPattern = transportNetwork.transitLayer.tripPatterns.get(tripPattern.getTripPatternIdx)
+
+              val stopSequence = (segmentPattern.fromIndex to segmentPattern.toIndex).map { idx =>
+                new Stop(r5TripPattern.stops(idx), transportNetwork.transitLayer)
+              }.toList
+
+              val fromStop = stopSequence.head
+              val toStop = stopSequence.last
+
               val startTime = dates
                 .toBaseMidnightSeconds(
                   segmentPattern.fromDepartureTime.get(transitJourneyID.time),
@@ -1180,8 +1531,14 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
                   hasTransit = true
                 )
                 .toInt
-              val stopSequence =
-                tripPattern.getStops.asScala.toList.slice(segmentPattern.fromIndex, segmentPattern.toIndex + 1)
+
+              var totalDistance = 0.0
+              var i = 0
+              while (i < stopSequence.length - 1) {
+                totalDistance += getDistanceBetweenStops(stopSequence(i), stopSequence(i + 1))
+                i += 1
+              }
+
               val segmentLeg = BeamLeg(
                 startTime,
                 Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type)),
@@ -1205,7 +1562,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
                   ),
                   SpaceTime(fromStop.lon, fromStop.lat, startTime),
                   SpaceTime(toStop.lon, toStop.lat, endTime),
-                  stopSequence.sliding(2).map(x => getDistanceBetweenStops(x.head, x.last)).sum
+                  totalDistance
                 )
               )
               embodiedBeamLegs += EmbodiedBeamLeg(
@@ -1361,9 +1718,102 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
 
       routingResponse
     } finally {
-      routersToReturn.foreach { case (router, statePool) =>
-        returnRouterWithStatePool(router, statePool)
+      val threadId = Thread.currentThread.getId
+      logger.debug(
+        s"[FINALLY-BLOCK] thread=$threadId, " +
+        s"accessToReturn=${accessRoutersToReturn.size}, " +
+        s"egressToReturn=${egressRoutersToReturn.size}"
+      )
+      accessRoutersToReturn.foreach { case (router, pool, qtm) =>
+        logger.debug(s"[RETURNING-ACCESS] thread=$threadId, pool=${determinePoolType(pool)}, qtm=$qtm")
+        returnRouterWithStatePool(router, pool, qtm)
       }
+
+      egressRoutersToReturn.foreach { case (router, pool, qtm) =>
+        logger.debug(s"[RETURNING-EGRESS] thread=$threadId, pool=${determinePoolType(pool)}, qtm=$qtm")
+        returnRouterWithStatePool(router, pool, qtm)
+      }
+    }
+  }
+
+  // In R5Wrapper.scala - add this method:
+
+  /**
+    * Override ProfileResponse to use pooled routers for street transfers
+    */
+  private def generateStreetTransfersWithPooling(
+    profileResponse: ProfileResponse,
+    transportNetwork: TransportNetwork,
+    profileRequest: ProfileRequest
+  ): Unit = {
+
+    val transfersToOptions = profileResponse.getTransferToOption
+
+    // Group transfers by start stop
+    val transfersByStart = transfersToOptions
+      .keySet()
+      .asScala
+      .groupBy(_.getAlightStop)
+
+    val prevReverseSearch = profileRequest.reverseSearch
+    profileRequest.reverseSearch = false
+
+    try {
+      transfersByStart.foreach { case (alightStopIdx, transfers) =>
+        // Borrow router from pool instead of creating new
+        val streetRouter = borrowRouterWithStatePool(
+          getTravelTimeCalculator(vehicleTypes(walkVehicleTypeId), shouldAddNoise = false),
+          travelCostCalculator(vehicleTypes(walkVehicleTypeId), 0, profileRequest.fromTime, 0, 0),
+          mainRoutingPool.get(),
+          StreetRouter.State.RoutingVariable.DURATION_SECONDS
+        )
+
+        try {
+          streetRouter.streetMode = StreetMode.WALK
+          streetRouter.profileRequest = profileRequest
+          streetRouter.distanceLimitMeters = TransitLayer.TRANSFER_DISTANCE_LIMIT_METERS
+
+          val stopIndex = transportNetwork.transitLayer.streetVertexForStop.get(alightStopIdx)
+          streetRouter.setOrigin(stopIndex)
+          streetRouter.route()
+
+          // Add paths to profile options
+          transfers.foreach { transfer =>
+            val endIndex = transportNetwork.transitLayer.streetVertexForStop.get(transfer.boardStop)
+
+            // Cache key based on origin-destination pair
+            val cacheKey = (alightStopIdx.intValue(), transfer.boardStop)
+            val streetSegment = transferSegmentCache.getOrElseUpdate(
+              cacheKey, {
+                // Only create if not cached
+                val lastState = streetRouter.getStateAtVertex(endIndex)
+                if (lastState != null) {
+                  val streetPath = new StreetPath(lastState, transportNetwork, false)
+                  new StreetSegment(streetPath, LegMode.WALK, transportNetwork.streetLayer)
+                } else {
+                  null
+                }
+              }
+            )
+
+            if (streetSegment != null) {
+              transfersToOptions.get(transfer).asScala.foreach { profileOption =>
+                profileOption.addMiddle(streetSegment, transfer)
+              }
+            }
+          }
+
+        } finally {
+          //  Return router to pool
+          returnRouterWithStatePool(
+            streetRouter,
+            mainRoutingPool.get(),
+            StreetRouter.State.RoutingVariable.DURATION_SECONDS
+          )
+        }
+      }
+    } finally {
+      profileRequest.reverseSearch = prevReverseSearch
     }
   }
 
@@ -1414,7 +1864,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
   }
 
   private def getDistanceBetweenStops(fromStop: Stop, toStop: Stop): Double = {
-    geo.distLatLon2Meters(new Coord(fromStop.lon, fromStop.lat), new Coord(toStop.lon, toStop.lat))
+    geo.distLatLon2Meters(fromStop.lon, fromStop.lat, toStop.lon, toStop.lat)
   }
 
   private def buildStreetBasedLegs(
@@ -1652,23 +2102,34 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     (costPerMile, costPerMinute)
   }
 
-  private def travelTimeCalculator(
+  private def getTravelTimeCalculator(
     vehicleType: BeamVehicleType,
-    startTime: Int,
-    shouldAddNoise: Boolean
+    shouldAddNoise: Boolean,
+    shouldApplyBicycleScaleFactor: Boolean = true
   ): TravelTimeCalculator = {
-    new TravelTimeCalculator {
-      val ttc: TravelTimeByLinkCalculator =
-        travelTimeByLinkCalculator(vehicleType, shouldAddNoise, shouldApplyBicycleScaleFactor = true)
-      override def getTravelTimeSeconds(
-        edge: EdgeStore#Edge,
-        durationSeconds: Int,
-        streetMode: StreetMode,
-        req: ProfileRequest
-      ): Float = {
-        math.ceil(ttc(startTime + durationSeconds, edge.getEdgeIndex, streetMode).toFloat).toFloat
-      }
+    val config = getRoutingConfig(vehicleType, shouldAddNoise, shouldApplyBicycleScaleFactor)
+
+    if (!travelTimeCalculatorCache.get().contains(config)) {
+      val threadId = Thread.currentThread.getId
+      logger.info(
+        s"[TTC-CACHE-MISS] Creating new TravelTimeCalculator | " +
+        s"thread=$threadId, " +
+        s"mode=${config.streetMode}, " +
+        s"maxSpeed=${config.maxSpeedMps.getOrElse("unlimited")}, " +
+        s"noise=$shouldAddNoise, " +
+        s"bikeScale=$shouldApplyBicycleScaleFactor, " +
+        s"cache_size=${travelTimeCalculatorCache.get().size}"
+      )
     }
+
+    travelTimeCalculatorCache
+      .get()
+      .getOrElseUpdate(
+        config, {
+          val ttc = travelTimeByLinkCalculator(vehicleType, shouldAddNoise, shouldApplyBicycleScaleFactor)
+          new BeamTravelTimeCalculator(vehicleType, shouldAddNoise, shouldApplyBicycleScaleFactor, ttc)
+        }
+      )
   }
 
   private def travelTimeByLinkCalculator(

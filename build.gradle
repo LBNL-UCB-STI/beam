@@ -245,7 +245,7 @@ dependencies {
     implementation "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.9.0"
     implementation "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
 
-    implementation(group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'v4.10.18') {
+    implementation(group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'v4.10.27') {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
         exclude group: 'org.slf4j', module: 'slf4j-simple'
     }
@@ -605,6 +605,8 @@ def getCurrentTimestamp = {
             .format(Instant.now())
 }
 
+import java.lang.management.ManagementFactory
+
 def logGC = ["-XX:+PrintGCDetails", "-Xloggc:gc_${getCurrentTimestamp()}.log"]
 
 // Use following for remote debug mode
@@ -617,7 +619,6 @@ def jfr = ["-XX:StartFlightRecording=delay=30m,disk=true,maxage=150m,dumponexit=
 def jfrWithMem = ["-XX:+UnlockCommercialFeatures", "-XX:+UnlockDiagnosticVMOptions", "-XX:+DebugNonSafepoints",
                   "-XX:StartFlightRecording=delay=2s,duration=180m,name=mem_ex,filename=recording.jfr,settings=profile_heap_exception",
                   "-XX:+FlightRecorder", "-XX:FlightRecorderOptions=disk=true,maxage=10h,dumponexit=true,loglevel=info"]
-
 
 def jmx = ["-Dcom.sun.management.jmxremote", "-Dcom.sun.management.jmxremote.port=9005", "-Dcom.sun.management.jmxremote.rmi.port=9005", "-Dcom.sun.management.jmxremote.host=127.0.0.1",
            "-Dcom.sun.management.jmxremote.local.only=true", "-Dcom.sun.management.jmxremote.authenticate=false", "-Dcom.sun.management.jmxremote.ssl=false",
@@ -634,11 +635,142 @@ if (profilerTypeConfig.toString().equalsIgnoreCase('cpu')) {
     profilerOption = jfrWithMem
 }
 
+// ============================================================================
+// SMART GC CONFIGURATION FOR LOCAL DEVELOPMENT
+// ============================================================================
 
-// UseParallelGC
-applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${halfOfAvailableMem}g",
-                             "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M", "-Djava.awt.headless=true",
-                             "-Dlogback.configurationFile=${logbackConfig}", "-Xss2048k"] + profilerOption + logGC + jmx
+// Auto-detect system memory and set reasonable heap size
+def getSystemMemoryGB() {
+    def os = org.gradle.internal.os.OperatingSystem.current()
+    if (os.isMacOsX()) {
+        try {
+            def sysctl = ['sysctl', '-n', 'hw.memsize'].execute()
+            def bytes = sysctl.text.trim().toLong()
+            return (bytes / 1024 / 1024 / 1024).toInteger()
+        } catch (Exception e) {
+            logger.warn("Could not detect macOS memory, defaulting to 16GB")
+            return 16
+        }
+    } else if (os.isLinux()) {
+        try {
+            def meminfo = new File('/proc/meminfo').text
+            def matcher = meminfo =~ /MemTotal:\s+(\d+)\s+kB/
+            if (matcher.find()) {
+                def kb = matcher.group(1).toLong()
+                return (kb / 1024 / 1024).toInteger()
+            }
+        } catch (Exception e) {
+            logger.warn("Could not detect Linux memory, defaulting to 16GB")
+            return 16
+        }
+    }
+    return 16  // Default fallback
+}
+
+// Calculate optimal heap size for local development
+def calculateOptimalHeap() {
+    def totalRAM = getSystemMemoryGB()
+    def heapSize
+
+    if (totalRAM >= 32) {
+        // Large machine: use 60% of RAM
+        heapSize = (totalRAM * 0.6).toInteger()
+    } else if (totalRAM >= 24) {
+        // Medium machine: use 55% of RAM
+        heapSize = (totalRAM * 0.55).toInteger()
+    } else if (totalRAM >= 16) {
+        // Typical dev machine: use 50% of RAM
+        heapSize = (totalRAM * 0.5).toInteger()
+    } else {
+        // Small machine: use 40% of RAM
+        heapSize = Math.max(4, (totalRAM * 0.4).toInteger())
+    }
+
+    logger.lifecycle("Detected ${totalRAM}GB system RAM, setting heap to ${heapSize}GB")
+    return heapSize
+}
+
+// Calculate GC thread counts based on CPU cores
+def calculateGCThreads() {
+    def cores = Runtime.getRuntime().availableProcessors()
+    def parallelThreads = Math.max(4.0, Math.min(cores * 0.8, 16.0)).toInteger()
+    def concurrentThreads = Math.max(2.0, (parallelThreads / 4)).toInteger()
+
+    logger.lifecycle("Detected ${cores} CPU cores, using ${parallelThreads} parallel GC threads and ${concurrentThreads} concurrent GC threads")
+    return [parallel: parallelThreads, concurrent: concurrentThreads]
+}
+
+// Allow override via gradle properties
+def heapSize = project.findProperty('beamHeap') ?: calculateOptimalHeap()
+def gcThreads = calculateGCThreads()
+
+// G1GC settings optimized for local development (50k-100k agents)
+def g1GCSettings = [
+        // Core G1GC settings
+        "-XX:+UseG1GC",
+        "-XX:G1HeapRegionSize=16M",  // Smaller regions for smaller heap
+
+        // Thread counts (auto-scaled to your machine)
+        "-XX:ParallelGCThreads=${gcThreads.parallel}",
+        "-XX:ConcGCThreads=${gcThreads.concurrent}",
+
+        // Young generation sizing (flexible range)
+        "-XX:+UnlockExperimentalVMOptions",
+        "-XX:G1NewSizePercent=40",      // Min young gen: 40%
+        "-XX:G1MaxNewSizePercent=60",   // Max young gen: 60%
+
+        // Object tenuring (die faster in young gen)
+        "-XX:MaxTenuringThreshold=6", // ← NEW (reduce survivor bouncing)
+        "-XX:SurvivorRatio=6",
+
+        // Pause time target (balanced for local dev)
+        "-XX:MaxGCPauseMillis=2000",    // 2s target (comfortable for local)
+
+        // Concurrent marking settings
+        "-XX:InitiatingHeapOccupancyPercent=35",  // Start marking earlier
+
+        // Reserve and evacuation settings
+        "-XX:G1ReservePercent=10",      // 10% reserve
+
+        // Mixed GC settings (less aggressive than HPC)
+        "-XX:G1MixedGCCountTarget=8",           // Fewer mixed GCs
+        "-XX:G1MixedGCLiveThresholdPercent=85", // Conservative threshold
+
+        // Metaspace (reasonable default)
+        "-XX:MetaspaceSize=256M",
+        "-XX:MaxMetaspaceSize=512M",
+
+        // GC Logging (modern format for Java 9+)
+        "-Xlog:gc*=info:file=gc_${getCurrentTimestamp()}.log:time,uptime,level,tags",
+        "-Xlog:gc+heap=debug:file=heap-detail_${getCurrentTimestamp()}.log:time,uptime",
+
+        // Performance options
+        "-XX:+AlwaysPreTouch",          // Pre-touch heap pages (faster startup)
+        "-Djava.awt.headless=true",
+        "-Xss2048k"
+]
+
+// Main JVM args combining everything
+applicationDefaultJvmArgs = [
+        // Heap settings (match Xms and Xmx for consistency)
+        "-Xms${heapSize}g",
+        "-Xmx${heapSize}g"
+] + g1GCSettings + [
+        // Logging
+        "-Dlogback.configurationFile=${logbackConfig}"
+] + profilerOption + jmx
+
+// Print configuration summary
+logger.lifecycle("")
+logger.lifecycle("========================================")
+logger.lifecycle("BEAM Local Development GC Configuration")
+logger.lifecycle("========================================")
+logger.lifecycle("Heap Size: ${heapSize}GB")
+logger.lifecycle("Parallel GC Threads: ${gcThreads.parallel}")
+logger.lifecycle("Concurrent GC Threads: ${gcThreads.concurrent}")
+logger.lifecycle("GC: G1 (optimized for 50k-100k agents)")
+logger.lifecycle("========================================")
+logger.lifecycle("")
 println(applicationDefaultJvmArgs)
 
 run {
@@ -795,8 +927,8 @@ tasks.register('buildImage', DockerBuildImage) {
     inputDir = file('build/docker')
     platform = 'linux/amd64'
 
-    String repo = getDockerRepository()
-    String tagName = getDockerTag()
+    String repo = getDockerRepository()//"zaneedell/beam"//
+    String tagName = getDockerTag()//"1.1.beta"//
 
     if (repo.isEmpty() || tagName.isEmpty()) {
         throw new GradleException("Please specify a tag using -Ptag=repository:version")

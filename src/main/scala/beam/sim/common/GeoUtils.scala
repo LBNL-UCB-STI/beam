@@ -10,12 +10,67 @@ import com.conveyal.r5.streets.{EdgeStore, Split, StreetLayer}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.{ImplementedBy, Inject}
 import com.typesafe.scalalogging.Logger
+import org.geotools.referencing.CRS
 import org.locationtech.jts.geom.{Coordinate, Envelope}
 import org.matsim.api.core.v01
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.network.Link
+import org.matsim.core.utils.geometry.geotools.MGC
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
+import org.opengis.referencing.operation.{MathTransform, TransformException}
 import org.slf4j.LoggerFactory
+
+class FastCoordTransform(sourceCRS: String, targetCRS: String) {
+
+  private val transform: MathTransform = {
+    val sourceCRSObj = MGC.getCRS(sourceCRS)
+    val targetCRSObj = MGC.getCRS(targetCRS)
+    try {
+      CRS.findMathTransform(sourceCRSObj, targetCRSObj, true)
+    } catch {
+      case e: Exception =>
+        throw new RuntimeException(s"Failed to create transform from $sourceCRS to $targetCRS", e)
+    }
+  }
+
+  // Reusable arrays to avoid allocation on every transform
+  private val threadLocalArrays: ThreadLocal[(Array[Double], Array[Double])] =
+    ThreadLocal.withInitial(() => (new Array[Double](2), new Array[Double](2)))
+
+  def transform(coord: Coord): Coord = {
+    val (source, dest) = threadLocalArrays.get()
+    source(0) = coord.getX
+    source(1) = coord.getY
+
+    try {
+      transform.transform(source, 0, dest, 0, 1)
+      if (coord.hasZ) {
+        new Coord(dest(0), dest(1), coord.getZ)
+      } else {
+        new Coord(dest(0), dest(1))
+      }
+    } catch {
+      case e: TransformException =>
+        throw new RuntimeException(s"Transform failed for coord $coord", e)
+    }
+  }
+
+  // ✅ Transform and write to existing arrays (no Coord allocation)
+  def transformToArrays(x: Double, y: Double): (Double, Double) = {
+    val (source, dest) = threadLocalArrays.get()
+    source(0) = x
+    source(1) = y
+    transform.transform(source, 0, dest, 0, 1)
+    (dest(0), dest(1))
+  }
+
+  // ✅ Calculate distance between two WGS coords after transforming (no Coord allocation)
+  def distanceAfterTransform(x1: Double, y1: Double, x2: Double, y2: Double): Double = {
+    val (utm1X, utm1Y) = transformToArrays(x1, y1)
+    val (utm2X, utm2Y) = transformToArrays(x2, y2)
+    Math.sqrt(Math.pow(utm1X - utm2X, 2.0) + Math.pow(utm1Y - utm2Y, 2.0))
+  }
+}
 
 case class EdgeWithCoord(edgeIndex: Int, wgsCoord: Coordinate)
 
@@ -31,11 +86,11 @@ trait GeoUtils extends ExponentialLazyLogging {
   private lazy val notExponentialLogger = Logger(LoggerFactory.getLogger(getClass.getName))
   private var cachedEdges: Option[Array[(EdgeWithCoord, GpxPoint)]] = None
 
-  lazy val utm2Wgs: GeotoolsTransformation =
-    new GeotoolsTransformation(localCRS, "EPSG:4326")
+  protected lazy val utm2WgsTransform: FastCoordTransform =
+    new FastCoordTransform(localCRS, "EPSG:4326")
 
-  lazy val wgs2Utm: GeotoolsTransformation =
-    new GeotoolsTransformation("EPSG:4326", localCRS)
+  protected lazy val wgs2UtmTransform: FastCoordTransform =
+    new FastCoordTransform("EPSG:4326", localCRS)
 
   def wgs2Utm(spacetime: SpaceTime): SpaceTime = SpaceTime(wgs2Utm(spacetime.loc), spacetime.time)
 
@@ -44,32 +99,43 @@ trait GeoUtils extends ExponentialLazyLogging {
       logger.warn(s"Coordinate does not appear to be in WGS. No conversion will happen: $coord")
       coord
     } else {
-      wgs2Utm.transform(coord)
+      wgs2UtmTransform.transform(coord)
     }
   }
 
   def wgs2Utm(envelope: Envelope): Envelope = {
-    val ll: Coord = wgs2Utm.transform(new Coord(envelope.getMinX, envelope.getMinY))
-    val ur: Coord = wgs2Utm.transform(new Coord(envelope.getMaxX, envelope.getMaxY))
+    val ll: Coord = wgs2UtmTransform.transform(new Coord(envelope.getMinX, envelope.getMinY))
+    val ur: Coord = wgs2UtmTransform.transform(new Coord(envelope.getMaxX, envelope.getMaxY))
     new Envelope(ll.getX, ur.getX, ll.getY, ur.getY)
   }
+
   def utm2Wgs(spacetime: SpaceTime): SpaceTime = SpaceTime(utm2Wgs(spacetime.loc), spacetime.time)
 
   def utm2Wgs(coord: Coord): Coord = {
     try {
-      utm2Wgs.transform(coord)
+      utm2WgsTransform.transform(coord)
     } catch {
       case e: Throwable =>
         logger.warn(e.getMessage)
         logger.warn(s"Coordinate cannot be converged from UTM -> WGS. No conversion will happen: $coord")
         coord
     }
-
   }
 
   def distUTMInMeters(coord1: Coord, coord2: Coord): Double = GeoUtils.distUTMInMeters(coord1, coord2)
 
-  def distLatLon2Meters(coord1: Coord, coord2: Coord): Double = distUTMInMeters(wgs2Utm(coord1), wgs2Utm(coord2))
+  def distLatLon2Meters(coord1: Coord, coord2: Coord): Double = {
+    wgs2UtmTransform.distanceAfterTransform(
+      coord1.getX,
+      coord1.getY,
+      coord2.getX,
+      coord2.getY
+    )
+  }
+
+  def distLatLon2Meters(lon1: Double, lat1: Double, lon2: Double, lat2: Double): Double = {
+    wgs2UtmTransform.distanceAfterTransform(lon1, lat1, lon2, lat2)
+  }
 
   def getNearestR5EdgeToUTMCoord(
     streetLayer: StreetLayer,
