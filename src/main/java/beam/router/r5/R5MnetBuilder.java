@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import com.conveyal.osmlib.OSMEntity;
 
 /**
  * Build the pruned R5 network and MATSim network. These two networks have 1-1 link parity.
@@ -68,7 +69,7 @@ public class R5MnetBuilder {
         int numberOfFixes = 0;
         HashMap<String, Integer> highwayTypeToCounts = new HashMap<>();
 
-        while (cursor.advance()) {
+        while (z.advance()) {
 //            log.debug("Edge Index:{}. Cursor {}.", cursor.getEdgeIndex(), cursor);
             // TODO - eventually, we should pass each R5 link to OsmToMATSim and do the two-way handling there.
             // Check if we have already seen this OSM way. Skip if we have.
@@ -80,9 +81,40 @@ public class R5MnetBuilder {
             deezNodes.add(cursor.getFromVertex());
             deezNodes.add(cursor.getToVertex());
 
+            if (osmID == 35665) {
+                System.out.println("gotcha link");
+            }
+
+            if (osmID == 35665 && way != null) {
+                System.out.println("\n========== OSM ID 35665 Tags ==========");
+
+                // Use the getTag() helper method
+                System.out.println("  highway: " + way.getTag("highway"));
+                System.out.println("  access: " + way.getTag("access"));
+                System.out.println("  motor_vehicle: " + way.getTag("motor_vehicle"));
+                System.out.println("  vehicle: " + way.getTag("vehicle"));
+                System.out.println("  access:car: " + way.getTag("access:car"));
+                System.out.println("  foot: " + way.getTag("foot"));
+                System.out.println("  bicyle: " + way.getTag("bicycle"));
+                System.out.println("  area: " + way.getTag("area"));
+                System.out.println("  destination: " + way.getTag("destination"));
+
+                // Or dump all tags
+                System.out.println("\nAll tags:");
+                if (way.tags != null) {
+                    for (OSMEntity.Tag tag : way.tags) {
+                        System.out.println("  " + tag.key + " = " + tag.value);
+                    }
+                }
+                System.out.println("=========================================\n");
+            }
+
             final HashSet<String> flagStrings = new HashSet<>();
             for (EdgeStore.EdgeFlag eF : cursor.getFlags()) {
                 String flagString = flagToString(eF);
+                if (osmID == 35665) {
+                    System.out.println("flagString: " + flagString + " <= EdgeStore.EdgeFlag" + eF);
+                }
                 if (!flagString.isEmpty()) {
                     flagStrings.add(flagToString(eF));
                 }

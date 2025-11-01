@@ -9,7 +9,7 @@ import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.BeamHelper
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.BeamConfig
@@ -73,7 +73,8 @@ class HierarchicalParkingManagerSpec
           xMin = 167000,
           yMin = 0,
           xMax = 833000,
-          yMax = 10000000
+          yMax = 10000000,
+          scenarioCRS = geo.localCRS
         ) // one TAZ at agent coordinate
         parkingManager = HierarchicalParkingManager.init(
           Map.empty[Id[ParkingZoneId], ParkingZone],
@@ -106,7 +107,7 @@ class HierarchicalParkingManagerSpec
   describe("HierarchicalParkingManager with no taz") {
     it("should return a response with an emergency stall") {
 
-      val tazTreeMap = new TAZTreeMap(new QuadTree[TAZ](0, 0, 0, 0))
+      val tazTreeMap = new TAZTreeMap(new QuadTree[TAZ](0, 0, 0, 0), scenarioCRS = geo.localCRS)
 
       val parkingManager = HierarchicalParkingManager.init(
         Map.empty[Id[ParkingZoneId], ParkingZone],
@@ -145,7 +146,8 @@ class HierarchicalParkingManagerSpec
           167000,
           0,
           833000,
-          10000000
+          10000000,
+          scenarioCRS = geo.localCRS
         ) // one TAZ at agent coordinate
         oneParkingOption: Iterator[String] =
           """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
@@ -215,7 +217,8 @@ class HierarchicalParkingManagerSpec
           167000,
           0,
           833000,
-          10000000
+          10000000,
+          scenarioCRS = geo.localCRS
         ) // one TAZ at agent coordinate
         oneParkingOption: Iterator[String] =
           """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
@@ -304,7 +307,15 @@ class HierarchicalParkingManagerSpec
       for {
         _ <- 1 to trials
         numStalls = math.max(4, random1.nextInt(maxParkingStalls))
-        tazTreeMap <- ZonalParkingManagerSpec.mockTazTreeMap(tazList, startAtId = 1, 0, 0, 100, 100)
+        tazTreeMap <- ZonalParkingManagerSpec.mockTazTreeMap(
+          tazList,
+          startAtId = 1,
+          0,
+          0,
+          100,
+          100,
+          scenarioCRS = geo.localCRS
+        )
         split = ZonalParkingManagerSpec.randomSplitOfMaxStalls(numStalls, 4, random1)
         parkingConfiguration: Iterator[String] = ZonalParkingManagerSpec.makeParkingConfiguration(split)
         random = new Random(randomSeed)

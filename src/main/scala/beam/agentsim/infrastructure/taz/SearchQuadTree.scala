@@ -20,10 +20,8 @@ import scala.collection.mutable
   * - Works directly in the scenario's projected CRS (no coordinate transformations)
   * - Automatically handles unit conversions (meters, feet, etc.)
   * - Optimized for performance and accuracy
-  *
-  * @param scenarioCRS The EPSG code of the coordinate reference system (e.g., "EPSG:32610" for UTM Zone 10N)
   */
-abstract class SearchQuadTree(val tazTreeMap: TAZTreeMap, val scenarioCRS: String) {
+abstract class SearchQuadTree(val tazTreeMap: TAZTreeMap, val links: Map[Id[Link], Link]) {
   import SearchQuadTree._
 
   private val logger = LoggerFactory.getLogger(this.getClass)
@@ -38,7 +36,7 @@ abstract class SearchQuadTree(val tazTreeMap: TAZTreeMap, val scenarioCRS: Strin
 
   val metersToProjectedUnits: Double = {
     try {
-      val crs = CRS.decode(scenarioCRS)
+      val crs = CRS.decode(tazTreeMap.scenarioCRS)
       val unitString = crs.getCoordinateSystem.getAxis(0).getUnit.toString.toLowerCase
 
       // Parse the unit string to determine conversion factor
@@ -62,31 +60,33 @@ abstract class SearchQuadTree(val tazTreeMap: TAZTreeMap, val scenarioCRS: Strin
           // Try to check if it's already a linear unit by checking for degree
           if (unitString.contains("degree") || unitString.contains("°")) {
             logger.error(
-              s"CRS $scenarioCRS uses angular units ($unitString). This will not work correctly for distance calculations!"
+              s"CRS ${tazTreeMap.scenarioCRS} uses angular units ($unitString). This will not work correctly for distance calculations!"
             )
             1.0
           } else {
-            logger.warn(s"Unknown unit '$unitString' for CRS $scenarioCRS, assuming meters")
+            logger.warn(s"Unknown unit '$unitString' for CRS ${tazTreeMap.scenarioCRS}, assuming meters")
             1.0
           }
       }
 
-      logger.info(s"CRS $scenarioCRS uses unit: $unitString, conversion factor: $factor meters -> CRS units")
+      logger.info(
+        s"CRS ${tazTreeMap.scenarioCRS} uses unit: $unitString, conversion factor: $factor meters -> CRS units"
+      )
       factor
 
     } catch {
       case e: Exception =>
-        logger.error(s"Failed to determine units for CRS $scenarioCRS, assuming meters", e)
+        logger.error(s"Failed to determine units for CRS ${tazTreeMap.scenarioCRS}, assuming meters", e)
         1.0
     }
   }
 
   // Validate CRS on initialization
   {
-    if (!SearchQuadTree.isProjectedCRS(scenarioCRS)) {
+    if (!SearchQuadTree.isProjectedCRS(tazTreeMap.scenarioCRS)) {
       logger.warn(
         s"""
-        |WARNING: CRS $scenarioCRS appears to be geographic (lat/lon).
+        |WARNING: CRS ${tazTreeMap.scenarioCRS} appears to be geographic (lat/lon).
         |This will result in highly inaccurate distance calculations!
         |Consider reprojecting your data to a projected CRS like:
         |  - UTM: ${SearchQuadTree.CommonCRS.getUTMZoneForArea(-122.0, 37.0)} (for San Francisco area)
@@ -95,7 +95,7 @@ abstract class SearchQuadTree(val tazTreeMap: TAZTreeMap, val scenarioCRS: Strin
         """.stripMargin
       )
     } else {
-      logger.info(s"Using projected CRS: $scenarioCRS")
+      logger.info(s"Using projected CRS: ${tazTreeMap.scenarioCRS}")
     }
   }
 
@@ -117,13 +117,13 @@ abstract class SearchQuadTree(val tazTreeMap: TAZTreeMap, val scenarioCRS: Strin
       distortionChecked = true
 
       try {
-        val distortion = SearchQuadTree.estimateDistortion(scenarioCRS, x, y)
+        val distortion = SearchQuadTree.estimateDistortion(tazTreeMap.scenarioCRS, x, y)
 
         if (distortion > 2.0) {
           logger.error(
             f"""
             |CRITICAL: Distance calculations will be off by ${((distortion - 1) * 100)}%.0f%% at location ($x%.0f, $y%.0f)
-            |This CRS ($scenarioCRS) is not suitable for accurate distance calculations.
+            |This CRS (${tazTreeMap.scenarioCRS}) is not suitable for accurate distance calculations.
             |Please reproject your data to an appropriate projected coordinate system.
             """.stripMargin
           )
@@ -137,7 +137,7 @@ abstract class SearchQuadTree(val tazTreeMap: TAZTreeMap, val scenarioCRS: Strin
         } else if (distortion > 1.01) {
           logger.info(f"Distance distortion estimated at ${((distortion - 1) * 100)}%.1f%% - acceptable for most uses")
         } else {
-          logger.debug(f"Excellent! Distance distortion < 1%% for CRS $scenarioCRS")
+          logger.debug(f"Excellent! Distance distortion < 1%% for CRS ${tazTreeMap.scenarioCRS}")
         }
       } catch {
         case e: Exception =>
@@ -152,14 +152,6 @@ abstract class SearchQuadTree(val tazTreeMap: TAZTreeMap, val scenarioCRS: Strin
     */
   protected def metersToProjectedDistance(meters: Double): Double = {
     meters * metersToProjectedUnits
-  }
-
-  /**
-    * Convert a distance from the projected coordinate system's units to meters.
-    * Useful for reporting distances back to the user.
-    */
-  def projectedDistanceToMeters(projectedDistance: Double): Double = {
-    projectedDistance / metersToProjectedUnits
   }
 
   /**
@@ -220,16 +212,6 @@ abstract class SearchQuadTree(val tazTreeMap: TAZTreeMap, val scenarioCRS: Strin
   }
 
   /**
-    * Public method to check distortion at any point in your data.
-    * Useful for diagnostics and validation.
-    *
-    * @return Distortion factor (1.0 = no distortion, 1.5 = 50% distortion)
-    */
-  def getDistortionAtPoint(x: Double, y: Double): Double = {
-    SearchQuadTree.estimateDistortion(scenarioCRS, x, y)
-  }
-
-  /**
     * Abstract internal methods that implementations must provide.
     * These work directly with projected coordinates and distances.
     */
@@ -261,35 +243,33 @@ object SearchQuadTree {
 
   def getSearchQuadTree(
     tazTreeMap: TAZTreeMap,
-    scenarioCRS: String,
-    enableLinkBasedSearch: Boolean,
-    links: Option[Map[Id[Link], Link]]
+    links: Map[Id[Link], Link] = Map.empty[Id[Link], Link],
+    enableLinkBasedSearch: Boolean = false
   ): SearchQuadTree = {
     if (enableLinkBasedSearch && links.nonEmpty) {
-      SearchLinkQuadTree(links.get, tazTreeMap, scenarioCRS)
+      SearchLinkQuadTree(tazTreeMap, links)
     } else {
-      SearchTAZQuadTree(tazTreeMap, scenarioCRS)
+      SearchTAZQuadTree(tazTreeMap, links)
     }
   }
 
   def getSearchQuadTree(
     tazTreeMap: TAZTreeMap,
-    beamConfig: BeamConfig,
-    links: Option[Map[Id[Link], Link]]
+    links: Map[Id[Link], Link],
+    beamConfig: BeamConfig
   ): SearchQuadTree = {
-    val scenarioCRS = beamConfig.beam.spatial.localCRS
-    val enableLinkBasedSearch = beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
-    getSearchQuadTree(tazTreeMap, scenarioCRS, enableLinkBasedSearch, links)
+    getSearchQuadTree(
+      tazTreeMap,
+      links,
+      beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
+    )
   }
 
   def getSearchQuadTree(beamScenario: BeamScenario): SearchQuadTree = {
-    val scenarioCRS = beamScenario.beamConfig.beam.spatial.localCRS
-    val enableLinkBasedSearch = beamScenario.beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
     getSearchQuadTree(
       beamScenario.tazTreeMap,
-      scenarioCRS,
-      enableLinkBasedSearch,
-      Some(beamScenario.network.getLinks.asScala.toMap)
+      beamScenario.network.getLinks.asScala.toMap,
+      beamScenario.beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
     )
   }
 
@@ -299,8 +279,10 @@ object SearchQuadTree {
     * TAZ-based search implementation.
     * Searches directly in the TAZ QuadTree using projected coordinates.
     */
-  case class SearchTAZQuadTree(override val tazTreeMap: TAZTreeMap, override val scenarioCRS: String)
-      extends SearchQuadTree(tazTreeMap, scenarioCRS) {
+  case class SearchTAZQuadTree(
+    override val tazTreeMap: TAZTreeMap,
+    override val links: Map[Id[Link], Link]
+  ) extends SearchQuadTree(tazTreeMap, links) {
 
     override def getRingInternal(
       x: Double,
@@ -343,30 +325,31 @@ object SearchQuadTree {
     * Searches in the Link QuadTree and groups results by TAZ.
     */
   case class SearchLinkQuadTree(
-    links: Map[Id[Link], Link],
     override val tazTreeMap: TAZTreeMap,
-    override val scenarioCRS: String
-  ) extends SearchQuadTree(tazTreeMap, scenarioCRS) {
+    override val links: Map[Id[Link], Link]
+  ) extends SearchQuadTree(tazTreeMap, links) {
 
+    // Get all link coordinates
+    val linkCoords: Iterable[Coord] = links.values.flatMap { link =>
+      Seq(link.getFromNode.getCoord, link.getToNode.getCoord)
+    }
+
+    // Create QuadTree using link bounding box
     val linkQuadTree: QuadTree[Link] = new QuadTree[Link](
-      tazTreeMap.tazQuadTree.getMinEasting,
-      tazTreeMap.tazQuadTree.getMinNorthing,
-      tazTreeMap.tazQuadTree.getMaxEasting,
-      tazTreeMap.tazQuadTree.getMaxNorthing
+      linkCoords.map(_.getX).min,
+      linkCoords.map(_.getY).min,
+      linkCoords.map(_.getX).max,
+      linkCoords.map(_.getY).max
     )
 
-    links.foreach {
-      case (_, link) if link.getAllowedModes.contains("car") & link.getAllowedModes.contains("walk") =>
-        val linkEndCoord = link.getToNode.getCoord
-        val linkStartCoord = link.getFromNode.getCoord
-        val linkMidpoint = new Coord(
-          0.5 * (linkEndCoord.getX + linkStartCoord.getX),
-          0.5 * (linkEndCoord.getY + linkStartCoord.getY)
-        )
-        linkQuadTree.put(linkMidpoint.getX, linkMidpoint.getY, link)
-        linkQuadTree.put(linkEndCoord.getX, linkEndCoord.getY, link)
-        linkQuadTree.put(linkStartCoord.getX, linkStartCoord.getY, link)
-      case _ =>
+    // Populate QuadTree with links
+    links.foreach { case (_, link) =>
+      val startPoint = link.getFromNode.getCoord
+      val endPoint = link.getToNode.getCoord
+      val linkMidpoint = new Coord(0.5 * (endPoint.getX + startPoint.getX), 0.5 * (endPoint.getY + startPoint.getY))
+      linkQuadTree.put(startPoint.getX, startPoint.getY, link)
+      linkQuadTree.put(endPoint.getX, endPoint.getY, link)
+      linkQuadTree.put(linkMidpoint.getX, linkMidpoint.getY, link)
     }
 
     private def buildSearchResult(
@@ -421,12 +404,6 @@ object SearchQuadTree {
       }
 
       sampledLinks.foreach { link =>
-        if (
-          !tazTreeMap.linkIdToTAZMapping
-            .contains(link.getId) || !tazTreeMap.idToTAZMapping.contains(tazTreeMap.linkIdToTAZMapping(link.getId))
-        ) {
-          println("Test")
-        }
         val taz = tazTreeMap.idToTAZMapping(tazTreeMap.linkIdToTAZMapping(link.getId))
         tazToLinks.getOrElseUpdate(taz, mutable.ArrayBuffer.empty[Link]) += link
       }

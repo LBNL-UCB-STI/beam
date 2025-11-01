@@ -174,11 +174,13 @@ class TAZTreeMap(
 
   def mapNetworkToTAZs(
     links: Map[Id[Link], Link],
-    scenarioCRS: String,
     enableLinkBasedSearch: Boolean
   ): Unit = {
+    val car_walk_links = links.filter { case (_, link) =>
+      link.getAllowedModes.contains("car") & link.getAllowedModes.contains("walk")
+    }
     if (tazListContainsGeoms) {
-      if (links.nonEmpty) {
+      if (car_walk_links.nonEmpty) {
         idToTAZMapping.keySet.foreach { id =>
           tazToLinkIdMapping(id) = new QuadTree[Link](
             tazQuadTree.getMinEasting,
@@ -187,12 +189,12 @@ class TAZTreeMap(
             tazQuadTree.getMaxNorthing
           )
         }
-        searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(this, scenarioCRS, enableLinkBasedSearch, Some(links)))
+        searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(this, car_walk_links, enableLinkBasedSearch))
       } else {
-        searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(this, scenarioCRS, enableLinkBasedSearch, None))
+        searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(this, car_walk_links, enableLinkBasedSearch))
       }
 
-      links.foreach {
+      car_walk_links.foreach {
         case (id, link) =>
           val linkEndCoord = link.getToNode.getCoord
           val linkStartCoord = link.getFromNode.getCoord
@@ -262,12 +264,8 @@ object TAZTreeMap {
   ): TAZTreeMap = {
     val tazTreeMap = new TAZTreeMap(quadTree, scenarioCRS, maybeZoneOrdering = maybeZoneOrdering)
     if (links.nonEmpty) {
-      tazTreeMap.mapNetworkToTAZs(links, scenarioCRS, enableLinkBasedSearch)
-    } else {
-      tazTreeMap.searchQuadTree = Some(
-        SearchQuadTree.getSearchQuadTree(tazTreeMap, scenarioCRS, enableLinkBasedSearch = false, links = None)
-      )
-    }
+      tazTreeMap.mapNetworkToTAZs(links, enableLinkBasedSearch)
+    } else tazTreeMap.searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(tazTreeMap, links))
     tazTreeMap
   }
 
@@ -462,7 +460,7 @@ object TAZTreeMap {
             maybeZoneOrdering = Some(mapping)
           )
           tazTreeMap.searchQuadTree = Some(
-            SearchQuadTree.getSearchQuadTree(tazTreeMap, tazMap.scenarioCRS, enableLinkBasedSearch = false, None)
+            SearchQuadTree.getSearchQuadTree(tazTreeMap)
           )
           Some(tazTreeMap)
         } else {
@@ -513,9 +511,7 @@ object TAZTreeMap {
     val taz = new TAZ("0", new Coord(0.0, 0.0), 0.0)
     tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
     val tazTreeMap = new TAZTreeMap(tazQuadTree, scenarioCRS = "", useCache = false, maybeZoneOrdering = None)
-    tazTreeMap.searchQuadTree = Some(
-      SearchQuadTree.getSearchQuadTree(tazTreeMap, "", enableLinkBasedSearch = false, None)
-    )
+    tazTreeMap.searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(tazTreeMap))
     tazTreeMap
   }
 

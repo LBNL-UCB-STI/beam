@@ -255,6 +255,9 @@ object ParkingZoneSearch {
         case Some(_) =>
           _search(searchMode, parkingZoneIdsSeen, parkingZoneIdsSampled, iterations + 1)
         case None =>
+          if (params.vehicleUse == Freight) {
+            println("Gotcha1!!")
+          }
           None // exceeded max search distance
       }
     }
@@ -364,9 +367,6 @@ object ParkingZoneSearch {
       private var thisInnerRadius: Double = 0.0
       private var thisOuterRadius: Double = searchStartRadius
 
-      // Add this flag to only check once
-      private var densityChecked = false
-
       override def lookupParkingZonesInNextSearchAreaUnlessThresholdReached(
         searchQuadTree: SearchQuadTree
       ): Option[SearchQuadTree.SearchQuadTreeResults] = {
@@ -380,6 +380,9 @@ object ParkingZoneSearch {
             thisOuterRadius,
             sampleSize
           )
+          if (result.zones.isEmpty && params.vehicleUse == Freight && thisOuterRadius > 200) {
+            println("Gotcha2!!")
+          }
           thisInnerRadius = thisOuterRadius
           thisOuterRadius = thisOuterRadius * expansionFactor
           Some(result)

@@ -221,7 +221,11 @@ object ParallelParkingManager extends LazyLogging {
           new Coord(0.0, 0.0),
           pgf.create(polygon),
           "single-empty-cluster",
-          collectLinksForTAZes(tazTreeMap, tazTreeMap.getTAZs.toVector)
+          collectLinksForTAZes(
+            tazTreeMap,
+            tazTreeMap.getTAZs.toVector,
+            bufferDistanceInMeters = 10000
+          )
         )
       )
     } else {
@@ -271,7 +275,11 @@ object ParallelParkingManager extends LazyLogging {
         val clusterMeanStr = String.format("(%.2f, %.2f)", Double.box(centroid.getX), Double.box(centroid.getY))
 
         // Collect all links within the TAZes of this cluster
-        val clusterLinks = collectLinksForTAZes(tazTreeMap, tazes.toVector)
+        val clusterLinks = collectLinksForTAZes(
+          tazTreeMap,
+          tazes.toVector,
+          bufferDistanceInMeters = 100000
+        )
 
         ParkingCluster(
           tazes.toVector,
@@ -288,26 +296,149 @@ object ParallelParkingManager extends LazyLogging {
   }
 
   /**
-    * Collects all links from the given TAZes using the tazTreeMap's link mapping.
-    * Optimized with direct Java iteration to avoid Scala collection wrapper overhead.
+    * Collects links by intersecting with a buffered geometry created from TAZes.
+    * Two approaches based on availability of TAZ geometries:
+    *
+    * With Geometry:
+    *   - Fuses all TAZ geometries into one
+    *   - Creates a buffer around the fused geometry
+    *   - Intersects buffered geometry with link geometries
+    *
+    * Without Geometry:
+    *   - Calculates center of all TAZes
+    *   - Sums up all TAZ areas
+    *   - Creates a circular geometry at center: radius = sqrt(summedArea / π)
+    *   - Creates a buffer around the circular geometry
+    *   - Intersects buffered geometry with link geometries
+    *
     * @param tazTreeMap the TAZ tree map containing link mappings
-    * @param tazes sequence of TAZes to collect links from
-    * @return Set of links found within the TAZes
+    * @param tazes sequence of TAZes to create search geometry from
+    * @param bufferDistanceInMeters buffer distance around the created geometry (default 0)
+    * @return Map of links that intersect with the buffered TAZ geometry
     */
-  private def collectLinksForTAZes(tazTreeMap: TAZTreeMap, tazes: Iterable[TAZ]): Map[Id[Link], Link] = {
-    val linksMap = scala.collection.mutable.Map[Id[Link], Link]()
-    tazes.foreach { taz =>
-      tazTreeMap.tazToLinkIdMapping.get(taz.tazId).foreach { linkQuadTree =>
-        val iter = linkQuadTree.values().iterator()
-        while (iter.hasNext) {
-          val link = iter.next()
-          linksMap.put(link.getId, link)
+  private def collectLinksForTAZes(
+    tazTreeMap: TAZTreeMap,
+    tazes: Iterable[TAZ],
+    bufferDistanceInMeters: Double
+  ): Map[Id[Link], Link] = {
+    val tazesVector = tazes.toVector
+    val taz434 = tazesVector.filter(_.tazId.toString == "434")
+    if (taz434.nonEmpty) {
+      println("gotcha6")
+    }
+    val allLinks = tazTreeMap.searchQuadTree.get.links
+    if (tazesVector.isEmpty || allLinks.isEmpty)
+      return Map.empty[Id[Link], Link]
+
+    val geometryFactory = new org.locationtech.jts.geom.GeometryFactory()
+
+    // Determine if any TAZ has geometry
+    val hasGeometry = tazesVector.exists(_.geometry.nonEmpty)
+
+    val searchGeometry: org.locationtech.jts.geom.Geometry = if (hasGeometry) {
+      val geometriesToFuse = tazesVector.flatMap(_.geometry)
+
+      if (geometriesToFuse.nonEmpty) {
+        val fusedGeometry = if (geometriesToFuse.length == 1) {
+          geometriesToFuse.head
+        } else {
+          // Use unary union to merge all geometries
+          val geomArray = geometriesToFuse.toArray
+          val multiGeom = geometryFactory.createGeometryCollection(geomArray)
+          multiGeom.union()
         }
+
+        // Add buffer to fused geometry
+        fusedGeometry.buffer(bufferDistanceInMeters)
+      } else createCircularGeometry(tazesVector, geometryFactory, bufferDistanceInMeters)
+    } else createCircularGeometry(tazesVector, geometryFactory, bufferDistanceInMeters)
+
+    // Use PreparedGeometry for more efficient intersection testing
+    val preparedSearchGeometry = new org.locationtech.jts.geom.prep.PreparedGeometryFactory().create(searchGeometry)
+
+    val linksMap = allLinks.flatMap { case (linkId, link) =>
+      try {
+        val linkGeometry = getLinkGeometry(link, geometryFactory)
+        if (preparedSearchGeometry.intersects(linkGeometry)) {
+          Some(linkId -> link)
+        } else {
+          None
+        }
+      } catch {
+        case e: Exception =>
+          logger.debug(s"Skipping link $linkId due to geometry issue: ${e.getMessage}")
+          None
       }
     }
-    linksMap.toMap
+
+    linksMap
   }
 
+  /**
+    * Helper: Creates a circular geometry at the center of TAZes with radius from summed area
+    */
+  private def createCircularGeometry(
+    tazesVector: Vector[TAZ],
+    geometryFactory: org.locationtech.jts.geom.GeometryFactory,
+    bufferDistanceInMeters: Double
+  ): org.locationtech.jts.geom.Geometry = {
+    // Calculate center of all TAZes
+    var centerX = 0.0
+    var centerY = 0.0
+    var totalArea = 0.0
+
+    tazesVector.foreach { taz =>
+      centerX += taz.coord.getX
+      centerY += taz.coord.getY
+      totalArea += taz.areaInSquareMeters
+    }
+
+    centerX /= tazesVector.size
+    centerY /= tazesVector.size
+
+    // Calculate radius from summed area: radius = sqrt(area / π)
+    val radius = if (totalArea > 0) {
+      Math.sqrt(totalArea / Math.PI)
+    } else {
+      100.0 // Default fallback radius if no area available
+    }
+
+    // Create circular geometry at center with calculated radius
+    val centerCoord = new org.locationtech.jts.geom.Coordinate(centerX, centerY)
+    val circle = geometryFactory.createPoint(centerCoord).buffer(radius)
+
+    // Add buffer to circle
+    if (bufferDistanceInMeters > 0.0) {
+      circle.buffer(bufferDistanceInMeters)
+    } else {
+      circle
+    }
+  }
+
+  /**
+    * Helper: Constructs LineString geometry from a link using its from and to nodes
+    */
+  private def getLinkGeometry(
+    link: org.matsim.api.core.v01.network.Link,
+    geometryFactory: org.locationtech.jts.geom.GeometryFactory
+  ): org.locationtech.jts.geom.Geometry = {
+    val fromCoord = link.getFromNode.getCoord
+    val toCoord = link.getToNode.getCoord
+
+    val coords = Array(
+      new org.locationtech.jts.geom.Coordinate(fromCoord.getX, fromCoord.getY),
+      new org.locationtech.jts.geom.Coordinate(toCoord.getX, toCoord.getY)
+    )
+
+    geometryFactory.createLineString(coords)
+  }
+
+  /**
+    * Creates ELKI database from parking zones and empty TAZes
+    * @param tazTreeMap TAZTreeMap
+    * @param zones Map[Id[ParkingZoneId], ParkingZone]
+    * @return
+    */
   private def createDatabase(
     tazTreeMap: TAZTreeMap,
     zones: Map[Id[ParkingZoneId], ParkingZone]

@@ -78,7 +78,8 @@ class ChargingNetworkSpec
           167000,
           0,
           833000,
-          10000000
+          10000000,
+          scenarioCRS = geo.localCRS
         ) // one TAZ at agent coordinate
         config = BeamConfig(system.settings.config)
         oneParkingOption: Iterator[String] =
@@ -465,7 +466,8 @@ class ChargingNetworkSpec
         boundingBox.getMinX,
         boundingBox.getMinY,
         boundingBox.getMaxX,
-        boundingBox.getMaxY
+        boundingBox.getMaxY,
+        scenarioCRS = geo.localCRS
       )
       .get
     (tazTreeMap, boundingBox, searchRadius, tazSpacing)

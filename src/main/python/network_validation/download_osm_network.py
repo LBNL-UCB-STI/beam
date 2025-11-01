@@ -29,9 +29,9 @@ from python.utils.study_area_config import generate_network_name
 
 def main():
     """Main execution function."""
-    area = "sfbay"  # Options: sfbay, seattle
+    area = "seattle"  # Options: sfbay, seattle
     study_area_config = get_area_config(area)
-    study_area_config["network"]["graph_layers"]["residential"]["min_density_per_km2"] = 5500  # 2855 for sfbay, 412 for seattle
+    study_area_config["network"]["graph_layers"]["residential"]["min_density_per_km2"] = 412  # 2855 for sfbay, 412 for seattle
 
     # Generate configuration name and prepare directory
     config_name = generate_network_name(study_area_config)
@@ -106,7 +106,12 @@ def main():
         filepath=osm_network,
         edge_tags=[
             'highway', 'lanes', 'maxspeed', 'name', 'oneway', 'length',
-            'tunnel', 'bridge', 'junction', 'edge_id', 'access', 'osm_id'
+            'tunnel', 'bridge', 'junction', 'edge_id', 'access', 'osm_id',
+            'motor_vehicle', 'vehicle', 'motorcar',
+            'access:car', 'access:vehicle', 'access:motor_vehicle',
+            'cycleway', 'cycleway:left', 'cycleway:right',
+            'sidewalk', 'foot', 'bicycle',
+            'lts'  # Level of Traffic Stress if available
         ],
         edge_tag_aggs=[('length', 'sum')]
     )

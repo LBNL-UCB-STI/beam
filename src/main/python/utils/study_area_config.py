@@ -51,7 +51,7 @@ def generate_network_name(config: dict) -> str:
     # Get residential geographic level and density
     if "residential" in layers:
         density_value = str(layers["residential"]["min_density_per_km2"])
-        residential_geo_level = f"-{layers["residential"]["geo_level"]}{density_value}"
+        residential_geo_level = f"-{layers['residential']['geo_level']}{density_value}"
     else:
         residential_geo_level = ""
 

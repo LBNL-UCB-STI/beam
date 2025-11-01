@@ -14,7 +14,7 @@ import scala.jdk.CollectionConverters.asScalaBufferConverter
 class ActivitySimZarrWriterSpec extends AnyWordSpecLike with Matchers {
   "ActivitySimZarrWriter" should {
     "write all activitysim skims to a zarr directory" in {
-      val tazMap = TAZTreeMap("test/input/sf-light/taz-centers.csv")
+      val tazMap = TAZTreeMap("test/input/sf-light/taz-centers.csv", scenarioCRS = "epsg:26910")
       val geoUnits = tazMap.orderedTazIds
       val TOTIVT_test = math.Pi // Choose an arbitrary non-integer value for testing
       val excerptData = IndexedSeq(
