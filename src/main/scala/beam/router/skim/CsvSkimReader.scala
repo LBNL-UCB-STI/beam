@@ -22,8 +22,16 @@ import scala.util.{Failure, Success, Try}
 class CsvSkimReader[Key <: AbstractSkimmerKey, Value <: AbstractSkimmerInternal](
   val aggregatedSkimsFilePath: String,
   fromCsv: scala.collection.Map[String, String] => (Key, Value),
-  logger: Logger
-) {
+  val logger: Logger
+) extends SkimReader[Key, Value] {
+
+  // Validate file extension using require
+  require(
+    aggregatedSkimsFilePath.toLowerCase.endsWith(".csv") ||
+    aggregatedSkimsFilePath.toLowerCase.endsWith(".csv.gz"),
+    s"Invalid file extension for CsvSkimReader: $aggregatedSkimsFilePath. " +
+    "Only .csv and .csv.gz files are supported."
+  )
 
   def readAggregatedSkims: Map[Key, Value] = {
     if (!new File(aggregatedSkimsFilePath).isFile) {
@@ -85,4 +93,7 @@ class CsvSkimReader[Key <: AbstractSkimmerKey, Value <: AbstractSkimmerInternal]
     csvParser
   }
 
+  override def close(): Unit = {
+    // nothing to close in csv reader
+  }
 }

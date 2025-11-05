@@ -918,7 +918,7 @@ object BeamConfig {
                     if (c.hasPathOrNull("searchMaxDistanceRelativeToEllipseFoci"))
                       c.getDouble("searchMaxDistanceRelativeToEllipseFoci")
                     else 4.0,
-                  searchSampleSize = if (c.hasPathOrNull("searchSampleSize")) c.getInt("searchSampleSize") else 100
+                  searchSampleSize = if (c.hasPathOrNull("searchSampleSize")) c.getInt("searchSampleSize") else 5000
                 )
               }
             }
@@ -4507,6 +4507,7 @@ object BeamConfig {
 
         case class EmissionsSkimmer(
           fileBaseName: java.lang.String,
+          fileOutputFormat: java.lang.String,
           name: java.lang.String
         )
 
@@ -4515,6 +4516,7 @@ object BeamConfig {
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.EmissionsSkimmer = {
             BeamConfig.Beam.Router.Skim.EmissionsSkimmer(
               fileBaseName = if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "skimsEmissions",
+              fileOutputFormat = if (c.hasPathOrNull("fileOutputFormat")) c.getString("fileOutputFormat") else "csv.gz",
               name = if (c.hasPathOrNull("name")) c.getString("name") else "emissions-skimmer"
             )
           }
