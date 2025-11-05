@@ -116,10 +116,7 @@ object ParkingEvent {
     val parkingZoneId = Id.create(attr.getOrElse(ATTRIBUTE_PARKING_ZONE_ID, "-1"), classOf[ParkingZoneId])
     val linkIdsAsStr =
       if (attr.contains(ATTRIBUTE_LINK_IDS)) Option(attr(ATTRIBUTE_LINK_IDS)).getOrElse("")
-      else {
-        logger.warn(s"Missing '$ATTRIBUTE_LINK_IDS' value in attributes, using empty string instead")
-        ""
-      }
+      else { "" }
     val linkIds: IndexedSeq[Int] = if (linkIdsAsStr == "") IndexedSeq.empty else linkIdsAsStr.split(",").map(_.toInt)
     new ParkingEvent(
       time,
