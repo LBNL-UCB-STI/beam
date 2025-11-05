@@ -4,6 +4,7 @@ import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZoneId, PricingModel}
 import beam.agentsim.infrastructure.taz.TAZ
+import beam.sim.RunBeam.logger
 import beam.sim.common.GeoUtils
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.events.Event
@@ -113,7 +114,12 @@ object ParkingEvent {
       attr.get(ATTRIBUTE_PRICING_MODEL).flatMap(PricingModel(_, attr.getOrElse(ATTRIBUTE_COST, "0")))
     val chargingPointType: Option[ChargingPointType] = attr.get(ATTRIBUTE_CHARGING_TYPE).flatMap(ChargingPointType(_))
     val parkingZoneId = Id.create(attr.getOrElse(ATTRIBUTE_PARKING_ZONE_ID, "-1"), classOf[ParkingZoneId])
-    val linkIdsAsStr = Option(attr(ATTRIBUTE_LINK_IDS)).getOrElse("")
+    val linkIdsAsStr =
+      if (attr.contains(ATTRIBUTE_LINK_IDS)) Option(attr(ATTRIBUTE_LINK_IDS)).getOrElse("")
+      else {
+        logger.warn(s"Missing '$ATTRIBUTE_LINK_IDS' value in attributes, using empty string instead")
+        ""
+      }
     val linkIds: IndexedSeq[Int] = if (linkIdsAsStr == "") IndexedSeq.empty else linkIdsAsStr.split(",").map(_.toInt)
     new ParkingEvent(
       time,

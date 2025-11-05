@@ -79,18 +79,30 @@ object Skims {
   }
 
   def skimFileNames(skimCfg: Router.Skim): IndexedSeq[(SkimType.Value, String)] = IndexedSeq(
-    SkimType.OD_SKIMMER              -> skimCfg.origin_destination_skimmer.fileBaseName,
-    SkimType.TAZ_SKIMMER             -> skimCfg.taz_skimmer.fileBaseName,
-    SkimType.DT_SKIMMER              -> skimCfg.drive_time_skimmer.fileBaseName,
-    SkimType.RH_SKIMMER              -> RideHailSkimmer.fileBaseName,
-    SkimType.OD_VEHICLE_TYPE_SKIMMER -> ODVehicleTypeSkimmer.fileBaseName,
-    SkimType.FREIGHT_SKIMMER         -> FreightSkimmer.fileBaseName,
-    SkimType.PARKING_SKIMMER         -> ParkingSkimmer.fileBaseName,
-    SkimType.TC_SKIMMER              -> skimCfg.transit_crowding_skimmer.fileBaseName,
-    SkimType.EMISSIONS_SKIMMER       -> skimCfg.emissions_skimmer.fileBaseName
+    SkimType.OD_SKIMMER              -> s"${skimCfg.origin_destination_skimmer.fileBaseName}.csv.gz",
+    SkimType.TAZ_SKIMMER             -> s"${skimCfg.taz_skimmer.fileBaseName}.csv.gz",
+    SkimType.DT_SKIMMER              -> s"${skimCfg.drive_time_skimmer.fileBaseName}.csv.gz",
+    SkimType.RH_SKIMMER              -> s"${RideHailSkimmer.fileBaseName}.csv.gz",
+    SkimType.OD_VEHICLE_TYPE_SKIMMER -> s"${ODVehicleTypeSkimmer.fileBaseName}.csv.gz",
+    SkimType.FREIGHT_SKIMMER         -> s"${FreightSkimmer.fileBaseName}.csv.gz",
+    SkimType.PARKING_SKIMMER         -> s"${ParkingSkimmer.fileBaseName}.csv.gz",
+    SkimType.TC_SKIMMER              -> s"${skimCfg.transit_crowding_skimmer.fileBaseName}.csv.gz",
+    SkimType.EMISSIONS_SKIMMER       -> s"${skimCfg.emissions_skimmer.fileBaseName}.${skimCfg.emissions_skimmer.fileOutputFormat}"
   )
 
-  def skimAggregatedFileNames(skimCfg: Router.Skim): IndexedSeq[(SkimType.Value, String)] =
-    skimFileNames(skimCfg)
-      .map { case (skimType, fileName) => skimType -> (fileName + AGG_SUFFIX) }
+  def skimAggregatedFileNames(skimCfg: Router.Skim): IndexedSeq[(SkimType.Value, String)] = IndexedSeq(
+    SkimType.OD_SKIMMER              -> s"${skimCfg.origin_destination_skimmer.fileBaseName}$AGG_SUFFIX.csv.gz",
+    SkimType.TAZ_SKIMMER             -> s"${skimCfg.taz_skimmer.fileBaseName}$AGG_SUFFIX.csv.gz",
+    SkimType.DT_SKIMMER              -> s"${skimCfg.drive_time_skimmer.fileBaseName}$AGG_SUFFIX.csv.gz",
+    SkimType.RH_SKIMMER              -> s"${RideHailSkimmer.fileBaseName}$AGG_SUFFIX.csv.gz",
+    SkimType.OD_VEHICLE_TYPE_SKIMMER -> s"${ODVehicleTypeSkimmer.fileBaseName}$AGG_SUFFIX.csv.gz",
+    SkimType.FREIGHT_SKIMMER         -> s"${FreightSkimmer.fileBaseName}$AGG_SUFFIX.csv.gz",
+    SkimType.PARKING_SKIMMER         -> s"${ParkingSkimmer.fileBaseName}$AGG_SUFFIX.csv.gz",
+    SkimType.TC_SKIMMER              -> s"${skimCfg.transit_crowding_skimmer.fileBaseName}$AGG_SUFFIX.csv.gz",
+    SkimType.EMISSIONS_SKIMMER       -> s"${skimCfg.emissions_skimmer.fileBaseName}$AGG_SUFFIX.${skimCfg.emissions_skimmer.fileOutputFormat}"
+  )
+
+//  def skimAggregatedFileNames(skimCfg: Router.Skim): IndexedSeq[(SkimType.Value, String)] =
+//    skimFileNames(skimCfg)
+//      .map { case (skimType, fileName) => skimType -> (fileName + AGG_SUFFIX) }
 }

@@ -362,6 +362,17 @@ dependencies {
 
     implementation group: 'com.zaxxer', name: 'nuprocess', version: '1.2.4'
 
+    def sparkVersion = "3.4.2" // Use your desired Spark version
+
+    implementation("org.apache.spark:spark-core_${scalaBinaryVersion}:${sparkVersion}") {
+        exclude group: 'org.apache.hadoop'
+        exclude group: 'org.slf4j'
+    }
+    implementation("org.apache.spark:spark-sql_${scalaBinaryVersion}:${sparkVersion}") {
+        exclude group: 'org.apache.hadoop'
+        exclude group: 'org.slf4j'
+    }
+
     def parquet = "1.12.3"
     // Parquet dependencies with shading
     implementation 'org.apache.parquet:parquet-avro:1.12.3'

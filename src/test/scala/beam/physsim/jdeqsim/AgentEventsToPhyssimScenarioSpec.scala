@@ -82,6 +82,14 @@ class AgentEventsToPhyssimScenarioSpec extends AnyWordSpecLike with Matchers {
     }
     "generate correct physsim plans for freight with double-parking" in {
       val persons = population.getPersons.asScala
+
+      var cnt = 0
+      persons.toList.foreach{ case (id, p) if id.toString.contains("freight") =>
+        cnt +=1
+      }
+
+      cnt shouldBe 100
+
       val veh = persons(Id.createPersonId("freightVehicle-2"))
       val plan = veh.getSelectedPlan.getPlanElements.asScala.toList
       plan.length shouldBe 7
