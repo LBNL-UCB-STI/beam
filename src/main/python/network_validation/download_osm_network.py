@@ -31,7 +31,7 @@ def main():
     """Main execution function."""
     area = "seattle"  # Options: sfbay, seattle
     study_area_config = get_area_config(area)
-    study_area_config["network"]["graph_layers"]["residential"]["min_density_per_km2"] = 412  # 2855 for sfbay, 412 for seattle
+    study_area_config["network"]["graph_layers"]["residential"]["min_density_per_km2"] = 120 # 2855 for sfbay, 412 for seattle
 
     # Generate configuration name and prepare directory
     config_name = generate_network_name(study_area_config)
@@ -118,11 +118,14 @@ def main():
     print(f"OSM Network saved to '{osm_network}'.")
 
     # Convert to PBF and GeoJSON formats
-    cmd = f"osmium cat {osm_network} -o - --output-format pbf,compression=zlib | osmium sort - -o {pbf_network} --overwrite"
+    cmd = (
+        f"osmium cat {osm_network} -o - --output-format pbf,compression=zlib "
+        f"| osmium sort -F pbf - -o {pbf_network} --overwrite"
+    )
     subprocess.run(cmd, shell=True, check=True)
     print(f"OSM PBF File saved to '{pbf_network}'")
 
-    cmd2 = f"ogr2ogr -f GeoJSON {geojson_network} {pbf_network} lines"
+    cmd2 = f'ogr2ogr -f GeoJSON "{geojson_network}" "{pbf_network}" lines'
     subprocess.run(cmd2, shell=True, check=True)
     print(f"OSM GEOJSON File saved to '{geojson_network}'")
 

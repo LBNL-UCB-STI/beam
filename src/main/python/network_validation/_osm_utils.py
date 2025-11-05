@@ -13,8 +13,9 @@ import pandas as pd
 import pyproj
 import shapely.geometry
 from osmnx import settings
-from osmnx import truncate
 from shapely.ops import unary_union
+from networkx.algorithms import weakly_connected_components
+from networkx.algorithms import strongly_connected_components
 
 from _data_collection_utils import collect_census_data
 from _data_collection_utils import collect_geographic_boundaries
@@ -1021,6 +1022,7 @@ def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, 
     county_fips_codes = _area_config["county_fips"]
     tolerance = _network_config["tolerance"]
     utm_epsg = _geo_config["utm_epsg"]
+    should_strongly_connect = _network_config.get("strongly_connected_components", False)
 
     print(f"Collecting {study_area} boundaries...")
 
@@ -1192,8 +1194,23 @@ def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, 
     g_connected = ox.truncate.largest_component(g_wgs84)
     print(f"✓ Final network has {g_connected.number_of_nodes()} nodes and {g_connected.number_of_edges()} edges")
 
+    print("Removing isolated islands from network...")
+
+    # Get the largest strongly connected component (roads where you can actually reach anywhere)
+    if should_strongly_connect:
+        largest_scc = max(strongly_connected_components(g_connected), key=len)
+    else:
+        largest_scc = max(weakly_connected_components(g_connected), key=len)
+
+    print(f"Network has {g_connected.number_of_nodes()} nodes initially")
+    print(f"Largest connected component has {len(largest_scc)} nodes")
+
+    # Create a subgraph with only the largest connected component
+    g_osm = nx.MultiDiGraph(g_connected.subgraph(largest_scc).copy())
+    print(f"After island removal: {g_osm.number_of_nodes()} nodes")
+
     print("=== Network Download and Preparation Complete ===")
-    return g_connected
+    return g_osm
 
 
 def scan_network_directories_for_ways(directory):
