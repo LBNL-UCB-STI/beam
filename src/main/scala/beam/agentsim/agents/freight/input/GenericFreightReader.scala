@@ -61,7 +61,7 @@ class GenericFreightReader(
         val departureLocationX = row.get("departureLocationX")
         val departureLocationY = row.get("departureLocationY")
 
-        extractCoordInUtmOrTaz(
+        extractProjectedCoordOrTaz(
           departureLocationX,
           departureLocationY,
           row.get("departureLocationZone"),
@@ -136,7 +136,7 @@ class GenericFreightReader(
         val locationX = row.get("locationX")
         val locationY = row.get("locationY")
 
-        extractCoordInUtmOrTaz(
+        extractProjectedCoordOrTaz(
           locationX,
           locationY,
           row.get("locationZone"),
@@ -329,7 +329,7 @@ class GenericFreightReader(
         val depotX = row.get("depotX")
         val depotY = row.get("depotY")
 
-        extractCoordInUtmOrTaz(
+        extractProjectedCoordOrTaz(
           row.get("depotX"),
           row.get("depotY"),
           row.get("depotZone"),
@@ -374,7 +374,7 @@ class GenericFreightReader(
     case None      => throw new IllegalArgumentException(s"Cannot find taz with id $tazId")
   }
 
-  private def extractCoordInUtmOrTaz(
+  private def extractProjectedCoordOrTaz(
     strX: String,
     strY: String,
     strZone: String,

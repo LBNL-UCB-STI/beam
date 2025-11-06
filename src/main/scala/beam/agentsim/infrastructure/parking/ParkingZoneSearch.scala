@@ -255,9 +255,6 @@ object ParkingZoneSearch {
         case Some(_) =>
           _search(searchMode, parkingZoneIdsSeen, parkingZoneIdsSampled, iterations + 1)
         case None =>
-          if (params.vehicleUse == Freight) {
-            println("Gotcha1!!")
-          }
           None // exceeded max search distance
       }
     }
@@ -380,9 +377,6 @@ object ParkingZoneSearch {
             thisOuterRadius,
             sampleSize
           )
-          if (result.zones.isEmpty && params.vehicleUse == Freight && thisOuterRadius > 200) {
-            println("Gotcha2!!")
-          }
           thisInnerRadius = thisOuterRadius
           thisOuterRadius = thisOuterRadius * expansionFactor
           Some(result)

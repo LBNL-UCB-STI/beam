@@ -322,10 +322,7 @@ object ParallelParkingManager extends LazyLogging {
     bufferDistanceInMeters: Double
   ): Map[Id[Link], Link] = {
     val tazesVector = tazes.toVector
-    val taz434 = tazesVector.filter(_.tazId.toString == "434")
-    if (taz434.nonEmpty) {
-      println("gotcha6")
-    }
+
     val allLinks = tazTreeMap.searchQuadTree.get.links
     if (tazesVector.isEmpty || allLinks.isEmpty)
       return Map.empty[Id[Link], Link]
@@ -434,7 +431,7 @@ object ParallelParkingManager extends LazyLogging {
   }
 
   /**
-    * Creates ELKI database from parking zones and empty TAZes
+    * Creates database from parking zones and empty TAZes
     * @param tazTreeMap TAZTreeMap
     * @param zones Map[Id[ParkingZoneId], ParkingZone]
     * @return

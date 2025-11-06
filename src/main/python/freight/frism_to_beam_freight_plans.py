@@ -130,7 +130,6 @@ _tours = None
 _vehicle_types = None
 _tourId_with_prefix = {}
 
-
 # ******************************
 
 def load_osm_network(pbf_path, min_distance_from_edge):
