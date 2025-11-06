@@ -29,9 +29,9 @@ from python.utils.study_area_config import generate_network_name
 
 def main():
     """Main execution function."""
-    area = "seattle"  # Options: sfbay, seattle
+    area = "sfbay"  # Options: sfbay, seattle
     study_area_config = get_area_config(area)
-    study_area_config["network"]["graph_layers"]["residential"]["min_density_per_km2"] = 120 # 2855 for sfbay, 412 for seattle
+    study_area_config["network"]["graph_layers"]["residential"]["min_density_per_km2"] = 5500 # 5500 for sfbay, 412 for seattle
 
     # Generate configuration name and prepare directory
     config_name = generate_network_name(study_area_config)

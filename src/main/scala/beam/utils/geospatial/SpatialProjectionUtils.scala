@@ -7,11 +7,21 @@ object SpatialProjectionUtils {
 
   private val logger = LoggerFactory.getLogger(this.getClass)
 
+  // Cache to store conversion factors, avoiding redundant logging for the same CRS
+  private val crsCache = scala.collection.mutable.Map.empty[String, Double]
+
   /**
     * Determines the conversion factor from meters to the CRS's native units.
     * Most projected CRS use meters, but some (like US state plane) use feet.
+    * Results are cached to avoid redundant logging for the same CRS.
     */
   def calculateMetersToProjectedUnits(scenarioCRS: String): Double = {
+    // Return cached result if already computed
+    crsCache.get(scenarioCRS) match {
+      case Some(factor) => return factor
+      case None         => ()
+    }
+
     try {
       val crs = CRS.decode(scenarioCRS)
       val unitString = crs.getCoordinateSystem.getAxis(0).getUnit.toString.toLowerCase
@@ -46,9 +56,13 @@ object SpatialProjectionUtils {
           }
       }
 
+      // Log only on first computation for this CRS
       logger.info(
         s"CRS ${scenarioCRS} uses unit: $unitString, conversion factor: $factor meters -> CRS units"
       )
+
+      // Cache the result
+      crsCache.put(scenarioCRS, factor)
       factor
 
     } catch {
