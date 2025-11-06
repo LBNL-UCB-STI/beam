@@ -8,16 +8,15 @@ import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
 import beam.utils.BeamVehicleUtils.readBeamVehicleTypeFile
-import beam.utils.SnapCoordinateUtils
 import beam.utils.SnapCoordinateUtils._
 import beam.utils.csv.GenericCsvReader
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
+import beam.utils.{NetworkUtilsWrapper, SnapCoordinateUtils}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.lang3.StringUtils.isBlank
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.network.NetworkUtils
 import org.matsim.households.Household
 
 import scala.collection.mutable.ListBuffer
@@ -389,7 +388,17 @@ class GenericFreightReader(
     } else {
       val loc = new Coord(strX.toDouble, strY.toDouble)
       val locInUtm = if (config.isWgs) geoUtils.wgs2Utm(loc) else loc
-      val newLocIntUtm = networkMaybe.map(NetworkUtils.getNearestLink(_, locInUtm).getCoord).getOrElse(locInUtm)
+      val nearestLinkMaybe = networkMaybe.map(
+        NetworkUtilsWrapper.getNearestLinkByMode(
+          _,
+          coord = locInUtm,
+          modes = Array("car", "walk"),
+          scenarioCRS = geoUtils.localCRS,
+          minRadiusInMeter = 100.0,
+          maxRadiusInMeter = 50000.0
+        )
+      )
+      val newLocIntUtm = nearestLinkMaybe.map(_.getCoord).getOrElse(locInUtm)
       val coordInUtm =
         if (snapLocationAndRemoveInvalidInputs) snapLocationHelper.computeResult(newLocIntUtm)
         else Right(locInUtm)

@@ -12,7 +12,6 @@ import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
-import beam.utils.NetworkFilter
 import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import com.conveyal.r5.streets.StreetLayer
 import org.matsim.api.core.v01.network.Network
@@ -244,7 +243,7 @@ object FreightReader {
           beamConfig.beam.agentsim.snapLocationAndRemoveInvalidInputs,
           beamConfig.beam.agentsim.schedulerParallelismWindow,
           snapLocationHelper,
-          network.map(NetworkFilter.filterNetworkByCarMode),
+          network,
           outputDirMaybe
         )
       case s =>

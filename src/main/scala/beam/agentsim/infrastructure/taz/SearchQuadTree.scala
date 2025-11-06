@@ -2,6 +2,7 @@ package beam.agentsim.infrastructure.taz
 
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamScenario, BeamServices}
+import beam.utils.geospatial.SpatialProjectionUtils
 import org.geotools.geometry.jts.JTS
 import org.geotools.referencing.CRS
 import org.locationtech.jts.geom.{Coordinate, GeometryFactory}
@@ -29,69 +30,19 @@ abstract class SearchQuadTree(val tazTreeMap: TAZTreeMap, val links: Map[Id[Link
   // Track whether we've checked distortion yet
   @volatile private var distortionChecked = false
 
-  /**
-    * Determines the conversion factor from meters to the CRS's native units.
-    * Most projected CRS use meters, but some (like US state plane) use feet.
-    */
-
-  val metersToProjectedUnits: Double = {
-    try {
-      val crs = CRS.decode(tazTreeMap.scenarioCRS)
-      val unitString = crs.getCoordinateSystem.getAxis(0).getUnit.toString.toLowerCase
-
-      // Parse the unit string to determine conversion factor
-      val factor = unitString match {
-        case s if s.contains("meter") || s.contains("metre") || s == "m" =>
-          1.0
-        case s if s.contains("us survey foot") || s.contains("foot_us") || s.contains("us_ft") =>
-          // US survey foot to meter conversion
-          1.0 / 0.304800609601219
-        case s if s.contains("foot") || s.contains("feet") || s.contains("ft") =>
-          // International foot to meter conversion
-          1.0 / 0.3048
-        case s if s.contains("kilometer") || s.contains("kilometre") || s == "km" =>
-          1000.0
-        case s if s.contains("mile") || s == "mi" =>
-          // International mile
-          1.0 / 1609.344
-        case s if s.contains("yard") || s == "yd" =>
-          1.0 / 0.9144
-        case _ =>
-          // Try to check if it's already a linear unit by checking for degree
-          if (unitString.contains("degree") || unitString.contains("°")) {
-            logger.error(
-              s"CRS ${tazTreeMap.scenarioCRS} uses angular units ($unitString). This will not work correctly for distance calculations!"
-            )
-            1.0
-          } else {
-            logger.warn(s"Unknown unit '$unitString' for CRS ${tazTreeMap.scenarioCRS}, assuming meters")
-            1.0
-          }
-      }
-
-      logger.info(
-        s"CRS ${tazTreeMap.scenarioCRS} uses unit: $unitString, conversion factor: $factor meters -> CRS units"
-      )
-      factor
-
-    } catch {
-      case e: Exception =>
-        logger.error(s"Failed to determine units for CRS ${tazTreeMap.scenarioCRS}, assuming meters", e)
-        1.0
-    }
-  }
+  val metersToProjectedUnits: Double = SpatialProjectionUtils.calculateMetersToProjectedUnits(tazTreeMap.scenarioCRS)
 
   // Validate CRS on initialization
   {
     if (!SearchQuadTree.isProjectedCRS(tazTreeMap.scenarioCRS)) {
       logger.warn(
         s"""
-        |WARNING: CRS ${tazTreeMap.scenarioCRS} appears to be geographic (lat/lon).
-        |This will result in highly inaccurate distance calculations!
-        |Consider reprojecting your data to a projected CRS like:
-        |  - UTM: ${SearchQuadTree.CommonCRS.getUTMZoneForArea(-122.0, 37.0)} (for San Francisco area)
-        |  - State Plane (California): ${SearchQuadTree.CommonCRS.CaliforniaZone3_Meters}
-        |  - Web apps (not recommended): ${SearchQuadTree.CommonCRS.WebMercator}
+           |WARNING: CRS ${tazTreeMap.scenarioCRS} appears to be geographic (lat/lon).
+           |This will result in highly inaccurate distance calculations!
+           |Consider reprojecting your data to a projected CRS like:
+           |  - UTM: ${SearchQuadTree.CommonCRS.getUTMZoneForArea(-122.0, 37.0)} (for San Francisco area)
+           |  - State Plane (California): ${SearchQuadTree.CommonCRS.CaliforniaZone3_Meters}
+           |  - Web apps (not recommended): ${SearchQuadTree.CommonCRS.WebMercator}
         """.stripMargin
       )
     } else {
@@ -122,16 +73,16 @@ abstract class SearchQuadTree(val tazTreeMap: TAZTreeMap, val links: Map[Id[Link
         if (distortion > 2.0) {
           logger.error(
             f"""
-            |CRITICAL: Distance calculations will be off by ${((distortion - 1) * 100)}%.0f%% at location ($x%.0f, $y%.0f)
-            |This CRS (${tazTreeMap.scenarioCRS}) is not suitable for accurate distance calculations.
-            |Please reproject your data to an appropriate projected coordinate system.
+               |CRITICAL: Distance calculations will be off by ${((distortion - 1) * 100)}%.0f%% at location ($x%.0f, $y%.0f)
+               |This CRS (${tazTreeMap.scenarioCRS}) is not suitable for accurate distance calculations.
+               |Please reproject your data to an appropriate projected coordinate system.
             """.stripMargin
           )
         } else if (distortion > 1.1) {
           logger.warn(
             f"""
-            |WARNING: Distance calculations may be off by ${((distortion - 1) * 100)}%.0f%% at location ($x%.0f, $y%.0f)
-            |Consider using a more appropriate projected coordinate system for better accuracy.
+               |WARNING: Distance calculations may be off by ${((distortion - 1) * 100)}%.0f%% at location ($x%.0f, $y%.0f)
+               |Consider using a more appropriate projected coordinate system for better accuracy.
             """.stripMargin
           )
         } else if (distortion > 1.01) {
@@ -395,6 +346,10 @@ object SearchQuadTree {
       val uniqueLinks = linkQuadTree
         .getRing(x, y, innerRadius, outerRadius)
         .asScala
+        .filter { link =>
+          val allowed = link.getAllowedModes.asScala.map(_.toLowerCase)
+          allowed.contains("car") && allowed.contains("walk")
+        }
         .toSet
 
       val sampledLinks = if (uniqueLinks.size <= sampleSize) {
@@ -583,6 +538,7 @@ object SearchQuadTree {
     * This is helpful for understanding what CRS codes use which units.
     */
   object CommonCRS {
+
     // Geographic (not recommended for distance calculations)
     val WGS84 = "EPSG:4326" // degrees
     val NAD83 = "EPSG:4269" // degrees
