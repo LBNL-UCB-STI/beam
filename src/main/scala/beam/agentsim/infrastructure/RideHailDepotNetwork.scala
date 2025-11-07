@@ -24,8 +24,10 @@ object RideHailDepotNetwork {
   private val MinNumberOfSameTypeZones: Int = 5
 
   private val searchDistancesConfig = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params(
-    freight = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params.Freight(10.0, 200.0),
-    passenger = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params.Passenger(SearchStartRadius, SearchMaxRadius),
+    freight =
+      BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params.Freight(minSearchRadius = 10.0, maxSearchRadius = 200.0),
+    passenger = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params
+      .Passenger(minSearchRadius = SearchStartRadius, maxSearchRadius = SearchMaxRadius),
     searchDoubleParkingRadius = 0,
     searchMaxDistanceRelativeToEllipseFoci = 4.0,
     enableLinkBasedSearch = false,

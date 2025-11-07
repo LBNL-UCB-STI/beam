@@ -9,7 +9,7 @@ import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ, TAZTreeMap}
 import beam.sim.BeamHelper
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.BeamConfig
@@ -55,8 +55,10 @@ class HierarchicalParkingManagerSpec
   val geo = new GeoUtilsImpl(beamConfig)
 
   private val searchDistancesConfig = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params(
-    freight = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params.Freight(10.0, 200.0),
-    passenger = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params.Passenger(250.0, 8000.0),
+    freight =
+      BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params.Freight(minSearchRadius = 10.0, maxSearchRadius = 200.0),
+    passenger = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params
+      .Passenger(minSearchRadius = 250.0, maxSearchRadius = 8000.0),
     searchDoubleParkingRadius = 0,
     searchMaxDistanceRelativeToEllipseFoci = 4.0,
     enableLinkBasedSearch = false,
@@ -108,6 +110,7 @@ class HierarchicalParkingManagerSpec
     it("should return a response with an emergency stall") {
 
       val tazTreeMap = new TAZTreeMap(new QuadTree[TAZ](0, 0, 0, 0), scenarioCRS = geo.localCRS)
+      tazTreeMap.searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(tazTreeMap, Map.empty))
 
       val parkingManager = HierarchicalParkingManager.init(
         Map.empty[Id[ParkingZoneId], ParkingZone],
