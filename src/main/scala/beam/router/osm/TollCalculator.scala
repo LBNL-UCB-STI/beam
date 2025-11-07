@@ -86,10 +86,14 @@ class TollCalculator @Inject() (val config: BeamConfig) extends LazyLogging {
 
       // FAST PATH: Only check toll if link is in tolled set
       if (tolledLinkIds.contains(linkId)) {
-        val time = math.round(currentTime.toFloat)
+        val time = currentTime.toInt
         val tolls = tollsByLinkId.get(linkId)
         if (tolls != null) {
-          total += applyTimeDependentTollAtTime(tolls, time) * tollPriceMultiplier
+          if (tollPriceMultiplier == 1.0) {
+            total += applyTimeDependentTollAtTime(tolls, time)
+          } else {
+            total += applyTimeDependentTollAtTime(tolls, time) * tollPriceMultiplier
+          }
         }
       }
 
@@ -104,14 +108,11 @@ class TollCalculator @Inject() (val config: BeamConfig) extends LazyLogging {
 
   @inline
   def calcTollByLinkId(linkId: Int, time: Int): Double = {
-    // FAST PATH: Check membership before lookup
-    if (!tolledLinkIds.contains(linkId)) {
-      return 0.0
-    }
-
     val tolls = tollsByLinkId.get(linkId)
     if (tolls == null) {
       0.0
+    } else if (tollPriceMultiplier == 1.0) {
+      applyTimeDependentTollAtTime(tolls, time)
     } else {
       applyTimeDependentTollAtTime(tolls, time) * tollPriceMultiplier
     }

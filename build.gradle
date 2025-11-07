@@ -245,7 +245,7 @@ dependencies {
     implementation "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.9.0"
     implementation "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
 
-    implementation(group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'v4.10.27') {
+    implementation(group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'v4.10.32') {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
         exclude group: 'org.slf4j', module: 'slf4j-simple'
     }
@@ -927,8 +927,8 @@ tasks.register('buildImage', DockerBuildImage) {
     inputDir = file('build/docker')
     platform = 'linux/amd64'
 
-    String repo = getDockerRepository()//"zaneedell/beam"//
-    String tagName = getDockerTag()//"1.1.beta"//
+    String repo = getDockerRepository()
+    String tagName = getDockerTag()
 
     if (repo.isEmpty() || tagName.isEmpty()) {
         throw new GradleException("Please specify a tag using -Ptag=repository:version")

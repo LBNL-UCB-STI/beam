@@ -546,6 +546,7 @@ object BeamRouter {
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
     requestId: Int = IdGeneratorImpl.nextId,
     possibleEgressVehicles: IndexedSeq[StreetVehicle] = IndexedSeq.empty,
+    requestedMode: Option[BeamMode] = None,
     triggerId: Long
   )(implicit fileName: sourcecode.FileName, fullName: sourcecode.FullName, line: sourcecode.Line)
       extends HasTriggerId {
@@ -557,36 +558,20 @@ object BeamRouter {
     val initiatedFrom: String = s"${fileName.value}:${line.value} ${fullName.value}"
 
     lazy val routingComplexity: Int = {
-      val dX = destinationUTM.getX - originUTM.getX
-      val dY = destinationUTM.getY - originUTM.getY
-      val distanceKm = Math.sqrt(dX * dX + dY * dY) / 1000.0
-
-      var complexity = 0
-
-      // Distance factor
-      if (distanceKm > 100) complexity += 200 // extralong: very significant
-      else if (distanceKm > 50) complexity += 100 // long: significant
-      else if (distanceKm > 10) complexity += 30 // medium
-      else complexity += 10 // short
-
-      if (streetVehicles.exists(_.mode == CAR)) {
-        if (withTransit) {
-          complexity += 120 // "drive_transit"
-        } else
-          complexity += 60 // "car"
-      } else if (streetVehicles.exists(_.mode == BIKE)) {
-        if (withTransit)
-          complexity += 100 // "bike_transit"
-        else
-          complexity += 40 // "bike"
+      if (withTransit) {
+        if (streetVehicles.exists(_.mode == CAR)) {
+          // car_transit: Usually fast BUT terrible tail - do early!
+          450 // ⬆ Bumped up due to 50x outlier risk
+        } else if (streetVehicles.exists(_.mode == BIKE)) {
+          // bike_transit: Moderate risk
+          350
+        } else {
+          // walk_transit: Slow avg + catastrophic outliers
+          500
+        }
       } else {
-        if (withTransit)
-          complexity += 50 // "walk_transit"
-        else
-          complexity += 10 // "walk"
+        150 // Predictable, save for last
       }
-
-      complexity
     }
   }
 

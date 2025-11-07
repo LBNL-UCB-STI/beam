@@ -1388,9 +1388,16 @@ trait ChoosesMode {
     rideHail2TransitRoutingRequestId: Option[Int]
   ): Set[BeamMode] = {
     val expectedNonRideHailModes = routingResponse.request match {
-      case Some(RoutingRequest(_, _, _, withTransit, _, streetVehicles, _, _, _, _, _)) if !withTransit =>
+      // If mode is predetermined, only expect that specific mode
+      case Some(RoutingRequest(_, _, _, _, _, _, _, _, _, _, requestedMode, _)) if requestedMode.isDefined =>
+        Set(requestedMode.get)
+
+      // Non-transit: expect all vehicle modes
+      case Some(RoutingRequest(_, _, _, withTransit, _, streetVehicles, _, _, _, _, _, _)) if !withTransit =>
         streetVehicles.map(_.mode).toSet
-      case Some(RoutingRequest(_, _, _, true, _, streetVehicles, _, _, _, _, _)) =>
+
+      // Transit without predetermined mode: expect all combinations
+      case Some(RoutingRequest(_, _, _, true, _, streetVehicles, _, _, _, _, _, _)) =>
         streetVehicles
           .map(_.mode)
           .flatMap {
@@ -2532,7 +2539,8 @@ trait ChoosesMode {
       vehicles: Vector[StreetVehicle],
       streetVehiclesIntermodalUse: IntermodalUse = Access,
       possibleEgressVehicles: IndexedSeq[StreetVehicle] = IndexedSeq.empty,
-      departureBuffer: Int = 0
+      departureBuffer: Int = 0,
+      requestedMode: Option[BeamMode] = None
     ): Unit = {
       router ! RoutingRequest(
         currentPersonLocation.loc,
@@ -2544,6 +2552,7 @@ trait ChoosesMode {
         Some(attributes),
         streetVehiclesIntermodalUse,
         possibleEgressVehicles = possibleEgressVehicles,
+        requestedMode = requestedMode,
         triggerId = getCurrentTriggerIdOrGenerate
       )
     }
@@ -2707,7 +2716,11 @@ trait ChoosesMode {
           withRideHail = alreadyRequestedRideHail,
           withRideHailTransit = alreadyRequestedRideHailTransit
         )
-        makeRequestWith(withTransit = shouldAlwaysQueryTransit, Vector(bodyStreetVehicle))
+        makeRequestWith(
+          withTransit = shouldAlwaysQueryTransit,
+          Vector(bodyStreetVehicle),
+          requestedMode = currentTripMode
+        )
       case Some(WALK_TRANSIT) =>
         responsePlaceholders = makeResponsePlaceholders(
           withRouting = true,
@@ -2717,7 +2730,8 @@ trait ChoosesMode {
         makeRequestWith(
           withTransit = true,
           Vector(bodyStreetVehicle),
-          departureBuffer = bufferToUse
+          departureBuffer = bufferToUse,
+          requestedMode = currentTripMode
         )
       case Some(CAV) =>
         // Request from household the trip legs to put into trip
@@ -2783,7 +2797,11 @@ trait ChoosesMode {
                   withRideHailTransit = alreadyRequestedRideHailTransit
                 )
               case _ =>
-                makeRequestWith(withTransit = shouldAlwaysQueryTransit, Vector(bodyStreetVehicle))
+                makeRequestWith(
+                  withTransit = shouldAlwaysQueryTransit,
+                  Vector(bodyStreetVehicle),
+                  requestedMode = currentTripMode
+                )
                 responsePlaceholders = makeResponsePlaceholders(
                   withRouting = true,
                   withRideHail = alreadyRequestedRideHail,
@@ -2824,7 +2842,8 @@ trait ChoosesMode {
             }
             makeRequestWith(
               withTransit = householdVehiclesWereNotAvailable | shouldAlwaysQueryTransit,
-              vehicles :+ bodyStreetVehicle
+              vehicles :+ bodyStreetVehicle,
+              requestedMode = currentTripMode
             )
             responsePlaceholders = makeResponsePlaceholders(
               withRouting = true,
@@ -2854,7 +2873,8 @@ trait ChoosesMode {
                 withTransit = true,
                 filterStreetVehiclesForQuery(availableVehicles.map(_.streetVehicle), vehicleMode)
                 :+ bodyStreetVehicle,
-                departureBuffer = bufferToUse
+                departureBuffer = bufferToUse,
+                requestedMode = currentTripMode
               )
               responsePlaceholders = makeResponsePlaceholders(
                 withRouting = true,
@@ -2867,7 +2887,8 @@ trait ChoosesMode {
               makeRequestWith(
                 withTransit = true,
                 Vector(bodyStreetVehicle),
-                departureBuffer = bufferToUse
+                departureBuffer = bufferToUse,
+                requestedMode = currentTripMode
               )
               responsePlaceholders = makeResponsePlaceholders(
                 withRouting = true,
@@ -2893,7 +2914,8 @@ trait ChoosesMode {
               withTransit = true,
               vehiclesForRouting :+ bodyStreetVehicle,
               streetVehiclesIntermodalUse = intermodalUse,
-              departureBuffer = bufferToUse
+              departureBuffer = bufferToUse,
+              requestedMode = currentTripMode
             )
             responsePlaceholders = makeResponsePlaceholders(
               withRouting = true,
@@ -2903,7 +2925,7 @@ trait ChoosesMode {
           case _ =>
             // Reset available vehicles so we don't release our car that we've left during this replanning
             resetVehicles = true
-            makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
+            makeRequestWith(withTransit = true, Vector(bodyStreetVehicle), requestedMode = currentTripMode)
             responsePlaceholders = makeResponsePlaceholders(
               withRouting = true,
               withRideHail = alreadyRequestedRideHail,
@@ -2913,7 +2935,7 @@ trait ChoosesMode {
       case Some(RIDE_HAIL | RIDE_HAIL_POOLED) if choosesModeData.isWithinTripReplanning =>
         // Give up on all ride hail after a failure
         responsePlaceholders = makeResponsePlaceholders(withRouting = true)
-        makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
+        makeRequestWith(withTransit = true, Vector(bodyStreetVehicle), requestedMode = currentTripMode)
       case Some(RIDE_HAIL | RIDE_HAIL_POOLED) =>
         responsePlaceholders = makeResponsePlaceholders(
           withRouting = true,
@@ -2922,13 +2944,19 @@ trait ChoosesMode {
         )
         makeRequestWith(
           withTransit = shouldAlwaysQueryTransit,
-          Vector(bodyStreetVehicle)
+          Vector(bodyStreetVehicle),
+          requestedMode = currentTripMode
         ) // We need a WALK alternative if RH fails
         if (!alreadyRequestedRideHail) { makeRideHailRequest() }
       case Some(RIDE_HAIL_TRANSIT) if choosesModeData.isWithinTripReplanning =>
         // Give up on ride hail transit after a failure, too complicated, but try regular ride hail again
         responsePlaceholders = makeResponsePlaceholders(withRouting = true, withRideHail = true)
-        makeRequestWith(withTransit = true, Vector(bodyStreetVehicle), departureBuffer = bufferToUse)
+        makeRequestWith(
+          withTransit = true,
+          Vector(bodyStreetVehicle),
+          departureBuffer = bufferToUse,
+          requestedMode = None
+        )
         if (!alreadyRequestedRideHail) { makeRideHailRequest() }
       case Some(RIDE_HAIL_TRANSIT) =>
         responsePlaceholders =
