@@ -11,7 +11,7 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.parking.PricingModel.FlatFee
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
@@ -98,6 +98,7 @@ class ParallelParkingManagerSpec
     it("should return a response with an emergency stall") {
 
       val tazTreeMap = new TAZTreeMap(new QuadTree[TAZ](0, 0, 0, 0), scenarioCRS = geo.localCRS)
+      tazTreeMap.searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(tazTreeMap, Map.empty))
 
       val parkingManager = ParallelParkingManager.init(
         Map.empty[Id[ParkingZoneId], ParkingZone],

@@ -17,6 +17,7 @@ import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.skim.SkimsUtils
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.BeamConfig
+import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -39,6 +40,8 @@ class ChargingNetworkSpec
     with Matchers
     with BeamvilleFixtures {
 
+  // minSearchRadius should be large enough to include all the TAZs created in `createTazGrid`
+  // because our search alogorithm stops searching when it finds at least one TAZ
   lazy val config: Config = ConfigFactory
     .parseString(
       """
@@ -46,9 +49,9 @@ class ChargingNetworkSpec
         akka.actor.debug.fsm = true
         akka.loglevel = debug
         akka.test.timefactor = 2
-        beam.agentsim.agents.parking.minSearchRadius = 1000.0
-        beam.agentsim.agents.parking.maxSearchRadius = 16093.4
-        beam.agentsim.agents.parking.searchMaxDistanceRelativeToEllipseFoci = 4.0
+        beam.agentsim.agents.parking.search.params.passenger.minSearchRadius = 2600.0
+        beam.agentsim.agents.parking.search.params.passenger.maxSearchRadius = 16093.4
+        beam.agentsim.agents.parking.search.params.searchMaxDistanceRelativeToEllipseFoci = 4.0
         matsim.modules.global.randomSeed = 0
         """
     )
@@ -82,9 +85,9 @@ class ChargingNetworkSpec
           scenarioCRS = geo.localCRS
         ) // one TAZ at agent coordinate
         config = BeamConfig(system.settings.config)
-        oneParkingOption: Iterator[String] =
+        oneParkingOption: Iterator[String] = // see ChargingFunctions.getAllowedParkingTypes for the right Parking Type
           """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,parkingZoneId
-            |1,Workplace,FlatFee,UltraFast(250|DC),9999,5678,,0
+            |1,Public,FlatFee,UltraFast(250|DC),9999,5678,,0
           """.stripMargin.split("\n").toIterator
         chargingNetwork = ChargingNetworkSpec.mockChargingNetwork(
           config,
@@ -113,7 +116,7 @@ class ChargingNetworkSpec
             56.78,
             Some(xfcChargingPoint),
             Some(FlatFee(56.78)),
-            ParkingType.Workplace,
+            ParkingType.Public,
             Charging,
             VehicleManager.AnyManager
           )
@@ -270,24 +273,16 @@ class ChargingNetworkSpec
       val vehicle = createBEV(originSpaceTime)
 
       val tazId = tazTreeMap.idToTAZMapping.head._1.toString
-      var sumExpUtility = 0.0
-      val expectedProbability = new mutable.ListMap[Id[ParkingZoneId], Double]()
       val parkingOptions = new ListBuffer[String]()
       parkingOptions += "taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,parkingZoneId"
       for (stallIndex <- 0 until nStalls) {
         val homeStall = stallIndex == 0
 
         parkingOptions += s"$tazId,${if (homeStall) "Residential" else "Public"},FlatFee,Level1(2.3|AC),9999,0,,$stallIndex"
-
-        val expUtility =
-          math.exp(
-            (if (homeStall) 1.0 else 0.0) *
-            beamConfig.beam.agentsim.agents.parking.multinomialLogit.params.parkingTypePreferenceMultiplier
-          )
-        sumExpUtility += expUtility
-        expectedProbability += Id.create[ParkingZoneId](s"$stallIndex", classOf[ParkingZoneId]) -> expUtility
       }
-      expectedProbability.foreach(zoneId_prob => expectedProbability(zoneId_prob._1) /= sumExpUtility)
+      // since only one stall matches the allowed parking type (see ChargingFunctions.getAllowedParkingTypes),
+      // it should be always selected
+      val expectedProbability = Map("0".createId[ParkingZoneId] -> 1.0)
 
       val parkingInquiry = ParkingInquiry.init(
         destinationSpaceTime,
@@ -378,13 +373,25 @@ class ChargingNetworkSpec
     }
   }
 
+  /**
+    * Runs parking selection test by simulating multiple parking inquiries and comparing the observed
+    * selection probabilities against the expected ones.
+    * @param baseConfig
+    * @param configWithSeedFunction
+    * @param tazTreeMap the TAZ tree map to be used in the test
+    * @param parkingOptions the parking options to be used in each iteration
+    * @param parkingInquiry the parking inquiry to be used in each iteration
+    * @param expectedProbability Map tazId -> expected selection probability
+    * @param maxDeviation maximum allowed relative deviation between observed and expected probabilities
+    * @param iterations number of iterations to run the test
+    */
   def runParkingSelectionTest(
     baseConfig: Config,
     configWithSeedFunction: Int => String,
     tazTreeMap: TAZTreeMap,
     parkingOptions: ListBuffer[String],
     parkingInquiry: ParkingInquiry,
-    expectedProbability: mutable.ListMap[Id[ParkingZoneId], Double],
+    expectedProbability: collection.Map[Id[ParkingZoneId], Double],
     maxDeviation: Double = 6e-2,
     iterations: Int = 10000 // takes about 16s
   ): Unit = {
@@ -425,7 +432,7 @@ class ChargingNetworkSpec
 
     assert(
       relativeError < maxDeviation,
-      s"The difference between expected and observed probabilities for choosing parking stalls was above the maximum allowed"
+      s"Error is too high. Expected probability: $expectedProbability, observed: $observedProbability"
     )
   }
 

@@ -123,7 +123,8 @@ object LeavingParkingEvent {
     val duration: Double = attr.get(ATTRIBUTE_PARKING_DURATION).map(_.toDouble).getOrElse(0.0)
     val linkIdsAsStr = attr.getOrElse(ATTRIBUTE_LINK_IDS, "")
     val linkIds: IndexedSeq[Int] = if (linkIdsAsStr == "") IndexedSeq.empty else linkIdsAsStr.split(",").map(_.toInt)
-    val parkingZoneId: Id[ParkingZoneId] = Id.create(attr(ATTRIBUTE_PARKING_ZONE_ID), classOf[ParkingZoneId])
+    val parkingZoneStr = attr.getOrElse(ATTRIBUTE_PARKING_ZONE_ID, "unknownPZ")
+    val parkingZoneId: Id[ParkingZoneId] = Id.create(parkingZoneStr, classOf[ParkingZoneId])
     LeavingParkingEvent(
       time,
       personId,

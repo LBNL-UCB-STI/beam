@@ -265,7 +265,10 @@ object TAZTreeMap {
     val tazTreeMap = new TAZTreeMap(quadTree, scenarioCRS, maybeZoneOrdering = maybeZoneOrdering)
     if (links.nonEmpty) {
       tazTreeMap.mapNetworkToTAZs(links, enableLinkBasedSearch)
-    } else tazTreeMap.searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(tazTreeMap, links))
+    }
+    if (tazTreeMap.searchQuadTree.isEmpty) {
+      tazTreeMap.searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(tazTreeMap, links))
+    }
     tazTreeMap
   }
 

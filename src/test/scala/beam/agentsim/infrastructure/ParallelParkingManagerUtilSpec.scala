@@ -2,7 +2,7 @@ package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.parking.{ParkingZone, ParkingZoneId}
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ, TAZTreeMap}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.scalatest.matchers.should.Matchers
@@ -72,6 +72,7 @@ class ParallelParkingManagerUtilSpec extends AnyWordSpecLike with Matchers {
 
     "Handle empty tazTreeMap" in {
       val treeMap = new TAZTreeMap(new QuadTree[TAZ](0, 0, 0, 0), scenarioCRS = "")
+      treeMap.searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(treeMap, Map.empty))
 
       val parkingZones = Map.empty[Id[ParkingZoneId], ParkingZone]
       val clusters: Vector[ParallelParkingManager.ParkingCluster] =

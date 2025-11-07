@@ -13,7 +13,7 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ, TAZTreeMap}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
@@ -633,9 +633,10 @@ class ZonalParkingManagerSpec
 object ZonalParkingManagerSpec {
 
   private val searchDistancesConfig = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params(
-    freight = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params.Freight(10.0, 200.0),
-    passenger =
-      BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params.Passenger(1000.0, 16093.4), // meters, aka 10 miles
+    freight =
+      BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params.Freight(minSearchRadius = 10.0, maxSearchRadius = 200.0),
+    passenger = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params
+      .Passenger(minSearchRadius = 1000.0, maxSearchRadius = 16093.4), // meters, aka 10 miles
     searchDoubleParkingRadius = 100.0,
     searchMaxDistanceRelativeToEllipseFoci = 4.0,
     enableLinkBasedSearch = false,
@@ -687,7 +688,9 @@ object ZonalParkingManagerSpec {
         tree.put(coord.getX, coord.getY, taz)
         tree
       }
-      Some { new TAZTreeMap(quadTree, scenarioCRS = scenarioCRS) }
+      val tazTreeMap = new TAZTreeMap(quadTree, scenarioCRS = scenarioCRS)
+      tazTreeMap.searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(tazTreeMap, Map.empty))
+      Some(tazTreeMap)
     }
   }
 
