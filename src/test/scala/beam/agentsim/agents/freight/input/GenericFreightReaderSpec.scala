@@ -6,6 +6,7 @@ import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.sim.BeamHelper
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
+import beam.sim.config.BeamConfig.Beam.Agentsim.SnapLocationAndRemoveInvalidInputs
 import beam.utils.BeamVehicleUtils
 import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import beam.utils.matsim_conversion.MatsimPlanConversion.{AttributesOps, IdOps}
@@ -74,7 +75,11 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
       geoUtils,
       rnd,
       tazMap,
-      snapLocationAndRemoveInvalidInputs = false,
+      snapLocationAndRemoveInvalidInputsParams = SnapLocationAndRemoveInvalidInputs.Params(
+        enabled = false,
+        maxRadiusInMeter = 500000.0,
+        minRadiusInMeter = 100.0
+      ),
       schedulerParallelismWindow = 60,
       snapLocationHelperMock
     )
@@ -224,7 +229,11 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
       geoUtils,
       new Random(4324L),
       tazMap,
-      snapLocationAndRemoveInvalidInputs = false,
+      snapLocationAndRemoveInvalidInputsParams = SnapLocationAndRemoveInvalidInputs.Params(
+        enabled = false,
+        maxRadiusInMeter = 500000.0,
+        minRadiusInMeter = 100.0
+      ),
       schedulerParallelismWindow = 60,
       snapLocationHelperMock
     )
@@ -237,7 +246,11 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
         geoUtils,
         new Random(73737L),
         tazMap,
-        snapLocationAndRemoveInvalidInputs = false,
+        snapLocationAndRemoveInvalidInputsParams = SnapLocationAndRemoveInvalidInputs.Params(
+          enabled = false,
+          maxRadiusInMeter = 500000.0,
+          minRadiusInMeter = 100.0
+        ),
         schedulerParallelismWindow = 60,
         snapLocationHelperMock
       ).readFreightCarriers(

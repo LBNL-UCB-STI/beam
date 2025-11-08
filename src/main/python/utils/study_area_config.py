@@ -339,7 +339,7 @@ sfbay_area_config = {
         "weight_limits": weight_limits, # Vehicle weight classifications (FHWA)
         "download_enabled": True, # if download isn't enabled, we read network from disk
         "tolerance": 2,
-        "strongly_connected_components": False,
+        "strongly_connected_components": True,
         "graph_layers": { # Density thresholds and corresponding network filters
             "main": {
                 "geo_level": "county",

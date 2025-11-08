@@ -7,6 +7,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
+import beam.sim.config.BeamConfig.Beam.Agentsim.SnapLocationAndRemoveInvalidInputs
 import beam.utils.BeamVehicleUtils.readBeamVehicleTypeFile
 import beam.utils.SnapCoordinateUtils._
 import beam.utils.csv.GenericCsvReader
@@ -30,7 +31,7 @@ class GenericFreightReader(
   val geoUtils: GeoUtils,
   rnd: Random,
   tazTree: TAZTreeMap,
-  val snapLocationAndRemoveInvalidInputs: Boolean,
+  val snapLocationAndRemoveInvalidInputsParams: SnapLocationAndRemoveInvalidInputs.Params,
   schedulerParallelismWindow: Int,
   val snapLocationHelper: SnapLocationHelper,
   networkMaybe: Option[Network] = None,
@@ -64,7 +65,7 @@ class GenericFreightReader(
           departureLocationX,
           departureLocationY,
           row.get("departureLocationZone"),
-          snapLocationAndRemoveInvalidInputs
+          snapLocationAndRemoveInvalidInputsParams
         ) match {
           case (_, Right(_)) =>
             Some(
@@ -139,7 +140,7 @@ class GenericFreightReader(
           locationX,
           locationY,
           row.get("locationZone"),
-          snapLocationAndRemoveInvalidInputs
+          snapLocationAndRemoveInvalidInputsParams
         ) match {
           case (locationZoneMaybe, Right(coord)) =>
             Some(
@@ -332,7 +333,7 @@ class GenericFreightReader(
           row.get("depotX"),
           row.get("depotY"),
           row.get("depotZone"),
-          snapLocationAndRemoveInvalidInputs
+          snapLocationAndRemoveInvalidInputsParams
         ) match {
           case (depotZoneMaybe, Right(coord)) =>
             Some(FreightCarrierRow(carrierId, tourId, vehicleId, vehicleTypeId, depotZoneMaybe, coord))
@@ -377,31 +378,33 @@ class GenericFreightReader(
     strX: String,
     strY: String,
     strZone: String,
-    snapLocationAndRemoveInvalidInputs: Boolean
+    snapLocationAndRemoveInvalidInputsParams: SnapLocationAndRemoveInvalidInputs.Params
   ): (Option[Id[TAZ]], SnapCoordinateResult) = {
     if (isBlank(strX) || isBlank(strY)) {
       val taz = getTaz(strZone)
       val coord =
-        if (snapLocationAndRemoveInvalidInputs) TAZTreeMap.randomLocationInTAZ(taz, rnd, snapLocationHelper)
+        if (snapLocationAndRemoveInvalidInputsParams.enabled)
+          TAZTreeMap.randomLocationInTAZ(taz, rnd, snapLocationHelper)
         else TAZTreeMap.randomLocationInTAZ(taz, rnd)
       (Some(taz.tazId), Right(coord))
     } else {
       val loc = new Coord(strX.toDouble, strY.toDouble)
       val locInUtm = if (config.isWgs) geoUtils.wgs2Utm(loc) else loc
-      val nearestLinkMaybe = networkMaybe.map(
-        NetworkUtilsWrapper.getNearestLinkByMode(
-          _,
-          coord = locInUtm,
-          modes = Array("car", "walk"),
-          scenarioCRS = geoUtils.localCRS,
-          minRadiusInMeter = 100.0,
-          maxRadiusInMeter = 50000.0
+      val coordInUtm = if (snapLocationAndRemoveInvalidInputsParams.enabled) {
+        val nearestLinkMaybe = networkMaybe.map(
+          NetworkUtilsWrapper.getNearestLinkByMode(
+            _,
+            coord = locInUtm,
+            modes = Array("car", "walk"),
+            scenarioCRS = geoUtils.localCRS,
+            minRadiusInMeter = snapLocationAndRemoveInvalidInputsParams.minRadiusInMeter,
+            maxRadiusInMeter = snapLocationAndRemoveInvalidInputsParams.maxRadiusInMeter
+          )
         )
-      )
-      val newLocIntUtm = nearestLinkMaybe.map(_.getCoord).getOrElse(locInUtm)
-      val coordInUtm =
-        if (snapLocationAndRemoveInvalidInputs) snapLocationHelper.computeResult(newLocIntUtm)
-        else Right(locInUtm)
+        val newLocIntUtm = nearestLinkMaybe.map(_.getCoord).getOrElse(locInUtm)
+        snapLocationHelper.computeResult(newLocIntUtm)
+      } else Right(locInUtm)
+
       (None, coordInUtm)
     }
   }
