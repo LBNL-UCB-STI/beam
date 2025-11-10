@@ -150,7 +150,7 @@ class SitePowerManagerSpec
           v.primaryFuelLevelInJoules,
           person,
           60,
-          "Wherever",
+          "Miscellaneous",
           NotApplicable,
           None,
           ActorRef.noSender,
