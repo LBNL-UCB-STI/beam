@@ -27,11 +27,8 @@ from python.utils.study_area_config import get_area_config
 from python.utils.study_area_config import generate_network_name
 
 
-def download_and_build_network(area, min_density_per_km2):
+def download_and_build_network(study_area_config):
     """Main execution function."""
-    study_area_config = get_area_config(area)
-    study_area_config["network"]["graph_layers"]["residential"]["min_density_per_km2"] = min_density_per_km2
-
     # Generate configuration name and prepare directory
     config_name = generate_network_name(study_area_config)
     work_dir = study_area_config["work_dir"]
@@ -129,13 +126,15 @@ def download_and_build_network(area, min_density_per_km2):
     print(f"OSM GEOJSON File saved to '{geojson_network}'")
 
 def main():
-    area = "sfbay"  # Options: sfbay, seattle
-    min_density_per_km2 = 5500 # 5500 for sfbay, 412 for seattle
+    area = "seattle"  # Options: sfbay, seattle
+    min_density_per_km2 = 120 # 5500 for sfbay, 412 for seattle
+    strongly_connected_components = False
 
-    # download_and_build_network(
-    #     area = area,
-    #     min_density_per_km2 = min_density_per_km2
-    # )
+    # Update study area configuration
+    study_area_config = get_area_config(area)
+    study_area_config["network"]["strongly_connected_components"] = strongly_connected_components
+    study_area_config["network"]["graph_layers"]["residential"]["min_density_per_km2"] = min_density_per_km2
+    download_and_build_network(study_area_config)
 
     # Scan network directories for ways
     study_area_config = get_area_config(area)
