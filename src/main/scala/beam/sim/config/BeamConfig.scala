@@ -52,7 +52,7 @@ object BeamConfig {
       scheduleMonitorTask: BeamConfig.Beam.Agentsim.ScheduleMonitorTask,
       schedulerParallelismWindow: scala.Int,
       simulationName: java.lang.String,
-      snapLocationAndRemoveInvalidInputs: scala.Boolean,
+      snapLocationAndRemoveInvalidInputs: BeamConfig.Beam.Agentsim.SnapLocationAndRemoveInvalidInputs,
       taz: BeamConfig.Beam.Agentsim.Taz,
       thresholdForMakingParkingChoiceInMeters: scala.Int,
       thresholdForWalkingInMeters: scala.Int,
@@ -2480,6 +2480,41 @@ object BeamConfig {
         }
       }
 
+      case class SnapLocationAndRemoveInvalidInputs(
+        params: BeamConfig.Beam.Agentsim.SnapLocationAndRemoveInvalidInputs.Params
+      )
+
+      object SnapLocationAndRemoveInvalidInputs {
+
+        case class Params(
+          enabled: scala.Boolean,
+          maxRadiusInMeter: scala.Double,
+          minRadiusInMeter: scala.Double
+        )
+
+        object Params {
+
+          def apply(
+            c: com.typesafe.config.Config
+          ): BeamConfig.Beam.Agentsim.SnapLocationAndRemoveInvalidInputs.Params = {
+            BeamConfig.Beam.Agentsim.SnapLocationAndRemoveInvalidInputs.Params(
+              enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+              maxRadiusInMeter = if (c.hasPathOrNull("maxRadiusInMeter")) c.getDouble("maxRadiusInMeter") else 500000.0,
+              minRadiusInMeter = if (c.hasPathOrNull("minRadiusInMeter")) c.getDouble("minRadiusInMeter") else 100.0
+            )
+          }
+        }
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.SnapLocationAndRemoveInvalidInputs = {
+          BeamConfig.Beam.Agentsim.SnapLocationAndRemoveInvalidInputs(
+            params = BeamConfig.Beam.Agentsim.SnapLocationAndRemoveInvalidInputs.Params(
+              if (c.hasPathOrNull("params")) c.getConfig("params")
+              else com.typesafe.config.ConfigFactory.parseString("params{}")
+            )
+          )
+        }
+      }
+
       case class Taz(
         filePath: java.lang.String,
         parkingCostScalingFactor: scala.Double,
@@ -2620,8 +2655,10 @@ object BeamConfig {
           schedulerParallelismWindow =
             if (c.hasPathOrNull("schedulerParallelismWindow")) c.getInt("schedulerParallelismWindow") else 30,
           simulationName = if (c.hasPathOrNull("simulationName")) c.getString("simulationName") else "beamville",
-          snapLocationAndRemoveInvalidInputs =
-            c.hasPathOrNull("snapLocationAndRemoveInvalidInputs") && c.getBoolean("snapLocationAndRemoveInvalidInputs"),
+          snapLocationAndRemoveInvalidInputs = BeamConfig.Beam.Agentsim.SnapLocationAndRemoveInvalidInputs(
+            if (c.hasPathOrNull("snapLocationAndRemoveInvalidInputs")) c.getConfig("snapLocationAndRemoveInvalidInputs")
+            else com.typesafe.config.ConfigFactory.parseString("snapLocationAndRemoveInvalidInputs{}")
+          ),
           taz = BeamConfig.Beam.Agentsim.Taz(
             if (c.hasPathOrNull("taz")) c.getConfig("taz") else com.typesafe.config.ConfigFactory.parseString("taz{}")
           ),

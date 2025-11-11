@@ -176,9 +176,21 @@ class TAZTreeMap(
     links: Map[Id[Link], Link],
     enableLinkBasedSearch: Boolean
   ): Unit = {
-    val car_walk_links = links.filter { case (_, link) =>
-      link.getAllowedModes.contains("car") & link.getAllowedModes.contains("walk")
-    }
+    val car_walk_links =
+      links.filter { case (_, link) =>
+        val allowedModes = link.getAllowedModes.asScala
+        var hasCar = false
+        var hasWalk = false
+
+        val iter = allowedModes.iterator
+        while (iter.hasNext && !(hasCar && hasWalk)) {
+          val mode = iter.next()
+          if (mode.equalsIgnoreCase("car")) hasCar = true
+          else if (mode.equalsIgnoreCase("walk")) hasWalk = true
+        }
+
+        hasCar && hasWalk
+      }
     if (tazListContainsGeoms) {
       if (car_walk_links.nonEmpty) {
         idToTAZMapping.keySet.foreach { id =>

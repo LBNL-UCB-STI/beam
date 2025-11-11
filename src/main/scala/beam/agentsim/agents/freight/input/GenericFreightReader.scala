@@ -7,17 +7,17 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
+import beam.sim.config.BeamConfig.Beam.Agentsim.SnapLocationAndRemoveInvalidInputs
 import beam.utils.BeamVehicleUtils.readBeamVehicleTypeFile
-import beam.utils.SnapCoordinateUtils
 import beam.utils.SnapCoordinateUtils._
 import beam.utils.csv.GenericCsvReader
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
+import beam.utils.{NetworkUtilsWrapper, SnapCoordinateUtils}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.lang3.StringUtils.isBlank
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.network.NetworkUtils
 import org.matsim.households.Household
 
 import scala.collection.mutable.ListBuffer
@@ -31,7 +31,7 @@ class GenericFreightReader(
   val geoUtils: GeoUtils,
   rnd: Random,
   tazTree: TAZTreeMap,
-  val snapLocationAndRemoveInvalidInputs: Boolean,
+  val snapLocationAndRemoveInvalidInputsParams: SnapLocationAndRemoveInvalidInputs.Params,
   schedulerParallelismWindow: Int,
   val snapLocationHelper: SnapLocationHelper,
   networkMaybe: Option[Network] = None,
@@ -61,11 +61,11 @@ class GenericFreightReader(
         val departureLocationX = row.get("departureLocationX")
         val departureLocationY = row.get("departureLocationY")
 
-        extractCoordInUtmOrTaz(
+        extractProjectedCoordOrTaz(
           departureLocationX,
           departureLocationY,
           row.get("departureLocationZone"),
-          snapLocationAndRemoveInvalidInputs
+          snapLocationAndRemoveInvalidInputsParams
         ) match {
           case (_, Right(_)) =>
             Some(
@@ -136,11 +136,11 @@ class GenericFreightReader(
         val locationX = row.get("locationX")
         val locationY = row.get("locationY")
 
-        extractCoordInUtmOrTaz(
+        extractProjectedCoordOrTaz(
           locationX,
           locationY,
           row.get("locationZone"),
-          snapLocationAndRemoveInvalidInputs
+          snapLocationAndRemoveInvalidInputsParams
         ) match {
           case (locationZoneMaybe, Right(coord)) =>
             Some(
@@ -329,11 +329,11 @@ class GenericFreightReader(
         val depotX = row.get("depotX")
         val depotY = row.get("depotY")
 
-        extractCoordInUtmOrTaz(
+        extractProjectedCoordOrTaz(
           row.get("depotX"),
           row.get("depotY"),
           row.get("depotZone"),
-          snapLocationAndRemoveInvalidInputs
+          snapLocationAndRemoveInvalidInputsParams
         ) match {
           case (depotZoneMaybe, Right(coord)) =>
             Some(FreightCarrierRow(carrierId, tourId, vehicleId, vehicleTypeId, depotZoneMaybe, coord))
@@ -374,25 +374,37 @@ class GenericFreightReader(
     case None      => throw new IllegalArgumentException(s"Cannot find taz with id $tazId")
   }
 
-  private def extractCoordInUtmOrTaz(
+  private def extractProjectedCoordOrTaz(
     strX: String,
     strY: String,
     strZone: String,
-    snapLocationAndRemoveInvalidInputs: Boolean
+    snapLocationAndRemoveInvalidInputsParams: SnapLocationAndRemoveInvalidInputs.Params
   ): (Option[Id[TAZ]], SnapCoordinateResult) = {
     if (isBlank(strX) || isBlank(strY)) {
       val taz = getTaz(strZone)
       val coord =
-        if (snapLocationAndRemoveInvalidInputs) TAZTreeMap.randomLocationInTAZ(taz, rnd, snapLocationHelper)
+        if (snapLocationAndRemoveInvalidInputsParams.enabled)
+          TAZTreeMap.randomLocationInTAZ(taz, rnd, snapLocationHelper)
         else TAZTreeMap.randomLocationInTAZ(taz, rnd)
       (Some(taz.tazId), Right(coord))
     } else {
       val loc = new Coord(strX.toDouble, strY.toDouble)
       val locInUtm = if (config.isWgs) geoUtils.wgs2Utm(loc) else loc
-      val newLocIntUtm = networkMaybe.map(NetworkUtils.getNearestLink(_, locInUtm).getCoord).getOrElse(locInUtm)
-      val coordInUtm =
-        if (snapLocationAndRemoveInvalidInputs) snapLocationHelper.computeResult(newLocIntUtm)
-        else Right(locInUtm)
+      val coordInUtm = if (snapLocationAndRemoveInvalidInputsParams.enabled) {
+        val nearestLinkMaybe = networkMaybe.map(
+          NetworkUtilsWrapper.getNearestLinkByMode(
+            _,
+            coord = locInUtm,
+            modes = Array("car", "walk"),
+            scenarioCRS = geoUtils.localCRS,
+            minRadiusInMeter = snapLocationAndRemoveInvalidInputsParams.minRadiusInMeter,
+            maxRadiusInMeter = snapLocationAndRemoveInvalidInputsParams.maxRadiusInMeter
+          )
+        )
+        val newLocIntUtm = nearestLinkMaybe.map(_.getCoord).getOrElse(locInUtm)
+        snapLocationHelper.computeResult(newLocIntUtm)
+      } else Right(locInUtm)
+
       (None, coordInUtm)
     }
   }

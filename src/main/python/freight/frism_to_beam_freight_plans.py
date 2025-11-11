@@ -93,7 +93,7 @@ area_config = {
 # ************************************************************************************************
 
 AREA = "seattle"  # seattle or sfbay
-SNAP_COORDINATES = True
+SNAP_COORDINATES = False # Snapping here might relocate points to walk only links, so be cautious
 BUFFER_DISTANCE_METERS = 100  # 100 meters
 MAX_DISTANCE_METERS = 200000  # 200km
 CHUNK_SIZE = 10000  # this affects speed and parallelization of the script
@@ -129,7 +129,6 @@ _ondemand_plans = None
 _tours = None
 _vehicle_types = None
 _tourId_with_prefix = {}
-
 
 # ******************************
 

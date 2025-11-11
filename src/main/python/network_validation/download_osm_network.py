@@ -27,11 +27,10 @@ from python.utils.study_area_config import get_area_config
 from python.utils.study_area_config import generate_network_name
 
 
-def main():
+def download_and_build_network(area, min_density_per_km2):
     """Main execution function."""
-    area = "seattle"  # Options: sfbay, seattle
     study_area_config = get_area_config(area)
-    study_area_config["network"]["graph_layers"]["residential"]["min_density_per_km2"] = 412  # 2855 for sfbay, 412 for seattle
+    study_area_config["network"]["graph_layers"]["residential"]["min_density_per_km2"] = min_density_per_km2
 
     # Generate configuration name and prepare directory
     config_name = generate_network_name(study_area_config)
@@ -118,17 +117,29 @@ def main():
     print(f"OSM Network saved to '{osm_network}'.")
 
     # Convert to PBF and GeoJSON formats
-    cmd = f"osmium cat {osm_network} -o - --output-format pbf,compression=zlib | osmium sort - -o {pbf_network} --overwrite"
+    cmd = (
+        f"osmium cat {osm_network} -o - --output-format pbf,compression=zlib "
+        f"| osmium sort -F pbf - -o {pbf_network} --overwrite"
+    )
     subprocess.run(cmd, shell=True, check=True)
     print(f"OSM PBF File saved to '{pbf_network}'")
 
-    cmd2 = f"ogr2ogr -f GeoJSON {geojson_network} {pbf_network} lines"
+    cmd2 = f'ogr2ogr -f GeoJSON "{geojson_network}" "{pbf_network}" lines'
     subprocess.run(cmd2, shell=True, check=True)
     print(f"OSM GEOJSON File saved to '{geojson_network}'")
 
+def main():
+    area = "sfbay"  # Options: sfbay, seattle
+    min_density_per_km2 = 5500 # 5500 for sfbay, 412 for seattle
+
+    # download_and_build_network(
+    #     area = area,
+    #     min_density_per_km2 = min_density_per_km2
+    # )
+
     # Scan network directories for ways
-    work_dir = study_area_config["work_dir"]
-    scan_network_directories_for_ways(os.path.expanduser(f'{work_dir}/network'))
+    study_area_config = get_area_config(area)
+    scan_network_directories_for_ways(os.path.expanduser(f'{study_area_config["work_dir"]}/network'))
 
 
 if __name__ == "__main__":

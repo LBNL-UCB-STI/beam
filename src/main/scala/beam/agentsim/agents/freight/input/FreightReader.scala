@@ -240,7 +240,7 @@ object FreightReader {
           geoUtils,
           rand,
           tazMap,
-          beamConfig.beam.agentsim.snapLocationAndRemoveInvalidInputs,
+          beamConfig.beam.agentsim.snapLocationAndRemoveInvalidInputs.params,
           beamConfig.beam.agentsim.schedulerParallelismWindow,
           snapLocationHelper,
           network,
