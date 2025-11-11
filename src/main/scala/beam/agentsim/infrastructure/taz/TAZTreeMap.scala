@@ -68,7 +68,7 @@ class TAZTreeMap(
   }
 
   val orderedTazIds: Seq[String] = maybeZoneOrdering match {
-    case Some(ordering) => ordering.map(_.toString).sortBy(_.toInt)
+    case Some(ordering) => ordering.map(_.toString).sortBy(_.toLong)
     case None           => sortedTazIds
   }
   val tazToTazMapping: mutable.HashMap[Id[TAZ], Id[TAZ]] = mutable.HashMap.empty[Id[TAZ], Id[TAZ]]
