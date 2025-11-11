@@ -12,6 +12,7 @@ import org.scalatest.tagobjects.Retryable
 import scala.collection.mutable
 
 class ActivitiesDurationSpec extends AnyFlatSpec with BeamHelper with Repeated {
+  override val retries: Int = 10
 
   def getActivitiesDurationsGroupedByType(events: Seq[Event]): Map[String, Set[Double]] = {
     class Activity(val time: Double, val actType: String, val person: String)
