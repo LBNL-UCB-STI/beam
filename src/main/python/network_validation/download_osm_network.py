@@ -96,6 +96,17 @@ def download_and_build_network(study_area_config):
         'osmid_original'
     ], axis=1, errors='ignore')
 
+    # Normalize oneway tag values for BEAM compatibility
+    if 'oneway' in edges.columns:
+        edges['oneway'] = edges['oneway'].astype(str).str.lower()
+        # Map non-standard values to standard BEAM-compatible values
+        edges['oneway'] = edges['oneway'].replace({
+            'reverse': '-1',
+            'true': 'yes',
+            '-1.0': '-1',
+            '1.0': 'yes'
+        })
+
     g_osm = ox.graph_from_gdfs(nodes, edges, graph_attrs=g_network.graph)
     save_graph_xml(
         g_osm,
@@ -125,9 +136,10 @@ def download_and_build_network(study_area_config):
     subprocess.run(cmd2, shell=True, check=True)
     print(f"OSM GEOJSON File saved to '{geojson_network}'")
 
+
 def main():
-    area = "seattle"  # Options: sfbay, seattle
-    min_density_per_km2 = 120 # 5500 for sfbay, 412 for seattle
+    area = "sfbay"  # Options: sfbay, seattle
+    min_density_per_km2 = 5500  # 5500 for sfbay, 120 for seattle
     strongly_connected_components = False
 
     # Update study area configuration
