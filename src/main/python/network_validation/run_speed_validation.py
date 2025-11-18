@@ -47,7 +47,7 @@ def setup_directories(batch, scenario, config):
         study_area_dir, network_dir, run_dir, output_dir, plots_dir
     """
     study_area_dir = config["work_dir"]
-    run_dir = f"{config["work_dir"]}/beam-runs/{batch}/{scenario}"
+    run_dir = f"{config['work_dir']}/beam-runs/{batch}/{scenario}"
 
     # Create output directories
     output_dir = f"{run_dir}/validation_output"
@@ -583,31 +583,54 @@ def main():
     Main function to run the validation process for multiple scenario/iteration combinations
     """
     # Configuration - scenarios and iterations to process
+    iteration = 2
     scenario_iteration_combinations = [
-        ("2018-Baseline-20250721-FC08-2", 12),
-        ("2018-Baseline-20250721-FC08-3", 12),
-        ("2018-Baseline-20250721-FC08-4", 11),
-        ("2018-Baseline-20250721-FC08-5", 4),
-        ("2018-Baseline-20250721-FC08-6", 1),
+        ("seattle-pilates-calibration--jdeq--cbg120fwc--FC07-0-20251114-154028", iteration),
+        ("seattle-pilates-calibration--jdeq--cbg120fwc--FC07-5-20251114-154131", iteration),
+        ("seattle-pilates-calibration--jdeq--cbg120fwc--FC08-0-20251114-154333", iteration),
+        ("seattle-pilates-calibration--jdeq--cbg120fwc--FC08-5-20251114-154506", iteration),
+        ("seattle-pilates-calibration--jdeq--cbg120fwc--FC09-0-20251114-170040", iteration)
     ]
 
     # Base configuration (common across all runs)
+    study_area = "seattle"
     peak_hour = 8
     do_link_speed_validation = True
     do_network_speed_validation = True
     do_vmt_validation = False
     generate_stats = True  # Flag to control stats generation
-    work_dir = os.path.expanduser("~/Workspace/Simulation/sfbay")
 
-    base_configs = {
-        "study_area": "sfbay",
-        "batch": "calibration",
-        "state_fips": "06",
-        "county_fips": ['001', '013', '041', '055', '075', '081', '085', '095', '097'],
-        "census_year": 2018,
-        "npmrds_label": f"NPMRDS_2018",
-        "utm_epsg": 26910
-    }
+    work_dir = os.path.expanduser(f"~/Workspace/Simulation/{study_area}")
+    if study_area == "sfbay":
+        base_configs = {
+            "study_area": study_area,
+            "work_dir": work_dir,
+            "batch": "calibration--jdeq--20251106",
+            "state_fips": "06",
+            "county_fips": ['001', '013', '041', '055', '075', '081', '085', '095', '097'],
+            "census_year": 2018,
+            "npmrds_label": f"NPMRDS_2018",
+            "utm_epsg": 26910,
+            "npmrds_raw_geo": f"{work_dir}/validation/npmrds/California.shp",
+            "npmrds_raw_data_csv": f'{work_dir}/validation/npmrds/al_ca_oct2018_1hr_trucks_pax.csv',
+            "network_csv": f"{work_dir}/network/sfbay-area-cbg5500-network/network.csv.gz",
+        }
+    elif study_area == "seattle":
+        base_configs = {
+            "study_area": study_area,
+            "work_dir": work_dir,
+            "batch": "calibration--jdeq--20251114",
+            "state_fips": "53",
+            "county_fips": ["061", "033", "035", "053"],
+            "census_year": 2018,
+            "npmrds_label": f"NPMRDS_2018",
+            "utm_epsg": 32048,
+            "npmrds_raw_geo": f"{work_dir}/validation/NPMRDS/Washington.shp",
+            "npmrds_raw_data_csv": f'{work_dir}/validation/npmrds/vt_wi_2018_1hr/vt_wi_2018_1hr.csv',
+            "network_csv": f"{work_dir}/network/seattle-area-cbg120-ferry-weakConn-network/seattle-area-cbg120-ferry-weakConn-network.csv.gz",
+        }
+    else:
+        raise ValueError("Invalid study area specified")
 
     # Loop through each scenario/iteration combination
     for scenario, iteration in scenario_iteration_combinations:
@@ -621,13 +644,16 @@ def main():
             "scenario": scenario,
             "iteration": iteration
         })
-
+        work_dir = configs["work_dir"]
+        npmrds_dir = os.path.dirname(base_configs["npmrds_raw_geo"])
+        network_dir = os.path.dirname(base_configs["network_csv"])
+        network_name = Path(Path(base_configs["network_csv"]).stem).stem
         # Update paths for this specific run
         paths = {
             "work_dir": work_dir,
             "link_stats_file": f"{work_dir}/beam-runs/{configs['batch']}/{configs['scenario']}/{configs['iteration']}.linkstats.csv.gz",
             "events_file": f"{work_dir}/beam-runs/{configs['batch']}/{configs['scenario']}/{configs['iteration']}.events.csv.gz",
-            "network_csv": f"{work_dir}/network/sfbay-area-cbg5500-network/network.csv.gz",
+            "network_csv": base_configs["network_csv"],
 
             "run_dir": f"{work_dir}/beam-runs/{configs['batch']}/{configs['scenario']}",
             "data_dir": f"{work_dir}/beam-freight/{configs['batch']}/{configs['scenario']}",
@@ -635,27 +661,50 @@ def main():
             "output_dir": f"{work_dir}/beam-runs/{configs['batch']}/{configs['scenario']}/validation_output",
             "plots_dir": f"{work_dir}/beam-runs/{configs['batch']}/{configs['scenario']}/validation_output/plots",
             "vehicle_types_file": f"{work_dir}/beam-freight/{configs['batch']}/{configs['scenario']}/vehicle-tech/ft-vehicletypes--{configs['batch']}--{configs['scenario']}.csv",
-            "npmrds_hourly_speed_csv": f"{work_dir}/beam-runs/{configs['batch']}/{configs['scenario']}/{configs['study_area']}_npmrds_hourly_speeds.csv",
-            "npmrds_hourly_speed_by_road_class_csv": f"{work_dir}/beam-runs/{configs['batch']}/{configs['scenario']}/{configs['study_area']}_npmrds_hourly_speed_by_road_class.csv",
-            "beam_network_mapped_to_npmrds_geo": f"{work_dir}/beam-runs/{configs['batch']}/{configs['scenario']}/{configs['study_area']}_network_mapped_to_npmrds.geojson",
-            "beam_network_car_links_geo": f"{work_dir}/beam-runs/{configs['batch']}/{configs['scenario']}/{configs['study_area']}_network_car_only.geojson",
-            "npmrds_station_geo": f"{work_dir}/beam-runs/{configs['batch']}/{configs['scenario']}/{configs['study_area']}_npmrds_station.geojson",
-            "npmrds_data_csv": f"{work_dir}/beam-runs/{configs['batch']}/{configs['scenario']}/{configs['study_area']}_npmrds_data.csv",
-            "npmrds_raw_geo": f"{work_dir}/validation/npmrds/California.shp",
-            "npmrds_raw_data_csv": f'{work_dir}/validation/npmrds/al_ca_oct2018_1hr_trucks_pax.csv',
+
+            "npmrds_raw_geo": base_configs["npmrds_raw_geo"],
+            "npmrds_raw_data_csv": base_configs["npmrds_raw_data_csv"],
+            "npmrds_station_geo": f"{npmrds_dir}/{configs['study_area']}_npmrds_station.geojson",
+            "npmrds_data_csv": f"{npmrds_dir}/{configs['study_area']}_npmrds_data.csv",
+            "npmrds_hourly_speed_csv": f"{npmrds_dir}/{configs['study_area']}_npmrds_hourly_speeds.csv",
+            "npmrds_hourly_speed_by_road_class_csv": f"{npmrds_dir}/{configs['study_area']}_npmrds_hourly_speed_by_road_class.csv",
+
+            "beam_network_mapped_to_npmrds_geo": f"{network_dir}/{network_name}--npmrds.geojson",
+            "beam_network_car_links_geo": f"{network_dir}/{network_name}--car-only.geojson",
+
         }
 
         try:
             # Check if required input files exist
             if not os.path.exists(paths["link_stats_file"]):
-                print(f"Warning: Link stats file not found: {paths['link_stats_file']}")
-                print(f"Skipping scenario: {scenario}, iteration: {iteration}")
-                continue
+                # Try alternative filename with _unmodified suffix
+                alt_link_stats_file = paths["link_stats_file"].replace(".linkstats.csv.gz", ".linkstats_unmodified.csv.gz")
+
+                if os.path.exists(alt_link_stats_file):
+                    paths["link_stats_file"] = alt_link_stats_file
+                    print(f"Using alternative link stats file: {alt_link_stats_file}")
+                else:
+                    print(f"Warning: Link stats file not found: {paths['link_stats_file']}")
+                    print(f"Also checked: {alt_link_stats_file}")
+                    print(f"Skipping scenario: {scenario}, iteration: {iteration}")
+                    continue
+            else:
+                alt_link_stats_file = paths["link_stats_file"]
 
             if not os.path.exists(paths["events_file"]):
-                print(f"Warning: Events file not found: {paths['events_file']}")
-                print(f"Skipping scenario: {scenario}, iteration: {iteration}")
-                continue
+                # Try alternative filename with .parquet extension
+                alt_events_file = paths["events_file"].replace(".events.csv.gz", ".events.parquet")
+
+                if os.path.exists(alt_events_file):
+                    paths["events_file"] = alt_events_file
+                    print(f"Using alternative events file: {alt_events_file}")
+                else:
+                    print(f"Warning: Events file not found: {paths['events_file']}")
+                    print(f"Also checked: {alt_events_file}")
+                    # print(f"Skipping scenario: {scenario}, iteration: {iteration}")
+                    # continue
+            else:
+                alt_events_file = paths["events_file"]
 
             # Load configuration
             Path(paths["output_dir"]).mkdir(parents=True, exist_ok=True)
@@ -664,13 +713,13 @@ def main():
             link_stats = [LinkStats(
                 scenario=f"{configs['batch']}_{configs['scenario']}",
                 demand_fraction=0.1,
-                file_path=paths["link_stats_file"]
+                file_path=alt_link_stats_file
             )]
 
             vehicle_types_files = [(
                 configs["batch"],
                 configs["scenario"],
-                paths["events_file"],
+                alt_events_file,
                 paths["vehicle_types_file"]
             )]
 
