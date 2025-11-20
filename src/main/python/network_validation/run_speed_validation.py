@@ -582,16 +582,6 @@ def main():
     """
     Main function to run the validation process for multiple scenario/iteration combinations
     """
-    # Configuration - scenarios and iterations to process
-    iteration = 2
-    scenario_iteration_combinations = [
-        ("seattle-pilates-calibration--jdeq--cbg120fwc--FC07-0-20251114-154028", iteration),
-        ("seattle-pilates-calibration--jdeq--cbg120fwc--FC07-5-20251114-154131", iteration),
-        ("seattle-pilates-calibration--jdeq--cbg120fwc--FC08-0-20251114-154333", iteration),
-        ("seattle-pilates-calibration--jdeq--cbg120fwc--FC08-5-20251114-154506", iteration),
-        ("seattle-pilates-calibration--jdeq--cbg120fwc--FC09-0-20251114-170040", iteration)
-    ]
-
     # Base configuration (common across all runs)
     study_area = "seattle"
     peak_hour = 8
@@ -602,10 +592,18 @@ def main():
 
     work_dir = os.path.expanduser(f"~/Workspace/Simulation/{study_area}")
     if study_area == "sfbay":
+        iteration = 3
         base_configs = {
             "study_area": study_area,
             "work_dir": work_dir,
             "batch": "calibration--jdeq--20251106",
+            "runs": [
+                # ("seattle-pilates-calibration--jdeq--cbg120fwc--FC07-0-20251114-154028", iteration),
+                # ("seattle-pilates-calibration--jdeq--cbg120fwc--FC07-5-20251114-154131", iteration),
+                # ("seattle-pilates-calibration--jdeq--cbg120fwc--FC08-0-20251114-154333", iteration),
+                ("seattle-pilates-calibration--jdeq--cbg120fwc--FC08-5-20251117-165524", iteration),
+                # ("seattle-pilates-calibration--jdeq--cbg120fwc--FC09-0-20251114-170040", iteration)
+            ],
             "state_fips": "06",
             "county_fips": ['001', '013', '041', '055', '075', '081', '085', '095', '097'],
             "census_year": 2018,
@@ -616,10 +614,18 @@ def main():
             "network_csv": f"{work_dir}/network/sfbay-area-cbg5500-network/network.csv.gz",
         }
     elif study_area == "seattle":
+        iteration = 3
         base_configs = {
             "study_area": study_area,
             "work_dir": work_dir,
-            "batch": "calibration--jdeq--20251114",
+            "batch": "calibration--jdeq--20251117",
+            "runs": [
+                # ("seattle-pilates-calibration--jdeq--cbg120fwc--FC07-0-20251114-154028", iteration),
+                # ("seattle-pilates-calibration--jdeq--cbg120fwc--FC07-5-20251114-154131", iteration),
+                # ("seattle-pilates-calibration--jdeq--cbg120fwc--FC08-0-20251114-154333", iteration),
+                ("seattle-pilates-calibration--jdeq--cbg120fwc--FC08-5-20251117-165524", iteration),
+                # ("seattle-pilates-calibration--jdeq--cbg120fwc--FC09-0-20251114-170040", iteration)
+            ],
             "state_fips": "53",
             "county_fips": ["061", "033", "035", "053"],
             "census_year": 2018,
@@ -633,7 +639,7 @@ def main():
         raise ValueError("Invalid study area specified")
 
     # Loop through each scenario/iteration combination
-    for scenario, iteration in scenario_iteration_combinations:
+    for scenario, iteration in base_configs["runs"]:
         print(f"\n{'=' * 60}")
         print(f"Processing scenario: {scenario}, iteration: {iteration}")
         print(f"{'=' * 60}")
