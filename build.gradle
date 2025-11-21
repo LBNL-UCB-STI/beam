@@ -45,7 +45,7 @@ apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
 
 group = 'beam'
-version = '1.0.1-beta-v251106'
+version = '1.0.1-beta-v251117'
 
 description = """"""
 

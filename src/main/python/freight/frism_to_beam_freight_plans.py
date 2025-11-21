@@ -67,7 +67,7 @@ area_config = {
     "sfbay": {
         "work_dir": os.path.expanduser("~/Workspace/Simulation/sfbay"),
         "network_osm_pbf": os.path.expanduser(
-            "~/Workspace/Simulation/sfbay/network/sfbay-area-cbg5500-network/sfbay-area-cbg5500-network.osm.pbf"),
+            "~/Workspace/Simulation/sfbay/network/sfbay-area-cbg5500-network-strong/sfbay-area-cbg5500-network.osm.pbf"),
         "target_epsg": 26910,
         "year": 2018,
         "primary_powertrain": fastsim_routee_files["primary_powertrain"],
@@ -92,7 +92,7 @@ area_config = {
 
 # ************************************************************************************************
 
-AREA = "seattle"  # seattle or sfbay
+AREA = "sfbay"  # seattle or sfbay
 SNAP_COORDINATES = False # Snapping here might relocate points to walk only links, so be cautious
 BUFFER_DISTANCE_METERS = 100  # 100 meters
 MAX_DISTANCE_METERS = 200000  # 200km

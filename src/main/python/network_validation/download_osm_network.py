@@ -27,11 +27,8 @@ from python.utils.study_area_config import get_area_config
 from python.utils.study_area_config import generate_network_name
 
 
-def download_and_build_network(area, min_density_per_km2):
+def download_and_build_network(study_area_config):
     """Main execution function."""
-    study_area_config = get_area_config(area)
-    study_area_config["network"]["graph_layers"]["residential"]["min_density_per_km2"] = min_density_per_km2
-
     # Generate configuration name and prepare directory
     config_name = generate_network_name(study_area_config)
     work_dir = study_area_config["work_dir"]
@@ -99,6 +96,17 @@ def download_and_build_network(area, min_density_per_km2):
         'osmid_original'
     ], axis=1, errors='ignore')
 
+    # Normalize oneway tag values for BEAM compatibility
+    if 'oneway' in edges.columns:
+        edges['oneway'] = edges['oneway'].astype(str).str.lower()
+        # Map non-standard values to standard BEAM-compatible values
+        edges['oneway'] = edges['oneway'].replace({
+            'reverse': '-1',
+            'true': 'yes',
+            '-1.0': '-1',
+            '1.0': 'yes'
+        })
+
     g_osm = ox.graph_from_gdfs(nodes, edges, graph_attrs=g_network.graph)
     save_graph_xml(
         g_osm,
@@ -128,14 +136,17 @@ def download_and_build_network(area, min_density_per_km2):
     subprocess.run(cmd2, shell=True, check=True)
     print(f"OSM GEOJSON File saved to '{geojson_network}'")
 
+
 def main():
     area = "sfbay"  # Options: sfbay, seattle
-    min_density_per_km2 = 5500 # 5500 for sfbay, 412 for seattle
+    min_density_per_km2 = 5500  # 5500 for sfbay, 120 for seattle
+    strongly_connected_components = False
 
-    # download_and_build_network(
-    #     area = area,
-    #     min_density_per_km2 = min_density_per_km2
-    # )
+    # Update study area configuration
+    study_area_config = get_area_config(area)
+    study_area_config["network"]["strongly_connected_components"] = strongly_connected_components
+    study_area_config["network"]["graph_layers"]["residential"]["min_density_per_km2"] = min_density_per_km2
+    download_and_build_network(study_area_config)
 
     # Scan network directories for ways
     study_area_config = get_area_config(area)

@@ -56,11 +56,17 @@ def generate_network_name(config: dict) -> str:
     else:
         residential_geo_level = ""
 
+    strongly_connected_components = config["network"]["strongly_connected_components"]
+    if strongly_connected_components:
+        connection_label = "strong"
+    else:
+        connection_label = "weak"
+
     # Ferry suffix
     ferry_suffix = "-ferry" if "ferry" in layers else ""
 
     # Combine all parts
-    return f"{study_area}-area{residential_geo_level}{ferry_suffix}-network"
+    return f"{study_area}-area{residential_geo_level}{ferry_suffix}-{connection_label}Conn-network"
 
 
 def create_osm_highway_filter(highway_types):
