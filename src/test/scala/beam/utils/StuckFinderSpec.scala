@@ -48,7 +48,7 @@ class StuckFinderSpec
     )
 
   val devNull: ActorRef = system.actorOf(TestActors.blackholeProps)
-  val st: ScheduledTrigger = ScheduledTrigger(TriggerWithId(InitializeTrigger(1), 1L), devNull, 1)
+  val st: ScheduledTrigger = ScheduledTrigger(TriggerWithId(InitializeTrigger(1), 1L), devNull)
 
   val boardVehicleTrigger: ScheduledTrigger =
     ScheduledTrigger(
@@ -56,8 +56,7 @@ class StuckFinderSpec
         BoardVehicleTrigger(1, Id.createVehicleId(1), PersonIdWithActorRef(Id.createPersonId(1), devNull)),
         1L
       ),
-      devNull,
-      1
+      devNull
     )
 
   "A StuckFinder" should {
@@ -75,22 +74,22 @@ class StuckFinderSpec
     }
     "be able to detect stuck agents" in {
       val s = new StuckFinder(stuckAgentDetectionCfg)
-      s.add(10, st.copy(priority = 10), isNew = true)
-      s.add(5, st.copy(priority = 5), isNew = true)
-      s.add(9, st.copy(priority = 9), isNew = true)
-      s.add(2, st.copy(priority = 2), isNew = true)
-      s.add(4, st.copy(priority = 4), isNew = true)
-      s.add(7, st.copy(priority = 7), isNew = true)
+      s.add(10, st.copy(triggerWithId = st.triggerWithId.copy(triggerId = 10L)), isNew = true)
+      s.add(5, st.copy(triggerWithId = st.triggerWithId.copy(triggerId = 5L)), isNew = true)
+      s.add(9, st.copy(triggerWithId = st.triggerWithId.copy(triggerId = 9L)), isNew = true)
+      s.add(2, st.copy(triggerWithId = st.triggerWithId.copy(triggerId = 2L)), isNew = true)
+      s.add(4, st.copy(triggerWithId = st.triggerWithId.copy(triggerId = 4L)), isNew = true)
+      s.add(7, st.copy(triggerWithId = st.triggerWithId.copy(triggerId = 7L)), isNew = true)
 
       val seq = s.detectStuckAgents(threshold.markAsStuckAfterMs + 11)
       seq should be(
         Seq(
-          ValueWithTime(st.copy(priority = 2), 2),
-          ValueWithTime(st.copy(priority = 4), 4),
-          ValueWithTime(st.copy(priority = 5), 5),
-          ValueWithTime(st.copy(priority = 7), 7),
-          ValueWithTime(st.copy(priority = 9), 9),
-          ValueWithTime(st.copy(priority = 10), 10)
+          ValueWithTime(st.copy(triggerWithId = st.triggerWithId.copy(triggerId = 2L)), 2),
+          ValueWithTime(st.copy(triggerWithId = st.triggerWithId.copy(triggerId = 4L)), 4),
+          ValueWithTime(st.copy(triggerWithId = st.triggerWithId.copy(triggerId = 5L)), 5),
+          ValueWithTime(st.copy(triggerWithId = st.triggerWithId.copy(triggerId = 7L)), 7),
+          ValueWithTime(st.copy(triggerWithId = st.triggerWithId.copy(triggerId = 9L)), 9),
+          ValueWithTime(st.copy(triggerWithId = st.triggerWithId.copy(triggerId = 10L)), 10)
         )
       )
     }

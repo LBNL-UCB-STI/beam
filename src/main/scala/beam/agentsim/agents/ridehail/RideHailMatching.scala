@@ -109,9 +109,9 @@ object RideHailMatching {
 
   def checkAngle(origin: Coord, dest1: Coord, dest2: Coord)(implicit services: BeamServices): Boolean = {
     val calc = geodeticCalculatorPerThread.get()
-    val orgWgs = services.geo.utm2Wgs.transform(origin)
-    val dst1Wgs = services.geo.utm2Wgs.transform(dest1)
-    val dst2Wgs = services.geo.utm2Wgs.transform(dest2)
+    val orgWgs = services.geo.utm2Wgs(origin)
+    val dst1Wgs = services.geo.utm2Wgs(dest1)
+    val dst2Wgs = services.geo.utm2Wgs(dest2)
     val gf = new GeometryFactory()
     val point1 = gf.createPoint(new Coordinate(orgWgs.getX, orgWgs.getY))
     calc.setStartingGeographicPoint(point1.getX, point1.getY)

@@ -4,6 +4,7 @@ import com.conveyal.r5.analyst.fare.InRoutingFareCalculator;
 import com.conveyal.r5.profile.DominatingList;
 import com.conveyal.r5.profile.McRaptorSuboptimalPathProfileRouter;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -16,7 +17,7 @@ public class BeamDominatingList implements DominatingList {
     private final int maxClockTime;
     private final InRoutingFareCalculator fareCalculator;
 
-    private final LinkedList<McRaptorSuboptimalPathProfileRouter.McRaptorState> states = new LinkedList<>();
+    private final ArrayList<McRaptorSuboptimalPathProfileRouter.McRaptorState> states = new ArrayList<>(10);
 
     public BeamDominatingList(InRoutingFareCalculator fareCalculator, int maxFare, int maxClockTime) {
         this.fareCalculator = fareCalculator;
@@ -105,6 +106,12 @@ public class BeamDominatingList implements DominatingList {
         // if we haven't returned false by now, state is nondominated.
         states.add(newState);
         return true;
+    }
+
+    @Override
+    public void reset() {
+        states.clear();  // Clears but keeps capacity (pre-sized to 10)
+        // maxFare, maxClockTime, fareCalculator are final config - don't reset
     }
 
     @Override

@@ -26,6 +26,7 @@ import beam.agentsim.scheduler.HasTriggerId
 import beam.router.BeamRouter.IntermodalUse.{Access, IntermodalUse}
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.{BIKE, CAR}
 import beam.router.gtfs.FareCalculator
 import beam.router.model._
 import beam.router.osm.TollCalculator
@@ -84,8 +85,22 @@ class BeamRouter(
   val secondsToWaitToClearRoutedOutstandingWork: Int =
     beamScenario.beamConfig.beam.debug.secondsToWaitToClearRoutedOutstandingWork
 
-  val availableWorkWithOriginalSender: mutable.Queue[WorkWithOriginalSender] =
-    mutable.Queue.empty[WorkWithOriginalSender]
+  val availableWorkWithOriginalSender: java.util.PriorityQueue[WorkWithOriginalSender] =
+    new java.util.PriorityQueue[WorkWithOriginalSender](
+      100, // initial capacity
+      (w1: WorkWithOriginalSender, w2: WorkWithOriginalSender) => {
+        val complexity1 = w1._1 match {
+          case req: RoutingRequest => req.routingComplexity
+          case _                   => 0 // Other work types get default priority
+        }
+        val complexity2 = w2._1 match {
+          case req: RoutingRequest => req.routingComplexity
+          case _                   => 0
+        }
+        // Higher complexity first (reverse order)
+        java.lang.Integer.compare(complexity2, complexity1)
+      }
+    )
   val availableWorkers: mutable.Set[Worker] = mutable.Set.empty[Worker]
 
   val outstandingWorkIdToOriginalSenderMap: mutable.Map[WorkId, OriginalSender] =
@@ -173,6 +188,11 @@ class BeamRouter(
     case `tick` =>
       if (isWorkAndNoAvailableWorkers) notifyWorkersOfAvailableWork()
       logExcessiveOutstandingWorkAndClearIfEnabledAndOver
+      log.info(
+        "Router queue depth: {}, available workers: {}",
+        availableWorkWithOriginalSender.size(),
+        availableWorkers.size
+      )
     case t: TryToSerialize =>
       if (log.isDebugEnabled) {
         val byteArray = kryoSerializer.toBinary(t)
@@ -237,7 +257,7 @@ class BeamRouter(
           worker
         ) //Request must have been delayed since no work, but will send when something comes in
       else {
-        val (work, originalSender) = availableWorkWithOriginalSender.dequeue()
+        val (work, originalSender) = availableWorkWithOriginalSender.poll()
         sendWorkTo(worker, work, originalSender, receivePath = "GimmeWork")
       }
     case odSkimmerReady: ODSkimmerReady =>
@@ -269,7 +289,7 @@ class BeamRouter(
       if (!isWorkAvailable) { //No existing work
         if (!isWorkerAvailable) {
           notifyWorkersOfAvailableWork()
-          availableWorkWithOriginalSender.enqueue((work, originalSender))
+          availableWorkWithOriginalSender.offer((work, originalSender))
         } else {
           val worker: Worker = removeAndReturnFirstAvailableWorker()
           sendWorkTo(worker, work, originalSender, "Receive CatchAll")
@@ -277,7 +297,7 @@ class BeamRouter(
       } else { //Use existing work first
         if (!isWorkerAvailable)
           notifyWorkersOfAvailableWork() //Shouldn't need this but it should be relatively idempotent
-        availableWorkWithOriginalSender.enqueue((work, originalSender))
+        availableWorkWithOriginalSender.offer((work, originalSender))
       }
   }
 
@@ -291,7 +311,7 @@ class BeamRouter(
     }
   }
 
-  private def isWorkAvailable: Boolean = availableWorkWithOriginalSender.nonEmpty
+  private def isWorkAvailable: Boolean = !availableWorkWithOriginalSender.isEmpty
 
   private def isWorkerAvailable: Boolean = availableWorkers.nonEmpty
 
@@ -526,6 +546,7 @@ object BeamRouter {
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
     requestId: Int = IdGeneratorImpl.nextId,
     possibleEgressVehicles: IndexedSeq[StreetVehicle] = IndexedSeq.empty,
+    requestedMode: Option[BeamMode] = None,
     triggerId: Long
   )(implicit fileName: sourcecode.FileName, fullName: sourcecode.FullName, line: sourcecode.Line)
       extends HasTriggerId {
@@ -535,6 +556,23 @@ object BeamRouter {
     ) // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
 
     val initiatedFrom: String = s"${fileName.value}:${line.value} ${fullName.value}"
+
+    lazy val routingComplexity: Int = {
+      if (withTransit) {
+        if (streetVehicles.exists(_.mode == CAR)) {
+          // car_transit: Usually fast BUT terrible tail - do early!
+          450 // ⬆ Bumped up due to 50x outlier risk
+        } else if (streetVehicles.exists(_.mode == BIKE)) {
+          // bike_transit: Moderate risk
+          350
+        } else {
+          // walk_transit: Slow avg + catastrophic outliers
+          500
+        }
+      } else {
+        150 // Predictable, save for last
+      }
+    }
   }
 
   /**

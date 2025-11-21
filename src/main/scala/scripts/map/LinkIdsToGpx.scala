@@ -38,7 +38,7 @@ object LinkIdsToGpx {
 
       val linkId2WgsCoord = links.map { link =>
         val utmCoord = link.getCoord
-        val wgsCoord = geoUtils.utm2Wgs.transform(utmCoord)
+        val wgsCoord = geoUtils.utm2Wgs(utmCoord)
         link.getId.toString -> wgsCoord
       }
 

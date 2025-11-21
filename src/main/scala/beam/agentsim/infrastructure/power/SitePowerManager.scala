@@ -212,7 +212,8 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
           }
         vehicleIdToPowerInKW.toMap
       }
-      .foldLeft(Map.empty[Id[BeamVehicle], PowerInKW])(_ ++ _)
+      .reduceOption(_ ++ _)
+      .getOrElse(Map.empty[Id[BeamVehicle], PowerInKW])
     val loadEstimate = chargingNetworkHelper.allChargingStations.par.map { case (_, station) =>
       station -> temporaryLoadEstimate.getOrElse(station, 0.0)
     }.seq

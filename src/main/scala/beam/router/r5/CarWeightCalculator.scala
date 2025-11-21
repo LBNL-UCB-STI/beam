@@ -26,46 +26,59 @@ class CarWeightCalculator(workerParams: R5Parameters, travelTimeNoiseFraction: D
     maxSpeed: Double,
     time: Double,
     shouldAddNoise: Boolean,
-    edgeLength: Double = -1 // Allow passing pre-computed edge length
+    edgeLength: Double = -1
   ): Double = {
     val link = networkHelper.getLinkUnsafe(linkId)
     assert(link != null)
-    // Use provided edge length if available, otherwise look it up
+
     val lengthM =
       if (edgeLength > 0) edgeLength
-      else {
-        transportNetwork.streetLayer.edgeStore.lengths_mm.get(linkId / 2) / 1000.0
-      }
+      else transportNetwork.streetLayer.edgeStore.lengths_mm.get(linkId / 2) / 1000.0
 
-    // Pre-compute these values once
+    //  Ensure speeds are sane (no divide by zero, no negatives)
+    val safeMaxSpeed = Math.max(maxSpeed, minSpeed) // At least as fast as minSpeed
+
+    // STEP 2: Compute bounds with safe values
+    // maxTravelTime = slowest (largest denominator = smallest divisor)
+    // minTravelTime = fastest (smallest denominator = largest divisor)
     val maxTravelTime = lengthM / minSpeed
-    val minTravelTime = lengthM / maxSpeed
+    val minTravelTime = lengthM / safeMaxSpeed
 
-    // Get travel time - use optimized method if available
+    // Bounds are now guaranteed: 0 <= minTravelTime <= maxTravelTime
+
+    // Get travel time with existing logic
     val physSimTravelTime = travelTime match {
       case beamTT: BeamTravelTime =>
-        // Use the optimized method with pre-computed length
         beamTT.getLinkTravelTime(linkId, time, lengthM)
       case _ =>
-        // Fall back to the original method
         val link = networkHelper.getLinkUnsafe(linkId)
         if (link == null) {
-          lengthM / maxSpeed // Default to free flow if link not found
+          lengthM / safeMaxSpeed
         } else {
           travelTime.getLinkTravelTime(link, time, null, null)
         }
     }
 
-    // Generate noise only if needed
+    // Apply noise if needed
     val physSimTravelTimeWithNoise =
       if (travelTimeNoiseFraction > 0d && shouldAddNoise) {
-        // Generate a value between 0 and 1, scale it to the noise range, then shift it
         physSimTravelTime * ThreadLocalRandom.current().nextDouble(noiseLowerBound, noiseUpperBound)
       } else {
         physSimTravelTime
       }
 
-    // Use Math.min/max for cleaner clamping
-    Math.min(Math.max(physSimTravelTimeWithNoise, minTravelTime), maxTravelTime)
+    // STEP 3: Clamp to valid range (fast path: already in range)
+    val clampedTime = if (physSimTravelTimeWithNoise <= maxTravelTime) {
+      if (physSimTravelTimeWithNoise >= minTravelTime) {
+        physSimTravelTimeWithNoise // Common case: already in range
+      } else {
+        minTravelTime
+      }
+    } else {
+      maxTravelTime
+    }
+
+    // Should be redundant (minTravelTime >= 0) but costs ~1 nanosecond
+    Math.max(clampedTime, 0.0)
   }
 }

@@ -688,7 +688,7 @@ class PersonWithPersonalVehiclePlanSpec
             isEmbodyWithCurrentTravelTime = false,
             triggerId = triggerId
           )
-        case RoutingRequest(_, _, _, _, _, _, _, _, _, _, triggerId) =>
+        case RoutingRequest(_, _, _, _, _, _, _, _, _, _, _, triggerId) =>
           lastSender ! RoutingResponse(
             itineraries = Vector(),
             requestId = 1,

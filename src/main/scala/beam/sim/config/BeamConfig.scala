@@ -4713,6 +4713,7 @@ object BeamConfig {
 
       case class R5(
         accessBufferTimeSeconds: BeamConfig.Beam.Routing.R5.AccessBufferTimeSeconds,
+        accessEgressStatePoolSize: scala.Int,
         bikeLaneLinkIdsFilePath: java.lang.String,
         bikeLaneScaleFactor: scala.Double,
         departureWindow: scala.Double,
@@ -4724,6 +4725,7 @@ object BeamConfig {
         maxTimeLimitForFreightInMinutes: scala.Int,
         numberOfSamples: scala.Int,
         osmMapdbFile: java.lang.String,
+        statePoolSize: scala.Int,
         suboptimalMinutes: scala.Int,
         suboptimalMinutesForDriveAccess: scala.Int,
         transitAlternativeList: java.lang.String,
@@ -4787,6 +4789,8 @@ object BeamConfig {
               if (c.hasPathOrNull("accessBufferTimeSeconds")) c.getConfig("accessBufferTimeSeconds")
               else com.typesafe.config.ConfigFactory.parseString("accessBufferTimeSeconds{}")
             ),
+            accessEgressStatePoolSize =
+              if (c.hasPathOrNull("accessEgressStatePoolSize")) c.getInt("accessEgressStatePoolSize") else 50000,
             bikeLaneLinkIdsFilePath =
               if (c.hasPathOrNull("bikeLaneLinkIdsFilePath")) c.getString("bikeLaneLinkIdsFilePath") else "",
             bikeLaneScaleFactor =
@@ -4810,6 +4814,7 @@ object BeamConfig {
             osmMapdbFile =
               if (c.hasPathOrNull("osmMapdbFile")) c.getString("osmMapdbFile")
               else "/test/input/beamville/r5/osm.mapdb",
+            statePoolSize = if (c.hasPathOrNull("statePoolSize")) c.getInt("statePoolSize") else 100000,
             suboptimalMinutes = if (c.hasPathOrNull("suboptimalMinutes")) c.getInt("suboptimalMinutes") else 10,
             suboptimalMinutesForDriveAccess =
               if (c.hasPathOrNull("suboptimalMinutesForDriveAccess")) c.getInt("suboptimalMinutesForDriveAccess")
