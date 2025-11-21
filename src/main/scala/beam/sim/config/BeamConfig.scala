@@ -4676,7 +4676,6 @@ object BeamConfig {
 
       case class R5(
         accessBufferTimeSeconds: BeamConfig.Beam.Routing.R5.AccessBufferTimeSeconds,
-        accessEgressStatePoolSize: scala.Int,
         bikeLaneLinkIdsFilePath: java.lang.String,
         bikeLaneScaleFactor: scala.Double,
         departureWindow: scala.Double,
@@ -4688,7 +4687,7 @@ object BeamConfig {
         maxTimeLimitForFreightInMinutes: scala.Int,
         numberOfSamples: scala.Int,
         osmMapdbFile: java.lang.String,
-        statePoolSize: scala.Int,
+        statePoolSize: BeamConfig.Beam.Routing.R5.StatePoolSize,
         suboptimalMinutes: scala.Int,
         suboptimalMinutesForDriveAccess: scala.Int,
         transitAlternativeList: java.lang.String,
@@ -4746,14 +4745,49 @@ object BeamConfig {
           }
         }
 
+        case class StatePoolSize(
+          bike: scala.Int,
+          bike_transit_optimal: scala.Int,
+          bike_transit_suboptimal: scala.Int,
+          car: scala.Int,
+          drive_transit_optimal: scala.Int,
+          drive_transit_suboptimal: scala.Int,
+          primary: scala.Int,
+          walk: scala.Int,
+          walk_transit_optimal: scala.Int,
+          walk_transit_suboptimal: scala.Int
+        )
+
+        object StatePoolSize {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing.R5.StatePoolSize = {
+            BeamConfig.Beam.Routing.R5.StatePoolSize(
+              bike = if (c.hasPathOrNull("bike")) c.getInt("bike") else 35000,
+              bike_transit_optimal =
+                if (c.hasPathOrNull("bike_transit_optimal")) c.getInt("bike_transit_optimal") else 20000,
+              bike_transit_suboptimal =
+                if (c.hasPathOrNull("bike_transit_suboptimal")) c.getInt("bike_transit_suboptimal") else 1000000,
+              car = if (c.hasPathOrNull("car")) c.getInt("car") else 150000,
+              drive_transit_optimal =
+                if (c.hasPathOrNull("drive_transit_optimal")) c.getInt("drive_transit_optimal") else 20000,
+              drive_transit_suboptimal =
+                if (c.hasPathOrNull("drive_transit_suboptimal")) c.getInt("drive_transit_suboptimal") else 1000000,
+              primary = if (c.hasPathOrNull("primary")) c.getInt("primary") else 150000,
+              walk = if (c.hasPathOrNull("walk")) c.getInt("walk") else 35000,
+              walk_transit_optimal =
+                if (c.hasPathOrNull("walk_transit_optimal")) c.getInt("walk_transit_optimal") else 100000,
+              walk_transit_suboptimal =
+                if (c.hasPathOrNull("walk_transit_suboptimal")) c.getInt("walk_transit_suboptimal") else 2000000
+            )
+          }
+        }
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing.R5 = {
           BeamConfig.Beam.Routing.R5(
             accessBufferTimeSeconds = BeamConfig.Beam.Routing.R5.AccessBufferTimeSeconds(
               if (c.hasPathOrNull("accessBufferTimeSeconds")) c.getConfig("accessBufferTimeSeconds")
               else com.typesafe.config.ConfigFactory.parseString("accessBufferTimeSeconds{}")
             ),
-            accessEgressStatePoolSize =
-              if (c.hasPathOrNull("accessEgressStatePoolSize")) c.getInt("accessEgressStatePoolSize") else 50000,
             bikeLaneLinkIdsFilePath =
               if (c.hasPathOrNull("bikeLaneLinkIdsFilePath")) c.getString("bikeLaneLinkIdsFilePath") else "",
             bikeLaneScaleFactor =
@@ -4777,7 +4811,10 @@ object BeamConfig {
             osmMapdbFile =
               if (c.hasPathOrNull("osmMapdbFile")) c.getString("osmMapdbFile")
               else "/test/input/beamville/r5/osm.mapdb",
-            statePoolSize = if (c.hasPathOrNull("statePoolSize")) c.getInt("statePoolSize") else 100000,
+            statePoolSize = BeamConfig.Beam.Routing.R5.StatePoolSize(
+              if (c.hasPathOrNull("statePoolSize")) c.getConfig("statePoolSize")
+              else com.typesafe.config.ConfigFactory.parseString("statePoolSize{}")
+            ),
             suboptimalMinutes = if (c.hasPathOrNull("suboptimalMinutes")) c.getInt("suboptimalMinutes") else 10,
             suboptimalMinutesForDriveAccess =
               if (c.hasPathOrNull("suboptimalMinutesForDriveAccess")) c.getInt("suboptimalMinutesForDriveAccess")

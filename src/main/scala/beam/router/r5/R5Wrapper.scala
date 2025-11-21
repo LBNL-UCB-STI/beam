@@ -172,8 +172,15 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
   private val linkRadiusMeters: Double =
     beamConfig.beam.routing.r5.linkRadiusMeters
 
-  private val statePoolSize: Int = 200000 // beamConfig.beam.routing.r5.statePoolSize
-  private val accessEgressStatePoolSize: Int = 100000 // beamConfig.beam.routing.r5.accessEgressStatePoolSize
+  private val statePoolSize: Int = beamConfig.beam.routing.r5.statePoolSize.primary
+
+  private def accessEgressStatePoolSize(mode: StreetMode): Int = {
+    mode match {
+      case StreetMode.CAR     => beamConfig.beam.routing.r5.statePoolSize.car
+      case StreetMode.WALK    => beamConfig.beam.routing.r5.statePoolSize.walk
+      case StreetMode.BICYCLE => beamConfig.beam.routing.r5.statePoolSize.bike
+    }
+  }
 
   private val carWeightCalculator = new CarWeightCalculator(workerParams, travelTimeNoiseFraction)
   private val bikeScaleFactor = bikeLanesAdjustment(beamConfig)
@@ -232,10 +239,13 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
 
   private def getMcRaptorPoolSize(streetMode: StreetMode, listSupplierType: String): Int = {
     (streetMode, listSupplierType) match {
-      case (StreetMode.WALK, "suboptimal")          => 2000000 // ← Was 100k, need at least 200k
-      case (StreetMode.WALK, "beam")                => 500000
-      case (StreetMode.CAR | StreetMode.BICYCLE, _) => 20000 // ← Was 100k, way too big
-      case _                                        => 100000
+      case (StreetMode.WALK, "suboptimal")    => beamConfig.beam.routing.r5.statePoolSize.walk_transit_suboptimal
+      case (StreetMode.CAR, "suboptimal")     => beamConfig.beam.routing.r5.statePoolSize.drive_transit_suboptimal
+      case (StreetMode.BICYCLE, "suboptimal") => beamConfig.beam.routing.r5.statePoolSize.bike_transit_suboptimal
+      case (StreetMode.WALK, "beam")          => beamConfig.beam.routing.r5.statePoolSize.walk_transit_optimal
+      case (StreetMode.CAR, "beam")           => beamConfig.beam.routing.r5.statePoolSize.drive_transit_optimal
+      case (StreetMode.BICYCLE, "beam")       => beamConfig.beam.routing.r5.statePoolSize.bike_transit_optimal
+      case _                                  => 100000
     }
   }
 
@@ -1178,9 +1188,9 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           .get()
           .getOrElseUpdate(
             r5mode, {
-              val pool = new StatePool(accessEgressStatePoolSize) // Created once per thread per mode
+              val pool = new StatePool(accessEgressStatePoolSize(r5mode)) // Created once per thread per mode
               logger.debug(s"[POOL-CREATE] NEW access pool mode=$r5mode poolId=${System.identityHashCode(pool)}")
-              statePoolCapacities.get().put(pool, accessEgressStatePoolSize) // Track capacity
+              statePoolCapacities.get().put(pool, accessEgressStatePoolSize(r5mode)) // Track capacity
               pool
             }
           )
@@ -1334,9 +1344,9 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             .get()
             .getOrElseUpdate(
               r5mode, {
-                val pool = new StatePool(accessEgressStatePoolSize) // Created once per thread per mode
+                val pool = new StatePool(accessEgressStatePoolSize(r5mode)) // Created once per thread per mode
                 logger.debug(s"[POOL-CREATE] NEW egress pool mode=$r5mode poolId=${System.identityHashCode(pool)}")
-                statePoolCapacities.get().put(pool, accessEgressStatePoolSize) // Track capacity
+                statePoolCapacities.get().put(pool, accessEgressStatePoolSize(r5mode)) // Track capacity
                 pool
               }
             )

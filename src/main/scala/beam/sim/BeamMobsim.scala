@@ -144,15 +144,17 @@ class BeamMobsim @Inject() (
 
     clearRoutesAndModesIfNeeded(matsimServices.getIterationNumber)
     planCleaner.clearModesAccordingToStrategy(matsimServices.getIterationNumber)
-    ConcurrentUtils.parallelExecution(
-      beamScenario.freightCarriers.values.zipWithIndex.map { case (carrier, i) =>
-        () =>
-          val rnd = new Random(beamConfig.matsim.modules.global.randomSeed + i)
-          val reader = FreightReader(beamServices)
-          new FreightReplanner(beamServices, skims.od_skimmer, rnd, reader)
-            .replanIfNeeded(carrier, matsimServices.getIterationNumber)
-      }.toSeq
-    )(scala.concurrent.ExecutionContext.global)
+    if (beamConfig.beam.agentsim.agents.freight.enabled) {
+      ConcurrentUtils.parallelExecution(
+        beamScenario.freightCarriers.values.zipWithIndex.map { case (carrier, i) =>
+          () =>
+            val rnd = new Random(beamConfig.matsim.modules.global.randomSeed + i)
+            val reader = FreightReader(beamServices)
+            new FreightReplanner(beamServices, skims.od_skimmer, rnd, reader)
+              .replanIfNeeded(carrier, matsimServices.getIterationNumber)
+        }.toSeq
+      )(scala.concurrent.ExecutionContext.global)
+    }
 
     if (beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities) {
       logger.info("Filling in secondary trips in plans")
