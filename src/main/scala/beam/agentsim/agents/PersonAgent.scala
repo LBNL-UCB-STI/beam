@@ -1936,6 +1936,9 @@ class PersonAgent(
   }
 
   private def getPayloadDataFromPlan(startingActivityIndex: Int): Option[(IndexedSeq[Id[PayloadPlan]], Double)] = {
+    if (!beamServices.beamConfig.beam.agentsim.agents.freight.enabled) {
+      return None
+    }
     val currentLegIndex = startingActivityIndex * 2 + 1
     if (currentLegIndex < matsimPlan.getPlanElements.size()) { // matsim plan may contain only activities
       val planElement: PlanElement = matsimPlan.getPlanElements.get(currentLegIndex)
@@ -1943,7 +1946,7 @@ class PersonAgent(
         case Some(attr) =>
           attr match {
             case str: String if str.nonEmpty =>
-              str.split(",").map(x => Id.create(x.trim, classOf[PayloadPlan])).toIndexedSeq
+              str.split(',').map(_.trim).filter(_.nonEmpty).map(x => Id.create(x, classOf[PayloadPlan])).toIndexedSeq
             case vec: scala.collection.immutable.Vector[_] =>
               vec.map(_.toString).map(x => Id.create(x, classOf[PayloadPlan])).toIndexedSeq
             case list: java.util.List[_] =>

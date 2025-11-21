@@ -30,8 +30,9 @@ class LinkStatsWithVehicleCategorySpec extends AnyWordSpecLike with Matchers {
   private val EVENTS_FILE_PATH = "test/input/equil-square/test-data/physSimEvents-relative-speeds.xml"
   private val NETWORK_FILE_PATH = "test/input/equil-square/test-data/physSimNetwork-relative-speeds.xml"
   private val LINKSTATS_CSV_PATH = "output/test/linkstats-by-category.csv"
+  private val LINKSTATS_PARQUET_PATH = "output/test/linkstats-by-category.parquet"
 
-  val (
+  private val (
     network: Network,
     ttConfigGroup: TravelTimeCalculatorConfigGroup,
     travelTimeCalculator: TravelTimeCalculator,
@@ -90,6 +91,26 @@ class LinkStatsWithVehicleCategorySpec extends AnyWordSpecLike with Matchers {
         val (_, _, nofHours) = result.success.value
         nofHours shouldBe 68
         val container = new LinkTravelTimeContainer(LINKSTATS_CSV_PATH, 3600, nofHours)
+        val link = mock(classOf[Link])
+        when(link.getId).thenReturn(Id.createLinkId(4))
+        val person = mock(classOf[Person])
+        val vehicle = mock(classOf[Vehicle])
+        val travelTime17 = container.getLinkTravelTime(link, 17 * 3600, person, vehicle)
+        travelTime17 shouldBe 0.4 +- 0.01
+        val travelTime18 = container.getLinkTravelTime(link, 18 * 3600, person, vehicle)
+        travelTime18 shouldBe 44478.89 +- 0.01
+      }
+    }
+    "saves linkstats to parquet" should {
+      "save it that WarmStart could read it" in {
+        val result = linkStats.writeLinkStatsWithTruckVolumes(
+          volumeAnalyzer,
+          travelTimeCalculator.getLinkTravelTimes,
+          LINKSTATS_PARQUET_PATH
+        )
+        val (_, _, nofHours) = result.success.value
+        nofHours shouldBe 68
+        val container = new LinkTravelTimeContainer(LINKSTATS_PARQUET_PATH, 3600, nofHours)
         val link = mock(classOf[Link])
         when(link.getId).thenReturn(Id.createLinkId(4))
         val person = mock(classOf[Person])

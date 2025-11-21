@@ -34,30 +34,31 @@ object ActivitySimZarrWriter extends LazyLogging {
     logger.info(s"pathTypeToMatrixData keys: ${pathTypeToMatrixData.keys.map(_.toString).mkString(", ")}")
 
     // Check if geoUnits are 1-based continuous integers
-    val isActivitySimFormat =
-      try {
-        val sorted = geoUnits.map(_.toInt).sorted
-        sorted == (1 to geoUnits.size).toList
-      } catch {
-        case _: NumberFormatException => false // Contains non-numeric IDs like "10091C"
+    try {
+      val integerIds = geoUnits.map(_.toInt)
+      val sortedInds = integerIds.sorted
+      if (!(sortedInds == integerIds)) {
+        if (sortedInds == (1 to geoUnits.size).toList) {
+          logger.error("Zone IDs are 1 based but out of order! This is likely a bug")
+        } else if (sortedInds == geoUnits.indices.toList) {
+          logger.info("Zone IDs are 0 based contiguous already!")
+        } else {
+          logger.warn(f"Zone IDs are arbitrary numbers ${geoUnits.take(5)}. This may be a bug")
+        }
       }
 
+    } catch {
+      case _: NumberFormatException =>
+        logger.info(
+          f"TAZ Ids contain arbitrary strings like ${geoUnits.take(5)}. Using the order they appear in the input shapefile"
+        )
+    }
+
     // Build appropriate mapping based on format
-    val geoUnitMapping = if (isActivitySimFormat) {
-      // For ActivitySim format: map TAZ ID to its value minus 1
-      geoUnits.map { tazId =>
-        tazId -> (tazId.toInt - 1)
-      }.toMap
-    } else {
-      // For arbitrary TAZ IDs: map to position in list
-      geoUnits.zipWithIndex.toMap
-    }
-    // Create ActivitySim TAZ IDs (1-based)
-    val coordArray = if (isActivitySimFormat) {
-      geoUnits.map(_.toInt).sorted.toArray // [1, 2, 3, ..., 1454]
-    } else {
-      geoUnits.indices.toArray // [0, 1, 2, ..., n-1] for backwards compatibility
-    }
+    val geoUnitMapping = geoUnits.zipWithIndex.toMap
+
+    // Create 0-based TAZ IDs for coordinates, allowing ActivitySim to skip re-indexing
+    val coordArray = geoUnits.indices.toArray // [0, 1, 2, ..., n-1]
 
     val timePeriods = ActivitySimTimeBin.values.toIndexedSeq // Keep as enum values for index lookup
     val timePeriodNames = timePeriods.map(_.entryName)
@@ -96,7 +97,7 @@ object ActivitySimZarrWriter extends LazyLogging {
       logger.info("Root Zarr group created successfully")
       val rootAttrs = rootGroup.getAttributes
       rootAttrs.put("original_zone_ids", geoUnits.asJava)
-      rootAttrs.put("taz_format", if (isActivitySimFormat) "activitysim" else "arbitrary")
+      rootAttrs.put("taz_format", "arbitrary")
       rootGroup.writeAttributes(rootAttrs)
 
       var dataset_count = 0

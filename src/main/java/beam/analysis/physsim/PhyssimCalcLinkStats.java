@@ -87,7 +87,7 @@ public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
         processData(iteration, travelTime);
         if (this.controllerIO != null) {
             if (isNotTestMode() && writeLinkStats(iteration)) {
-                String filePath = this.controllerIO.getIterationFilename(iteration, "linkstats_unmodified.csv.gz");
+                String filePath = this.controllerIO.getIterationFilename(iteration, "linkstats_unmodified.csv.gz"); // TODO: Make configurable
                 LinkStatsWithVehicleCategory linkStats = new LinkStatsWithVehicleCategory(network, ttcConfigGroup);
                 linkStats.writeLinkStatsWithTruckVolumes(volumes, travelTime, filePath);
             }
