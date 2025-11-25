@@ -6,6 +6,7 @@ from statistics import mean
 from statistics import median
 import re
 import math  # Import math for isnan check
+import pickle  # Import pickle for caching
 
 import geopandas as gpd
 import networkx as nx
@@ -68,7 +69,6 @@ def min_numeric_or_string(values):
                 numeric_values.append(numeric_v)
         except (ValueError, TypeError):
             # If conversion fails, it's a string (e.g., "30 tons" or "5000 kg").
-            # For maxweight, the standard tag processing should have converted this earlier.
             if first_string is None and isinstance(v, str):
                 first_string = v
             continue
@@ -1067,70 +1067,6 @@ def project_graph(G: nx.MultiDiGraph, to_crs=None, to_latlong=False) -> nx.Multi
     return G_proj
 
 
-def _promote_tags_from_other_tags(G: nx.MultiDiGraph) -> nx.MultiDiGraph:
-    """
-    Promotes critical OSM tags found within the 'other_tags' HStore column to
-    the top-level graph attribute fields.
-
-    This is necessary because R5's TraversalPermissionLabeler and SpeedLabeler
-    only read primary tags, not nested HStore content.
-    """
-    nodes, edges = ox.graph_to_gdfs(G)
-
-    if 'other_tags' not in edges.columns:
-        return G
-
-    # List of tags to promote (based on R5's primary dependencies)
-    CRITICAL_TAGS = [
-        'highway', 'oneway', 'lanes', 'maxspeed', 'access', 'motor_vehicle',
-        'maxheight', 'maxwidth', 'maxweight', 'bridge', 'tunnel', 'length',
-        'foot', 'bicycle', 'sidewalk', 'cycleway'
-    ]
-
-    # Initialize missing columns
-    for tag in CRITICAL_TAGS:
-        if tag not in edges.columns:
-            edges.loc[:, tag] = pd.NA
-
-    # Map function to safely extract values from the HStore string
-    def get_tag_value(other_tags_str, target_tag):
-        if pd.isna(other_tags_str) or not isinstance(other_tags_str, str):
-            return None
-
-        # Robust regex pattern for HStore format: "key"=>"value"
-        # It handles potential escaped quotes within the value itself.
-        # Note: The 'other_tags' column from OSMnx is typically already simplified, but we treat it as HStore.
-        pattern = rf'"{re.escape(target_tag)}"\s*=>\s*"((?:\\.|[^"])*)"'
-
-        match = re.search(pattern, other_tags_str)
-
-        if match:
-            # Group 1 contains the value
-            value = match.group(1)
-            # Remove any trailing escape sequences that might have been part of the HStore format
-            return value.replace('\\"', '"').replace('\\\\', '\\')
-        return None
-
-    print("Promoting critical tags from other_tags...")
-
-    for tag in CRITICAL_TAGS:
-        # Create a Series of promoted values for the current tag
-        promoted_values = edges['other_tags'].apply(
-            lambda x: get_tag_value(str(x), tag)
-        )
-
-        # Only update the primary column where it is currently missing (NaN, None, or empty string)
-        # Use .loc[] for reliable indexing and assignment
-        is_missing = edges[tag].isna() | (edges[tag].astype(str).str.strip() == '')
-
-        # Condition to overwrite: primary tag is missing AND promoted value is found
-        edges.loc[is_missing & promoted_values.notna(), tag] = promoted_values.loc[is_missing & promoted_values.notna()]
-
-    print(f"✓ Promoted {len(CRITICAL_TAGS)} critical tags.")
-
-    return ox.graph_from_gdfs(nodes, edges)
-
-
 def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, _geo_config: dict,
                                      work_dir) -> nx.MultiDiGraph:
     """Download and prepare OSM network based on study area configuration."""
@@ -1155,107 +1091,137 @@ def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, 
     utm_epsg = _geo_config["utm_epsg"]
     should_strongly_connect = _network_config.get("strongly_connected_components", False)
 
-    print(f"Collecting {study_area} boundaries...")
+    # --- START CACHING LOGIC ---
+    # Define a unique cache path for the raw combined graph (before projection/processing)
+    config_name_hash = hashlib.md5(str(_network_config).encode()).hexdigest()[:8]
+    raw_graph_cache_path = os.path.join(work_dir, 'network', f'raw_osm_graph_{study_area}.pkl')
 
-    # Process each layer defined in the configuration
-    for layer_name, layer_config in _network_config["graph_layers"].items():
-        # Get layer configuration
-        geo_level = layer_config["geo_level"]
-        min_density = layer_config.get("min_density_per_km2", 0)
-        custom_filter = layer_config["custom_filter"]
-        buffer_in_meters = layer_config["buffer_zone_in_meters"]
+    g_combined = None
 
-        # Create the region boundary GeoDataFrame
-        region_boundary_wgs84 = collect_geographic_boundaries(
-            state_fips_code=state_fips_code,
-            county_fips_codes=county_fips_codes,
-            year=census_year,
-            area_name=study_area,
-            geo_level=geo_level,
-            work_dir=work_dir
-        )
+    if os.path.exists(raw_graph_cache_path):
+        print(f"CACHE HIT: Loading raw combined graph from {raw_graph_cache_path}")
+        try:
+            with open(raw_graph_cache_path, 'rb') as f:
+                g_combined = pickle.load(f)
+            print("✓ Raw graph loaded from cache.")
+        except Exception as e:
+            print(f"WARNING: Failed to load cached graph: {e}. Re-downloading.")
+            g_combined = None
 
-        # Process specific layer types
-        if layer_name == "main":
-            print(f"Processing {layer_name} layer")
-            graph_layer = to_convex_hull(region_boundary_wgs84, utm_epsg, buffer_in_meters)
-            network_type = "drive"
-            simplify = False
-            retain_all = True
-            truncate_by_edge = True
+    if g_combined is None:
+        print(f"CACHE MISS: Downloading and combining network layers to {raw_graph_cache_path}")
+        # (Original download and combine logic starts here)
 
-        elif layer_name == "residential":
-            density_info = f" with minimum density: {min_density} pop/km²" if min_density > 0 else ""
-            print(f"Processing {layer_name} layer{density_info}")
+        print(f"Collecting {study_area} boundaries...")
 
-            # Get population data
-            pop_data = collect_census_data(
-                state_fips_code,
-                county_fips_codes,
-                census_year,
-                census_data_file=f"{base_name}_acs_census_{geo_level}_{census_year}.csv",
-                geo_level=geo_level
+        # Process each layer defined in the configuration
+        for layer_name, layer_config in _network_config["graph_layers"].items():
+            # Get layer configuration
+            geo_level = layer_config["geo_level"]
+            min_density = layer_config.get("min_density_per_km2", 0)
+            custom_filter = layer_config["custom_filter"]
+            buffer_in_meters = layer_config["buffer_zone_in_meters"]
+
+            # Create the region boundary GeoDataFrame
+            region_boundary_wgs84 = collect_geographic_boundaries(
+                state_fips_code=state_fips_code,
+                county_fips_codes=county_fips_codes,
+                year=census_year,
+                area_name=study_area,
+                geo_level=geo_level,
+                work_dir=work_dir
             )
 
-            filtered_boundaries = filter_boundaries_by_density(
-                region_boundary_wgs84,
-                pop_data,
-                utm_epsg,
-                geo_level,
-                min_density,
-                density_geo_file=f"{base_name}_{geo_level}_{census_year}_{min_density}ppsk_wgs84.geojson",
-            )
+            # Process specific layer types
+            if layer_name == "main":
+                print(f"Processing {layer_name} layer")
+                graph_layer = to_convex_hull(region_boundary_wgs84, utm_epsg, buffer_in_meters)
+                network_type = "drive"
+                simplify = False
+                retain_all = True
+                truncate_by_edge = True
 
-            graph_layer = shapely.ops.unary_union([
-                to_convex_hull(geom, utm_epsg, buffer_in_meters) for geom in filtered_boundaries.geometry
-            ])
+            elif layer_name == "residential":
+                density_info = f" with minimum density: {min_density} pop/km²" if min_density > 0 else ""
+                print(f"Processing {layer_name} layer{density_info}")
 
-            network_type = "drive"
-            simplify = False
-            retain_all = True
-            truncate_by_edge = True
+                # Get population data
+                pop_data = collect_census_data(
+                    state_fips_code,
+                    county_fips_codes,
+                    census_year,
+                    census_data_file=f"{base_name}_acs_census_{geo_level}_{census_year}.csv",
+                    geo_level=geo_level
+                )
 
-        elif layer_name == "ferry":
-            print(f"Processing ferry layer to connect islands...")
-            graph_layer = to_convex_hull(region_boundary_wgs84, utm_epsg, buffer_in_meters)
-            network_type = "all"
-            simplify = True
-            retain_all = True
-            truncate_by_edge = False
+                filtered_boundaries = filter_boundaries_by_density(
+                    region_boundary_wgs84,
+                    pop_data,
+                    utm_epsg,
+                    geo_level,
+                    min_density,
+                    density_geo_file=f"{base_name}_{geo_level}_{census_year}_{min_density}ppsk_wgs84.geojson",
+                )
 
-        else:
-            raise ValueError(f"Invalid layer name: {layer_name}")
+                graph_layer = shapely.ops.unary_union([
+                    to_convex_hull(geom, utm_epsg, buffer_in_meters) for geom in filtered_boundaries.geometry
+                ])
 
-        print("✓ Boundaries collected and unified")
+                network_type = "drive"
+                simplify = False
+                retain_all = True
+                truncate_by_edge = True
 
-        # Download OSM Network
-        print(f"Downloading OSM network with filter: {custom_filter}")
-        g = ox.graph_from_polygon(
-            graph_layer,
-            network_type=network_type,
-            simplify=simplify,
-            retain_all=retain_all,
-            truncate_by_edge=truncate_by_edge,
-            custom_filter=custom_filter
-        )
-        print(f"✓ Downloaded network with {g.number_of_nodes()} nodes and {g.number_of_edges()} edges")
+            elif layer_name == "ferry":
+                print(f"Processing ferry layer to connect islands...")
+                graph_layer = to_convex_hull(region_boundary_wgs84, utm_epsg, buffer_in_meters)
+                network_type = "all"
+                simplify = True
+                retain_all = True
+                truncate_by_edge = False
 
-        # Special processing for ferry network
-        if layer_name == "ferry":
-            g = process_ferry_edges(g)
-            if g.number_of_edges() > 0:
-                print(f"✓ Processed {g.number_of_edges()} ferry connections")
             else:
-                print("✗ No suitable ferry connections found")
-                continue  # Skip adding this empty graph
+                raise ValueError(f"Invalid layer name: {layer_name}")
 
-        # Add the graph to the list if it has edges
-        adjust_and_add_graph(graphs, g)
+            print("✓ Boundaries collected and unified")
 
-    # Combine all graphs
-    print("=== Processing Combined Network ===")
-    g_combined = nx.compose_all(graphs)
-    print(f"✓ Combined network has {g_combined.number_of_nodes()} nodes and {g_combined.number_of_edges()} edges")
+            # Download OSM Network
+            print(f"Downloading OSM network with filter: {custom_filter}")
+            g = ox.graph_from_polygon(
+                graph_layer,
+                network_type=network_type,
+                simplify=simplify,
+                retain_all=retain_all,
+                truncate_by_edge=truncate_by_edge,
+                custom_filter=custom_filter
+            )
+            print(f"✓ Downloaded network with {g.number_of_nodes()} nodes and {g.number_of_edges()} edges")
+
+            # Special processing for ferry network
+            if layer_name == "ferry":
+                g = process_ferry_edges(g)
+                if g.number_of_edges() > 0:
+                    print(f"✓ Processed {g.number_of_edges()} ferry connections")
+                else:
+                    print("✗ No suitable ferry connections found")
+                    continue  # Skip adding this empty graph
+
+            # Add the graph to the list if it has edges
+            adjust_and_add_graph(graphs, g)
+
+        # Combine all graphs
+        print("=== Processing Combined Network ===")
+        g_combined = nx.compose_all(graphs)
+        print(f"✓ Combined network has {g_combined.number_of_nodes()} nodes and {g_combined.number_of_edges()} edges")
+
+        # Save the combined graph to cache before any heavy processing
+        try:
+            with open(raw_graph_cache_path, 'wb') as f:
+                pickle.dump(g_combined, f)
+            print(f"✓ Raw combined graph saved to cache: {raw_graph_cache_path}")
+        except Exception as e:
+            print(f"WARNING: Could not save graph to cache: {e}")
+    # --- END CACHING LOGIC ---
 
     # Project to UTM for processing
     print("Projecting graph to UTM...")
@@ -1319,10 +1285,6 @@ def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, 
         }
     )
     print("✓ Network simplified")
-
-    # The attributes must be promoted *after* OSMnx performs its internal cleanup
-    # (project, consolidate, simplify), but *before* the network is finalized.
-    g_simplified = _promote_tags_from_other_tags(g_simplified)
 
     # --- Filtering short links to eliminate congestion sinks ---
     nodes_temp, edges_temp = ox.graph_to_gdfs(g_simplified)

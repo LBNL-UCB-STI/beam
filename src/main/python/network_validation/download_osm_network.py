@@ -88,7 +88,7 @@ def download_and_build_network(study_area_config):
 
     # Create OSM Network
     print(f"Creating OSM Network...")
-    nodes, edges = ox.graph_to_gdfs(g_network)
+
     edges = edges.drop([
         'u_original', 'v_original', 'merged_edges', 'osmid'
     ], axis=1, errors='ignore')
