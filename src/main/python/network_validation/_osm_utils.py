@@ -1196,16 +1196,12 @@ def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, 
     g_combined = nx.compose_all(graphs)
     print(f"✓ Combined network has {g_combined.number_of_nodes()} nodes and {g_combined.number_of_edges()} edges")
 
-    # Promote critical tags from other_tags to ensure R5 finds them easily.
-    g_combined = _promote_tags_from_other_tags(g_combined)
-
     # Project to UTM for processing
     print("Projecting graph to UTM...")
     g_projected = project_graph(g_combined, to_crs=utm_epsg)
     print("✓ Network projected to UTM")
 
     # Recalculate edge lengths using the projected planar UTM coordinates.
-    # This step is authoritative and overwrites any previously existing 'length' tag.
     print("Recalculating edge lengths based on UTM projection...")
     g_projected = ox.distance.add_edge_lengths(g_projected)
     print("✓ Edge lengths recalculated in meters")
@@ -1249,15 +1245,28 @@ def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, 
             "oneway": yes_no_all,
             "access": yes_no_all,
             "reversed": bool_all,
-            "maxweight": min
+            "maxweight": min,
+            'bridge': 'first',
+            'tunnel': 'first',
+            'foot': yes_no_all,
+            'bicycle': yes_no_all,
+            'sidewalk': 'first',
+            'cycleway': 'first',
+            'maxheight': 'first',
+            'maxwidth': 'first',
+            'motor_vehicle': yes_no_all,
         }
     )
     print("✓ Network simplified")
 
+    # The attributes must be promoted *after* OSMnx performs its internal cleanup
+    # (project, consolidate, simplify), but *before* the network is finalized.
+    g_simplified = _promote_tags_from_other_tags(g_simplified)
+
     # --- Filtering short links to eliminate congestion sinks ---
     nodes_temp, edges_temp = ox.graph_to_gdfs(g_simplified)
 
-    # Define the minimum acceptable link length (2.0 meters is safe for removing sink links)
+    # Define the minimum acceptable link length
     initial_edge_count = len(edges_temp)
 
     # Filter for links greater than or equal to the minimum length
