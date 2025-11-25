@@ -4,6 +4,7 @@ import sys
 from collections import Counter, defaultdict
 from statistics import mean
 from statistics import median
+import re
 
 import geopandas as gpd
 import networkx as nx
@@ -1002,6 +1003,73 @@ def project_graph(G: nx.MultiDiGraph, to_crs=None, to_latlong=False) -> nx.Multi
     return G_proj
 
 
+def _promote_tags_from_other_tags(G: nx.MultiDiGraph) -> nx.MultiDiGraph:
+    """
+    Promotes critical OSM tags found within the 'other_tags' HStore column to
+    the top-level graph attribute fields.
+
+    This is necessary because R5's TraversalPermissionLabeler and SpeedLabeler
+    only read primary tags, not nested HStore content.
+    """
+    nodes, edges = ox.graph_to_gdfs(G)
+
+    if 'other_tags' not in edges.columns:
+        return G
+
+    # List of tags to promote (based on R5's primary dependencies)
+    CRITICAL_TAGS = [
+        'highway', 'oneway', 'lanes', 'maxspeed', 'access', 'motor_vehicle',
+        'maxheight', 'maxwidth', 'maxweight', 'bridge', 'tunnel', 'length',
+        'foot', 'bicycle', 'sidewalk', 'cycleway'
+    ]
+
+    # Initialize missing columns
+    for tag in CRITICAL_TAGS:
+        if tag not in edges.columns:
+            edges[tag] = pd.NA
+
+    # Map function to safely extract values from the HStore string
+    def get_tag_value(other_tags_str, target_tag):
+        if pd.isna(other_tags_str) or not isinstance(other_tags_str, str):
+            return None
+
+        # Robust regex pattern for HStore format: "key"=>"value"
+        # It handles potential escaped quotes within the value itself.
+        pattern = rf'"{re.escape(target_tag)}"\s*=>\s*"((?:\\.|[^"])*)"'
+
+        match = re.search(pattern, other_tags_str)
+
+        if match:
+            # Group 1 contains the value
+            value = match.group(1)
+            # Remove any trailing escape sequences that might have been part of the HStore format
+            return value.replace('\\"', '"').replace('\\\\', '\\')
+        return None
+
+    print("Promoting critical tags from other_tags...")
+
+    for tag in CRITICAL_TAGS:
+        # Create a Series of promoted values for the current tag
+        promoted_values = edges['other_tags'].apply(
+            lambda x: get_tag_value(str(x), tag)
+        )
+
+        # Only update the primary column where it is currently missing (NaN, None, or empty string)
+        # Use .mask() to conditionally update: keep existing value unless it's missing/NA AND the promoted value exists.
+
+        is_missing = edges[tag].isna() | (edges[tag].astype(str).str.strip() == '')
+
+        # Condition to overwrite: primary tag is missing AND promoted value is found
+        edges[tag] = edges[tag].mask(
+            is_missing & promoted_values.notna(),
+            promoted_values
+        )
+
+    print(f"✓ Promoted {len(CRITICAL_TAGS)} critical tags.")
+
+    return ox.graph_from_gdfs(nodes, edges)
+
+
 def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, _geo_config: dict,
                                      work_dir) -> nx.MultiDiGraph:
     """Download and prepare OSM network based on study area configuration."""
@@ -1128,12 +1196,16 @@ def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, 
     g_combined = nx.compose_all(graphs)
     print(f"✓ Combined network has {g_combined.number_of_nodes()} nodes and {g_combined.number_of_edges()} edges")
 
+    # Promote critical tags from other_tags to ensure R5 finds them easily.
+    g_combined = _promote_tags_from_other_tags(g_combined)
+
     # Project to UTM for processing
     print("Projecting graph to UTM...")
     g_projected = project_graph(g_combined, to_crs=utm_epsg)
     print("✓ Network projected to UTM")
 
-    # Recalculate edge lengths using the projected planar UTM coordinates
+    # Recalculate edge lengths using the projected planar UTM coordinates.
+    # This step is authoritative and overwrites any previously existing 'length' tag.
     print("Recalculating edge lengths based on UTM projection...")
     g_projected = ox.distance.add_edge_lengths(g_projected)
     print("✓ Edge lengths recalculated in meters")
@@ -1167,7 +1239,7 @@ def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, 
         remove_rings=False,
         track_merged=True,
         edge_attr_aggs={
-            "length": sum,
+            "length": sum,  # This now sums the correctly recalculated lengths
             "travel_time": sum,
             "hgv": bool_all,
             "mdv": bool_all,
@@ -1317,11 +1389,13 @@ def scan_network_directories_for_ways(directory):
                 # Append result to the output CSV file
                 with open(output_file, 'a', newline='') as f:
                     writer = csv.writer(f)
-                    writer.writerow([network_name, number_of_ways, osm_file_path])  # Write network name, number of ways, and path
+                    writer.writerow([network_name, number_of_ways, osm_file_path])
+                    # Write network name, number of ways, and path
                     print(f"Appended to CSV: {network_name}, {number_of_ways}, {osm_file_path}")  # Log appended data
         else:
             print(f"No OSM file found in this directory: {root}.")  # Log message if no file found
             continue  # Skip to the next directory if no file is found
+
 
 def check_invalid_coordinates(graph):
     """
@@ -1489,7 +1563,8 @@ def analyze_osm_pbf(file_path, num_top_values=10):
             'count': total,
             'unique_values': len(counter),
             'top_values': dict(counter.most_common(num_top_values)),
-            'percent_present': round(total / handler.total_ways * 100, 2) if handler.total_ways > 0 else 0
+            'percent_present':
+                round(total / handler.total_ways * 100, 2) if handler.total_ways > 0 else 0
         }
 
     # Sort way stats by frequency
@@ -1507,7 +1582,8 @@ def analyze_osm_pbf(file_path, num_top_values=10):
             'count': total,
             'unique_values': len(counter),
             'top_values': dict(counter.most_common(num_top_values)),
-            'percent_present': round(total / handler.total_nodes * 100, 2) if handler.total_nodes > 0 else 0
+            'percent_present':
+                round(total / handler.total_nodes * 100, 2) if handler.total_nodes > 0 else 0
         }
 
     # Sort node stats by frequency
@@ -1525,7 +1601,8 @@ def analyze_osm_pbf(file_path, num_top_values=10):
             'count': total,
             'unique_values': len(counter),
             'top_values': dict(counter.most_common(num_top_values)),
-            'percent_present': round(total / handler.total_relations * 100, 2) if handler.total_relations > 0 else 0
+            'percent_present':
+                round(total / handler.total_relations * 100, 2) if handler.total_relations > 0 else 0
         }
 
     # Sort relation stats by frequency
@@ -1543,7 +1620,8 @@ def analyze_osm_pbf(file_path, num_top_values=10):
             'count': total,
             'unique_values': len(counter),
             'top_values': dict(counter.most_common(num_top_values)),
-            'percent_present': round(total / (handler.total_ways + handler.total_nodes + handler.total_relations) * 100, 2)
+            'percent_present':
+                round(total / (handler.total_ways + handler.total_nodes + handler.total_relations) * 100, 2)
         }
 
     # Sort other_tags stats by frequency
@@ -1680,6 +1758,3 @@ if __name__ == "__main__":
         main()
     else:
         main(sys.argv[1])
-
-
-
