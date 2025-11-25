@@ -5,6 +5,7 @@ from collections import Counter, defaultdict
 from statistics import mean
 from statistics import median
 import re
+import math  # Import math for isnan check
 
 import geopandas as gpd
 import networkx as nx
@@ -31,6 +32,69 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, parent_dir)
 
+
+# =========================================================================
+# CUSTOM AGGREGATION FUNCTIONS FOR GRAPH SIMPLIFICATION
+# =========================================================================
+
+def most_restrictive_bool_str(values):
+    """Returns "no" if any value is "no", otherwise returns "yes" (or True/False logic)."""
+    # Filters out None/NaN/empty strings, converts booleans/numbers to strings for safety
+    valid_values = [str(v).strip().lower() for v in values if pd.notna(v) and str(v).strip()]
+    if not valid_values:
+        return None
+
+    # If any value is a clear restriction, enforce restriction.
+    return "no" if "no" in valid_values or "false" in valid_values or "0" in valid_values else "yes"
+
+
+def min_numeric_or_string(values):
+    """
+    Finds the minimum numeric value from a list, ignoring non-numeric strings.
+    If no numeric value is found, returns the first non-NaN string.
+    Used for 'maxweight' where the minimum constraint is the most restrictive.
+    """
+    numeric_values = []
+    first_string = None
+
+    for v in values:
+        if pd.isna(v):
+            continue
+
+        try:
+            # Try to convert to float (handles strings like "1000")
+            numeric_v = float(v)
+            if not math.isnan(numeric_v):
+                numeric_values.append(numeric_v)
+        except (ValueError, TypeError):
+            # If conversion fails, it's a string (e.g., "30 tons" or "5000 kg").
+            # For maxweight, the standard tag processing should have converted this earlier.
+            if first_string is None and isinstance(v, str):
+                first_string = v
+            continue
+
+    if numeric_values:
+        return min(numeric_values)
+
+    # Fallback: if no valid numeric value, return the first encountered string (e.g., "5000 kg")
+    return first_string if first_string is not None else None
+
+
+def first_valid_value(values):
+    """
+    Returns the first non-NaN, non-empty value encountered.
+    Used for dimensions like 'maxheight', 'maxwidth' where a single value is sufficient
+    and aggregation is complex.
+    """
+    for v in values:
+        if pd.notna(v) and str(v).strip():
+            return v
+    return None
+
+
+# =========================================================================
+# helper functions
+# =========================================================================
 
 def process_ferry_edges(ferry_graph) -> nx.MultiDiGraph:
     """Process ferry edges to make them compatible with car network"""
@@ -260,7 +324,7 @@ def standardize_motor_vehicle(value):
     # Define restrictive values
     restrictive_values = {"no", "false", "0"}
 
-    # If value is None, NaN, or empty, assume motor vehicles are allowed
+    # If value is None or empty, assume motor vehicles are allowed
     if value is None or pd.isna(value) or (isinstance(value, str) and not value.strip()):
         return "yes"
 
@@ -366,7 +430,7 @@ def standardize_access(value):
     # Define restrictive values - values that indicate restricted access
     restrictive_values = {"no", "false", "0"}
 
-    # If value is None, NaN, or empty, assume access is allowed
+    # If value is None or empty, assume access is allowed
     if value is None or pd.isna(value) or (isinstance(value, str) and not value.strip()):
         return "yes"
 
@@ -1026,7 +1090,7 @@ def _promote_tags_from_other_tags(G: nx.MultiDiGraph) -> nx.MultiDiGraph:
     # Initialize missing columns
     for tag in CRITICAL_TAGS:
         if tag not in edges.columns:
-            edges[tag] = pd.NA
+            edges.loc[:, tag] = pd.NA
 
     # Map function to safely extract values from the HStore string
     def get_tag_value(other_tags_str, target_tag):
@@ -1035,6 +1099,7 @@ def _promote_tags_from_other_tags(G: nx.MultiDiGraph) -> nx.MultiDiGraph:
 
         # Robust regex pattern for HStore format: "key"=>"value"
         # It handles potential escaped quotes within the value itself.
+        # Note: The 'other_tags' column from OSMnx is typically already simplified, but we treat it as HStore.
         pattern = rf'"{re.escape(target_tag)}"\s*=>\s*"((?:\\.|[^"])*)"'
 
         match = re.search(pattern, other_tags_str)
@@ -1055,15 +1120,11 @@ def _promote_tags_from_other_tags(G: nx.MultiDiGraph) -> nx.MultiDiGraph:
         )
 
         # Only update the primary column where it is currently missing (NaN, None, or empty string)
-        # Use .mask() to conditionally update: keep existing value unless it's missing/NA AND the promoted value exists.
-
+        # Use .loc[] for reliable indexing and assignment
         is_missing = edges[tag].isna() | (edges[tag].astype(str).str.strip() == '')
 
         # Condition to overwrite: primary tag is missing AND promoted value is found
-        edges[tag] = edges[tag].mask(
-            is_missing & promoted_values.notna(),
-            promoted_values
-        )
+        edges.loc[is_missing & promoted_values.notna(), tag] = promoted_values.loc[is_missing & promoted_values.notna()]
 
     print(f"✓ Promoted {len(CRITICAL_TAGS)} critical tags.")
 
@@ -1245,15 +1306,15 @@ def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, 
             "oneway": yes_no_all,
             "access": yes_no_all,
             "reversed": bool_all,
-            "maxweight": min,
-            'bridge': 'first',
-            'tunnel': 'first',
+            "maxweight": min_numeric_or_string,
+            'bridge': first_valid_value,
+            'tunnel': first_valid_value,
             'foot': yes_no_all,
             'bicycle': yes_no_all,
-            'sidewalk': 'first',
-            'cycleway': 'first',
-            'maxheight': 'first',
-            'maxwidth': 'first',
+            'sidewalk': first_valid_value,
+            'cycleway': first_valid_value,
+            'maxheight': min_numeric_or_string,
+            'maxwidth': min_numeric_or_string,
             'motor_vehicle': yes_no_all,
         }
     )
@@ -1691,6 +1752,9 @@ def check_duplicate_edge_ids(edges_gdf, id_column='edge_id'):
     Returns:
     --------
     tuple
+        (has_duplicates, duplicate_info) where:
+        - has_invalid: boolean indicating if any invalid coordinates were found
+        - invalid_nodes: list of node IDs with invalid coordinates
         (has_duplicates, duplicate_info) where:
         - has_duplicates: Boolean indicating if duplicates were found
         - duplicate_info: DataFrame containing the duplicate IDs and their counts

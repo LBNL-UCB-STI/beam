@@ -88,28 +88,7 @@ def download_and_build_network(study_area_config):
 
     # Create OSM Network
     print(f"Creating OSM Network...")
-
-    # --- START OF MODIFICATION: Filtering short links to eliminate congestion sinks ---
-    # 1. Define the minimum acceptable link length
-    MIN_LINK_LENGTH_M = 2.0
-    initial_edge_count = len(edges)
-
-    # Note: 'length' column must exist after download_and_prepare_osm_network
-    if 'length' in edges.columns:
-        # Filter for links greater than or equal to the minimum length
-        long_edges = edges[edges['length'] >= MIN_LINK_LENGTH_M].copy()
-        removed_count = initial_edge_count - len(long_edges)
-
-        # Update the edges GeoDataFrame
-        edges = long_edges
-
-        print(f"Removed {removed_count} edges shorter than {MIN_LINK_LENGTH_M}m to clean up network.")
-        print(f"Note: If many nodes were disconnected, consider reducing the length threshold.")
-    else:
-        print("Warning: 'length' column not found, skipping short link removal.")
-
-    # --- END OF MODIFICATION ---
-
+    nodes, edges = ox.graph_to_gdfs(g_network)
     edges = edges.drop([
         'u_original', 'v_original', 'merged_edges', 'osmid'
     ], axis=1, errors='ignore')
