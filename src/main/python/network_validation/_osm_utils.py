@@ -1096,13 +1096,11 @@ def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, 
     state_fips_code = _area_config["state_fips"]
     county_fips_codes = _area_config["county_fips"]
     tolerance = _network_config["tolerance"]
-    min_link_length_in_meter = _network_config["min_link_length_in_meter"]
     utm_epsg = _geo_config["utm_epsg"]
     should_strongly_connect = _network_config.get("strongly_connected_components", False)
 
     # --- START CACHING LOGIC ---
     # Define a unique cache path for the raw combined graph (before projection/processing)
-    config_name_hash = hashlib.md5(str(_network_config).encode()).hexdigest()[:8]
     raw_graph_cache_path = os.path.join(work_dir, 'network', f'raw_osm_graph_{study_area}.pkl')
 
     g_combined = None
@@ -1237,11 +1235,6 @@ def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, 
     g_projected = project_graph(g_combined, to_crs=utm_epsg)
     print("✓ Network projected to UTM")
 
-    # Recalculate edge lengths using the projected planar UTM coordinates.
-    print("Recalculating edge lengths based on UTM projection...")
-    g_projected = ox.distance.add_edge_lengths(g_projected)
-    print("✓ Edge lengths recalculated in meters")
-
     # Add edge speeds
     print("Adding edge speeds...")
     g_with_speeds = ox.add_edge_speeds(g_projected)
@@ -1294,26 +1287,6 @@ def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, 
         }
     )
     print("✓ Network simplified")
-
-    # --- Filtering short links to eliminate congestion sinks ---
-    nodes_temp, edges_temp = ox.graph_to_gdfs(g_simplified)
-
-    # Define the minimum acceptable link length
-    initial_edge_count = len(edges_temp)
-
-    # Filter for links greater than or equal to the minimum length
-    if 'length' in edges_temp.columns:
-        long_edges = edges_temp[edges_temp['length'] >= min_link_length_in_meter].copy()
-        removed_count = initial_edge_count - len(long_edges)
-
-        # Rebuild graph from filtered edges
-        g_simplified = ox.graph_from_gdfs(nodes_temp, long_edges)
-
-        print(f"Removed {removed_count} edges shorter than {min_link_length_in_meter}m to eliminate congestion sinks.")
-        print(f"Graph rebuilt after filtering. Edges: {g_simplified.number_of_edges()}")
-    else:
-        print("Warning: 'length' column not found in edges, skipping short link removal.")
-    # ------
 
     # Create unique edge IDs
     nodes, edges = ox.graph_to_gdfs(g_simplified)

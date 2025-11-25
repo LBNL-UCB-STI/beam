@@ -335,12 +335,19 @@ def _append_merged_edge_attrs(xml_edge, sample_edge, all_edges_df, edge_tags, ed
 
         for tag, agg in edge_tag_aggs:
             if tag in all_edges_df.columns:
+                agg_value = all_edges_df[tag].aggregate(agg)
+                # Format numeric values to avoid scientific notation
+                if isinstance(agg_value, (int, float, np.number)):
+                    value_str = f"{float(agg_value):.6f}".rstrip('0').rstrip('.')
+                else:
+                    value_str = str(agg_value)
+
                 ET.SubElement(
                     xml_edge,
                     "tag",
                     attrib={
                         "k": tag,
-                        "v": str(all_edges_df[tag].aggregate(agg)),
+                        "v": value_str,
                     },
                 )
 
