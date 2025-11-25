@@ -1002,7 +1002,8 @@ def project_graph(G: nx.MultiDiGraph, to_crs=None, to_latlong=False) -> nx.Multi
     return G_proj
 
 
-def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, _geo_config: dict, work_dir) -> nx.MultiDiGraph:
+def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, _geo_config: dict,
+                                     work_dir) -> nx.MultiDiGraph:
     """Download and prepare OSM network based on study area configuration."""
     print("=== Starting OSM Network Download and Preparation ===")
 
@@ -1021,6 +1022,7 @@ def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, 
     state_fips_code = _area_config["state_fips"]
     county_fips_codes = _area_config["county_fips"]
     tolerance = _network_config["tolerance"]
+    min_link_length_in_meter = _network_config["min_link_length_in_meter"]
     utm_epsg = _geo_config["utm_epsg"]
     should_strongly_connect = _network_config.get("strongly_connected_components", False)
 
@@ -1039,7 +1041,7 @@ def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, 
             state_fips_code=state_fips_code,
             county_fips_codes=county_fips_codes,
             year=census_year,
-            area_name = study_area,
+            area_name=study_area,
             geo_level=geo_level,
             work_dir=work_dir
         )
@@ -1131,6 +1133,11 @@ def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, 
     g_projected = project_graph(g_combined, to_crs=utm_epsg)
     print("✓ Network projected to UTM")
 
+    # Recalculate edge lengths using the projected planar UTM coordinates
+    print("Recalculating edge lengths based on UTM projection...")
+    g_projected = ox.distance.add_edge_lengths(g_projected)
+    print("✓ Edge lengths recalculated in meters")
+
     # Add edge speeds
     print("Adding edge speeds...")
     g_with_speeds = ox.add_edge_speeds(g_projected)
@@ -1174,6 +1181,26 @@ def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, 
         }
     )
     print("✓ Network simplified")
+
+    # --- Filtering short links to eliminate congestion sinks ---
+    nodes_temp, edges_temp = ox.graph_to_gdfs(g_simplified)
+
+    # Define the minimum acceptable link length (2.0 meters is safe for removing sink links)
+    initial_edge_count = len(edges_temp)
+
+    # Filter for links greater than or equal to the minimum length
+    if 'length' in edges_temp.columns:
+        long_edges = edges_temp[edges_temp['length'] >= min_link_length_in_meter].copy()
+        removed_count = initial_edge_count - len(long_edges)
+
+        # Rebuild graph from filtered edges
+        g_simplified = ox.graph_from_gdfs(nodes_temp, long_edges)
+
+        print(f"Removed {removed_count} edges shorter than {min_link_length_in_meter}m to eliminate congestion sinks.")
+        print(f"Graph rebuilt after filtering. Edges: {g_simplified.number_of_edges()}")
+    else:
+        print("Warning: 'length' column not found in edges, skipping short link removal.")
+    # ------
 
     # Create unique edge IDs
     nodes, edges = ox.graph_to_gdfs(g_simplified)

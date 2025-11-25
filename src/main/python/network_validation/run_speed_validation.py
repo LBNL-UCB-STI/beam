@@ -584,6 +584,15 @@ def main():
     """
     # Base configuration (common across all runs)
     study_area = "seattle"
+    iteration = 3
+    batch = "calibration--jdeq--20251120"
+    runs = [
+                ("seattle-pilates-calibration--jdeq--cbg120fwc--FC07-0--testing-docker-20251120-192525", iteration),
+                ("seattle-pilates-calibration--jdeq--cbg120fwc--FC08-0-20251120-181657", iteration),
+                ("seattle-pilates-calibration--jdeq--cbg120fwc--FC08-5-20251120-165256", iteration),
+                ("seattle-pilates-calibration--jdeq--cbg120fwc--FC09-0-20251120-175817", iteration),
+                ("seattle-pilates-calibration--jdeq--cbg120fwc--FC10-0-20251120-153918", iteration)
+            ]
     peak_hour = 8
     do_link_speed_validation = True
     do_network_speed_validation = True
@@ -592,18 +601,11 @@ def main():
 
     work_dir = os.path.expanduser(f"~/Workspace/Simulation/{study_area}")
     if study_area == "sfbay":
-        iteration = 3
         base_configs = {
             "study_area": study_area,
             "work_dir": work_dir,
-            "batch": "calibration--jdeq--20251106",
-            "runs": [
-                # ("seattle-pilates-calibration--jdeq--cbg120fwc--FC07-0-20251114-154028", iteration),
-                # ("seattle-pilates-calibration--jdeq--cbg120fwc--FC07-5-20251114-154131", iteration),
-                # ("seattle-pilates-calibration--jdeq--cbg120fwc--FC08-0-20251114-154333", iteration),
-                ("seattle-pilates-calibration--jdeq--cbg120fwc--FC08-5-20251117-165524", iteration),
-                # ("seattle-pilates-calibration--jdeq--cbg120fwc--FC09-0-20251114-170040", iteration)
-            ],
+            "batch": batch,
+            "runs": runs,
             "state_fips": "06",
             "county_fips": ['001', '013', '041', '055', '075', '081', '085', '095', '097'],
             "census_year": 2018,
@@ -614,18 +616,11 @@ def main():
             "network_csv": f"{work_dir}/network/sfbay-area-cbg5500-network/network.csv.gz",
         }
     elif study_area == "seattle":
-        iteration = 3
         base_configs = {
             "study_area": study_area,
             "work_dir": work_dir,
-            "batch": "calibration--jdeq--20251117",
-            "runs": [
-                # ("seattle-pilates-calibration--jdeq--cbg120fwc--FC07-0-20251114-154028", iteration),
-                # ("seattle-pilates-calibration--jdeq--cbg120fwc--FC07-5-20251114-154131", iteration),
-                # ("seattle-pilates-calibration--jdeq--cbg120fwc--FC08-0-20251114-154333", iteration),
-                ("seattle-pilates-calibration--jdeq--cbg120fwc--FC08-5-20251117-165524", iteration),
-                # ("seattle-pilates-calibration--jdeq--cbg120fwc--FC09-0-20251114-170040", iteration)
-            ],
+            "batch": batch,
+            "runs": runs,
             "state_fips": "53",
             "county_fips": ["061", "033", "035", "053"],
             "census_year": 2018,
