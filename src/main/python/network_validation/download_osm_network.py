@@ -89,23 +89,12 @@ def download_and_build_network(study_area_config):
     # Create OSM Network
     print(f"Creating OSM Network...")
 
-    edges = edges.drop([
-        'u_original', 'v_original', 'merged_edges', 'osmid'
-    ], axis=1, errors='ignore')
-    nodes = nodes.drop([
-        'osmid_original'
-    ], axis=1, errors='ignore')
-
-    # Normalize oneway tag values for BEAM compatibility
-    if 'oneway' in edges.columns:
-        edges['oneway'] = edges['oneway'].astype(str).str.lower()
-        # Map non-standard values to standard BEAM-compatible values
-        edges['oneway'] = edges['oneway'].replace({
-            'reverse': '-1',
-            'true': 'yes',
-            '-1.0': '-1',
-            '1.0': 'yes'
-        })
+    # edges = edges.drop([
+    #     'u_original', 'v_original', 'merged_edges', 'osmid'
+    # ], axis=1, errors='ignore')
+    # nodes = nodes.drop([
+    #     'osmid_original'
+    # ], axis=1, errors='ignore')
 
     g_osm = ox.graph_from_gdfs(nodes, edges, graph_attrs=g_network.graph)
     save_graph_xml(
@@ -132,7 +121,9 @@ def download_and_build_network(study_area_config):
     subprocess.run(cmd, shell=True, check=True)
     print(f"OSM PBF File saved to '{pbf_network}'")
 
-    cmd2 = f'ogr2ogr -f GeoJSON "{geojson_network}" "{pbf_network}" lines'
+    # Use the configuration file with ogr2ogr
+    osm_conf_path = f'{current_dir}/_osm_conf.ini'
+    cmd2 = f'ogr2ogr -f GeoJSON "{geojson_network}" "{pbf_network}" lines --config OSM_CONFIG_FILE "{osm_conf_path}"'
     subprocess.run(cmd2, shell=True, check=True)
     print(f"OSM GEOJSON File saved to '{geojson_network}'")
 

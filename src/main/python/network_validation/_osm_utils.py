@@ -1,12 +1,11 @@
 import hashlib
+import math
 import os
+import pickle
 import sys
 from collections import Counter, defaultdict
 from statistics import mean
 from statistics import median
-import re
-import math  # Import math for isnan check
-import pickle  # Import pickle for caching
 
 import geopandas as gpd
 import networkx as nx
@@ -15,10 +14,10 @@ import osmnx as ox
 import pandas as pd
 import pyproj
 import shapely.geometry
+from networkx.algorithms import strongly_connected_components
+from networkx.algorithms import weakly_connected_components
 from osmnx import settings
 from shapely.ops import unary_union
-from networkx.algorithms import weakly_connected_components
-from networkx.algorithms import strongly_connected_components
 
 from _data_collection_utils import collect_census_data
 from _data_collection_utils import collect_geographic_boundaries
@@ -554,6 +553,16 @@ def process_tags(_g: nx.MultiDiGraph, config: dict) -> nx.MultiDiGraph:
         # If maxlength is set, assume heavy vehicles are restricted
         length_restricted_mask = ~edges["maxlength"].isna()
         edges.loc[length_restricted_mask, "hgv"] = False
+
+    if 'oneway' in edges.columns:
+        edges['oneway'] = edges['oneway'].astype(str).str.lower()
+        # Map non-standard values to standard BEAM-compatible values
+        edges['oneway'] = edges['oneway'].replace({
+            'reverse': '-1',
+            'true': 'yes',
+            '-1.0': '-1',
+            '1.0': 'yes'
+        })
 
     # Ensure hgv, mdv and oneway are strictly boolean
     edges["hgv"] = edges["hgv"].astype(bool)
