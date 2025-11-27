@@ -91,7 +91,6 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
         updateEarliestDepartureTimeOfCar(nextAvailableTimeForLeavingStreet);
 
-        //System.out.println("enterRoad:" + link.getId() + "; vehicle:" + vehicle.getOwnerPerson().getId());
         latestTimeToLeaveRoad.put(vehicle, simTime + link.getLength() / minimumRoadSpeedInMetersPerSecond);
 
         if (this.carsOnTheRoad.size() == 1) {
@@ -99,6 +98,15 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
             nextAvailableTimeForLeavingStreet = Math.max(nextAvailableTimeForLeavingStreet, lastTimeLEavingPlusInverseCapacity);
 
             nextAvailableTimeForLeavingStreet += getAdditionalTravelTime(simTime);
+
+            // NOTE: This constraint enforces minimum speed limits to prevent vehicles from staying on links
+            // longer than physically possible, which is particularly important during early equilibrium iterations
+            // when the network is far from relaxed. While this may override capacity-based delays in extreme
+            // congestion, LinkStats can detect and flag links operating at exactly minimum speed if needed.
+            // WARNING: This physical constraint takes precedence over flow capacity calculations. Monitor for
+            // potential impacts on congestion modeling accuracy, especially in scenarios with severe bottlenecks.
+            double maxDepartureTime = this.latestTimeToLeaveRoad.get(vehicle);
+            nextAvailableTimeForLeavingStreet = Math.min(nextAvailableTimeForLeavingStreet, maxDepartureTime);
 
             vehicle.scheduleEndRoadMessage(nextAvailableTimeForLeavingStreet, this);
         }
@@ -167,6 +175,15 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
                     this.timeOfLastLeavingVehicle + getInverseCapacity(vehicle, simTime));
 
             nextAvailableTimeForLeavingStreet += getAdditionalTravelTime(simTime);
+
+            // NOTE: This constraint enforces minimum speed limits to prevent vehicles from staying on links
+            // longer than physically possible, which is particularly important during early equilibrium iterations
+            // when the network is far from relaxed. While this may override capacity-based delays in extreme
+            // congestion, LinkStats can detect and flag links operating at exactly minimum speed if needed.
+            // WARNING: This physical constraint takes precedence over flow capacity calculations. Monitor for
+            // potential impacts on congestion modeling accuracy, especially in scenarios with severe bottlenecks.
+            double maxDepartureTime = this.latestTimeToLeaveRoad.get(nextVehicle);
+            nextAvailableTimeForLeavingStreet = Math.min(nextAvailableTimeForLeavingStreet, maxDepartureTime);
 
             nextVehicle.scheduleEndRoadMessage(nextAvailableTimeForLeavingStreet, this);
         }

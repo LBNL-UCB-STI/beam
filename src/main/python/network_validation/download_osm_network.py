@@ -51,14 +51,6 @@ def download_and_build_network(study_area_config):
         work_dir
     )
 
-    # Check for duplicate edge IDs
-    nodes, edges = ox.graph_to_gdfs(g_network)
-    has_duplicates, duplicate_info = check_duplicate_edge_ids(edges, 'edge_id')
-
-    if has_duplicates:
-        dup_counts, dup_examples = duplicate_info
-        print(f"\nFound {sum(dup_counts.values())} duplicate edge IDs")
-
     # Save GraphML and PKL formats
     ox.save_graphml(g_network, filepath=graphml_network)
     print(f"GRAPHML Network saved to '{graphml_network}'.")

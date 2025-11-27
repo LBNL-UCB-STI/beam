@@ -65,9 +65,6 @@ public class R5MnetBuilder {
         EdgeStore.Edge cursor = r5Network.streetLayer.edgeStore.getCursor();  // Iterator of edges in R5 network
         OsmToMATSim OTM = new OsmToMATSim(mNetwork, true, highwaySetting.speedsMeterPerSecondMap, highwaySetting.capacityMap, highwaySetting.lanesMap, highwaySetting.alphaMap, highwaySetting.betaMap);
 
-        int numberOfFixes = 0;
-        HashMap<String, Integer> highwayTypeToCounts = new HashMap<>();
-
         while (cursor.advance()) {
 //            log.debug("Edge Index:{}. Cursor {}.", cursor.getEdgeIndex(), cursor);
             // TODO - eventually, we should pass each R5 link to OsmToMATSim and do the two-way handling there.
@@ -114,18 +111,37 @@ public class R5MnetBuilder {
                 log.debug("Created regular link: {}", link);
             }
             if (fromNode.getId() == toNode.getId()) {
-                cursor.setLengthMm(1);
-                cursor.setSpeed((short) 2905); // 65 miles per hour
-                link.setLength(0.001);
-                link.setCapacity(10000);
-                link.setFreespeed(29.0576);   // 65 miles per hour
-                numberOfFixes += 1;
+                // Self-loops should NEVER reach this point if data pipeline is working correctly.
+                // This is a final assertion that:
+                // 1. Python's validate_graph_topology() removed self-loops during OSM export
+                // 2. R5's makeEdge() check caught any remaining corrupt OSM data
+                //
+                // If this exception fires, it means BOTH defenses failed - investigate immediately!
+
+                throw new RuntimeException(String.format(
+                        "CRITICAL: Self-loop detected in MATSim network conversion!\n" +
+                                "  OSM way: %d\n" +
+                                "  R5 vertices: %d -> %d (SAME VERTEX)\n" +
+                                "  MATSim node: %d -> %d (SAME NODE)\n" +
+                                "  Edge index: %d\n" +
+                                "  Length reported: %.3fm\n" +
+                                "\n" +
+                                "This indicates a data pipeline failure. Check:\n" +
+                                "  1. Did Python's validate_graph_topology() run during OSM export?\n" +
+                                "  2. Did R5's makeEdge() check fail to catch corrupt OSM data?\n" +
+                                "  3. Is there a new edge-splitting bug creating duplicate vertices?\n" +
+                                "\n" +
+                                "DO NOT run simulations with this network - it is corrupted.",
+                        osmID,
+                        cursor.getFromVertex(),
+                        cursor.getToVertex(),
+                        fromNode.getId(),
+                        toNode.getId(),
+                        cursor.getEdgeIndex(),
+                        cursor.getLengthM()
+                ));
             }
         }
-        if (numberOfFixes > 0) {
-            log.warn("Fixed {} links which were having the same `fromNode` and `toNode`", numberOfFixes);
-        }
-
     }
 
     private Link buildLink(Integer edgeIndex, Set<String> flagStrings, double length, Node fromNode, Node toNode) {

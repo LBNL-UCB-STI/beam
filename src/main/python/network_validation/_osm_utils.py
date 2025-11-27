@@ -1076,6 +1076,84 @@ def project_graph(G: nx.MultiDiGraph, to_crs=None, to_latlong=False) -> nx.Multi
     return G_proj
 
 
+def validate_graph_topology(G):
+    """
+    Validate graph topology and fix common issues.
+
+    Fixes:
+    - Self-loop edges (u == v) - often from OSMnx bugs
+    - Isolated nodes (nodes with no edges)
+
+    Parameters
+    ----------
+    G : networkx.MultiDiGraph
+        Input graph
+
+    Returns
+    -------
+    G : networkx.MultiDiGraph
+        Validated and fixed graph
+    stats : dict
+        Dictionary of validation statistics
+    """
+    stats = {
+        'original_nodes': G.number_of_nodes(),
+        'original_edges': G.number_of_edges(),
+        'self_loops_removed': 0,
+        'isolated_nodes_removed': 0,
+        'parallel_edges': 0
+    }
+
+    print("\n=== Validating Network Topology ===")
+
+    # 1. Remove self-loops (u == v)
+    self_loops = list(nx.selfloop_edges(G))
+    if self_loops:
+        print(f"⚠ Found {len(self_loops)} self-loop edges (same node as start and end)")
+
+        # Show examples
+        for u, v in self_loops[:3]:  # Unpack only u and v
+            edge_data = G[u][v]  # No need for key since we know u == v for self-loops
+            print(f"    Example: Node {u} -> {u}, "
+                  f"length={edge_data.get('length', 'N/A')}m, "
+                  f"highway={edge_data.get('highway', 'N/A')}")
+        if len(self_loops) > 3:
+            print(f"    ... and {len(self_loops) - 3} more")
+
+        G.remove_edges_from(self_loops)
+        stats['self_loops_removed'] = len(self_loops)
+        print(f"✓ Removed {len(self_loops)} self-loop edges")
+    else:
+        print("✓ No self-loop edges found")
+
+    # 2. Remove isolated nodes
+    isolated = list(nx.isolates(G))
+    if isolated:
+        print(f"ℹ️  Found {len(isolated)} isolated nodes (no edges)")
+        G.remove_nodes_from(isolated)
+        stats['isolated_nodes_removed'] = len(isolated)
+        print(f"✓ Removed {len(isolated)} isolated nodes")
+    else:
+        print("✓ No isolated nodes found")
+
+    # 3. Count parallel edges (just informational)
+    parallel_count = sum(1 for u, v in G.edges() if G.number_of_edges(u, v) > 1)
+    stats['parallel_edges'] = parallel_count
+    if parallel_count > 0:
+        print(f"ℹ Found {parallel_count} parallel edges (this is normal for bidirectional roads)")
+
+    stats['final_nodes'] = G.number_of_nodes()
+    stats['final_edges'] = G.number_of_edges()
+
+    print(f"\nValidation Summary:")
+    print(f"  Before: {stats['original_nodes']} nodes, {stats['original_edges']} edges")
+    print(f"  After:  {stats['final_nodes']} nodes, {stats['final_edges']} edges")
+    print(f"  Removed: {stats['self_loops_removed']} self-loops, {stats['isolated_nodes_removed']} isolated nodes")
+    print("=" * 50)
+
+    return G, stats
+
+
 def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, _geo_config: dict,
                                      work_dir) -> nx.MultiDiGraph:
     """Download and prepare OSM network based on study area configuration."""
@@ -1322,8 +1400,24 @@ def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, 
     g_osm = nx.MultiDiGraph(g_connected.subgraph(largest_scc).copy())
     print(f"After island removal: {g_osm.number_of_nodes()} nodes")
 
+    # Validate and fix topology BEFORE any file operations
+    g_network, validation_stats = validate_graph_topology(g_osm)
+
+    # Alert if issues were found
+    if validation_stats['self_loops_removed'] > 0:
+        print(f"\nIMPORTANT: Fixed {validation_stats['self_loops_removed']} corrupt self-loop edges")
+        print("   These were OSMnx bugs. Your exported network will now be clean.\n")
+
+    # Check for duplicate edge IDs
+    nodes, edges = ox.graph_to_gdfs(g_network)
+    has_duplicates, duplicate_info = check_duplicate_edge_ids(edges, 'edge_id')
+
+    if has_duplicates:
+        dup_counts, dup_examples = duplicate_info
+        print(f"\nFound {sum(dup_counts.values())} duplicate edge IDs")
+
     print("=== Network Download and Preparation Complete ===")
-    return g_osm
+    return g_network
 
 
 def scan_network_directories_for_ways(directory):
