@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure
 
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.sim.config.BeamConfig
 import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
@@ -70,11 +70,13 @@ object GeometryPerformance {
   private def loadData: (TAZTreeMap, Vector[ParallelParkingManager.ParkingCluster], QuadTreeBounds) = {
     val beamHome = System.getProperty("beam.home", ".")
     println("beamHome = " + Paths.get(beamHome).toAbsolutePath)
-    val tazMap = taz.TAZTreeMap.fromCsv(s"$beamHome/test/input/sf-bay/taz-centers.csv")
     val configLocation = "test/input/sf-light/sf-light-1k.conf"
     val baseConfigUnresolved = ConfigFactory.parseString("config=" + configLocation)
     val baseConfig = baseConfigUnresolved.resolve()
     val beamConfig = BeamConfig(baseConfig)
+    val tazMap =
+      TAZTreeMap(s"$beamHome/test/input/sf-bay/taz-centers.csv", scenarioCRS = beamConfig.beam.spatial.localCRS)
+
     val stalls = InfrastructureUtils.loadStalls(
       s"$beamHome/test/input/sf-bay/parking/taz-parking-unlimited-fast-limited-l2-150-baseline.csv",
       IndexedSeq(),

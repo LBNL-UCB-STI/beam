@@ -3,9 +3,10 @@ Configuration file for study area settings used in OSM network download and proc
 This file contains all the parameters needed to define a study area and its network characteristics.
 """
 import os
+
 import osmnx as ox
-from osmnx import settings
 import pandas as pd
+
 
 #############################
 ########## Methods ##########
@@ -51,15 +52,21 @@ def generate_network_name(config: dict) -> str:
     # Get residential geographic level and density
     if "residential" in layers:
         density_value = str(layers["residential"]["min_density_per_km2"])
-        residential_geo_level = f"-{layers["residential"]["geo_level"]}{density_value}"
+        residential_geo_level = f"-{layers['residential']['geo_level']}{density_value}"
     else:
         residential_geo_level = ""
+
+    strongly_connected_components = config["network"]["strongly_connected_components"]
+    if strongly_connected_components:
+        connection_label = "strong"
+    else:
+        connection_label = "weak"
 
     # Ferry suffix
     ferry_suffix = "-ferry" if "ferry" in layers else ""
 
     # Combine all parts
-    return f"{study_area}-area{residential_geo_level}{ferry_suffix}-network"
+    return f"{study_area}-area{residential_geo_level}{ferry_suffix}-{connection_label}Conn-network"
 
 
 def create_osm_highway_filter(highway_types):
@@ -189,8 +196,12 @@ constants = {
     "meters_per_mile": 1609.34 # Conversion factor from miles to meters
 }
 
+osm_residential = ["residential"]
+
 osm_highways = ["motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary",
-                "secondary_link", "tertiary", "tertiary_link", "unclassified", "residential"]
+                "secondary_link", "tertiary", "tertiary_link", "unclassified"]
+
+
 
 osmnx_settings = {
         "log_console": True,
@@ -334,16 +345,17 @@ sfbay_area_config = {
         "weight_limits": weight_limits, # Vehicle weight classifications (FHWA)
         "download_enabled": True, # if download isn't enabled, we read network from disk
         "tolerance": 2,
+        "strongly_connected_components": True,
         "graph_layers": { # Density thresholds and corresponding network filters
             "main": {
                 "geo_level": "county",
-                "custom_filter": create_osm_highway_filter(list(set(osm_highways) - {"residential"})),
+                "custom_filter": create_osm_highway_filter(list(set(osm_highways))),
                 "buffer_zone_in_meters": 200
             },
             "residential": {
                 "min_density_per_km2": 5500,
                 "geo_level": "cbg",
-                "custom_filter": create_osm_highway_filter(osm_highways),
+                "custom_filter": create_osm_highway_filter(list(set(osm_highways) | set(osm_residential))),
                 "buffer_zone_in_meters": 20
             }
             # // California has a higher urbanization rate (94.8% urban vs 80.7% national average)
@@ -541,65 +553,83 @@ sfbay_area_config = {
 ########## Seattle Area #########
 
 seattle_area_config = {
-    # OSMNX settings
-    "osmnx_settings": osmnx_settings,
+    # Base paths
+    "work_dir": os.path.expanduser("~/Workspace/Simulation/seattle"),
 
-    # Vehicle weight classifications (FHWA)
-    "weight_limits": weight_limits,
+    "area": {
+        "name": "seattle",
+        "state_fips": "53",
+        "county_fips": ["061", "033", "035", "053"],
+        "census_year": 2018,
+    },
+
+    "geo": {
+        "utm_epsg": 32048,
+        "taz_shp": "geo/shp/seattle-tazs-epsg-32048.shp",
+        "taz_id": "taz_id",
+        "cbg_id": "GEOID",
+    },
+
+    "network": {
+        "osmnx_settings": osmnx_settings,
+        "weight_limits": weight_limits,  # Vehicle weight classifications (FHWA)
+        "download_enabled": True,  # if download isn't enabled, we read network from disk
+        "tolerance": 2,
+        "strongly_connected_components": False,
+        "graph_layers": {  # Density thresholds and corresponding network filters
+            "main": {
+                "geo_level": "county",
+                "custom_filter": create_osm_highway_filter(list(set(osm_highways))),
+                "buffer_zone_in_meters": 200
+            },
+            "ferry": {
+                "geo_level": "county",
+                "custom_filter": '["route"="ferry"]',
+                "buffer_zone_in_meters": 10000
+            },
+            "residential": {
+                "min_density_per_km2": 0,
+                "geo_level": "cbg",
+                "custom_filter": create_osm_highway_filter(list(set(osm_highways) | set(osm_residential))),
+                "buffer_zone_in_meters": 20
+            }
+            # // Washington has a moderate urbanization rate (84.1% urban vs 80.7% national average)
+            # // https://www.census.gov/quickfacts/fact/table/WA/INC110223
+            # // Washington's urbanization rate is higher than the national average but lower than California's 94.8%
+            # const avgPersonsPerHousehold = 2.51; // WA average household size (slightly higher than national 2.5)
+
+            # // Core density calculation (using similar proportions as national but adjusted for WA household size)
+            # const coreHUDensity = 1275; // National high-density nucleus requirement
+            # const waDensityAdjustment = 2.51 / 2.5; // WA vs national household size ratio
+            # // Calculate WA-adjusted thresholds
+            # const waHighDensityPPSM = coreHUDensity * 2.51;
+            # const waInitialCorePPSM = 425 * 2.51;
+            # const waUrbanExtensionPPSM = 200 * 2.51;
+
+            # // Washington-adjusted density thresholds (persons per square mile):
+            # // densest urban cores, typical of downtown areas in major Washington cities: 3200 ppsm = 1236 ppsk
+            # // High-density nucleus requirement: 3200 ppsm = 1236 ppsk
+            # // Initial core requirement: 1067 ppsm = 412 ppsk
+            # // Urban extension requirement: 502 ppsm = 194 ppsk
+            # // Rural Areas less than 502 people per square mile
+        },
+        "validation": {
+            "npmrds": {
+                "year": 2018,
+                "geo": "validation/npmrds/Washington.shp",
+                "data": "validation/npmrds/al_wa_oct2018_1hr_trucks_pax.csv"
+            }
+        }
+    },
 
     # FastSim routee files
     "fastsim_routee_files": fastsim_routee_files,
 
-    # if download isn't enabled, we read network from disk
-    "download_enabled": True,
+    "freight": {
 
-    # Base paths
-    "work_dir": os.path.expanduser("~/Workspace/Simulation/seattle"),
+    },
 
-    # Geographic settings
-    "study_area": "seattle",
-    "state_fips": "53",
-    "county_fips": ["061", "033", "035", "053"], # ["061", "033", "035", "053"]
-    "census_year": 2018,
-    "utm_epsg": 32048,  #
-    "tolerance": 2,
+    "emissions": {
 
-    # Density thresholds and corresponding network filters
-    "graph_layers": {
-        "main": {
-            "geo_level": "county",
-            "custom_filter": create_osm_highway_filter(list(set(osm_highways) - {"residential"})),
-            "buffer_zone_in_meters": 200
-        },
-        "ferry": {
-            "geo_level": "county",
-            "custom_filter": '["route"="ferry"]',
-            "buffer_zone_in_meters": 10000
-        },
-        "residential": {
-            "min_density_per_km2": 0,
-            "geo_level": "cbg",
-            "custom_filter": create_osm_highway_filter(osm_highways),
-            "buffer_zone_in_meters": 20
-        }
-        # // Washington has a moderate urbanization rate (84.1% urban vs 80.7% national average)
-        # // https://www.census.gov/quickfacts/fact/table/WA/INC110223
-        # // Washington's urbanization rate is higher than the national average but lower than California's 94.8%
-        # const avgPersonsPerHousehold = 2.51; // WA average household size (slightly higher than national 2.5)
-
-        # // Core density calculation (using similar proportions as national but adjusted for WA household size)
-        # const coreHUDensity = 1275; // National high-density nucleus requirement
-        # const waDensityAdjustment = 2.51 / 2.5; // WA vs national household size ratio
-        # // Calculate WA-adjusted thresholds
-        # const waHighDensityPPSM = coreHUDensity * 2.51;
-        # const waInitialCorePPSM = 425 * 2.51;
-        # const waUrbanExtensionPPSM = 200 * 2.51;
-
-        # // Washington-adjusted density thresholds (persons per square mile):
-        # // densest urban cores, typical of downtown areas in major Washington cities: 3200 ppsm = 1236 ppsk
-        # // High-density nucleus requirement: 3200 ppsm = 1236 ppsk
-        # // Initial core requirement: 1067 ppsm = 412 ppsk
-        # // Urban extension requirement: 502 ppsm = 194 ppsk
-        # // Rural Areas less than 502 people per square mile
     }
 }

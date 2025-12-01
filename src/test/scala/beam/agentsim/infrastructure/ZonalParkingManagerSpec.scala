@@ -13,7 +13,7 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ, TAZTreeMap}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
@@ -108,7 +108,8 @@ class ZonalParkingManagerSpec
           xMin = 167000,
           yMin = 0,
           xMax = 833000,
-          yMax = 10000000
+          yMax = 10000000,
+          scenarioCRS = geo.localCRS
         ) // one TAZ at agent coordinate
         config = beamConfig
         emptyParkingDescription: Iterator[String] = Iterator.single(ParkingZoneFileUtils.ParkingFileHeader)
@@ -142,7 +143,8 @@ class ZonalParkingManagerSpec
             xMin = 167000,
             yMin = 0,
             xMax = 833000,
-            yMax = 10000000
+            yMax = 10000000,
+            scenarioCRS = geo.localCRS
           )
           config = beamConfig
           emptyParkingDescription: Iterator[String] = Iterator.single(ParkingZoneFileUtils.ParkingFileHeader)
@@ -186,7 +188,8 @@ class ZonalParkingManagerSpec
           167000,
           0,
           833000,
-          10000000
+          10000000,
+          scenarioCRS = geo.localCRS
         ) // one TAZ at agent coordinate
         config = BeamConfig(system.settings.config)
         oneParkingOption: Iterator[String] = s"""taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,parkingZoneId
@@ -242,7 +245,8 @@ class ZonalParkingManagerSpec
           167000,
           0,
           833000,
-          10000000
+          10000000,
+          scenarioCRS = geo.localCRS
         ) // one TAZ at agent coordinate
         config = BeamConfig(system.settings.config)
         oneParkingOption: Iterator[String] =
@@ -315,7 +319,15 @@ class ZonalParkingManagerSpec
       val results = for {
         _ <- 1 to trials
         numStalls = math.max(4, random.nextInt(maxParkingStalls))
-        tazTreeMap <- ZonalParkingManagerSpec.mockTazTreeMap(tazList, startAtId = 1, 0, 0, 100, 100)
+        tazTreeMap <- ZonalParkingManagerSpec.mockTazTreeMap(
+          tazList,
+          startAtId = 1,
+          0,
+          0,
+          100,
+          100,
+          scenarioCRS = geo.localCRS
+        )
         split = ZonalParkingManagerSpec.randomSplitOfMaxStalls(numStalls, 4, random)
         parkingConfiguration: Iterator[String] = ZonalParkingManagerSpec.makeParkingConfiguration(split)
         config = BeamConfig(system.settings.config)
@@ -359,7 +371,7 @@ class ZonalParkingManagerSpec
 
       Using.resource(Source.fromFile("test/input/beamville/parking/taz-parking.csv")) { source =>
         val parkingDescription: Iterator[String] = source.getLines()
-        val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
+        val tazMap = taz.TAZTreeMap("test/input/beamville/taz-centers.csv", scenarioCRS = geo.localCRS)
         val zpm = ZonalParkingManager(
           parkingDescription,
           tazMap,
@@ -425,7 +437,7 @@ class ZonalParkingManagerSpec
           |4,Public,Block,NoCharger,20,0,Class456Vocational|0-17:30;Car|17:31-23:59,,b""".stripMargin
           .split("\n")
           .toIterator
-      val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
+      val tazMap = taz.TAZTreeMap("test/input/beamville/taz-centers.csv", scenarioCRS = geo.localCRS)
       val zpm = ZonalParkingManager(
         parkingDescription,
         tazMap,
@@ -460,7 +472,7 @@ class ZonalParkingManagerSpec
           |4,Public,Block,NoCharger,1,0,,,b""".stripMargin
           .split("\n")
           .toIterator
-      val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
+      val tazMap = taz.TAZTreeMap("test/input/beamville/taz-centers.csv", scenarioCRS = geo.localCRS)
       val zpm = ZonalParkingManager(
         parkingDescription,
         tazMap,
@@ -500,7 +512,7 @@ class ZonalParkingManagerSpec
 
       val sharedFleet1 = VehicleManager.createOrGetReservedFor("shared-fleet-1", Some(VehicleManager.TypeEnum.Shared))
       val sharedFleet2 = VehicleManager.createOrGetReservedFor("shared-fleet-2", Some(VehicleManager.TypeEnum.Shared))
-      val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
+      val tazMap = taz.TAZTreeMap("test/input/beamville/taz-centers.csv", scenarioCRS = geo.localCRS)
       val stalls = InfrastructureUtils.loadStalls(
         "test/test-resources/beam/agentsim/infrastructure/taz-parking.csv",
         IndexedSeq(
@@ -528,7 +540,7 @@ class ZonalParkingManagerSpec
         tazMap,
         geo.distUTMInMeters(_, _),
         boundingBox,
-        beamConfig.beam.agentsim.agents.parking.searchDistanceInMeters,
+        beamConfig.beam.agentsim.agents.parking.search.params,
         beamConfig.beam.agentsim.agents.parking.fractionOfSameTypeZones,
         beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
         randomSeed,
@@ -620,12 +632,15 @@ class ZonalParkingManagerSpec
 
 object ZonalParkingManagerSpec {
 
-  private val searchDistancesConfig = BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters(
-    freight = BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters.Freight(10.0, 200.0),
-    passenger =
-      BeamConfig.Beam.Agentsim.Agents.Parking.SearchDistanceInMeters.Passenger(1000.0, 16093.4), // meters, aka 10 miles
+  private val searchDistancesConfig = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params(
+    freight =
+      BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params.Freight(minSearchRadius = 10.0, maxSearchRadius = 200.0),
+    passenger = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params
+      .Passenger(minSearchRadius = 1000.0, maxSearchRadius = 16093.4), // meters, aka 10 miles
     searchDoubleParkingRadius = 100.0,
-    searchMaxDistanceRelativeToEllipseFoci = 4.0
+    searchMaxDistanceRelativeToEllipseFoci = 4.0,
+    enableLinkBasedSearch = false,
+    searchSampleSize = 500
   )
 
   def mockZonalParkingManager(
@@ -661,7 +676,8 @@ object ZonalParkingManagerSpec {
     xMin: Double,
     yMin: Double,
     xMax: Double,
-    yMax: Double
+    yMax: Double,
+    scenarioCRS: String
   ): Option[TAZTreeMap] = {
     if (coords.isEmpty) None
     else {
@@ -672,7 +688,9 @@ object ZonalParkingManagerSpec {
         tree.put(coord.getX, coord.getY, taz)
         tree
       }
-      Some { new TAZTreeMap(quadTree) }
+      val tazTreeMap = new TAZTreeMap(quadTree, scenarioCRS = scenarioCRS)
+      tazTreeMap.searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(tazTreeMap, Map.empty))
+      Some(tazTreeMap)
     }
   }
 

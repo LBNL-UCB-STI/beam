@@ -241,7 +241,7 @@ def process_beam_cars_network_into_geojson(region_boundary, beam_network, projec
 
 
 def run_hourly_speed_mapping(npmrds_hourly_link_speed, link_stats):
-    beam_hourly_speed = link_stats.groupby(['hour', 'scenario']).apply(calculate_metrics)
+    beam_hourly_speed = link_stats.groupby(['hour', 'scenario']).apply(calculate_metrics, include_groups=False)
     beam_hourly_speed = beam_hourly_speed.reset_index()
     beam_hourly_speed = beam_hourly_speed[['hour', 'scenario', 'speed']]
 
@@ -253,7 +253,7 @@ def run_hourly_speed_mapping(npmrds_hourly_link_speed, link_stats):
 
 
 def run_hourly_speed_mapping_by_road_class(npmrds_hourly_link_speed, link_stats):
-    beam_hourly_speed = link_stats.groupby(['hour', 'scenario', 'road_class']).apply(calculate_metrics)
+    beam_hourly_speed = link_stats.groupby(['hour', 'scenario', 'road_class']).apply(calculate_metrics, include_groups=False)
     beam_hourly_speed = beam_hourly_speed.reset_index()
     beam_hourly_speed = beam_hourly_speed[['hour', 'scenario', 'road_class', 'speed']]
 
@@ -672,7 +672,7 @@ class SpeedValidationSetup:
         # Loop through each TMC DataFrame to calculate metrics and collect them
         for link_stats_tmc in link_stats_tmc_dfs:
             hourly_link_speed = link_stats_tmc.groupby(
-                ['tmc', 'hour', 'scenario'], as_index=False).apply(calculate_metrics)
+                ['tmc', 'hour', 'scenario'], as_index=False).apply(calculate_metrics, include_groups=False)
             data_frames.append(hourly_link_speed)
 
         combined_data = pd.concat(data_frames, ignore_index=True).sort_values(by='scenario')

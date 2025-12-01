@@ -300,13 +300,15 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     val gtfs = GTFSUtils.loadGTFS(beamConfig.beam.routing.r5.directory)
     val trainStopQuadTree = GTFSUtils.toQuadTree(GTFSUtils.trainStations(gtfs), new GeoUtilsImpl(beamConfig))
     val taz = beamConfig.beam.agentsim.taz
-    val tazMap = TAZTreeMap.getTazTreeMap(taz.filePath, Some(taz.tazIdFieldName))
-    tazMap.mapNetworkToTAZs(
-      networkCoordinator.network,
+    val tazMap = TAZTreeMap(
+      taz.filePath,
+      beamConfig.beam.spatial.localCRS,
+      Some(taz.tazIdFieldName),
+      networkCoordinator.network.getLinks.asScala.toMap,
       beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
     )
     val taz2Map = if (beamConfig.beam.exchange.output.activity_sim_skimmer.exists(_.secondary.enabled)) {
-      TAZTreeMap.getSecondaryTazTreeMap(
+      TAZTreeMap(
         beamConfig.beam.exchange.output.activity_sim_skimmer.get.secondary.taz,
         beamConfig.beam.agentsim.taz,
         tazMap
@@ -726,7 +728,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       PopulationScaling.samplePopulation(scenario, beamScenario, beamServices.beamConfig, beamServices, outputDir)
     }
 
-    if (beamScenario.beamConfig.beam.agentsim.snapLocationAndRemoveInvalidInputs) {
+    if (beamScenario.beamConfig.beam.agentsim.snapLocationAndRemoveInvalidInputs.params.enabled) {
       logger.info(s"""
       |The parameter `beam.agentsim.snapLocationAndRemoveInvalidInputs` is enabled.
       |This may take some time to finish depending on the size of population/households.""".stripMargin)

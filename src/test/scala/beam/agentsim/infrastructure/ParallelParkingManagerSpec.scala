@@ -11,7 +11,7 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.parking.PricingModel.FlatFee
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
@@ -65,7 +65,8 @@ class ParallelParkingManagerSpec
           xMin = 167000,
           yMin = 0,
           xMax = 833000,
-          yMax = 10000000
+          yMax = 10000000,
+          scenarioCRS = geo.localCRS
         ) // one TAZ at agent coordinate
         parkingManager = ParallelParkingManager.init(
           Map.empty[Id[ParkingZoneId], ParkingZone],
@@ -96,7 +97,8 @@ class ParallelParkingManagerSpec
   describe("ParallelParkingManager with no taz") {
     it("should return a response with an emergency stall") {
 
-      val tazTreeMap = new TAZTreeMap(new QuadTree[TAZ](0, 0, 0, 0))
+      val tazTreeMap = new TAZTreeMap(new QuadTree[TAZ](0, 0, 0, 0), scenarioCRS = geo.localCRS)
+      tazTreeMap.searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(tazTreeMap, Map.empty))
 
       val parkingManager = ParallelParkingManager.init(
         Map.empty[Id[ParkingZoneId], ParkingZone],
@@ -132,7 +134,8 @@ class ParallelParkingManagerSpec
           167000,
           0,
           833000,
-          10000000
+          10000000,
+          scenarioCRS = geo.localCRS
         ) // one TAZ at agent coordinate
         oneParkingOption: Iterator[String] =
           """taz,parkingZoneId,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
@@ -195,7 +198,8 @@ class ParallelParkingManagerSpec
           167000,
           0,
           833000,
-          10000000
+          10000000,
+          scenarioCRS = geo.localCRS
         ) // one TAZ at agent coordinate
         oneParkingOption: Iterator[String] =
           """taz,parkingZoneId,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
@@ -277,7 +281,15 @@ class ParallelParkingManagerSpec
       for {
         _ <- 1 to trials
         numStalls = math.max(4, random1.nextInt(maxParkingStalls))
-        tazTreeMap <- ZonalParkingManagerSpec.mockTazTreeMap(tazList, startAtId = 1, 0, 0, 100, 100)
+        tazTreeMap <- ZonalParkingManagerSpec.mockTazTreeMap(
+          tazList,
+          startAtId = 1,
+          0,
+          0,
+          100,
+          100,
+          scenarioCRS = geo.localCRS
+        )
         split = ZonalParkingManagerSpec.randomSplitOfMaxStalls(numStalls, 4, random1)
         parkingConfiguration: Iterator[String] = ZonalParkingManagerSpec.makeParkingConfiguration(split)
         random = new Random(randomSeed)
@@ -313,7 +325,7 @@ class ParallelParkingManagerSpec
 
   describe("ParallelParkingManager with loaded common data") {
     it("should return the correct stall") {
-      val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
+      val tazMap = taz.TAZTreeMap("test/input/beamville/taz-centers.csv", scenarioCRS = geo.localCRS)
       val stalls = InfrastructureUtils.loadStalls(
         "test/input/beamville/parking/taz-parking.csv",
         IndexedSeq.empty,

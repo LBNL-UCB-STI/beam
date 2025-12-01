@@ -1,11 +1,13 @@
 package beam.agentsim.infrastructure.taz
 
-import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
-import org.geotools.referencing.CRS
+import beam.sim.{BeamScenario, BeamServices}
+import beam.utils.geospatial.SpatialProjectionUtils
 import org.geotools.geometry.jts.JTS
+import org.geotools.referencing.CRS
 import org.locationtech.jts.geom.{Coordinate, GeometryFactory}
 import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.slf4j.LoggerFactory
 
@@ -19,10 +21,8 @@ import scala.collection.mutable
   * - Works directly in the scenario's projected CRS (no coordinate transformations)
   * - Automatically handles unit conversions (meters, feet, etc.)
   * - Optimized for performance and accuracy
-  *
-  * @param scenarioCRS The EPSG code of the coordinate reference system (e.g., "EPSG:32610" for UTM Zone 10N)
   */
-abstract class SearchQuadTree(val scenarioCRS: String) {
+abstract class SearchQuadTree(val tazTreeMap: TAZTreeMap, val links: Map[Id[Link], Link]) {
   import SearchQuadTree._
 
   private val logger = LoggerFactory.getLogger(this.getClass)
@@ -30,71 +30,33 @@ abstract class SearchQuadTree(val scenarioCRS: String) {
   // Track whether we've checked distortion yet
   @volatile private var distortionChecked = false
 
-  /**
-    * Determines the conversion factor from meters to the CRS's native units.
-    * Most projected CRS use meters, but some (like US state plane) use feet.
-    */
-  protected val metersToProjectedUnits: Double = {
-    try {
-      val crs = CRS.decode(scenarioCRS)
-      val unitString = crs.getCoordinateSystem.getAxis(0).getUnit.toString.toLowerCase
-
-      // Parse the unit string to determine conversion factor
-      val factor = unitString match {
-        case s if s.contains("meter") || s.contains("metre") || s == "m" =>
-          1.0
-        case s if s.contains("us survey foot") || s.contains("foot_us") || s.contains("us_ft") =>
-          // US survey foot to meter conversion
-          1.0 / 0.304800609601219
-        case s if s.contains("foot") || s.contains("feet") || s.contains("ft") =>
-          // International foot to meter conversion
-          1.0 / 0.3048
-        case s if s.contains("kilometer") || s.contains("kilometre") || s == "km" =>
-          1000.0
-        case s if s.contains("mile") || s == "mi" =>
-          // International mile
-          1.0 / 1609.344
-        case s if s.contains("yard") || s == "yd" =>
-          1.0 / 0.9144
-        case _ =>
-          // Try to check if it's already a linear unit by checking for degree
-          if (unitString.contains("degree") || unitString.contains("°")) {
-            logger.error(
-              s"CRS $scenarioCRS uses angular units ($unitString). This will not work correctly for distance calculations!"
-            )
-            1.0
-          } else {
-            logger.warn(s"Unknown unit '$unitString' for CRS $scenarioCRS, assuming meters")
-            1.0
-          }
-      }
-
-      logger.info(s"CRS $scenarioCRS uses unit: $unitString, conversion factor: $factor meters -> CRS units")
-      factor
-
-    } catch {
-      case e: Exception =>
-        logger.error(s"Failed to determine units for CRS $scenarioCRS, assuming meters", e)
-        1.0
-    }
-  }
+  val metersToProjectedUnits: Double = SpatialProjectionUtils.calculateMetersToProjectedUnits(tazTreeMap.scenarioCRS)
 
   // Validate CRS on initialization
   {
-    if (!SearchQuadTree.isProjectedCRS(scenarioCRS)) {
+    if (!SearchQuadTree.isProjectedCRS(tazTreeMap.scenarioCRS)) {
       logger.warn(
         s"""
-        |WARNING: CRS $scenarioCRS appears to be geographic (lat/lon).
-        |This will result in highly inaccurate distance calculations!
-        |Consider reprojecting your data to a projected CRS like:
-        |  - UTM: ${SearchQuadTree.CommonCRS.getUTMZoneForArea(-122.0, 37.0)} (for San Francisco area)
-        |  - State Plane (California): ${SearchQuadTree.CommonCRS.CaliforniaZone3_Meters}
-        |  - Web apps (not recommended): ${SearchQuadTree.CommonCRS.WebMercator}
+           |WARNING: CRS ${tazTreeMap.scenarioCRS} appears to be geographic (lat/lon).
+           |This will result in highly inaccurate distance calculations!
+           |Consider reprojecting your data to a projected CRS like:
+           |  - UTM: ${SearchQuadTree.CommonCRS.getUTMZoneForArea(-122.0, 37.0)} (for San Francisco area)
+           |  - State Plane (California): ${SearchQuadTree.CommonCRS.CaliforniaZone3_Meters}
+           |  - Web apps (not recommended): ${SearchQuadTree.CommonCRS.WebMercator}
         """.stripMargin
       )
     } else {
-      logger.info(s"Using projected CRS: $scenarioCRS")
+      logger.info(s"Using projected CRS: ${tazTreeMap.scenarioCRS}")
     }
+  }
+
+  def getBounds: QuadTree.Rect = {
+    new QuadTree.Rect(
+      tazTreeMap.tazQuadTree.getMinEasting,
+      tazTreeMap.tazQuadTree.getMinNorthing,
+      tazTreeMap.tazQuadTree.getMaxEasting,
+      tazTreeMap.tazQuadTree.getMaxNorthing
+    )
   }
 
   /**
@@ -106,27 +68,27 @@ abstract class SearchQuadTree(val scenarioCRS: String) {
       distortionChecked = true
 
       try {
-        val distortion = SearchQuadTree.estimateDistortion(scenarioCRS, x, y)
+        val distortion = SearchQuadTree.estimateDistortion(tazTreeMap.scenarioCRS, x, y)
 
         if (distortion > 2.0) {
           logger.error(
             f"""
-            |CRITICAL: Distance calculations will be off by ${((distortion - 1) * 100)}%.0f%% at location ($x%.0f, $y%.0f)
-            |This CRS ($scenarioCRS) is not suitable for accurate distance calculations.
-            |Please reproject your data to an appropriate projected coordinate system.
+               |CRITICAL: Distance calculations will be off by ${((distortion - 1) * 100)}%.0f%% at location ($x%.0f, $y%.0f)
+               |This CRS (${tazTreeMap.scenarioCRS}) is not suitable for accurate distance calculations.
+               |Please reproject your data to an appropriate projected coordinate system.
             """.stripMargin
           )
         } else if (distortion > 1.1) {
           logger.warn(
             f"""
-            |WARNING: Distance calculations may be off by ${((distortion - 1) * 100)}%.0f%% at location ($x%.0f, $y%.0f)
-            |Consider using a more appropriate projected coordinate system for better accuracy.
+               |WARNING: Distance calculations may be off by ${((distortion - 1) * 100)}%.0f%% at location ($x%.0f, $y%.0f)
+               |Consider using a more appropriate projected coordinate system for better accuracy.
             """.stripMargin
           )
         } else if (distortion > 1.01) {
           logger.info(f"Distance distortion estimated at ${((distortion - 1) * 100)}%.1f%% - acceptable for most uses")
         } else {
-          logger.debug(f"Excellent! Distance distortion < 1%% for CRS $scenarioCRS")
+          logger.debug(f"Excellent! Distance distortion < 1%% for CRS ${tazTreeMap.scenarioCRS}")
         }
       } catch {
         case e: Exception =>
@@ -141,14 +103,6 @@ abstract class SearchQuadTree(val scenarioCRS: String) {
     */
   protected def metersToProjectedDistance(meters: Double): Double = {
     meters * metersToProjectedUnits
-  }
-
-  /**
-    * Convert a distance from the projected coordinate system's units to meters.
-    * Useful for reporting distances back to the user.
-    */
-  def projectedDistanceToMeters(projectedDistance: Double): Double = {
-    projectedDistance / metersToProjectedUnits
   }
 
   /**
@@ -209,16 +163,6 @@ abstract class SearchQuadTree(val scenarioCRS: String) {
   }
 
   /**
-    * Public method to check distortion at any point in your data.
-    * Useful for diagnostics and validation.
-    *
-    * @return Distortion factor (1.0 = no distortion, 1.5 = 50% distortion)
-    */
-  def getDistortionAtPoint(x: Double, y: Double): Double = {
-    SearchQuadTree.estimateDistortion(scenarioCRS, x, y)
-  }
-
-  /**
     * Abstract internal methods that implementations must provide.
     * These work directly with projected coordinates and distances.
     */
@@ -248,32 +192,48 @@ object SearchQuadTree {
     tazToLinks: Option[Map[TAZ, QuadTree[Link]]]
   )
 
-  def getSearchQuadTree(tazTreeMap: TAZTreeMap, enableLinkBasedSearch: Boolean, scenarioCRS: String): SearchQuadTree = {
-    if (enableLinkBasedSearch && tazTreeMap.linkQuadTree.isDefined) {
-      SearchLinkQuadTree(tazTreeMap, scenarioCRS)
+  def getSearchQuadTree(
+    tazTreeMap: TAZTreeMap,
+    links: Map[Id[Link], Link] = Map.empty[Id[Link], Link],
+    enableLinkBasedSearch: Boolean = false
+  ): SearchQuadTree = {
+    if (enableLinkBasedSearch && links.nonEmpty) {
+      SearchLinkQuadTree(tazTreeMap, links)
     } else {
-      SearchTAZQuadTree(tazTreeMap, scenarioCRS)
+      SearchTAZQuadTree(tazTreeMap, links)
     }
   }
 
-  def getSearchQuadTree(tazTreeMap: TAZTreeMap, beamConfig: BeamConfig): SearchQuadTree = {
-    val scenarioCRS = beamConfig.beam.spatial.localCRS
-    val enableLinkBasedSearch = beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
-    getSearchQuadTree(tazTreeMap, enableLinkBasedSearch, scenarioCRS)
+  def getSearchQuadTree(
+    tazTreeMap: TAZTreeMap,
+    links: Map[Id[Link], Link],
+    beamConfig: BeamConfig
+  ): SearchQuadTree = {
+    getSearchQuadTree(
+      tazTreeMap,
+      links,
+      beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
+    )
   }
 
-  def getSearchQuadTree(beamServices: BeamServices): SearchQuadTree = {
-    val scenarioCRS = beamServices.beamConfig.beam.spatial.localCRS
-    val enableLinkBasedSearch = beamServices.beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
-    getSearchQuadTree(beamServices.beamScenario.tazTreeMap, enableLinkBasedSearch, scenarioCRS)
+  def getSearchQuadTree(beamScenario: BeamScenario): SearchQuadTree = {
+    getSearchQuadTree(
+      beamScenario.tazTreeMap,
+      beamScenario.network.getLinks.asScala.toMap,
+      beamScenario.beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
+    )
   }
+
+  def getSearchQuadTree(beamServices: BeamServices): SearchQuadTree = getSearchQuadTree(beamServices.beamScenario)
 
   /**
     * TAZ-based search implementation.
     * Searches directly in the TAZ QuadTree using projected coordinates.
     */
-  case class SearchTAZQuadTree(tazTreeMap: TAZTreeMap, override val scenarioCRS: String)
-      extends SearchQuadTree(scenarioCRS) {
+  case class SearchTAZQuadTree(
+    override val tazTreeMap: TAZTreeMap,
+    override val links: Map[Id[Link], Link]
+  ) extends SearchQuadTree(tazTreeMap, links) {
 
     override def getRingInternal(
       x: Double,
@@ -315,8 +275,33 @@ object SearchQuadTree {
     * Link-based search implementation.
     * Searches in the Link QuadTree and groups results by TAZ.
     */
-  case class SearchLinkQuadTree(tazTreeMap: TAZTreeMap, override val scenarioCRS: String)
-      extends SearchQuadTree(scenarioCRS) {
+  case class SearchLinkQuadTree(
+    override val tazTreeMap: TAZTreeMap,
+    override val links: Map[Id[Link], Link]
+  ) extends SearchQuadTree(tazTreeMap, links) {
+
+    // Get all link coordinates
+    val linkCoords: Iterable[Coord] = links.values.flatMap { link =>
+      Seq(link.getFromNode.getCoord, link.getToNode.getCoord)
+    }
+
+    // Create QuadTree using link bounding box
+    val linkQuadTree: QuadTree[Link] = new QuadTree[Link](
+      linkCoords.map(_.getX).min,
+      linkCoords.map(_.getY).min,
+      linkCoords.map(_.getX).max,
+      linkCoords.map(_.getY).max
+    )
+
+    // Populate QuadTree with links
+    links.foreach { case (_, link) =>
+      val startPoint = link.getFromNode.getCoord
+      val endPoint = link.getToNode.getCoord
+      val linkMidpoint = new Coord(0.5 * (endPoint.getX + startPoint.getX), 0.5 * (endPoint.getY + startPoint.getY))
+      linkQuadTree.put(startPoint.getX, startPoint.getY, link)
+      linkQuadTree.put(endPoint.getX, endPoint.getY, link)
+      linkQuadTree.put(linkMidpoint.getX, linkMidpoint.getY, link)
+    }
 
     private def buildSearchResult(
       tazToLinks: mutable.HashMap[TAZ, mutable.ArrayBuffer[Link]]
@@ -338,7 +323,7 @@ object SearchQuadTree {
         // Build quad trees for each TAZ
         val tazToLinksQuadTree = tazToLinks.par
           .map { case (tazId, links) =>
-            tazId -> TAZTreeMap.fromLinks(links)
+            tazId -> buildQuadTreeLink(links)
           }
           .seq
           .toMap
@@ -357,15 +342,26 @@ object SearchQuadTree {
     ): SearchQuadTreeResults = {
       val tazToLinks = mutable.HashMap.empty[TAZ, mutable.ArrayBuffer[Link]]
 
-      // Direct search in projected coordinates
-      tazTreeMap.linkQuadTree.get
+      // Direct search in projected coordinates - deduplicate with Set, then sample
+      val uniqueLinks = linkQuadTree
         .getRing(x, y, innerRadius, outerRadius)
         .asScala
-        .take(sampleSize)
-        .foreach { link =>
-          val taz = tazTreeMap.idToTAZMapping(tazTreeMap.linkIdToTAZMapping(link.getId))
-          tazToLinks.getOrElseUpdate(taz, mutable.ArrayBuffer.empty[Link]) += link
+        .filter { link =>
+          val allowed = link.getAllowedModes.asScala.map(_.toLowerCase)
+          allowed.contains("car") && allowed.contains("walk")
         }
+        .toSet
+
+      val sampledLinks = if (uniqueLinks.size <= sampleSize) {
+        uniqueLinks
+      } else {
+        scala.util.Random.shuffle(uniqueLinks.toSeq).take(sampleSize)
+      }
+
+      sampledLinks.foreach { link =>
+        val taz = tazTreeMap.idToTAZMapping(tazTreeMap.linkIdToTAZMapping(link.getId))
+        tazToLinks.getOrElseUpdate(taz, mutable.ArrayBuffer.empty[Link]) += link
+      }
 
       buildSearchResult(tazToLinks)
     }
@@ -380,17 +376,80 @@ object SearchQuadTree {
     ): SearchQuadTreeResults = {
       val tazToLinks = mutable.HashMap.empty[TAZ, mutable.ArrayBuffer[Link]]
 
-      // Direct search in projected coordinates
-      tazTreeMap.linkQuadTree.get
+      // Direct search in projected coordinates - deduplicate with Set, then sample
+      val uniqueLinks = linkQuadTree
         .getElliptical(x1, y1, x2, y2, radius)
         .asScala
-        .take(sampleSize)
-        .foreach { link =>
-          val taz = tazTreeMap.idToTAZMapping(tazTreeMap.linkIdToTAZMapping(link.getId))
-          tazToLinks.getOrElseUpdate(taz, mutable.ArrayBuffer.empty[Link]) += link
-        }
+        .toSet
+
+      val sampledLinks = if (uniqueLinks.size <= sampleSize) {
+        uniqueLinks
+      } else {
+        scala.util.Random.shuffle(uniqueLinks.toSeq).take(sampleSize)
+      }
+
+      sampledLinks.foreach { link =>
+        val taz = tazTreeMap.idToTAZMapping(tazTreeMap.linkIdToTAZMapping(link.getId))
+        tazToLinks.getOrElseUpdate(taz, mutable.ArrayBuffer.empty[Link]) += link
+      }
 
       buildSearchResult(tazToLinks)
+    }
+
+    def buildQuadTreeLink(links: Seq[Link]): QuadTree[Link] = {
+      if (links.isEmpty) {
+        return new QuadTree[Link](-1, -1, 1, 1)
+      }
+
+      // Calculate bounds
+      var minX = Double.MaxValue
+      var maxX = Double.MinValue
+      var minY = Double.MaxValue
+      var maxY = Double.MinValue
+
+      links.foreach { link =>
+        val fromX = link.getFromNode.getCoord.getX
+        val fromY = link.getFromNode.getCoord.getY
+        val toX = link.getToNode.getCoord.getX
+        val toY = link.getToNode.getCoord.getY
+
+        // Check both endpoints for bounds
+        if (fromX < minX) minX = fromX
+        if (fromX > maxX) maxX = fromX
+        if (fromY < minY) minY = fromY
+        if (fromY > maxY) maxY = fromY
+
+        if (toX < minX) minX = toX
+        if (toX > maxX) maxX = toX
+        if (toY < minY) minY = toY
+        if (toY > maxY) maxY = toY
+      }
+
+      val linkMidpoints = links.map { link =>
+        val fromX = link.getFromNode.getCoord.getX
+        val fromY = link.getFromNode.getCoord.getY
+        val toX = link.getToNode.getCoord.getX
+        val toY = link.getToNode.getCoord.getY
+
+        val midX = 0.5 * (fromX + toX)
+        val midY = 0.5 * (fromY + toY)
+
+        (link, midX, midY)
+      }
+
+      val buffer = 100.0
+      val quadTree = new QuadTree[Link](
+        minX - buffer,
+        minY - buffer,
+        maxX + buffer,
+        maxY + buffer
+      )
+
+      linkMidpoints.foreach { case (link, midX, midY) =>
+        quadTree.put(midX, midY, link)
+      }
+
+      quadTree
     }
   }
 
@@ -475,36 +534,11 @@ object SearchQuadTree {
   }
 
   /**
-    * Log information about the CRS being used.
-    * Useful for debugging and verification.
-    */
-  def logCRSInfo(crsCode: String, logger: org.slf4j.Logger): Unit = {
-    try {
-      val crs = CRS.decode(crsCode)
-      val unitString = crs.getCoordinateSystem.getAxis(0).getUnit.toString
-      val isProjected = isProjectedCRS(crsCode)
-
-      logger.info(s"CRS: $crsCode")
-      logger.info(s"  Unit: $unitString")
-      logger.info(s"  Is Projected: $isProjected")
-
-      if (!isProjected) {
-        logger.warn(
-          s"CRS $crsCode appears to be geographic (lat/lon). Distance calculations will be highly inaccurate."
-        )
-        logger.warn("Consider reprojecting to a local projected coordinate system (e.g., UTM) for better accuracy.")
-      }
-    } catch {
-      case e: Exception =>
-        logger.error(s"Failed to analyze CRS $crsCode", e)
-    }
-  }
-
-  /**
     * Common EPSG codes and their units for reference.
     * This is helpful for understanding what CRS codes use which units.
     */
   object CommonCRS {
+
     // Geographic (not recommended for distance calculations)
     val WGS84 = "EPSG:4326" // degrees
     val NAD83 = "EPSG:4269" // degrees
@@ -517,16 +551,7 @@ object SearchQuadTree {
     def utmZoneSouth(zone: Int): String = s"EPSG:327$zone" // Southern hemisphere
 
     // US State Plane (feet or meters depending on state)
-    val CaliforniaZone3_Feet = "EPSG:2227" // US survey feet
     val CaliforniaZone3_Meters = "EPSG:26943" // meters
-    val NewYorkLongIsland_Feet = "EPSG:2263" // US survey feet
-    val Texas_Central_Feet = "EPSG:2277" // US survey feet
-
-    // Other common projected systems (meters)
-    val BritishNationalGrid = "EPSG:27700" // meters
-    val FrenchLambert93 = "EPSG:2154" // meters
-    val GermanyGaussKruger = "EPSG:31467" // meters
-    val AustraliaGDA94_MGA56 = "EPSG:28356" // meters
 
     /**
       * Get the appropriate UTM zone for a longitude/latitude.

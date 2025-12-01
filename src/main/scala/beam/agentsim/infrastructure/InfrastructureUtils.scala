@@ -153,7 +153,6 @@ object InfrastructureUtils extends LazyLogging {
           .init(
             parkingStalls,
             beamScenario.tazTreeMap,
-            SearchQuadTree.getSearchQuadTree(beamServices),
             geo.distUTMInMeters,
             beamConfig.beam.agentsim.agents.parking.search.params,
             envelopeInUTM,

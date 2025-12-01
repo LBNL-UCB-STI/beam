@@ -3,7 +3,7 @@ package beam.agentsim.infrastructure
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.infrastructure.ParallelParkingManager.{geometryFactory, ParkingCluster, Worker}
 import beam.agentsim.infrastructure.parking.{ParkingNetwork, ParkingZone, ParkingZoneId}
-import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils.toJtsCoordinate
 import beam.sim.config.BeamConfig
 import beam.utils.metrics.SimpleCounter
@@ -21,6 +21,7 @@ import de.lmu.ifi.dbs.elki.utilities.random.RandomFactory
 import org.locationtech.jts.algorithm.ConvexHull
 import org.locationtech.jts.geom.prep.{PreparedGeometry, PreparedGeometryFactory}
 import org.locationtech.jts.geom.{Coordinate, Envelope, GeometryFactory}
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.JavaConverters._
@@ -36,7 +37,6 @@ class ParallelParkingManager(
   distanceFunction: (Coord, Coord) => Double,
   boundingBox: Envelope,
   searchRadiusConfig: BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params,
-  scenarioCRS: String,
   fractionOfSameTypeZones: Double,
   minNumberOfSameTypeZones: Int,
   seed: Int,
@@ -56,7 +56,8 @@ class ParallelParkingManager(
       new Coord(Double.PositiveInfinity, Double.PositiveInfinity),
       new PreparedGeometryFactory()
         .create(geometryFactory.createPoint(new Coordinate(Double.PositiveInfinity, Double.PositiveInfinity))),
-      "emergencyCluster"
+      "emergencyCluster",
+      Map.empty[Id[Link], Link]
     )
   )
 
@@ -64,11 +65,15 @@ class ParallelParkingManager(
     mapTazToWorker(workers) + (TAZ.EmergencyTAZId -> emergencyWorker) + (TAZ.DefaultTAZId -> emergencyWorker)
 
   protected def createWorker(cluster: ParkingCluster): Worker = {
-    val subTazTreeMap = TAZTreeMap.fromSeq(cluster.tazes)
+    val subTazTreeMap = TAZTreeMap(
+      cluster.tazes,
+      scenarioCRS = tazTreeMap.scenarioCRS,
+      links = cluster.links,
+      enableLinkBasedSearch = searchRadiusConfig.enableLinkBasedSearch
+    )
     val parkingNetwork = ZonalParkingManager(
       parkingZones,
       subTazTreeMap,
-      SearchQuadTree.getSearchQuadTree(subTazTreeMap, searchRadiusConfig.enableLinkBasedSearch, scenarioCRS),
       distanceFunction,
       boundingBox,
       searchRadiusConfig,
@@ -175,7 +180,6 @@ object ParallelParkingManager extends LazyLogging {
       distanceFunction,
       boundingBox,
       beamConfig.beam.agentsim.agents.parking.search.params,
-      beamConfig.beam.spatial.localCRS,
       beamConfig.beam.agentsim.agents.parking.fractionOfSameTypeZones,
       beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
       seed,
@@ -188,7 +192,8 @@ object ParallelParkingManager extends LazyLogging {
     tazes: Vector[TAZ],
     mean: Coord,
     convexHull: PreparedGeometry,
-    presentation: String
+    presentation: String,
+    links: Map[Id[Link], Link]
   )
 
   protected case class Worker(actor: ParkingNetwork, cluster: ParkingCluster)
@@ -215,7 +220,12 @@ object ParallelParkingManager extends LazyLogging {
           tazTreeMap.getTAZs.toVector,
           new Coord(0.0, 0.0),
           pgf.create(polygon),
-          "single-empty-cluster"
+          "single-empty-cluster",
+          collectLinksForTAZes(
+            tazTreeMap,
+            tazTreeMap.getTAZs.toVector,
+            bufferDistanceInMeters = 10000
+          )
         )
       )
     } else {
@@ -263,7 +273,21 @@ object ParallelParkingManager extends LazyLogging {
           .map(tazTreeMap.getTAZ(_).get) ++ empty
         val centroid = ch.getCentroid
         val clusterMeanStr = String.format("(%.2f, %.2f)", Double.box(centroid.getX), Double.box(centroid.getY))
-        ParkingCluster(tazes.toVector, new Coord(clu.getModel.getMean), convexHull, s"$idx-$clusterMeanStr")
+
+        // Collect all links within the TAZes of this cluster
+        val clusterLinks = collectLinksForTAZes(
+          tazTreeMap,
+          tazes.toVector,
+          bufferDistanceInMeters = 100000
+        )
+
+        ParkingCluster(
+          tazes.toVector,
+          new Coord(clu.getModel.getMean),
+          convexHull,
+          s"$idx-$clusterMeanStr",
+          clusterLinks
+        )
       }
       logger.info(s"Done clustering: ${clusters.size}")
       logger.info(s"TAZ distribution: ${clusters.map(_.tazes.size).mkString(", ")}")
@@ -271,6 +295,147 @@ object ParallelParkingManager extends LazyLogging {
     }
   }
 
+  /**
+    * Collects links by intersecting with a buffered geometry created from TAZes.
+    * Two approaches based on availability of TAZ geometries:
+    *
+    * With Geometry:
+    *   - Fuses all TAZ geometries into one
+    *   - Creates a buffer around the fused geometry
+    *   - Intersects buffered geometry with link geometries
+    *
+    * Without Geometry:
+    *   - Calculates center of all TAZes
+    *   - Sums up all TAZ areas
+    *   - Creates a circular geometry at center: radius = sqrt(summedArea / π)
+    *   - Creates a buffer around the circular geometry
+    *   - Intersects buffered geometry with link geometries
+    *
+    * @param tazTreeMap the TAZ tree map containing link mappings
+    * @param tazes sequence of TAZes to create search geometry from
+    * @param bufferDistanceInMeters buffer distance around the created geometry (default 0)
+    * @return Map of links that intersect with the buffered TAZ geometry
+    */
+  private def collectLinksForTAZes(
+    tazTreeMap: TAZTreeMap,
+    tazes: Iterable[TAZ],
+    bufferDistanceInMeters: Double
+  ): Map[Id[Link], Link] = {
+    val tazesVector = tazes.toVector
+
+    val allLinks = tazTreeMap.searchQuadTree.get.links
+    if (tazesVector.isEmpty || allLinks.isEmpty)
+      return Map.empty[Id[Link], Link]
+
+    val geometryFactory = new org.locationtech.jts.geom.GeometryFactory()
+
+    // Determine if any TAZ has geometry
+    val hasGeometry = tazesVector.exists(_.geometry.nonEmpty)
+
+    val searchGeometry: org.locationtech.jts.geom.Geometry = if (hasGeometry) {
+      val geometriesToFuse = tazesVector.flatMap(_.geometry)
+
+      if (geometriesToFuse.nonEmpty) {
+        val fusedGeometry = if (geometriesToFuse.length == 1) {
+          geometriesToFuse.head
+        } else {
+          // Use unary union to merge all geometries
+          val geomArray = geometriesToFuse.toArray
+          val multiGeom = geometryFactory.createGeometryCollection(geomArray)
+          multiGeom.union()
+        }
+
+        // Add buffer to fused geometry
+        fusedGeometry.buffer(bufferDistanceInMeters)
+      } else createCircularGeometry(tazesVector, geometryFactory, bufferDistanceInMeters)
+    } else createCircularGeometry(tazesVector, geometryFactory, bufferDistanceInMeters)
+
+    // Use PreparedGeometry for more efficient intersection testing
+    val preparedSearchGeometry = new org.locationtech.jts.geom.prep.PreparedGeometryFactory().create(searchGeometry)
+
+    val linksMap = allLinks.flatMap { case (linkId, link) =>
+      try {
+        val linkGeometry = getLinkGeometry(link, geometryFactory)
+        if (preparedSearchGeometry.intersects(linkGeometry)) {
+          Some(linkId -> link)
+        } else {
+          None
+        }
+      } catch {
+        case e: Exception =>
+          logger.debug(s"Skipping link $linkId due to geometry issue: ${e.getMessage}")
+          None
+      }
+    }
+
+    linksMap
+  }
+
+  /**
+    * Helper: Creates a circular geometry at the center of TAZes with radius from summed area
+    */
+  private def createCircularGeometry(
+    tazesVector: Vector[TAZ],
+    geometryFactory: org.locationtech.jts.geom.GeometryFactory,
+    bufferDistanceInMeters: Double
+  ): org.locationtech.jts.geom.Geometry = {
+    // Calculate center of all TAZes
+    var centerX = 0.0
+    var centerY = 0.0
+    var totalArea = 0.0
+
+    tazesVector.foreach { taz =>
+      centerX += taz.coord.getX
+      centerY += taz.coord.getY
+      totalArea += taz.areaInSquareMeters
+    }
+
+    centerX /= tazesVector.size
+    centerY /= tazesVector.size
+
+    // Calculate radius from summed area: radius = sqrt(area / π)
+    val radius = if (totalArea > 0) {
+      Math.sqrt(totalArea / Math.PI)
+    } else {
+      100.0 // Default fallback radius if no area available
+    }
+
+    // Create circular geometry at center with calculated radius
+    val centerCoord = new org.locationtech.jts.geom.Coordinate(centerX, centerY)
+    val circle = geometryFactory.createPoint(centerCoord).buffer(radius)
+
+    // Add buffer to circle
+    if (bufferDistanceInMeters > 0.0) {
+      circle.buffer(bufferDistanceInMeters)
+    } else {
+      circle
+    }
+  }
+
+  /**
+    * Helper: Constructs LineString geometry from a link using its from and to nodes
+    */
+  private def getLinkGeometry(
+    link: org.matsim.api.core.v01.network.Link,
+    geometryFactory: org.locationtech.jts.geom.GeometryFactory
+  ): org.locationtech.jts.geom.Geometry = {
+    val fromCoord = link.getFromNode.getCoord
+    val toCoord = link.getToNode.getCoord
+
+    val coords = Array(
+      new org.locationtech.jts.geom.Coordinate(fromCoord.getX, fromCoord.getY),
+      new org.locationtech.jts.geom.Coordinate(toCoord.getX, toCoord.getY)
+    )
+
+    geometryFactory.createLineString(coords)
+  }
+
+  /**
+    * Creates database from parking zones and empty TAZes
+    * @param tazTreeMap TAZTreeMap
+    * @param zones Map[Id[ParkingZoneId], ParkingZone]
+    * @return
+    */
   private def createDatabase(
     tazTreeMap: TAZTreeMap,
     zones: Map[Id[ParkingZoneId], ParkingZone]

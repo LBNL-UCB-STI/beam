@@ -48,17 +48,17 @@ fastsim_routee_files = {
         "md-D-Diesel": np.nan,
         "md-E-BE": np.nan,
         "md-E-H2FC": np.nan,
-        "md-E-PHEV": ("Diesel", 9595.796035186175,1.2e16, # max_fuel_capacity_in_joule
+        "md-E-PHEV": ("Diesel", 9595.796035186175, 1.2e16,  # max_fuel_capacity_in_joule
                       "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(HEV,_2025,_no_program).csv"),
         "hdt-D-Diesel": np.nan,
         "hdt-E-BE": np.nan,
         "hdt-E-H2FC": np.nan,
-        "hdt-E-PHEV": ("Diesel", 13817.086117829229, 1.2e16, # max_fuel_capacity_in_joule
+        "hdt-E-PHEV": ("Diesel", 13817.086117829229, 1.2e16,  # max_fuel_capacity_in_joule
                        "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(HEV,_2025,_no_program).csv"),
         "hdv-D-Diesel": np.nan,
         "hdv-E-BE": np.nan,
         "hdv-E-H2FC": np.nan,
-        "hdv-E-PHEV": ("Diesel",14026.761465378302, 1.2e16, # max_fuel_capacity_in_joule
+        "hdv-E-PHEV": ("Diesel", 14026.761465378302, 1.2e16,  # max_fuel_capacity_in_joule
                        "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(HEV,_2025,_no_program).csv")
     }
 }
@@ -67,8 +67,8 @@ area_config = {
     "sfbay": {
         "work_dir": os.path.expanduser("~/Workspace/Simulation/sfbay"),
         "network_osm_pbf": os.path.expanduser(
-            "~/Workspace/Simulation/sfbay/network/sfbay-area-cbg5500-network/sfbay-area-cbg5500-network.osm.pbf"),
-        "utm_epsg": 26910,
+            "~/Workspace/Simulation/sfbay/network/sfbay-area-cbg5500-network-strong/sfbay-area-cbg5500-network.osm.pbf"),
+        "target_epsg": 26910,
         "year": 2018,
         "primary_powertrain": fastsim_routee_files["primary_powertrain"],
         "secondary_powertrain": fastsim_routee_files["secondary_powertrain"],
@@ -78,8 +78,9 @@ area_config = {
     },
     "seattle": {
         "work_dir": os.path.expanduser("~/Workspace/Simulation/seattle"),
-        "network_osm_pbf": os.path.expanduser("~/Workspace/Simulation/seattle/network/seattle-area-cbg412-ferry-network/seattle-area-cbg412-ferry-network.osm.pbf"),
-        "utm_epsg": 32048,
+        "network_osm_pbf": os.path.expanduser(
+            "~/Workspace/Simulation/seattle/network/seattle-area-cbg412-ferry-network/seattle-area-cbg412-ferry-network.osm.pbf"),
+        "target_epsg": 32048,
         "year": 2018,
         "primary_powertrain": fastsim_routee_files["primary_powertrain"],
         "secondary_powertrain": fastsim_routee_files["secondary_powertrain"],
@@ -91,8 +92,8 @@ area_config = {
 
 # ************************************************************************************************
 
-AREA = "sfbay" # seattle or sfbay
-SNAP_COORDINATES = True
+AREA = "sfbay"  # seattle or sfbay
+SNAP_COORDINATES = False # Snapping here might relocate points to walk only links, so be cautious
 BUFFER_DISTANCE_METERS = 100  # 100 meters
 MAX_DISTANCE_METERS = 200000  # 200km
 CHUNK_SIZE = 10000  # this affects speed and parallelization of the script
@@ -133,14 +134,14 @@ _tourId_with_prefix = {}
 
 def load_osm_network(pbf_path, min_distance_from_edge):
     """
-    Load OSM network and create/load buffered network with proper metric distances
+    Load OSM network and create/load buffered network with proper distance transformation based on CRS
 
     Args:
         pbf_path (str): Path to original OSM PBF file
         min_distance_from_edge (float): Buffer distance in meters
 
     Returns:
-        gpd.GeoDataFrame: Network edges with original and buffered geometries
+        gpd.GeoDataFrame: Network edges with original and buffered geometries in target projected CRS
 
     Raises:
         ValueError: If the PBF file doesn't exist or if network extraction fails
@@ -163,23 +164,75 @@ def load_osm_network(pbf_path, min_distance_from_edge):
     if edges.empty:
         raise ValueError("No network edges found in the PBF file")
 
-    print(f"Creating {str(int(BUFFER_DISTANCE_METERS / 1000))}km road buffer...")
-    # Convert to UTM for proper metric distances
-    try:
-        edges_utm = edges.to_crs(epsg=CONFIG["utm_epsg"])
-    except Exception as e:
-        raise ValueError(f"Failed to convert to UTM (EPSG:{CONFIG['utm_epsg']}): {str(e)}")
+    print(f"Original CRS: {edges.crs}")
 
-    # Create buffer in UTM coordinates (where distances are in meters)
-    buffered_edges = edges_utm.copy()
-    buffered_edges['geometry'] = edges_utm['geometry'].buffer(
-        min_distance_from_edge,
+    # Helper function to get CRS units and convert distance
+    def get_crs_units_and_convert_distance(crs, distance_meters):
+        """
+        Get CRS units and convert distance from meters to CRS units
+
+        Args:
+            crs: pyproj/geopandas CRS object
+            distance_meters: Distance in meters
+
+        Returns:
+            tuple: (crs_unit_string, converted_distance)
+        """
+        try:
+            # Get axis information which includes units
+            axis_info = crs.axis_info
+            if axis_info and len(axis_info) > 0:
+                unit_name = axis_info[0].unit_name
+                # Common unit conversions
+                if 'metre' in unit_name.lower() or 'meter' in unit_name.lower():
+                    return 'meters', distance_meters
+                elif 'foot' in unit_name.lower():
+                    return 'feet', distance_meters * 3.28084  # meters to feet
+                elif 'us survey foot' in unit_name.lower():
+                    return 'us_survey_feet', distance_meters * 3.2808333  # meters to US survey feet
+                elif 'degree' in unit_name.lower():
+                    return 'degrees', distance_meters  # Won't work well, but shouldn't reach here
+                else:
+                    return unit_name, distance_meters
+            else:
+                return 'unknown', distance_meters
+        except Exception as e:
+            print(f"Warning: Could not determine CRS units: {str(e)}")
+            return 'unknown', distance_meters
+
+    print(f"Creating {str(int(BUFFER_DISTANCE_METERS / 1000))}km road buffer...")
+
+    # Check if the current CRS is geographic (uses degrees)
+    is_geographic = edges.crs.is_geographic if edges.crs else True
+
+    # Convert to target CRS if needed
+    if is_geographic:
+        try:
+            edges_projected = edges.to_crs(epsg=CONFIG["target_epsg"])
+            target_crs = edges_projected.crs
+            print(f"Converted from geographic to EPSG:{CONFIG['target_epsg']}")
+        except Exception as e:
+            raise ValueError(f"Failed to convert to EPSG:{CONFIG['target_epsg']}: {str(e)}")
+    else:
+        # Already in a projected CRS
+        edges_projected = edges.copy()
+        target_crs = edges.crs
+        print(f"Data is already in projected CRS: {edges.crs}")
+
+    # Get target CRS units and convert buffer distance
+    unit_name, buffer_distance = get_crs_units_and_convert_distance(target_crs, min_distance_from_edge)
+    print(f"Target CRS unit: {unit_name} - buffer distance: {buffer_distance:.2f} {unit_name}")
+
+    # Create buffer in target CRS coordinates (distances converted to CRS units)
+    buffered_edges = edges_projected.copy()
+    buffered_edges['geometry'] = edges_projected['geometry'].buffer(
+        buffer_distance,
         cap_style=2,  # flat ends
         join_style=2  # mitered joins
     )
 
     # Add buffered geometry as a new column
-    edges_utm['buffered_geometry'] = buffered_edges.geometry
+    edges_projected['buffered_geometry'] = buffered_edges.geometry
 
     # Create buffered pbf if it doesn't exist
     path_without_ext, ext = os.path.splitext(pbf_path)
@@ -211,7 +264,7 @@ def load_osm_network(pbf_path, min_distance_from_edge):
         print(f"Warning: Failed to save buffered network: {str(e)}")
         raise e
 
-    return edges_utm
+    return edges_projected
 
 
 def generate_random_point_near_line(
@@ -446,7 +499,7 @@ def process_points_chunk_vectorized(
     points_gdf = gpd.GeoDataFrame(
         geometry=[Point(x, y) for x, y in points_chunk],
         crs=4326
-    ).to_crs(CONFIG["utm_epsg"])
+    ).to_crs(CONFIG["target_epsg"])
 
     for idx, (point_utm, orig_point) in enumerate(zip(points_gdf.geometry, points_chunk)):
         try:
@@ -481,7 +534,7 @@ def process_points_chunk_vectorized(
                 # Convert back to original CRS (WGS84)
                 point_updated = gpd.GeoDataFrame(
                     geometry=[Point(new_x_utm, new_y_utm)],
-                    crs=CONFIG["utm_epsg"]
+                    crs=CONFIG["target_epsg"]
                 ).to_crs(4326).geometry[0]
 
                 result = (
@@ -539,6 +592,33 @@ def snap_coordinates_when_too_far(_df: pd.DataFrame,
     """
     min_distance_from_edge = BUFFER_DISTANCE_METERS
     max_distance_from_edge = MAX_DISTANCE_METERS
+
+    # Convert distances from meters to target CRS units
+    def get_crs_distance_conversion(crs, distance_meters):
+        """Convert distance from meters to target CRS units"""
+        try:
+            axis_info = crs.axis_info
+            if axis_info and len(axis_info) > 0:
+                unit_name = axis_info[0].unit_name
+                if 'metre' in unit_name.lower() or 'meter' in unit_name.lower():
+                    return distance_meters
+                elif 'foot' in unit_name.lower():
+                    return distance_meters * 3.28084  # meters to feet
+                elif 'us survey foot' in unit_name.lower():
+                    return distance_meters * 3.2808333  # meters to US survey feet
+                else:
+                    return distance_meters
+            else:
+                return distance_meters
+        except Exception as e:
+            print(f"Warning: Could not determine CRS units: {str(e)}")
+            return distance_meters
+
+    # Convert buffer distances based on CRS units
+    target_crs = osm_edges_utm.crs
+    min_distance_from_edge = get_crs_distance_conversion(target_crs, BUFFER_DISTANCE_METERS)
+    max_distance_from_edge = get_crs_distance_conversion(target_crs, MAX_DISTANCE_METERS)
+    print(f"Converted distances - min: {min_distance_from_edge:.2f}, max: {max_distance_from_edge:.2f} (CRS units)")
 
     if coordinate_lookup is None:
         coordinate_lookup = {}
@@ -617,6 +697,7 @@ def snap_coordinates_when_too_far(_df: pd.DataFrame,
 
     return result_df, coordinate_lookup
 
+
 def short_hash(s, length=7):
     return hashlib.md5(s.encode()).hexdigest()[:length]
 
@@ -642,16 +723,17 @@ def check_collisions(series, hash_func):
 
     return collisions
 
+
 def resolve_collisions(
-    df,
-    id_col='vehicleIdOrig',
-    new_col='vehicleId',
-    hash_func=None,
-    check_collisions=None,
-    hash_length=7,
-    seen_ids=None,
-    seen_hashes=None,
-    allow_duplicates=False
+        df,
+        id_col='vehicleIdOrig',
+        new_col='vehicleId',
+        hash_func=None,
+        check_collisions=None,
+        hash_length=7,
+        seen_ids=None,
+        seen_hashes=None,
+        allow_duplicates=False
 ):
     """
     Ensures unique hash values for vehicle IDs in df by modifying duplicates and avoiding original ID duplicates,
@@ -717,6 +799,7 @@ def resolve_collisions(
 
     return df, seen_ids, seen_hashes
 
+
 def remove_third_segment(s):
     parts = s.split('-')
     if len(parts) >= 4:
@@ -724,6 +807,7 @@ def remove_third_segment(s):
         return '-'.join(parts[:2] + parts[3:])
     else:
         return s  # Return as is if not enough parts
+
 
 #############################
 ## MAIN
@@ -810,7 +894,7 @@ if __name__ == '__main__':
                     _payload_plans = df
                 else:
                     _payload_plans = pd.concat([_payload_plans, df])
-        elif "vehicle_types" in filename: # Modify the "vehicle_types" section in the main loop
+        elif "vehicle_types" in filename:  # Modify the "vehicle_types" section in the main loop
             df = pd.read_csv(filepath)
 
             # First pass: collect vehicle class and fuel rate information for non-PHEV vehicles
@@ -887,7 +971,8 @@ if __name__ == '__main__':
                 "secondaryFuelConsumptionInJoulePerMeter": secondary_fuel_consumption,
                 "secondaryFuelCapacityInJoule": secondary_fuel_capacities,
                 "secondaryVehicleEnergyFile": [
-                    CONFIG["secondary_powertrain"][index][3] if index in CONFIG["secondary_powertrain"] and isinstance(CONFIG["secondary_powertrain"][index], (list, tuple, np.ndarray)) else np.nan for
+                    CONFIG["secondary_powertrain"][index][3] if index in CONFIG["secondary_powertrain"] and isinstance(
+                        CONFIG["secondary_powertrain"][index], (list, tuple, np.ndarray)) else np.nan for
                     index in original_vehicle_types_ids],
                 "automationLevel": list(np.repeat(1, len(df.index))),
                 "maxVelocity": df["max_speed(mph)"],
@@ -995,7 +1080,7 @@ if __name__ == '__main__':
             _coordinate_lookup
         )
     _payload_plans["operationDurationInSecOG"] = _payload_plans["operationDurationInSec"]
-    #_payload_plans = update_operation_duration(CONFIG, _payload_plans, _tours, _carriers, _vehicle_types)
+    # _payload_plans = update_operation_duration(CONFIG, _payload_plans, _tours, _carriers, _vehicle_types)
     _payload_plans.drop(columns=['index', 'Unnamed: 0', 'requestType'], errors='ignore', inplace=True)
     _payload_plans.to_csv(f'{DIRECTORY_SCENARIO}/payloads--{CONFIG["year"]}-{SCENARIO_LABEL}.csv', index=False)
 

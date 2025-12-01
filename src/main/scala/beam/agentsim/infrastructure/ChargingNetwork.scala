@@ -10,7 +10,7 @@ import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode.EnRouteChar
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.power.PowerManager.PowerInKW
-import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.skim.Skims
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
@@ -143,7 +143,6 @@ object ChargingNetwork extends LazyLogging {
   def apply(
     chargingZones: Map[Id[ParkingZoneId], ParkingZone],
     tazTreeMap: TAZTreeMap,
-    searchQuadTree: SearchQuadTree,
     envelopeInUTM: Envelope,
     beamConfig: BeamConfig,
     distanceFunction: (Coord, Coord) => Double,
@@ -154,7 +153,6 @@ object ChargingNetwork extends LazyLogging {
       override val searchFunctions: Option[InfrastructureFunctions] = Some(
         new ChargingFunctions(
           tazTreeMap,
-          searchQuadTree,
           chargingZones,
           distanceFunction,
           beamConfig.beam.agentsim.agents.parking,
@@ -170,7 +168,6 @@ object ChargingNetwork extends LazyLogging {
   def apply(
     parkingDescription: Iterator[String],
     TAZTreeMap: TAZTreeMap,
-    searchQuadTree: SearchQuadTree,
     envelopeInUTM: Envelope,
     beamConfig: BeamConfig,
     beamServicesMaybe: Option[BeamServices],
@@ -190,7 +187,6 @@ object ChargingNetwork extends LazyLogging {
     ChargingNetwork(
       parking.zones.toMap,
       TAZTreeMap,
-      searchQuadTree,
       envelopeInUTM,
       beamConfig,
       distanceFunction,
@@ -207,7 +203,6 @@ object ChargingNetwork extends LazyLogging {
     ChargingNetwork(
       chargingZones,
       beamServices.beamScenario.tazTreeMap,
-      SearchQuadTree.getSearchQuadTree(beamServices),
       envelopeInUTM,
       beamServices.beamConfig,
       beamServices.geo.distUTMInMeters(_, _),

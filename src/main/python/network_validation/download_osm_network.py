@@ -27,12 +27,8 @@ from python.utils.study_area_config import get_area_config
 from python.utils.study_area_config import generate_network_name
 
 
-def main():
+def download_and_build_network(study_area_config):
     """Main execution function."""
-    area = "sfbay"  # Options: sfbay, seattle
-    study_area_config = get_area_config(area)
-    study_area_config["network"]["graph_layers"]["residential"]["min_density_per_km2"] = 5500  # 2855 for sfbay, 412 for seattle
-
     # Generate configuration name and prepare directory
     config_name = generate_network_name(study_area_config)
     work_dir = study_area_config["work_dir"]
@@ -100,30 +96,61 @@ def main():
         'osmid_original'
     ], axis=1, errors='ignore')
 
+    # Normalize oneway tag values for BEAM compatibility
+    if 'oneway' in edges.columns:
+        edges['oneway'] = edges['oneway'].astype(str).str.lower()
+        # Map non-standard values to standard BEAM-compatible values
+        edges['oneway'] = edges['oneway'].replace({
+            'reverse': '-1',
+            'true': 'yes',
+            '-1.0': '-1',
+            '1.0': 'yes'
+        })
+
     g_osm = ox.graph_from_gdfs(nodes, edges, graph_attrs=g_network.graph)
     save_graph_xml(
         g_osm,
         filepath=osm_network,
         edge_tags=[
             'highway', 'lanes', 'maxspeed', 'name', 'oneway', 'length',
-            'tunnel', 'bridge', 'junction', 'edge_id', 'access', 'osm_id'
+            'tunnel', 'bridge', 'junction', 'edge_id', 'access', 'osm_id',
+            'motor_vehicle', 'vehicle', 'motorcar',
+            'access:car', 'access:vehicle', 'access:motor_vehicle',
+            'cycleway', 'cycleway:left', 'cycleway:right',
+            'sidewalk', 'foot', 'bicycle',
+            'lts'  # Level of Traffic Stress if available
         ],
         edge_tag_aggs=[('length', 'sum')]
     )
     print(f"OSM Network saved to '{osm_network}'.")
 
     # Convert to PBF and GeoJSON formats
-    cmd = f"osmium cat {osm_network} -o - --output-format pbf,compression=zlib | osmium sort - -o {pbf_network} --overwrite"
+    cmd = (
+        f"osmium cat {osm_network} -o - --output-format pbf,compression=zlib "
+        f"| osmium sort -F pbf - -o {pbf_network} --overwrite"
+    )
     subprocess.run(cmd, shell=True, check=True)
     print(f"OSM PBF File saved to '{pbf_network}'")
 
-    cmd2 = f"ogr2ogr -f GeoJSON {geojson_network} {pbf_network} lines"
+    cmd2 = f'ogr2ogr -f GeoJSON "{geojson_network}" "{pbf_network}" lines'
     subprocess.run(cmd2, shell=True, check=True)
     print(f"OSM GEOJSON File saved to '{geojson_network}'")
 
+
+def main():
+    area = "sfbay"  # Options: sfbay, seattle
+    min_density_per_km2 = 5500  # 5500 for sfbay, 120 for seattle
+    strongly_connected_components = False
+
+    # Update study area configuration
+    study_area_config = get_area_config(area)
+    study_area_config["network"]["strongly_connected_components"] = strongly_connected_components
+    study_area_config["network"]["graph_layers"]["residential"]["min_density_per_km2"] = min_density_per_km2
+    download_and_build_network(study_area_config)
+
     # Scan network directories for ways
-    work_dir = study_area_config["work_dir"]
-    scan_network_directories_for_ways(os.path.expanduser(f'{work_dir}/network'))
+    study_area_config = get_area_config(area)
+    scan_network_directories_for_ways(os.path.expanduser(f'{study_area_config["work_dir"]}/network'))
 
 
 if __name__ == "__main__":

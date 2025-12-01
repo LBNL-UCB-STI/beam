@@ -22,6 +22,7 @@ import org.matsim.households.{Household, HouseholdsFactory, Income, IncomeImpl}
 import org.matsim.vehicles.Vehicle
 
 import java.util.concurrent.atomic.AtomicReference
+import scala.collection.JavaConverters._
 import scala.util.Random
 
 trait FreightReader {
@@ -239,7 +240,7 @@ object FreightReader {
           geoUtils,
           rand,
           tazMap,
-          beamConfig.beam.agentsim.snapLocationAndRemoveInvalidInputs,
+          beamConfig.beam.agentsim.snapLocationAndRemoveInvalidInputs.params,
           beamConfig.beam.agentsim.schedulerParallelismWindow,
           snapLocationHelper,
           network,
@@ -259,9 +260,14 @@ object FreightReader {
     tazTreeMapMaybe: Option[TAZTreeMap]
   ): FreightReader = {
     val tazMap = tazTreeMapMaybe.getOrElse {
-      TAZTreeMap.getTazTreeMap(
+      TAZTreeMap(
         beamConfig.beam.agentsim.taz.filePath,
-        Some(beamConfig.beam.agentsim.taz.tazIdFieldName)
+        beamConfig.beam.spatial.localCRS,
+        Some(beamConfig.beam.agentsim.taz.tazIdFieldName),
+        network
+          .map(_.getLinks.asScala.toMap)
+          .getOrElse(Map.empty),
+        beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
       )
     }
     apply(beamConfig, geoUtils, streetLayer, network, tazMap, outputDirMaybe)

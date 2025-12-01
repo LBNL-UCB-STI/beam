@@ -1,18 +1,13 @@
-from validation_utils import *
-from _data_collection_utils import collect_geographic_boundaries
 import sys
-import os
-import time
-import matplotlib.pyplot as plt
+
+from _data_collection_utils import collect_geographic_boundaries
+from _validation_utils import *
 from pathlib import Path
 
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, parent_dir)
-
-from python.utils.study_area_config import get_area_config
-from python.utils.study_area_config import generate_network_name
 
 
 def collect_geographic_data(state_fips, county_fips, census_year, study_area, geo_work_dir):
@@ -98,47 +93,72 @@ def main():
     """Main function to prepare NPMRDS data."""
     # Start timing
     st = time.time()
-    study_area_dir = os.path.expanduser("~/Workspace/Simulation/sfbay")
+    study_area = "seattle"  # or sfbay, seattle
 
     # Configuration parameters
-    study_area = "sfbay"  # or "seattle"
-    batch = "20241106"
-    scenario = "2018-Baseline-20250411-FC08-0"
-    state_fips = "06"
-    county_fips = ['001', '013', '041', '055', '075', '081', '085', '095', '097']
-    census_year = 2018
-    utm_epsg = 26910
-    run_dir = f"{study_area_dir}/beam-runs/{batch}/{scenario}"
-    npmrds_run_dir = f"{run_dir}/npmrds"
-    Path(npmrds_run_dir).mkdir(parents=True, exist_ok=True)
-    network_file = f"{study_area_dir}/network/sfbay-area-cbg5500-network/network.csv.gz"
-    network_dir = os.path.dirname(network_file)
-    network_name = os.path.splitext(os.path.basename(network_file))[0]
+
+    work_dir = os.path.expanduser(f"~/Workspace/Simulation/{study_area}")
+    if study_area == "sfbay":
+        base_configs = {
+            "study_area": study_area,
+            "work_dir": work_dir,
+            "batch": "calibration--jdeq--20251106",
+            "state_fips": "06",
+            "county_fips": ['001', '013', '041', '055', '075', '081', '085', '095', '097'],
+            "census_year": 2018,
+            "npmrds_label": f"NPMRDS_2018",
+            "utm_epsg": 26910,
+            "npmrds_raw_geo": f"{work_dir}/validation/npmrds/California.shp",
+            "npmrds_raw_data_csv": f'{work_dir}/validation/npmrds/al_ca_oct2018_1hr_trucks_pax.csv',
+            "network_csv": f"{work_dir}/network/sfbay-area-cbg5500-network/network.csv.gz",
+        }
+    elif study_area == "seattle":
+        base_configs = {
+            "study_area": study_area,
+            "work_dir": work_dir,
+            "batch": "calibration--jdeq--20251106",
+            "state_fips": "53",
+            "county_fips": ["061", "033", "035", "053"],
+            "census_year": 2018,
+            "npmrds_label": f"NPMRDS_2018",
+            "utm_epsg": 32048,
+            "npmrds_raw_geo": f"{work_dir}/validation/NPMRDS/Washington.shp",
+            "npmrds_raw_data_csv": f'{work_dir}/validation/npmrds/vt_wi_2018_1hr/vt_wi_2018_1hr.csv',
+            "network_csv": f"{work_dir}/network/seattle-area-cbg120-ferry-weakConn-network/seattle-area-cbg120-ferry-weakConn-network.csv.gz",
+        }
+    else:
+        raise ValueError("Invalid study area specified")
+
+    npmrds_dir = os.path.dirname(base_configs["npmrds_raw_geo"])
+    network_dir = os.path.dirname(base_configs["network_csv"])
+    network_name = Path(Path(base_configs["network_csv"]).stem).stem
     paths = {
         # Input paths
-        "geo_dir": f"{study_area_dir}/geo",
-        "npmrds_raw_geo": f"{study_area_dir}/validation/npmrds/California.shp",
-        "npmrds_raw_data_csv": f"{study_area_dir}/validation/npmrds/al_ca_oct2018_1hr_trucks_pax.csv",
-        "network_dir": f"{study_area_dir}/network/sfbay-area-cbg5500-network",
-        "beam_network_csv_input": network_file,
+        "geo_dir": f"{work_dir}/geo",
+        "npmrds_raw_geo": base_configs["npmrds_raw_geo"],
+        "npmrds_raw_data_csv": base_configs["npmrds_raw_data_csv"],
+        "network_dir": network_dir,
+        "beam_network_csv_input": base_configs["network_csv"],
 
         # Output paths
-        "npmrds_station_geo": f"{npmrds_run_dir}/{study_area}-npmrds-station.geojson",
-        "npmrds_data_csv": f"{npmrds_run_dir}/{study_area}-npmrds-data.csv",
-        "npmrds_hourly_speed_csv": f"{npmrds_run_dir}/{study_area}-npmrds-hourly-speeds.csv",
-        "npmrds_hourly_speed_by_road_class_csv": f"{npmrds_run_dir}/{study_area}-npmrds-hourly-speed-by-road-class.csv",
-        "station_plot": f"{npmrds_run_dir}/{study_area}-npmrds-station.png",
+        # NPMRDS processed data
+        "npmrds_station_geo": f"{npmrds_dir}/{study_area}-npmrds-station.geojson",
+        "npmrds_data_csv": f"{npmrds_dir}/{study_area}-npmrds-data.csv",
+        "npmrds_hourly_speed_csv": f"{npmrds_dir}/{study_area}-npmrds-hourly-speeds.csv",
+        "npmrds_hourly_speed_by_road_class_csv": f"{npmrds_dir}/{study_area}-npmrds-hourly-speed-by-road-class.csv",
+        "station_plot": f"{npmrds_dir}/{study_area}-npmrds-station.png",
 
+        # NPMRDS mapped to BEAM network
         "beam_network_car_links_geo": f"{network_dir}/{network_name}--car-only.geojson",
-        "beam_npmrds_network_map_geo": f"{network_dir}/{network_name}--mapped-to-npmrds.geojson",
-        "network_plot": f"{network_dir}/{network_name}--mapped-to-npmrds.png"
+        "beam_npmrds_network_map_geo": f"{network_dir}/{network_name}--npmrds.geojson",
+        "network_plot": f"{network_dir}/{network_name}--npmrds.png"
     }
 
     # Collect geographic data
     region_boundary_wgs84, cbg_boundary_wgs84 = collect_geographic_data(
-        state_fips,
-        county_fips,
-        census_year,
+        base_configs["state_fips"],
+        base_configs["county_fips"],
+        base_configs["census_year"],
         study_area,
         paths["geo_dir"]
     )
@@ -146,9 +166,9 @@ def main():
     # Process NPMRDS data
     regional_npmrds_station, beam_npmrds_network_map = process_npmrds_data(
         paths,
-        census_year,
+        base_configs["census_year"],
         region_boundary_wgs84,
-        utm_epsg
+        base_configs["utm_epsg"]
     )
 
     # Plot results

@@ -5,7 +5,7 @@ import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch._
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.StrictLogging
 import org.locationtech.jts.geom.Envelope
@@ -17,7 +17,6 @@ import scala.util.Random
 
 abstract class InfrastructureFunctions(
   tazTreeMap: TAZTreeMap,
-  searchQuadTree: SearchQuadTree,
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
   searchParams: BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params,
@@ -132,7 +131,7 @@ abstract class InfrastructureFunctions(
         mnlMultiplierParameters,
         zoneCollections,
         parkingZones,
-        searchQuadTree,
+        tazTreeMap.searchQuadTree.get,
         new Random(seed + inquiryHash),
         inquiry.departureLocation,
         inquiry.reservedFor,

@@ -354,6 +354,7 @@ object ParkingZoneSearch {
   object SearchMode {
 
     case class DestinationSearch(
+      params: ParkingZoneSearchParams,
       destinationUTM: Location,
       searchStartRadius: Double,
       searchMaxRadius: Double,
@@ -366,16 +367,16 @@ object ParkingZoneSearch {
       override def lookupParkingZonesInNextSearchAreaUnlessThresholdReached(
         searchQuadTree: SearchQuadTree
       ): Option[SearchQuadTree.SearchQuadTreeResults] = {
+        // Rest of your existing code
         if (thisInnerRadius > searchMaxRadius) None
         else {
-          val result =
-            searchQuadTree.getRing(
-              destinationUTM.getX,
-              destinationUTM.getY,
-              thisInnerRadius,
-              thisOuterRadius,
-              sampleSize
-            )
+          val result = searchQuadTree.getRing(
+            destinationUTM.getX,
+            destinationUTM.getY,
+            thisInnerRadius,
+            thisOuterRadius,
+            sampleSize
+          )
           thisInnerRadius = thisOuterRadius
           thisOuterRadius = thisOuterRadius * expansionFactor
           Some(result)
@@ -451,6 +452,7 @@ object ParkingZoneSearch {
               (minRadius, maxRadius)
           }
           DestinationSearch(
+            params,
             params.destinationUTM,
             startRadius,
             searchMaxRadius,

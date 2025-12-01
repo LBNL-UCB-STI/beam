@@ -4,6 +4,7 @@ import beam.agentsim.agents.vehicles.VehicleCategory.{Car, Class456Vocational, M
 import beam.agentsim.agents.vehicles.{VehicleCategory, VehicleManager}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.VehicleRestrictionKey
+import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.VehicleRestrictionKey.CategoryOnly
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtilsSpec.PositiveTestData
 import beam.agentsim.infrastructure.taz.TAZ
 import org.matsim.api.core.v01.Id
@@ -54,8 +55,8 @@ class ParkingZoneFileUtilsSpec extends AnyWordSpec with Matchers {
                     parkingZone.reservedFor should be(VehicleManager.AnyManager)
                     parkingZone.timeRestrictions should be(
                       Map(
-                        VehicleCategory.Car                -> Range(3600, 43200),
-                        VehicleCategory.Class456Vocational -> Range(48600, 61200)
+                        CategoryOnly(VehicleCategory.Car)                -> Range(3600, 43200),
+                        CategoryOnly(VehicleCategory.Class456Vocational) -> Range(48600, 61200)
                       )
                     )
                 }
@@ -73,15 +74,15 @@ class ParkingZoneFileUtilsSpec extends AnyWordSpec with Matchers {
             result.totalRows should be(2)
             result.zones(Id.create("parkingZone1", classOf[ParkingZoneId])).timeRestrictions should be(
               Map(
-                MediumDutyPassenger -> (18600 until 27000),
-                Class456Vocational  -> (63000 until 86400),
-                Car                 -> (0 until 63000)
+                CategoryOnly(MediumDutyPassenger) -> (18600 until 27000),
+                CategoryOnly(Class456Vocational)  -> (63000 until 86400),
+                CategoryOnly(Car)                 -> (0 until 63000)
               )
             )
             result.zones(Id.create("parkingZone2", classOf[ParkingZoneId])).timeRestrictions should be(
               Map(
-                Class456Vocational -> (63000 until 86400),
-                Car                -> (0 until 63000)
+                CategoryOnly(Class456Vocational) -> (63000 until 86400),
+                CategoryOnly(Car)                -> (0 until 63000)
               )
             )
             println(result.zones)

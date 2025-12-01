@@ -15,7 +15,8 @@ object TazTreeMapToGpx extends LazyLogging {
     val geoUtils = new beam.sim.common.GeoUtils {
       override def localCRS: String = "epsg:26910"
     }
-    val tazTreeMap: TAZTreeMap = TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
+    val tazTreeMap: TAZTreeMap =
+      TAZTreeMap(filePath = beamConfig.beam.agentsim.taz.filePath, scenarioCRS = geoUtils.localCRS)
 
     val tazPoints = tazTreeMap.getTAZs.map { taz =>
       GpxPoint(taz.tazId.toString, geoUtils.utm2Wgs(taz.coord))

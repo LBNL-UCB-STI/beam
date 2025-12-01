@@ -114,13 +114,11 @@ class BeamWarmStart private (val warmConfig: WarmStartConfigProperties) extends 
 
     if (search.nonEmpty) {
       search
-
     } else {
       val iters = getITERSPath(parentRunPath)
 
       if (iters.nonEmpty) {
         findFileInDir(warmStartFile, Paths.get(iters.head).getParent.toString)
-
       } else {
         Files.walk(Paths.get(parentRunPath)).toScala[Stream].map(_.toString).find(_.endsWith(warmStartFile))
       }
@@ -236,7 +234,13 @@ object BeamWarmStart extends LazyLogging {
             )
             .map(_.toString)
           warm.readTravelTime(linkStatsPath, beamConfig.beam.input.lastBaseOutputDir)
-        } else warm.readTravelTime
+        } else if (Files.isRegularFile(defaultLinkstatsPath)) {
+          // For linkStatsOnly mode, use the provided initialLinkstatsFilePath directly
+          warm.readTravelTime(Some(defaultLinkstatsPath.toString), defaultLinkstatsPath.getParent.toString)
+        } else {
+          // Fall back to searching in warmStart.path (for full warmstart mode)
+          warm.readTravelTime
+        }
       travelTime.foreach { travelTime =>
         beamRouter ! UpdateTravelTimeLocal(travelTime)
         BeamWarmStart.updateRemoteRouter(scenario, travelTime, maxHour, beamRouter)
