@@ -371,6 +371,14 @@ dependencies {
         exclude group: 'org.apache.hadoop'
         exclude group: 'org.slf4j'
     }
+    testImplementation("org.apache.spark:spark-core_${scalaBinaryVersion}:${sparkVersion}") {
+        exclude group: 'org.apache.hadoop'
+        exclude group: 'org.slf4j'
+    }
+    testImplementation("org.apache.spark:spark-sql_${scalaBinaryVersion}:${sparkVersion}") {
+        exclude group: 'org.apache.hadoop'
+        exclude group: 'org.slf4j'
+    }
 
     def parquet = "1.12.3"
     // Parquet dependencies with shading

@@ -1889,7 +1889,10 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
 
       val routingResponse = if (!embodiedTrips.exists(_.tripClassifier == WALK) && !mainRouteToVehicle) {
         val maybeBody = accessVehicles.find(_.mode == WALK)
-        if (buildDirectWalkRoute && maybeBody.isDefined) {
+        if (
+          buildDirectWalkRoute && maybeBody.isDefined && (request.requestedMode.isEmpty || request.requestedMode
+            .contains(WALK))
+        ) {
           val dummyTrip = RoutingWorker.createBushwackingTrip(
             new Coord(request.originUTM.getX, request.originUTM.getY),
             new Coord(request.destinationUTM.getX, request.destinationUTM.getY),

@@ -260,6 +260,8 @@ class BeamRouter(
         val (work, originalSender) = availableWorkWithOriginalSender.poll()
         sendWorkTo(worker, work, originalSender, receivePath = "GimmeWork")
       }
+    case GetWorker =>
+      localNodes.headOption.foreach(sender ! _)
     case odSkimmerReady: ODSkimmerReady =>
       odSkimmer = Some(odSkimmerReady.odSkimmer)
     case routingResp: RoutingResponse =>
@@ -989,6 +991,7 @@ object BeamRouter {
   sealed trait WorkMessage
 
   case object GimmeWork extends WorkMessage
+  case object GetWorker extends WorkMessage
 
   case object WorkAvailable extends WorkMessage
 
