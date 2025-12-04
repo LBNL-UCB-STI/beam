@@ -40,6 +40,7 @@ import java.util
 import java.util.function.IntFunction
 import java.util.{Collections, Optional}
 import scala.collection.JavaConverters._
+import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.language.postfixOps
@@ -270,7 +271,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     }
   }
 
-  private val transferSegmentCache = mutable.Map.empty[(Int, Int), StreetSegment]
+  private val transferSegmentCache = TrieMap.empty[(Int, Int), StreetSegment]
 
   private val mcRaptorStatePools: ThreadLocal[mutable.Map[StreetMode, McRaptorStatePool]] =
     ThreadLocal.withInitial(() => mutable.Map.empty[StreetMode, McRaptorStatePool])
