@@ -114,8 +114,8 @@ def download_and_build_network(study_area_config):
 
 
 def main():
-    area = "seattle"  # Options: sfbay, seattle
-    min_density_per_km2 = 120  # 5500 for sfbay, 120 for seattle
+    area = "sfbay"  # Options: sfbay, seattle
+    min_density_per_km2 = 5500  # 5500 for sfbay, 120 for seattle
     strongly_connected_components = False
 
     # Update study area configuration

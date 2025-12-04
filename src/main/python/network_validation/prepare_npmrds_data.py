@@ -116,7 +116,7 @@ def main():
         base_configs = {
             "study_area": study_area,
             "work_dir": work_dir,
-            "batch": "calibration--jdeq--20251106",
+            "batch": "calibration--jdeq--20251126",
             "state_fips": "53",
             "county_fips": ["061", "033", "035", "053"],
             "census_year": 2018,

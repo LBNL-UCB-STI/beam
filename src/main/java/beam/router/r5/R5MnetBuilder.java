@@ -122,23 +122,23 @@ public class R5MnetBuilder {
                         "CRITICAL: Self-loop detected in MATSim network conversion!\n" +
                                 "  OSM way: %d\n" +
                                 "  R5 vertices: %d -> %d (SAME VERTEX)\n" +
-                                "  MATSim node: %d -> %d (SAME NODE)\n" +
+                                "  MATSim node: %s -> %s (SAME NODE)\n" +   // <-- changed
                                 "  Edge index: %d\n" +
                                 "  Length reported: %.3fm\n" +
                                 "\n" +
                                 "This indicates a data pipeline failure. Check:\n" +
                                 "  1. Did Python's validate_graph_topology() run during OSM export?\n" +
                                 "  2. Did R5's makeEdge() check fail to catch corrupt OSM data?\n" +
-                                "  3. Is there a new edge-splitting bug creating duplicate vertices?\n" +
+                                "  3. Is there a new edge‑splitting bug creating duplicate vertices?\n" +
                                 "\n" +
-                                "DO NOT run simulations with this network - it is corrupted.",
-                        osmID,
-                        cursor.getFromVertex(),
-                        cursor.getToVertex(),
-                        fromNode.getId(),
-                        toNode.getId(),
-                        cursor.getEdgeIndex(),
-                        cursor.getLengthM()
+                                "DO NOT run simulations with this network – it is corrupted.",
+                        osmID,                                 // long → %d (ok)
+                        cursor.getFromVertex(),                // int → %d (ok)
+                        cursor.getToVertex(),                  // int → %d (ok)
+                        fromNode.getId().toString(),           // Id<Node> → %s
+                        toNode.getId().toString(),             // Id<Node> → %s
+                        cursor.getEdgeIndex(),                 // int → %d (ok)
+                        cursor.getLengthM()                    // double → %.3f (ok)
                 ));
             }
         }

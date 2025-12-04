@@ -585,13 +585,8 @@ def main():
     # Base configuration (common across all runs)
     study_area = "seattle"
     iteration = 3
-    batch = "calibration--jdeq--20251120"
-    runs = [
-                ("seattle-pilates-calibration--jdeq--cbg120fwc--FC07-0--testing-docker-20251120-192525", iteration),
-                ("seattle-pilates-calibration--jdeq--cbg120fwc--FC08-0-20251120-181657", iteration),
-                ("seattle-pilates-calibration--jdeq--cbg120fwc--FC08-5-20251120-165256", iteration),
-                ("seattle-pilates-calibration--jdeq--cbg120fwc--FC09-0-20251120-175817", iteration),
-                ("seattle-pilates-calibration--jdeq--cbg120fwc--FC10-0-20251120-153918", iteration)
+    batch = "calibration--jdeq--20251126"
+    runs = [("seattle-pilates-calibration--jdeq--cbg120fwc--FC10-0-20251126-165230", iteration)
             ]
     peak_hour = 8
     do_link_speed_validation = True

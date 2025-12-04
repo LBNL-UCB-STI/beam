@@ -1,171 +1,297 @@
 import pandas as pd
 import os
 import matplotlib.pyplot as plt
+import numpy as np
 
 
-def calculate_congestion(df: pd.DataFrame) -> pd.DataFrame:
+def calculate_congestion_smart(df: pd.DataFrame, short_link_threshold_m: float = 50.0) -> pd.DataFrame:
     """
-    Processes linkstats data (passed as a DataFrame) to calculate VHT and a
-    normalized velocity metric (velocity_hpm).
+    Processes linkstats data with intelligent handling of short links.
+
+    For normal links (>threshold): Uses VHT/mile (velocity_hpm)
+    For short links (<=threshold): Uses absolute VHT and flags them separately
 
     Args:
-        df (pd.DataFrame): The linkstats data, already loaded into a pandas DataFrame.
+        df (pd.DataFrame): The linkstats data
+        short_link_threshold_m (float): Threshold in meters to classify short links
 
     Returns:
-        pd.DataFrame: The DataFrame with 'vht' and 'velocity_hpm' columns added.
+        pd.DataFrame: DataFrame with congestion metrics and short_link flag
     """
-    # 1. Data Cleaning and Preparation
+    # 1. Data Cleaning
     required_cols = ['link', 'length', 'volume', 'traveltime']
     for col in required_cols:
         if col not in df.columns:
-            print(f"Error: Required column '{col}' is missing from the data.")
+            print(f"Error: Required column '{col}' is missing.")
             return pd.DataFrame()
 
-    # Convert to numeric, coercing errors
     df['length'] = pd.to_numeric(df['length'], errors='coerce')
     df['volume'] = pd.to_numeric(df['volume'], errors='coerce')
     df['traveltime'] = pd.to_numeric(df['traveltime'], errors='coerce')
-
-    # Remove rows where crucial data is NaN after conversion
     df = df.dropna(subset=['length', 'volume', 'traveltime']).copy()
 
-    # Calculate VHT (Vehicle Hours Traveled)
-    # VHT = volume (vehicles) * traveltime (seconds) / 3600
+    # 2. Calculate basic metrics
     df['vht'] = df['volume'] * (df['traveltime'] / 3600.0)
+    df['length_m'] = df['length']  # Length is already in meters
+    df['length_miles'] = df['length'] / 1609.34  # Convert meters to miles
 
-    # Calculate Velocity HPM (Hours Per Mile) - (VHT / Length in Miles)
-    # Note: 1609 is the approximate conversion from meters to miles
-    df['velocity_hpm'] = df['vht'] / (df['length'] / 1609.0)
+    # 3. Flag short links
+    df['is_short_link'] = df['length_m'] <= short_link_threshold_m
+
+    # 4. Calculate velocity_hpm ONLY for normal links
+    # For short links, use absolute VHT as the congestion metric
+    df['velocity_hpm'] = np.where(
+        df['is_short_link'],
+        np.nan,  # Don't calculate for short links
+        df['vht'] / df['length_miles']
+    )
+
+    # 5. Unified congestion metric for ranking
+    # For normal links: velocity_hpm
+    # For short links: VHT normalized by a fixed reference (e.g., per 100m)
+    df['congestion_metric'] = np.where(
+        df['is_short_link'],
+        df['vht'] * (100.0 / df['length_m']),  # Normalize to VHT per 100m
+        df['velocity_hpm']
+    )
 
     return df
 
 
-def plot_histogram(df: pd.DataFrame, column: str, bins: int = 50):
+def analyze_congestion_by_category(df: pd.DataFrame, short_link_threshold_m: float = 50.0):
     """
-    Generates and displays a histogram for a specified column in the DataFrame,
-    annotating each bar with the average value of the data in that bin.
-
-    Args:
-        df (pd.DataFrame): The DataFrame containing the data.
-        column (str): The column name to plot (e.g., 'velocity_hpm').
-        bins (int): The number of bins for the histogram.
+    Analyze congestion separately for normal and short links.
     """
-    if column not in df.columns:
-        print(f"Error: Column '{column}' not found in the DataFrame.")
-        return
+    print("\n" + "=" * 80)
+    print("CONGESTION ANALYSIS - SEGMENTED BY LINK LENGTH")
+    print("=" * 80)
 
-    plt.figure(figsize=(12, 7))
+    # Separate datasets
+    normal_links = df[~df['is_short_link']].copy()
+    short_links = df[df['is_short_link']].copy()
 
-    # 1. Plot the histogram, capturing the bin data (counts N, and bin edges)
-    # log=True is used to capture the data for the log-scaled plot
-    N, bins, patches = plt.hist(df[column], bins=bins, edgecolor='black', log=True)
+    total_records = len(df)
+    normal_count = len(normal_links)
+    short_count = len(short_links)
 
-    # 2. Iterate over the bins to calculate and display the average
-    for i in range(len(N)):
-        # Calculate the start and end of the current bin
-        bin_start = bins[i]
-        bin_end = bins[i + 1]
+    print(f"\nDataset Summary:")
+    print(f"   Total link-hour records: {total_records:,}")
+    print(f"   Normal links (>{short_link_threshold_m}m): {normal_count:,} ({100 * normal_count / total_records:.1f}%)")
+    print(f"   Short links (≤{short_link_threshold_m}m): {short_count:,} ({100 * short_count / total_records:.1f}%)")
 
-        # Filter the original data for values that fall into the current bin range
-        # Use >= for bin_start and < for bin_end, matching plt.hist behavior
-        data_in_bin = df[(df[column] >= bin_start) & (df[column] < bin_end)][column]
+    # Analyze normal links
+    if not normal_links.empty:
+        print("\n" + "-" * 80)
+        print(f"NORMAL LINKS (>{short_link_threshold_m}m) - Using VHT/Mile Metric")
+        print("-" * 80)
 
-        # Check if the bin has data and a positive count
-        if not data_in_bin.empty and N[i] > 0:
-            # Calculate the average (mean) velocity_hpm for this bin
-            average_hpm = data_in_bin.mean()
+        # Filter out zero values
+        congested_normal = normal_links[normal_links['velocity_hpm'] > 0]
 
-            # The height of the bar (count) is N[i]
-            height = N[i]
+        if not congested_normal.empty:
+            threshold_99 = congested_normal['velocity_hpm'].quantile(0.99)
+            highly_congested = congested_normal[congested_normal['velocity_hpm'] >= threshold_99]
 
-            # Find the center of the bar for text placement
-            x_center = (bin_start + bin_end) / 2
+            print(f"\n   99th Percentile VHT/Mile: {threshold_99:,.2f}")
+            print(f"   Records exceeding threshold: {len(highly_congested):,}")
 
-            # Format the text (using comma separators for clarity with large numbers)
-            text_label = f"Avg: {average_hpm:,.2f}"
+            # Top 10 most congested normal links
+            top_normal = congested_normal.groupby('link').agg(
+                max_vht_per_mile=('velocity_hpm', 'max'),
+                avg_length_m=('length_m', 'mean'),
+                total_vht=('vht', 'sum'),
+                congested_hours=('velocity_hpm', 'count')
+            ).sort_values(by='max_vht_per_mile', ascending=False).head(10)
 
-            # Annotate the bar. We place it slightly above the bar.
-            # Adjust Y position for better visibility on a log scale (1.5x height)
-            y_position = height * 1.5
+            print("\n   Top 10 Most Congested Normal Links:")
+            print("   " + "-" * 76)
+            print(f"   {'Link':<10} {'Max VHT/mi':<15} {'Avg Length':<12} {'Total VHT':<12} {'Hours':<8}")
+            print("   " + "-" * 76)
+            for link_id, row in top_normal.iterrows():
+                print(f"   {str(link_id):<10} {row['max_vht_per_mile']:>13,.1f}  "
+                      f"{row['avg_length_m']:>10,.0f}m  {row['total_vht']:>10,.1f}h  "
+                      f"{row['congested_hours']:>6.0f}")
 
-            plt.text(x_center, y_position, text_label,
-                     ha='center', va='bottom', fontsize=8, color='darkred',
-                     rotation=45)  # Rotate for better fit with large numbers
+    # Analyze short links
+    if not short_links.empty:
+        print("\n" + "-" * 80)
+        print(f"SHORT LINKS (<={short_link_threshold_m}m) - Using Absolute VHT")
+        print("-" * 80)
 
-    plt.title(f'Distribution of {column} with Bin Averages')
-    plt.xlabel(column)
-    plt.ylabel('Frequency (Number of Link-Hour Records) [Log Scale]')
-    plt.grid(axis='y', alpha=0.5)
+        congested_short = short_links[short_links['vht'] > 0]
+
+        if not congested_short.empty:
+            threshold_99_short = congested_short['vht'].quantile(0.99)
+            highly_congested_short = congested_short[congested_short['vht'] >= threshold_99_short]
+
+            print(f"\n   99th Percentile Absolute VHT: {threshold_99_short:,.2f} vehicle-hours")
+            print(f"   Records exceeding threshold: {len(highly_congested_short):,}")
+
+            # Top 10 most congested short links
+            top_short = congested_short.groupby('link').agg(
+                max_vht=('vht', 'max'),
+                avg_length_m=('length_m', 'mean'),
+                total_vht=('vht', 'sum'),
+                congested_hours=('vht', 'count')
+            ).sort_values(by='max_vht', ascending=False).head(10)
+
+            print("\n   Top 10 Most Congested Short Links:")
+            print("   " + "-" * 76)
+            print(f"   {'Link':<10} {'Max VHT':<15} {'Avg Length':<12} {'Total VHT':<12} {'Hours':<8}")
+            print("   " + "-" * 76)
+            for link_id, row in top_short.iterrows():
+                print(f"   {str(link_id):<10} {row['max_vht']:>13,.2f}  "
+                      f"{row['avg_length_m']:>10,.1f}m  {row['total_vht']:>10,.1f}h  "
+                      f"{row['congested_hours']:>6.0f}")
+
+            # Additional insights for short links
+            print("\n   SHORT LINK INSIGHTS:")
+            short_link_ids = short_links['link'].unique()
+            print(f"   • {len(short_link_ids):,} unique short links in network")
+
+            # Find extremely short links with high traffic
+            very_short = short_links[short_links['length_m'] < 15]
+            if not very_short.empty:
+                total_vht_very_short = very_short['vht'].sum()
+                print(f"   • {len(very_short['link'].unique()):,} links under 15m")
+                print(f"   • Total VHT on sub-15m links: {total_vht_very_short:,.1f} vehicle-hours")
+
+
+def plot_histogram_segmented(df: pd.DataFrame, short_link_threshold_m: float = 50.0):
+    """
+    Create side-by-side histograms for normal and short links.
+    """
+    normal_links = df[~df['is_short_link']]
+    short_links = df[df['is_short_link']]
+
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+
+    # Plot 1: Normal links (VHT/mile)
+    if not normal_links.empty:
+        ax1 = axes[0]
+        normal_positive = normal_links[normal_links['velocity_hpm'] > 0]['velocity_hpm']
+
+        if not normal_positive.empty:
+            ax1.hist(normal_positive, bins=50, edgecolor='black', log=True, color='steelblue')
+            ax1.set_title(f'Normal Links (>{short_link_threshold_m}m)\nVHT per Mile Distribution')
+            ax1.set_xlabel('VHT per Mile')
+            ax1.set_ylabel('Frequency (Log Scale)')
+            ax1.grid(axis='y', alpha=0.3)
+
+            # Add 99th percentile line
+            p99 = normal_positive.quantile(0.99)
+            ax1.axvline(p99, color='red', linestyle='--', linewidth=2,
+                        label=f'99th percentile: {p99:,.0f}')
+            ax1.legend()
+
+    # Plot 2: Short links (absolute VHT)
+    if not short_links.empty:
+        ax2 = axes[1]
+        short_positive = short_links[short_links['vht'] > 0]['vht']
+
+        if not short_positive.empty:
+            ax2.hist(short_positive, bins=50, edgecolor='black', log=True, color='coral')
+            ax2.set_title(f'Short Links (≤{short_link_threshold_m}m)\nAbsolute VHT Distribution')
+            ax2.set_xlabel('Vehicle-Hours Traveled')
+            ax2.set_ylabel('Frequency (Log Scale)')
+            ax2.grid(axis='y', alpha=0.3)
+
+            # Add 99th percentile line
+            p99 = short_positive.quantile(0.99)
+            ax2.axvline(p99, color='red', linestyle='--', linewidth=2,
+                        label=f'99th percentile: {p99:.2f}')
+            ax2.legend()
+
     plt.tight_layout()
     plt.show()
 
 
-if __name__ == '__main__':
-    print("--- Traffic Congestion Analysis ---")
-    linkstats_file = os.path.expanduser(
-        '~/Workspace/Simulation/seattle/beam-runs/calibration--jdeq--20251120/seattle-pilates-calibration--jdeq--cbg120fwc--FC10-0-20251120-153918/3.linkstats_unmodified.csv.gz')
+def identify_problem_links(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Identify links that might be causing simulation artifacts.
+    Returns a summary DataFrame of problematic links.
+    """
+    print("\n" + "=" * 80)
+    print("NETWORK TOPOLOGY ANALYSIS")
+    print("=" * 80)
 
-    # --- Load data directly from the CSV file ---
-    df_linkstats = pd.DataFrame()
+    # Group by link to get per-link statistics
+    link_stats = df.groupby('link').agg(
+        avg_length_m=('length_m', 'mean'),
+        total_vht=('vht', 'sum'),
+        max_volume=('volume', 'max'),
+        hours_with_traffic=('volume', lambda x: (x > 0).sum())
+    ).reset_index()
+
+    # Identify very short links with high traffic
+    very_short_busy = link_stats[
+        (link_stats['avg_length_m'] < 15) &
+        (link_stats['total_vht'] > 100)  # More than 100 vehicle-hours over simulation
+        ].sort_values(by='total_vht', ascending=False)
+
+    if not very_short_busy.empty:
+        print(f"\nWARNING: Found {len(very_short_busy)} links under 15m with >100 VHT:")
+        print("   These may be artifacts from R5 transit stop splitting\n")
+        print(f"   {'Link':<10} {'Length':<12} {'Total VHT':<15} {'Max Volume':<12} {'Active Hours':<15}")
+        print("   " + "-" * 76)
+
+        for _, row in very_short_busy.head(15).iterrows():
+            print(f"   {row['link']:<10} {row['avg_length_m']:>10.1f}m  "
+                  f"{row['total_vht']:>13,.1f}h  {row['max_volume']:>10,.0f}  "
+                  f"{row['hours_with_traffic']:>13.0f}")
+
+        print(f"\n   RECOMMENDATION:")
+        print(f"   Consider modifying R5 to not split edges shorter than ~30m")
+        print(f"   This would reduce artifacts while preserving network topology")
+
+    return very_short_busy
+
+
+if __name__ == '__main__':
+    print("\n" + "=" * 80)
+    print("TRAFFIC CONGESTION ANALYSIS")
+    print("=" * 80)
+
+    linkstats_file = os.path.expanduser(
+        '~/Workspace/Simulation/seattle/beam-runs/calibration--jdeq--20251126/'
+        'seattle-pilates-calibration--jdeq--cbg120fwc--FC10-0-20251126-165230/'
+        '3.linkstats.csv')
+
+    # Load data
     try:
         df_linkstats = pd.read_csv(linkstats_file)
-        print("Successfully loaded data from the linkstats file.")
+        print(f"\nLoaded {len(df_linkstats):,} link-hour records")
     except FileNotFoundError:
-        print(f"Error: {linkstats_file} not found. Please ensure the file path is correct.")
+        print(f"\nError: File not found: {linkstats_file}")
         exit()
     except Exception as e:
-        print(f"Failed to read {linkstats_file}: {e}")
+        print(f"\nFailed to read file: {e}")
         exit()
 
-    try:
-        # Pass the DataFrame to the calculation function
-        processed_df = calculate_congestion(df_linkstats)
+    # Set threshold for short links (in meters)
+    SHORT_LINK_THRESHOLD = 50.0  # Adjust this value as needed
 
-        if not processed_df.empty:
-            # 1. Define the Congestion Threshold (99th Percentile)
-            # Filter out zero values first, as they represent uncongested periods (the huge bar on the left)
-            congested_values = processed_df[processed_df['velocity_hpm'] > 0]['velocity_hpm']
+    # Process with smart handling
+    processed_df = calculate_congestion_smart(df_linkstats, SHORT_LINK_THRESHOLD)
 
-            # Check if there are enough non-zero values to calculate a percentile
-            if not congested_values.empty:
-                # Calculate the 99th percentile as the threshold
-                threshold_99th_percentile = congested_values.quantile(0.99)
+    if not processed_df.empty:
+        # Main analysis
+        analyze_congestion_by_category(processed_df, SHORT_LINK_THRESHOLD)
 
-                # Filter the original processed data to find link-hours above the threshold
-                congested_records = processed_df[
-                    processed_df['velocity_hpm'] >= threshold_99th_percentile
-                    ].sort_values(by='velocity_hpm', ascending=False)
+        # Identify problem links
+        problem_links = identify_problem_links(processed_df)
 
-                # 2. Print Summary of Congestion
-                print(f"\n--- Congestion Threshold (99th Percentile) ---")
-                print(f"Threshold value: {threshold_99th_percentile:,.4f} Vehicle-Hours/Mile")
-                print(f"Number of link-hour records exceeding threshold: {len(congested_records):,}")
+        # Visualizations
+        print("\n" + "=" * 80)
+        print("Generating visualizations...")
+        print("=" * 80)
+        plot_histogram_segmented(processed_df, SHORT_LINK_THRESHOLD)
 
-                print("\n--- Top 10 Most Congested Link-Hours ---")
+        # Optional: Save problem links to CSV
+        if not problem_links.empty:
+            output_file = '/tmp/problem_links.csv'
+            problem_links.to_csv(output_file, index=False)
+            print(f"\nSaved problem links to: {output_file}")
 
-                # Aggregate the link records to get a summary view for the top links
-                top_links_summary = congested_records.groupby('link').agg(
-                    max_velocity_hpm=('velocity_hpm', 'max'),
-                    total_vht=('vht', 'sum'),
-                    record_count=('velocity_hpm', 'count')
-                ).sort_values(by='max_velocity_hpm', ascending=False).head(10).reset_index()
-
-                top_links_summary.rename(columns={
-                    'max_velocity_hpm': 'Max Congestion (VHT/mi)',
-                    'total_vht': 'Total VHT (Hours)',
-                    'record_count': 'Congested Hours'
-                }, inplace=True)
-
-                print(top_links_summary.to_string(index=False, float_format="{:,.4f}".format))
-
-            else:
-                print("No positive congestion values found to calculate a threshold.")
-
-            # 3. Plot the histogram
-            print("\nDisplaying Histogram of 'velocity_hpm' (Logarithmic Y-axis) with Averages...")
-            plot_histogram(processed_df, 'velocity_hpm')
-
-        else:
-            print("Analysis failed or no valid data was processed.")
-    except Exception as e:
-        print(f"An error occurred during processing: {e}")
+    else:
+        print("\nAnalysis failed - no valid data processed")

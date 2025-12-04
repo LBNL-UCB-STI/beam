@@ -1129,7 +1129,7 @@ def validate_graph_topology(G):
     # 2. Remove isolated nodes
     isolated = list(nx.isolates(G))
     if isolated:
-        print(f"ℹ️  Found {len(isolated)} isolated nodes (no edges)")
+        print(f"ℹ Found {len(isolated)} isolated nodes (no edges)")
         G.remove_nodes_from(isolated)
         stats['isolated_nodes_removed'] = len(isolated)
         print(f"✓ Removed {len(isolated)} isolated nodes")

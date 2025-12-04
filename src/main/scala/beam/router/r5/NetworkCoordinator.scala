@@ -132,7 +132,12 @@ trait NetworkCoordinator extends LazyLogging {
               logger.info(
                 s"Initializing the second router by creating network from directory: ${path2.toAbsolutePath}"
               )
-              TransportNetwork.fromDirectory(path2.toFile)
+              TransportNetwork.fromDirectory(
+                path2.toFile,
+                beamConfig.beam.physsim.network.removeIslands,
+                false,
+                beamConfig.beam.routing.r5.linkRadiusMeters
+              )
             }
 
             networks2 = for {
