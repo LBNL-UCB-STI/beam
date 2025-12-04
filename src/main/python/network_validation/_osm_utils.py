@@ -1081,8 +1081,9 @@ def validate_graph_topology(G):
     Validate graph topology and fix common issues.
 
     Fixes:
-    - Self-loop edges (u == v) - often from OSMnx bugs
+    - Self-loop edges (u == v)
     - Isolated nodes (nodes with no edges)
+    - Checks for duplicate edge IDs
 
     Parameters
     ----------
@@ -1093,81 +1094,73 @@ def validate_graph_topology(G):
     -------
     G : networkx.MultiDiGraph
         Validated and fixed graph
-    stats : dict
-        Dictionary of validation statistics
     """
-    stats = {
-        'original_nodes': G.number_of_nodes(),
-        'original_edges': G.number_of_edges(),
-        'self_loops_removed': 0,
-        'isolated_nodes_removed': 0,
-        'parallel_edges': 0
-    }
+    original_nodes = G.number_of_nodes()
+    original_edges = G.number_of_edges()
+    self_loops_removed = 0
+    isolated_nodes_removed = 0
 
-    print("\n=== Validating Network Topology ===")
-
-    # 1. Remove self-loops (u == v)
+    # 1. Remove self-loops
     self_loops = list(nx.selfloop_edges(G))
     if self_loops:
-        print(f"⚠ Found {len(self_loops)} self-loop edges (same node as start and end)")
+        print(f"Found {len(self_loops)} self-loop edges - removing")
+        # Show example with proper MultiDiGraph key handling
+        if len(self_loops) > 0:
+            # Handle both tuple formats from selfloop_edges
+            first_loop = self_loops[0]
+            if len(first_loop) == 3:
+                u, v, key = first_loop
+            else:
+                u, v = first_loop
+                key = 0
 
-        # Show examples
-        for u, v in self_loops[:3]:  # Unpack only u and v
-            edge_data = G[u][v]  # No need for key since we know u == v for self-loops
-            print(f"    Example: Node {u} -> {u}, "
-                  f"length={edge_data.get('length', 'N/A')}m, "
-                  f"highway={edge_data.get('highway', 'N/A')}")
-        if len(self_loops) > 3:
-            print(f"    ... and {len(self_loops) - 3} more")
+            # Access edge data properly for MultiDiGraph
+            if G.is_multigraph():
+                edge_data = G[u][v][key]
+            else:
+                edge_data = G[u][v]
 
+            print(f"  Example: Node {u}->{u}, length={edge_data.get('length', 'N/A')}m")
+
+        # Remove all self-loops
         G.remove_edges_from(self_loops)
-        stats['self_loops_removed'] = len(self_loops)
-        print(f"✓ Removed {len(self_loops)} self-loop edges")
-    else:
-        print("✓ No self-loop edges found")
+        self_loops_removed = len(self_loops)
 
     # 2. Remove isolated nodes
     isolated = list(nx.isolates(G))
     if isolated:
-        print(f"ℹ Found {len(isolated)} isolated nodes (no edges)")
+        print(f"Found {len(isolated)} isolated nodes - removing")
         G.remove_nodes_from(isolated)
-        stats['isolated_nodes_removed'] = len(isolated)
-        print(f"✓ Removed {len(isolated)} isolated nodes")
-    else:
-        print("✓ No isolated nodes found")
+        isolated_nodes_removed = len(isolated)
 
-    # 3. Count parallel edges (just informational)
-    parallel_count = sum(1 for u, v in G.edges() if G.number_of_edges(u, v) > 1)
-    stats['parallel_edges'] = parallel_count
-    if parallel_count > 0:
-        print(f"ℹ Found {parallel_count} parallel edges (this is normal for bidirectional roads)")
+    # 3. Check for duplicate edge IDs
+    nodes, edges = ox.graph_to_gdfs(G)
+    id_counts = edges['edge_id'].value_counts()
+    duplicates = id_counts[id_counts > 1]
 
-    stats['final_nodes'] = G.number_of_nodes()
-    stats['final_edges'] = G.number_of_edges()
+    if len(duplicates) > 0:
+        print(f"WARNING: Found {len(duplicates)} duplicate edge IDs")
 
-    print(f"\nValidation Summary:")
-    print(f"  Before: {stats['original_nodes']} nodes, {stats['original_edges']} edges")
-    print(f"  After:  {stats['final_nodes']} nodes, {stats['final_edges']} edges")
-    print(f"  Removed: {stats['self_loops_removed']} self-loops, {stats['isolated_nodes_removed']} isolated nodes")
-    print("=" * 50)
+    # Summary if changes were made
+    if self_loops_removed > 0 or isolated_nodes_removed > 0:
+        final_nodes = G.number_of_nodes()
+        final_edges = G.number_of_edges()
+        print(f"Network validation: {original_nodes}->{final_nodes} nodes, "
+              f"{original_edges}->{final_edges} edges")
 
-    return G, stats
+    return G
 
 
 def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, _geo_config: dict,
                                      work_dir) -> nx.MultiDiGraph:
     """Download and prepare OSM network based on study area configuration."""
-    print("=== Starting OSM Network Download and Preparation ===")
+    print(f"=== Preparing OSM Network: {_area_config['name']} ===")
 
     # Apply OSMNX settings
     for setting, value in _network_config["osmnx_settings"].items():
         setattr(ox.settings, setting, value)
-    print("✓ OSMNX settings applied")
 
-    # List to store the graphs
-    graphs = []
-
-    # Set up study area parameters
+    # Extract configuration
     study_area = _area_config['name']
     base_name = f"{work_dir}/geo/{study_area}"
     census_year = _area_config["census_year"]
@@ -1177,37 +1170,36 @@ def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, 
     utm_epsg = _geo_config["utm_epsg"]
     should_strongly_connect = _network_config.get("strongly_connected_components", False)
 
-    # --- START CACHING LOGIC ---
-    # Define a unique cache path for the raw combined graph (before projection/processing)
+    # Cache handling
     raw_graph_cache_path = os.path.join(work_dir, 'network', f'raw_osm_graph_{study_area}.pkl')
-
     g_combined = None
 
+    # Try loading from cache
     if os.path.exists(raw_graph_cache_path):
-        print(f"CACHE HIT: Loading raw combined graph from {raw_graph_cache_path}")
+        print(f"Loading cached graph from: {raw_graph_cache_path}")
         try:
             with open(raw_graph_cache_path, 'rb') as f:
                 g_combined = pickle.load(f)
-            print("✓ Raw graph loaded from cache.")
+            print(f"  Loaded: {g_combined.number_of_nodes()} nodes, {g_combined.number_of_edges()} edges")
         except Exception as e:
-            print(f"WARNING: Failed to load cached graph: {e}. Re-downloading.")
+            print(f"  Cache load failed: {e}. Downloading fresh.")
             g_combined = None
 
+    # Download if cache miss
     if g_combined is None:
-        print(f"CACHE MISS: Downloading and combining network layers to {raw_graph_cache_path}")
-        # (Original download and combine logic starts here)
+        print("Downloading OSM network layers...")
+        graphs = []
 
-        print(f"Collecting {study_area} boundaries...")
-
-        # Process each layer defined in the configuration
+        # Process each configured layer
         for layer_name, layer_config in _network_config["graph_layers"].items():
-            # Get layer configuration
             geo_level = layer_config["geo_level"]
             min_density = layer_config.get("min_density_per_km2", 0)
             custom_filter = layer_config["custom_filter"]
             buffer_in_meters = layer_config["buffer_zone_in_meters"]
 
-            # Create the region boundary GeoDataFrame
+            print(f"  Processing layer: {layer_name}")
+
+            # Collect geographic boundaries
             region_boundary_wgs84 = collect_geographic_boundaries(
                 state_fips_code=state_fips_code,
                 county_fips_codes=county_fips_codes,
@@ -1217,61 +1209,40 @@ def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, 
                 work_dir=work_dir
             )
 
-            # Process specific layer types
+            # Configure layer-specific parameters
             if layer_name == "main":
-                print(f"Processing {layer_name} layer")
                 graph_layer = to_convex_hull(region_boundary_wgs84, utm_epsg, buffer_in_meters)
-                network_type = "drive"
-                simplify = False
-                retain_all = True
-                truncate_by_edge = True
+                network_type, simplify, retain_all, truncate_by_edge = "drive", False, True, True
 
             elif layer_name == "residential":
-                density_info = f" with minimum density: {min_density} pop/km²" if min_density > 0 else ""
-                print(f"Processing {layer_name} layer{density_info}")
+                if min_density > 0:
+                    print(f"    Filtering by density: {min_density} pop/km²")
 
-                # Get population data
                 pop_data = collect_census_data(
-                    state_fips_code,
-                    county_fips_codes,
-                    census_year,
+                    state_fips_code, county_fips_codes, census_year,
                     census_data_file=f"{base_name}_acs_census_{geo_level}_{census_year}.csv",
                     geo_level=geo_level
                 )
 
                 filtered_boundaries = filter_boundaries_by_density(
-                    region_boundary_wgs84,
-                    pop_data,
-                    utm_epsg,
-                    geo_level,
-                    min_density,
+                    region_boundary_wgs84, pop_data, utm_epsg, geo_level, min_density,
                     density_geo_file=f"{base_name}_{geo_level}_{census_year}_{min_density}ppsk_wgs84.geojson",
                 )
 
                 graph_layer = shapely.ops.unary_union([
-                    to_convex_hull(geom, utm_epsg, buffer_in_meters) for geom in filtered_boundaries.geometry
+                    to_convex_hull(geom, utm_epsg, buffer_in_meters)
+                    for geom in filtered_boundaries.geometry
                 ])
-
-                network_type = "drive"
-                simplify = False
-                retain_all = True
-                truncate_by_edge = True
+                network_type, simplify, retain_all, truncate_by_edge = "drive", False, True, True
 
             elif layer_name == "ferry":
-                print(f"Processing ferry layer to connect islands...")
                 graph_layer = to_convex_hull(region_boundary_wgs84, utm_epsg, buffer_in_meters)
-                network_type = "all"
-                simplify = True
-                retain_all = True
-                truncate_by_edge = False
+                network_type, simplify, retain_all, truncate_by_edge = "all", True, True, False
 
             else:
                 raise ValueError(f"Invalid layer name: {layer_name}")
 
-            print("✓ Boundaries collected and unified")
-
-            # Download OSM Network
-            print(f"Downloading OSM network with filter: {custom_filter}")
+            # Download OSM network for this layer
             g = ox.graph_from_polygon(
                 graph_layer,
                 network_type=network_type,
@@ -1280,51 +1251,42 @@ def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, 
                 truncate_by_edge=truncate_by_edge,
                 custom_filter=custom_filter
             )
-            print(f"✓ Downloaded network with {g.number_of_nodes()} nodes and {g.number_of_edges()} edges")
+            print(f"    Downloaded: {g.number_of_nodes()} nodes, {g.number_of_edges()} edges")
 
-            # Special processing for ferry network
+            # Special processing for ferry layer
             if layer_name == "ferry":
                 g = process_ferry_edges(g)
-                if g.number_of_edges() > 0:
-                    print(f"✓ Processed {g.number_of_edges()} ferry connections")
-                else:
-                    print("✗ No suitable ferry connections found")
-                    continue  # Skip adding this empty graph
+                if g.number_of_edges() == 0:
+                    print("    No suitable ferry connections found - skipping layer")
+                    continue
 
-            # Add the graph to the list if it has edges
+            # Add to list
             adjust_and_add_graph(graphs, g)
 
-        # Combine all graphs
-        print("=== Processing Combined Network ===")
+        # Combine all layers
         g_combined = nx.compose_all(graphs)
-        print(f"✓ Combined network has {g_combined.number_of_nodes()} nodes and {g_combined.number_of_edges()} edges")
+        print(f"Combined layers: {g_combined.number_of_nodes()} nodes, {g_combined.number_of_edges()} edges")
 
-        # Save the combined graph to cache before any heavy processing
+        # Save to cache
         try:
+            os.makedirs(os.path.dirname(raw_graph_cache_path), exist_ok=True)
             with open(raw_graph_cache_path, 'wb') as f:
                 pickle.dump(g_combined, f)
-            print(f"✓ Raw combined graph saved to cache: {raw_graph_cache_path}")
+            print(f"Cached to: {raw_graph_cache_path}")
         except Exception as e:
-            print(f"WARNING: Could not save graph to cache: {e}")
-    # --- END CACHING LOGIC ---
+            print(f"Warning: Cache save failed: {e}")
 
-    # Project to UTM for processing
-    print("Projecting graph to UTM...")
+    # Process the combined graph
+    print("Processing network...")
+
+    # Project to UTM
     g_projected = project_graph(g_combined, to_crs=utm_epsg)
-    print("✓ Network projected to UTM")
 
-    # Add edge speeds
-    print("Adding edge speeds...")
+    # Add speeds and process tags
     g_with_speeds = ox.add_edge_speeds(g_projected)
-    print("✓ Edge speeds added")
-
-    # Process tags for vehicle types
-    print("Processing tags...")
     g_processed_tags = process_tags(g_with_speeds, _network_config)
-    print("✓ Edge tags processed")
 
     # Consolidate intersections
-    print("Consolidating intersections...")
     g_consolidated = ox.consolidate_intersections(
         g_processed_tags,
         tolerance=tolerance,
@@ -1332,17 +1294,15 @@ def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, 
         dead_ends=True,
         reconnect_edges=True
     )
-    print("✓ Intersections consolidated")
 
-    # Simplify the graph
-    print("Simplifying graph...")
+    # Simplify graph
     g_simplified = ox.simplification.simplify_graph(
         g_consolidated,
         edge_attrs_differ=["highway", "lanes", "maxspeed"],
         remove_rings=False,
         track_merged=True,
         edge_attr_aggs={
-            "length": sum,  # This now sums the correctly recalculated lengths
+            "length": sum,
             "travel_time": sum,
             "hgv": bool_all,
             "mdv": bool_all,
@@ -1364,60 +1324,42 @@ def download_and_prepare_osm_network(_network_config: dict, _area_config: dict, 
             'motor_vehicle': yes_no_all,
         }
     )
-    print("✓ Network simplified")
 
     # Create unique edge IDs
     nodes, edges = ox.graph_to_gdfs(g_simplified)
     edges['edge_id'] = edges.apply(
-        lambda row: create_unique_edge_id(row['u_original'], row['v_original'], row['osmid'], row.get('key', None)),
+        lambda row: create_unique_edge_id(
+            row['u_original'], row['v_original'], row['osmid'], row.get('key', None)
+        ),
         axis=1
     )
     g_hashed = ox.graph_from_gdfs(nodes, edges)
-    print("✓ Unique edge IDs created")
 
     # Project back to WGS84
-    print("Projecting to WGS84...")
     g_wgs84 = project_graph(g_hashed, to_latlong=True)
-    print("✓ Projected to WGS84")
 
-    # Find largest connected component
-    print("Finding largest connected component...")
-    g_connected = ox.truncate.largest_component(g_wgs84)
-    print(f"✓ Final network has {g_connected.number_of_nodes()} nodes and {g_connected.number_of_edges()} edges")
+    # Validate topology and fix issues
+    g_validated = validate_graph_topology(g_wgs84)
+    # g_validated = g_wgs84
 
-    print("Removing isolated islands from network...")
-
-    # Get the largest strongly connected component (roads where you can actually reach anywhere)
+    # Extract largest connected component
+    print("Extracting largest connected component...")
     if should_strongly_connect:
-        largest_scc = max(strongly_connected_components(g_connected), key=len)
+        largest_component = max(strongly_connected_components(g_validated), key=len)
     else:
-        largest_scc = max(weakly_connected_components(g_connected), key=len)
+        largest_component = max(weakly_connected_components(g_validated), key=len)
 
-    print(f"Network has {g_connected.number_of_nodes()} nodes initially")
-    print(f"Largest connected component has {len(largest_scc)} nodes")
+    # Report if nodes were removed
+    removed_nodes = g_validated.number_of_nodes() - len(largest_component)
+    if removed_nodes > 0:
+        print(f"  Removed {removed_nodes} nodes in disconnected components")
 
-    # Create a subgraph with only the largest connected component
-    g_osm = nx.MultiDiGraph(g_connected.subgraph(largest_scc).copy())
-    print(f"After island removal: {g_osm.number_of_nodes()} nodes")
+    # Create final graph
+    g_final = nx.MultiDiGraph(g_validated.subgraph(largest_component).copy())
 
-    # Validate and fix topology BEFORE any file operations
-    g_network, validation_stats = validate_graph_topology(g_osm)
+    print(f"=== Final network: {g_final.number_of_nodes()} nodes, {g_final.number_of_edges()} edges ===")
 
-    # Alert if issues were found
-    if validation_stats['self_loops_removed'] > 0:
-        print(f"\nIMPORTANT: Fixed {validation_stats['self_loops_removed']} corrupt self-loop edges")
-        print("   These were OSMnx bugs. Your exported network will now be clean.\n")
-
-    # Check for duplicate edge IDs
-    nodes, edges = ox.graph_to_gdfs(g_network)
-    has_duplicates, duplicate_info = check_duplicate_edge_ids(edges, 'edge_id')
-
-    if has_duplicates:
-        dup_counts, dup_examples = duplicate_info
-        print(f"\nFound {sum(dup_counts.values())} duplicate edge IDs")
-
-    print("=== Network Download and Preparation Complete ===")
-    return g_network
+    return g_final
 
 
 def scan_network_directories_for_ways(directory):

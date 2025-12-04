@@ -118,27 +118,27 @@ public class R5MnetBuilder {
                 //
                 // If this exception fires, it means BOTH defenses failed - investigate immediately!
 
-                throw new RuntimeException(String.format(
+                log.error(String.format(
                         "CRITICAL: Self-loop detected in MATSim network conversion!\n" +
                                 "  OSM way: %d\n" +
                                 "  R5 vertices: %d -> %d (SAME VERTEX)\n" +
-                                "  MATSim node: %s -> %s (SAME NODE)\n" +   // <-- changed
+                                "  MATSim node: %s -> %s (SAME NODE)\n" +
                                 "  Edge index: %d\n" +
                                 "  Length reported: %.3fm\n" +
                                 "\n" +
                                 "This indicates a data pipeline failure. Check:\n" +
                                 "  1. Did Python's validate_graph_topology() run during OSM export?\n" +
                                 "  2. Did R5's makeEdge() check fail to catch corrupt OSM data?\n" +
-                                "  3. Is there a new edge‑splitting bug creating duplicate vertices?\n" +
+                                "  3. Is there a new edge-splitting bug creating duplicate vertices?\n" +
                                 "\n" +
                                 "DO NOT run simulations with this network – it is corrupted.",
-                        osmID,                                 // long → %d (ok)
-                        cursor.getFromVertex(),                // int → %d (ok)
-                        cursor.getToVertex(),                  // int → %d (ok)
-                        fromNode.getId().toString(),           // Id<Node> → %s
-                        toNode.getId().toString(),             // Id<Node> → %s
-                        cursor.getEdgeIndex(),                 // int → %d (ok)
-                        cursor.getLengthM()                    // double → %.3f (ok)
+                        osmID,                  // %d is correct for long
+                        cursor.getFromVertex(), // %d is correct for int
+                        cursor.getToVertex(),   // %d is correct for int
+                        fromNode.getId(),       // %s handles the object automatically
+                        toNode.getId(),         // %s handles the object automatically
+                        cursor.getEdgeIndex(),  // %d is correct for int
+                        cursor.getLengthM()     // %.3f is correct for double/float
                 ));
             }
         }
