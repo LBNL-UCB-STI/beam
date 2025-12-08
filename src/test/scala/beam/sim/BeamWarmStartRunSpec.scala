@@ -194,7 +194,7 @@ class BeamWarmStartRunSpec
       files should equal(expectedFiles)
     }
 
-    "run beamville scenario for two iterations with warmstart" taggedAs Retryable in {
+    "run scenario for two iterations with warmstart" taggedAs Retryable in {
       val baseConf = ConfigFactory
         .parseString("beam.agentsim.lastIteration = 1")
         .withFallback(testConfig("test/input/sf-light/sf-light-1k-emissions.conf"))
