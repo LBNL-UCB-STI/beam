@@ -81,7 +81,7 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
 
   private var workAssigner: ActorRef = context.parent
 
-  private var r5: R5Wrapper = new R5Wrapper(
+  private[beam] var r5: R5Wrapper = new R5Wrapper(
     workerParams,
     new BeamFreeFlowTravelTime(networkHelper = workerParams.networkHelper),
     workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
@@ -166,9 +166,13 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
           }
         case None => //
       }
+
     case WorkAvailable =>
       workAssigner = sender
       askForMoreWork()
+
+    case RoutingWorker.GetR5Wrapper =>
+      sender() ! r5
 
     case request: RoutingRequest =>
       msgs = msgs + 1
@@ -457,6 +461,8 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
 object RoutingWorker {
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 1.38
   val DEFAULT_CAR_SPEED_IN_METERS_PER_SECOND = 18.0
+
+  case object GetR5Wrapper
 
   def fromConfig(config: Config) {
     val (workerParams, networks2) = R5Parameters.fromConfig(config)

@@ -2,9 +2,9 @@ package beam.router.skim.core
 
 import beam.agentsim.events.ScalaEvent
 import beam.router.model.EmbodiedBeamTrip
-import beam.router.skim.core.AbstractSkimmer.AGG_SUFFIX
 import beam.router.skim.Skims.SkimType
-import beam.router.skim.CsvSkimReader
+import beam.router.skim.core.AbstractSkimmer.AGG_SUFFIX
+import beam.router.skim.{CsvSkimReader, ParquetSkimReader, SkimReader}
 import beam.sim.BeamWarmStart
 import beam.sim.config.BeamConfig
 import beam.utils.{FileUtils, ProfilingUtils}
@@ -21,8 +21,8 @@ import java.math.RoundingMode
 import java.nio.file.Paths
 import java.text.DecimalFormat
 import java.util.concurrent.ConcurrentHashMap
-import scala.collection.mutable
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.reflect.io.File
 import scala.util.control.NonFatal
@@ -108,6 +108,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
   protected val skimFileHeader: String
   protected val skimName: String
   protected val skimType: SkimType.Value
+  protected val skimOutputFormat: String = "csv.gz"
   protected lazy val eventType: String = skimName + "-event"
 
   private val awaitSkimLoading = 20.minutes
@@ -116,6 +117,10 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
   protected[core] val currentSkimInternal = new ConcurrentHashMap[AbstractSkimmerKey, AbstractSkimmerInternal]()
 
   import readOnlySkim._
+
+  protected def fromParquetRow(row: org.apache.spark.sql.Row): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
+    throw new NotImplementedError("Need to implement in order to read from parquet.")
+  }
 
   protected def fromCsv(line: scala.collection.Map[String, String]): (AbstractSkimmerKey, AbstractSkimmerInternal)
 
@@ -134,6 +139,21 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
   protected[skim] def getCurrentSkimValue(key: AbstractSkimmerKey): Option[AbstractSkimmerInternal] =
     Option(currentSkimInternal.get(key))
 
+  private def readSkimsFromFile(filePath: String): SkimReader[AbstractSkimmerKey, AbstractSkimmerInternal] = {
+    filePath.toLowerCase match {
+      case path if path.endsWith(".parquet") =>
+        new ParquetSkimReader(filePath, fromParquetRow, logger)
+
+      case path if path.endsWith(".csv.gz") || path.endsWith(".csv.gzip") || path.endsWith(".csv") =>
+        new CsvSkimReader(filePath, fromCsv, logger)
+
+      case _ =>
+        val error = s"Unsupported file format for reading skims: $filePath"
+        println(error)
+        throw new IllegalArgumentException(error)
+    }
+  }
+
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     val skimFilePath = beamConfig.beam.warmStart.skimsFilePaths
       .getOrElse(List.empty)
@@ -147,12 +167,12 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
       val filePath = skimFilePath.get.skimsFilePath
       val file = File(filePath)
       aggregatedFromPastSkimsInternal = if (file.isFile) {
-        new CsvSkimReader(filePath, fromCsv, logger).readAggregatedSkims
+        readSkimsFromFile(filePath).readAggregatedSkims
       } else {
-        val filePattern = s"*${BeamWarmStart.fileNameSubstringToDetectIfReadSkimsInParallelMode}*.csv*"
+        val filePattern = s"*${BeamWarmStart.fileNameSubstringToDetectIfReadSkimsInParallelMode}*"
         FileUtils
           .flatParRead(Paths.get(file.path), filePattern, awaitSkimLoading) { (path, reader) =>
-            new CsvSkimReader(path.toString, fromCsv, logger).readSkims(reader)
+            readSkimsFromFile(path.toString).readSkims(reader)
           }
           .toMap
       }
@@ -208,7 +228,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
         v => logger.info(v)
       ) {
         val filePath =
-          ioController.getIterationFilename(currentIterationInternal, skimFileBaseName + ".csv.gz")
+          ioController.getIterationFilename(currentIterationInternal, s"$skimFileBaseName.$skimOutputFormat")
         writeSkim(currentSkim, filePath)
       }
 
@@ -221,13 +241,16 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
       ) {
         val filePath =
           ioController
-            .getIterationFilename(event.getServices.getIterationNumber, skimFileBaseName + AGG_SUFFIX)
+            .getIterationFilename(
+              event.getServices.getIterationNumber,
+              s"$skimFileBaseName$AGG_SUFFIX.$skimOutputFormat"
+            )
         writeSkim(aggregatedFromPastSkimsInternal, filePath)
       }
     }
   }
 
-  private def writeSkim(skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal], filePath: String): Unit = {
+  def writeSkim(skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal], filePath: String): Unit = {
     var writer: BufferedWriter = null
     try {
       writer = org.matsim.core.utils.io.IOUtils.getBufferedWriter(filePath)
@@ -245,7 +268,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
 }
 
 object AbstractSkimmer {
-  val AGG_SUFFIX = "_Aggregated.csv.gz"
+  val AGG_SUFFIX = s"_Aggregated"
 
   class Aggregator[T](val a: T, val b: T, val aObservations: Int, val bObservations: Int) {
 

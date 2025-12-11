@@ -40,6 +40,7 @@ import java.util
 import java.util.function.IntFunction
 import java.util.{Collections, Optional}
 import scala.collection.JavaConverters._
+import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.language.postfixOps
@@ -85,6 +86,27 @@ private class BeamTravelTimeCalculator(
   }
 }
 
+/**
+  * R5Wrapper is a BEAM wrapper for the R5 routing engine.
+  *
+  * This class is responsible for calculating routes for various modes of transport, including street-based modes (walk, car, bike) and transit.
+  * It has been heavily optimized for performance, primarily through the use of thread-local object pooling for expensive R5 components
+  * like `StreetRouter` and `McRaptorSuboptimalPathProfileRouter`. This strategy significantly reduces object churn and garbage collection
+  * pressure in a highly concurrent environment.
+  *
+  * Key Features:
+  * - **Multi-modal Routing**: Supports CAR, BIKE, WALK, and TRANSIT modes, along with intermodal trips (e.g., drive-to-transit).
+  * - **Router Pooling**: Manages thread-local pools of `StreetRouter` and `McRaptor` instances to avoid costly re-initialization.
+  * - **State Pooling**: Utilizes R5's `StatePool` and `McRaptorStatePool` to recycle state objects during routing searches.
+  * - **Caching**: Caches `TravelTimeCalculator` instances and street transfer segments to reduce redundant computations.
+  * - **Performance-aware Logging**: Designates a single thread for logging detailed statistics to minimize logging overhead on worker threads.
+  * - **Request Filtering**: Includes logic to filter access, egress, and direct modes based on the predetermined mode choice, which
+  *   prunes the search space and reduces unnecessary routing calculations.
+  *
+  * @param workerParams Parameters for the R5 worker, including the transport network and BEAM configuration.
+  * @param travelTime A MATSim `TravelTime` instance for calculating link travel times.
+  * @param travelTimeNoiseFraction Fraction of noise to add to travel times.
+  */
 class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNoiseFraction: Double)
     extends MetricsSupport
     with StrictLogging
@@ -249,7 +271,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     }
   }
 
-  private val transferSegmentCache = mutable.Map.empty[(Int, Int), StreetSegment]
+  private val transferSegmentCache = TrieMap.empty[(Int, Int), StreetSegment]
 
   private val mcRaptorStatePools: ThreadLocal[mutable.Map[StreetMode, McRaptorStatePool]] =
     ThreadLocal.withInitial(() => mutable.Map.empty[StreetMode, McRaptorStatePool])
@@ -263,6 +285,23 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
   private val mcRaptorPoolCapacities: ThreadLocal[java.util.Map[McRaptorStatePool, Int]] =
     ThreadLocal.withInitial(() => new java.util.HashMap())
 
+  /**
+    * Borrows a `McRaptorSuboptimalPathProfileRouter` from a thread-local pool.
+    *
+    * This method manages a pool of McRaptor routers to avoid the high cost of their initialization.
+    * It uses a `McRaptorRouterCacheKey` (based on street mode and list supplier type) to segregate
+    * routers in different caches. If a cached router is available, it's reused; otherwise, a new one is created.
+    * This method also manages the underlying `McRaptorStatePool`.
+    *
+    * @param streetMode The access/egress mode (e.g., WALK, CAR).
+    * @param profileRequest The R5 profile request.
+    * @param accessTimes A map of leg modes to their access times to transit stops.
+    * @param egressTimes A map of leg modes to their egress times from transit stops.
+    * @param departureTimeToDominatingList A function to get the dominating list for a given departure time.
+    * @param collapseParetoSurfaceToTime A collater for fare calculations.
+    * @param isDriveTransitRequest A flag indicating if this is a drive-to-transit request.
+    * @return A reset and ready-to-use `McRaptorSuboptimalPathProfileRouter`.
+    */
   private def borrowMcRaptorRouter(
     streetMode: StreetMode,
     profileRequest: ProfileRequest,
@@ -339,6 +378,16 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     router
   }
 
+  /**
+    * Returns a `McRaptorSuboptimalPathProfileRouter` to the pool.
+    *
+    * After a router is used, this method should be called to return it to the thread-local cache for future reuse.
+    * It also records statistics about the router's usage, including state pool consumption and any exhaustions.
+    *
+    * @param router The router to return.
+    * @param r5mode The street mode the router was used for.
+    * @param isDriveTransitRequest A flag indicating if it was a drive-to-transit request.
+    */
   private def returnMcRaptorRouter(
     router: McRaptorSuboptimalPathProfileRouter,
     r5mode: StreetMode,
@@ -501,32 +550,68 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     }
   }
 
+  // Each thread has its own set of state pools for transit access, keyed by street mode.
   private val transitAccessStatePools: ThreadLocal[mutable.Map[StreetMode, StatePool]] =
     ThreadLocal.withInitial(() => mutable.Map.empty[StreetMode, StatePool])
 
+  // Each thread has its own set of state pools for transit egress, keyed by street mode.
   private val transitEgressStatePools: ThreadLocal[mutable.Map[StreetMode, StatePool]] =
     ThreadLocal.withInitial(() => mutable.Map.empty[StreetMode, StatePool])
 
-  /** Stats for a specific StatePool (tracks both router pooling and state exhaustions) */
+  /**
+    * Holds statistics for a specific `StatePool`.
+    * This is used for monitoring and tuning the performance of the router and state pools.
+    *
+    * @param poolType A string identifying the pool (e.g., "MAIN", "ACCESS[WALK]").
+    * @param poolCapacity The configured capacity of the pool.
+    * @param routerHits The number of times a router was successfully borrowed from the cache.
+    * @param routerMisses The number of times a new router had to be created.
+    * @param routerReturns The number of times a router was returned to the cache.
+    * @param routerDiscards The number of times a router was discarded because the cache was full.
+    * @param maxCacheSize The maximum observed size of the router cache.
+    * @param totalRoutes The total number of routes calculated using this pool.
+    * @param routesWithExhaustion The number of routes that exhausted the state pool's capacity.
+    * @param totalExtraStates The total number of extra states allocated beyond the pool's capacity.
+    * @param maxExtraInOneRoute The maximum number of extra states allocated for a single route.
+    * @param maxStatesInUse The peak number of states in use from the pool at any one time.
+    */
   private case class StatePoolStats(
-    poolType: String, // "MAIN", "ACCESS[WALK]", etc.
-    poolCapacity: Int, // From StatePool.getCapacity
-    var routerHits: Long = 0, // Router borrowed from cache
-    var routerMisses: Long = 0, // Router created new
-    var routerReturns: Long = 0, // Router returned to cache
-    var routerDiscards: Long = 0, // Router discarded (cache full)
-    var maxCacheSize: Int = 0, // Largest router cache size
-    var totalRoutes: Long = 0, // Routes processed with this pool
-    var routesWithExhaustion: Long = 0, // Routes that exhausted the StatePool
-    var totalExtraStates: Long = 0, // Total extra states allocated
-    var maxExtraInOneRoute: Int = 0, // Worst single route
-    var maxStatesInUse: Int = 0 // Peak concurrent usage
+    poolType: String,
+    poolCapacity: Int,
+    var routerHits: Long = 0,
+    var routerMisses: Long = 0,
+    var routerReturns: Long = 0,
+    var routerDiscards: Long = 0,
+    var maxCacheSize: Int = 0,
+    var totalRoutes: Long = 0,
+    var routesWithExhaustion: Long = 0,
+    var totalExtraStates: Long = 0,
+    var maxExtraInOneRoute: Int = 0,
+    var maxStatesInUse: Int = 0
   )
 
   /** Per-thread map: StatePool -> its stats */
   private val poolStatsMap: ThreadLocal[java.util.Map[StatePool, StatePoolStats]] =
     ThreadLocal.withInitial(() => new java.util.HashMap())
 
+  /**
+    * Holds statistics for a specific `McRaptorStatePool`.
+    * This is used for monitoring and tuning the performance of the transit router.
+    *
+    * @param streetMode The street mode associated with this pool (e.g., WALK, CAR).
+    * @param listSupplierType The type of dominating list used (e.g., "suboptimal", "beam").
+    * @param poolCapacity The configured capacity of the pool.
+    * @param routerHits The number of times a McRaptor router was successfully borrowed from the cache.
+    * @param routerMisses The number of times a new McRaptor router had to be created.
+    * @param routerReturns The number of times a McRaptor router was returned to the cache.
+    * @param routerDiscards The number of times a McRaptor router was discarded because the cache was full.
+    * @param maxCacheSize The maximum observed size of the McRaptor router cache.
+    * @param totalRoutes The total number of transit routes calculated using this pool.
+    * @param routesWithExhaustion The number of routes that exhausted the state pool's capacity.
+    * @param totalExtraStates The total number of extra states allocated beyond the pool's capacity.
+    * @param maxExtraInOneRoute The maximum number of extra states allocated for a single route.
+    * @param maxStatesInUse The peak number of states in use from the pool at any one time.
+    */
   private case class McRaptorPoolStats(
     streetMode: StreetMode,
     listSupplierType: String,
@@ -692,6 +777,19 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     }
   }
 
+  /**
+    * Updates the travel time of a leg with the current network travel times.
+    *
+    * This method is used to "embody" a previously planned leg with up-to-date travel times from the simulation.
+    * It re-calculates the duration and cost of the leg based on the provided travel time calculator.
+    *
+    * @param leg The `BeamLeg` to update.
+    * @param vehicleId The ID of the vehicle traversing the leg.
+    * @param vehicleTypeId The type ID of the vehicle.
+    * @param embodyRequestId A unique ID for this embodiment request.
+    * @param triggerId The simulation trigger ID that initiated this request.
+    * @return A `RoutingResponse` containing a single `EmbodiedBeamTrip` with the updated leg.
+    */
   def embodyWithCurrentTravelTime(
     leg: BeamLeg,
     vehicleId: Id[Vehicle],
@@ -780,6 +878,16 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     response
   }
 
+  /**
+    * Calculates a street-only route (no transit) between two points.
+    *
+    * This method is used for direct, non-transit trips (e.g., CAR, WALK, BIKE).
+    * It uses a pooled `StreetRouter` to perform the calculation.
+    *
+    * @param request The R5 request, containing origin, destination, time, and vehicle information.
+    * @param requestedMode An optional `BeamMode` to filter the modes to be routed.
+    * @return A `ProfileResponse` containing the direct street-based route options.
+    */
   private def getStreetPlanFromR5(request: R5Request, requestedMode: Option[BeamMode]): ProfileResponse = {
     val streetRoutingStarted = System.currentTimeMillis()
     countOccurrence("r5-plans-count", request.time)
@@ -908,6 +1016,23 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     profileRequest
   }
 
+  /**
+    * Calculates a multi-modal route based on a `RoutingRequest`.
+    *
+    * This is the main entry point for routing in BEAM. It handles complex routing scenarios, including:
+    * - Direct trips (car, walk, bike)
+    * - Transit trips
+    * - Intermodal trips (e.g., driving to a transit station, taking transit, then walking to the destination)
+    * - Trips involving personal or shared vehicles (e.g., ride-hail, car-sharing)
+    *
+    * The method leverages the router pooling and caching mechanisms to perform these calculations efficiently.
+    * It constructs a `ProfileRequest` for R5 and interprets the `ProfileResponse` to generate BEAM-compatible `EmbodiedBeamTrip`s.
+    *
+    * @param request The `RoutingRequest` from a BEAM agent.
+    * @param buildDirectCarRoute Whether to calculate a direct car route as an alternative.
+    * @param buildDirectWalkRoute Whether to calculate a direct walk route as an alternative.
+    * @return A `RoutingResponse` containing a list of possible itineraries (as `EmbodiedBeamTrip`s).
+    */
   def calcRoute(
     request: RoutingRequest,
     buildDirectCarRoute: Boolean,
@@ -1764,7 +1889,10 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
 
       val routingResponse = if (!embodiedTrips.exists(_.tripClassifier == WALK) && !mainRouteToVehicle) {
         val maybeBody = accessVehicles.find(_.mode == WALK)
-        if (buildDirectWalkRoute && maybeBody.isDefined) {
+        if (
+          buildDirectWalkRoute && maybeBody.isDefined && (request.requestedMode.isEmpty || request.requestedMode
+            .contains(WALK))
+        ) {
           val dummyTrip = RoutingWorker.createBushwackingTrip(
             new Coord(request.originUTM.getX, request.originUTM.getY),
             new Coord(request.destinationUTM.getX, request.destinationUTM.getY),
@@ -1950,11 +2078,11 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     * Filters access vehicles to only route modes that match the predetermined mode choice.
     * Prevents routing unwanted mode alternatives (e.g., WALK when mode is predetermined as CAR).
     *
-    * @param bestAccessVehiclesByR5Mode Map of R5 leg modes to their best street vehicles
-    * @param requestedMode Optional predetermined BeamMode for this trip
-    * @param withTransit Whether this is a transit routing request
-    * @param streetVehiclesUseIntermodalUse How vehicles are being used (Access/Egress/Both)
-    * @return Filtered collection of vehicles to route for transit access
+    * @param bestAccessVehiclesByR5Mode Map of R5 leg modes to their best street vehicles.
+    * @param requestedMode Optional predetermined BeamMode for this trip.
+    * @param withTransit Whether this is a transit routing request.
+    * @param streetVehiclesUseIntermodalUse How vehicles are being used (Access/Egress/Both).
+    * @return Filtered collection of vehicles to route for transit access.
     */
   private def filterAccessVehiclesForPredeterminedMode(
     bestAccessVehiclesByR5Mode: Map[LegMode, StreetVehicle],
@@ -2011,11 +2139,11 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     * Filters egress vehicles to only route modes that match the predetermined mode choice.
     * Prevents routing shared vehicles or alternative modes when mode is already determined.
     *
-    * @param egressVehicles All available egress vehicles
-    * @param requestedMode Optional predetermined BeamMode for this trip
-    * @param withTransit Whether this is a transit routing request
-    * @param streetVehiclesUseIntermodalUse How vehicles are being used (Access/Egress/Both)
-    * @return Filtered collection of vehicles to route for transit egress
+    * @param egressVehicles All available egress vehicles.
+    * @param requestedMode Optional predetermined BeamMode for this trip.
+    * @param withTransit Whether this is a transit routing request.
+    * @param streetVehiclesUseIntermodalUse How vehicles are being used (Access/Egress/Both).
+    * @return Filtered collection of vehicles to route for transit egress.
     */
   private def filterEgressVehiclesForPredeterminedMode(
     egressVehicles: IndexedSeq[StreetVehicle],
@@ -2061,10 +2189,10 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     * Filters which modes should be routed as direct options by R5.
     * Prevents R5 from routing modes that will be discarded anyway.
     *
-    * @param modes All modes that could theoretically be routed
-    * @param requestedMode Optional predetermined BeamMode
-    * @param withTransit Whether this is a transit request
-    * @return Filtered modes to actually route
+    * @param modes All modes that could theoretically be routed.
+    * @param requestedMode Optional predetermined BeamMode.
+    * @param withTransit Whether this is a transit request.
+    * @return Filtered modes to actually route.
     */
   private def filterDirectModesForPredeterminedMode(
     modes: Seq[LegMode],

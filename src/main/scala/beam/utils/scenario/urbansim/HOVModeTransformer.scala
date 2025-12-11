@@ -77,7 +77,7 @@ object HOVModeTransformer extends ExponentialLazyLogging {
 
     val allHOVUsers: Set[PersonId] =
       plansProbablyWithHOV
-        .filter(x => x.legMode.exists(m => m.contains(hov2) || m.contains(hov3)))
+        .filter(x => x.legMode.exists(m => m.toLowerCase.contains(hov2) || m.toLowerCase.contains(hov3)))
         .map(_.personId)
         .toSet
 
@@ -280,17 +280,17 @@ object HOVModeTransformer extends ExponentialLazyLogging {
 
   def itIsAnHOV2Leg(planElement: PlanElement): Boolean = {
     planElement.planElementType == PlanElement.Leg &&
-    planElement.legMode.exists(legMode => legMode.contains(hov2))
+    planElement.legMode.exists(legMode => legMode.toLowerCase.contains(hov2))
   }
 
   def itIsAnHOV3Leg(planElement: PlanElement): Boolean = {
     planElement.planElementType == PlanElement.Leg &&
-    planElement.legMode.exists(legMode => legMode.contains(hov3))
+    planElement.legMode.exists(legMode => legMode.toLowerCase.contains(hov3))
   }
 
   def itIsASOVLeg(planElement: PlanElement): Boolean = {
     planElement.planElementType == PlanElement.Leg &&
-    planElement.legMode.exists(legMode => legMode.toLowerCase == "car")
+    planElement.legMode.exists(legMode => legMode.toLowerCase.contains("car"))
   }
 
   object ForcedHOVTeleportationTransformer {

@@ -43,7 +43,7 @@ apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
 
 group = 'beam'
-version = '1.1-beta-v251203'
+version = '1.1-beta-v251211'
 
 description = """"""
 
@@ -360,6 +360,25 @@ dependencies {
     implementation group: 'de.lmu.ifi.dbs.elki', name: 'elki', version: '0.7.5'
 
     implementation group: 'com.zaxxer', name: 'nuprocess', version: '1.2.4'
+
+    def sparkVersion = "3.4.2" // Use your desired Spark version
+
+    implementation("org.apache.spark:spark-core_${scalaBinaryVersion}:${sparkVersion}") {
+        exclude group: 'org.apache.hadoop'
+        exclude group: 'org.slf4j'
+    }
+    implementation("org.apache.spark:spark-sql_${scalaBinaryVersion}:${sparkVersion}") {
+        exclude group: 'org.apache.hadoop'
+        exclude group: 'org.slf4j'
+    }
+    testImplementation("org.apache.spark:spark-core_${scalaBinaryVersion}:${sparkVersion}") {
+        exclude group: 'org.apache.hadoop'
+        exclude group: 'org.slf4j'
+    }
+    testImplementation("org.apache.spark:spark-sql_${scalaBinaryVersion}:${sparkVersion}") {
+        exclude group: 'org.apache.hadoop'
+        exclude group: 'org.slf4j'
+    }
 
     def parquet = "1.12.3"
     // Parquet dependencies with shading
