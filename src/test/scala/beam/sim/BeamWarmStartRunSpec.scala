@@ -6,6 +6,7 @@ import beam.utils.{FileUtils, MathUtils}
 import com.typesafe.config.ConfigFactory
 import org.matsim.core.config.groups.ControlerConfigGroup.CompressionType
 import org.matsim.core.controler.OutputDirectoryHierarchy
+import org.scalatest.AppendedClues.convertToClueful
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.tagobjects.Retryable
@@ -156,12 +157,10 @@ class BeamWarmStartRunSpec
 
     "prepare WarmStart data" in {
       val baseConf = ConfigFactory
-        .parseString("""beam.warmStart.prepareData = true
-             beam.physsim.duplicatePTE.fractionOfEventsToDuplicate = 1.0
-             beam.physsim.duplicatePTE.departureTimeShiftMin = 0
-             beam.physsim.duplicatePTE.departureTimeShiftMax = 600
-             beam.router.skim.emissions-skimmer.fileOutputFormat = "parquet"
-            """)
+        .parseString("""beam.agentsim.lastIteration = 1
+                beam.warmStart.prepareData = true
+                beam.router.skim.emissions-skimmer.fileOutputFormat = "parquet"
+                """)
         .withFallback(testConfig("test/input/sf-light/sf-light-1k-emissions.conf"))
         .resolve()
       val (_, output, _) = runBeamWithConfig(baseConf)
@@ -173,48 +172,55 @@ class BeamWarmStartRunSpec
       val files = Stream.continually(zipIn.getNextEntry).takeWhile(_ != null).map(_.getName).toList
       zipIn.close()
 
+      val itX = "it.1/1"
       val expectedFiles = List(
         "population.csv.gz",
         "households.csv.gz",
         "vehicles.csv.gz",
-        "ITERS/it.0/0.skimsOD_Aggregated.csv.gz",
-        "ITERS/it.0/0.skimsTAZ_Aggregated.csv.gz",
-        "ITERS/it.0/0.skimsTravelTimeObservedVsSimulated_Aggregated.csv.gz",
-        "ITERS/it.0/0.skimsRidehail_Aggregated.csv.gz",
-        "ITERS/it.0/0.skimsODVehicleType_Aggregated.csv.gz",
-        "ITERS/it.0/0.skimsFreight_Aggregated.csv.gz",
-        "ITERS/it.0/0.skimsParking_Aggregated.csv.gz",
-        "ITERS/it.0/0.skimsTransitCrowding_Aggregated.csv.gz",
-        "ITERS/it.0/0.skimsEmissions_Aggregated.parquet",
-        "ITERS/it.0/0.linkstats.csv.gz",
-        "ITERS/it.0/0.plans.csv.gz",
-        "ITERS/it.0/0.rideHailFleet-GlobalRHM.csv.gz"
+        s"ITERS/$itX.skimsOD_Aggregated.csv.gz",
+        s"ITERS/$itX.skimsTAZ_Aggregated.csv.gz",
+        s"ITERS/$itX.skimsTravelTimeObservedVsSimulated_Aggregated.csv.gz",
+        s"ITERS/$itX.skimsRidehail_Aggregated.csv.gz",
+        s"ITERS/$itX.skimsODVehicleType_Aggregated.csv.gz",
+        s"ITERS/$itX.skimsFreight_Aggregated.csv.gz",
+        s"ITERS/$itX.skimsParking_Aggregated.csv.gz",
+        s"ITERS/$itX.skimsTransitCrowding_Aggregated.csv.gz",
+        s"ITERS/$itX.skimsEmissions_Aggregated.parquet",
+        s"ITERS/$itX.linkstats.csv.gz",
+        s"ITERS/$itX.plans.csv.gz",
+        s"ITERS/$itX.rideHailFleet-GlobalRHM.csv.gz"
       )
 
       files should equal(expectedFiles)
-    }
 
-    "run scenario for two iterations with warmstart" taggedAs Retryable in {
-      val baseConf = ConfigFactory
-        .parseString("beam.agentsim.lastIteration = 1")
+      val warmStartPath = warmStartData.getPath
+      val baseConf2 = ConfigFactory
+        .parseString(s"""beam.agentsim.lastIteration = 0
+             |beam.warmStart.type = "full"
+             |beam.warmStart.path = "$warmStartPath"
+             |""".stripMargin)
         .withFallback(testConfig("test/input/sf-light/sf-light-1k-emissions.conf"))
         .resolve()
-      val (_, output, _) = runBeamWithConfig(baseConf)
-      // TODO Using median travel time instead of average due to outliers in the WarmStart file. Network not relaxed!?
+
+      val (_, output2, _) = runBeamWithConfig(baseConf2)
+
       val averageCarSpeedIt0 = BeamWarmStartRunSpec.medianCarModeFromCsv(extractFileName(output, 0))
       val averageCarSpeedIt1 = BeamWarmStartRunSpec.medianCarModeFromCsv(extractFileName(output, 1))
-      logger.info("average car speed per iterations: {}, {}", averageCarSpeedIt0, averageCarSpeedIt1)
-      averageCarSpeedIt0 / averageCarSpeedIt1 should equal(1.0 +- 0.80)
 
-      val outputFileIdentifiers = Array(
-        "passengerPerTripBus.csv",
-        "passengerPerTripCar.csv",
-        "passengerPerTripRideHail.csv",
-        "passengerPerTripSubway.csv"
+      val averageCarSpeedWarmIt0 = BeamWarmStartRunSpec.medianCarModeFromCsv(extractFileName(output2, 0))
+
+      logger.info(
+        "average car speed per iterations  without warm start: {}, {}, with warm start: {}",
+        averageCarSpeedIt0,
+        averageCarSpeedIt1,
+        averageCarSpeedWarmIt0
       )
 
-      // tests files created by Beam simulation
-      testOutputFiles(outputFileIdentifiers, output, 0)
+      averageCarSpeedIt0 should be < averageCarSpeedWarmIt0 withClue "it0 speed in warm start should be > it0 regular sim"
+
+      averageCarSpeedWarmIt0 / averageCarSpeedIt1 should equal(
+        1.0 +- 0.25
+      ) withClue "speed between warmStartIt0 and regularIt1 should not be very different because of warm start"
     }
   }
 

@@ -59,7 +59,9 @@ class ParquetSkimReader[Key <: AbstractSkimmerKey, Value <: AbstractSkimmerInter
 
   private def readParquetFile(filePath: String): Try[Map[Key, Value]] = Try {
     val df = spark.read.parquet(filePath)
-    df.collect().map(fromParquetRow).toMap
+    val fileContent = df.collect().map(fromParquetRow).toMap
+    logger.info(s"Read ${fileContent.size} records from $filePath")
+    fileContent
   }
 
   def close(): Unit = {
