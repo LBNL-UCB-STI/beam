@@ -177,6 +177,18 @@ trait NetworkCoordinator extends LazyLogging {
       .get
   }
 
+  def overwriteShortLinkStorageCapacity(
+    network: Network,
+    minimumLengthForStorageCapacityConstraint: Double,
+    shortLinkNumberOfLanesOverride: Double
+  ): Unit = {
+    network.getLinks.values.asScala.foreach { link =>
+      if (link.getLength <= minimumLengthForStorageCapacityConstraint) {
+        link.setNumberOfLanes(shortLinkNumberOfLanesOverride)
+      }
+    }
+  }
+
   def overwriteLinkParams(
     overwriteLinkParamMap: scala.collection.Map[(Int, Int), LinkParam],
     transportNetwork: TransportNetwork,
@@ -242,6 +254,14 @@ trait NetworkCoordinator extends LazyLogging {
 
     // Overwrite link stats if needed
     overwriteLinkParams(getOverwriteLinkParam(beamConfig), transportNetwork, network)
+
+    if (beamConfig.beam.physsim.name.equalsIgnoreCase("jdeqsim")) {
+      overwriteShortLinkStorageCapacity(
+        network,
+        beamConfig.beam.physsim.jdeqsim.minimumLengthForStorageCapacityConstraint,
+        beamConfig.beam.physsim.jdeqsim.shortLinkNumberOfLanesOverride
+      )
+    }
 
     // Scale the speed after overwriting link params. Important!
     network.getLinks.values.asScala.foreach { link =>

@@ -3508,6 +3508,7 @@ object BeamConfig {
       inputNetworkFilePath: java.lang.String,
       jdeqsim: BeamConfig.Beam.Physsim.Jdeqsim,
       linkStatsBinSize: scala.Int,
+      linkStatsOutputFileType: java.lang.String,
       linkStatsWriteInterval: scala.Int,
       maxLinkLengthToApplySpeedScalingFactor: scala.Double,
       minCarSpeedInMetersPerSecond: scala.Double,
@@ -3617,7 +3618,9 @@ object BeamConfig {
 
       case class Jdeqsim(
         agentSimPhysSimInterfaceDebugger: BeamConfig.Beam.Physsim.Jdeqsim.AgentSimPhysSimInterfaceDebugger,
-        cacc: BeamConfig.Beam.Physsim.Jdeqsim.Cacc
+        cacc: BeamConfig.Beam.Physsim.Jdeqsim.Cacc,
+        minimumLengthForStorageCapacityConstraint: scala.Double,
+        shortLinkNumberOfLanesOverride: scala.Double
       )
 
       object Jdeqsim {
@@ -3668,7 +3671,14 @@ object BeamConfig {
             cacc = BeamConfig.Beam.Physsim.Jdeqsim.Cacc(
               if (c.hasPathOrNull("cacc")) c.getConfig("cacc")
               else com.typesafe.config.ConfigFactory.parseString("cacc{}")
-            )
+            ),
+            minimumLengthForStorageCapacityConstraint =
+              if (c.hasPathOrNull("minimumLengthForStorageCapacityConstraint"))
+                c.getDouble("minimumLengthForStorageCapacityConstraint")
+              else 10.0,
+            shortLinkNumberOfLanesOverride =
+              if (c.hasPathOrNull("shortLinkNumberOfLanesOverride")) c.getDouble("shortLinkNumberOfLanesOverride")
+              else 50.0
           )
         }
       }
@@ -4381,6 +4391,8 @@ object BeamConfig {
             else com.typesafe.config.ConfigFactory.parseString("jdeqsim{}")
           ),
           linkStatsBinSize = if (c.hasPathOrNull("linkStatsBinSize")) c.getInt("linkStatsBinSize") else 3600,
+          linkStatsOutputFileType =
+            if (c.hasPathOrNull("linkStatsOutputFileType")) c.getString("linkStatsOutputFileType") else "csv.gz",
           linkStatsWriteInterval =
             if (c.hasPathOrNull("linkStatsWriteInterval")) c.getInt("linkStatsWriteInterval") else 0,
           maxLinkLengthToApplySpeedScalingFactor =
