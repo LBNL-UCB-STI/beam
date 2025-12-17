@@ -184,12 +184,11 @@ trait NetworkCoordinator extends LazyLogging {
 
   def overwriteShortLinkStorageCapacity(
     network: Network,
-    minimumLengthForStorageCapacityConstraint: Double,
-    shortLinkNumberOfLanesOverride: Double
+    storageCapacityOverride: beam.sim.config.BeamConfig.Beam.Physsim.Jdeqsim.ShortLink.StorageCapacityOverride
   ): Unit = {
     network.getLinks.values.asScala.foreach { link =>
-      if (link.getLength <= minimumLengthForStorageCapacityConstraint) {
-        link.setNumberOfLanes(shortLinkNumberOfLanesOverride)
+      if (link.getLength <= storageCapacityOverride.minimumLinkLengthThreshold) {
+        link.setNumberOfLanes(storageCapacityOverride.overriddenNumLanesPerLink)
       }
     }
   }
@@ -263,8 +262,7 @@ trait NetworkCoordinator extends LazyLogging {
     if (beamConfig.beam.physsim.name.equalsIgnoreCase("jdeqsim")) {
       overwriteShortLinkStorageCapacity(
         network,
-        beamConfig.beam.physsim.jdeqsim.minimumLengthForStorageCapacityConstraint,
-        beamConfig.beam.physsim.jdeqsim.shortLinkNumberOfLanesOverride
+        beamConfig.beam.physsim.jdeqsim.shortLink.storageCapacityOverride
       )
     }
 

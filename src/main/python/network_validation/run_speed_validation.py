@@ -583,10 +583,10 @@ def main():
     Main function to run the validation process for multiple scenario/iteration combinations
     """
     # Base configuration (common across all runs)
-    study_area = "sfbay"
-    iteration = 5
+    study_area = "seattle"
+    iteration = 6
     batch = "calibration"
-    runs = [("pilates-run-20251212-195841", iteration)
+    runs = [("pilates-run-20251212-195214", iteration)
             ]
     peak_hour = 8
     do_link_speed_validation = True

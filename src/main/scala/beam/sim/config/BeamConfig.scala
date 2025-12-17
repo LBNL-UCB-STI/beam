@@ -3619,8 +3619,7 @@ object BeamConfig {
       case class Jdeqsim(
         agentSimPhysSimInterfaceDebugger: BeamConfig.Beam.Physsim.Jdeqsim.AgentSimPhysSimInterfaceDebugger,
         cacc: BeamConfig.Beam.Physsim.Jdeqsim.Cacc,
-        minimumLengthForStorageCapacityConstraint: scala.Double,
-        shortLinkNumberOfLanesOverride: scala.Double
+        shortLink: BeamConfig.Beam.Physsim.Jdeqsim.ShortLink
       )
 
       object Jdeqsim {
@@ -3662,6 +3661,41 @@ object BeamConfig {
           }
         }
 
+        case class ShortLink(
+          storageCapacityOverride: BeamConfig.Beam.Physsim.Jdeqsim.ShortLink.StorageCapacityOverride
+        )
+
+        object ShortLink {
+
+          case class StorageCapacityOverride(
+            minimumLinkLengthThreshold: scala.Double,
+            overriddenNumLanesPerLink: scala.Double
+          )
+
+          object StorageCapacityOverride {
+
+            def apply(
+              c: com.typesafe.config.Config
+            ): BeamConfig.Beam.Physsim.Jdeqsim.ShortLink.StorageCapacityOverride = {
+              BeamConfig.Beam.Physsim.Jdeqsim.ShortLink.StorageCapacityOverride(
+                minimumLinkLengthThreshold =
+                  if (c.hasPathOrNull("minimumLinkLengthThreshold")) c.getDouble("minimumLinkLengthThreshold") else 0.0,
+                overriddenNumLanesPerLink =
+                  if (c.hasPathOrNull("overriddenNumLanesPerLink")) c.getDouble("overriddenNumLanesPerLink") else 50.0
+              )
+            }
+          }
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Jdeqsim.ShortLink = {
+            BeamConfig.Beam.Physsim.Jdeqsim.ShortLink(
+              storageCapacityOverride = BeamConfig.Beam.Physsim.Jdeqsim.ShortLink.StorageCapacityOverride(
+                if (c.hasPathOrNull("storageCapacityOverride")) c.getConfig("storageCapacityOverride")
+                else com.typesafe.config.ConfigFactory.parseString("storageCapacityOverride{}")
+              )
+            )
+          }
+        }
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Jdeqsim = {
           BeamConfig.Beam.Physsim.Jdeqsim(
             agentSimPhysSimInterfaceDebugger = BeamConfig.Beam.Physsim.Jdeqsim.AgentSimPhysSimInterfaceDebugger(
@@ -3672,13 +3706,10 @@ object BeamConfig {
               if (c.hasPathOrNull("cacc")) c.getConfig("cacc")
               else com.typesafe.config.ConfigFactory.parseString("cacc{}")
             ),
-            minimumLengthForStorageCapacityConstraint =
-              if (c.hasPathOrNull("minimumLengthForStorageCapacityConstraint"))
-                c.getDouble("minimumLengthForStorageCapacityConstraint")
-              else 10.0,
-            shortLinkNumberOfLanesOverride =
-              if (c.hasPathOrNull("shortLinkNumberOfLanesOverride")) c.getDouble("shortLinkNumberOfLanesOverride")
-              else 50.0
+            shortLink = BeamConfig.Beam.Physsim.Jdeqsim.ShortLink(
+              if (c.hasPathOrNull("shortLink")) c.getConfig("shortLink")
+              else com.typesafe.config.ConfigFactory.parseString("shortLink{}")
+            )
           )
         }
       }
