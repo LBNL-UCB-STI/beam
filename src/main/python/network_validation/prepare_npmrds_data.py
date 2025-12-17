@@ -93,7 +93,7 @@ def main():
     """Main function to prepare NPMRDS data."""
     # Start timing
     st = time.time()
-    study_area = "seattle"  # or sfbay, seattle
+    study_area = "sfbay"  # or sfbay, seattle
 
     # Configuration parameters
 
@@ -102,7 +102,6 @@ def main():
         base_configs = {
             "study_area": study_area,
             "work_dir": work_dir,
-            "batch": "calibration--jdeq--20251106",
             "state_fips": "06",
             "county_fips": ['001', '013', '041', '055', '075', '081', '085', '095', '097'],
             "census_year": 2018,
@@ -110,13 +109,12 @@ def main():
             "utm_epsg": 26910,
             "npmrds_raw_geo": f"{work_dir}/validation/npmrds/California.shp",
             "npmrds_raw_data_csv": f'{work_dir}/validation/npmrds/al_ca_oct2018_1hr_trucks_pax.csv',
-            "network_csv": f"{work_dir}/network/sfbay-area-cbg5500-network/network.csv.gz",
+            "network_csv": f"{work_dir}/network/sfbay-area-cbg5500-weakConn-network/network.csv.gz",
         }
     elif study_area == "seattle":
         base_configs = {
             "study_area": study_area,
             "work_dir": work_dir,
-            "batch": "calibration--jdeq--20251126",
             "state_fips": "53",
             "county_fips": ["061", "033", "035", "053"],
             "census_year": 2018,

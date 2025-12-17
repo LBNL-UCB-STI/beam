@@ -583,10 +583,10 @@ def main():
     Main function to run the validation process for multiple scenario/iteration combinations
     """
     # Base configuration (common across all runs)
-    study_area = "seattle"
-    iteration = 3
-    batch = "calibration--jdeq--20251126"
-    runs = [("seattle-pilates-calibration--jdeq--cbg120fwc--FC10-0-20251126-165230", iteration)
+    study_area = "sfbay"
+    iteration = 5
+    batch = "calibration"
+    runs = [("pilates-run-20251212-195841", iteration)
             ]
     peak_hour = 8
     do_link_speed_validation = True
@@ -608,7 +608,7 @@ def main():
             "utm_epsg": 26910,
             "npmrds_raw_geo": f"{work_dir}/validation/npmrds/California.shp",
             "npmrds_raw_data_csv": f'{work_dir}/validation/npmrds/al_ca_oct2018_1hr_trucks_pax.csv',
-            "network_csv": f"{work_dir}/network/sfbay-area-cbg5500-network/network.csv.gz",
+            "network_csv": f"{work_dir}/network/sfbay-area-cbg5500-weakConn-network/network.csv.gz",
         }
     elif study_area == "seattle":
         base_configs = {
