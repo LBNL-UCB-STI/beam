@@ -270,7 +270,7 @@ class GenericFreightReader(
       val payloadMap = carrierPlanIds.map(planId => planId -> plans(planId)).toMap
       val fleetDistribution: Map[BeamVehicleType, Double] =
         calculateFreightDistribution(vehicleMap).iterator.map { case (vehicleTypeId, share) =>
-          vehicleTypes(vehicleTypeId) -> share
+          freightVehicleTypes(vehicleTypeId) -> share
         }.toMap
 
       FreightCarrier(
