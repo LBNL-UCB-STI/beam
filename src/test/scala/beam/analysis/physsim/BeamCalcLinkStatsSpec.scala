@@ -17,7 +17,6 @@ import java.io.{BufferedInputStream, File, FileInputStream}
 import java.util.zip.GZIPInputStream
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
-import scala.xml.XML
 
 class BeamCalcLinkStatsSpec extends AnyWordSpecLike with Matchers with BeforeAndAfterAll {
 
@@ -98,7 +97,10 @@ class BeamCalcLinkStatsSpec extends AnyWordSpecLike with Matchers with BeforeAnd
   }
 
   private def countLinksFromFileXML(pathFile: String) = {
-    (XML.loadFile(pathFile) \\ "network" \ "links" \ "_").length
+    import scala.xml.XML
+    import javax.xml.parsers.SAXParserFactory
+    val loader = XML.withSAXParser(SAXParserFactory.newInstance().newSAXParser())
+    (loader.loadFile(pathFile) \\ "network" \ "links" \ "_").length
   }
 
   private def mapGroupRecordForLinks(i: Int, pathFile: String) = {
