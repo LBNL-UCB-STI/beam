@@ -6,6 +6,7 @@ import beam.agentsim.Resource._
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.choice.mode.TourModeChoiceMultinomialLogit
+import beam.agentsim.agents.freight.FreightEntities.FREIGHT_ID_PREFIX
 import beam.agentsim.agents.freight.input.FreightReader.{PAYLOAD_IDS, PAYLOAD_WEIGHT_IN_KG}
 import beam.agentsim.agents.freight.PayloadPlan
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicle
@@ -610,7 +611,7 @@ class PersonAgent(
         case v: java.util.Vector[_]                  => new java.util.ArrayList(v.asInstanceOf[java.util.Vector[String]])
         case v: java.util.List[_]                    => v.asInstanceOf[java.util.List[String]]
         case v: scala.collection.Seq[_]              => v.map(_.toString).asJava
-        case v: String                               => java.util.Arrays.asList(v)
+        case v: String                               => parsePayloadIdsString(v).asJava
         case _                                       => java.util.Collections.emptyList[String]()
       }
     }
@@ -1862,7 +1863,13 @@ class PersonAgent(
     val maybePayloadWeightInKg = getPayloadDataFromPlan(currentActivityIndex).map(_._2)
 
     if (maybePayloadWeightInKg.isDefined && correctedTrip.tripClassifier != BeamMode.CAR) {
-      logger.error("Wrong trip classifier ({}) for freight {}", correctedTrip.tripClassifier, id)
+      logger.error(
+        "Wrong trip classifier ({}) for freight {}. MatsimPlan: {}, {}",
+        correctedTrip.tripClassifier,
+        id,
+        matsimPlan,
+        matsimPlan.getPlanElements
+      )
     }
     // Correct the trip to deal with ride hail / disruptions and then register to skimmer
     val (odSkimmerEvent, _, _) = ODSkimmerEvent.forTaz(
@@ -1936,7 +1943,10 @@ class PersonAgent(
   }
 
   private def getPayloadDataFromPlan(startingActivityIndex: Int): Option[(IndexedSeq[Id[PayloadPlan]], Double)] = {
-    if (!beamServices.beamConfig.beam.agentsim.agents.freight.enabled) {
+    if (
+      !beamServices.beamConfig.beam.agentsim.agents.freight.enabled || !matsimPlan.getPerson.getId.toString
+        .startsWith(FREIGHT_ID_PREFIX)
+    ) {
       return None
     }
     val currentLegIndex = startingActivityIndex * 2 + 1
@@ -1946,7 +1956,7 @@ class PersonAgent(
         case Some(attr) =>
           attr match {
             case str: String if str.nonEmpty =>
-              str.split(',').map(_.trim).filter(_.nonEmpty).map(x => Id.create(x, classOf[PayloadPlan])).toIndexedSeq
+              parsePayloadIdsString(str).map(x => Id.create(x, classOf[PayloadPlan]))
             case vec: scala.collection.immutable.Vector[_] =>
               vec.map(_.toString).map(x => Id.create(x, classOf[PayloadPlan])).toIndexedSeq
             case list: java.util.List[_] =>
@@ -1971,6 +1981,22 @@ class PersonAgent(
         s"$prefix $mode"
       }
       .getOrElse(prefix)
+  }
+
+  private def parsePayloadIdsString(value: String): IndexedSeq[String] = {
+    val trimmed = Option(value).map(_.trim).getOrElse("")
+    if (trimmed.isEmpty) {
+      IndexedSeq.empty
+    } else {
+      val withoutBrackets =
+        if (trimmed.startsWith("[") && trimmed.endsWith("]")) trimmed.substring(1, trimmed.length - 1).trim
+        else trimmed
+      if (withoutBrackets.isEmpty || withoutBrackets == "[]") {
+        IndexedSeq.empty
+      } else {
+        withoutBrackets.split(',').map(_.trim).filter(s => s.nonEmpty && s != "[]").toIndexedSeq
+      }
+    }
   }
 
   protected def getParentTourStrategy(

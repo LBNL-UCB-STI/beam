@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 public class BeamPersonDepartureEvent extends org.matsim.api.core.v01.events.PersonDepartureEvent implements HasPersonId {
 
@@ -87,8 +88,12 @@ public class BeamPersonDepartureEvent extends org.matsim.api.core.v01.events.Per
         } else {
             attr.put(ATTRIBUTE_LEGMODE, "");
         }
-        if (!this.payloadIds.isEmpty()) {
-            attr.put(ATTRIBUTE_PAYLOAD_IDS, this.payloadIds.toString());
+        List<String> cleanedPayloadIds = this.payloadIds.stream()
+                .map(id -> id == null ? "" : id.trim())
+                .filter(id -> !id.isEmpty() && !id.equals("[]") && !id.equals("[[]]"))
+                .collect(Collectors.toList());
+        if (!cleanedPayloadIds.isEmpty()) {
+            attr.put(ATTRIBUTE_PAYLOAD_IDS, cleanedPayloadIds.toString());
         } else {
             attr.put(ATTRIBUTE_PAYLOAD_IDS, "");
         }
