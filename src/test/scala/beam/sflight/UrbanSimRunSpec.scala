@@ -8,6 +8,7 @@ import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
+import org.scalatest.AppendedClues.convertToClueful
 import org.scalatest.{BeforeAndAfterAllConfigMap, ConfigMap}
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -65,7 +66,8 @@ class UrbanSimRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with
       listOfVehicleTypes should have size 7
       listOfPrivateVehicleTypes should not contain "RH_Car"
       listOfPrivateVehicleTypes should not contain "RH_Car-wheelchair"
-      listOfPrivateVehicleTypes should have size 3
+      listOfPrivateVehicleTypes should contain theSameElementsAs Seq("Car", "PHEV") withClue "Check vehicleTypes.csv." +
+      " Connected Automated Vehicles and Shared Vehicles are not included in private vehicles."
 
       val injector = buildInjector(conf, beamConfig, scenario, beamScenario)
       val services = injector.getInstance(classOf[BeamServices])

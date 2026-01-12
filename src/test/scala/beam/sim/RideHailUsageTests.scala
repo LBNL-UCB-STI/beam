@@ -33,6 +33,8 @@ class RideHailUsageTests extends AnyFlatSpec with Matchers with BeamHelper with 
            |beam.agentsim.taz.parkingFilePath = $${beam.inputDirectory}"/parking/taz-parking-one-rh-stall.csv"
            |beam.outputs.events.fileOutputFormats = "xml"
            |beam.agentsim.agents.households.inputFilePath = $${beam.inputDirectory}"/households-no-vehicles.xml"
+           |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_intercept = 5.0
+           |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_pooled_intercept = 5.0
            |beam.agentsim.agents.vehicles.replanOnTheFlyWhenHouseholdVehiclesAreNotAvailable = true
          """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam-withL5.conf"))
@@ -87,19 +89,21 @@ class RideHailUsageTests extends AnyFlatSpec with Matchers with BeamHelper with 
       .filter(e => isReplanningOrModeChoiceEventForPerson2(e))
       .dropWhile(e => !ReplanningEvent.EVENT_TYPE.equalsIgnoreCase(e.getEventType))
       .map(_.getAttributes)
-      .take(3)
+      .take(4)
 
     replanAndModeChoiceForPerson2(0)
       .getOrDefault(
         ReplanningEvent.ATTRIBUTE_REPLANNING_REASON,
         ""
-      ) shouldBe "HouseholdVehicleNotAvailable CAR" withClue ", expected replanning because there are no household vehicles available"
+      ) shouldBe "HouseholdVehicleNotAvailable CAR" withClue ", expected replanning " +
+    s"because there are no household vehicles available: ${replanAndModeChoiceForPerson2.mkString("\n")}"
 
-    replanAndModeChoiceForPerson2(2)
+    replanAndModeChoiceForPerson2(3)
       .getOrDefault(
         ModeChoiceEvent.ATTRIBUTE_MODE,
         ""
-      ) should startWith("ride_hail") withClue ", expected RH usage after replanning"
+      ) should startWith("ride_hail") withClue ", expected RH usage after replanning, events:\n" +
+    replanAndModeChoiceForPerson2.mkString("\n")
   }
 
   it should "Use RH_BEV to transport agents." in {
