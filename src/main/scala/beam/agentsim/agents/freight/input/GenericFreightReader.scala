@@ -391,14 +391,16 @@ class GenericFreightReader(
       val loc = new Coord(strX.toDouble, strY.toDouble)
       val locInUtm = if (config.isWgs) geoUtils.wgs2Utm(loc) else loc
       val coordInUtm = if (snapLocationAndRemoveInvalidInputsParams.enabled) {
-        val nearestLinkMaybe = networkMaybe.map(
-          NetworkUtilsWrapper.getNearestLinkByMode(
-            _,
-            coord = locInUtm,
-            modes = Array("car", "walk"),
-            scenarioCRS = geoUtils.localCRS,
-            minRadiusInMeter = snapLocationAndRemoveInvalidInputsParams.minRadiusInMeter,
-            maxRadiusInMeter = snapLocationAndRemoveInvalidInputsParams.maxRadiusInMeter
+        val nearestLinkMaybe = networkMaybe.flatMap(network =>
+          Option(
+            NetworkUtilsWrapper.getNearestLinkByMode(
+              network,
+              coord = locInUtm,
+              modes = Array("car", "walk"),
+              scenarioCRS = geoUtils.localCRS,
+              minRadiusInMeter = snapLocationAndRemoveInvalidInputsParams.minRadiusInMeter,
+              maxRadiusInMeter = snapLocationAndRemoveInvalidInputsParams.maxRadiusInMeter
+            )
           )
         )
         val newLocIntUtm = nearestLinkMaybe.map(_.getCoord).getOrElse(locInUtm)
