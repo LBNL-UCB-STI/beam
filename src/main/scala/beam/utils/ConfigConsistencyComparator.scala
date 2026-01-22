@@ -42,7 +42,7 @@ object ConfigConsistencyComparator extends LazyLogging {
     val userBeamConf = baseUserConf.withOnlyPath("beam")
     val userMatsimConf = baseUserConf.withOnlyPath("matsim")
     val userConf = userBeamConf.withFallback(userMatsimConf).resolve(configResolver)
-    val templateConf = ConfigFactory.parseFile(new File("src/main/resources/beam-template.conf")).resolve()
+    val templateConf = ConfigFactory.parseFile(new File("src/main/resources/beam-template.conf")).resolve(configResolver)
 
     checkMapFilesDirectoriesConsistency(userConf)
 

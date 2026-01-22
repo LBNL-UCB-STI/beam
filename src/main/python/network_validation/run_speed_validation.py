@@ -586,8 +586,13 @@ def main():
     study_area = "seattle"
     iteration = 6
     batch = "calibration"
-    runs = [("pilates-run-20251212-195214", iteration)
-            ]
+    runs = [
+        ("pilates-run--seattle--jdeq-calibration-FC05-0--20260105-130122", iteration),
+        ("pilates-run--seattle--jdeq-calibration-FC06-0--20260105-130518", iteration),
+        ("pilates-run--seattle--jdeq-calibration-FC07-0--20260105-135219", iteration),
+        ("pilates-run--seattle--jdeq-calibration-FC08-0--20260105-135311", iteration),
+        ("pilates-run--seattle--jdeq-calibration-FC09-0--20260105-135336", iteration)
+    ]
     peak_hour = 8
     do_link_speed_validation = True
     do_network_speed_validation = True
