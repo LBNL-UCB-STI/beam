@@ -1204,7 +1204,7 @@ class RideHailAgent(
     val destinationUtm = rideHailAgentLocation.getCurrentLocationUTM(vehicle.spaceTime.time, beamServices)
     val time = Math.max(vehicle.spaceTime.time, rideHailAgentLocation.latestUpdatedLocationUTM.time)
     val parkingDuration =
-      if (shifts.isEmpty || isCurrentlyOnShift) 0
+      if (shifts.isEmpty || isCurrentlyOnShift) 30 * 60 // 30  minutes for charging
       else {
         val latestShift = shifts.get.filter(_.range.upperBound >= time).head
         val nextLatestShift = shifts.get.filter(_.range.lowerBound < time).last

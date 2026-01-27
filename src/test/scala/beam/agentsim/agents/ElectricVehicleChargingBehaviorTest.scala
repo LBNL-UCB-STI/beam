@@ -197,6 +197,12 @@ class ElectricVehicleChargingBehaviorTest
   }
 
   "Electric vehicles" should "always enroute when there is not enough energy to reach their destination choosing smaller EnrouteDetourCost." in {
+    /*
+    In this scenario 50 persons drive from Home (TAZ 8) to Work (TAZ 9) and back twice.
+    This tests expects having 4 enroute charging events.
+    In the parking file Workplace has no chargers. Because of that the Charging network provides an emergency stall at work location.
+    Home has no charger but in this case a backup charger is provided.
+     */
     val config = ConfigFactory
       .parseString(
         s"""
@@ -416,8 +422,7 @@ class ElectricVehicleChargingBehaviorTest
     ", expecting most of the 4 legs for each of the 50 people to be ride hail legs."
   }
 
-  // test ignored due to an issue with AV RH which for some reason is much more likely to trigger on this test
-  "Ride Hail Electric vehicles" should "pick chargers choosing smaller DrivingTimeCost." ignore {
+  "Ride Hail Electric vehicles" should "pick chargers choosing smaller DrivingTimeCost." in {
     // this config is only interested on the first charging plugin event when,
     // vehicles are at known coordinates, population plans are set to walk to not interfere with ride hail.
     val config = ConfigFactory

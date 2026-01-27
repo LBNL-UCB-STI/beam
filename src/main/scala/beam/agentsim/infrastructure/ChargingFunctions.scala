@@ -4,6 +4,7 @@ import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleManager}
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType._
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode.EnRouteCharging
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
 import beam.agentsim.infrastructure.parking._
@@ -298,12 +299,14 @@ class ChargingFunctions(
 
   override protected def getAllowedParkingTypes(inquiry: ParkingInquiry): Set[ParkingType] = {
     inquiry.parkingActivityType match {
-      case Home              => Set(ParkingType.Residential)
-      case Working           => Set(ParkingType.Workplace)
-      case Charging          => Set(ParkingType.Depot, ParkingType.Public) // ridehail CAV fleet
-      case FreightOperations => Set(ParkingType.Commercial) // freight
-      case FreightDepot      => Set(ParkingType.Depot, ParkingType.Public, ParkingType.Commercial) // freight or ridehail
-      case _                 => Set(ParkingType.Public) // public is default
+      case Home if inquiry.searchMode == EnRouteCharging    => Set(ParkingType.Residential, ParkingType.Public)
+      case Home                                             => Set(ParkingType.Residential)
+      case Working if inquiry.searchMode == EnRouteCharging => Set(ParkingType.Workplace, ParkingType.Public)
+      case Working                                          => Set(ParkingType.Workplace)
+      case Charging                                         => Set(ParkingType.Depot, ParkingType.Public) // ridehail CAV fleet
+      case FreightOperations                                => Set(ParkingType.Commercial) // freight
+      case FreightDepot                                     => Set(ParkingType.Depot, ParkingType.Public, ParkingType.Commercial) // freight or ridehail
+      case _                                                => Set(ParkingType.Public) // public is default
     }
   }
 }
