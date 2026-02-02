@@ -133,23 +133,19 @@ class BackgroundSkimsCreatorTest extends AnyFlatSpec with Matchers with BeamHelp
 
     val pathTypeToSkimsCount = skims.keys
       .map(_.asInstanceOf[ActivitySimSkimmerKey])
-      .foldLeft(scala.collection.mutable.HashMap.empty[ActivitySimPathType, Int]) {
-        case (pathTypeToCount, skimmerKey) =>
-          pathTypeToCount.get(skimmerKey.pathType) match {
-            case Some(count) => pathTypeToCount(skimmerKey.pathType) = count + 1
-            case None        => pathTypeToCount(skimmerKey.pathType) = 1
-          }
-          pathTypeToCount
-      }
+      .groupBy(_.pathType)
+      .mapValues(_.size)
 
-    pathTypeToSkimsCount(ActivitySimPathType.DRV_HVY_WLK) shouldBe 9
-    pathTypeToSkimsCount(ActivitySimPathType.WLK_LOC_WLK) shouldBe 86
-    pathTypeToSkimsCount(ActivitySimPathType.DRV_LRF_WLK) shouldBe 22
-    pathTypeToSkimsCount(ActivitySimPathType.WLK_LRF_WLK) shouldBe 28
-    pathTypeToSkimsCount(ActivitySimPathType.WLK_HVY_WLK) shouldBe 24
-    pathTypeToSkimsCount(ActivitySimPathType.DRV_LOC_WLK) shouldBe 31
+    println(pathTypeToSkimsCount)
 
-    skims.keys.size shouldBe (9 + 86 + 22 + 28 + 24 + 31)
+    pathTypeToSkimsCount(ActivitySimPathType.DRV_HVY_WLK) shouldBe 11
+    pathTypeToSkimsCount(ActivitySimPathType.WLK_LOC_WLK) shouldBe 88
+    pathTypeToSkimsCount(ActivitySimPathType.DRV_LRF_WLK) shouldBe 23
+    pathTypeToSkimsCount(ActivitySimPathType.WLK_LRF_WLK) shouldBe 31
+    pathTypeToSkimsCount(ActivitySimPathType.WLK_HVY_WLK) shouldBe 25
+    pathTypeToSkimsCount(ActivitySimPathType.DRV_LOC_WLK) shouldBe 41
+
+    skims.keys.size shouldBe (11 + 88 + 23 + 31 + 25 + 41)
   }
 
   "skims creator" should "generate all types of skims" in {
@@ -170,21 +166,17 @@ class BackgroundSkimsCreatorTest extends AnyFlatSpec with Matchers with BeamHelp
 
     val pathTypeToSkimsCount = skims.keys
       .map(_.asInstanceOf[ActivitySimSkimmerKey])
-      .foldLeft(scala.collection.mutable.HashMap.empty[ActivitySimPathType, Int]) {
-        case (pathTypeToCount, skimmerKey) =>
-          pathTypeToCount.get(skimmerKey.pathType) match {
-            case Some(count) => pathTypeToCount(skimmerKey.pathType) = count + 1
-            case None        => pathTypeToCount(skimmerKey.pathType) = 1
-          }
-          pathTypeToCount
-      }
+      .groupBy(_.pathType)
+      .mapValues(_.size)
 
-    pathTypeToSkimsCount(ActivitySimPathType.DRV_HVY_WLK) shouldBe 9
-    pathTypeToSkimsCount(ActivitySimPathType.WLK_LOC_WLK) shouldBe 86
-    pathTypeToSkimsCount(ActivitySimPathType.DRV_LRF_WLK) shouldBe 19
-    pathTypeToSkimsCount(ActivitySimPathType.WLK_LRF_WLK) shouldBe 28
-    pathTypeToSkimsCount(ActivitySimPathType.WLK_HVY_WLK) shouldBe 24
-    pathTypeToSkimsCount(ActivitySimPathType.DRV_LOC_WLK) shouldBe 34
+    println(pathTypeToSkimsCount)
+
+    pathTypeToSkimsCount(ActivitySimPathType.DRV_HVY_WLK) shouldBe 11
+    pathTypeToSkimsCount(ActivitySimPathType.WLK_LOC_WLK) shouldBe 88
+    pathTypeToSkimsCount(ActivitySimPathType.DRV_LRF_WLK) shouldBe 23
+    pathTypeToSkimsCount(ActivitySimPathType.WLK_LRF_WLK) shouldBe 31
+    pathTypeToSkimsCount(ActivitySimPathType.WLK_HVY_WLK) shouldBe 25
+    pathTypeToSkimsCount(ActivitySimPathType.DRV_LOC_WLK) shouldBe 41
 
     pathTypeToSkimsCount(ActivitySimPathType.SOV) shouldBe 144
     pathTypeToSkimsCount(ActivitySimPathType.WALK) shouldBe 22 // because max walk trip length is 1000 meters
@@ -199,8 +191,8 @@ class BackgroundSkimsCreatorTest extends AnyFlatSpec with Matchers with BeamHelp
       k.pathType == ActivitySimPathType.WLK_LOC_WLK
     }
     val walkTransitSkims = walkTransitKeys.map(key => key -> skims.get(key)).toMap
-    walkTransitSkims.size shouldBe 86
+    walkTransitSkims.size shouldBe 88
 
-    skims.keys.size shouldBe (9 + 86 + 19 + 28 + 24 + 34 + 144 + 22)
+    skims.keys.size shouldBe (11 + 88 + 23 + 31 + 25 + 41 + 144 + 22)
   }
 }

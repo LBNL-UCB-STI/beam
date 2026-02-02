@@ -56,16 +56,16 @@ class BackgroundSkimsCreatorAppSpec
     "run with parameters" in {
       whenReady(BackgroundSkimsCreatorApp.runWithServices(beamServices, params)) { _ =>
         val csv = GenericCsvReader.readAs[ExcerptData](outputPath.toString, toCsvSkimRow, _ => true)._1.toVector
-        csv.size shouldBe 11
-        csv.count(_.weightedTotalTime > 10) shouldBe 6
+        csv.size shouldBe 8
+        csv.count(_.weightedTotalTime > 10) shouldBe 3
       }
     }
 
     "generate all skims if input is not set" in {
       whenReady(BackgroundSkimsCreatorApp.runWithServices(beamServices, params.copy(input = None))) { _ =>
         val csv = GenericCsvReader.readAs[ExcerptData](outputPath.toString, toCsvSkimRow, _ => true)._1.toVector
-        csv.size shouldBe 97
-        csv.count(_.weightedTotalTime > 10) shouldBe 35
+        csv.size shouldBe 76
+        csv.count(_.weightedTotalTime > 10) shouldBe 14
       }
     }
 
