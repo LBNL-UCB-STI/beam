@@ -325,8 +325,20 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         cfg.setMaxTime(endTimeInSeconds);
         Network network = agentSimScenario.getNetwork();
         LinkStatsWithVehicleCategory linkStats = new LinkStatsWithVehicleCategory(network, cfg);
-        String filePath = controlerIO.getIterationFilename(iterationEndsEvent.getIteration(), "linkstats.csv.gz"); // TODO: Make configurable
+        String filePath = controlerIO.getIterationFilename(
+                iterationEndsEvent.getIteration(),
+                String.format("linkstats.%s", linkStatsOutputFileType())
+        );
         linkStats.writeLinkStatsWithTruckVolumes(volumesAnalyzer, travelTimeForR5, filePath);
+    }
+
+    private String linkStatsOutputFileType() {
+        String fileType = beamConfig.beam().physsim().linkStatsOutputFileType();
+        if (fileType == null) return "csv.gz";
+        fileType = fileType.trim();
+        if (fileType.isEmpty()) return "csv.gz";
+        if (fileType.startsWith(".")) fileType = fileType.substring(1);
+        return fileType.toLowerCase();
     }
 
     private boolean shouldWritePlans(int iterationNumber) {

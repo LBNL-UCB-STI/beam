@@ -1007,8 +1007,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     profileRequest.wheelchair = false
     profileRequest.bikeTrafficStress = 4
     profileRequest.zoneId = transportNetwork.getTimeZone
-    // profileRequest.monteCarloDraws = beamConfig.beam.routing.r5.numberOfSamples
-    profileRequest.monteCarloDraws = 1
+    // BEAM uses deterministic routing to match scheduled vehicle departure times.
+    profileRequest.monteCarloDraws = 0
     profileRequest.date = dates.localBaseDate
     // Doesn't calculate any fares, is just a no-op placeholder
     profileRequest.inRoutingFareCalculator = new SimpleInRoutingFareCalculator
@@ -2021,25 +2021,26 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           // Add paths to profile options
           transfers.foreach { transfer =>
             val endIndex = transportNetwork.transitLayer.streetVertexForStop.get(transfer.boardStop)
-
-            // Cache key based on origin-destination pair
-            val cacheKey = (alightStopIdx.intValue(), transfer.boardStop)
-            val streetSegment = transferSegmentCache.getOrElseUpdate(
-              cacheKey, {
-                // Only create if not cached
-                val lastState = streetRouter.getStateAtVertex(endIndex)
-                if (lastState != null) {
-                  val streetPath = new StreetPath(lastState, transportNetwork, false)
-                  new StreetSegment(streetPath, LegMode.WALK, transportNetwork.streetLayer)
-                } else {
-                  null
-                }
-              }
-            )
-
-            if (streetSegment != null) {
-              transfersToOptions.get(transfer).asScala.foreach { profileOption =>
-                profileOption.addMiddle(streetSegment, transfer)
+            // Skip transfers to stops not linked to the street network (common with clipped graphs).
+            if (endIndex != -1) {
+              // Cache key based on origin-destination pair
+              val cacheKey = (alightStopIdx.intValue(), transfer.boardStop)
+              transferSegmentCache.get(cacheKey) match {
+                case Some(streetSegment) =>
+                  transfersToOptions.get(transfer).asScala.foreach { profileOption =>
+                    profileOption.addMiddle(streetSegment, transfer)
+                  }
+                case None =>
+                  // Only create if not cached
+                  val lastState = streetRouter.getStateAtVertex(endIndex)
+                  if (lastState != null) {
+                    val streetPath = new StreetPath(lastState, transportNetwork, false)
+                    val streetSegment = new StreetSegment(streetPath, LegMode.WALK, transportNetwork.streetLayer)
+                    transferSegmentCache.put(cacheKey, streetSegment)
+                    transfersToOptions.get(transfer).asScala.foreach { profileOption =>
+                      profileOption.addMiddle(streetSegment, transfer)
+                    }
+                  }
               }
             }
           }

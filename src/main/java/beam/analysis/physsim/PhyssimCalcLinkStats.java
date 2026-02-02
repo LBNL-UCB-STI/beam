@@ -87,7 +87,10 @@ public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
         processData(iteration, travelTime);
         if (this.controllerIO != null) {
             if (isNotTestMode() && writeLinkStats(iteration)) {
-                String filePath = this.controllerIO.getIterationFilename(iteration, "linkstats_unmodified.csv.gz"); // TODO: Make configurable
+                String filePath = this.controllerIO.getIterationFilename(
+                        iteration,
+                        String.format("linkstats_unmodified.%s", linkStatsOutputFileType())
+                );
                 LinkStatsWithVehicleCategory linkStats = new LinkStatsWithVehicleCategory(network, ttcConfigGroup);
                 linkStats.writeLinkStatsWithTruckVolumes(volumes, travelTime, filePath);
             }
@@ -113,6 +116,15 @@ public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
 
     private boolean writeInIteration(int iterationNumber, int interval) {
         return interval == 1 || (interval > 0 && iterationNumber % interval == 0);
+    }
+
+    private String linkStatsOutputFileType() {
+        String fileType = beamConfig.beam().physsim().linkStatsOutputFileType();
+        if (fileType == null) return "csv.gz";
+        fileType = fileType.trim();
+        if (fileType.isEmpty()) return "csv.gz";
+        if (fileType.startsWith(".")) fileType = fileType.substring(1);
+        return fileType.toLowerCase();
     }
 
     private void processData(int iteration, TravelTime travelTime) {

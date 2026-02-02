@@ -30,7 +30,10 @@ class BeamWarmStart private (val warmConfig: WarmStartConfigProperties) extends 
   private val srcPath: String = warmConfig.warmStartPath
 
   def readTravelTime: Option[TravelTime] = {
-    readTravelTime(getWarmStartFilePath("linkstats.csv.gz", rootFirst = false), srcPath)
+    val linkStatsPath = warmConfig.linkStatsFileNames.view
+      .flatMap(name => getWarmStartFilePath(name, rootFirst = false))
+      .headOption
+    readTravelTime(linkStatsPath, srcPath)
   }
 
   def readTravelTime(linkStatsPath: Option[String], searchPath: String): Option[TravelTime] = {
@@ -183,18 +186,44 @@ object BeamWarmStart extends LazyLogging {
   private[sim] case class WarmStartConfigProperties(
     warmStartPath: String,
     agentsimTimeBinSize: Int,
-    maxHour: Int
+    maxHour: Int,
+    linkStatsFileNames: IndexedSeq[String]
   )
 
   private def buildWarmConfig(beamConfig: BeamConfig, maxHour: Int): WarmStartConfigProperties = {
     WarmStartConfigProperties(
       warmStartPath = beamConfig.beam.warmStart.path,
       agentsimTimeBinSize = beamConfig.beam.agentsim.timeBinSize,
-      maxHour = maxHour
+      maxHour = maxHour,
+      linkStatsFileNames = linkStatsFileNameCandidates(beamConfig)
     )
   }
 
   val fileNameSubstringToDetectIfReadSkimsInParallelMode = "_part"
+
+  private val linkStatsFallbackExtensions = IndexedSeq("csv.gz", "parquet")
+
+  private def normalizeLinkStatsFileType(fileType: String): String = {
+    Option(fileType)
+      .map(_.trim.stripPrefix(".").toLowerCase)
+      .filter(_.nonEmpty)
+      .getOrElse("csv.gz")
+  }
+
+  def linkStatsFileNameCandidates(
+    beamConfig: BeamConfig,
+    baseName: String = "linkstats"
+  ): IndexedSeq[String] = {
+    linkStatsFileNameCandidates(beamConfig.beam.physsim.linkStatsOutputFileType, baseName)
+  }
+
+  def linkStatsFileNameCandidates(
+    fileType: String,
+    baseName: String
+  ): IndexedSeq[String] = {
+    val preferred = s"$baseName.${normalizeLinkStatsFileType(fileType)}"
+    (IndexedSeq(preferred) ++ linkStatsFallbackExtensions.map(ext => s"$baseName.$ext")).distinct
+  }
 
   def apply(
     beamConfig: BeamConfig,
@@ -223,6 +252,7 @@ object BeamWarmStart extends LazyLogging {
       val maxHour = DateUtils.getMaxHour(beamConfig)
       val warm = BeamWarmStart(beamConfig, maxHour)
       val defaultLinkstatsPath = Paths.get(beamConfig.beam.warmStart.initialLinkstatsFilePath)
+      val linkStatsFileNames = linkStatsFileNameCandidates(beamConfig)
       val travelTime =
         if (BeamWarmStart.isLinkStatsFromLastRun(beamConfig.beam.warmStart)) {
           val linkStatsPath = LastRunOutputSource
@@ -230,7 +260,8 @@ object BeamWarmStart extends LazyLogging {
               Paths.get(beamConfig.beam.input.lastBaseOutputDir),
               beamConfig.beam.input.simulationPrefix,
               if (Files.isRegularFile(defaultLinkstatsPath)) { Some(defaultLinkstatsPath) }
-              else None
+              else None,
+              linkStatsFileNames
             )
             .map(_.toString)
           warm.readTravelTime(linkStatsPath, beamConfig.beam.input.lastBaseOutputDir)
@@ -405,8 +436,12 @@ object BeamWarmStart extends LazyLogging {
           "households.csv.gz",
           "vehicles.csv.gz"
         ).map(name => name -> Paths.get(controllerIO.getOutputFilename(name)))
-        val iterationFiles = (IndexedSeq(
-          "linkstats.csv.gz",
+        val linkStatsCandidates = linkStatsFileNameCandidates(beamConfig)
+        val linkStatsFileOpt = linkStatsCandidates
+          .map(name => name -> Paths.get(controllerIO.getIterationFilename(iteration, name)))
+          .find { case (_, path) => Files.exists(path) }
+
+        val baseIterationFiles = (IndexedSeq(
           "plans.csv.gz",
           "plans.xml.gz"
         ) ++ beamConfig.beam.agentsim.agents.rideHail.managers.map(managerConfig =>
@@ -415,6 +450,10 @@ object BeamWarmStart extends LazyLogging {
           .map(name =>
             s"ITERS/it.$iteration/$iteration.$name" -> Paths.get(controllerIO.getIterationFilename(iteration, name))
           )
+        val linkStatsFile = linkStatsFileOpt.map { case (name, path) =>
+          s"ITERS/it.$iteration/$iteration.$name" -> path
+        }.toSeq
+        val iterationFiles = baseIterationFiles ++ linkStatsFile
         val files = rootFiles ++ skimFiles ++ iterationFiles
         Some(FileUtils.zipFiles(controllerIO.getOutputFilename("warmstart_data.zip"), files))
       case None =>
