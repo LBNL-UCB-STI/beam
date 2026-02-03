@@ -4,7 +4,9 @@ import java.io.{BufferedReader, File, PrintWriter}
 
 import org.matsim.core.utils.io.IOUtils
 
+import javax.xml.parsers.SAXParserFactory
 import scala.collection.mutable
+import scala.xml.XML
 
 object NetworkXmlToCSV {
 
@@ -18,7 +20,8 @@ object NetworkXmlToCSV {
 
     val reader: BufferedReader = IOUtils.getBufferedReader(path)
     try {
-      val physimElement = scala.xml.XML.load(reader)
+      val loader = XML.withSAXParser(SAXParserFactory.newInstance().newSAXParser())
+      val physimElement = loader.load(reader)
 
       val nodeMap: mutable.Map[String, (_, _)] = mutable.Map()
       val nodeWriter = new PrintWriter(new File(nodeOutput))

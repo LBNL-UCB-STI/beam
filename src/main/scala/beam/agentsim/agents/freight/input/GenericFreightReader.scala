@@ -270,7 +270,7 @@ class GenericFreightReader(
       val payloadMap = carrierPlanIds.map(planId => planId -> plans(planId)).toMap
       val fleetDistribution: Map[BeamVehicleType, Double] =
         calculateFreightDistribution(vehicleMap).iterator.map { case (vehicleTypeId, share) =>
-          vehicleTypes(vehicleTypeId) -> share
+          freightVehicleTypes(vehicleTypeId) -> share
         }.toMap
 
       FreightCarrier(
@@ -391,14 +391,16 @@ class GenericFreightReader(
       val loc = new Coord(strX.toDouble, strY.toDouble)
       val locInUtm = if (config.isWgs) geoUtils.wgs2Utm(loc) else loc
       val coordInUtm = if (snapLocationAndRemoveInvalidInputsParams.enabled) {
-        val nearestLinkMaybe = networkMaybe.map(
-          NetworkUtilsWrapper.getNearestLinkByMode(
-            _,
-            coord = locInUtm,
-            modes = Array("car", "walk"),
-            scenarioCRS = geoUtils.localCRS,
-            minRadiusInMeter = snapLocationAndRemoveInvalidInputsParams.minRadiusInMeter,
-            maxRadiusInMeter = snapLocationAndRemoveInvalidInputsParams.maxRadiusInMeter
+        val nearestLinkMaybe = networkMaybe.flatMap(network =>
+          Option(
+            NetworkUtilsWrapper.getNearestLinkByMode(
+              network,
+              coord = locInUtm,
+              modes = Array("car", "walk"),
+              scenarioCRS = geoUtils.localCRS,
+              minRadiusInMeter = snapLocationAndRemoveInvalidInputsParams.minRadiusInMeter,
+              maxRadiusInMeter = snapLocationAndRemoveInvalidInputsParams.maxRadiusInMeter
+            )
           )
         )
         val newLocIntUtm = nearestLinkMaybe.map(_.getCoord).getOrElse(locInUtm)

@@ -1,7 +1,9 @@
 package beam.agentsim.agents.choice.mode
 
+import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes
+import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAR
 import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
@@ -9,14 +11,20 @@ import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.population.{Activity, Person}
 
-import scala.collection.mutable.ListBuffer
-
 /**
   * BEAM
   */
 class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeChoiceCalculator {
 
   override lazy val beamConfig: BeamConfig = beamServices.beamConfig
+
+  override val modeChoiceLogit: MultinomialLogit[BeamMode, String] = new MultinomialLogit[BeamMode, String](
+    {
+      case BeamMode.CAR => Some(Map("intercept" -> UtilityFunctionOperation("intercept", 1000.0)))
+      case _            => Option.empty
+    },
+    commonUtility
+  )
 
   def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],

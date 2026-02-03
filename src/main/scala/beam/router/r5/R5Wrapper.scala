@@ -2377,7 +2377,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
   private def deduplicateItineraries(trips: Vector[EmbodiedBeamTrip]): Vector[EmbodiedBeamTrip] = {
     // Group trips by their vehicle sequences (ignoring minor timing differences)
     val grouped = trips.groupBy { trip =>
-      trip.legs.filter(_.beamLeg.mode.isTransit).map(_.beamVehicleId).sorted
+      val transitVehicleIds = trip.legs.filter(_.beamLeg.mode.isTransit).map(_.beamVehicleId).sorted
+      if (transitVehicleIds.nonEmpty) transitVehicleIds else trip.legs.map(_.beamVehicleId).sorted
     }
 
     // For each group, keep only the trip with the earliest reasonable arrival time

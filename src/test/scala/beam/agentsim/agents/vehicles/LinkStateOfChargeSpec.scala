@@ -60,7 +60,8 @@ class LinkStateOfChargeSpec extends AnyWordSpecLike with Matchers with BeamHelpe
           EventReader.fromXmlFile(filePath)
         }
         val electricVehicles: IndexedSeq[Id[Vehicle]] = findAllElectricVehicles(eventsPerIteration.flatten)
-        electricVehicles.size should be >= 7 withClue "Too low number of EVs, RideHail vehicles are not moving?"
+        electricVehicles.size should be >= 5 withClue
+        "Too low number of EVs, persons don't use (private and ride-hail) electric vehicles much?"
         val iterationStates: IndexedSeq[Map[Id[Vehicle], (Double, Double)]] = eventsPerIteration
           .map(events =>
             electricVehicles
@@ -76,7 +77,7 @@ class LinkStateOfChargeSpec extends AnyWordSpecLike with Matchers with BeamHelpe
           (_, finalLevel) = twoIterations.head
           (initialNextIterationLevel, _) = twoIterations.last
         } yield {
-          //final SOC might be greater then 1.0 because of too long charging sessions
+          //final SOC might be greater than 1.0 because of too long charging sessions
           val limitedFinalSoc = MathUtils.clamp(finalLevel / primaryFuelCapacityInJoule, 0, 1.0)
           val nextInitialSoc = initialNextIterationLevel / primaryFuelCapacityInJoule
           (limitedFinalSoc shouldBe nextInitialSoc +- 0.0001) withClue

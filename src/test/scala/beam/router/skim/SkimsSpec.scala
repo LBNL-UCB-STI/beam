@@ -15,10 +15,10 @@ class SkimsSpec extends AnyFlatSpec with Matchers {
     val skimCfg = beamConfig.beam.router.skim
     val skimFileNames = Skims.skimFileNames(skimCfg)
     skimFileNames should contain allOf (
-      SkimType.OD_SKIMMER  -> "skimsOD",
-      SkimType.DT_SKIMMER  -> "skimsTravelTimeObservedVsSimulated",
-      SkimType.TC_SKIMMER  -> "skimsTransitCrowding",
-      SkimType.TAZ_SKIMMER -> "skimsTAZ",
+      SkimType.OD_SKIMMER  -> "skimsOD.csv.gz",
+      SkimType.DT_SKIMMER  -> "skimsTravelTimeObservedVsSimulated.csv.gz",
+      SkimType.TC_SKIMMER  -> "skimsTransitCrowding.csv.gz",
+      SkimType.TAZ_SKIMMER -> "skimsTAZ.csv.gz",
     )
     val (skimTypes, _) = skimFileNames.unzip
     skimTypes should not contain SkimType.AS_SKIMMER

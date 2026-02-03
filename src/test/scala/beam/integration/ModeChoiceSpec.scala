@@ -191,6 +191,21 @@ class ModeChoiceSpec
       RHModeCount * test_mode_multiplier should be >= theRestModes withClue getClueText(theRun.groupedCount)
     }
 
+    "prefer mode choice RH more than other modes (with ModeChoiceRideHailIfAvailable)" taggedAs Retryable in {
+      val theRun = new StartWithCustomConfig(
+        baseBeamvilleUrbansimConfig
+          .withValue(
+            TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
+            ConfigValueFactory.fromAnyRef("ModeChoiceRideHailIfAvailable")
+          )
+          .resolve()
+      )
+
+      val preferredModeCount = theRun.groupedCount.getOrElse("ride_hail", 0)
+      val theRestModes = getModesOtherThan("ride_hail", theRun.groupedCount)
+      preferredModeCount * test_mode_multiplier should be >= theRestModes withClue getClueText(theRun.groupedCount)
+    }
+
     "prefer mode choice walk transit more than other modes" in {
       val theRun: StartWithCustomConfig = new StartWithCustomConfig(
         resolvedBaseBeamvilleUrbansimConfigWithHighInterceptFor("walk_transit_intercept", "R5")

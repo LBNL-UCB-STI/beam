@@ -32,7 +32,7 @@ class WeightAndPayloadIdsSpec extends AnyWordSpecLike with Matchers with BeamHel
         val filePath = EventReader.getEventsFilePath(matsimConfig, "events", "xml").getAbsolutePath
         val events = EventReader.fromXmlFile(filePath)
         val freight1: IndexedSeq[PathTraversalEvent] = events.collect {
-          case pte: PathTraversalEvent if pte.driverId == "freightDriver-1" => pte
+          case pte: PathTraversalEvent if pte.driverId == "ft-1" => pte
         }
         // freight 1 has 2 tours: 2 and 3
         // tour-2: 2 payloads (3, 4) of 1300 kg
