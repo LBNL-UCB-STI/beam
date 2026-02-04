@@ -272,6 +272,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
   }
 
   private val transferSegmentCache = TrieMap.empty[(Int, Int), StreetSegment]
+  private val nilTransferSegment = new StreetSegment()
 
   private val mcRaptorStatePools: ThreadLocal[mutable.Map[StreetMode, McRaptorStatePool]] =
     ThreadLocal.withInitial(() => mutable.Map.empty[StreetMode, McRaptorStatePool])
@@ -1008,7 +1009,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     profileRequest.bikeTrafficStress = 4
     profileRequest.zoneId = transportNetwork.getTimeZone
     // profileRequest.monteCarloDraws = beamConfig.beam.routing.r5.numberOfSamples
-    profileRequest.monteCarloDraws = 1
+    profileRequest.monteCarloDraws = 0
     profileRequest.date = dates.localBaseDate
     // Doesn't calculate any fares, is just a no-op placeholder
     profileRequest.inRoutingFareCalculator = new SimpleInRoutingFareCalculator
@@ -2032,12 +2033,12 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
                   val streetPath = new StreetPath(lastState, transportNetwork, false)
                   new StreetSegment(streetPath, LegMode.WALK, transportNetwork.streetLayer)
                 } else {
-                  null
+                  nilTransferSegment
                 }
               }
             )
 
-            if (streetSegment != null) {
+            if (streetSegment != nilTransferSegment) {
               transfersToOptions.get(transfer).asScala.foreach { profileOption =>
                 profileOption.addMiddle(streetSegment, transfer)
               }
