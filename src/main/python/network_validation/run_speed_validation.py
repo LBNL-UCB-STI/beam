@@ -583,15 +583,15 @@ def main():
     Main function to run the validation process for multiple scenario/iteration combinations
     """
     # Base configuration (common across all runs)
-    study_area = "seattle"
-    iteration = 6
+    study_area = "sfbay"
+    iteration = 5
     batch = "calibration"
     runs = [
-        ("pilates-run--seattle--jdeq-calibration-FC05-0--20260105-130122", iteration),
-        ("pilates-run--seattle--jdeq-calibration-FC06-0--20260105-130518", iteration),
-        ("pilates-run--seattle--jdeq-calibration-FC07-0--20260105-135219", iteration),
-        ("pilates-run--seattle--jdeq-calibration-FC08-0--20260105-135311", iteration),
-        ("pilates-run--seattle--jdeq-calibration-FC09-0--20260105-135336", iteration)
+        ("pilates-run--sfbay--jdeq-calibration-FC05-0--20260107-112716", iteration),
+        ("pilates-run--sfbay--jdeq-calibration-FC07-0--20260107-112310", iteration),
+        ("pilates-run--sfbay--jdeq-calibration-FC08-0--20260107-111901", iteration),
+        #("pilates-run--seattle--jdeq-calibration-FC08-0--20260105-135311", iteration),
+        #("pilates-run--seattle--jdeq-calibration-FC09-0--20260105-135336", iteration)
     ]
     peak_hour = 8
     do_link_speed_validation = True
