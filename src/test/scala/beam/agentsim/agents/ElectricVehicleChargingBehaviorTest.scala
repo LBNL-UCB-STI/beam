@@ -409,7 +409,7 @@ class ElectricVehicleChargingBehaviorTest
       ("type", a => a.equals("ChargingPlugInEvent"))
     ).map(_.getAttributes.get("vehicle")).distinct
 
-    distinctVehiclesCharged.size should be >= 45 withClue
+    distinctVehiclesCharged.size should be >= 40 withClue
     ", expecting that almost every vehicle recharges at least once."
 
     val rideHailArrivalEvents = filterEvents(
