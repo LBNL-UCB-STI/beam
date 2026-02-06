@@ -136,39 +136,69 @@ case class ODRouterR5GHForActivitySimSkims(
     new Directory(new File(carGraphHopperDir)).deleteRecursively()
     val carRouter = "quasiDynamicGH"
 
-    val timeToCarGraphHopper = requestTimes.map { time =>
-      val ghDir = Paths.get(carGraphHopperDir, time.toString).toString
+    // Detect free-flow scenario - when no travel time is provided, all time periods use identical graphs
+    val isFreeFlow = travelTime.isEmpty
 
-      val wayId2TravelTime = travelTime
-        .map { times =>
-          workerParams.networkHelper.allLinks.toSeq
-            .map(l =>
-              l.getId.toString.toLong ->
-              times.getLinkTravelTime(l, time, null, null)
-            )
-            .toMap
-        }
-        .getOrElse(Map.empty)
+    val timeToCarGraphHopper = if (isFreeFlow) {
+      logger.info(s"Using single CH graph for all ${requestTimes.length} time periods (free-flow mode)")
+      val ghDir = Paths.get(carGraphHopperDir, "freeflow").toString
 
       GraphHopperWrapper.createCarGraphDirectoryFromR5(
         carRouter,
         workerParams.transportNetwork,
         new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFile),
         ghDir,
-        wayId2TravelTime
+        Map.empty[Long, Double]
       )
 
-      time -> new CarGraphHopperWrapper(
+      val sharedGraph = new CarGraphHopperWrapper(
         carRouter,
         ghDir,
         workerParams.geo,
         workerParams.vehicleTypes,
         workerParams.fuelTypePrices,
-        wayId2TravelTime,
+        Map.empty,
         id2Link,
         workerParams.beamConfig.beam.routing.gh.useAlternativeRoutes
       )
-    }.toMap
+
+      requestTimes.map(time => time -> sharedGraph).toMap
+    } else {
+      // Original per-time-period logic for time-varying travel times
+      requestTimes.map { time =>
+        val ghDir = Paths.get(carGraphHopperDir, time.toString).toString
+
+        val wayId2TravelTime = travelTime
+          .map { times =>
+            workerParams.networkHelper.allLinks.toSeq
+              .map(l =>
+                l.getId.toString.toLong ->
+                times.getLinkTravelTime(l, time, null, null)
+              )
+              .toMap
+          }
+          .getOrElse(Map.empty)
+
+        GraphHopperWrapper.createCarGraphDirectoryFromR5(
+          carRouter,
+          workerParams.transportNetwork,
+          new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFile),
+          ghDir,
+          wayId2TravelTime
+        )
+
+        time -> new CarGraphHopperWrapper(
+          carRouter,
+          ghDir,
+          workerParams.geo,
+          workerParams.vehicleTypes,
+          workerParams.fuelTypePrices,
+          wayId2TravelTime,
+          id2Link,
+          workerParams.beamConfig.beam.routing.gh.useAlternativeRoutes
+        )
+      }.toMap
+    }
 
     logger.info(s"GH built")
     timeToCarGraphHopper

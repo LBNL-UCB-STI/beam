@@ -23,11 +23,34 @@ class WorkerActor(val masterActor: ActorRef, val r5Requester: ODRequester)(impli
   }
 
   override def receive: Receive = {
+    case MasterActor.Response.WorkBatch(items) =>
+      nTotalRequests += items.length
+      Future {
+        items.flatMap { case (srcIndex, dstIndex, requestTime) =>
+          try {
+            Some(r5Requester.route(srcIndex, dstIndex, requestTime))
+          } catch {
+            case NonFatal(ex) =>
+              log.error(ex, s"route failed: ${ex.getMessage}")
+              None
+          }
+        }
+      }.pipeTo(self)
+
+    case responses: Array[ODRequester.Response @unchecked] =>
+      responses.foreach { resp =>
+        if (resp.maybeRoutingResponse.isSuccess) nSuccess += 1
+        masterActor ! resp
+      }
+      requestWork()
+
+    // Keep backward compatibility with single work items
     case resp: ODRequester.Response =>
       if (resp.maybeRoutingResponse.isSuccess)
         nSuccess += 1
       masterActor ! resp
       requestWork()
+
     case work: MasterActor.Response.Work =>
       nTotalRequests += 1
       Future {

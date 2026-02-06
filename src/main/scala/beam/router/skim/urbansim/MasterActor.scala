@@ -30,6 +30,7 @@ class MasterActor(
     maybeMonitor.foreach(_.cancel())
   }
 
+  private val batchSize: Int = 500
   private val maxWorkers: Int = Runtime.getRuntime.availableProcessors()
 
   private val maxRequestsNumber: Int = ODs.length * requestTimes.length
@@ -140,9 +141,9 @@ class MasterActor(
           checkIfNeedToStop(worker)
           if (workers.contains(worker)) {
             if (moreWorkExist) {
-              val (srcIndex, dstIndex, requestTime) = getNextODTime
-              nRouteSent += 1
-              worker ! Response.Work(srcIndex, dstIndex, requestTime)
+              val batch = getNextBatch(batchSize)
+              nRouteSent += batch.length
+              worker ! Response.WorkBatch(batch)
             } else {
               worker ! Response.NoWork
             }
@@ -181,6 +182,23 @@ class MasterActor(
     }
 
     (o, d, requestTime)
+  }
+
+  private def getNextBatch(size: Int): Array[(GeoIndex, GeoIndex, Int)] = {
+    val result = new scala.collection.mutable.ArrayBuffer[(GeoIndex, GeoIndex, Int)](size)
+    var count = 0
+    while (count < size && moreWorkExist) {
+      val requestTime = requestTimes(currentTime)
+      val (o, d) = ODs(currentIdx)
+      currentTime += 1
+      if (currentTime >= requestTimes.length) {
+        currentTime = 0
+        currentIdx += 1
+      }
+      result += ((o, d, requestTime))
+      count += 1
+    }
+    result.toArray
   }
 
   private def checkAndGiveTheResult(): Unit = {
@@ -239,6 +257,7 @@ object MasterActor {
 
   object Response {
     case class Work(srcIndex: GeoIndex, dstIndex: GeoIndex, requestTime: Int) extends Response
+    case class WorkBatch(items: Array[(GeoIndex, GeoIndex, Int)]) extends Response
     case object NoWork extends Response
 
     case class PopulatedSkimmer(abstractSkimmer: AbstractSkimmer) extends Response

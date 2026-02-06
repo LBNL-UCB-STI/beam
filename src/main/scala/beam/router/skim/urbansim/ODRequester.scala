@@ -17,6 +17,7 @@ import beam.sim.config.BeamConfig
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes, PopulationAdjustment}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 
+import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters._
 import scala.util.Try
 
@@ -33,7 +34,11 @@ class ODRequester(
   val buildDirectCarRoute: Boolean,
   val skimmerEventFactory: AbstractSkimmerEventFactory
 ) {
-  var requestsExecutionTime: RouteExecutionInfo = RouteExecutionInfo()
+  // Thread-safe execution time tracking for concurrent batch processing
+  private val _requestsExecutionTime: AtomicReference[RouteExecutionInfo] =
+    new AtomicReference(RouteExecutionInfo())
+
+  def requestsExecutionTime: RouteExecutionInfo = _requestsExecutionTime.get()
 
   private val dummyPersonAttributes = createDummyPersonAttribute
 
@@ -48,6 +53,14 @@ class ODRequester(
 
   private val dummyBikeVehicleType: BeamVehicleType =
     vehicleTypes.values.find(theType => theType.vehicleCategory == VehicleCategory.Bike).get
+
+  // Pre-created vehicle IDs to avoid per-request allocations
+  private val dummyCarVehicleId = Id.createVehicleId("dummy-car-for-skim-observations")
+  private val dummyBikeVehicleId = Id.createVehicleId("dummy-bike-for-skim-observations")
+  private val dummyBodyVehicleId = Id.createVehicleId("dummy-body-for-skim-observations")
+
+  // Pre-allocated mode array for drive-only routing
+  private val driveOnlyModes: Array[BeamMode] = Array(BeamMode.CAR)
 
   private val thresholdDistanceForBikeMeters: Double =
     beamConfig.beam.urbansim.backgroundODSkimsCreator.maxTravelDistanceInMeters.bike
@@ -89,9 +102,11 @@ class ODRequester(
             buildDirectCarRoute = buildDirectCarRoute,
             buildDirectWalkRoute = buildDirectWalkRoute && walkDistanceWithinRange
           )
-        requestsExecutionTime = RouteExecutionInfo.sum(
-          requestsExecutionTime,
-          RouteExecutionInfo(r5ExecutionTime = System.nanoTime() - startExecution, r5Responses = 1)
+        _requestsExecutionTime.updateAndGet(current =>
+          RouteExecutionInfo.sum(
+            current,
+            RouteExecutionInfo(r5ExecutionTime = System.nanoTime() - startExecution, r5Responses = 1)
+          )
         )
         response
       }
@@ -100,6 +115,57 @@ class ODRequester(
       }
 
     ODRequester.Response(srcIndex, dstIndex, considerModes, maybeResponse, requestTime)
+  }
+
+  /**
+   * Optimized route method for drive-only skim generation.
+   * Reduces object allocations by reusing pre-created vehicle IDs and avoiding
+   * unnecessary distance checks and mode filtering.
+   */
+  def routeDriveOnly(srcIndex: GeoIndex, dstIndex: GeoIndex, requestTime: Int): ODRequester.Response = {
+    val (srcCoord, dstCoord) = (srcIndex, dstIndex) match {
+      case (tazSrc: TAZIndex, tazDst: TAZIndex) =>
+        TAZClustering.getGeoIndexCenters(tazSrc, tazDst)
+      case (h3Src: H3Index, h3Dst: H3Index) =>
+        H3Clustering.getGeoIndexCenters(geoUtils, h3Src, h3Dst)
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Expected matching index types, got ${srcIndex.getClass} and ${dstIndex.getClass}"
+        )
+    }
+
+    val streetVehicle = StreetVehicle(
+      dummyCarVehicleId,
+      dummyCarVehicleType.id,
+      new SpaceTime(srcCoord, requestTime),
+      BeamMode.CAR,
+      asDriver = true,
+      needsToCalculateCost = false
+    )
+
+    val routingReq = RoutingRequest(
+      originUTM = srcCoord,
+      destinationUTM = dstCoord,
+      departureTime = requestTime,
+      withTransit = false,
+      streetVehicles = Array(streetVehicle),
+      attributesOfIndividual = Some(dummyPersonAttributes),
+      triggerId = -1
+    )
+
+    val maybeResponse = Try {
+      val startExecution = System.nanoTime()
+      val response = router.calcRoute(routingReq, buildDirectCarRoute = true, buildDirectWalkRoute = false)
+      _requestsExecutionTime.updateAndGet(current =>
+        RouteExecutionInfo.sum(
+          current,
+          RouteExecutionInfo(r5ExecutionTime = System.nanoTime() - startExecution, r5Responses = 1)
+        )
+      )
+      response
+    }
+
+    ODRequester.Response(srcIndex, dstIndex, driveOnlyModes, maybeResponse, requestTime)
   }
 
   def createSkimEvent(
@@ -170,38 +236,24 @@ class ODRequester(
   }
 
   def createStreetVehicle(mode: BeamMode, requestTime: Int, srcCoord: Coord): StreetVehicle = {
-    val streetVehicle: StreetVehicle = mode match {
+    val (vehicleId, vehicleTypeId, beamMode) = mode match {
       case BeamMode.CAR | BeamMode.DRIVE_TRANSIT =>
-        StreetVehicle(
-          Id.createVehicleId("dummy-car-for-skim-observations"),
-          dummyCarVehicleType.id,
-          new SpaceTime(srcCoord, requestTime),
-          BeamMode.CAR,
-          asDriver = true,
-          needsToCalculateCost = false
-        )
+        (dummyCarVehicleId, dummyCarVehicleType.id, BeamMode.CAR)
       case BeamMode.BIKE =>
-        StreetVehicle(
-          Id.createVehicleId("dummy-bike-for-skim-observations"),
-          dummyBikeVehicleType.id,
-          new SpaceTime(srcCoord, requestTime),
-          BeamMode.BIKE,
-          asDriver = true,
-          needsToCalculateCost = false
-        )
+        (dummyBikeVehicleId, dummyBikeVehicleType.id, BeamMode.BIKE)
       case BeamMode.WALK | BeamMode.WALK_TRANSIT =>
-        StreetVehicle(
-          Id.createVehicleId("dummy-body-for-skim-observations"),
-          dummyBodyVehicleType.id,
-          new SpaceTime(srcCoord, requestTime),
-          WALK,
-          asDriver = true,
-          needsToCalculateCost = false
-        )
+        (dummyBodyVehicleId, dummyBodyVehicleType.id, WALK)
       case x =>
         throw new IllegalArgumentException(s"Get mode $x, but don't know what to do with it.")
     }
-    streetVehicle
+    StreetVehicle(
+      vehicleId,
+      vehicleTypeId,
+      new SpaceTime(srcCoord, requestTime),
+      beamMode,
+      asDriver = true,
+      needsToCalculateCost = false
+    )
   }
 
   private def createDummyPersonAttribute: AttributesOfIndividual = {
