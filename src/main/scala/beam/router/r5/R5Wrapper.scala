@@ -491,7 +491,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       cache.poll()
     }
 
-    router.reset() // This won't change the comparator
+    router.reset(travelTimeCalculator, turnCostCalculatorTL.get(), travelCostCalculator)
     // quantityToMinimize is already correct for this cache
     router
   }
@@ -1319,6 +1319,12 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
               pool
             }
           )
+        val accessRoutingVariable =
+          if (profileRequest.hasTransit) {
+            StreetRouter.State.RoutingVariable.DURATION_SECONDS
+          } else {
+            StreetRouter.State.RoutingVariable.WEIGHT
+          }
         // Borrow from pool instead of creating new
         val streetRouter = borrowRouterWithStatePool(
           getTravelTimeCalculator(vehicleType, shouldAddNoise = !profileRequest.hasTransit),
@@ -1330,13 +1336,13 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             costPerMinute
           ),
           accessStatePool, // ← Pass the specific state pool
-          StreetRouter.State.RoutingVariable.DURATION_SECONDS
+          accessRoutingVariable
         )
         accessRoutersToReturn += (
           (
             streetRouter,
             accessStatePool,
-            StreetRouter.State.RoutingVariable.DURATION_SECONDS
+            accessRoutingVariable
           )
         )
 
