@@ -17,6 +17,8 @@ import com.google.inject.Injector
 import org.matsim.core.scenario.MutableScenario
 import scopt.OParser
 
+import com.typesafe.config.ConfigFactory
+
 import java.io.{BufferedWriter, Closeable, File}
 import java.nio.file.Path
 import scala.collection.SortedSet
@@ -53,7 +55,13 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
     output: Path = null,
     linkstatsPath: Option[Path] = None,
     ODSkimsPath: Option[Path] = None,
-    parallelism: Int = 1
+    parallelism: Int = 1,
+    // Additional CLI overrides for backgroundODSkimsCreator config
+    routerType: Option[String] = None,
+    skimsGeoType: Option[String] = None,
+    skimsKind: Option[String] = None,
+    peakHours: Option[String] = None,
+    modesToBuild: Option[String] = None
   )
 
   case class ODRow(origin: GeoUnit.TAZ, destination: GeoUnit.TAZ)
@@ -86,7 +94,22 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
         .validate(fileValidator)
         .action((x, c) => c.copy(ODSkimsPath = Some(x.toPath)))
         .text("OD Skims file path"),
-      opt[Int]("parallelism").action((x, c) => c.copy(parallelism = x)).text("Parallelism level")
+      opt[Int]("parallelism").action((x, c) => c.copy(parallelism = x)).text("Parallelism level"),
+      opt[String]("routerType")
+        .action((x, c) => c.copy(routerType = Some(x)))
+        .text("Router type: r5 or r5+gh (default: from config)"),
+      opt[String]("skimsGeoType")
+        .action((x, c) => c.copy(skimsGeoType = Some(x)))
+        .text("Skims geo type: taz or h3 (default: from config)"),
+      opt[String]("skimsKind")
+        .action((x, c) => c.copy(skimsKind = Some(x)))
+        .text("Skims kind: od, activitySim, or activitySimOmx (default: from config)"),
+      opt[String]("peakHours")
+        .action((x, c) => c.copy(peakHours = Some(x)))
+        .text("Peak hours comma-separated, e.g., 8.5,17.5 (default: from config)"),
+      opt[String]("modesToBuild")
+        .action((x, c) => c.copy(modesToBuild = Some(x)))
+        .text("Modes to build: drive, walk, transit, or combinations like drive,walk (default: from config)")
     )
   }
 
@@ -160,7 +183,17 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
 
   def runWithParams(params: InputParameters): Future[Terminated] = {
     val manualArgs = Array[String]("--config", params.configPath.toString)
-    val (_, config) = prepareConfig(manualArgs, isConfigArgRequired = true)
+    val (_, baseConfig) = prepareConfig(manualArgs, isConfigArgRequired = true)
+
+    // Build CLI overrides for backgroundODSkimsCreator config
+    val cliOverrides = buildCliOverrides(params)
+    val config = if (cliOverrides.nonEmpty) {
+      val overrideConfig = ConfigFactory.parseString(cliOverrides)
+      overrideConfig.withFallback(baseConfig).resolve()
+    } else {
+      baseConfig
+    }
+
     val beamExecutionConfig: BeamExecutionConfig = setupBeamWithConfig(config)
     val (scenarioBuilt, beamScenario, _) = buildBeamServicesAndScenario(
       beamExecutionConfig.beamConfig,
@@ -175,6 +208,38 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       logger.info("Terminating actorSystem")
       actorSystem.terminate()
     }
+  }
+
+  private def buildCliOverrides(params: InputParameters): String = {
+    val overrides = new StringBuilder()
+    val prefix = "beam.urbansim.backgroundODSkimsCreator"
+
+    params.routerType.foreach { v =>
+      overrides.append(s"""$prefix.routerType = "$v"\n""")
+    }
+    params.skimsGeoType.foreach { v =>
+      overrides.append(s"""$prefix.skimsGeoType = "$v"\n""")
+    }
+    params.skimsKind.foreach { v =>
+      overrides.append(s"""$prefix.skimsKind = "$v"\n""")
+    }
+    params.peakHours.foreach { v =>
+      // peakHours is a list, e.g., "8.5,17.5" -> [8.5, 17.5]
+      val hours = v.split(",").map(_.trim).mkString("[", ", ", "]")
+      overrides.append(s"$prefix.peakHours = $hours\n")
+    }
+    params.modesToBuild.foreach { v =>
+      // modesToBuild is comma-separated, e.g., "drive,walk" or just "drive"
+      val modes = v.split(",").map(_.trim.toLowerCase)
+      val drive = modes.contains("drive")
+      val walk = modes.contains("walk")
+      val transit = modes.contains("transit")
+      overrides.append(s"$prefix.modesToBuild.drive = $drive\n")
+      overrides.append(s"$prefix.modesToBuild.walk = $walk\n")
+      overrides.append(s"$prefix.modesToBuild.transit = $transit\n")
+    }
+
+    overrides.toString()
   }
 
   def runWithServices(beamServices: BeamServices, params: InputParameters)(implicit actorSystem: ActorSystem) = {
