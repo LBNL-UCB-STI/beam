@@ -20,7 +20,9 @@ class MasterActor(
   val abstractSkimmer: AbstractSkimmer,
   val odRequester: ODRequester,
   val requestTimes: Seq[Int],
-  val ODs: Array[(GeoIndex, GeoIndex)]
+  val ODs: Array[(GeoIndex, GeoIndex)],
+  val transitModeCategories: Seq[TransitModeCategory] = Seq.empty,
+  val generateReturnTrips: Boolean = false
 ) extends Actor
     with ActorLogging {
 
@@ -33,14 +35,61 @@ class MasterActor(
   private val batchSize: Int = 500
   private val maxWorkers: Int = Runtime.getRuntime.availableProcessors()
 
-  private val maxRequestsNumber: Int = ODs.length * requestTimes.length
+  // Determine if we're using enhanced mode (with transit categories and/or return trips)
+  private val useEnhancedMode: Boolean = transitModeCategories.nonEmpty || generateReturnTrips
 
+  // For enhanced mode, we pre-generate all work items
+  private val workItems: Array[ODWorkItem] = if (useEnhancedMode) {
+    generateWorkItems()
+  } else {
+    Array.empty
+  }
+
+  // Calculate max requests based on mode
+  private val maxRequestsNumber: Int = if (useEnhancedMode) {
+    workItems.length
+  } else {
+    ODs.length * requestTimes.length
+  }
+
+  // Current position in the work items array (for enhanced mode)
+  private var currentWorkItemIdx: Int = 0
+
+  // Legacy iteration state (for backward compatibility)
   private var currentIdx: Int = 0
   private var currentTime: Int = 0
 
   log.info(
-    s"Total number of OD pairs: ${ODs.length}, number of request time entries: ${requestTimes.length}, maxWorkers: $maxWorkers"
+    s"Total number of OD pairs: ${ODs.length}, number of request time entries: ${requestTimes.length}, " +
+      s"transit categories: ${transitModeCategories.size}, generateReturnTrips: $generateReturnTrips, " +
+      s"total work items: $maxRequestsNumber, maxWorkers: $maxWorkers"
   )
+
+  /**
+    * Generate all work items for enhanced mode with transit categories and trip directions.
+    */
+  private def generateWorkItems(): Array[ODWorkItem] = {
+    val tripDirections = if (generateReturnTrips) {
+      Seq(TripDirection.Outbound, TripDirection.Return)
+    } else {
+      Seq(TripDirection.Outbound)
+    }
+
+    val categories: Seq[Option[TransitModeCategory]] = if (transitModeCategories.nonEmpty) {
+      transitModeCategories.map(Some(_))
+    } else {
+      Seq(None)
+    }
+
+    val items = for {
+      (src, dst) <- ODs
+      time <- requestTimes
+      category <- categories
+      direction <- tripDirections
+    } yield ODWorkItem(src, dst, time, category, direction)
+
+    items.toArray
+  }
 
   private var workers: Set[ActorRef] = Set.empty
   private var workerToEc: Map[ActorRef, ExecutionContextExecutorService] = Map.empty
@@ -141,9 +190,15 @@ class MasterActor(
           checkIfNeedToStop(worker)
           if (workers.contains(worker)) {
             if (moreWorkExist) {
-              val batch = getNextBatch(batchSize)
-              nRouteSent += batch.length
-              worker ! Response.WorkBatch(batch)
+              if (useEnhancedMode) {
+                val batch = getNextWorkItemBatch(batchSize)
+                nRouteSent += batch.length
+                worker ! Response.EnhancedWorkBatch(batch)
+              } else {
+                val batch = getNextBatch(batchSize)
+                nRouteSent += batch.length
+                worker ! Response.WorkBatch(batch)
+              }
             } else {
               worker ! Response.NoWork
             }
@@ -168,7 +223,11 @@ class MasterActor(
   }
 
   private def moreWorkExist: Boolean = {
-    currentIdx < ODs.length && currentTime < requestTimes.length
+    if (useEnhancedMode) {
+      currentWorkItemIdx < workItems.length
+    } else {
+      currentIdx < ODs.length && currentTime < requestTimes.length
+    }
   }
 
   private def getNextODTime: (GeoIndex, GeoIndex, Int) = {
@@ -184,10 +243,20 @@ class MasterActor(
     (o, d, requestTime)
   }
 
+  /**
+    * Get next batch of work items for enhanced mode.
+    */
+  private def getNextWorkItemBatch(size: Int): Array[ODWorkItem] = {
+    val endIdx = Math.min(currentWorkItemIdx + size, workItems.length)
+    val batch = workItems.slice(currentWorkItemIdx, endIdx)
+    currentWorkItemIdx = endIdx
+    batch
+  }
+
   private def getNextBatch(size: Int): Array[(GeoIndex, GeoIndex, Int)] = {
     val result = new scala.collection.mutable.ArrayBuffer[(GeoIndex, GeoIndex, Int)](size)
     var count = 0
-    while (count < size && moreWorkExist) {
+    while (count < size && legacyModeWorkExist) {
       val requestTime = requestTimes(currentTime)
       val (o, d) = ODs(currentIdx)
       currentTime += 1
@@ -201,8 +270,12 @@ class MasterActor(
     result.toArray
   }
 
+  private def legacyModeWorkExist: Boolean = {
+    currentIdx < ODs.length && currentTime < requestTimes.length
+  }
+
   private def checkAndGiveTheResult(): Unit = {
-    if (totalResponses == ODs.length * requestTimes.length) {
+    if (totalResponses == maxRequestsNumber) {
       replyToWhenFinish.foreach { actorRef =>
         actorRef ! PopulatedSkimmer(abstractSkimmer)
       }
@@ -258,6 +331,7 @@ object MasterActor {
   object Response {
     case class Work(srcIndex: GeoIndex, dstIndex: GeoIndex, requestTime: Int) extends Response
     case class WorkBatch(items: Array[(GeoIndex, GeoIndex, Int)]) extends Response
+    case class EnhancedWorkBatch(items: Array[ODWorkItem]) extends Response
     case object NoWork extends Response
 
     case class PopulatedSkimmer(abstractSkimmer: AbstractSkimmer) extends Response
@@ -270,5 +344,16 @@ object MasterActor {
     ODs: Array[(GeoIndex, GeoIndex)]
   ): Props = {
     Props(new MasterActor(abstractSkimmer, odR5Requester: ODRequester, requestTimes, ODs))
+  }
+
+  def props(
+    abstractSkimmer: AbstractSkimmer,
+    odR5Requester: ODRequester,
+    requestTimes: Seq[Int],
+    ODs: Array[(GeoIndex, GeoIndex)],
+    transitModeCategories: Seq[TransitModeCategory],
+    generateReturnTrips: Boolean
+  ): Props = {
+    Props(new MasterActor(abstractSkimmer, odR5Requester, requestTimes, ODs, transitModeCategories, generateReturnTrips))
   }
 }

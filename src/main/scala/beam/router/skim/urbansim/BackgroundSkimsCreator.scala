@@ -132,7 +132,8 @@ class BackgroundSkimsCreator(
     withTransit = withTransit,
     buildDirectWalkRoute = buildDirectWalkRoute,
     buildDirectCarRoute = buildDirectCarRoute,
-    skimmerEventFactory
+    skimmerEventFactory,
+    transportNetwork = Some(beamScenario.transportNetwork)
   )
 
   private val masterActorRef: ActorRef = {

@@ -1260,7 +1260,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         Vector()
       }
       if (request.withTransit) {
-        profileRequest.transitModes = util.EnumSet.allOf(classOf[TransitModes])
+        profileRequest.transitModes = request.transitModes.getOrElse(util.EnumSet.allOf(classOf[TransitModes]))
       }
 
       val destinationVehicle = destinationVehicles.headOption

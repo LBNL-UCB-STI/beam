@@ -39,7 +39,7 @@ import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.logging.LoggingMessagePublisher
 import beam.utils.{DateUtils, IdGeneratorImpl, NetworkHelper}
-import com.conveyal.r5.api.util.LegMode
+import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import com.conveyal.r5.transit.TransportNetwork
 import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
@@ -549,7 +549,8 @@ object BeamRouter {
     requestId: Int = IdGeneratorImpl.nextId,
     possibleEgressVehicles: IndexedSeq[StreetVehicle] = IndexedSeq.empty,
     requestedMode: Option[BeamMode] = None,
-    triggerId: Long
+    triggerId: Long,
+    transitModes: Option[java.util.EnumSet[TransitModes]] = None
   )(implicit fileName: sourcecode.FileName, fullName: sourcecode.FullName, line: sourcecode.Line)
       extends HasTriggerId {
 

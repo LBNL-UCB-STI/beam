@@ -15,6 +15,7 @@ import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerEventFactory}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes, PopulationAdjustment}
+import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 
 import java.util.concurrent.atomic.AtomicReference
@@ -32,7 +33,8 @@ class ODRequester(
   val withTransit: Boolean,
   val buildDirectWalkRoute: Boolean,
   val buildDirectCarRoute: Boolean,
-  val skimmerEventFactory: AbstractSkimmerEventFactory
+  val skimmerEventFactory: AbstractSkimmerEventFactory,
+  val transportNetwork: Option[TransportNetwork] = None
 ) {
   // Thread-safe execution time tracking for concurrent batch processing
   private val _requestsExecutionTime: AtomicReference[RouteExecutionInfo] =
@@ -94,6 +96,84 @@ class ODRequester(
           streetVehicles = streetVehicles,
           attributesOfIndividual = Some(dummyPersonAttributes),
           triggerId = -1
+        )
+        val startExecution = System.nanoTime()
+        val response =
+          router.calcRoute(
+            routingReq,
+            buildDirectCarRoute = buildDirectCarRoute,
+            buildDirectWalkRoute = buildDirectWalkRoute && walkDistanceWithinRange
+          )
+        _requestsExecutionTime.updateAndGet(current =>
+          RouteExecutionInfo.sum(
+            current,
+            RouteExecutionInfo(r5ExecutionTime = System.nanoTime() - startExecution, r5Responses = 1)
+          )
+        )
+        response
+      }
+      else {
+        Try(RoutingResponse.dummyRoutingResponse.get)
+      }
+
+    ODRequester.Response(srcIndex, dstIndex, considerModes, maybeResponse, requestTime)
+  }
+
+  /**
+    * Route with explicit transit mode category and trip direction support.
+    * Used for mode-filtered transit routing and return trip parking handling.
+    *
+    * @param workItem The work item containing OD pair, time, transit category, and trip direction
+    * @return Response containing routing results
+    */
+  def route(workItem: ODWorkItem): ODRequester.Response = {
+    val (srcIndex, dstIndex, requestTime) = (workItem.srcIndex, workItem.dstIndex, workItem.time)
+    val (srcCoord, dstCoord) = getCoordinates(srcIndex, dstIndex)
+
+    val dist = distanceWithMargin(srcCoord, dstCoord)
+    val considerModes: Array[BeamMode] = beamModes.filter(mode => isDistanceWithinRange(mode, dist)).toArray
+    val walkDistanceWithinRange = dist < thresholdDistanceForWalkMeters
+
+    // For return trips with DRIVE_TRANSIT, we need to handle vehicle location differently
+    val (effectiveSrcCoord, vehicleLocationForReturn) = workItem.tripDirection match {
+      case TripDirection.Return if considerModes.contains(DRIVE_TRANSIT) =>
+        // For return trips, find the nearest transit stop to the destination (home)
+        // where the car would have been parked during the outbound trip
+        val nearestStop = findNearestTransitStopCoord(dstCoord)
+        (srcCoord, nearestStop)
+      case _ =>
+        (srcCoord, None)
+    }
+
+    val streetVehicles = workItem.tripDirection match {
+      case TripDirection.Return if vehicleLocationForReturn.isDefined =>
+        // For return trips with drive-transit, create street vehicles with modified locations
+        considerModes.flatMap { mode =>
+          mode match {
+            case DRIVE_TRANSIT =>
+              // Vehicle is at the transit stop near destination, not at origin
+              Some(createStreetVehicleAt(mode, requestTime, vehicleLocationForReturn.get))
+            case _ =>
+              Some(createStreetVehicle(mode, requestTime, effectiveSrcCoord))
+          }
+        }
+      case _ =>
+        considerModes.map(createStreetVehicle(_, requestTime, effectiveSrcCoord))
+    }
+
+    val transitModes = workItem.transitCategory.map(_.toR5TransitModes)
+
+    val maybeResponse: Try[RoutingResponse] =
+      if (streetVehicles.nonEmpty && (buildDirectCarRoute || buildDirectWalkRoute || withTransit)) Try {
+        val routingReq = RoutingRequest(
+          originUTM = effectiveSrcCoord,
+          destinationUTM = dstCoord,
+          departureTime = requestTime,
+          withTransit = withTransit,
+          streetVehicles = streetVehicles,
+          attributesOfIndividual = Some(dummyPersonAttributes),
+          triggerId = -1,
+          transitModes = transitModes
         )
         val startExecution = System.nanoTime()
         val response =
@@ -284,6 +364,93 @@ class ODRequester(
       age = None,
       income = Some(dummyHouseholdAttributes.householdIncome)
     )
+  }
+
+  /**
+    * Get coordinates from GeoIndex pair.
+    */
+  private def getCoordinates(srcIndex: GeoIndex, dstIndex: GeoIndex): (Coord, Coord) = {
+    (srcIndex, dstIndex) match {
+      case (h3SrcIndex: H3Index, h3DestIndex: H3Index) =>
+        H3Clustering.getGeoIndexCenters(geoUtils, h3SrcIndex, h3DestIndex)
+      case (tazSrcIndex: TAZIndex, tazDestIndex: TAZIndex) =>
+        TAZClustering.getGeoIndexCenters(tazSrcIndex, tazDestIndex)
+      case _ =>
+        throw new MatchError(
+          s"The type of src index (${srcIndex.getClass}) does not match the type of dst index (${dstIndex.getClass})."
+        )
+    }
+  }
+
+  /**
+    * Create a street vehicle at a specific location (used for return trips where vehicle is at transit stop).
+    */
+  private def createStreetVehicleAt(mode: BeamMode, requestTime: Int, vehicleCoord: Coord): StreetVehicle = {
+    val (vehicleId, vehicleTypeId, beamMode) = mode match {
+      case BeamMode.CAR | BeamMode.DRIVE_TRANSIT =>
+        (dummyCarVehicleId, dummyCarVehicleType.id, BeamMode.CAR)
+      case BeamMode.BIKE =>
+        (dummyBikeVehicleId, dummyBikeVehicleType.id, BeamMode.BIKE)
+      case BeamMode.WALK | BeamMode.WALK_TRANSIT =>
+        (dummyBodyVehicleId, dummyBodyVehicleType.id, WALK)
+      case x =>
+        throw new IllegalArgumentException(s"Get mode $x, but don't know what to do with it.")
+    }
+    StreetVehicle(
+      vehicleId,
+      vehicleTypeId,
+      new SpaceTime(vehicleCoord, requestTime),
+      beamMode,
+      asDriver = true,
+      needsToCalculateCost = false
+    )
+  }
+
+  /**
+    * Find the nearest transit stop to a given coordinate.
+    * Uses R5's transit layer to locate stops that could be used for park-and-ride.
+    *
+    * @param coord The coordinate to search near (in UTM)
+    * @return The coordinate of the nearest transit stop (in UTM), or None if no transit network available
+    */
+  private def findNearestTransitStopCoord(coord: Coord): Option[Coord] = {
+    transportNetwork.flatMap { network =>
+      val transitLayer = network.transitLayer
+      val streetLayer = network.streetLayer
+      if (transitLayer == null || transitLayer.stopIdForIndex == null || transitLayer.stopIdForIndex.size() == 0) {
+        None
+      } else {
+        // Convert to WGS84 for comparison with transit stop coordinates
+        val wgsCoord = geoUtils.utm2Wgs(coord)
+
+        var minDistance = Double.MaxValue
+        var nearestStopCoord: Option[Coord] = None
+
+        // Search through transit stops to find the nearest one
+        val stopCount = transitLayer.stopIdForIndex.size()
+        var i = 0
+        while (i < stopCount) {
+          // Get the street vertex for this stop
+          val streetVertexIdx = transitLayer.streetVertexForStop.get(i)
+          if (streetVertexIdx >= 0) {
+            // Get the coordinates from the street layer
+            val vertex = streetLayer.vertexStore.getCursor(streetVertexIdx)
+            val stopLat = vertex.getLat
+            val stopLon = vertex.getLon
+
+            val stopCoord = new Coord(stopLon, stopLat)
+            val distance = GeoUtils.distFormula(wgsCoord, stopCoord)
+            if (distance < minDistance) {
+              minDistance = distance
+              nearestStopCoord = Some(geoUtils.wgs2Utm(stopCoord))
+            }
+          }
+          i += 1
+        }
+
+        nearestStopCoord
+      }
+    }
   }
 }
 

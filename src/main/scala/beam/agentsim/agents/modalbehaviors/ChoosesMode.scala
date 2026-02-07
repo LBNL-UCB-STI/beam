@@ -1389,15 +1389,15 @@ trait ChoosesMode {
   ): Set[BeamMode] = {
     val expectedNonRideHailModes = routingResponse.request match {
       // If mode is predetermined, only expect that specific mode
-      case Some(RoutingRequest(_, _, _, _, _, _, _, _, _, _, requestedMode, _)) if requestedMode.isDefined =>
+      case Some(RoutingRequest(_, _, _, _, _, _, _, _, _, _, requestedMode, _, _)) if requestedMode.isDefined =>
         Set(requestedMode.get)
 
       // Non-transit: expect all vehicle modes
-      case Some(RoutingRequest(_, _, _, withTransit, _, streetVehicles, _, _, _, _, _, _)) if !withTransit =>
+      case Some(RoutingRequest(_, _, _, withTransit, _, streetVehicles, _, _, _, _, _, _, _)) if !withTransit =>
         streetVehicles.map(_.mode).toSet
 
       // Transit without predetermined mode: expect all combinations
-      case Some(RoutingRequest(_, _, _, true, _, streetVehicles, _, _, _, _, _, _)) =>
+      case Some(RoutingRequest(_, _, _, true, _, streetVehicles, _, _, _, _, _, _, _)) =>
         streetVehicles
           .map(_.mode)
           .flatMap {
