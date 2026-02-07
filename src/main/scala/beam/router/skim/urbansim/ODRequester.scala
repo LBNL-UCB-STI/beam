@@ -36,6 +36,7 @@ class ODRequester(
   val skimmerEventFactory: AbstractSkimmerEventFactory,
   val transportNetwork: Option[TransportNetwork] = None
 ) {
+
   // Thread-safe execution time tracking for concurrent batch processing
   private val _requestsExecutionTime: AtomicReference[RouteExecutionInfo] =
     new AtomicReference(RouteExecutionInfo())
@@ -198,10 +199,10 @@ class ODRequester(
   }
 
   /**
-   * Optimized route method for drive-only skim generation.
-   * Reduces object allocations by reusing pre-created vehicle IDs and avoiding
-   * unnecessary distance checks and mode filtering.
-   */
+    * Optimized route method for drive-only skim generation.
+    * Reduces object allocations by reusing pre-created vehicle IDs and avoiding
+    * unnecessary distance checks and mode filtering.
+    */
   def routeDriveOnly(srcIndex: GeoIndex, dstIndex: GeoIndex, requestTime: Int): ODRequester.Response = {
     val (srcCoord, dstCoord) = (srcIndex, dstIndex) match {
       case (tazSrc: TAZIndex, tazDst: TAZIndex) =>

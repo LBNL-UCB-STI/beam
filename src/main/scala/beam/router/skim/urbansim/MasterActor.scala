@@ -61,8 +61,8 @@ class MasterActor(
 
   log.info(
     s"Total number of OD pairs: ${ODs.length}, number of request time entries: ${requestTimes.length}, " +
-      s"transit categories: ${transitModeCategories.size}, generateReturnTrips: $generateReturnTrips, " +
-      s"total work items: $maxRequestsNumber, maxWorkers: $maxWorkers"
+    s"transit categories: ${transitModeCategories.size}, generateReturnTrips: $generateReturnTrips, " +
+    s"total work items: $maxRequestsNumber, maxWorkers: $maxWorkers"
   )
 
   /**
@@ -83,9 +83,9 @@ class MasterActor(
 
     val items = for {
       (src, dst) <- ODs
-      time <- requestTimes
-      category <- categories
-      direction <- tripDirections
+      time       <- requestTimes
+      category   <- categories
+      direction  <- tripDirections
     } yield ODWorkItem(src, dst, time, category, direction)
 
     items.toArray
@@ -354,6 +354,8 @@ object MasterActor {
     transitModeCategories: Seq[TransitModeCategory],
     generateReturnTrips: Boolean
   ): Props = {
-    Props(new MasterActor(abstractSkimmer, odR5Requester, requestTimes, ODs, transitModeCategories, generateReturnTrips))
+    Props(
+      new MasterActor(abstractSkimmer, odR5Requester, requestTimes, ODs, transitModeCategories, generateReturnTrips)
+    )
   }
 }
