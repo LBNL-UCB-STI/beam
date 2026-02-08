@@ -84,13 +84,15 @@ public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
     }
 
     public void notifyIterationEnds(int iteration, TravelTime travelTime) {
+        notifyIterationEnds(iteration, 1, 1, travelTime);
+    }
+
+    public void notifyIterationEnds(int iteration, int currentPhysSimIter, int totalPhysSimIters, TravelTime travelTime) {
         processData(iteration, travelTime);
         if (this.controllerIO != null) {
             if (isNotTestMode() && writeLinkStats(iteration)) {
-                String filePath = this.controllerIO.getIterationFilename(
-                        iteration,
-                        String.format("linkstats_unmodified.%s", linkStatsOutputFileType())
-                );
+                String fileName = getLinkStatsFileName(currentPhysSimIter, totalPhysSimIters);
+                String filePath = this.controllerIO.getIterationFilename(iteration, fileName);
                 LinkStatsWithVehicleCategory linkStats = new LinkStatsWithVehicleCategory(network, ttcConfigGroup);
                 linkStats.writeLinkStatsWithTruckVolumes(volumes, travelTime, filePath);
             }
@@ -99,6 +101,14 @@ public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
                 createModesFrequencyGraph(dataset, iteration);
             }
         }
+    }
+
+    private String getLinkStatsFileName(int currentPhysSimIter, int totalPhysSimIters) {
+        String fileType = linkStatsOutputFileType();
+        if (totalPhysSimIters > 1 && currentPhysSimIter < totalPhysSimIters) {
+            return String.format("linkstats_unmodified_physSimIter%d.%s", currentPhysSimIter, fileType);
+        }
+        return String.format("linkstats_unmodified.%s", fileType);
     }
 
     private boolean isNotTestMode() {

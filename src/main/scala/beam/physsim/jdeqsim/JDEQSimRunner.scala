@@ -47,7 +47,7 @@ class JDEQSimRunner(
 
   import JDEQSimRunner._
 
-  def simulate(currentPhysSimIter: Int, writeEvents: Boolean): SimulationResult = {
+  def simulate(currentPhysSimIter: Int, totalPhysSimIters: Int, writeEvents: Boolean): SimulationResult = {
     val jdeqsimEvents = createEventManager
     val travelTimeCalculatorBuilder = new TravelTimeCalculator.Builder(jdeqSimScenario.getNetwork)
     travelTimeCalculatorBuilder.configure(jdeqSimScenario.getConfig.travelTimeCalculator)
@@ -152,7 +152,12 @@ class JDEQSimRunner(
             beamConfig.beam.outputs.stats.binSize
           )
         }),
-        linkStatsGraph.notifyIterationEnds(agentSimIterationNumber, travelTimeCalculator.getLinkTravelTimes),
+        linkStatsGraph.notifyIterationEnds(
+          agentSimIterationNumber,
+          currentPhysSimIter,
+          totalPhysSimIters,
+          travelTimeCalculator.getLinkTravelTimes
+        ),
         eventToHourFrequency.notifyIterationEnds(
           new IterationEndsEvent(beamServices.matsimServices, agentSimIterationNumber)
         ),

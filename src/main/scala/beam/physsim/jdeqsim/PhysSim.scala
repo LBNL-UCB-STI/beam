@@ -104,7 +104,11 @@ class PhysSim(
       )
       val simulationResult =
         ProfilingUtils.timed(s"Physsim simulation $agentSimIterationNumber.$currentIter", x => logger.info(x)) {
-          jdeqSimRunner.simulate(currentIter, writeEvents = shouldWritePhysSimEvents && currentIter == nIterations)
+          jdeqSimRunner.simulate(
+            currentIter,
+            nIterations,
+            writeEvents = shouldWritePhysSimEvents && currentIter == nIterations
+          )
         }
       carTravelTimeWriter.writeRow(
         Vector(
@@ -123,7 +127,12 @@ class PhysSim(
         val rerouter = new ReRouter(workerParams, beamServices)
         val before = rerouter.printRouteStats(s"Before rerouting at $currentIter iter", population)
 //        logger.info("AverageCarTravelTime before replanning")
-        val reroutedTravelTimeStats = reroute(simulationResult.travelTime, reroutePerIterPct, rerouter)
+        val reroutedTravelTimeStats = reroute(
+          currentIter,
+          simulationResult.travelTime,
+          reroutePerIterPct,
+          rerouter
+        )
         reroutedTravelTimeWriter.writeRow(
           Vector(
             currentIter,
@@ -195,16 +204,30 @@ class PhysSim(
     carPeople
   }
 
-  private def reroute(travelTime: TravelTime, reroutePerIterPct: Double, rerouter: ReRouter): Statistics = {
+  private def reroute(
+    currentIter: Int,
+    travelTime: TravelTime,
+    reroutePerIterPct: Double,
+    rerouter: ReRouter
+  ): Statistics = {
     val rightPeopleToReplan = getCarPeople(population)
     val pctToNumberPersonToTake = (rightPeopleToReplan.size * reroutePerIterPct).toInt
     val takeN =
       if (pctToNumberPersonToTake > rightPeopleToReplan.size) rightPeopleToReplan.size else pctToNumberPersonToTake
     if (takeN > 0) {
       val toReroute = rnd.shuffle(rightPeopleToReplan).take(takeN)
-      rerouter.reroutePeople(travelTime, toReroute)
+      val rerouteStart = System.nanoTime()
+      val reroutedTravelTimeStats = rerouter.reroutePeople(travelTime, toReroute)
+      val rerouteDurationMs = (System.nanoTime() - rerouteStart) / 1000000
+      logger.info(
+        s"MultiJDEQSim iteration $currentIter rerouting completed in ${rerouteDurationMs}ms for $takeN/${rightPeopleToReplan.size} people"
+      )
+      reroutedTravelTimeStats
     } else
-      Statistics(Array.empty[Double])
+      logger.info(
+        s"MultiJDEQSim iteration $currentIter rerouting skipped; selected 0/${rightPeopleToReplan.size} people"
+      )
+    Statistics(Array.empty[Double])
   }
 
   private def initScenario = {

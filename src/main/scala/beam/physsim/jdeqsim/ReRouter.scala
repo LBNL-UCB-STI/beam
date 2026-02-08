@@ -15,11 +15,16 @@ import beam.router.r5.{R5Parameters, R5Wrapper}
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.{ProfilingUtils, Statistics}
+import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.{Leg, Person, Population}
 import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.router.util.TravelTime
+
+import java.util.concurrent.Executors
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, ExecutionContext, Future}
 
 class ReRouter(val workerParams: R5Parameters, val beamServices: BeamServices) extends StrictLogging {
 
@@ -114,11 +119,35 @@ class ReRouter(val workerParams: R5Parameters, val beamServices: BeamServices) e
     personToRoutes: Vector[(Person, Vector[ElementIndexToLeg])],
     travelTime: TravelTime
   ): Seq[(Person, Vector[ElementIndexToRoutingResponse])] = {
-    val r5Wrapper = new R5Wrapper(workerParams, travelTime, 0)
-    ProfilingUtils.timed(s"Get new routes for ${toReroute.size} people", x => logger.info(x)) {
-      personToRoutes.par.map { case (person, xs) =>
-        reroute(r5Wrapper, person, xs)
-      }.seq
+    val numWorkers =
+      math.max(1, math.min(personToRoutes.size, Runtime.getRuntime.availableProcessors() - 2))
+    val executor = Executors.newFixedThreadPool(
+      numWorkers,
+      new ThreadFactoryBuilder().setDaemon(true).setNameFormat("jdeqsim-reroute-worker-%d").build()
+    )
+    implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(executor)
+    try {
+      val buckets = Array.fill(numWorkers)(ArrayBuffer.empty[(Person, Vector[ElementIndexToLeg])])
+      personToRoutes.zipWithIndex.foreach { case (personAndRoutes, idx) =>
+        buckets(idx % numWorkers) += personAndRoutes
+      }
+
+      ProfilingUtils.timed(
+        s"Get new routes for ${toReroute.size} people with $numWorkers workers",
+        x => logger.info(x)
+      ) {
+        val workerFutures = buckets.toVector.filter(_.nonEmpty).map { chunk =>
+          Future {
+            val r5Wrapper = new R5Wrapper(workerParams, travelTime, 0)
+            chunk.map { case (person, xs) =>
+              reroute(r5Wrapper, person, xs)
+            }.toVector
+          }
+        }
+        Await.result(Future.sequence(workerFutures), Duration.Inf).flatten
+      }
+    } finally {
+      executor.shutdown()
     }
   }
 

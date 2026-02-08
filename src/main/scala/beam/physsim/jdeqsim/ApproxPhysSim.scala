@@ -157,7 +157,11 @@ class ApproxPhysSim(
       )
       val simulationResult =
         ProfilingUtils.timed(s"Physsim simulation $agentSimIterationNumber.$currentIter", x => logger.info(x)) {
-          jdeqSimRunner.simulate(currentIter, writeEvents = shouldWritePhysSimEvents && currentIter == nIterations)
+          jdeqSimRunner.simulate(
+            currentIter,
+            nIterations,
+            writeEvents = shouldWritePhysSimEvents && currentIter == nIterations
+          )
         }
       carTravelTimeWriter.writeRow(
         Vector(
