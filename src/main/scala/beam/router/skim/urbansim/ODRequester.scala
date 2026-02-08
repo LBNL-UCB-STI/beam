@@ -540,7 +540,7 @@ class ODRequester(
           if (unreachableCoordinates.add(coordKey)) {
             logger.warn(
               s"Could not snap coordinate (${wgsCoord.getY}, ${wgsCoord.getX}) to road network even with ${fallbackRadiiMeters.last.toInt}m radius. " +
-                s"This TAZ centroid is in an extremely remote area. Using original coordinate."
+              s"This TAZ centroid is in an extremely remote area. Using original coordinate."
             )
           }
           coord
