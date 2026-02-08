@@ -522,8 +522,9 @@ class ODRequester(
               com.conveyal.r5.profile.StreetMode.CAR
             )
             if (split != null) {
-              logger.info(
-                s"Snapped remote coordinate (${wgsCoord.getY}, ${wgsCoord.getX}) to road using fallback radius ${fallbackRadius.toInt}m"
+              val vertex = streetLayer.vertexStore.getCursor(split.vertex0)
+              logger.warn(
+                s"[SNAP-SUCCESS] Coordinate (${wgsCoord.getY}, ${wgsCoord.getX}) snapped to (${vertex.getLat}, ${vertex.getLon}) using ${fallbackRadius.toInt}m radius"
               )
             }
             i += 1
@@ -539,15 +540,17 @@ class ODRequester(
           // Log once per unique unreachable coordinate (thread-safe add returns true if newly added)
           if (unreachableCoordinates.add(coordKey)) {
             logger.warn(
-              s"Could not snap coordinate (${wgsCoord.getY}, ${wgsCoord.getX}) to road network even with ${fallbackRadiiMeters.last.toInt}m radius. " +
-              s"This TAZ centroid is in an extremely remote area. Using original coordinate."
+              s"[SNAP-FAILED] Could not snap (${wgsCoord.getY}, ${wgsCoord.getX}) to road even with ${fallbackRadiiMeters.last.toInt}m radius"
             )
           }
           coord
         }
 
       case None =>
-        // No transport network available, return original
+        // Log once when transport network is not available
+        if (unreachableCoordinates.add("NO_NETWORK")) {
+          logger.warn("[SNAP-SKIP] No transport network available for coordinate snapping")
+        }
         coord
     }
 
