@@ -23,7 +23,7 @@ import beam.router.BeamRouter.{ODSkimmerReady, UpdateTravelTimeLocal}
 import beam.router.Modes.BeamMode
 import beam.router.osm.TollCalculator
 import beam.router.r5.RouteDumper
-import beam.router.skim.urbansim.{BackgroundSkimsCreator, GeoClustering, H3Clustering, TAZClustering}
+import beam.router.skim.urbansim.{BackgroundFullSkimsCreator, GeoClustering, H3Clustering, TAZClustering}
 import beam.router.{BeamRouter, FreeFlowTravelTime, RouteHistory}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.metrics.{BeamStaticMetricsWriter, MetricsSupport}
@@ -174,7 +174,7 @@ class BeamSim @Inject() (
     eventsManager
   )
 
-  var backgroundSkimsCreator: Option[BackgroundSkimsCreator] = None
+  var backgroundSkimsCreator: Option[BackgroundFullSkimsCreator] = None
 
   private var initialTravelTime = Option.empty[TravelTime]
 
@@ -312,9 +312,9 @@ class BeamSim @Inject() (
           case "taz" => new TAZClustering(beamScenario.tazTreeMapForASimSkimmer)
         }
 
-      val abstractSkimmer = BackgroundSkimsCreator.createSkimmer(beamServices, geoClustering)
+      val abstractSkimmer = BackgroundFullSkimsCreator.createSkimmer(beamServices, geoClustering)
       val backgroundODSkimsCreatorConfig = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator
-      val skimCreator = new BackgroundSkimsCreator(
+      val skimCreator = new BackgroundFullSkimsCreator(
         beamServices,
         beamScenario,
         geoClustering,
@@ -643,7 +643,7 @@ class BeamSim @Inject() (
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
-    finalizeBackgroundSkimsCreator()
+    finalizeBackgroundFullSkimsCreator()
 
     carTravelTimeFromPtes.foreach(_.notifyShutdown(event))
 
@@ -864,7 +864,7 @@ class BeamSim @Inject() (
     )
   }
 
-  private def finalizeBackgroundSkimsCreator(): Unit = {
+  private def finalizeBackgroundFullSkimsCreator(): Unit = {
     val timeoutForSkimmer = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.calculationTimeoutHours.hours
     backgroundSkimsCreator match {
       case Some(skimCreator) =>
@@ -876,7 +876,7 @@ class BeamSim @Inject() (
           .travelTime
 
         val backgroundODSkimsCreatorConfig = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator
-        val carAndDriveTransitSkimCreator = new BackgroundSkimsCreator(
+        val carAndDriveTransitSkimCreator = new BackgroundFullSkimsCreator(
           beamServices,
           beamScenario,
           skimCreator.ODs,
