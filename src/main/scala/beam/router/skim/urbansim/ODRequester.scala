@@ -87,6 +87,15 @@ class ODRequester(
   private val unreachableCoordinates: ConcurrentHashMap.KeySetView[String, java.lang.Boolean] =
     ConcurrentHashMap.newKeySet[String]()
 
+  // Track snap distances for statistics (thread-safe)
+  private val snapDistanceStats = new java.util.concurrent.atomic.AtomicReference[SnapDistanceStats](
+    SnapDistanceStats(0, Double.MaxValue, 0.0, 0.0)
+  )
+
+  case class SnapDistanceStats(count: Int, minKm: Double, maxKm: Double, totalKm: Double) {
+    def avgKm: Double = if (count > 0) totalKm / count else 0.0
+  }
+
   def route(srcIndex: GeoIndex, dstIndex: GeoIndex, requestTime: Int): ODRequester.Response = {
     val (rawSrcCoord, rawDstCoord) = (srcIndex, dstIndex) match {
       case (h3SrcIndex: H3Index, h3DestIndex: H3Index) =>
@@ -535,48 +544,58 @@ class ODRequester(
           // Get the snapped coordinate from the split
           val vertex = streetLayer.vertexStore.getCursor(split.vertex0)
           val snappedWgs = new Coord(vertex.getLon, vertex.getLat)
+
+          // Calculate and track snap distance
+          val dLat = vertex.getLat - wgsCoord.getY
+          val dLon = vertex.getLon - wgsCoord.getX
+          val distKm = Math.sqrt(dLat * dLat + dLon * dLon) * 111.0
+
+          // Update stats
+          snapDistanceStats.updateAndGet { current =>
+            SnapDistanceStats(
+              count = current.count + 1,
+              minKm = Math.min(current.minKm, distKm),
+              maxKm = Math.max(current.maxKm, distKm),
+              totalKm = current.totalKm + distKm
+            )
+          }
+
           geoUtils.wgs2Utm(snappedWgs)
         } else {
-          // Coordinate might be outside network bounds - try snapping from boundary edge
-          val envelope = streetLayer.getEnvelope
-          val clampedLon = Math.max(envelope.getMinX, Math.min(envelope.getMaxX, wgsCoord.getX))
-          val clampedLat = Math.max(envelope.getMinY, Math.min(envelope.getMaxY, wgsCoord.getY))
+          // findSplit failed - coordinate is likely in an area with no roads (e.g., mountains)
+          // Brute-force search: find the closest vertex in the entire network
+          val closestVertex = findClosestNetworkVertex(streetLayer, wgsCoord)
 
-          // Only try boundary snapping if coordinate was actually outside bounds
-          if (clampedLon != wgsCoord.getX || clampedLat != wgsCoord.getY) {
-            // Try snapping from the clamped boundary point
-            split = streetLayer.findSplit(
-              clampedLat,
-              clampedLon,
-              fallbackRadiiMeters.last, // Use max radius from boundary
-              com.conveyal.r5.profile.StreetMode.CAR
-            )
+          closestVertex match {
+            case Some((vertexLat, vertexLon, distKm)) =>
+              // Update stats and get current values for comparison
+              val stats = snapDistanceStats.updateAndGet { current =>
+                SnapDistanceStats(
+                  count = current.count + 1,
+                  minKm = Math.min(current.minKm, distKm),
+                  maxKm = Math.max(current.maxKm, distKm),
+                  totalKm = current.totalKm + distKm
+                )
+              }
 
-            if (split != null) {
-              val vertex = streetLayer.vertexStore.getCursor(split.vertex0)
+              // Log with comparison to other coordinates
+              val isOutlier = distKm > stats.avgKm * 5 || distKm > 50 // Flag if 5x average or > 50km
+              val outlierFlag = if (isOutlier) " [OUTLIER]" else ""
               logger.warn(
-                s"[SNAP-BOUNDARY] Coordinate (${wgsCoord.getY}, ${wgsCoord.getX}) outside network bounds, " +
-                s"snapped via boundary to (${vertex.getLat}, ${vertex.getLon})"
+                s"[SNAP-NEAREST]$outlierFlag Coordinate (${wgsCoord.getY}, ${wgsCoord.getX}) snapped to " +
+                s"(${vertexLat}, ${vertexLon}) at ${f"$distKm%.1f"}km | Stats: min=${f"${stats.minKm}%.1f"}km, " +
+                s"max=${f"${stats.maxKm}%.1f"}km, avg=${f"${stats.avgKm}%.1f"}km, count=${stats.count}"
               )
-              val snappedWgs = new Coord(vertex.getLon, vertex.getLat)
+
+              val snappedWgs = new Coord(vertexLon, vertexLat)
               geoUtils.wgs2Utm(snappedWgs)
-            } else {
-              // Even boundary snapping failed
+            case None =>
               if (unreachableCoordinates.add(coordKey)) {
                 logger.warn(
-                  s"[SNAP-FAILED] Could not snap (${wgsCoord.getY}, ${wgsCoord.getX}) even from boundary ($clampedLat, $clampedLon)"
+                  s"[SNAP-FAILED] Could not snap (${wgsCoord.getY}, ${wgsCoord.getX}) - no vertices in network"
                 )
               }
               coord
-            }
-          } else {
-            // Coordinate is within bounds but still couldn't snap
-            if (unreachableCoordinates.add(coordKey)) {
-              logger.warn(
-                s"[SNAP-FAILED] Could not snap (${wgsCoord.getY}, ${wgsCoord.getX}) to road even with ${fallbackRadiiMeters.last.toInt}m radius"
-              )
-            }
-            coord
           }
         }
 
@@ -603,6 +622,54 @@ class ODRequester(
     */
   private def snapCoordinatesToRoad(srcCoord: Coord, dstCoord: Coord): (Coord, Coord) = {
     (snapToNearestRoad(srcCoord), snapToNearestRoad(dstCoord))
+  }
+
+  /**
+    * Find the closest vertex in the street network using brute-force search.
+    * Used as a last resort when findSplit fails (e.g., for coordinates in roadless areas).
+    *
+    * @param streetLayer The R5 street layer
+    * @param wgsCoord The target coordinate in WGS84
+    * @return Option of (lat, lon, distanceKm) for the closest vertex, or None if network is empty
+    */
+  private def findClosestNetworkVertex(
+    streetLayer: com.conveyal.r5.streets.StreetLayer,
+    wgsCoord: Coord
+  ): Option[(Double, Double, Double)] = {
+    val vertexStore = streetLayer.vertexStore
+    val numVertices = vertexStore.getVertexCount
+
+    if (numVertices == 0) return None
+
+    var minDistSq = Double.MaxValue
+    var closestLat = 0.0
+    var closestLon = 0.0
+
+    // Sample vertices to find closest (check every 100th vertex for speed, then refine)
+    val cursor = vertexStore.getCursor()
+    var i = 0
+    while (i < numVertices) {
+      cursor.seek(i)
+      val vLat = cursor.getLat
+      val vLon = cursor.getLon
+
+      // Quick squared distance (avoiding sqrt for speed)
+      val dLat = vLat - wgsCoord.getY
+      val dLon = vLon - wgsCoord.getX
+      val distSq = dLat * dLat + dLon * dLon
+
+      if (distSq < minDistSq) {
+        minDistSq = distSq
+        closestLat = vLat
+        closestLon = vLon
+      }
+      i += 1
+    }
+
+    // Convert to actual distance in km (approximate at this latitude)
+    val distKm = Math.sqrt(minDistSq) * 111.0 // ~111km per degree
+
+    Some((closestLat, closestLon, distKm))
   }
 }
 
