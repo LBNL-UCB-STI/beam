@@ -537,13 +537,47 @@ class ODRequester(
           val snappedWgs = new Coord(vertex.getLon, vertex.getLat)
           geoUtils.wgs2Utm(snappedWgs)
         } else {
-          // Log once per unique unreachable coordinate (thread-safe add returns true if newly added)
-          if (unreachableCoordinates.add(coordKey)) {
-            logger.warn(
-              s"[SNAP-FAILED] Could not snap (${wgsCoord.getY}, ${wgsCoord.getX}) to road even with ${fallbackRadiiMeters.last.toInt}m radius"
+          // Coordinate might be outside network bounds - try snapping from boundary edge
+          val envelope = streetLayer.getEnvelope
+          val clampedLon = Math.max(envelope.getMinX, Math.min(envelope.getMaxX, wgsCoord.getX))
+          val clampedLat = Math.max(envelope.getMinY, Math.min(envelope.getMaxY, wgsCoord.getY))
+
+          // Only try boundary snapping if coordinate was actually outside bounds
+          if (clampedLon != wgsCoord.getX || clampedLat != wgsCoord.getY) {
+            // Try snapping from the clamped boundary point
+            split = streetLayer.findSplit(
+              clampedLat,
+              clampedLon,
+              fallbackRadiiMeters.last, // Use max radius from boundary
+              com.conveyal.r5.profile.StreetMode.CAR
             )
+
+            if (split != null) {
+              val vertex = streetLayer.vertexStore.getCursor(split.vertex0)
+              logger.warn(
+                s"[SNAP-BOUNDARY] Coordinate (${wgsCoord.getY}, ${wgsCoord.getX}) outside network bounds, " +
+                  s"snapped via boundary to (${vertex.getLat}, ${vertex.getLon})"
+              )
+              val snappedWgs = new Coord(vertex.getLon, vertex.getLat)
+              geoUtils.wgs2Utm(snappedWgs)
+            } else {
+              // Even boundary snapping failed
+              if (unreachableCoordinates.add(coordKey)) {
+                logger.warn(
+                  s"[SNAP-FAILED] Could not snap (${wgsCoord.getY}, ${wgsCoord.getX}) even from boundary ($clampedLat, $clampedLon)"
+                )
+              }
+              coord
+            }
+          } else {
+            // Coordinate is within bounds but still couldn't snap
+            if (unreachableCoordinates.add(coordKey)) {
+              logger.warn(
+                s"[SNAP-FAILED] Could not snap (${wgsCoord.getY}, ${wgsCoord.getX}) to road even with ${fallbackRadiiMeters.last.toInt}m radius"
+              )
+            }
+            coord
           }
-          coord
         }
 
       case None =>
