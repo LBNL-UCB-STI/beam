@@ -14,6 +14,9 @@ class WorkerActor(val masterActor: ActorRef, val r5Requester: ODRequester)(impli
   var nTotalRequests: Int = 0
   var nSuccess: Int = 0
 
+  // Use optimized drive-only routing when applicable
+  private val useDriveOnlyOptimization: Boolean = r5Requester.isDriveOnly
+
   override def preStart(): Unit = {
     requestWork()
   }
@@ -28,7 +31,12 @@ class WorkerActor(val masterActor: ActorRef, val r5Requester: ODRequester)(impli
       Future {
         items.flatMap { case (srcIndex, dstIndex, requestTime) =>
           try {
-            Some(r5Requester.route(srcIndex, dstIndex, requestTime))
+            val response = if (useDriveOnlyOptimization) {
+              r5Requester.routeDriveOnly(srcIndex, dstIndex, requestTime)
+            } else {
+              r5Requester.route(srcIndex, dstIndex, requestTime)
+            }
+            Some(response)
           } catch {
             case NonFatal(ex) =>
               log.error(ex, s"route failed: ${ex.getMessage}")
@@ -69,7 +77,11 @@ class WorkerActor(val masterActor: ActorRef, val r5Requester: ODRequester)(impli
       nTotalRequests += 1
       Future {
         try {
-          r5Requester.route(work.srcIndex, work.dstIndex, work.requestTime)
+          if (useDriveOnlyOptimization) {
+            r5Requester.routeDriveOnly(work.srcIndex, work.dstIndex, work.requestTime)
+          } else {
+            r5Requester.route(work.srcIndex, work.dstIndex, work.requestTime)
+          }
         } catch {
           case NonFatal(ex) =>
             log.error(ex, s"route failed: ${ex.getMessage}")

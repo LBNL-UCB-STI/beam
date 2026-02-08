@@ -20,11 +20,16 @@ class MasterActor(
   val abstractSkimmer: AbstractSkimmer,
   val odRequester: ODRequester,
   val requestTimes: Seq[Int],
-  val ODs: Array[(GeoIndex, GeoIndex)],
+  rawODs: Array[(GeoIndex, GeoIndex)],
   val transitModeCategories: Seq[TransitModeCategory] = Seq.empty,
-  val generateReturnTrips: Boolean = false
+  val generateReturnTrips: Boolean = false,
+  val requestedParallelism: Int = 0 // 0 = auto-scale (80% of CPUs), >0 = use exact number
 ) extends Actor
     with ActorLogging {
+
+  // Filter out same-origin pairs (src == dst) - no point routing to same location
+  private val ODs: Array[(GeoIndex, GeoIndex)] = rawODs.filter { case (src, dst) => src != dst }
+  private val skippedSameOriginPairs: Int = rawODs.length - ODs.length
 
   override def postStop(): Unit = {
     logStat()
@@ -33,7 +38,14 @@ class MasterActor(
   }
 
   private val batchSize: Int = 500
-  private val maxWorkers: Int = Runtime.getRuntime.availableProcessors()
+  private val availableProcessors: Int = Runtime.getRuntime.availableProcessors()
+
+  // If parallelism is explicitly requested (>0), use that; otherwise auto-scale to 80% of CPUs
+  private val initialWorkers: Int = if (requestedParallelism > 0) {
+    Math.min(requestedParallelism, availableProcessors)
+  } else {
+    Math.max(1, (availableProcessors * 0.8).toInt)
+  }
 
   // Determine if we're using enhanced mode (with transit categories and/or return trips)
   private val useEnhancedMode: Boolean = transitModeCategories.nonEmpty || generateReturnTrips
@@ -60,9 +72,10 @@ class MasterActor(
   private var currentTime: Int = 0
 
   log.info(
-    s"Total number of OD pairs: ${ODs.length}, number of request time entries: ${requestTimes.length}, " +
+    s"Total number of OD pairs: ${ODs.length} (skipped $skippedSameOriginPairs same-origin pairs), " +
+    s"number of request time entries: ${requestTimes.length}, " +
     s"transit categories: ${transitModeCategories.size}, generateReturnTrips: $generateReturnTrips, " +
-    s"total work items: $maxRequestsNumber, maxWorkers: $maxWorkers"
+    s"total work items: $maxRequestsNumber, initialWorkers: $initialWorkers"
   )
 
   /**
@@ -150,9 +163,14 @@ class MasterActor(
 
         case Request.Start =>
           if (!started) {
-            val (workerRef, ec) = createWorker()
-            context.watch(workerRef)
-            addWorkerWithEc(workerRef, ec)
+            val parallelismSource =
+              if (requestedParallelism > 0) "explicitly requested" else "auto-scaled (80% of CPUs)"
+            log.info(s"Starting with $initialWorkers workers ($parallelismSource, $availableProcessors CPUs available)")
+            (1 to initialWorkers).foreach { _ =>
+              val (workerRef, ec) = createWorker()
+              context.watch(workerRef)
+              addWorkerWithEc(workerRef, ec)
+            }
 
             started = true
             startedAt = System.currentTimeMillis()
@@ -166,14 +184,15 @@ class MasterActor(
         case Request.IncreaseParallelismTo(parallelism) =>
           log.info(s"Need to increase parallelism to $parallelism. Current number of workers: ${workers.size}")
           val nCreateWorkers = parallelism - workers.size
-          if (nCreateWorkers > 0 && parallelism <= maxWorkers) {
+          // Allow explicit requests up to 100% of available processors
+          if (nCreateWorkers > 0 && parallelism <= availableProcessors) {
             (1 to nCreateWorkers).foreach { _ =>
               val (worker, ec) = createWorker()
               addWorkerWithEc(worker, ec)
               context.watch(worker)
             }
           } else {
-            log.warning(s"Provided parallelism $parallelism is out of the range (0, $maxWorkers]")
+            log.warning(s"Provided parallelism $parallelism is out of the range (0, $availableProcessors]")
           }
         case Request.ReduceParallelismTo(parallelism) =>
           val newWorkers = workers.take(parallelism)
@@ -341,9 +360,10 @@ object MasterActor {
     abstractSkimmer: AbstractSkimmer,
     odR5Requester: ODRequester,
     requestTimes: Seq[Int],
-    ODs: Array[(GeoIndex, GeoIndex)]
+    ODs: Array[(GeoIndex, GeoIndex)],
+    parallelism: Int = 0
   ): Props = {
-    Props(new MasterActor(abstractSkimmer, odR5Requester: ODRequester, requestTimes, ODs))
+    Props(new MasterActor(abstractSkimmer, odR5Requester, requestTimes, ODs, Seq.empty, false, parallelism))
   }
 
   def props(
@@ -352,10 +372,19 @@ object MasterActor {
     requestTimes: Seq[Int],
     ODs: Array[(GeoIndex, GeoIndex)],
     transitModeCategories: Seq[TransitModeCategory],
-    generateReturnTrips: Boolean
+    generateReturnTrips: Boolean,
+    parallelism: Int = 0
   ): Props = {
     Props(
-      new MasterActor(abstractSkimmer, odR5Requester, requestTimes, ODs, transitModeCategories, generateReturnTrips)
+      new MasterActor(
+        abstractSkimmer,
+        odR5Requester,
+        requestTimes,
+        ODs,
+        transitModeCategories,
+        generateReturnTrips,
+        parallelism
+      )
     )
   }
 }

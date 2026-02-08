@@ -67,6 +67,9 @@ class ODRequester(
   // Pre-allocated mode array for drive-only routing
   private val driveOnlyModes: Array[BeamMode] = Array(BeamMode.CAR)
 
+  // Check if this requester is configured for drive-only mode (optimization flag)
+  val isDriveOnly: Boolean = beamModes.size == 1 && beamModes.head == BeamMode.CAR && !withTransit
+
   private val thresholdDistanceForBikeMeters: Double =
     beamConfig.beam.urbansim.backgroundODSkimsCreator.maxTravelDistanceInMeters.bike
 
@@ -83,18 +86,9 @@ class ODRequester(
   // Key: original coordinate string, Value: snapped coordinate (or original if unreachable)
   private val snappedCoordinateCache: ConcurrentHashMap[String, Coord] = new ConcurrentHashMap[String, Coord]()
 
-  // Thread-safe set to track coordinates that couldn't be snapped even with fallback radius
+  // Thread-safe set to track coordinates that couldn't be snapped (logged once per unique coordinate)
   private val unreachableCoordinates: ConcurrentHashMap.KeySetView[String, java.lang.Boolean] =
     ConcurrentHashMap.newKeySet[String]()
-
-  // Track snap distances for statistics (thread-safe)
-  private val snapDistanceStats = new java.util.concurrent.atomic.AtomicReference[SnapDistanceStats](
-    SnapDistanceStats(0, Double.MaxValue, 0.0, 0.0)
-  )
-
-  case class SnapDistanceStats(count: Int, minKm: Double, maxKm: Double, totalKm: Double) {
-    def avgKm: Double = if (count > 0) totalKm / count else 0.0
-  }
 
   def route(srcIndex: GeoIndex, dstIndex: GeoIndex, requestTime: Int): ODRequester.Response = {
     val (rawSrcCoord, rawDstCoord) = (srcIndex, dstIndex) match {
@@ -530,12 +524,6 @@ class ODRequester(
               fallbackRadius,
               com.conveyal.r5.profile.StreetMode.CAR
             )
-            if (split != null) {
-              val vertex = streetLayer.vertexStore.getCursor(split.vertex0)
-              logger.warn(
-                s"[SNAP-SUCCESS] Coordinate (${wgsCoord.getY}, ${wgsCoord.getX}) snapped to (${vertex.getLat}, ${vertex.getLon}) using ${fallbackRadius.toInt}m radius"
-              )
-            }
             i += 1
           }
         }
@@ -544,22 +532,6 @@ class ODRequester(
           // Get the snapped coordinate from the split
           val vertex = streetLayer.vertexStore.getCursor(split.vertex0)
           val snappedWgs = new Coord(vertex.getLon, vertex.getLat)
-
-          // Calculate and track snap distance
-          val dLat = vertex.getLat - wgsCoord.getY
-          val dLon = vertex.getLon - wgsCoord.getX
-          val distKm = Math.sqrt(dLat * dLat + dLon * dLon) * 111.0
-
-          // Update stats
-          snapDistanceStats.updateAndGet { current =>
-            SnapDistanceStats(
-              count = current.count + 1,
-              minKm = Math.min(current.minKm, distKm),
-              maxKm = Math.max(current.maxKm, distKm),
-              totalKm = current.totalKm + distKm
-            )
-          }
-
           geoUtils.wgs2Utm(snappedWgs)
         } else {
           // findSplit failed - coordinate is likely in an area with no roads (e.g., mountains)
@@ -567,43 +539,18 @@ class ODRequester(
           val closestVertex = findClosestNetworkVertex(streetLayer, wgsCoord)
 
           closestVertex match {
-            case Some((vertexLat, vertexLon, distKm)) =>
-              // Update stats and get current values for comparison
-              val stats = snapDistanceStats.updateAndGet { current =>
-                SnapDistanceStats(
-                  count = current.count + 1,
-                  minKm = Math.min(current.minKm, distKm),
-                  maxKm = Math.max(current.maxKm, distKm),
-                  totalKm = current.totalKm + distKm
-                )
-              }
-
-              // Log with comparison to other coordinates
-              val isOutlier = distKm > stats.avgKm * 5 || distKm > 50 // Flag if 5x average or > 50km
-              val outlierFlag = if (isOutlier) " [OUTLIER]" else ""
-              logger.warn(
-                s"[SNAP-NEAREST]$outlierFlag Coordinate (${wgsCoord.getY}, ${wgsCoord.getX}) snapped to " +
-                s"(${vertexLat}, ${vertexLon}) at ${f"$distKm%.1f"}km | Stats: min=${f"${stats.minKm}%.1f"}km, " +
-                s"max=${f"${stats.maxKm}%.1f"}km, avg=${f"${stats.avgKm}%.1f"}km, count=${stats.count}"
-              )
-
+            case Some((vertexLat, vertexLon, _)) =>
               val snappedWgs = new Coord(vertexLon, vertexLat)
               geoUtils.wgs2Utm(snappedWgs)
             case None =>
               if (unreachableCoordinates.add(coordKey)) {
-                logger.warn(
-                  s"[SNAP-FAILED] Could not snap (${wgsCoord.getY}, ${wgsCoord.getX}) - no vertices in network"
-                )
+                logger.warn(s"Could not snap coordinate (${wgsCoord.getY}, ${wgsCoord.getX}) - no vertices in network")
               }
               coord
           }
         }
 
       case None =>
-        // Log once when transport network is not available
-        if (unreachableCoordinates.add("NO_NETWORK")) {
-          logger.warn("[SNAP-SKIP] No transport network available for coordinate snapping")
-        }
         coord
     }
 
@@ -645,7 +592,6 @@ class ODRequester(
     var closestLat = 0.0
     var closestLon = 0.0
 
-    // Sample vertices to find closest (check every 100th vertex for speed, then refine)
     val cursor = vertexStore.getCursor()
     var i = 0
     while (i < numVertices) {
@@ -653,7 +599,6 @@ class ODRequester(
       val vLat = cursor.getLat
       val vLon = cursor.getLon
 
-      // Quick squared distance (avoiding sqrt for speed)
       val dLat = vLat - wgsCoord.getY
       val dLon = vLon - wgsCoord.getX
       val distSq = dLat * dLat + dLon * dLon
@@ -666,9 +611,7 @@ class ODRequester(
       i += 1
     }
 
-    // Convert to actual distance in km (approximate at this latitude)
-    val distKm = Math.sqrt(minDistSq) * 111.0 // ~111km per degree
-
+    val distKm = Math.sqrt(minDistSq) * 111.0
     Some((closestLat, closestLon, distKm))
   }
 }

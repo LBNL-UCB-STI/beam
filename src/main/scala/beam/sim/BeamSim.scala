@@ -886,10 +886,10 @@ class BeamSim @Inject() (
           withTransit = backgroundODSkimsCreatorConfig.modesToBuild.transit,
           buildDirectWalkRoute = false,
           buildDirectCarRoute = backgroundODSkimsCreatorConfig.modesToBuild.drive,
-          calculationTimeoutHours = backgroundODSkimsCreatorConfig.calculationTimeoutHours
+          calculationTimeoutHours = backgroundODSkimsCreatorConfig.calculationTimeoutHours,
+          parallelism = Runtime.getRuntime.availableProcessors() // Use 100% for final iteration
         )(actorSystem)
         carAndDriveTransitSkimCreator.start()
-        carAndDriveTransitSkimCreator.increaseParallelismTo(Runtime.getRuntime.availableProcessors())
         try {
           val finalSkimmer = Await.result(carAndDriveTransitSkimCreator.getResult, timeoutForSkimmer).abstractSkimmer
           carAndDriveTransitSkimCreator.stop()

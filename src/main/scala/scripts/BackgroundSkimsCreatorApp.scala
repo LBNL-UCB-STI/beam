@@ -55,7 +55,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
     output: Path = null,
     linkstatsPath: Option[Path] = None,
     ODSkimsPath: Option[Path] = None,
-    parallelism: Int = 1,
+    parallelism: Int = 0, // 0 = auto-scale (80% of CPUs), >0 = use exact number
     // Additional CLI overrides for backgroundODSkimsCreator config
     routerType: Option[String] = None,
     skimsGeoType: Option[String] = None,
@@ -281,6 +281,10 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
     implicit val ec = actorSystem.dispatcher
 
     val backgroundODSkimsCreatorConfig = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator
+    val parallelismInfo =
+      if (params.parallelism > 0) s"${params.parallelism} (explicit)" else "auto-scale (80% of CPUs)"
+    logger.info(s"Parallelism: $parallelismInfo")
+
     val skimsCreator = new BackgroundSkimsCreator(
       beamServices = beamServices,
       beamScenario = beamServices.beamScenario,
@@ -291,12 +295,11 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       withTransit = backgroundODSkimsCreatorConfig.modesToBuild.transit,
       buildDirectWalkRoute = backgroundODSkimsCreatorConfig.modesToBuild.walk,
       buildDirectCarRoute = backgroundODSkimsCreatorConfig.modesToBuild.drive,
-      calculationTimeoutHours = backgroundODSkimsCreatorConfig.calculationTimeoutHours
+      calculationTimeoutHours = backgroundODSkimsCreatorConfig.calculationTimeoutHours,
+      parallelism = params.parallelism
     )
 
-    logger.info("Parallelism " + params.parallelism)
     skimsCreator.start()
-    skimsCreator.increaseParallelismTo(params.parallelism)
 
     skimsCreator.getResult.map(skimmer => {
       logger.info("Got populated skimmer")

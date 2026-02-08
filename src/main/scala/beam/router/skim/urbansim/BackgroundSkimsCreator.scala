@@ -30,7 +30,8 @@ class BackgroundSkimsCreator(
   val withTransit: Boolean,
   val buildDirectWalkRoute: Boolean,
   val buildDirectCarRoute: Boolean,
-  val calculationTimeoutHours: Int
+  val calculationTimeoutHours: Int,
+  val parallelism: Int = 0 // 0 = auto-scale (80% of CPUs), >0 = use exact number
 )(implicit actorSystem: ActorSystem)
     extends LazyLogging {
   def this(
@@ -43,7 +44,8 @@ class BackgroundSkimsCreator(
     withTransit: Boolean,
     buildDirectWalkRoute: Boolean,
     buildDirectCarRoute: Boolean,
-    calculationTimeoutHours: Int
+    calculationTimeoutHours: Int,
+    parallelism: Int = 0
   )(implicit actorSystem: ActorSystem) {
     this(
       beamServices,
@@ -71,7 +73,8 @@ class BackgroundSkimsCreator(
       withTransit,
       buildDirectWalkRoute,
       buildDirectCarRoute,
-      calculationTimeoutHours
+      calculationTimeoutHours,
+      parallelism
     )
   }
 
@@ -143,7 +146,8 @@ class BackgroundSkimsCreator(
       abstractSkimmer,
       odRequester,
       requestTimes = getPeakSecondsFromConfig(beamServices),
-      ODs
+      ODs,
+      parallelism
     )
     actorSystem.actorOf(masterProps, actorName)
   }
