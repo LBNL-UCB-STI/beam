@@ -16,8 +16,10 @@ import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes, PopulationAdjustment}
 import com.conveyal.r5.transit.TransportNetwork
+import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters._
 import scala.util.Try
@@ -35,7 +37,7 @@ class ODRequester(
   val buildDirectCarRoute: Boolean,
   val skimmerEventFactory: AbstractSkimmerEventFactory,
   val transportNetwork: Option[TransportNetwork] = None
-) {
+) extends StrictLogging {
 
   // Thread-safe execution time tracking for concurrent batch processing
   private val _requestsExecutionTime: AtomicReference[RouteExecutionInfo] =
@@ -71,8 +73,22 @@ class ODRequester(
   private val thresholdDistanceForWalkMeters: Double =
     beamConfig.beam.urbansim.backgroundODSkimsCreator.maxTravelDistanceInMeters.walk
 
+  // Standard link radius from config (typically 10km)
+  private val linkRadiusMeters: Double = beamConfig.beam.routing.r5.linkRadiusMeters
+
+  // Progressive fallback radii for remote areas (50km, 100km, 200km, 400km)
+  private val fallbackRadiiMeters: Array[Double] = Array(50000.0, 100000.0, 200000.0, 400000.0)
+
+  // Thread-safe cache for snapped coordinates to avoid repeated R5 lookups
+  // Key: original coordinate string, Value: snapped coordinate (or original if unreachable)
+  private val snappedCoordinateCache: ConcurrentHashMap[String, Coord] = new ConcurrentHashMap[String, Coord]()
+
+  // Thread-safe set to track coordinates that couldn't be snapped even with fallback radius
+  private val unreachableCoordinates: ConcurrentHashMap.KeySetView[String, java.lang.Boolean] =
+    ConcurrentHashMap.newKeySet[String]()
+
   def route(srcIndex: GeoIndex, dstIndex: GeoIndex, requestTime: Int): ODRequester.Response = {
-    val (srcCoord, dstCoord) = (srcIndex, dstIndex) match {
+    val (rawSrcCoord, rawDstCoord) = (srcIndex, dstIndex) match {
       case (h3SrcIndex: H3Index, h3DestIndex: H3Index) =>
         H3Clustering.getGeoIndexCenters(geoUtils, h3SrcIndex, h3DestIndex)
       case (tazSrcIndex: TAZIndex, tazDestIndex: TAZIndex) =>
@@ -82,6 +98,9 @@ class ODRequester(
           s"The type of src index (${srcIndex.getClass}) does not match the type of dst index (${dstIndex.getClass})."
         )
     }
+
+    // Snap coordinates to nearest road to handle remote TAZ centroids
+    val (srcCoord, dstCoord) = snapCoordinatesToRoad(rawSrcCoord, rawDstCoord)
 
     val dist = distanceWithMargin(srcCoord, dstCoord)
     val considerModes: Array[BeamMode] = beamModes.filter(mode => isDistanceWithinRange(mode, dist)).toArray
@@ -129,7 +148,10 @@ class ODRequester(
     */
   def route(workItem: ODWorkItem): ODRequester.Response = {
     val (srcIndex, dstIndex, requestTime) = (workItem.srcIndex, workItem.dstIndex, workItem.time)
-    val (srcCoord, dstCoord) = getCoordinates(srcIndex, dstIndex)
+    val (rawSrcCoord, rawDstCoord) = getCoordinates(srcIndex, dstIndex)
+
+    // Snap coordinates to nearest road to handle remote TAZ centroids
+    val (srcCoord, dstCoord) = snapCoordinatesToRoad(rawSrcCoord, rawDstCoord)
 
     val dist = distanceWithMargin(srcCoord, dstCoord)
     val considerModes: Array[BeamMode] = beamModes.filter(mode => isDistanceWithinRange(mode, dist)).toArray
@@ -204,7 +226,7 @@ class ODRequester(
     * unnecessary distance checks and mode filtering.
     */
   def routeDriveOnly(srcIndex: GeoIndex, dstIndex: GeoIndex, requestTime: Int): ODRequester.Response = {
-    val (srcCoord, dstCoord) = (srcIndex, dstIndex) match {
+    val (rawSrcCoord, rawDstCoord) = (srcIndex, dstIndex) match {
       case (tazSrc: TAZIndex, tazDst: TAZIndex) =>
         TAZClustering.getGeoIndexCenters(tazSrc, tazDst)
       case (h3Src: H3Index, h3Dst: H3Index) =>
@@ -214,6 +236,9 @@ class ODRequester(
           s"Expected matching index types, got ${srcIndex.getClass} and ${dstIndex.getClass}"
         )
     }
+
+    // Snap coordinates to nearest road to handle remote TAZ centroids
+    val (srcCoord, dstCoord) = snapCoordinatesToRoad(rawSrcCoord, rawDstCoord)
 
     val streetVehicle = StreetVehicle(
       dummyCarVehicleId,
@@ -452,6 +477,95 @@ class ODRequester(
         nearestStopCoord
       }
     }
+  }
+
+  /**
+    * Snap a coordinate to the nearest road network vertex.
+    * First tries with the standard linkRadiusMeters, then progressively tries larger radii
+    * (50km, 100km, 200km, 400km) until a road is found.
+    * Results are cached to avoid repeated R5 lookups.
+    *
+    * @param coord The coordinate to snap (in UTM)
+    * @return The snapped coordinate (in UTM), or the original if snapping fails
+    */
+  private def snapToNearestRoad(coord: Coord): Coord = {
+    val coordKey = s"${coord.getX},${coord.getY}"
+
+    // Check cache first (thread-safe)
+    val cached = snappedCoordinateCache.get(coordKey)
+    if (cached != null) {
+      return cached
+    }
+
+    val snapped = transportNetwork match {
+      case Some(network) =>
+        val streetLayer = network.streetLayer
+        val wgsCoord = geoUtils.utm2Wgs(coord)
+
+        // Try with standard radius first
+        var split = streetLayer.findSplit(
+          wgsCoord.getY,
+          wgsCoord.getX,
+          linkRadiusMeters,
+          com.conveyal.r5.profile.StreetMode.CAR
+        )
+
+        // If standard radius fails, try progressively larger fallback radii (50km, 100km, 200km, 400km)
+        if (split == null) {
+          var i = 0
+          while (split == null && i < fallbackRadiiMeters.length) {
+            val fallbackRadius = fallbackRadiiMeters(i)
+            split = streetLayer.findSplit(
+              wgsCoord.getY,
+              wgsCoord.getX,
+              fallbackRadius,
+              com.conveyal.r5.profile.StreetMode.CAR
+            )
+            if (split != null) {
+              logger.info(
+                s"Snapped remote coordinate (${wgsCoord.getY}, ${wgsCoord.getX}) to road using fallback radius ${fallbackRadius.toInt}m"
+              )
+            }
+            i += 1
+          }
+        }
+
+        if (split != null) {
+          // Get the snapped coordinate from the split
+          val vertex = streetLayer.vertexStore.getCursor(split.vertex0)
+          val snappedWgs = new Coord(vertex.getLon, vertex.getLat)
+          geoUtils.wgs2Utm(snappedWgs)
+        } else {
+          // Log once per unique unreachable coordinate (thread-safe add returns true if newly added)
+          if (unreachableCoordinates.add(coordKey)) {
+            logger.warn(
+              s"Could not snap coordinate (${wgsCoord.getY}, ${wgsCoord.getX}) to road network even with ${fallbackRadiiMeters.last.toInt}m radius. " +
+                s"This TAZ centroid is in an extremely remote area. Using original coordinate."
+            )
+          }
+          coord
+        }
+
+      case None =>
+        // No transport network available, return original
+        coord
+    }
+
+    // Cache the result (putIfAbsent is thread-safe, returns existing value if already present)
+    val existing = snappedCoordinateCache.putIfAbsent(coordKey, snapped)
+    if (existing != null) existing else snapped
+  }
+
+  /**
+    * Snap both source and destination coordinates to the road network.
+    * This ensures routing requests use coordinates that R5 can actually reach.
+    *
+    * @param srcCoord Original source coordinate (in UTM)
+    * @param dstCoord Original destination coordinate (in UTM)
+    * @return Tuple of (snapped source, snapped destination) coordinates
+    */
+  private def snapCoordinatesToRoad(srcCoord: Coord, dstCoord: Coord): (Coord, Coord) = {
+    (snapToNearestRoad(srcCoord), snapToNearestRoad(dstCoord))
   }
 }
 
