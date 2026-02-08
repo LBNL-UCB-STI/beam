@@ -324,7 +324,8 @@ class BeamSim @Inject() (
         withTransit = backgroundODSkimsCreatorConfig.modesToBuild.transit,
         buildDirectWalkRoute = backgroundODSkimsCreatorConfig.modesToBuild.walk,
         buildDirectCarRoute = false,
-        calculationTimeoutHours = backgroundODSkimsCreatorConfig.calculationTimeoutHours
+        calculationTimeoutHours = backgroundODSkimsCreatorConfig.calculationTimeoutHours,
+        parallelism = 0 // Auto-scale during simulation
       )(actorSystem)
       skimCreator.start()
       backgroundSkimsCreator = Some(skimCreator)

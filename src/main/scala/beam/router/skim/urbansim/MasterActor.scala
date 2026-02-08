@@ -373,7 +373,7 @@ object MasterActor {
     ODs: Array[(GeoIndex, GeoIndex)],
     transitModeCategories: Seq[TransitModeCategory],
     generateReturnTrips: Boolean,
-    parallelism: Int = 0
+    parallelism: Int
   ): Props = {
     Props(
       new MasterActor(
