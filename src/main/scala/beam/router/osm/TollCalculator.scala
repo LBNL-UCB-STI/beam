@@ -45,6 +45,7 @@ class TollCalculator @Inject() (val config: BeamConfig) extends LazyLogging {
     }
     set
   }
+  private final val hasAnyTolledLinks: Boolean = !tollsByLinkId.isEmpty
   private val tollsByWayId: java.util.Map[Long, Array[Toll]] = readFromCacheFileOrOSM()
   private final val tollPriceMultiplier: Double = config.beam.agentsim.tuning.tollPrice
 
@@ -72,7 +73,7 @@ class TollCalculator @Inject() (val config: BeamConfig) extends LazyLogging {
     val linkIds = path.linkIds
 
     // FAST PATH: Early exit if no tolls
-    if (linkIds.isEmpty || tollsByLinkId.isEmpty) {
+    if (linkIds.isEmpty || !hasAnyTolledLinks) {
       return 0.0
     }
 
@@ -108,6 +109,10 @@ class TollCalculator @Inject() (val config: BeamConfig) extends LazyLogging {
 
   @inline
   def calcTollByLinkId(linkId: Int, time: Int): Double = {
+    // Most links are not tolled: avoid map lookup on misses.
+    if (!hasAnyTolledLinks || !tolledLinkIds.contains(linkId)) {
+      return 0.0
+    }
     val tolls = tollsByLinkId.get(linkId)
     if (tolls == null) {
       0.0

@@ -4774,7 +4774,8 @@ object BeamConfig {
         suboptimalMinutes: scala.Int,
         suboptimalMinutesForDriveAccess: scala.Int,
         transitAlternativeList: java.lang.String,
-        travelTimeNoiseFraction: scala.Double
+        travelTimeNoiseFraction: scala.Double,
+        useMcRaptorRouterPooling: scala.Boolean
       )
 
       object R5 {
@@ -4847,12 +4848,12 @@ object BeamConfig {
             BeamConfig.Beam.Routing.R5.StatePoolSize(
               bike = if (c.hasPathOrNull("bike")) c.getInt("bike") else 35000,
               bike_transit_optimal =
-                if (c.hasPathOrNull("bike_transit_optimal")) c.getInt("bike_transit_optimal") else 20000,
+                if (c.hasPathOrNull("bike_transit_optimal")) c.getInt("bike_transit_optimal") else 30000,
               bike_transit_suboptimal =
                 if (c.hasPathOrNull("bike_transit_suboptimal")) c.getInt("bike_transit_suboptimal") else 1000000,
               car = if (c.hasPathOrNull("car")) c.getInt("car") else 150000,
               drive_transit_optimal =
-                if (c.hasPathOrNull("drive_transit_optimal")) c.getInt("drive_transit_optimal") else 20000,
+                if (c.hasPathOrNull("drive_transit_optimal")) c.getInt("drive_transit_optimal") else 30000,
               drive_transit_suboptimal =
                 if (c.hasPathOrNull("drive_transit_suboptimal")) c.getInt("drive_transit_suboptimal") else 1000000,
               primary = if (c.hasPathOrNull("primary")) c.getInt("primary") else 150000,
@@ -4906,7 +4907,9 @@ object BeamConfig {
             transitAlternativeList =
               if (c.hasPathOrNull("transitAlternativeList")) c.getString("transitAlternativeList") else "SUBOPTIMAL",
             travelTimeNoiseFraction =
-              if (c.hasPathOrNull("travelTimeNoiseFraction")) c.getDouble("travelTimeNoiseFraction") else 0.0
+              if (c.hasPathOrNull("travelTimeNoiseFraction")) c.getDouble("travelTimeNoiseFraction") else 0.0,
+            useMcRaptorRouterPooling =
+              !c.hasPathOrNull("useMcRaptorRouterPooling") || c.getBoolean("useMcRaptorRouterPooling")
           )
         }
       }

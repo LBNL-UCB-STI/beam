@@ -37,10 +37,13 @@ import java.nio.file.Paths
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneOffset, ZonedDateTime}
 import java.util.concurrent.{ExecutorService, Executors}
+import java.util.concurrent.TimeoutException
+import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 import scala.reflect.io.Directory
+import scala.util.{Failure, Success, Try}
 
 class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetwork, Network)])
     extends Actor
@@ -70,6 +73,11 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
     context.system.scheduler.scheduleWithFixedDelay(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
   private var msgs = 0
   private var firstMsgTime: Option[ZonedDateTime] = None
+
+  // Hardcoded for now; we can expose these via config later once behavior is validated in production.
+  private val routingTimeout: Option[FiniteDuration] = Some(60.seconds)
+  private val slowRoutingWarnThresholdMs: Option[Long] = Some(10L * 1000L)
+
   log.info("RoutingWorker[{}] `{}` is ready", hashCode(), self.path)
   log.info(
     "Num of available processors: {}. Will use: {}",
@@ -78,6 +86,106 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
   )
 
   private def getNameAndHashCode: String = s"RoutingWorker[${hashCode()}], Path: `${self.path}`"
+
+  private def straightLineDistanceMiles(request: RoutingRequest): Double = {
+    val dx = request.originUTM.getX - request.destinationUTM.getX
+    val dy = request.originUTM.getY - request.destinationUTM.getY
+    Math.hypot(dx, dy) / 1609.344
+  }
+
+  private def summarizeVehicles(request: RoutingRequest): String = {
+    request.streetVehicles
+      .map(v => s"${v.id}:${v.mode}:${v.vehicleTypeId}")
+      .mkString("[", ", ", "]")
+  }
+
+  private def dumpR5WorkerStacks(maxFramesPerThread: Int = 40): String = {
+    Thread.getAllStackTraces.asScala.toVector
+      .collect {
+        case (thread, stack) if thread.getName.startsWith("r5-routing-worker-") =>
+          val header =
+            s"""thread=${thread.getName}, id=${thread.getId}, state=${thread.getState}"""
+          val frames = stack.take(maxFramesPerThread).map(s => s"    at $s").mkString("\n")
+          s"$header\n$frames"
+      }
+      .sortBy { dump =>
+        val prefix = "thread=r5-routing-worker-"
+        val start = dump.indexOf(prefix)
+        if (start < 0) Int.MaxValue
+        else {
+          val idx = start + prefix.length
+          val end = dump.indexOf(",", idx)
+          Try(dump.substring(idx, if (end > idx) end else dump.length).toInt).getOrElse(Int.MaxValue)
+        }
+      }
+      .mkString("\n\n")
+  }
+
+  private def maybeLogSlowRouting(
+    request: RoutingRequest,
+    startedAtMs: Long,
+    outcome: String,
+    maybeError: Option[Throwable] = None
+  ): Unit = {
+    val elapsedMs = System.currentTimeMillis() - startedAtMs
+    slowRoutingWarnThresholdMs.foreach { thresholdMs =>
+      if (elapsedMs >= thresholdMs) {
+        val base =
+          s"[SLOW-ROUTING] duration=${elapsedMs}ms, requestId=${request.requestId}, triggerId=${request.triggerId}, " +
+          s"personId=${request.personId.map(_.toString).getOrElse("none")}, withTransit=${request.withTransit}, " +
+          s"requestedMode=${request.requestedMode.map(_.toString).getOrElse("None")}, departureTime=${request.departureTime}, " +
+          s"origin=(${request.originUTM.getX}, ${request.originUTM.getY}), " +
+          s"destination=(${request.destinationUTM.getX}, ${request.destinationUTM.getY}), " +
+          f"distanceInMiles=${straightLineDistanceMiles(request)}%.3f, " +
+          s"streetVehicles=${summarizeVehicles(request)}, outcome=$outcome"
+        maybeError match {
+          case Some(err) =>
+            log.warning(s"$base, error=${err.getClass.getName}: ${Option(err.getMessage).getOrElse("")}")
+          case None => log.warning(base)
+        }
+      }
+    }
+  }
+
+  private def withRoutingTimeout(
+    request: RoutingRequest,
+    future: Future[RoutingResponse],
+    startedAtMs: Long
+  ): Future[RoutingResponse] = {
+    routingTimeout match {
+      case None => future
+      case Some(timeout) =>
+        val p = Promise[RoutingResponse]()
+        val timeoutTask = context.system.scheduler.scheduleOnce(timeout) {
+          val elapsedMs = System.currentTimeMillis() - startedAtMs
+          val stacks = dumpR5WorkerStacks()
+          log.error(
+            s"[ROUTING-TIMEOUT] requestId=${request.requestId}, triggerId=${request.triggerId}, " +
+            s"personId=${request.personId.map(_.toString).getOrElse("none")}, withTransit=${request.withTransit}, " +
+            s"requestedMode=${request.requestedMode.map(_.toString).getOrElse("None")}, departureTime=${request.departureTime}, " +
+            s"elapsedMs=$elapsedMs, timeoutMs=${timeout.toMillis}, " +
+            s"origin=(${request.originUTM.getX}, ${request.originUTM.getY}), destination=(${request.destinationUTM.getX}, ${request.destinationUTM.getY}), " +
+            f"distanceInMiles=${straightLineDistanceMiles(request)}%.3f, streetVehicles=${summarizeVehicles(request)}, " +
+            s"attributes=${request.attributesOfIndividual.map(_.toString).getOrElse("none")}\n" +
+            s"[ROUTING-TIMEOUT-THREAD-DUMP]\n$stacks"
+          )
+          p.tryFailure(
+            new TimeoutException(
+              s"Routing timed out after ${timeout.toMillis}ms for requestId=${request.requestId}, personId=${request.personId
+                .map(_.toString)
+                .getOrElse("none")}"
+            )
+          )
+        }(context.dispatcher)
+
+        future.onComplete { result =>
+          timeoutTask.cancel()
+          p.tryComplete(result)
+        }(executionContext)
+
+        p.future
+    }
+  }
 
   private var workAssigner: ActorRef = context.parent
 
@@ -177,7 +285,9 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
     case request: RoutingRequest =>
       msgs = msgs + 1
       if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
-      val eventualResponse = Future {
+      val replyTo = sender()
+      val startedAtMs = System.currentTimeMillis()
+      val routeFuture = Future {
         latency("request-router-time", Metrics.RegularLevel) {
           if (!request.withTransit && (carRouter == "staticGH" || carRouter == "quasiDynamicGH")) {
             // run graphHopper for only cars
@@ -228,10 +338,19 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
           }
         }
       }
+      val eventualResponse = withRoutingTimeout(request, routeFuture, startedAtMs)
+
+      eventualResponse.onComplete {
+        case Success(_) =>
+          maybeLogSlowRouting(request, startedAtMs, "success")
+        case Failure(err) =>
+          maybeLogSlowRouting(request, startedAtMs, "failure", Some(err))
+      }(executionContext)
+
       eventualResponse.recover { case e =>
         log.error(e, "calcRoute failed")
         RoutingFailure(e, request)
-      } pipeTo sender
+      } pipeTo replyTo
       askForMoreWork()
 
     case UpdateTravelTimeLocal(newTravelTime) =>

@@ -40,9 +40,10 @@ trait MetricsSupport {
 
   def latency[A](name: String, level: MetricLevel)(thunk: => A): A = {
     if (isRightLevel(level)) {
-      val start = System.currentTimeMillis()
+      val startNanos = System.nanoTime()
       val res = thunk
-      Kamon.histogram(name).withTags(TagSet.from(defaultTags)).record(System.currentTimeMillis() - start)
+      val elapsedMs = (System.nanoTime() - startNanos) / 1000000L
+      Kamon.histogram(name).withTags(TagSet.from(defaultTags)).record(Math.max(0L, elapsedMs))
       res
     } else thunk
   }
@@ -54,7 +55,7 @@ trait MetricsSupport {
     tags: Map[String, String] = Map.empty
   ): Unit = {
     if (isRightLevel(level)) {
-      Kamon.histogram(name).withTags(TagSet.from(defaultTags ++ tags)).record(msTime)
+      Kamon.histogram(name).withTags(TagSet.from(defaultTags ++ tags)).record(Math.max(0L, msTime))
     }
   }
 
