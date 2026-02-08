@@ -556,7 +556,7 @@ class ODRequester(
               val vertex = streetLayer.vertexStore.getCursor(split.vertex0)
               logger.warn(
                 s"[SNAP-BOUNDARY] Coordinate (${wgsCoord.getY}, ${wgsCoord.getX}) outside network bounds, " +
-                  s"snapped via boundary to (${vertex.getLat}, ${vertex.getLon})"
+                s"snapped via boundary to (${vertex.getLat}, ${vertex.getLon})"
               )
               val snappedWgs = new Coord(vertex.getLon, vertex.getLat)
               geoUtils.wgs2Utm(snappedWgs)
