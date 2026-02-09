@@ -131,6 +131,9 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     tollCalculator
   ) = workerParams
 
+  private val logPoolPressureWarnings: Boolean = beamConfig.beam.routing.r5.logPoolPressureWarnings
+  private val streetRouterPoolWarnUtilizationThreshold = 0.9
+
   private def mcRaptorListSupplierType(isDriveTransitRequest: Boolean): String = {
     if (isDriveTransitRequest) {
       "beam"
@@ -414,6 +417,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     statePool: StatePool,
     quantityToMinimize: StreetRouter.State.RoutingVariable
   ): Unit = {
+    maybeLogStreetRouterPoolPressure(router, quantityToMinimize)
     val cacheKey = RouterCacheKey(statePool, quantityToMinimize)
     val cacheMap = routerCaches.get()
     val cache = cacheMap.getOrElseUpdate(cacheKey, new util.ArrayDeque[StreetRouter](50))
@@ -421,6 +425,27 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     // Return router to cache
     if (cache.size() < 50) {
       cache.offer(router)
+    }
+  }
+
+  private def maybeLogStreetRouterPoolPressure(
+    router: StreetRouter,
+    quantityToMinimize: StreetRouter.State.RoutingVariable
+  ): Unit = {
+    if (!logPoolPressureWarnings) return
+    val statePoolExhaustions = router.getStatePoolExhaustionsSinceReset
+    val statePoolMaxInUse = router.getStatePoolMaxInUse
+    val statePoolSize = router.getStatePoolSize
+    val statePoolUtilization =
+      if (statePoolSize > 0) statePoolMaxInUse.toDouble / statePoolSize.toDouble else 0.0
+    if (statePoolExhaustions > 0 || statePoolUtilization >= streetRouterPoolWarnUtilizationThreshold) {
+      val requestFromTime = Option(router.profileRequest).map(_.fromTime).getOrElse(-1)
+      logger.warn(
+        s"[STREET-POOL-PRESSURE] mode=${router.streetMode}, qtm=$quantityToMinimize, fromTime=$requestFromTime, " +
+        s"statePoolExhaustions=$statePoolExhaustions, statePoolMaxInUse=$statePoolMaxInUse, " +
+        s"statePoolSize=$statePoolSize, " +
+        f"statePoolUtilization=${statePoolUtilization * 100.0}%.1f%%, routerId=${System.identityHashCode(router)}"
+      )
     }
   }
 
@@ -1285,7 +1310,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
                 val mcRaptorElapsedMs = System.currentTimeMillis() - mcRaptorCallStarted
                 val statePoolUtilization =
                   if (statePoolSize > 0) statePoolMaxInUse.toDouble / statePoolSize.toDouble else 0.0
-                if (statePoolExhaustions > 0 || statePoolUtilization >= 0.9) {
+                if (logPoolPressureWarnings && (statePoolExhaustions > 0 || statePoolUtilization >= 0.9)) {
                   logger.warn(
                     s"[MCRAPTOR-POOL-PRESSURE] requestId=${request.requestId}, " +
                     s"mode=$mode, streetMode=$r5StreetMode, fromTime=${profileRequest.fromTime}, toTime=${profileRequest.toTime}, " +
@@ -2184,27 +2209,28 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
   ): TravelTimeByLinkCalculator = {
     val profileRequest = createProfileRequest
 
-    // Cache the maximum velocity for this vehicle type
+    val walkSpeed = profileRequest.getSpeedForMode(StreetMode.WALK)
+    val bikeSpeed = profileRequest.getSpeedForMode(StreetMode.BICYCLE)
     val vehicleMaxSpeed = vehicleType.maxVelocity.getOrElse(Double.MaxValue)
+    val carSpeed = Math.min(vehicleMaxSpeed, profileRequest.getSpeedForMode(StreetMode.CAR))
 
     (time: Double, linkId: Int, streetMode: StreetMode) => {
-      // Get the edge length, using the cache
       val edgeLength = transportNetwork.streetLayer.edgeStore.lengths_mm.get(linkId / 2) / 1000.0
-
-      // Calculate the mode-specific speed
-      val maxSpeed: Double = if (streetMode == StreetMode.CAR) {
-        Math.min(vehicleMaxSpeed, profileRequest.getSpeedForMode(streetMode))
-      } else {
-        profileRequest.getSpeedForMode(streetMode)
-      }
-
-      val minTravelTime = edgeLength / maxSpeed
+      val modeSpeed =
+        if (streetMode == StreetMode.CAR) {
+          carSpeed
+        } else if (streetMode == StreetMode.BICYCLE) {
+          bikeSpeed
+        } else {
+          walkSpeed
+        }
+      val minTravelTime = edgeLength / modeSpeed
 
       if (streetMode == StreetMode.BICYCLE && shouldApplyBicycleScaleFactor) {
         //note we're not explicitly checking that it is a Bike VehicleType
         minTravelTime * bikeScaleFactor.scaleFactor(linkId)
       } else if (streetMode == StreetMode.CAR) {
-        carWeightCalculator.calcTravelTime(linkId, travelTime, maxSpeed, time, shouldAddNoise, edgeLength)
+        carWeightCalculator.calcTravelTime(linkId, travelTime, modeSpeed, time, shouldAddNoise, edgeLength)
       } else {
         minTravelTime
       }
@@ -2223,43 +2249,61 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     perMileCost: Double = 0.0,
     perMinuteCost: Double = 0.0
   ): TravelCostCalculator = {
-    // Pre-compute ONCE per route (not per edge!)
+    val vehicleCategory = vehicleType.vehicleCategory
     val category = RoutingVehicleCategory.fromCategory(vehicleType.vehicleCategory)
-    val categoryRestrictions = precomputedRestrictions.getOrElse(category, new TLongByteHashMap())
+    val categoryRestrictions = precomputedRestrictions(category)
+    val hasPrecomputedRestrictions = category != RoutingVehicleCategory.Other
     val weightMultiplier = workerParams.beamConfig.beam.agentsim.agents.vehicles.roadRestrictionWeightMultiplier.toFloat
 
-    // Extract maxSpeed once, avoid Option operations in hot loop
     val maxSpeedOrNegative = vehicleType.restrictRoadsByFreeSpeedInMeterPerSecond.getOrElse(-1.0)
     val hasSpeedRestriction = maxSpeedOrNegative >= 0
+    val hasAnyRoadRestrictions = hasPrecomputedRestrictions || hasSpeedRestriction
 
-    // Pre-compute constants
     val perMileCostFactor = perMileCost / METERS_IN_MILE
     val perMinuteCostFactor = perMinuteCost / 60.0
+    val hasFareComponent = perMileCostFactor != 0.0 || perMinuteCostFactor != 0.0
+    val hasAnyTolls = tollCalculator.hasAnyTolls
+    val appliesMonetaryCosts = timeValueOfMoney != 0.0 && (hasFareComponent || hasAnyTolls)
 
-    // Return lambda - allocations in HERE are the problem!
-    (edge: EdgeStore#Edge, legDurationSeconds: Int, traversalTimeSeconds: Float) => {
+    @inline
+    def roadRestrictionMultiplier(edge: EdgeStore#Edge): Float = {
       val osmId = edge.getOSMID
-      val isRestrictedPrecomputed = categoryRestrictions.get(osmId) == 1 // No boxing!
-
-      val roadRestrictionWeightMultiplier: Float = {
-        if (isRestrictedPrecomputed) {
+      if (hasPrecomputedRestrictions && categoryRestrictions.get(osmId) == 1) {
+        weightMultiplier
+      } else if (hasSpeedRestriction) {
+        val restriction = osmIdToRoadRestrictionTrove.get(osmId)
+        if (restriction != null && restriction.isRestricted(vehicleCategory, maxSpeedOrNegative)) {
           weightMultiplier
-        } else if (hasSpeedRestriction) {
-          val restriction = osmIdToRoadRestrictionTrove.get(osmId)
-          if (restriction != null && restriction.isRestricted(vehicleType.vehicleCategory, maxSpeedOrNegative)) {
-            weightMultiplier
-          } else {
-            1f
-          }
         } else {
           1f
         }
+      } else {
+        1f
       }
+    }
 
-      val fare = traversalTimeSeconds * perMinuteCostFactor + edge.getLengthM * perMileCostFactor
-      (traversalTimeSeconds + (timeValueOfMoney * (
-        tollCalculator.calcTollByLinkId(edge.getEdgeIndex, startTime + legDurationSeconds) + fare
-      )).toFloat) * roadRestrictionWeightMultiplier
+    @inline
+    def generalizedTraversalCost(
+      edge: EdgeStore#Edge,
+      legDurationSeconds: Int,
+      traversalTimeSeconds: Float
+    ): Float = {
+      val fare =
+        if (hasFareComponent) traversalTimeSeconds * perMinuteCostFactor + edge.getLengthM * perMileCostFactor else 0.0
+      val toll =
+        if (hasAnyTolls) tollCalculator.calcTollByLinkId(edge.getEdgeIndex, startTime + legDurationSeconds) else 0.0
+      traversalTimeSeconds + (timeValueOfMoney * (toll + fare)).toFloat
+    }
+
+    if (!hasAnyRoadRestrictions && !appliesMonetaryCosts) { (_: EdgeStore#Edge, _: Int, traversalTimeSeconds: Float) =>
+      traversalTimeSeconds
+    } else if (!hasAnyRoadRestrictions) {
+      (edge: EdgeStore#Edge, legDurationSeconds: Int, traversalTimeSeconds: Float) =>
+        generalizedTraversalCost(edge, legDurationSeconds, traversalTimeSeconds)
+    } else if (!appliesMonetaryCosts) { (edge: EdgeStore#Edge, _: Int, traversalTimeSeconds: Float) =>
+      traversalTimeSeconds * roadRestrictionMultiplier(edge)
+    } else { (edge: EdgeStore#Edge, legDurationSeconds: Int, traversalTimeSeconds: Float) =>
+      generalizedTraversalCost(edge, legDurationSeconds, traversalTimeSeconds) * roadRestrictionMultiplier(edge)
     }
   }
 }

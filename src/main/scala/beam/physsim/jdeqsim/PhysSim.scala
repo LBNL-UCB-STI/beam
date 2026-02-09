@@ -223,11 +223,12 @@ class PhysSim(
         s"MultiJDEQSim iteration $currentIter rerouting completed in ${rerouteDurationMs}ms for $takeN/${rightPeopleToReplan.size} people"
       )
       reroutedTravelTimeStats
-    } else
+    } else {
       logger.info(
         s"MultiJDEQSim iteration $currentIter rerouting skipped; selected 0/${rightPeopleToReplan.size} people"
       )
-    Statistics(Array.empty[Double])
+      Statistics(Array.empty[Double])
+    }
   }
 
   private def initScenario = {

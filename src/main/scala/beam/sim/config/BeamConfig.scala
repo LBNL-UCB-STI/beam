@@ -4764,6 +4764,7 @@ object BeamConfig {
         directory: java.lang.String,
         directory2: scala.Option[java.lang.String],
         linkRadiusMeters: scala.Double,
+        logPoolPressureWarnings: scala.Boolean,
         mNetBuilder: BeamConfig.Beam.Routing.R5.MNetBuilder,
         maxDistanceLimitByModeInMeters: BeamConfig.Beam.Routing.R5.MaxDistanceLimitByModeInMeters,
         maxTimeLimitForFreightInMinutes: scala.Int,
@@ -4846,18 +4847,18 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing.R5.StatePoolSize = {
             BeamConfig.Beam.Routing.R5.StatePoolSize(
-              bike = if (c.hasPathOrNull("bike")) c.getInt("bike") else 35000,
+              bike = if (c.hasPathOrNull("bike")) c.getInt("bike") else 150000,
               bike_transit_optimal =
                 if (c.hasPathOrNull("bike_transit_optimal")) c.getInt("bike_transit_optimal") else 30000,
               bike_transit_suboptimal =
                 if (c.hasPathOrNull("bike_transit_suboptimal")) c.getInt("bike_transit_suboptimal") else 1000000,
-              car = if (c.hasPathOrNull("car")) c.getInt("car") else 150000,
+              car = if (c.hasPathOrNull("car")) c.getInt("car") else 300000,
               drive_transit_optimal =
                 if (c.hasPathOrNull("drive_transit_optimal")) c.getInt("drive_transit_optimal") else 30000,
               drive_transit_suboptimal =
                 if (c.hasPathOrNull("drive_transit_suboptimal")) c.getInt("drive_transit_suboptimal") else 1000000,
-              primary = if (c.hasPathOrNull("primary")) c.getInt("primary") else 150000,
-              walk = if (c.hasPathOrNull("walk")) c.getInt("walk") else 35000,
+              primary = if (c.hasPathOrNull("primary")) c.getInt("primary") else 300000,
+              walk = if (c.hasPathOrNull("walk")) c.getInt("walk") else 50000,
               walk_transit_optimal =
                 if (c.hasPathOrNull("walk_transit_optimal")) c.getInt("walk_transit_optimal") else 100000,
               walk_transit_suboptimal =
@@ -4880,6 +4881,8 @@ object BeamConfig {
             directory = if (c.hasPathOrNull("directory")) c.getString("directory") else "/test/input/beamville/r5",
             directory2 = if (c.hasPathOrNull("directory2")) Some(c.getString("directory2")) else None,
             linkRadiusMeters = if (c.hasPathOrNull("linkRadiusMeters")) c.getDouble("linkRadiusMeters") else 10000.0,
+            logPoolPressureWarnings =
+              c.hasPathOrNull("logPoolPressureWarnings") && c.getBoolean("logPoolPressureWarnings"),
             mNetBuilder = BeamConfig.Beam.Routing.R5.MNetBuilder(
               if (c.hasPathOrNull("mNetBuilder")) c.getConfig("mNetBuilder")
               else com.typesafe.config.ConfigFactory.parseString("mNetBuilder{}")
