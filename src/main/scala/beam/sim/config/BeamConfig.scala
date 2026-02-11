@@ -3619,6 +3619,7 @@ object BeamConfig {
       case class Jdeqsim(
         agentSimPhysSimInterfaceDebugger: BeamConfig.Beam.Physsim.Jdeqsim.AgentSimPhysSimInterfaceDebugger,
         cacc: BeamConfig.Beam.Physsim.Jdeqsim.Cacc,
+        nonEssentialHandlersEnabled: scala.Boolean,
         shortLink: BeamConfig.Beam.Physsim.Jdeqsim.ShortLink
       )
 
@@ -3706,6 +3707,8 @@ object BeamConfig {
               if (c.hasPathOrNull("cacc")) c.getConfig("cacc")
               else com.typesafe.config.ConfigFactory.parseString("cacc{}")
             ),
+            nonEssentialHandlersEnabled =
+              c.hasPathOrNull("nonEssentialHandlersEnabled") && c.getBoolean("nonEssentialHandlersEnabled"),
             shortLink = BeamConfig.Beam.Physsim.Jdeqsim.ShortLink(
               if (c.hasPathOrNull("shortLink")) c.getConfig("shortLink")
               else com.typesafe.config.ConfigFactory.parseString("shortLink{}")

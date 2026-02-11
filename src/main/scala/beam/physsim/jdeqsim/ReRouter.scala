@@ -27,6 +27,7 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
 
 class ReRouter(val workerParams: R5Parameters, val beamServices: BeamServices) extends StrictLogging {
+  private val reroutedByMultiJdeqSimAttribute = "rerouted_by_multi_jdeqsim"
 
   private val (_, carVehType: BeamVehicleType) = beamServices.beamScenario.vehicleTypes
     .collect { case (k, v) if v.vehicleCategory == VehicleCategory.Car => (k, v) }
@@ -103,7 +104,8 @@ class ReRouter(val workerParams: R5Parameters, val beamServices: BeamServices) e
                     leg.setDepartureTime(beamLeg.startTime)
                     leg.setTravelTime(0)
                     leg.getAttributes.putAttribute("travel_time", beamLeg.duration)
-                    leg.getAttributes.putAttribute("departure_time", beamLeg.startTime);
+                    leg.getAttributes.putAttribute("departure_time", beamLeg.startTime)
+                    leg.getAttributes.putAttribute(reroutedByMultiJdeqSimAttribute, true)
                   case _ =>
                 }
               }

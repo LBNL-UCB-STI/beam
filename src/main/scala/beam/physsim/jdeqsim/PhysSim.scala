@@ -173,6 +173,13 @@ class PhysSim(
   }
 
   private def printStats(prevResult: SimulationResult, currentResult: SimulationResult): Unit = {
+    if (!beamConfig.beam.physsim.jdeqsim.nonEssentialHandlersEnabled) {
+      logger.info(
+        "Skipping event-type and car-travel-time summary logs because beam.physsim.jdeqsim.nonEssentialHandlersEnabled=false"
+      )
+      return
+    }
+
     logger.info(
       s"eventTypeToNumberOfMessages at iteration ${prevResult.iteration}: \n${prevResult.eventTypeToNumberOfMessages.mkString("\n")}"
     )

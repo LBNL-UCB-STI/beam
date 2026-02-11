@@ -88,15 +88,23 @@ public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
     }
 
     public void notifyIterationEnds(int iteration, int currentPhysSimIter, int totalPhysSimIters, TravelTime travelTime) {
-        processData(iteration, travelTime);
+        boolean shouldWriteLinkStats = isNotTestMode() && writeLinkStats(iteration);
+        boolean shouldWriteGraphs = beamConfig.beam().outputs().writeGraphs();
+        // Keep data processing enabled in test mode (controllerIO == null) because tests assert relative speed buckets.
+        boolean shouldProcessData = !isNotTestMode() || shouldWriteLinkStats || shouldWriteGraphs;
+
+        if (shouldProcessData) {
+            processData(iteration, travelTime);
+        }
+
         if (this.controllerIO != null) {
-            if (isNotTestMode() && writeLinkStats(iteration)) {
+            if (shouldWriteLinkStats) {
                 String fileName = getLinkStatsFileName(currentPhysSimIter, totalPhysSimIters);
                 String filePath = this.controllerIO.getIterationFilename(iteration, fileName);
                 LinkStatsWithVehicleCategory linkStats = new LinkStatsWithVehicleCategory(network, ttcConfigGroup);
                 linkStats.writeLinkStatsWithTruckVolumes(volumes, travelTime, filePath);
             }
-            if (beamConfig.beam().outputs().writeGraphs()) {
+            if (shouldWriteGraphs) {
                 CategoryDataset dataset = buildAndGetGraphCategoryDataset();
                 createModesFrequencyGraph(dataset, iteration);
             }
