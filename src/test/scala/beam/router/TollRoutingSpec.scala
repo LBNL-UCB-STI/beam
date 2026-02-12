@@ -187,6 +187,30 @@ class TollRoutingSpec
       val tollSensitiveCarOption = tollSensitiveResponse.itineraries.find(_.tripClassifier == CAR).get
       assert(tollSensitiveCarOption.costEstimate <= 2.0, "if I'm toll sensitive, I don't go over the tolled link")
       assert(tollSensitiveCarOption.totalTravelTimeInSecs == 284)
+
+      val tollInsensitiveAgainRequest = tollSensitiveRequest.copy(
+        attributesOfIndividual = Some(
+          AttributesOfIndividual(
+            HouseholdAttributes.EMPTY,
+            None,
+            true,
+            Vector(BeamMode.CAR),
+            Seq.empty,
+            valueOfTime = 10000000.0, // I don't mind tolls at all
+            None,
+            None
+          )
+        ),
+        triggerId = 1
+      )
+      router ! tollInsensitiveAgainRequest
+      val tollInsensitiveAgainResponse = expectMsgType[RoutingResponse]
+      val tollInsensitiveAgainCarOption = tollInsensitiveAgainResponse.itineraries.find(_.tripClassifier == CAR).get
+      assert(
+        tollInsensitiveAgainCarOption.costEstimate == 3.0,
+        "after a toll-sensitive request, a toll-insensitive request should still use the tolled route"
+      )
+      assert(tollInsensitiveAgainCarOption.totalTravelTimeInSecs == 142)
     }
 
     "not report a toll when walking" in {

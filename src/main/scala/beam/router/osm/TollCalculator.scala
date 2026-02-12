@@ -35,21 +35,14 @@ class TollCalculator @Inject() (val config: BeamConfig) extends LazyLogging {
     intHashMap
   }
 
-  private val tolledLinkIds: gnu.trove.set.hash.TIntHashSet = {
-    val set = new gnu.trove.set.hash.TIntHashSet(tollsByLinkId.size())
-    if (!tollsByLinkId.isEmpty) {
-      val iter = tollsByLinkId.keySet().iterator()
-      while (iter.hasNext) {
-        set.add(iter.next())
-      }
-    }
-    set
-  }
+  private final val hasAnyTolledLinks: Boolean = !tollsByLinkId.isEmpty
   private val tollsByWayId: java.util.Map[Long, Array[Toll]] = readFromCacheFileOrOSM()
   private final val tollPriceMultiplier: Double = config.beam.agentsim.tuning.tollPrice
 
   logger.info("tollsByLinkId size: {}", tollsByLinkId.size)
   logger.info("tollsByWayId size: {}", tollsByWayId.size)
+
+  def hasAnyTolls: Boolean = hasAnyTolledLinks
 
   def calcTollByOsmIds(osmIds: IndexedSeq[Long]): Double = {
     if (osmIds.isEmpty || tollsByWayId.isEmpty) {
@@ -72,7 +65,7 @@ class TollCalculator @Inject() (val config: BeamConfig) extends LazyLogging {
     val linkIds = path.linkIds
 
     // FAST PATH: Early exit if no tolls
-    if (linkIds.isEmpty || tollsByLinkId.isEmpty) {
+    if (linkIds.isEmpty || !hasAnyTolledLinks) {
       return 0.0
     }
 
@@ -83,17 +76,13 @@ class TollCalculator @Inject() (val config: BeamConfig) extends LazyLogging {
 
     while (i < linkIds.length) {
       val linkId = linkIds(i)
-
-      // FAST PATH: Only check toll if link is in tolled set
-      if (tolledLinkIds.contains(linkId)) {
+      val tolls = tollsByLinkId.get(linkId)
+      if (tolls != null) {
         val time = currentTime.toInt
-        val tolls = tollsByLinkId.get(linkId)
-        if (tolls != null) {
-          if (tollPriceMultiplier == 1.0) {
-            total += applyTimeDependentTollAtTime(tolls, time)
-          } else {
-            total += applyTimeDependentTollAtTime(tolls, time) * tollPriceMultiplier
-          }
+        if (tollPriceMultiplier == 1.0) {
+          total += applyTimeDependentTollAtTime(tolls, time)
+        } else {
+          total += applyTimeDependentTollAtTime(tolls, time) * tollPriceMultiplier
         }
       }
 
@@ -108,6 +97,9 @@ class TollCalculator @Inject() (val config: BeamConfig) extends LazyLogging {
 
   @inline
   def calcTollByLinkId(linkId: Int, time: Int): Double = {
+    if (!hasAnyTolledLinks) {
+      return 0.0
+    }
     val tolls = tollsByLinkId.get(linkId)
     if (tolls == null) {
       0.0

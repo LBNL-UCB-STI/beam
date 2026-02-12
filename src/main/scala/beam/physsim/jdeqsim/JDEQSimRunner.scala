@@ -15,7 +15,7 @@ import beam.sim.config.BeamConfig
 import beam.sim.{BeamConfigChangesObservable, BeamServices}
 import beam.utils.ConcurrentUtils.parallelExecution
 import beam.utils.metrics.TemporalEventCounter
-import beam.utils.{DebugLib, ProfilingUtils}
+import beam.utils.{DebugLib, ProfilingUtils, Statistics}
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.analysis.LegHistogram
 import org.matsim.api.core.v01.{Id, Scenario}
@@ -47,8 +47,9 @@ class JDEQSimRunner(
 
   import JDEQSimRunner._
 
-  def simulate(currentPhysSimIter: Int, writeEvents: Boolean): SimulationResult = {
+  def simulate(currentPhysSimIter: Int, totalPhysSimIters: Int, writeEvents: Boolean): SimulationResult = {
     val jdeqsimEvents = createEventManager
+    val nonEssentialHandlersEnabled = beamConfig.beam.physsim.jdeqsim.nonEssentialHandlersEnabled
     val travelTimeCalculatorBuilder = new TravelTimeCalculator.Builder(jdeqSimScenario.getNetwork)
     travelTimeCalculatorBuilder.configure(jdeqSimScenario.getConfig.travelTimeCalculator)
     val travelTimeCalculator = travelTimeCalculatorBuilder.build()
@@ -69,21 +70,39 @@ class JDEQSimRunner(
     )
     linkStatsGraph.notifyIterationStarts(jdeqsimEvents, jdeqSimScenario.getConfig.travelTimeCalculator)
 
-    val eventToHourFrequency = new EventToHourFrequency(controlerIO)
-    jdeqsimEvents.addHandler(eventToHourFrequency)
+    val maybeEventToHourFrequency =
+      if (nonEssentialHandlersEnabled) {
+        val eventToHourFrequency = new EventToHourFrequency(controlerIO)
+        jdeqsimEvents.addHandler(eventToHourFrequency)
+        Some(eventToHourFrequency)
+      } else None
 
-    val eventTypeCounter = new EventTypeCounter
-    jdeqsimEvents.addHandler(eventTypeCounter)
-    val carTravelTimeHandler = new CarTravelTimeHandler(isCACCVehicle.asScala.map { case (k, v) =>
-      k -> Boolean2boolean(v)
-    })
-    jdeqsimEvents.addHandler(carTravelTimeHandler)
+    val maybeEventTypeCounter =
+      if (nonEssentialHandlersEnabled) {
+        val eventTypeCounter = new EventTypeCounter
+        jdeqsimEvents.addHandler(eventTypeCounter)
+        Some(eventTypeCounter)
+      } else None
+    val maybeCarTravelTimeHandler =
+      if (nonEssentialHandlersEnabled) {
+        val carTravelTimeHandler = new CarTravelTimeHandler(isCACCVehicle.asScala.map { case (k, v) =>
+          k -> Boolean2boolean(v)
+        })
+        jdeqsimEvents.addHandler(carTravelTimeHandler)
+        Some(carTravelTimeHandler)
+      } else None
 
     jdeqsimEvents.addHandler(travelTimeCalculator)
-    jdeqsimEvents.addHandler(new JDEQSimMemoryFootprint(beamConfig.beam.debug.debugEnabled))
+    if (nonEssentialHandlersEnabled) {
+      jdeqsimEvents.addHandler(new JDEQSimMemoryFootprint(beamConfig.beam.debug.debugEnabled))
+    }
 
-    val physsimSpeedHandler = new PhyssimSpeedHandler(population, controlerIO, beamConfig)
-    jdeqsimEvents.addHandler(physsimSpeedHandler)
+    val maybePhyssimSpeedHandler =
+      if (nonEssentialHandlersEnabled) {
+        val physsimSpeedHandler = new PhyssimSpeedHandler(population, controlerIO, beamConfig)
+        jdeqsimEvents.addHandler(physsimSpeedHandler)
+        Some(physsimSpeedHandler)
+      } else None
 
     val maybeEventWriter = if (writeEvents) {
       val writer = PhysSimEventWriter(beamServices, jdeqsimEvents)
@@ -140,32 +159,45 @@ class JDEQSimRunner(
       }
       maybeCaccSettings.foreach(_.roadCapacityAdjustmentFunction.reset())
 
-      parallelExecution(
-        legHistogram.getLegModes.forEach(mode => {
-          new PlotGraph().writeGraphic(
-            legHistogram,
-            controlerIO,
-            s"$currentPhysSimIter.physsimTripHistogram",
-            "time (binSize=<?> sec)",
-            mode,
+      val postProcessingTasks = collection.mutable.ArrayBuffer[() => Unit](
+        () =>
+          legHistogram.getLegModes.forEach(mode => {
+            new PlotGraph().writeGraphic(
+              legHistogram,
+              controlerIO,
+              s"$currentPhysSimIter.physsimTripHistogram",
+              "time (binSize=<?> sec)",
+              mode,
+              agentSimIterationNumber,
+              beamConfig.beam.outputs.stats.binSize
+            )
+          }),
+        () =>
+          linkStatsGraph.notifyIterationEnds(
             agentSimIterationNumber,
-            beamConfig.beam.outputs.stats.binSize
+            currentPhysSimIter,
+            totalPhysSimIters,
+            travelTimeCalculator.getLinkTravelTimes
           )
-        }),
-        linkStatsGraph.notifyIterationEnds(agentSimIterationNumber, travelTimeCalculator.getLinkTravelTimes),
-        eventToHourFrequency.notifyIterationEnds(
-          new IterationEndsEvent(beamServices.matsimServices, agentSimIterationNumber)
-        ),
-        physsimSpeedHandler.notifyIterationEnds(agentSimIterationNumber),
-        ()
-      )(scala.concurrent.ExecutionContext.global)
+      )
+      maybeEventToHourFrequency.foreach { eventToHourFrequency =>
+        postProcessingTasks += (() =>
+          eventToHourFrequency.notifyIterationEnds(
+            new IterationEndsEvent(beamServices.matsimServices, agentSimIterationNumber)
+          )
+        )
+      }
+      maybePhyssimSpeedHandler.foreach { physsimSpeedHandler =>
+        postProcessingTasks += (() => physsimSpeedHandler.notifyIterationEnds(agentSimIterationNumber))
+      }
+      parallelExecution(postProcessingTasks.toSeq)(scala.concurrent.ExecutionContext.global)
     }
     SimulationResult(
       iteration = currentPhysSimIter,
       travelTime = travelTimeCalculator.getLinkTravelTimes,
       volumesAnalyzer = Some(linkStatsGraph.getVolumes),
-      eventTypeToNumberOfMessages = eventTypeCounter.getStats,
-      carTravelTimeStats = carTravelTimeHandler.compute
+      eventTypeToNumberOfMessages = maybeEventTypeCounter.map(_.getStats).getOrElse(Seq.empty),
+      carTravelTimeStats = maybeCarTravelTimeHandler.map(_.compute).getOrElse(Statistics(Seq.empty))
     )
   }
 
