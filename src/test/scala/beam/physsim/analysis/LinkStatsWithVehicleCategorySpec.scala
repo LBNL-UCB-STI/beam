@@ -21,6 +21,7 @@ import org.scalatest.TryValues._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
+import java.nio.file.{Files, Paths}
 import scala.collection.JavaConverters._
 
 /**
@@ -83,6 +84,7 @@ class LinkStatsWithVehicleCategorySpec extends AnyWordSpecLike with Matchers {
     }
     "saves linkstats to csv" should {
       "save it that WarmStart could read it" in {
+        Files.deleteIfExists(Paths.get(LINKSTATS_CSV_PATH))
         val result = linkStats.writeLinkStatsWithTruckVolumes(
           volumeAnalyzer,
           travelTimeCalculator.getLinkTravelTimes,
@@ -103,6 +105,7 @@ class LinkStatsWithVehicleCategorySpec extends AnyWordSpecLike with Matchers {
     }
     "saves linkstats to parquet" should {
       "save it that WarmStart could read it" in {
+        Files.deleteIfExists(Paths.get(LINKSTATS_PARQUET_PATH))
         val result = linkStats.writeLinkStatsWithTruckVolumes(
           volumeAnalyzer,
           travelTimeCalculator.getLinkTravelTimes,
