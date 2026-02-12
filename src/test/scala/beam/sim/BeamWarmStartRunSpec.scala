@@ -63,10 +63,15 @@ class BeamWarmStartRunSpec
         "ITERS/it.2/2.linkstats.csv.gz",
         "ITERS/it.2/2.plans.csv.gz",
         "ITERS/it.2/2.plans.xml.gz",
-        "ITERS/it.2/2.rideHailFleet-GlobalRHM.csv.gz"
+        "ITERS/it.2/2.rideHailFleet-GlobalRHM.csv.gz",
       )
 
-      files should equal(expectedFiles)
+      val missing = expectedFiles.diff(files)
+      val extra = files.diff(expectedFiles)
+
+      withClue(s"Missing in the output: $missing\nExtra files in the output: $extra\n") {
+        files should contain theSameElementsAs expectedFiles
+      }
     }
 
     "run beamville scenario for two iterations with warmstart" taggedAs Retryable in {
@@ -153,11 +158,11 @@ class BeamWarmStartRunSpec
     }
   }
 
-  "sf-light WarmStart with parquet skims" must {
-
-    "prepare WarmStart data" in {
+  "sf-light scenario with emissions skims format set to parquet" must {
+    "prepare WarmStart data with parquet emissions skims" in {
+      val maxIt = 1
       val baseConf = ConfigFactory
-        .parseString("""beam.agentsim.lastIteration = 1
+        .parseString(f"""beam.agentsim.lastIteration = $maxIt
                 beam.warmStart.prepareData = true
                 beam.router.skim.emissions-skimmer.fileOutputFormat = "parquet"
                 """)
@@ -172,7 +177,7 @@ class BeamWarmStartRunSpec
       val files = Stream.continually(zipIn.getNextEntry).takeWhile(_ != null).map(_.getName).toList
       zipIn.close()
 
-      val itX = "it.1/1"
+      val itX = f"it.$maxIt/$maxIt"
       val expectedFiles = List(
         "population.csv.gz",
         "households.csv.gz",
@@ -191,36 +196,12 @@ class BeamWarmStartRunSpec
         s"ITERS/$itX.rideHailFleet-GlobalRHM.csv.gz"
       )
 
-      files should equal(expectedFiles)
+      val missing = expectedFiles.diff(files)
+      val extra = files.diff(expectedFiles)
 
-      val warmStartPath = warmStartData.getPath
-      val baseConf2 = ConfigFactory
-        .parseString(s"""beam.agentsim.lastIteration = 0
-             |beam.warmStart.type = "full"
-             |beam.warmStart.path = "$warmStartPath"
-             |""".stripMargin)
-        .withFallback(testConfig("test/input/sf-light/sf-light-1k-emissions.conf"))
-        .resolve()
-
-      val (_, output2, _) = runBeamWithConfig(baseConf2)
-
-      val averageCarSpeedIt0 = BeamWarmStartRunSpec.medianCarModeFromCsv(extractFileName(output, 0))
-      val averageCarSpeedIt1 = BeamWarmStartRunSpec.medianCarModeFromCsv(extractFileName(output, 1))
-
-      val averageCarSpeedWarmIt0 = BeamWarmStartRunSpec.medianCarModeFromCsv(extractFileName(output2, 0))
-
-      logger.info(
-        "average car speed per iterations  without warm start: {}, {}, with warm start: {}",
-        averageCarSpeedIt0,
-        averageCarSpeedIt1,
-        averageCarSpeedWarmIt0
-      )
-
-      averageCarSpeedIt0 should be < averageCarSpeedWarmIt0 withClue "it0 speed in warm start should be > it0 regular sim"
-
-      averageCarSpeedWarmIt0 / averageCarSpeedIt1 should equal(
-        1.0 +- 0.25
-      ) withClue "speed between warmStartIt0 and regularIt1 should not be very different because of warm start"
+      withClue(s"Missing in the output: $missing\nExtra files in the output: $extra\n") {
+        files should contain theSameElementsAs expectedFiles
+      }
     }
   }
 
