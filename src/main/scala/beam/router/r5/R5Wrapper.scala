@@ -270,7 +270,6 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
   }
 
   private val transferSegmentCache = TrieMap.empty[(Int, Int), StreetSegment]
-  private val nilTransferSegment = new StreetSegment()
 
   private val mcRaptorStatePools: ThreadLocal[mutable.Map[McRaptorRouterCacheKey, McRaptorStatePool]] =
     ThreadLocal.withInitial(() => mutable.Map.empty[McRaptorRouterCacheKey, McRaptorStatePool])

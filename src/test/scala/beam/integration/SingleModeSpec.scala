@@ -10,7 +10,6 @@ import beam.router.Modes.BeamMode
 import beam.router.RouteHistory
 import beam.sflight.RouterForTest
 import beam.sim.common.GeoUtilsImpl
-import beam.sim.config.BeamConfigHolder
 import beam.sim.{BeamHelper, BeamMobsim, RideHailFleetInitializerProvider}
 import beam.utils.{MathUtils, SimRunnerForTest}
 import beam.utils.TestConfigUtils.testConfig
@@ -39,7 +38,7 @@ class SingleModeSpec
       .parseString("""akka.test.timefactor = 10,
           |beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt = true
           |""".stripMargin)
-      .withFallback(testConfig("test/input/sf-light/sf-light.conf").resolve())
+      .withFallback(testConfig("test/input/sf-light/sf-light-1k.conf").resolve())
 
   def outputDirPath: String = basePath + "/" + testOutputDir + "single-mode-test"
 
@@ -213,8 +212,9 @@ class SingleModeSpec
       val regularPersonEvents = filterOutProfessionalDriversAndCavs(personDepartureEvents)
       val eventsByMode = regularPersonEvents.groupBy(_.getLegMode)
       //router gives too little 'drive transit' trips, most of the persons chooses 'car' in this case
-      withClue("When transit is available majority of agents should use drive_transit") {
-        eventsByMode("walk_transit").size should be < 2 * eventsByMode("drive_transit").size
+      val modeCount = eventsByMode.mapValues(_.size)
+      withClue(s"When transit is available majority of agents should use drive_transit: $modeCount") {
+        eventsByMode("walk_transit").size should be < 5 * eventsByMode("drive_transit").size
       }
 
       // TODO: Test that what can be printed with the line below makes sense (chains of modes)

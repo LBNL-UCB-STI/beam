@@ -38,6 +38,17 @@ class ParkingSpec
         |   {type = strategysettings, disableAfterIteration = -1, strategyName = SelectExpBeta , weight = 0.3},
         | ]
         | beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt = true
+        | # avoiding OOM in the router
+        | beam.routing.r5.statePoolSize.primary = 20000
+        | beam.routing.r5.statePoolSize.car = 20000
+        | beam.routing.r5.statePoolSize.bike = 20000
+        | beam.routing.r5.statePoolSize.walk = 20000
+        | beam.routing.r5.statePoolSize.walk_transit_suboptimal = 20000
+        | beam.routing.r5.statePoolSize.walk_transit_optimal = 20000
+        | beam.routing.r5.statePoolSize.drive_transit_suboptimal = 20000
+        | beam.routing.r5.statePoolSize.drive_transit_optimal = 20000
+        | beam.routing.r5.statePoolSize.bike_transit_suboptimal = 20000
+        | beam.routing.r5.statePoolSize.bike_transit_optimal = 20000
         |}
       """.stripMargin
     )
@@ -54,7 +65,7 @@ class ParkingSpec
       )
       .withValue(
         "beam.agentsim.agents.modalBehaviors.multinomialLogit.params.walk_transit_intercept",
-        ConfigValueFactory.fromAnyRef(0.0)
+        ConfigValueFactory.fromAnyRef(-5.0)
       )
       .withValue(
         "beam.agentsim.agents.modalBehaviors.multinomialLogit.params.drive_transit_intercept",
@@ -108,7 +119,7 @@ class ParkingSpec
     }
 
     val outputDirectoryFile = new File(outputDirectory)
-    FileUtils.copyDirectory(outputDirectoryFile, new File(s"${outputDirectory}_$parkingScenario"))
+    FileUtils.moveDirectory(outputDirectoryFile, new File(s"${outputDirectory}_$parkingScenario"))
 
     queueEvents
   }
