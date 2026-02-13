@@ -70,8 +70,8 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       )
       val response = expectMsgType[RoutingResponse]
 
-      response.itineraries.map(_.tripClassifier) should contain (WALK)
-      response.itineraries.map(_.tripClassifier) should contain (WALK_TRANSIT)
+      response.itineraries.map(_.tripClassifier) should contain(WALK)
+      response.itineraries.map(_.tripClassifier) should contain(WALK_TRANSIT)
       val transitOption = response.itineraries.filter(_.tripClassifier == WALK_TRANSIT).minBy(_.totalTravelTimeInSecs)
       assertMakesSense(transitOption.toBeamTrip)
       transitOption.totalTravelTimeInSecs shouldBe 1119 +- 2
@@ -317,7 +317,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       val actualSpeed = bikeTrip.beamLegs.head.travelPath.distanceInM / bikeTrip.totalTravelTimeInSecs
       // Beam router assumes that any bike goes with speed defined for bike mode.
       val speedForBikeMode = 4.0
-      actualSpeed should be (speedForBikeMode +- 0.1) // Difference probably due to start/end link
+      actualSpeed should be(speedForBikeMode +- 0.1) // Difference probably due to start/end link
     }
 
     "respond with a fallback walk route to a RoutingRequest where walking would take approx. 8 hours" in {
@@ -483,7 +483,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
 
       response.itineraries.size should be >= 2 withClue response.itineraries
       response.itineraries.map(_.costEstimate) should contain(2.75) withClue response.itineraries
-      response.itineraries.map(_.tripClassifier) should contain allOf(WALK, WALK_TRANSIT) withClue response.itineraries
+      response.itineraries.map(_.tripClassifier) should contain allOf (WALK, WALK_TRANSIT) withClue response.itineraries
     }
 
     "respond with a BART route without transfer having cost 1.95 USD." in {
@@ -519,7 +519,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
 
       response.itineraries.size should be >= 2 withClue response.itineraries
       response.itineraries.map(_.costEstimate) should contain(1.95) withClue response.itineraries
-      response.itineraries.map(_.tripClassifier) should contain allOf(WALK, WALK_TRANSIT) withClue response.itineraries
+      response.itineraries.map(_.tripClassifier) should contain allOf (WALK, WALK_TRANSIT) withClue response.itineraries
     }
 
     "respond with Failure(_) to a request with a bad coordinate" in {

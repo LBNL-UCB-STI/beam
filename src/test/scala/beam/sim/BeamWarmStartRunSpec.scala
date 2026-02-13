@@ -63,7 +63,7 @@ class BeamWarmStartRunSpec
         "ITERS/it.2/2.linkstats.csv.gz",
         "ITERS/it.2/2.plans.csv.gz",
         "ITERS/it.2/2.plans.xml.gz",
-        "ITERS/it.2/2.rideHailFleet-GlobalRHM.csv.gz",
+        "ITERS/it.2/2.rideHailFleet-GlobalRHM.csv.gz"
       )
 
       val missing = expectedFiles.diff(files)
