@@ -33,8 +33,8 @@ class RideHailUsageTests extends AnyFlatSpec with Matchers with BeamHelper with 
            |beam.agentsim.taz.parkingFilePath = $${beam.inputDirectory}"/parking/taz-parking-one-rh-stall.csv"
            |beam.outputs.events.fileOutputFormats = "xml"
            |beam.agentsim.agents.households.inputFilePath = $${beam.inputDirectory}"/households-no-vehicles.xml"
-           |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_intercept = 5.0
-           |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_pooled_intercept = 5.0
+           |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_intercept = 7.0
+           |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_pooled_intercept = 7.0
            |beam.agentsim.agents.vehicles.replanOnTheFlyWhenHouseholdVehiclesAreNotAvailable = true
          """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam-withL5.conf"))
