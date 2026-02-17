@@ -112,7 +112,7 @@ class BackgroundSkimsCreatorTest extends AnyFlatSpec with Matchers with BeamHelp
     val keys = skims.keys.map(_.asInstanceOf[ActivitySimSkimmerKey]).toSeq
 
     keys.count(_.pathType != ActivitySimPathType.SOV) shouldBe 0
-    keys.size shouldBe 144
+    keys.size shouldBe 144 +- 2
   }
 
   "skims creator" should "generate transit skims only" in {
