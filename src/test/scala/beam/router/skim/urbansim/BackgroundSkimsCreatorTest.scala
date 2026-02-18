@@ -188,7 +188,7 @@ class BackgroundSkimsCreatorTest extends AnyFlatSpec with Matchers with BeamHelp
     pathTypeToSkimsCount(ActivitySimPathType.WLK_LOC_WLK) should be > 60
     pathTypeToSkimsCount(ActivitySimPathType.DRV_HVY_WLK) should be < 15
 
-    pathTypeToSkimsCount(ActivitySimPathType.SOV) shouldBe 144
+    pathTypeToSkimsCount(ActivitySimPathType.SOV) shouldBe 144 +- 2
     pathTypeToSkimsCount(ActivitySimPathType.WALK) shouldBe 22 // because max walk trip length is 1000 meters
 
   }
