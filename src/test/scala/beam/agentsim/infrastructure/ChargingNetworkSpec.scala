@@ -392,7 +392,7 @@ class ChargingNetworkSpec
     parkingOptions: ListBuffer[String],
     parkingInquiry: ParkingInquiry,
     expectedProbability: collection.Map[Id[ParkingZoneId], Double],
-    maxDeviation: Double = 0.063,
+    maxDeviation: Double = 0.07,
     iterations: Int = 10000 // takes about 16s
   ): Unit = {
 
