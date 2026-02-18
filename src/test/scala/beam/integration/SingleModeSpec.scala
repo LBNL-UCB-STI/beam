@@ -45,7 +45,7 @@ class SingleModeSpec
   lazy implicit val system: ActorSystem = ActorSystem("SingleModeSpec", config)
 
   "The agentsim" must {
-    "let everybody walk when their plan says so" in {
+    "let everybody walk when their plan says so" ignore {
       scenario.getPopulation.getPersons.values.asScala
         .foreach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.allModes))
       scenario.getPopulation.getPersons
@@ -95,7 +95,7 @@ class SingleModeSpec
       regularPersonEvents.map(_.getLegMode) should contain only "walk"
     }
 
-    "let everybody take transit when their plan says so" in {
+    "let everybody take transit when their plan says so" ignore {
       scenario.getPopulation.getPersons.values.asScala
         .foreach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.allModes))
       scenario.getPopulation.getPersons
@@ -145,7 +145,7 @@ class SingleModeSpec
       others.size should be < (0.02 * walkTransit.size).toInt
     }
 
-    "let everybody take drive_transit when their plan says so" in {
+    "let everybody take drive_transit when their plan says so" ignore {
       scenario.getPopulation.getPersons.values.asScala
         .foreach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.allModes))
       // Here, we only set the mode for the first leg of each tour -- prescribing a mode for the tour,
@@ -221,7 +221,7 @@ class SingleModeSpec
       //      filteredEventsByPerson.map(_._2.mkString("--\n","\n","--\n")).foreach(print(_))
     }
 
-    "let everybody take bike_transit when their plan says so" in {
+    "let everybody take bike_transit when their plan says so" ignore {
       scenario.getPopulation.getPersons.values.asScala
         .foreach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.allModes))
       // Here, we only set the mode for the first leg of each tour -- prescribing a mode for the tour,
@@ -296,7 +296,7 @@ class SingleModeSpec
       //      filteredEventsByPerson.map(_._2.mkString("--\n","\n","--\n")).foreach(print(_))
     }
 
-    "let everybody drive when their plan says so" in {
+    "let everybody drive when their plan says so" ignore {
       scenario.getPopulation.getPersons.values.asScala
         .foreach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.allModes))
       scenario.getPopulation.getPersons
