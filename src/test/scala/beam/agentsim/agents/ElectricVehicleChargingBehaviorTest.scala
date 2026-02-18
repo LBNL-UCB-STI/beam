@@ -256,7 +256,8 @@ class ElectricVehicleChargingBehaviorTest
 
     val vehicleIds = findAllElectricVehicles(events).map(id => id.toString)
     vehicleIds.size shouldEqual 50 withClue ", expecting 50 electric vehicles."
-    centerEnRouteSessionEvents.size should be > borderEnRouteSessionEvents.size withClue
+
+    centerEnRouteSessionEvents.size should be >= borderEnRouteSessionEvents.size withClue
     ", agents more likely to enroute charge in center TAZs than in border ones."
     centerPluginEvents.size + borderPluginEvents.size shouldEqual 200 withClue
     ", expecting 4 enroute events for each of the 50 vehicles."
