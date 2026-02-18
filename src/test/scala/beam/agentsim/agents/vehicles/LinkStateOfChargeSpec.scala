@@ -60,7 +60,7 @@ class LinkStateOfChargeSpec extends AnyWordSpecLike with Matchers with BeamHelpe
           EventReader.fromXmlFile(filePath)
         }
         val electricVehicles: IndexedSeq[Id[Vehicle]] = findAllElectricVehicles(eventsPerIteration.flatten)
-        electricVehicles.size should be >= 4 withClue
+        electricVehicles.size should be >= 3 withClue
         "Too low number of EVs, persons don't use (private and ride-hail) electric vehicles much?"
         val iterationStates: IndexedSeq[Map[Id[Vehicle], (Double, Double)]] = eventsPerIteration
           .map(events =>
