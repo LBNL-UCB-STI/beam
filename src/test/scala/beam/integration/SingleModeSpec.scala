@@ -44,7 +44,7 @@ class SingleModeSpec
 
   lazy implicit val system: ActorSystem = ActorSystem("SingleModeSpec", config)
 
-  "The agentsim" ignore {
+  "The agentsim" must {
     "let everybody walk when their plan says so" in {
       scenario.getPopulation.getPersons.values.asScala
         .foreach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.allModes))
