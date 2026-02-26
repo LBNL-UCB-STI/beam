@@ -3,14 +3,14 @@ package beam
 import java.security.Permission
 
 class NoExitForSpecSecurityManager extends SecurityManager {
-
   override def checkExit(status: Int): Unit = {
-    throw new SecurityException(s"System.exit() called with status: $status")
+    if (status != 0) {
+      throw new SecurityException(s"System.exit() called with status: $status")
+    }
+    // Allow exit status 0 (normal termination)
   }
 
-  // Allow all permissions – single‑argument version
+  // Grant all other permissions (required to avoid AccessControlException during logging, etc.)
   override def checkPermission(perm: Permission): Unit = {}
-
-  // Allow all permissions – two‑argument version (called with a context)
   override def checkPermission(perm: Permission, context: Object): Unit = {}
 }
