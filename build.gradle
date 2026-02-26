@@ -487,6 +487,7 @@ task spec(dependsOn: ['testClasses'], type: JavaExec) {
             '-u', 'build/scalatest-report-xml',
             '-oD',
             '-l', 'beam.tags.ExcludeRegular',
+            "-C", "beam.TestStatusReporter",   // custom reporter, to track running tests
             "-PS$n",
             '-T', '120',
             '-W', '300', '60']
