@@ -4,6 +4,7 @@ import org.scalatest.Reporter
 import org.scalatest.events._
 
 class TestStatusReporter extends Reporter {
+
   override def apply(event: Event): Unit = event match {
     case e: TestStarting =>
       TestTracker.addTest(e.suiteName, e.testName)

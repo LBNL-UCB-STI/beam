@@ -3,16 +3,16 @@ package beam
 import java.security.Permission
 
 /**
- * Security manager that intercepts System.exit(10) calls.
- *
- * Status 10 is thrown in:
- *   src/main/scala/beam/agentsim/scheduler/BeamAgentScheduler.scala
- *   within the `SimulationStuckCheck` function.
- *
- * This indicates that the simulation detected a deadlock/stuck condition
- * and attempted to exit the JVM. In tests, we want to catch this immediately,
- * dump the list of running tests, and fail the build with a clear banner.
- */
+  * Security manager that intercepts System.exit(10) calls.
+  *
+  * Status 10 is thrown in:
+  *   src/main/scala/beam/agentsim/scheduler/BeamAgentScheduler.scala
+  *   within the `SimulationStuckCheck` function.
+  *
+  * This indicates that the simulation detected a deadlock/stuck condition
+  * and attempted to exit the JVM. In tests, we want to catch this immediately,
+  * dump the list of running tests, and fail the build with a clear banner.
+  */
 class NoExitForSpecSecurityManager extends SecurityManager {
 
   override def checkExit(status: Int): Unit = {
