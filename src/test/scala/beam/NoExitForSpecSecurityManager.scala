@@ -3,6 +3,7 @@ package beam
 import java.security.Permission
 
 class NoExitForSpecSecurityManager extends SecurityManager {
+
   override def checkExit(status: Int): Unit = {
     if (status != 0) {
       throw new SecurityException(s"System.exit() called with status: $status")
