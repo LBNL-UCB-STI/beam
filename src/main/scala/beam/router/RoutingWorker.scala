@@ -150,38 +150,44 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
   private def withRoutingTimeout(
     request: RoutingRequest,
     future: Future[RoutingResponse],
-    startedAtMs: Long
+    routeStartedAtMsFuture: Future[Long]
   ): Future[RoutingResponse] = {
     routingTimeout match {
       case None => future
       case Some(timeout) =>
         val p = Promise[RoutingResponse]()
-        val timeoutTask = context.system.scheduler.scheduleOnce(timeout) {
-          val elapsedMs = System.currentTimeMillis() - startedAtMs
-          val stacks = dumpR5WorkerStacks()
-          log.error(
-            s"[ROUTING-TIMEOUT] requestId=${request.requestId}, triggerId=${request.triggerId}, " +
-            s"personId=${request.personId.map(_.toString).getOrElse("none")}, withTransit=${request.withTransit}, " +
-            s"requestedMode=${request.requestedMode.map(_.toString).getOrElse("None")}, departureTime=${request.departureTime}, " +
-            s"elapsedMs=$elapsedMs, timeoutMs=${timeout.toMillis}, " +
-            s"origin=(${request.originUTM.getX}, ${request.originUTM.getY}), destination=(${request.destinationUTM.getX}, ${request.destinationUTM.getY}), " +
-            f"distanceInMiles=${straightLineDistanceMiles(request)}%.3f, streetVehicles=${summarizeVehicles(request)}, " +
-            s"attributes=${request.attributesOfIndividual.map(_.toString).getOrElse("none")}\n" +
-            s"[ROUTING-TIMEOUT-THREAD-DUMP]\n$stacks"
-          )
-          p.tryFailure(
-            new TimeoutException(
-              s"Routing timed out after ${timeout.toMillis}ms for requestId=${request.requestId}, personId=${request.personId
-                .map(_.toString)
-                .getOrElse("none")}"
-            )
-          )
-        }(context.dispatcher)
+        routeStartedAtMsFuture.onComplete {
+          case Success(routeStartedAtMs) =>
+            val timeoutTask = context.system.scheduler.scheduleOnce(timeout) {
+              val elapsedMs = System.currentTimeMillis() - routeStartedAtMs
+              val stacks = dumpR5WorkerStacks()
+              log.error(
+                s"[ROUTING-TIMEOUT] requestId=${request.requestId}, triggerId=${request.triggerId}, " +
+                s"personId=${request.personId.map(_.toString).getOrElse("none")}, withTransit=${request.withTransit}, " +
+                s"requestedMode=${request.requestedMode.map(_.toString).getOrElse("None")}, departureTime=${request.departureTime}, " +
+                s"elapsedMs=$elapsedMs, timeoutMs=${timeout.toMillis}, " +
+                s"origin=(${request.originUTM.getX}, ${request.originUTM.getY}), destination=(${request.destinationUTM.getX}, ${request.destinationUTM.getY}), " +
+                f"distanceInMiles=${straightLineDistanceMiles(request)}%.3f, streetVehicles=${summarizeVehicles(request)}, " +
+                s"attributes=${request.attributesOfIndividual.map(_.toString).getOrElse("none")}\n" +
+                s"[ROUTING-TIMEOUT-THREAD-DUMP]\n$stacks"
+              )
+              p.tryFailure(
+                new TimeoutException(
+                  s"Routing timed out after ${timeout.toMillis}ms for requestId=${request.requestId}, personId=${request.personId
+                    .map(_.toString)
+                    .getOrElse("none")}"
+                )
+              )
+            }(context.dispatcher)
 
-        future.onComplete { result =>
-          timeoutTask.cancel()
-          p.tryComplete(result)
-        }(executionContext)
+            future.onComplete { result =>
+              timeoutTask.cancel()
+              p.tryComplete(result)
+            }(executionContext)
+
+          case Failure(err) =>
+            p.tryFailure(err)
+        }(context.dispatcher)
 
         p.future
     }
@@ -286,8 +292,9 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
       msgs = msgs + 1
       if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
       val replyTo = sender()
-      val startedAtMs = System.currentTimeMillis()
+      val routeStartedAtMs = Promise[Long]()
       val routeFuture = Future {
+        routeStartedAtMs.trySuccess(System.currentTimeMillis())
         latency("request-router-time", Metrics.RegularLevel) {
           if (!request.withTransit && (carRouter == "staticGH" || carRouter == "quasiDynamicGH")) {
             // run graphHopper for only cars
@@ -338,13 +345,15 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
           }
         }
       }
-      val eventualResponse = withRoutingTimeout(request, routeFuture, startedAtMs)
+      val eventualResponse = withRoutingTimeout(request, routeFuture, routeStartedAtMs.future)
+      def routeStartTimeForLogs: Long =
+        routeStartedAtMs.future.value.collect { case Success(ts) => ts }.getOrElse(System.currentTimeMillis())
 
       eventualResponse.onComplete {
         case Success(_) =>
-          maybeLogSlowRouting(request, startedAtMs, "success")
+          maybeLogSlowRouting(request, routeStartTimeForLogs, "success")
         case Failure(err) =>
-          maybeLogSlowRouting(request, startedAtMs, "failure", Some(err))
+          maybeLogSlowRouting(request, routeStartTimeForLogs, "failure", Some(err))
       }(executionContext)
 
       eventualResponse.recover { case e =>

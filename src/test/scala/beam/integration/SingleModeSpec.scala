@@ -10,6 +10,7 @@ import beam.router.Modes.BeamMode
 import beam.router.RouteHistory
 import beam.sflight.RouterForTest
 import beam.sim.common.GeoUtilsImpl
+import beam.sim.population.PopulationScaling
 import beam.sim.{BeamHelper, BeamMobsim, RideHailFleetInitializerProvider}
 import beam.utils.{MathUtils, SimRunnerForTest}
 import beam.utils.TestConfigUtils.testConfig
@@ -20,6 +21,7 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
+import java.nio.file.{Files, Paths}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -36,6 +38,8 @@ class SingleModeSpec
   def config: com.typesafe.config.Config =
     ConfigFactory
       .parseString("""akka.test.timefactor = 10,
+          |beam.agentsim.agentSampleSizeAsFractionOfPopulation = 0.25
+          |beam.agentsim.randomSeedForPopulationSampling = 12345
           |beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt = true
           |""".stripMargin)
       .withFallback(testConfig("test/input/sf-light/sf-light-1k.conf").resolve())
@@ -43,6 +47,12 @@ class SingleModeSpec
   def outputDirPath: String = basePath + "/" + testOutputDir + "single-mode-test"
 
   lazy implicit val system: ActorSystem = ActorSystem("SingleModeSpec", config)
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    Files.createDirectories(Paths.get(outputDirPath))
+    PopulationScaling.samplePopulation(scenario, beamScenario, beamConfig, services, outputDirPath)
+  }
 
   "The agentsim" must {
     "let everybody walk when their plan says so" in {
