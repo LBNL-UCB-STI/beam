@@ -74,8 +74,10 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
   private var msgs = 0
   private var firstMsgTime: Option[ZonedDateTime] = None
 
-  // Hardcoded for now; we can expose these via config later once behavior is validated in production.
-  private val routingTimeout: Option[FiniteDuration] = Some(60.seconds)
+  private val routingTimeout: Option[FiniteDuration] = {
+    val timeoutMs = workerParams.beamConfig.beam.routing.r5.routingRequestTimeout
+    if (timeoutMs > 0) Some(timeoutMs.milliseconds) else None
+  }
   private val slowRoutingWarnThresholdMs: Option[Long] = Some(10L * 1000L)
 
   log.info("RoutingWorker[{}] `{}` is ready", hashCode(), self.path)
