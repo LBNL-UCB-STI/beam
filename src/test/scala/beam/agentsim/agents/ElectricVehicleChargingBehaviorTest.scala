@@ -17,6 +17,10 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import scala.util.Random
 import scala.util.matching.Regex
 
+/*
+  This test may fail on CI due to simulation stuckness.
+  The BeamAgentScheduler.SimulationStuckCheck can terminate the JVM, leading to test failure.
+ */
 class ElectricVehicleChargingBehaviorTest
     extends AnyFlatSpec
     with Matchers
