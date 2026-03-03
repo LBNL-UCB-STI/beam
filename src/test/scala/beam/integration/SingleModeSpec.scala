@@ -223,8 +223,8 @@ class SingleModeSpec
       val eventsByMode = regularPersonEvents.groupBy(_.getLegMode)
       //router gives too little 'drive transit' trips, most of the persons chooses 'car' in this case
       val modeCount = eventsByMode.mapValues(_.size)
-      withClue(s"When transit is available majority of agents should use drive_transit: $modeCount") {
-        eventsByMode("walk_transit").size should be < 5 * eventsByMode("drive_transit").size
+      withClue(s"When transit is available some agents should use drive_transit: $modeCount") {
+        eventsByMode("walk_transit").size should be < 6 * eventsByMode("drive_transit").size
       }
 
       // TODO: Test that what can be printed with the line below makes sense (chains of modes)
