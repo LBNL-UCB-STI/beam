@@ -8,6 +8,9 @@ import beam.agentsim.events.PathTraversalEvent
 import beam.replanning.ModeIterationPlanCleaner
 import beam.router.Modes.BeamMode
 import beam.router.RouteHistory
+import beam.router.RoutingWorker
+import beam.router.r5.R5Wrapper
+import beam.router.r5.RouteDumper
 import beam.sflight.RouterForTest
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.population.PopulationScaling
@@ -15,7 +18,13 @@ import beam.sim.{BeamHelper, BeamMobsim, RideHailFleetInitializerProvider}
 import beam.utils.{MathUtils, SimRunnerForTest}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
-import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent, PersonEntersVehicleEvent}
+import org.matsim.api.core.v01.events.{
+  ActivityEndEvent,
+  Event,
+  PersonArrivalEvent,
+  PersonDepartureEvent,
+  PersonEntersVehicleEvent
+}
 import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.core.events.handler.BasicEventHandler
 import org.scalatest.matchers.should.Matchers
@@ -26,6 +35,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.language.postfixOps
+import scala.util.Try
 
 class SingleModeSpec
     extends AnyWordSpecLike
@@ -35,12 +45,23 @@ class SingleModeSpec
     with BeamHelper
     with Matchers {
 
+  private val writeRoutingStatistic: Boolean =
+    sys.env.get("SINGLEMODE_WRITE_ROUTING_STATISTIC").exists(_.equalsIgnoreCase("true"))
+
+  private val routingDiagnostics: Boolean =
+    sys.env.get("SINGLEMODE_ROUTING_DIAGNOSTICS").exists(_.equalsIgnoreCase("true"))
+
+  private val writeR5RoutesInterval: Int =
+    sys.env.get("SINGLEMODE_WRITE_R5_ROUTES_INTERVAL").flatMap(v => Try(v.toInt).toOption).getOrElse(0)
+
   def config: com.typesafe.config.Config =
     ConfigFactory
       .parseString("""akka.test.timefactor = 10,
-          |beam.agentsim.agentSampleSizeAsFractionOfPopulation = 0.25
+          |beam.agentsim.agentSampleSizeAsFractionOfPopulation = 0.5
           |beam.agentsim.randomSeedForPopulationSampling = 12345
           |beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt = true
+          |beam.routing.writeRoutingStatistic = """ + writeRoutingStatistic + """
+          |beam.outputs.writeR5RoutesInterval = """ + writeR5RoutesInterval + """
           |""".stripMargin)
       .withFallback(testConfig("test/input/sf-light/sf-light-1k.conf").resolve())
 
@@ -186,17 +207,33 @@ class SingleModeSpec
           }
         }
       val events = mutable.ListBuffer[Event]()
+      val routingEvents = mutable.ListBuffer[Event]()
       services.matsimServices.getEvents.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
             event match {
-              case event @ (_: PersonDepartureEvent | _: ActivityEndEvent) =>
+              case event @ (_: PersonDepartureEvent | _: PersonArrivalEvent | _: ActivityEndEvent) =>
                 events += event
               case _ =>
             }
           }
         }
       )
+      if (routingDiagnostics) {
+        eventsManager.addHandler(
+          new BasicEventHandler {
+            override def handleEvent(event: Event): Unit = {
+              event match {
+                case event: RouteDumper.RoutingRequestEvent =>
+                  routingEvents += event
+                case event: RouteDumper.RoutingResponseEvent =>
+                  routingEvents += event
+                case _ =>
+              }
+            }
+          }
+        )
+      }
       val mobsim = new BeamMobsim(
         services,
         beamScenario,
@@ -218,13 +255,53 @@ class SingleModeSpec
 
       assert(events.nonEmpty)
       val personDepartureEvents = events.collect { case event: PersonDepartureEvent => event }
+      val personArrivalEvents = events.collect { case event: PersonArrivalEvent => event }
       personDepartureEvents should not be empty
       val regularPersonEvents = filterOutProfessionalDriversAndCavs(personDepartureEvents)
+      val regularPersonArrivalEvents = personArrivalEvents.filterNot(event =>
+        event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "be_a_transit_driver" || event.getLegMode == "cav"
+      )
       val eventsByMode = regularPersonEvents.groupBy(_.getLegMode)
       //router gives too little 'drive transit' trips, most of the persons chooses 'car' in this case
       val modeCount = eventsByMode.mapValues(_.size)
+      val driveTransitDepartures = eventsByMode.get("drive_transit").map(_.size).getOrElse(0)
+      val walkTransitDepartures = eventsByMode.get("walk_transit").map(_.size).getOrElse(0)
+      val driveTransitArrivals = regularPersonArrivalEvents.count(_.getLegMode == "drive_transit")
+      val driveTransitShareVsWalk =
+        if (driveTransitDepartures + walkTransitDepartures > 0)
+          driveTransitDepartures.toDouble / (driveTransitDepartures + walkTransitDepartures).toDouble
+        else 0.0
+      val driveTransitArrivalRate =
+        if (driveTransitDepartures > 0) driveTransitArrivals.toDouble / driveTransitDepartures.toDouble else 0.0
+      if (routingDiagnostics) {
+        val routingRequests = routingEvents.collect { case event: RouteDumper.RoutingRequestEvent => event }
+        val routingResponses = routingEvents.collect { case event: RouteDumper.RoutingResponseEvent => event }
+        val driveTransitRequested =
+          routingRequests.count(_.routingRequest.requestedMode.contains(BeamMode.DRIVE_TRANSIT))
+        val driveTransitResponses =
+          routingResponses.count(_.routingResponse.request.exists(_.requestedMode.contains(BeamMode.DRIVE_TRANSIT)))
+        val driveTransitResponsesWithDriveItin = routingResponses.count(event =>
+          event.routingResponse.request.exists(_.requestedMode.contains(BeamMode.DRIVE_TRANSIT)) &&
+          event.routingResponse.itineraries.exists(_.tripClassifier == BeamMode.DRIVE_TRANSIT)
+        )
+        val driveTransitResponsesWithoutDriveItin = driveTransitResponses - driveTransitResponsesWithDriveItin
+        println(
+          s"[SINGLEMODE-ROUTING-DIAGNOSTICS] routingRequests=${routingRequests.size}, " +
+          s"routingResponses=${routingResponses.size}, driveTransitRequested=$driveTransitRequested, " +
+          s"driveTransitResponses=$driveTransitResponses, driveTransitResponsesWithDriveItin=$driveTransitResponsesWithDriveItin, " +
+          s"driveTransitResponsesWithoutDriveItin=$driveTransitResponsesWithoutDriveItin"
+        )
+        println(s"[SINGLEMODE-ROUTING-WORKER-DIAGNOSTICS] ${RoutingWorker.driveTransitDiagnosticsLine}")
+        println(s"[SINGLEMODE-R5-DRIVE-TRANSIT-DIAGNOSTICS] ${R5Wrapper.driveTransitDiagnosticsLine}")
+      }
+      println(
+        f"[SINGLEMODE-DRIVE-TRANSIT-METRICS] departuresTotal=${regularPersonEvents.size}%d " +
+        f"driveDepartures=$driveTransitDepartures%d walkDepartures=$walkTransitDepartures%d " +
+        f"driveArrivals=$driveTransitArrivals%d driveShareVsWalk=$driveTransitShareVsWalk%.6f " +
+        f"driveArrivalRate=$driveTransitArrivalRate%.6f"
+      )
       withClue(s"When transit is available some agents should use drive_transit: $modeCount") {
-        eventsByMode("walk_transit").size should be < 6 * eventsByMode("drive_transit").size
+        walkTransitDepartures should be < 6 * driveTransitDepartures
       }
 
       // TODO: Test that what can be printed with the line below makes sense (chains of modes)
