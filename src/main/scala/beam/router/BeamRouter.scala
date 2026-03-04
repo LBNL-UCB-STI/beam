@@ -265,7 +265,7 @@ class BeamRouter(
     case odSkimmerReady: ODSkimmerReady =>
       odSkimmer = Some(odSkimmerReady.odSkimmer)
     case routingResp: RoutingResponse =>
-      if (shouldWriteR5Routes(currentIteration) || beamScenario.beamConfig.beam.routing.writeRoutingStatistic)
+      if (shouldWriteR5Routes(currentIteration))
         eventsManager.processEvent(RouteDumper.RoutingResponseEvent(routingResp))
 
       val updatedRoutingResponse: RoutingResponse = odSkimmer
