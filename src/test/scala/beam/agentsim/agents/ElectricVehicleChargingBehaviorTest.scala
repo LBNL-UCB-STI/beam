@@ -137,6 +137,8 @@ class ElectricVehicleChargingBehaviorTest
     val config = ConfigFactory
       .parseString(
         s"""
+           |beam.agentsim.simulationName = "charge-at-destination"
+           |beam.actorSystemName = "charge-at-destination"
            |beam.agentsim.taz.parkingFilePath = $filesPath/taz-parking-destination-only.csv"
            |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath/vehicleTypes-low-capacity.csv"
           """.stripMargin
@@ -210,6 +212,8 @@ class ElectricVehicleChargingBehaviorTest
     val config = ConfigFactory
       .parseString(
         s"""
+           |beam.agentsim.simulationName = "enroute-when-no-energy"
+           |beam.actorSystemName = "enroute-when-no-energy"
            |beam.agentsim.taz.parkingFilePath = $filesPath/taz-parking-enroute-only-free.csv"
            |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath/vehicleTypes-very-low-capacity.csv"
         """.stripMargin
@@ -273,6 +277,8 @@ class ElectricVehicleChargingBehaviorTest
     val config = ConfigFactory
       .parseString(
         s"""
+           |beam.agentsim.simulationName = "parking-ticket-cost"
+           |beam.actorSystemName = "parking-ticket-cost"
            |beam.agentsim.taz.parkingFilePath = $filesPath/taz-parking-enroute-only-mixed-prices.csv"
            |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath/vehicleTypes-very-low-capacity.csv"
         """.stripMargin
@@ -338,6 +344,8 @@ class ElectricVehicleChargingBehaviorTest
     val config = ConfigFactory
       .parseString(
         s"""$rideHailConfig
+           |beam.agentsim.simulationName = "suitable-charging-stations"
+           |beam.actorSystemName = "suitable-charging-stations"
            |beam.agentsim.taz.parkingFilePath = $filesPath/taz-parking-ride-hail.csv"
            |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath/vehicleTypes-low-capacity.csv"
            |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_intercept = 10000000
@@ -433,6 +441,9 @@ class ElectricVehicleChargingBehaviorTest
     val config = ConfigFactory
       .parseString(
         s"""$rideHailConfig
+           |beam.agentsim.simulationName = "driving-time-cost"
+           |beam.actorSystemName = "driving-time-cost"
+           |beam.debug.messageLogging = true
            |beam.agentsim.agents.plans.inputPlansFilePath = $filesPath/populationWalk.xml"
            |beam.agentsim.taz.parkingFilePath = $filesPath/taz-parking-ride-hail-driving-time-cost.csv"
            |# 15 Km range
@@ -540,6 +551,8 @@ class ElectricVehicleChargingBehaviorTest
     val config = ConfigFactory
       .parseString(
         s"""$rideHailConfig
+           |beam.agentsim.simulationName = "charging-time-cost"
+           |beam.actorSystemName = "charging-time-cost"
            |beam.agentsim.taz.parkingFilePath = $filesPath/taz-parking-ride-hail-charging-time-cost.csv"
            |# 5 Km range
            |beam.agentsim.agents.vehicles.vehicleTypesFilePath =  $filesPath/vehicleTypes-high-capacity-low-range.csv"

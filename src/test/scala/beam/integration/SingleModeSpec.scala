@@ -41,6 +41,7 @@ class SingleModeSpec
           |beam.agentsim.agentSampleSizeAsFractionOfPopulation = 0.25
           |beam.agentsim.randomSeedForPopulationSampling = 12345
           |beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt = true
+          |beam.debug.stuckAgentDetection.enabled=true
           |""".stripMargin)
       .withFallback(testConfig("test/input/sf-light/sf-light-1k.conf").resolve())
 
