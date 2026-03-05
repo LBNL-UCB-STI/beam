@@ -974,8 +974,27 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         profileRequest.transitModes = util.EnumSet.allOf(classOf[TransitModes])
       }
 
-      val destinationVehicle = destinationVehicles.headOption
-      val vehicleToDestinationLeg = destinationVehicle.map(v => routeFromVehicleToDestination(v))
+      val destinationVehicleAndLeg: Option[(StreetVehicle, EmbodiedBeamLeg)] =
+        if (destinationVehicles.isEmpty) {
+          None
+        } else if (destinationVehicles.size == 1) {
+          val onlyVehicle = destinationVehicles.head
+          Some(onlyVehicle -> routeFromVehicleToDestination(onlyVehicle))
+        } else {
+          val candidateVehicleLegs = destinationVehicles.map(v => v -> routeFromVehicleToDestination(v))
+          val (selectedVehicle, selectedLeg) = candidateVehicleLegs.minBy(_._2.beamLeg.duration)
+          val candidatesStr = candidateVehicleLegs
+            .map { case (vehicle, leg) => s"${vehicle.id}:${leg.beamLeg.duration}s" }
+            .mkString("[", ", ", "]")
+          logger.warn(
+            s"[ROUTING-EGRESS-MULTI-VEHICLE] requestId=${request.requestId} " +
+            s"streetVehiclesUseIntermodalUse=${request.streetVehiclesUseIntermodalUse} " +
+            s"candidates=${destinationVehicles.size} durations=$candidatesStr selectedVehicle=${selectedVehicle.id}"
+          )
+          Some(selectedVehicle -> selectedLeg)
+        }
+      val destinationVehicle = destinationVehicleAndLeg.map(_._1)
+      val vehicleToDestinationLeg = destinationVehicleAndLeg.map(_._2)
 
       val accessRouters = mutable.Map[LegMode, StreetRouter]()
       val accessStopsByMode = mutable.Map[LegMode, StopVisitor]()
@@ -1094,9 +1113,9 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
               request.withTransit && request.requestedMode.contains(DRIVE_TRANSIT)
             val disableDestinationSplitBreakForThisAccessSearch =
               disableDestinationSplitBreakForDriveTransitAccess && isDriveTransitAccessSearch
-            val destinationSplitExtraVerticesAfterHit =
+            val destinationSplitExtraTimeSecondsAfterHit =
               if (isDriveTransitAccessSearch)
-                driveTransitAccessDestinationSplitExtraVerticesAfterHit
+                driveTransitAccessDestinationSplitExtraTimeSecondsAfterHit
               else
                 0
             val destinationSplitContinueIfStopsBelow =
@@ -1111,7 +1130,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
               profileRequest.getMinTimeSeconds(streetRouter.streetMode),
               destinationSplit,
               stopAtDestinationSplit = !disableDestinationSplitBreakForThisAccessSearch,
-              destinationSplitExtraVerticesAfterHit = destinationSplitExtraVerticesAfterHit,
+              destinationSplitExtraTimeSecondsAfterHit = destinationSplitExtraTimeSecondsAfterHit,
               destinationSplitContinueIfStopsBelow = destinationSplitContinueIfStopsBelow
             )
             streetRouter.setRoutingVisitor(stopVisitor)
@@ -1264,7 +1283,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             streetRouter.quantityToMinimize,
             streetRouter.transitStopSearchQuantity,
             profileRequest.getMinTimeSeconds(streetRouter.streetMode),
-            destinationSplit
+            destinationSplit,
+            stopAtDestinationSplit = !(mainRouteToVehicle && request.requestedMode.contains(DRIVE_TRANSIT))
           )
           streetRouter.setRoutingVisitor(stopVisitor)
           if (streetRouter.setOrigin(profileRequest.toLat, profileRequest.toLon, linkRadiusMeters)) {
@@ -1662,10 +1682,10 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             EmbodiedBeamTrip(embodiedBeamLegs, Some("R5"))
           }
           .filter { trip: EmbodiedBeamTrip =>
-            //TODO make a more sensible window not just 30 minutes
+            // Allow lower-frequency service to remain available in late-start itineraries.
             trip.legs.forall(l =>
               l.beamLeg.startTime >= request.departureTime
-            ) && trip.legs.head.beamLeg.startTime <= request.departureTime + 1800
+            ) && trip.legs.head.beamLeg.startTime <= request.departureTime + 3600
           }
       }
 
@@ -2498,8 +2518,8 @@ object R5Wrapper extends StrictLogging {
       .get("SINGLEMODE_R5_DISABLE_DESTINATION_SPLIT_BREAK_FOR_DRIVE_ACCESS")
       .exists(_.equalsIgnoreCase("true"))
 
-  val driveTransitAccessDestinationSplitExtraVerticesAfterHit: Int =
-    intEnv("SINGLEMODE_R5_DRIVE_ACCESS_DEST_SPLIT_EXTRA_VERTICES_AFTER_HIT", 5000)
+  val driveTransitAccessDestinationSplitExtraTimeSecondsAfterHit: Int =
+    intEnv("SINGLEMODE_R5_DRIVE_ACCESS_DEST_SPLIT_EXTRA_SECONDS_AFTER_HIT", 300)
 
   val driveTransitAccessDestinationSplitContinueIfStopsBelow: Int =
     intEnv("SINGLEMODE_R5_DRIVE_ACCESS_DEST_SPLIT_CONTINUE_IF_STOPS_BELOW", 1)
@@ -2532,7 +2552,7 @@ object R5Wrapper extends StrictLogging {
     s"unknown=${driveTransitUnknown.get()} " +
     s"mcRaptorExceptions=${driveTransitMcRaptorExceptions.get()} " +
     s"noAccessStopsWithSetOriginFailure=${driveTransitNoAccessStopsWithSetOriginFailure.get()} " +
-    s"destSplitExtraVerticesAfterHit=$driveTransitAccessDestinationSplitExtraVerticesAfterHit " +
+    s"destSplitExtraTimeSecondsAfterHit=$driveTransitAccessDestinationSplitExtraTimeSecondsAfterHit " +
     s"destSplitContinueIfStopsBelow=$driveTransitAccessDestinationSplitContinueIfStopsBelow " +
     s"disableDestSplitBreak=$disableDestinationSplitBreakForDriveTransitAccess"
 

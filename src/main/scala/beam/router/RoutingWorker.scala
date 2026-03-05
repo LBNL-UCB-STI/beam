@@ -79,7 +79,7 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
     val timeoutMs = workerParams.beamConfig.beam.routing.r5.routingRequestTimeout
     if (timeoutMs > 0) Some(timeoutMs.milliseconds) else None
   }
-  private val slowRoutingWarnThresholdMs: Option[Long] = Some(10L * 1000L)
+  private val slowRoutingWarnThresholdMs: Option[Long] = Some(30L * 1000L)
 
   log.info("RoutingWorker[{}] `{}` is ready", hashCode(), self.path)
   log.info(
@@ -727,7 +727,7 @@ object RoutingWorker {
     val minTravelTimeSeconds: Int,
     val destinationSplit: Split,
     val stopAtDestinationSplit: Boolean = true,
-    val destinationSplitExtraVerticesAfterHit: Int = 0,
+    val destinationSplitExtraTimeSecondsAfterHit: Int = 0,
     val destinationSplitContinueIfStopsBelow: Int = 0
   ) extends RoutingVisitor {
     private val stopForStreetVertex = streetLayer.parentNetwork.transitLayer.stopForStreetVertex
@@ -735,15 +735,17 @@ object RoutingWorker {
     val stops: TIntIntMap = new TIntIntHashMap
     private var stopCount: Int = 0
     private var lastVisitedVertex: Int = 0
+    private var lastVisitedTravelTimeSeconds: Int = 0
     private var hasVisitedVertex: Boolean = false
     private val destinationSplitVertex0 = if (destinationSplit != null) destinationSplit.vertex0 else -1
     private val destinationSplitVertex1 = if (destinationSplit != null) destinationSplit.vertex1 else -1
     private var visitedVertices: Int = 0
-    private var destinationSplitFirstHitVisitedVertices: Int = -1
+    private var destinationSplitFirstHitTravelTimeSeconds: Int = -1
 
     override def visitVertex(state: StreetRouter.State): Unit = {
       val vertex = state.vertex
       lastVisitedVertex = vertex
+      lastVisitedTravelTimeSeconds = state.getDurationSeconds
       hasVisitedVertex = true
       visitedVertices += 1
       if (state.getDurationSeconds < minTravelTimeSeconds) return
@@ -766,17 +768,17 @@ object RoutingWorker {
       if (stopCount >= maxStops) return true
       // Continue: destination-split stopping is disabled or no vertex has been visited yet.
       if (!stopAtDestinationSplit || !hasVisitedVertex) return false
-      // Continue: current search frontier has not reached either destination split vertex yet.
-      if (lastVisitedVertex != destinationSplitVertex0 && lastVisitedVertex != destinationSplitVertex1) return false
-
-      if (destinationSplitFirstHitVisitedVertices < 0) {
-        destinationSplitFirstHitVisitedVertices = visitedVertices
+      if (destinationSplitFirstHitTravelTimeSeconds < 0) {
+        // Continue: current search frontier has not reached either destination split vertex yet.
+        if (lastVisitedVertex != destinationSplitVertex0 && lastVisitedVertex != destinationSplitVertex1) return false
+        destinationSplitFirstHitTravelTimeSeconds = lastVisitedTravelTimeSeconds
       }
 
-      val visitedAfterDestinationHit = visitedVertices - destinationSplitFirstHitVisitedVertices
-      // Break: after hitting destination split, stop once we have enough stops or used extra vertex budget.
-      stopCount >= destinationSplitContinueIfStopsBelow ||
-      visitedAfterDestinationHit >= destinationSplitExtraVerticesAfterHit
+      // Continue: keep searching until minimum stop count is reached.
+      if (stopCount < destinationSplitContinueIfStopsBelow) return false
+      // Break: destination was reached and the post-destination access-time budget is exhausted.
+      lastVisitedTravelTimeSeconds >
+      destinationSplitFirstHitTravelTimeSeconds + destinationSplitExtraTimeSecondsAfterHit
     }
 
     def getVisitedVertices: Int = visitedVertices
