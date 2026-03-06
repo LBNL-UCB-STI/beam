@@ -120,7 +120,7 @@ class ModeChoiceSpec
   }
 
   "Running beam with high intercepts for bike transit" must {
-    "use bike transit with R5 router" ignore {
+    "use bike transit with R5 router" in {
       val theRun: StartWithCustomConfig = new StartWithCustomConfig(
         resolvedBaseBeamvilleUrbansimConfigWithHighInterceptFor("bike_transit_intercept", "R5")
       )

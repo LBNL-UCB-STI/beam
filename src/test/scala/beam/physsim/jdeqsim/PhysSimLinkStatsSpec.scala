@@ -64,8 +64,7 @@ class PhysSimLinkStatsSpec extends AnyWordSpecLike with Matchers {
       }
     }
     "double-parking happens" must {
-      // TODO: ignored because latest code changes made significant values shift, investigation required!
-      "produce correct travel times" ignore {
+      "produce correct travel times" in {
         val scenario: MutableScenario =
           readScenario(matsimConfig, network, "test/test-resources/beam/physsim/physsim-plans-12k.xml.gz")
         addDoubleParkingToSomeLegs(scenario)
@@ -77,17 +76,15 @@ class PhysSimLinkStatsSpec extends AnyWordSpecLike with Matchers {
         val cp = new Checkpoint()
 
         /*
-          8.761449023502337 was not 18.63 plus or minus 0.01 (in Checkpoint) at PhysSimLinkStatsSpec.scala:78
-          9.164139183432521 was not 12.33 plus or minus 0.01 (in Checkpoint) at PhysSimLinkStatsSpec.scala:80
-          7.042782063007053 was not 4.79 plus or minus 0.01 (in Checkpoint) at PhysSimLinkStatsSpec.scala:81
-          70.31769190209161 was not 91.1 plus or minus 0.1 (in Checkpoint) at PhysSimLinkStatsSpec.scala:82
+          travel times are affected by the beam.physsim.minCarSpeedInMetersPerSecond which is used to calculate
+          end road time in beam.physsim.jdeqsim.cacc.sim.Road.enterRoad method
          */
 
-        cp { linkTravelTime(20) shouldBe 18.63 +- 0.01 }
+        cp { linkTravelTime(20) shouldBe 8.76 +- 0.01 }
         cp { linkTravelTime(21) shouldBe 0.355 +- 0.001 }
-        cp { linkTravelTime(22) shouldBe 12.33 +- 0.01 }
-        cp { linkTravelTime(24) shouldBe 4.79 +- 0.01 }
-        cp { linkTravelTime(30) shouldBe 91.1 +- 0.1 }
+        cp { linkTravelTime(22) shouldBe 9.16 +- 0.01 }
+        cp { linkTravelTime(24) shouldBe 7.04 +- 0.01 }
+        cp { linkTravelTime(30) shouldBe 70.31 +- 0.1 }
         cp { linkTravelTime(31) shouldBe 70.3 +- 0.1 }
         cp { linkTravelTime(32) shouldBe 0.355 +- 0.001 }
 
