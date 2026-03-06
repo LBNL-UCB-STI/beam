@@ -236,16 +236,20 @@ class SingleModeSpec
       val driveTransitPersonIds =
         regularPersonEvents.filter(_.getLegMode == "drive_transit").map(_.getPersonId.toString).toSet
       val populationPersonIds = scenario.getPopulation.getPersons.keySet().asScala.map(_.toString).toSet
-      val parkingEventsByPerson = events.collect {
-        case event: ParkingEvent
-            if populationPersonIds.contains(event.driverId) && driveTransitPersonIds.contains(event.driverId) =>
-          event
-      }.groupBy(_.driverId)
-      val leavingParkingEventsByPerson = events.collect {
-        case event: LeavingParkingEvent
-            if populationPersonIds.contains(event.driverId) && driveTransitPersonIds.contains(event.driverId) =>
-          event
-      }.groupBy(_.driverId)
+      val parkingEventsByPerson = events
+        .collect {
+          case event: ParkingEvent
+              if populationPersonIds.contains(event.driverId) && driveTransitPersonIds.contains(event.driverId) =>
+            event
+        }
+        .groupBy(_.driverId)
+      val leavingParkingEventsByPerson = events
+        .collect {
+          case event: LeavingParkingEvent
+              if populationPersonIds.contains(event.driverId) && driveTransitPersonIds.contains(event.driverId) =>
+            event
+        }
+        .groupBy(_.driverId)
       val personsDriveTransitWalkOnly = parkingEventsByPerson.keySet.diff(leavingParkingEventsByPerson.keySet)
       val personsWalkTransitDriveOnly = leavingParkingEventsByPerson.keySet.diff(parkingEventsByPerson.keySet)
       val personsWithBothDriveTransitAndPickup =
