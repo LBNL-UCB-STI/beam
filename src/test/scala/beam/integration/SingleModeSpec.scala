@@ -4,6 +4,7 @@ import akka.actor._
 import akka.testkit.TestKitBase
 import beam.agentsim.agents.PersonTestUtil
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
+import beam.agentsim.events.{LeavingParkingEvent, ParkingEvent}
 import beam.agentsim.events.PathTraversalEvent
 import beam.replanning.ModeIterationPlanCleaner
 import beam.router.Modes.BeamMode
@@ -15,7 +16,13 @@ import beam.sim.{BeamHelper, BeamMobsim, RideHailFleetInitializerProvider}
 import beam.utils.{MathUtils, SimRunnerForTest}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
-import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent, PersonEntersVehicleEvent}
+import org.matsim.api.core.v01.events.{
+  ActivityEndEvent,
+  Event,
+  PersonArrivalEvent,
+  PersonDepartureEvent,
+  PersonEntersVehicleEvent
+}
 import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.core.events.handler.BasicEventHandler
 import org.scalatest.matchers.should.Matchers
@@ -191,7 +198,8 @@ class SingleModeSpec
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
             event match {
-              case event @ (_: PersonDepartureEvent | _: ActivityEndEvent) =>
+              case event @ (_: PersonDepartureEvent | _: PersonArrivalEvent | _: ActivityEndEvent | _: ParkingEvent |
+                  _: LeavingParkingEvent) =>
                 events += event
               case _ =>
             }
@@ -219,13 +227,67 @@ class SingleModeSpec
 
       assert(events.nonEmpty)
       val personDepartureEvents = events.collect { case event: PersonDepartureEvent => event }
+      val personArrivalEvents = events.collect { case event: PersonArrivalEvent => event }
       personDepartureEvents should not be empty
       val regularPersonEvents = filterOutProfessionalDriversAndCavs(personDepartureEvents)
+      val regularPersonArrivalEvents = personArrivalEvents.filterNot(event =>
+        event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "be_a_transit_driver" || event.getLegMode == "cav"
+      )
+      val driveTransitPersonIds =
+        regularPersonEvents.filter(_.getLegMode == "drive_transit").map(_.getPersonId.toString).toSet
+      val populationPersonIds = scenario.getPopulation.getPersons.keySet().asScala.map(_.toString).toSet
+      val parkingEventsByPerson = events.collect {
+        case event: ParkingEvent
+            if populationPersonIds.contains(event.driverId) && driveTransitPersonIds.contains(event.driverId) =>
+          event
+      }.groupBy(_.driverId)
+      val leavingParkingEventsByPerson = events.collect {
+        case event: LeavingParkingEvent
+            if populationPersonIds.contains(event.driverId) && driveTransitPersonIds.contains(event.driverId) =>
+          event
+      }.groupBy(_.driverId)
+      val personsDriveTransitWalkOnly = parkingEventsByPerson.keySet.diff(leavingParkingEventsByPerson.keySet)
+      val personsWalkTransitDriveOnly = leavingParkingEventsByPerson.keySet.diff(parkingEventsByPerson.keySet)
+      val personsWithBothDriveTransitAndPickup =
+        parkingEventsByPerson.keySet.intersect(leavingParkingEventsByPerson.keySet)
+      val oneDirectionOnlyPersons = personsDriveTransitWalkOnly.size + personsWalkTransitDriveOnly.size
+      val personsWithAnyPickupLifecycle = oneDirectionOnlyPersons + personsWithBothDriveTransitAndPickup.size
+      val oneDirectionOnlyRate =
+        if (personsWithAnyPickupLifecycle > 0)
+          oneDirectionOnlyPersons.toDouble / personsWithAnyPickupLifecycle.toDouble
+        else 0.0
+      val maxAllowedOneDirectionOnlyRate = 0.50
       val eventsByMode = regularPersonEvents.groupBy(_.getLegMode)
       //router gives too little 'drive transit' trips, most of the persons chooses 'car' in this case
       val modeCount = eventsByMode.mapValues(_.size)
-      withClue(s"When transit is available some agents should use drive_transit: $modeCount") {
-        eventsByMode("walk_transit").size should be < 6 * eventsByMode("drive_transit").size
+      val driveTransitDepartures = eventsByMode.get("drive_transit").map(_.size).getOrElse(0)
+      val walkTransitDepartures = eventsByMode.get("walk_transit").map(_.size).getOrElse(0)
+      val driveTransitArrivals = regularPersonArrivalEvents.count(_.getLegMode == "drive_transit")
+      val driveTransitShareVsWalk =
+        if (driveTransitDepartures + walkTransitDepartures > 0)
+          driveTransitDepartures.toDouble / (driveTransitDepartures + walkTransitDepartures).toDouble
+        else 0.0
+      val driveTransitArrivalRate =
+        if (driveTransitDepartures > 0) driveTransitArrivals.toDouble / driveTransitDepartures.toDouble else 0.0
+      println(
+        f"[SINGLEMODE-DRIVE-TRANSIT-METRICS] departuresTotal=${regularPersonEvents.size}%d " +
+        f"driveDepartures=$driveTransitDepartures%d walkDepartures=$walkTransitDepartures%d " +
+        f"driveArrivals=$driveTransitArrivals%d driveShareVsWalk=$driveTransitShareVsWalk%.6f " +
+        f"driveArrivalRate=$driveTransitArrivalRate%.6f"
+      )
+      println(
+        f"[SINGLEMODE-DRIVE-TRANSIT-PICKUP-METRICS] driveTransitWalkOnlyPersons=${personsDriveTransitWalkOnly.size}%d " +
+        f"walkTransitDriveOnlyPersons=${personsWalkTransitDriveOnly.size}%d " +
+        f"bothPickupAndDropPersons=${personsWithBothDriveTransitAndPickup.size}%d " +
+        f"oneDirectionOnlyPersons=$oneDirectionOnlyPersons%d personsWithAnyPickupLifecycle=$personsWithAnyPickupLifecycle%d " +
+        f"oneDirectionOnlyRate=$oneDirectionOnlyRate%.6f maxAllowedOneDirectionOnlyRate=$maxAllowedOneDirectionOnlyRate%.2f"
+      )
+      withClue(s"When transit is available drive_transit should remain viable: $modeCount") {
+        driveTransitDepartures should be > 0
+        driveTransitShareVsWalk should be > 0.25
+        driveTransitArrivalRate should be > 0.85
+        personsWithBothDriveTransitAndPickup.size should be > 0
+        oneDirectionOnlyRate should be <= maxAllowedOneDirectionOnlyRate
       }
 
       // TODO: Test that what can be printed with the line below makes sense (chains of modes)
@@ -298,9 +360,14 @@ class SingleModeSpec
       personDepartureEvents should not be empty
       val regularPersonEvents = filterOutProfessionalDriversAndCavs(personDepartureEvents)
       val eventsByMode = regularPersonEvents.groupBy(_.getLegMode)
+      val walkTransitDepartures = eventsByMode.get("walk_transit").map(_.size).getOrElse(0)
+      val bikeTransitDepartures = eventsByMode.get("bike_transit").map(_.size).getOrElse(0)
       //router gives too little 'drive transit' trips, most of the persons chooses 'car' in this case
-      withClue("When transit is available majority of agents should use bike_transit") {
-        eventsByMode("walk_transit").size should be < eventsByMode("bike_transit").size
+      withClue(
+        s"When transit is available majority of agents should use bike_transit: walk_transit=$walkTransitDepartures bike_transit=$bikeTransitDepartures"
+      ) {
+        bikeTransitDepartures should be > 0
+        walkTransitDepartures should be < bikeTransitDepartures
       }
 
       // TODO: Test that what can be printed with the line below makes sense (chains of modes)
