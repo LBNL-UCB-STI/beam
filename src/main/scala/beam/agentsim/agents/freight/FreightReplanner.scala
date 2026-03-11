@@ -66,7 +66,7 @@ class FreightReplanner(
       val vehicleId = Id.createVehicleId(vehicleIdStr)
       val person = population.get(freightReader.createPersonId(vehicleId))
       val toursAndPlans = routes.zipWithIndex.map { case (route, i) =>
-        convertToFreightTourWithPayloadPlans(s"${route.vehicle.id}-$i".createId, route, freightCarrier.payloadPlans)
+        convertToFreightTourWithPayloadPlans(s"${route.vehicle.id}-$i".createId, route, freightCarrier)
       }
       val tours = toursAndPlans.map(_._1)
       val plansPerTour = toursAndPlans.map { case (tour, plans) => tour.tourId -> plans }.toMap
@@ -77,19 +77,37 @@ class FreightReplanner(
   private def convertToFreightTourWithPayloadPlans(
     tourId: Id[FreightTour],
     route: Route,
-    payloadPlans: Map[Id[PayloadPlan], PayloadPlan]
+    freightCarrier: FreightCarrier
   ): (FreightTour, IndexedSeq[PayloadPlan]) = {
     val schedulerParallelismWindow = beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow
     val departureTime = Math.max(route.startTime, schedulerParallelismWindow + 1)
     val maxTourDurationInSec = route.duration * 2
     val tour = FreightTour(tourId, departureTime, maxTourDurationInSec)
 
-    val plans = route.activities.zipWithIndex.map { case (activity, i) =>
+    // this returns a fake payload plan for the depot activity
+    def depotPlan(rank: Int): PayloadPlan = {
+      PayloadPlan(
+        "depot".createId,
+        rank,
+        tour.tourId,
+        "depot".createId,
+        0.0,
+        FreightActivityType.Depot,
+        freightCarrier.depotLocationTaz,
+        freightCarrier.depotLocationUTM,
+        departureTime,
+        departureTime,
+        departureTime,
+        0
+      )
+    }
+
+    val plans = route.activities.zip(1 to route.activities.length).map { case (activity, i) =>
       val activityType: FreightActivityType = activity.service match {
         case _: Dropoff => FreightActivityType.Unloading
         case _: Pickup  => FreightActivityType.Loading
       }
-      val payloadPlan = payloadPlans(activity.service.id.createId)
+      val payloadPlan = freightCarrier.payloadPlans(activity.service.id.createId)
 
       PayloadPlan(
         activity.service.id.createId,
@@ -106,7 +124,9 @@ class FreightReplanner(
         payloadPlan.operationDurationInSec
       )
     }
-    (tour, plans)
+    // we need to add fake depot plans at the beginning and at the end of the tour
+    // these plans will be converted to depot activities in the person plan on FreightReader.createPersonPlan
+    (tour, depotPlan(0) +: plans :+ depotPlan(plans.length + 1))
   }
 
   private implicit def toInt(value: Double): Int = Math.round(value).toInt

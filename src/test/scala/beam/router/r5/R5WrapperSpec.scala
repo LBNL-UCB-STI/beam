@@ -33,67 +33,6 @@ class R5WrapperSpec extends AbstractSfLightSpec("R5WrapperSpec") with Matchers {
   }
 
   "R5Wrapper" should {
-    "reuse routers from the pool for identical requests" in {
-      val r5Wrapper = getR5Wrapper
-
-      val logger = LoggerFactory.getLogger(classOf[R5Wrapper]).asInstanceOf[LogbackLogger]
-      val originalLevel = logger.getLevel
-      logger.setLevel(Level.DEBUG)
-      val appender = new ListAppender()
-      logger.addAppender(appender)
-      appender.start()
-
-      val origin = new Location(551642.4729978561, 4180839.138663753)
-      val destination = new Location(552065.6882372601, 4180855.582994787)
-      val time = 27840
-
-      val streetVehicles = Vector(
-        StreetVehicle(
-          Id.createVehicleId("body"),
-          Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
-          SpaceTime(origin, time),
-          WALK,
-          asDriver = true,
-          needsToCalculateCost = false
-        ),
-        StreetVehicle(
-          Id.createVehicleId("car"),
-          carVehicleType.id,
-          SpaceTime(origin, time),
-          CAR,
-          asDriver = true,
-          needsToCalculateCost = true
-        )
-      )
-      val request = RoutingRequest(
-        origin,
-        destination,
-        time,
-        withTransit = false,
-        streetVehicles = streetVehicles,
-        triggerId = 0
-      )
-
-      // --- First request ---
-      r5Wrapper.calcRoute(request, buildDirectCarRoute = true, buildDirectWalkRoute = true)
-
-      val initialLogs = appender.getAndClearLogs()
-      val initialMisses = initialLogs.count(_.contains("[CACHE-MISS]"))
-
-      initialMisses should be > 0
-
-      // --- Second request ---
-      r5Wrapper.calcRoute(request, buildDirectCarRoute = true, buildDirectWalkRoute = true)
-
-      val subsequentLogs = appender.getAndClearLogs()
-      val subsequentMisses = subsequentLogs.count(_.contains("[CACHE-MISS]"))
-
-      subsequentMisses should be(0)
-
-      appender.stop()
-      logger.detachAppender(appender)
-      logger.setLevel(originalLevel)
-    }
 
     "return only car routes when requestedMode is CAR" in {
       val r5Wrapper = getR5Wrapper

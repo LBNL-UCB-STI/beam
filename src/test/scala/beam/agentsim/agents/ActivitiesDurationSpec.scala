@@ -6,8 +6,10 @@ import beam.utils.EventReader._
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events.Event
+import org.scalatest.AppendedClues.convertToClueful
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.tagobjects.Retryable
+import org.scalatest.Checkpoints._
 
 import scala.collection.mutable
 
@@ -92,9 +94,27 @@ class ActivitiesDurationSpec extends AnyFlatSpec with BeamHelper with Repeated {
 
     val activitiesDurations: Map[String, Set[Double]] = getActivitiesDurationsGroupedByType(events)
 
-    checkIfDurationsExistAndBiggerThan(activitiesDurations, "Shopping", 2000)
-    checkIfDurationsExistAndBiggerThan(activitiesDurations, "Other", 600)
-    checkIfDurationsExistAndBiggerThan(activitiesDurations, "Work", 40000)
+    val checkPoint = new Checkpoint()
+
+    def assertAverageActivityDurationIsBiggerThan(activityName: String, expectedDuration: Double): Unit = {
+      val maybeDurations = activitiesDurations.get(activityName)
+      checkPoint {
+        maybeDurations should not be None withClue f"Expected to have activity $activityName"
+      }
+      if (maybeDurations.nonEmpty) {
+        val durations = maybeDurations.get
+        val averageDuration = durations.sum / durations.size
+        checkPoint {
+          averageDuration should be > expectedDuration withClue f"Average duration of $activityName should be bigger than $expectedDuration"
+        }
+      }
+    }
+
+    assertAverageActivityDurationIsBiggerThan("Shopping", 4000)
+    assertAverageActivityDurationIsBiggerThan("Other", 10000)
+    assertAverageActivityDurationIsBiggerThan("Work", 40000)
+
+    checkPoint.reportAll()
   }
 
   it should "have fixed Other,Shopping and Work activities duration" taggedAs Retryable in {

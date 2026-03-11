@@ -19,6 +19,7 @@ import org.matsim.core.scenario.MutableScenario
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.Checkpoints.Checkpoint
 
 import scala.jdk.CollectionConverters._
 
@@ -72,13 +73,22 @@ class PhysSimLinkStatsSpec extends AnyWordSpecLike with Matchers {
         def linkTravelTime(linkNum: Int) =
           travelTimes.getLinkTravelTime(network.getLinks.get(Id.createLinkId(linkNum)), 8 * 3600, null, null)
 
-        linkTravelTime(20) shouldBe 18.63 +- 0.01
-        linkTravelTime(21) shouldBe 0.355 +- 0.001
-        linkTravelTime(22) shouldBe 12.33 +- 0.01
-        linkTravelTime(24) shouldBe 4.79 +- 0.01
-        linkTravelTime(30) shouldBe 91.1 +- 0.1
-        linkTravelTime(31) shouldBe 70.3 +- 0.1
-        linkTravelTime(32) shouldBe 0.355 +- 0.001
+        val cp = new Checkpoint()
+
+        /*
+          travel times are affected by the beam.physsim.minCarSpeedInMetersPerSecond which is used to calculate
+          end road time in beam.physsim.jdeqsim.cacc.sim.Road.enterRoad method
+         */
+
+        cp { linkTravelTime(20) shouldBe 8.76 +- 0.01 }
+        cp { linkTravelTime(21) shouldBe 0.355 +- 0.001 }
+        cp { linkTravelTime(22) shouldBe 9.16 +- 0.01 }
+        cp { linkTravelTime(24) shouldBe 7.04 +- 0.01 }
+        cp { linkTravelTime(30) shouldBe 70.31 +- 0.1 }
+        cp { linkTravelTime(31) shouldBe 70.3 +- 0.1 }
+        cp { linkTravelTime(32) shouldBe 0.355 +- 0.001 }
+
+        cp.reportAll()
       }
     }
   }

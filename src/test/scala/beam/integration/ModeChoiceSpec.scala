@@ -120,7 +120,7 @@ class ModeChoiceSpec
   }
 
   "Running beam with high intercepts for bike transit" must {
-    "use bike transit with R5 router" ignore {
+    "use bike transit with R5 router" in {
       val theRun: StartWithCustomConfig = new StartWithCustomConfig(
         resolvedBaseBeamvilleUrbansimConfigWithHighInterceptFor("bike_transit_intercept", "R5")
       )
@@ -189,6 +189,21 @@ class ModeChoiceSpec
       val RHModeCount = theRun.groupedCount.getOrElse("ride_hail", 0)
       val theRestModes = getModesOtherThan("ride_hail", theRun.groupedCount)
       RHModeCount * test_mode_multiplier should be >= theRestModes withClue getClueText(theRun.groupedCount)
+    }
+
+    "prefer mode choice RH more than other modes (with ModeChoiceRideHailIfAvailable)" taggedAs Retryable in {
+      val theRun = new StartWithCustomConfig(
+        baseBeamvilleUrbansimConfig
+          .withValue(
+            TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
+            ConfigValueFactory.fromAnyRef("ModeChoiceRideHailIfAvailable")
+          )
+          .resolve()
+      )
+
+      val preferredModeCount = theRun.groupedCount.getOrElse("ride_hail", 0)
+      val theRestModes = getModesOtherThan("ride_hail", theRun.groupedCount)
+      preferredModeCount * test_mode_multiplier should be >= theRestModes withClue getClueText(theRun.groupedCount)
     }
 
     "prefer mode choice walk transit more than other modes" in {

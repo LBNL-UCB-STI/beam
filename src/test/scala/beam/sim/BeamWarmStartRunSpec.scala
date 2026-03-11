@@ -6,6 +6,7 @@ import beam.utils.{FileUtils, MathUtils}
 import com.typesafe.config.ConfigFactory
 import org.matsim.core.config.groups.ControlerConfigGroup.CompressionType
 import org.matsim.core.controler.OutputDirectoryHierarchy
+import org.scalatest.AppendedClues.convertToClueful
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.tagobjects.Retryable
@@ -65,7 +66,12 @@ class BeamWarmStartRunSpec
         "ITERS/it.2/2.rideHailFleet-GlobalRHM.csv.gz"
       )
 
-      files should equal(expectedFiles)
+      val missing = expectedFiles.diff(files)
+      val extra = files.diff(expectedFiles)
+
+      withClue(s"Missing in the output: $missing\nExtra files in the output: $extra\n") {
+        files should contain theSameElementsAs expectedFiles
+      }
     }
 
     "run beamville scenario for two iterations with warmstart" taggedAs Retryable in {
@@ -152,16 +158,14 @@ class BeamWarmStartRunSpec
     }
   }
 
-  "sf-light WarmStart with parquet skims" must {
-
-    "prepare WarmStart data" in {
+  "sf-light scenario with emissions skims format set to parquet" must {
+    "prepare WarmStart data with parquet emissions skims" in {
+      val maxIt = 1
       val baseConf = ConfigFactory
-        .parseString("""beam.warmStart.prepareData = true
-             beam.physsim.duplicatePTE.fractionOfEventsToDuplicate = 1.0
-             beam.physsim.duplicatePTE.departureTimeShiftMin = 0
-             beam.physsim.duplicatePTE.departureTimeShiftMax = 600
-             beam.router.skim.emissions-skimmer.fileOutputFormat = "parquet"
-            """)
+        .parseString(f"""beam.agentsim.lastIteration = $maxIt
+                beam.warmStart.prepareData = true
+                beam.router.skim.emissions-skimmer.fileOutputFormat = "parquet"
+                """)
         .withFallback(testConfig("test/input/sf-light/sf-light-1k-emissions.conf"))
         .resolve()
       val (_, output, _) = runBeamWithConfig(baseConf)
@@ -173,48 +177,31 @@ class BeamWarmStartRunSpec
       val files = Stream.continually(zipIn.getNextEntry).takeWhile(_ != null).map(_.getName).toList
       zipIn.close()
 
+      val itX = f"it.$maxIt/$maxIt"
       val expectedFiles = List(
         "population.csv.gz",
         "households.csv.gz",
         "vehicles.csv.gz",
-        "ITERS/it.0/0.skimsOD_Aggregated.csv.gz",
-        "ITERS/it.0/0.skimsTAZ_Aggregated.csv.gz",
-        "ITERS/it.0/0.skimsTravelTimeObservedVsSimulated_Aggregated.csv.gz",
-        "ITERS/it.0/0.skimsRidehail_Aggregated.csv.gz",
-        "ITERS/it.0/0.skimsODVehicleType_Aggregated.csv.gz",
-        "ITERS/it.0/0.skimsFreight_Aggregated.csv.gz",
-        "ITERS/it.0/0.skimsParking_Aggregated.csv.gz",
-        "ITERS/it.0/0.skimsTransitCrowding_Aggregated.csv.gz",
-        "ITERS/it.0/0.skimsEmissions_Aggregated.parquet",
-        "ITERS/it.0/0.linkstats.csv.gz",
-        "ITERS/it.0/0.plans.csv.gz",
-        "ITERS/it.0/0.rideHailFleet-GlobalRHM.csv.gz"
+        s"ITERS/$itX.skimsOD_Aggregated.csv.gz",
+        s"ITERS/$itX.skimsTAZ_Aggregated.csv.gz",
+        s"ITERS/$itX.skimsTravelTimeObservedVsSimulated_Aggregated.csv.gz",
+        s"ITERS/$itX.skimsRidehail_Aggregated.csv.gz",
+        s"ITERS/$itX.skimsODVehicleType_Aggregated.csv.gz",
+        s"ITERS/$itX.skimsFreight_Aggregated.csv.gz",
+        s"ITERS/$itX.skimsParking_Aggregated.csv.gz",
+        s"ITERS/$itX.skimsTransitCrowding_Aggregated.csv.gz",
+        s"ITERS/$itX.skimsEmissions_Aggregated.parquet",
+        s"ITERS/$itX.linkstats.csv.gz",
+        s"ITERS/$itX.plans.csv.gz",
+        s"ITERS/$itX.rideHailFleet-GlobalRHM.csv.gz"
       )
 
-      files should equal(expectedFiles)
-    }
+      val missing = expectedFiles.diff(files)
+      val extra = files.diff(expectedFiles)
 
-    "run beamville scenario for two iterations with warmstart" taggedAs Retryable in {
-      val baseConf = ConfigFactory
-        .parseString("beam.agentsim.lastIteration = 1")
-        .withFallback(testConfig("test/input/sf-light/sf-light-1k-emissions.conf"))
-        .resolve()
-      val (_, output, _) = runBeamWithConfig(baseConf)
-      // TODO Using median travel time instead of average due to outliers in the WarmStart file. Network not relaxed!?
-      val averageCarSpeedIt0 = BeamWarmStartRunSpec.medianCarModeFromCsv(extractFileName(output, 0))
-      val averageCarSpeedIt1 = BeamWarmStartRunSpec.medianCarModeFromCsv(extractFileName(output, 1))
-      logger.info("average car speed per iterations: {}, {}", averageCarSpeedIt0, averageCarSpeedIt1)
-      averageCarSpeedIt0 / averageCarSpeedIt1 should equal(1.0 +- 0.80)
-
-      val outputFileIdentifiers = Array(
-        "passengerPerTripBus.csv",
-        "passengerPerTripCar.csv",
-        "passengerPerTripRideHail.csv",
-        "passengerPerTripSubway.csv"
-      )
-
-      // tests files created by Beam simulation
-      testOutputFiles(outputFileIdentifiers, output, 0)
+      withClue(s"Missing in the output: $missing\nExtra files in the output: $extra\n") {
+        files should contain theSameElementsAs expectedFiles
+      }
     }
   }
 

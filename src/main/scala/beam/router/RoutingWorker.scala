@@ -37,6 +37,7 @@ import java.nio.file.Paths
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneOffset, ZonedDateTime}
 import java.util.concurrent.{ExecutorService, Executors}
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.TimeoutException
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -74,9 +75,11 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
   private var msgs = 0
   private var firstMsgTime: Option[ZonedDateTime] = None
 
-  // Hardcoded for now; we can expose these via config later once behavior is validated in production.
-  private val routingTimeout: Option[FiniteDuration] = Some(60.seconds)
-  private val slowRoutingWarnThresholdMs: Option[Long] = Some(10L * 1000L)
+  private val routingTimeout: Option[FiniteDuration] = {
+    val timeoutMs = workerParams.beamConfig.beam.routing.r5.routingRequestTimeout
+    if (timeoutMs > 0) Some(timeoutMs.milliseconds) else None
+  }
+  private val slowRoutingWarnThresholdMs: Option[Long] = Some(30L * 1000L)
 
   log.info("RoutingWorker[{}] `{}` is ready", hashCode(), self.path)
   log.info(
@@ -150,38 +153,44 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
   private def withRoutingTimeout(
     request: RoutingRequest,
     future: Future[RoutingResponse],
-    startedAtMs: Long
+    routeStartedAtMsFuture: Future[Long]
   ): Future[RoutingResponse] = {
     routingTimeout match {
       case None => future
       case Some(timeout) =>
         val p = Promise[RoutingResponse]()
-        val timeoutTask = context.system.scheduler.scheduleOnce(timeout) {
-          val elapsedMs = System.currentTimeMillis() - startedAtMs
-          val stacks = dumpR5WorkerStacks()
-          log.error(
-            s"[ROUTING-TIMEOUT] requestId=${request.requestId}, triggerId=${request.triggerId}, " +
-            s"personId=${request.personId.map(_.toString).getOrElse("none")}, withTransit=${request.withTransit}, " +
-            s"requestedMode=${request.requestedMode.map(_.toString).getOrElse("None")}, departureTime=${request.departureTime}, " +
-            s"elapsedMs=$elapsedMs, timeoutMs=${timeout.toMillis}, " +
-            s"origin=(${request.originUTM.getX}, ${request.originUTM.getY}), destination=(${request.destinationUTM.getX}, ${request.destinationUTM.getY}), " +
-            f"distanceInMiles=${straightLineDistanceMiles(request)}%.3f, streetVehicles=${summarizeVehicles(request)}, " +
-            s"attributes=${request.attributesOfIndividual.map(_.toString).getOrElse("none")}\n" +
-            s"[ROUTING-TIMEOUT-THREAD-DUMP]\n$stacks"
-          )
-          p.tryFailure(
-            new TimeoutException(
-              s"Routing timed out after ${timeout.toMillis}ms for requestId=${request.requestId}, personId=${request.personId
-                .map(_.toString)
-                .getOrElse("none")}"
-            )
-          )
-        }(context.dispatcher)
+        routeStartedAtMsFuture.onComplete {
+          case Success(routeStartedAtMs) =>
+            val timeoutTask = context.system.scheduler.scheduleOnce(timeout) {
+              val elapsedMs = System.currentTimeMillis() - routeStartedAtMs
+              val stacks = dumpR5WorkerStacks()
+              log.error(
+                s"[ROUTING-TIMEOUT] requestId=${request.requestId}, triggerId=${request.triggerId}, " +
+                s"personId=${request.personId.map(_.toString).getOrElse("none")}, withTransit=${request.withTransit}, " +
+                s"requestedMode=${request.requestedMode.map(_.toString).getOrElse("None")}, departureTime=${request.departureTime}, " +
+                s"elapsedMs=$elapsedMs, timeoutMs=${timeout.toMillis}, " +
+                s"origin=(${request.originUTM.getX}, ${request.originUTM.getY}), destination=(${request.destinationUTM.getX}, ${request.destinationUTM.getY}), " +
+                f"distanceInMiles=${straightLineDistanceMiles(request)}%.3f, streetVehicles=${summarizeVehicles(request)}, " +
+                s"attributes=${request.attributesOfIndividual.map(_.toString).getOrElse("none")}\n" +
+                s"[ROUTING-TIMEOUT-THREAD-DUMP]\n$stacks"
+              )
+              p.tryFailure(
+                new TimeoutException(
+                  s"Routing timed out after ${timeout.toMillis}ms for requestId=${request.requestId}, personId=${request.personId
+                    .map(_.toString)
+                    .getOrElse("none")}"
+                )
+              )
+            }(context.dispatcher)
 
-        future.onComplete { result =>
-          timeoutTask.cancel()
-          p.tryComplete(result)
-        }(executionContext)
+            future.onComplete { result =>
+              timeoutTask.cancel()
+              p.tryComplete(result)
+            }(executionContext)
+
+          case Failure(err) =>
+            p.tryFailure(err)
+        }(context.dispatcher)
 
         p.future
     }
@@ -286,8 +295,14 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
       msgs = msgs + 1
       if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
       val replyTo = sender()
-      val startedAtMs = System.currentTimeMillis()
+      val routeStartedAtMs = Promise[Long]()
+      val trackDriveTransitDiagnostic =
+        RoutingWorker.enableDriveTransitRoutingDiagnostics && request.requestedMode.contains(BeamMode.DRIVE_TRANSIT)
+      if (trackDriveTransitDiagnostic) {
+        RoutingWorker.driveTransitRequested.incrementAndGet()
+      }
       val routeFuture = Future {
+        routeStartedAtMs.trySuccess(System.currentTimeMillis())
         latency("request-router-time", Metrics.RegularLevel) {
           if (!request.withTransit && (carRouter == "staticGH" || carRouter == "quasiDynamicGH")) {
             // run graphHopper for only cars
@@ -338,13 +353,29 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
           }
         }
       }
-      val eventualResponse = withRoutingTimeout(request, routeFuture, startedAtMs)
+      val eventualResponse = withRoutingTimeout(request, routeFuture, routeStartedAtMs.future)
+      def routeStartTimeForLogs: Long =
+        routeStartedAtMs.future.value.collect { case Success(ts) => ts }.getOrElse(System.currentTimeMillis())
 
       eventualResponse.onComplete {
+        case Success(response: RoutingResponse) =>
+          maybeLogSlowRouting(request, routeStartTimeForLogs, "success")
+          if (trackDriveTransitDiagnostic) {
+            val responses = RoutingWorker.driveTransitResponses.incrementAndGet()
+            val hasDriveTransit = response.itineraries.exists(_.tripClassifier == BeamMode.DRIVE_TRANSIT)
+            if (hasDriveTransit) {
+              RoutingWorker.driveTransitResponsesWithDriveItin.incrementAndGet()
+            } else {
+              RoutingWorker.driveTransitResponsesWithoutDriveItin.incrementAndGet()
+            }
+            if (responses % 200 == 0) {
+              log.info(RoutingWorker.driveTransitDiagnosticsLine)
+            }
+          }
         case Success(_) =>
-          maybeLogSlowRouting(request, startedAtMs, "success")
+          maybeLogSlowRouting(request, routeStartTimeForLogs, "success")
         case Failure(err) =>
-          maybeLogSlowRouting(request, startedAtMs, "failure", Some(err))
+          maybeLogSlowRouting(request, routeStartTimeForLogs, "failure", Some(err))
       }(executionContext)
 
       eventualResponse.recover { case e =>
@@ -581,6 +612,19 @@ object RoutingWorker {
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 1.38
   val DEFAULT_CAR_SPEED_IN_METERS_PER_SECOND = 18.0
 
+  val enableDriveTransitRoutingDiagnostics: Boolean =
+    sys.env.get("SINGLEMODE_ROUTING_DIAGNOSTICS").exists(_.equalsIgnoreCase("true"))
+  val driveTransitRequested: AtomicLong = new AtomicLong(0L)
+  val driveTransitResponses: AtomicLong = new AtomicLong(0L)
+  val driveTransitResponsesWithDriveItin: AtomicLong = new AtomicLong(0L)
+  val driveTransitResponsesWithoutDriveItin: AtomicLong = new AtomicLong(0L)
+
+  def driveTransitDiagnosticsLine: String =
+    s"[ROUTING-WORKER-DIAGNOSTICS] driveTransitRequested=${driveTransitRequested.get()}, " +
+    s"driveTransitResponses=${driveTransitResponses.get()}, " +
+    s"driveTransitResponsesWithDriveItin=${driveTransitResponsesWithDriveItin.get()}, " +
+    s"driveTransitResponsesWithoutDriveItin=${driveTransitResponsesWithoutDriveItin.get()}"
+
   case object GetR5Wrapper
 
   def fromConfig(config: Config) {
@@ -681,26 +725,63 @@ object RoutingWorker {
     val dominanceVariable: StreetRouter.State.RoutingVariable,
     val maxStops: Int,
     val minTravelTimeSeconds: Int,
-    val destinationSplit: Split
+    val destinationSplit: Split,
+    val stopAtDestinationSplit: Boolean = true,
+    val destinationSplitExtraTimeSecondsAfterHit: Int = 0,
+    val destinationSplitContinueIfStopsBelow: Int = 0
   ) extends RoutingVisitor {
-    private val NO_STOP_FOUND = streetLayer.parentNetwork.transitLayer.stopForStreetVertex.getNoEntryKey
+    private val stopForStreetVertex = streetLayer.parentNetwork.transitLayer.stopForStreetVertex
+    private val NO_STOP_FOUND = stopForStreetVertex.getNoEntryKey
     val stops: TIntIntMap = new TIntIntHashMap
-    private var s0: StreetRouter.State = _
+    private var stopCount: Int = 0
+    private var lastVisitedVertex: Int = 0
+    private var lastVisitedTravelTimeSeconds: Int = 0
+    private var hasVisitedVertex: Boolean = false
     private val destinationSplitVertex0 = if (destinationSplit != null) destinationSplit.vertex0 else -1
     private val destinationSplitVertex1 = if (destinationSplit != null) destinationSplit.vertex1 else -1
+    private var visitedVertices: Int = 0
+    private var destinationSplitFirstHitTravelTimeSeconds: Int = -1
 
     override def visitVertex(state: StreetRouter.State): Unit = {
-      s0 = state
-      val stop = streetLayer.parentNetwork.transitLayer.stopForStreetVertex.get(state.vertex)
+      val vertex = state.vertex
+      lastVisitedVertex = vertex
+      lastVisitedTravelTimeSeconds = state.getDurationSeconds
+      hasVisitedVertex = true
+      visitedVertices += 1
+      if (state.getDurationSeconds < minTravelTimeSeconds) return
+      val stop = stopForStreetVertex.get(vertex)
       if (stop != NO_STOP_FOUND) {
-        if (state.getDurationSeconds < minTravelTimeSeconds) return
-        if (!stops.containsKey(stop) || stops.get(stop) > state.getRoutingVariable(dominanceVariable))
-          stops.put(stop, state.getRoutingVariable(dominanceVariable))
+        val routingValue = state.getRoutingVariable(dominanceVariable)
+        if (stops.containsKey(stop)) {
+          if (stops.get(stop) > routingValue) {
+            stops.put(stop, routingValue)
+          }
+        } else {
+          stops.put(stop, routingValue)
+          stopCount += 1
+        }
       }
     }
 
-    override def shouldBreakSearch: Boolean =
-      stops.size >= this.maxStops || s0.vertex == destinationSplitVertex0 || s0.vertex == destinationSplitVertex1
+    override def shouldBreakSearch: Boolean = {
+      // Break: we already collected the configured maximum number of access stops.
+      if (stopCount >= maxStops) return true
+      // Continue: destination-split stopping is disabled or no vertex has been visited yet.
+      if (!stopAtDestinationSplit || !hasVisitedVertex) return false
+      if (destinationSplitFirstHitTravelTimeSeconds < 0) {
+        // Continue: current search frontier has not reached either destination split vertex yet.
+        if (lastVisitedVertex != destinationSplitVertex0 && lastVisitedVertex != destinationSplitVertex1) return false
+        destinationSplitFirstHitTravelTimeSeconds = lastVisitedTravelTimeSeconds
+      }
+
+      // Continue: keep searching until minimum stop count is reached.
+      if (stopCount < destinationSplitContinueIfStopsBelow) return false
+      // Break: destination was reached and the post-destination access-time budget is exhausted.
+      lastVisitedTravelTimeSeconds >
+      destinationSplitFirstHitTravelTimeSeconds + destinationSplitExtraTimeSecondsAfterHit
+    }
+
+    def getVisitedVertices: Int = visitedVertices
   }
 
 }

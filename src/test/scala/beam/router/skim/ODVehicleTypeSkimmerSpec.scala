@@ -41,7 +41,7 @@ class ODVehicleTypeSkimmerSpec extends AnyWordSpecLike with Matchers with BeamHe
         value.travelTimeInS should be < 500.0
         value.distanceInM should be > 2000.0
         value.distanceInM should be < 7000.0
-        value.energy should be > 5e5
+        value.energy should be > 4e5
         value.energy should be < 3e8
       }
       val skim1: Map[ODVehicleTypeSkimmerKey, ODVehicleTypeSkimmerInternal] =

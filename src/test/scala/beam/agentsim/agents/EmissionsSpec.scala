@@ -58,7 +58,7 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
         line("linkId").toInt,
         line("vehicleTypeId"),
         line("hour").toInt,
-        EmissionsProfile.withName(line("emissionsProcess"))
+        EmissionsProfile.withName(line("process"))
       ),
       EmissionsSkimmerInternal(
         Emissions(

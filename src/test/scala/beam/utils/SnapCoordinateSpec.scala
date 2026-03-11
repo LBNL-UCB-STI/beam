@@ -334,7 +334,7 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper with 
         .parseString(s"""
                         |beam.agentsim.agents.freight.toursFilePath = "$pwd/test/test-resources/beam/input/snap-location/freight/freight-tours.csv"
                         |beam.routing.r5.linkRadiusMeters = 350
-                        |beam.agentsim.snapLocationAndRemoveInvalidInputs = true
+                        |beam.agentsim.snapLocationAndRemoveInvalidInputs.params.enabled = true
                         |""".stripMargin)
         .withFallback(testConfig("test/input/beamville/beam-freight.conf"))
         .resolve()
@@ -362,7 +362,7 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper with 
         .parseString(s"""
                         |beam.agentsim.agents.freight.plansFilePath = "$pwd/test/test-resources/beam/input/snap-location/freight/payload-plans.csv"
                         |beam.routing.r5.linkRadiusMeters = 350
-                        |beam.agentsim.snapLocationAndRemoveInvalidInputs = true
+                        |beam.agentsim.snapLocationAndRemoveInvalidInputs.params.enabled = true
                         |""".stripMargin)
         .withFallback(testConfig("test/input/beamville/beam-freight.conf"))
         .resolve()
@@ -390,7 +390,7 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper with 
         .parseString(s"""
                         |beam.agentsim.agents.freight.carriersFilePath = "$pwd/test/test-resources/beam/input/snap-location/freight/freight-carriers.csv"
                         |beam.routing.r5.linkRadiusMeters = 350
-                        |beam.agentsim.snapLocationAndRemoveInvalidInputs = true
+                        |beam.agentsim.snapLocationAndRemoveInvalidInputs.params.enabled = true
                         |""".stripMargin)
         .withFallback(testConfig("test/input/beamville/beam-freight.conf"))
         .resolve()

@@ -84,7 +84,7 @@ class FreightReplannerSpec extends AnyWordSpecLike with Matchers with BeamHelper
       val freightReader = FreightReader(beamServices)
       val replanner = new FreightReplanner(beamServices, beamServices.skims.od_skimmer, rnd, freightReader)
       val (carrierID, carrier) =
-        beamServices.beamScenario.freightCarriers.find(x => x._2.carrierId == "ft-1".createId[FreightCarrier]).get
+        beamServices.beamScenario.freightCarriers.find(x => x._2.carrierId == "ft-2".createId[FreightCarrier]).get
       val routes = replanner.calculateRoutes(carrier, "wholeFleet", 0)
       routes should have size 2
       routes(0).vehicle.id should be("ft-3")

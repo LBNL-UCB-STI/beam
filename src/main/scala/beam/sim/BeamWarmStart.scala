@@ -1,7 +1,7 @@
 package beam.sim
 
 import java.io.{File, FileNotFoundException}
-import java.nio.file.{Files, Paths}
+import java.nio.file.{Files, Paths, StandardCopyOption}
 import scala.collection.concurrent.TrieMap
 import scala.compat.java8.StreamConverters._
 import scala.util.{Failure, Success, Try}
@@ -95,10 +95,15 @@ class BeamWarmStart private (val warmConfig: WarmStartConfigProperties) extends 
   }
 
   private def extractFileFromZip(runPath: String, zipFileFullPath: String, fileName: String): String = {
-    val newFileName = fileName.dropRight(".gz".length)
-    val plansPath = Paths.get(runPath, s"warmstart_$newFileName").toString
-    unGunzipFile(zipFileFullPath, plansPath, false)
-    plansPath
+    val plansPath = Paths.get(runPath, s"warmstart_$fileName").toString
+    if (fileName.endsWith(".gz")) {
+      val plansPathUnpacked = plansPath.dropRight(".gz".length)
+      unGunzipFile(zipFileFullPath, plansPathUnpacked, false)
+      plansPathUnpacked
+    } else {
+      Files.copy(Paths.get(zipFileFullPath), Paths.get(plansPath), StandardCopyOption.REPLACE_EXISTING)
+      plansPath
+    }
   }
 
   def getWarmStartFilePath(warmStartFile: String, rootFirst: Boolean = true): Option[String] = {
@@ -313,6 +318,7 @@ object BeamWarmStart extends LazyLogging {
           Skims.skimAggregatedFileNames(skimCfg).map { case (skimType, fileName) =>
             val filePath =
               instance.compressedLocation("Skims file", fileName).getOrElse(instance.parentRunPath)
+            logger.info(s"$filePath added as skim type ${skimType.toString}")
             SkimsFilePaths$Elm(skimType.toString, filePath)
           }
 

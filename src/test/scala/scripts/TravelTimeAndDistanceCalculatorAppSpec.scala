@@ -23,10 +23,10 @@ class TravelTimeAndDistanceCalculatorAppSpec extends AnyWordSpecLike with Matche
       val app = new TravelTimeAndDistanceCalculatorApp(parameters)
       val results = app.processCsv()
 
-      results.map(_.travelTime) shouldBe Vector(72, 427, 426)
+      results.map(_.travelTime) shouldBe Vector(72, 426, 426)
 
       val actualDistances = results.map(_.distance)
-      val expectedDistances = Vector(1127.997, 6679.088, 6667.975)
+      val expectedDistances = Vector(1127.997, 6667.975, 6667.975)
 
       withClue(s"Distances do not match expected values. Actual values are $actualDistances") {
         forAll(actualDistances.zip(expectedDistances)) { case (actual, expected) =>

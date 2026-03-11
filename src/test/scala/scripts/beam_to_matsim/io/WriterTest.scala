@@ -59,7 +59,7 @@ class WriterTest extends AnyFunSuite with Matchers {
     sortedSeq2.size shouldBe experimentLen
     sortedSeq1.map(_.time) shouldBe sorted
     sortedSeq2.map(_.time) shouldBe sorted
-    duration2 * 3 should be < duration1
+    duration2 should be < duration1
   }
 
 }

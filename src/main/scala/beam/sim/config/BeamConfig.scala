@@ -4773,6 +4773,7 @@ object BeamConfig {
         maxTimeLimitForFreightInMinutes: scala.Int,
         numberOfSamples: scala.Int,
         osmMapdbFile: java.lang.String,
+        routingRequestTimeout: scala.Long,
         snapRadiusMeters: scala.Double,
         statePoolSize: BeamConfig.Beam.Routing.R5.StatePoolSize,
         suboptimalMinutes: scala.Int,
@@ -4901,6 +4902,10 @@ object BeamConfig {
             osmMapdbFile =
               if (c.hasPathOrNull("osmMapdbFile")) c.getString("osmMapdbFile")
               else "/test/input/beamville/r5/osm.mapdb",
+            routingRequestTimeout =
+              if (c.hasPathOrNull("routingRequestTimeout"))
+                c.getDuration("routingRequestTimeout", java.util.concurrent.TimeUnit.MILLISECONDS)
+              else 0,
             snapRadiusMeters = if (c.hasPathOrNull("snapRadiusMeters")) c.getDouble("snapRadiusMeters") else 5.0,
             statePoolSize = BeamConfig.Beam.Routing.R5.StatePoolSize(
               if (c.hasPathOrNull("statePoolSize")) c.getConfig("statePoolSize")
