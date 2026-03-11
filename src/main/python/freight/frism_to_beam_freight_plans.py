@@ -92,7 +92,7 @@ area_config = {
 
 # ************************************************************************************************
 
-AREA = "sfbay"  # seattle or sfbay
+AREA = "seattle"  # seattle or sfbay
 SNAP_COORDINATES = False # Snapping here might relocate points to walk only links, so be cautious
 BUFFER_DISTANCE_METERS = 100  # 100 meters
 MAX_DISTANCE_METERS = 200000  # 200km

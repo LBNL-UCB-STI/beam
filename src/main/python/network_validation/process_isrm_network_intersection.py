@@ -354,6 +354,121 @@ def map_beam_network_to_isrm_osm_intersection(network_path, isrm_osm_path, outpu
     return merged_df
 
 
+def map_beam_network_to_osm_geometry(network_path, osm_geojson_path, osm_gpkg_path, output_path):
+    """
+    Map BEAM network links to OSM geometries using attributeOrigId -> osm_id.
+    This function performs network mapping only and does not intersect with ISRM.
+
+    Args:
+        network_path (str): Path to the network.csv.gz file
+        osm_geojson_path (str): Path to OSM GEOJSON file with osm_id and other_tags
+        osm_gpkg_path (str): Path to OSM GPKG network with edge_id and geometry
+        output_path (str): Path to save the output file
+
+    Returns:
+        pd.DataFrame: The resulting DataFrame with mapping results
+    """
+    # 1. Load network data
+    logger.info(f"Loading network data from {network_path}")
+    try:
+        network_df = pd.read_csv(network_path)
+        logger.info(f"Loaded network data with {len(network_df)} rows")
+
+        if 'attributeOrigId' not in network_df.columns:
+            logger.error("Network file is missing 'attributeOrigId' column")
+            return None
+    except Exception as e:
+        logger.error(f"Failed to load network data: {e}")
+        return None
+
+    network_df = network_df.dropna(subset=['attributeOrigId'])
+
+    # 2. Load OSM GPKG network
+    logger.info(f"Loading OSM GPKG network from {osm_gpkg_path}")
+    try:
+        gpkg_gdf = gpd.read_file(osm_gpkg_path, layer='edges')
+        if 'edge_id' not in gpkg_gdf.columns:
+            logger.error("OSM GPKG file is missing 'edge_id' column")
+            return None
+    except Exception as e:
+        logger.error(f"Failed to load OSM GPKG: {e}")
+        return None
+
+    # 3. Load OSM GeoJSON
+    logger.info(f"Loading OSM GEOJSON from {osm_geojson_path}")
+    try:
+        osm_gdf = gpd.read_file(osm_geojson_path)
+        if 'osm_id' not in osm_gdf.columns or 'other_tags' not in osm_gdf.columns:
+            logger.error("OSM file is missing 'osm_id' or 'other_tags' columns")
+            return None
+    except Exception as e:
+        logger.error(f"Failed to load OSM GeoJSON: {e}")
+        return None
+
+    # 4. Parse tags and connect OSM data to geometries
+    osm_gdf['osm_id'] = osm_gdf['osm_id'].astype(int)
+    osm_gdf['parsed_tags'] = osm_gdf['other_tags'].apply(parse_other_tags)
+    osm_gdf['edge_id'] = osm_gdf['parsed_tags'].apply(lambda x: x.get('edge_id', None))
+    osm_gdf['edge_length'] = osm_gdf['parsed_tags'].apply(extract_edge_length)
+
+    valid_osm_gdf = osm_gdf.dropna(subset=['edge_id'])
+    logger.info(f"Found {len(valid_osm_gdf)} OSM edges with edge_id")
+
+    osm_geom_map = pd.merge(
+        valid_osm_gdf[['osm_id', 'edge_id', 'edge_length']],
+        gpkg_gdf[['edge_id', 'geometry']],
+        on='edge_id',
+        how='inner'
+    )
+
+    osm_geom_gdf = gpd.GeoDataFrame(osm_geom_map, geometry='geometry', crs=gpkg_gdf.crs)
+    logger.info(f"Successfully mapped {len(osm_geom_gdf)} OSM edges to geometries")
+
+    # 5. Merge network with OSM geometries
+    logger.info("Merging network data with OSM geometries")
+    network_df['attributeOrigId'] = network_df['attributeOrigId'].astype(int)
+    merged_df = pd.merge(
+        network_df,
+        osm_geom_gdf,
+        left_on='attributeOrigId',
+        right_on='osm_id',
+        how='inner'
+    )
+
+    logger.info(f"Merged result has {len(merged_df)} rows")
+
+    # 6. Save the result
+    logger.info(f"Saving mapped results to {output_path}")
+    output_dir = os.path.dirname(output_path)
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    extension = os.path.splitext(output_path)[1].lower()
+    if extension == '.gpkg':
+        if isinstance(merged_df, gpd.GeoDataFrame):
+            merged_df.to_file(output_path, driver='GPKG')
+        else:
+            geo_merged_df = gpd.GeoDataFrame(merged_df, geometry='geometry')
+            geo_merged_df.to_file(output_path, driver='GPKG')
+    elif extension == '.geojson':
+        if isinstance(merged_df, gpd.GeoDataFrame):
+            merged_df.to_file(output_path, driver='GeoJSON')
+        else:
+            geo_merged_df = gpd.GeoDataFrame(merged_df, geometry='geometry')
+            geo_merged_df.to_file(output_path, driver='GeoJSON')
+    elif extension == '.csv':
+        if 'geometry' in merged_df.columns:
+            merged_df['geometry_wkt'] = merged_df['geometry'].apply(lambda geom: geom.wkt if geom else None)
+            merged_df = merged_df.drop(columns='geometry')
+        merged_df.to_csv(output_path, index=False)
+    else:
+        logger.warning(f"Unrecognized output format: {extension}, using CSV format")
+        merged_df.to_csv(output_path, index=False)
+
+    logger.info("Network mapping complete")
+    return merged_df
+
+
 def main():
     """Main execution function with hardcoded paths."""
     area = "sfbay"
