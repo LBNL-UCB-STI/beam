@@ -49,7 +49,7 @@ import com.typesafe.config.{ConfigFactory, ConfigValueFactory, ConfigValueType, 
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import org.matsim.api.core.v01.network.Network
-import org.matsim.api.core.v01.population.{Activity, Population}
+import org.matsim.api.core.v01.population.{Activity, Plan, Population}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.{Config => MatsimConfig}

@@ -128,6 +128,9 @@ public class BeamEventsLogger implements BeamEventsLoggingSettings {
                     case "LeavingParkingEvent":
                         eventClass = LeavingParkingEvent.class;
                         break;
+                    case "OvernightParkingEvent":
+                        eventClass = OvernightParkingEvent.class;
+                        break;
                     case "LinkEnterEvent":
                         eventClass = LinkEnterEvent.class;
                         break;
