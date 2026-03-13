@@ -1267,6 +1267,15 @@ class RideHailAgent(
         }
       case None =>
         log.error("RHA {}: was expecting to release a triggerId but None found", id)
+        (receivedTriggerId, attemptRefuel) match {
+          case (Some(triggerId), false) =>
+            log.debug("RHA {}: completing received trigger and scheduling {}", id, newTriggers)
+            if (debugEnabled) outgoingMessages += CompletionNotice(triggerId, newTriggers)
+            scheduler ! CompletionNotice(triggerId, newTriggers)
+          case (None, false) =>
+            log.error("RHA {}: no triggerId received", id)
+          case _ =>
+        }
     }
   }
 
