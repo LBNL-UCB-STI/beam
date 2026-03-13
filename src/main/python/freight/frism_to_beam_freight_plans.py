@@ -79,7 +79,7 @@ area_config = {
     "seattle": {
         "work_dir": os.path.expanduser("~/Workspace/Simulation/seattle"),
         "network_osm_pbf": os.path.expanduser(
-            "~/Workspace/Simulation/seattle/network/seattle-area-cbg412-ferry-network/seattle-area-cbg412-ferry-network.osm.pbf"),
+            "~/Workspace/Simulation/seattle/network/seattle-area-cbg120-ferry-weakConn-network/seattle-area-cbg120-ferry-weakConn-network.osm.pbf"),
         "target_epsg": 32048,
         "year": 2018,
         "primary_powertrain": fastsim_routee_files["primary_powertrain"],
@@ -93,13 +93,18 @@ area_config = {
 # ************************************************************************************************
 
 AREA = "seattle"  # seattle or sfbay
+BATCH = "20260309"
+SCENARIO = "Baseline"
+FRISM_VERSION = 1.5
 SNAP_COORDINATES = False # Snapping here might relocate points to walk only links, so be cautious
 BUFFER_DISTANCE_METERS = 100  # 100 meters
 MAX_DISTANCE_METERS = 200000  # 200km
 CHUNK_SIZE = 10000  # this affects speed and parallelization of the script
 JOULE_PER_METER_BASE_RATE = 1.213e8  # Base rate for joules per meter, used in fuel consumption calculations
 CONFIG = area_config[AREA]
-FRISM_VERSION = CONFIG["frism_version"]
+CONFIG["batch"] = BATCH
+CONFIG["scenario"] = SCENARIO
+CONFIG["frism_version"] = FRISM_VERSION
 # SCENARIO_SUFFIX = ""
 
 # ************************************************************************************************

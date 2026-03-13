@@ -884,9 +884,14 @@ And that would only happen if the committed code is not formatted as expected.""
 }
 
 
+// Ensure docker build context is recreated from scratch to avoid stale jars.
+tasks.register('cleanDockerContext', Delete) {
+    delete layout.buildDirectory.dir('docker')
+}
+
 // Create a task to copy all dependencies
 task copyDependencies(type: Copy) {
-    dependsOn classes  // Changed from 'build'
+    dependsOn classes, cleanDockerContext  // Changed from 'build'
     from configurations.runtimeClasspath
     into 'build/docker/libs'
 }
