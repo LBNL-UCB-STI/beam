@@ -29,6 +29,7 @@ import java.util.Set;
 public class R5MnetBuilder {
 
     private static final Logger log = LoggerFactory.getLogger(R5MnetBuilder.class);
+    private static final int MAX_DETAILED_TOPOLOGY_LOGS = 10;
 
     private final TransportNetwork r5Network;
     private final Network mNetwork;
@@ -64,6 +65,10 @@ public class R5MnetBuilder {
 
         EdgeStore.Edge cursor = r5Network.streetLayer.edgeStore.getCursor();  // Iterator of edges in R5 network
         OsmToMATSim OTM = new OsmToMATSim(mNetwork, true, highwaySetting.speedsMeterPerSecondMap, highwaySetting.capacityMap, highwaySetting.lanesMap, highwaySetting.alphaMap, highwaySetting.betaMap);
+        int trueSelfLoopCount = 0;
+        int coordinateCollisionCount = 0;
+        int detailedTrueSelfLoopLogs = 0;
+        int detailedCoordinateCollisionLogs = 0;
 
         while (cursor.advance()) {
 //            log.debug("Edge Index:{}. Cursor {}.", cursor.getEdgeIndex(), cursor);
@@ -72,10 +77,6 @@ public class R5MnetBuilder {
             Integer edgeIndex = cursor.getEdgeIndex();
             long osmID = cursor.getOSMID();  // id of edge in the OSM db
             Way way = ways.get(osmID);
-
-            Set<Integer> deezNodes = new HashSet<>(2);
-            deezNodes.add(cursor.getFromVertex());
-            deezNodes.add(cursor.getToVertex());
 
             final HashSet<String> flagStrings = new HashSet<>();
             for (EdgeStore.EdgeFlag eF : cursor.getFlags()) {
@@ -110,38 +111,109 @@ public class R5MnetBuilder {
                 mNetwork.addLink(link);
                 log.debug("Created regular link: {}", link);
             }
-            if (fromNode.getId() == toNode.getId()) {
-                // Self-loops should NEVER reach this point if data pipeline is working correctly.
-                // This is a final assertion that:
-                // 1. Python's validate_graph_topology() removed self-loops during OSM export
-                // 2. R5's makeEdge() check caught any remaining corrupt OSM data
-                //
-                // If this exception fires, it means BOTH defenses failed - investigate immediately!
+            boolean sameMatsimNode = fromNode.getId().equals(toNode.getId());
+            if (sameMatsimNode) {
+                int fromVertex = cursor.getFromVertex();
+                int toVertex = cursor.getToVertex();
+                boolean sameR5Vertex = fromVertex == toVertex;
 
-                log.error(String.format(
-                        "CRITICAL: Self-loop detected in MATSim network conversion!\n" +
-                                "  OSM way: %d\n" +
-                                "  R5 vertices: %d -> %d (SAME VERTEX)\n" +
-                                "  MATSim node: %s -> %s (SAME NODE)\n" +
-                                "  Edge index: %d\n" +
-                                "  Length reported: %.3fm\n" +
-                                "\n" +
-                                "This indicates a data pipeline failure. Check:\n" +
-                                "  1. Did Python's validate_graph_topology() run during OSM export?\n" +
-                                "  2. Did R5's makeEdge() check fail to catch corrupt OSM data?\n" +
-                                "  3. Is there a new edge-splitting bug creating duplicate vertices?\n" +
-                                "\n" +
-                                "DO NOT run simulations with this network – it is corrupted.",
-                        osmID,                  // %d is correct for long
-                        cursor.getFromVertex(), // %d is correct for int
-                        cursor.getToVertex(),   // %d is correct for int
-                        fromNode.getId(),       // %s handles the object automatically
-                        toNode.getId(),         // %s handles the object automatically
-                        cursor.getEdgeIndex(),  // %d is correct for int
-                        cursor.getLengthM()     // %.3f is correct for double/float
-                ));
+                if (sameR5Vertex) {
+                    trueSelfLoopCount++;
+                    if (detailedTrueSelfLoopLogs < MAX_DETAILED_TOPOLOGY_LOGS) {
+                        detailedTrueSelfLoopLogs++;
+                        log.error(formatNodeIssueLog(
+                                "true-self-loop",
+                                osmID,
+                                fromVertex,
+                                toVertex,
+                                fromNode.getId(),
+                                toNode.getId(),
+                                edgeIndex,
+                                length,
+                                sameR5Vertex,
+                                sameMatsimNode
+                        ));
+                    }
+                } else {
+                    coordinateCollisionCount++;
+                    if (detailedCoordinateCollisionLogs < MAX_DETAILED_TOPOLOGY_LOGS) {
+                        detailedCoordinateCollisionLogs++;
+                        log.warn(formatNodeIssueLog(
+                                "coordinate-collision",
+                                osmID,
+                                fromVertex,
+                                toVertex,
+                                fromNode.getId(),
+                                toNode.getId(),
+                                edgeIndex,
+                                length,
+                                sameR5Vertex,
+                                sameMatsimNode
+                        ));
+                    }
+                }
             }
         }
+
+        int suppressedTrueSelfLoopLogs = trueSelfLoopCount - detailedTrueSelfLoopLogs;
+        int suppressedCoordinateCollisionLogs = coordinateCollisionCount - detailedCoordinateCollisionLogs;
+
+        if (trueSelfLoopCount > 0) {
+            log.error(
+                    "R5->MATSim topology summary: trueSelfLoops={}, coordinateCollisions={}, detailedTrueSelfLoopLogs={}, detailedCoordinateCollisionLogs={}, suppressedTrueSelfLoopLogs={}, suppressedCoordinateCollisionLogs={}",
+                    trueSelfLoopCount,
+                    coordinateCollisionCount,
+                    detailedTrueSelfLoopLogs,
+                    detailedCoordinateCollisionLogs,
+                    suppressedTrueSelfLoopLogs,
+                    suppressedCoordinateCollisionLogs
+            );
+        } else if (coordinateCollisionCount > 0) {
+            log.warn(
+                    "R5->MATSim topology summary: trueSelfLoops={}, coordinateCollisions={}, detailedTrueSelfLoopLogs={}, detailedCoordinateCollisionLogs={}, suppressedTrueSelfLoopLogs={}, suppressedCoordinateCollisionLogs={}",
+                    trueSelfLoopCount,
+                    coordinateCollisionCount,
+                    detailedTrueSelfLoopLogs,
+                    detailedCoordinateCollisionLogs,
+                    suppressedTrueSelfLoopLogs,
+                    suppressedCoordinateCollisionLogs
+            );
+        }
+    }
+
+    private String formatNodeIssueLog(
+            String issueType,
+            long osmID,
+            int fromVertex,
+            int toVertex,
+            Id<Node> fromNodeId,
+            Id<Node> toNodeId,
+            int edgeIndex,
+            double lengthMeters,
+            boolean sameR5Vertex,
+            boolean sameMatsimNode
+    ) {
+        return String.format(
+                "R5->MATSim topology issue detected:\n" +
+                        "  issueType: %s\n" +
+                        "  OSM way: %d\n" +
+                        "  R5 vertices: %d -> %d\n" +
+                        "  MATSim nodes: %s -> %s\n" +
+                        "  edgeIndex: %d\n" +
+                        "  lengthMeters: %.3f\n" +
+                        "  sameR5Vertex: %s\n" +
+                        "  sameMatsimNode: %s",
+                issueType,
+                osmID,
+                fromVertex,
+                toVertex,
+                fromNodeId,
+                toNodeId,
+                edgeIndex,
+                lengthMeters,
+                sameR5Vertex,
+                sameMatsimNode
+        );
     }
 
     private Link buildLink(Integer edgeIndex, Set<String> flagStrings, double length, Node fromNode, Node toNode) {

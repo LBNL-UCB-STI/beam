@@ -1,4 +1,6 @@
 venv/
+.*
+!.gitignore
 /bin/
 /build/
 test/output
@@ -11,6 +13,7 @@ test/output
 output/
 libs
 .idea/*
+**/.idea/
 !.idea/runConfigurations/Run*
 .cache*
 target/
