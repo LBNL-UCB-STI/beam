@@ -35,7 +35,7 @@ public class R5MnetBuilder {
     private final Network mNetwork;
     private final GeotoolsTransformation transform;
     private final String osmFile;
-    private final Map<Coord, Id<Node>> coordinateNodes = new HashMap<>();
+    private final Map<Integer, Id<Node>> vertexNodes = new HashMap<>();
     private final HighwaySetting highwaySetting;
     private final BeamConfig beamConfig;
 
@@ -96,10 +96,12 @@ public class R5MnetBuilder {
             Coordinate tempToCoord = tempCoords[tempCoords.length - 1];
             Coord toCoord = transform.transform(new Coord(tempToCoord.x, tempToCoord.y));
 
-            // Add R5 start and end nodes to the MATSim network
-            // Grab existing nodes from mNetwork if they already exist, else make new ones and add to mNetwork
-            Node fromNode = getOrMakeNode(fromCoord);
-            Node toNode = getOrMakeNode(toCoord);
+            int fromVertex = cursor.getFromVertex();
+            int toVertex = cursor.getToVertex();
+
+            // Add R5 start and end vertices as MATSim nodes (vertex ID is node identity; coord is positional only)
+            Node fromNode = getOrMakeNode(fromVertex, fromCoord);
+            Node toNode = getOrMakeNode(toVertex, toCoord);
             Link link;
             if (way == null) {
                 // Made up numbers, this is a PT to road network connector or something
@@ -113,8 +115,6 @@ public class R5MnetBuilder {
             }
             boolean sameMatsimNode = fromNode.getId().equals(toNode.getId());
             if (sameMatsimNode) {
-                int fromVertex = cursor.getFromVertex();
-                int toVertex = cursor.getToVertex();
                 boolean sameR5Vertex = fromVertex == toVertex;
 
                 if (sameR5Vertex) {
@@ -230,25 +230,26 @@ public class R5MnetBuilder {
         return mNetwork;
     }
 
-    /**
-     * Checks whether we already have a MATSim Node at the Coord. If so, returns that Node. If not, makes and adds
-     * a new Node to the network.
-     *
-     * @param coord
-     * @return
-     */
-    private Node getOrMakeNode(Coord coord) {
+    private Node getOrMakeNode(int vertexId, Coord coord) {
         Node dummyNode;
         Id<Node> id;
-        final boolean nodeAlreadyExists = coordinateNodes.containsKey(coord);
+        final boolean nodeAlreadyExists = vertexNodes.containsKey(vertexId);
         if (nodeAlreadyExists) {
-            id = this.coordinateNodes.get(coord);
+            id = this.vertexNodes.get(vertexId);
             dummyNode = this.mNetwork.getNodes().get(id);
+            if (dummyNode != null && !dummyNode.getCoord().equals(coord)) {
+                log.warn(
+                        "R5 vertex {} has inconsistent transformed coordinates. existingCoord={}, newCoord={}",
+                        vertexId,
+                        dummyNode.getCoord(),
+                        coord
+                );
+            }
         } else { // need to make new fromID and node and increment the matsimNetworkNodeId
             id = Id.createNodeId(this.matsimNetworkNodeId);
             this.matsimNetworkNodeId++;
             dummyNode = NetworkUtils.createAndAddNode(mNetwork, id, coord);
-            this.coordinateNodes.put(coord, id);
+            this.vertexNodes.put(vertexId, id);
         }
         return dummyNode;
     }

@@ -1,6 +1,8 @@
 venv/
 .*
 !.gitignore
+!.github/
+!.github/**
 /bin/
 /build/
 test/output
@@ -11,6 +13,10 @@ test/output
 .settings
 .classpath
 output/
+cache/
+.venv/
+.pytest_cache/
+dist/
 libs
 .idea/*
 **/.idea/
@@ -66,4 +72,4 @@ thread_dump_from_RunBeam.txt.gz
 test/input/fares/fares.dat
 test/input/sf-light/warmstart/warmstart_*
 *.log
-__pycache__
+__pycache__/
