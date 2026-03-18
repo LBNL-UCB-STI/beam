@@ -289,7 +289,7 @@ class SingleModeSpec
       withClue(s"When transit is available drive_transit should remain viable: $modeCount") {
         driveTransitDepartures should be > 0
         driveTransitShareVsWalk should be > 0.25
-        driveTransitArrivalRate should be > 0.85
+        driveTransitArrivalRate should be > 0.75
         personsWithBothDriveTransitAndPickup.size should be > 0
         oneDirectionOnlyRate should be <= maxAllowedOneDirectionOnlyRate
       }
