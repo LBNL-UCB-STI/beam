@@ -3619,6 +3619,7 @@ object BeamConfig {
       case class Jdeqsim(
         agentSimPhysSimInterfaceDebugger: BeamConfig.Beam.Physsim.Jdeqsim.AgentSimPhysSimInterfaceDebugger,
         cacc: BeamConfig.Beam.Physsim.Jdeqsim.Cacc,
+        nonEssentialHandlersEnabled: scala.Boolean,
         shortLink: BeamConfig.Beam.Physsim.Jdeqsim.ShortLink
       )
 
@@ -3706,6 +3707,8 @@ object BeamConfig {
               if (c.hasPathOrNull("cacc")) c.getConfig("cacc")
               else com.typesafe.config.ConfigFactory.parseString("cacc{}")
             ),
+            nonEssentialHandlersEnabled =
+              c.hasPathOrNull("nonEssentialHandlersEnabled") && c.getBoolean("nonEssentialHandlersEnabled"),
             shortLink = BeamConfig.Beam.Physsim.Jdeqsim.ShortLink(
               if (c.hasPathOrNull("shortLink")) c.getConfig("shortLink")
               else com.typesafe.config.ConfigFactory.parseString("shortLink{}")
@@ -4764,17 +4767,20 @@ object BeamConfig {
         directory: java.lang.String,
         directory2: scala.Option[java.lang.String],
         linkRadiusMeters: scala.Double,
+        logPoolPressureWarnings: scala.Boolean,
         mNetBuilder: BeamConfig.Beam.Routing.R5.MNetBuilder,
         maxDistanceLimitByModeInMeters: BeamConfig.Beam.Routing.R5.MaxDistanceLimitByModeInMeters,
         maxTimeLimitForFreightInMinutes: scala.Int,
         numberOfSamples: scala.Int,
         osmMapdbFile: java.lang.String,
+        routingRequestTimeout: scala.Long,
         snapRadiusMeters: scala.Double,
         statePoolSize: BeamConfig.Beam.Routing.R5.StatePoolSize,
         suboptimalMinutes: scala.Int,
         suboptimalMinutesForDriveAccess: scala.Int,
         transitAlternativeList: java.lang.String,
-        travelTimeNoiseFraction: scala.Double
+        travelTimeNoiseFraction: scala.Double,
+        useMcRaptorRouterPooling: scala.Boolean
       )
 
       object R5 {
@@ -4845,18 +4851,18 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing.R5.StatePoolSize = {
             BeamConfig.Beam.Routing.R5.StatePoolSize(
-              bike = if (c.hasPathOrNull("bike")) c.getInt("bike") else 35000,
+              bike = if (c.hasPathOrNull("bike")) c.getInt("bike") else 150000,
               bike_transit_optimal =
-                if (c.hasPathOrNull("bike_transit_optimal")) c.getInt("bike_transit_optimal") else 20000,
+                if (c.hasPathOrNull("bike_transit_optimal")) c.getInt("bike_transit_optimal") else 30000,
               bike_transit_suboptimal =
                 if (c.hasPathOrNull("bike_transit_suboptimal")) c.getInt("bike_transit_suboptimal") else 1000000,
-              car = if (c.hasPathOrNull("car")) c.getInt("car") else 150000,
+              car = if (c.hasPathOrNull("car")) c.getInt("car") else 300000,
               drive_transit_optimal =
-                if (c.hasPathOrNull("drive_transit_optimal")) c.getInt("drive_transit_optimal") else 20000,
+                if (c.hasPathOrNull("drive_transit_optimal")) c.getInt("drive_transit_optimal") else 30000,
               drive_transit_suboptimal =
                 if (c.hasPathOrNull("drive_transit_suboptimal")) c.getInt("drive_transit_suboptimal") else 1000000,
-              primary = if (c.hasPathOrNull("primary")) c.getInt("primary") else 150000,
-              walk = if (c.hasPathOrNull("walk")) c.getInt("walk") else 35000,
+              primary = if (c.hasPathOrNull("primary")) c.getInt("primary") else 300000,
+              walk = if (c.hasPathOrNull("walk")) c.getInt("walk") else 50000,
               walk_transit_optimal =
                 if (c.hasPathOrNull("walk_transit_optimal")) c.getInt("walk_transit_optimal") else 100000,
               walk_transit_suboptimal =
@@ -4879,6 +4885,8 @@ object BeamConfig {
             directory = if (c.hasPathOrNull("directory")) c.getString("directory") else "/test/input/beamville/r5",
             directory2 = if (c.hasPathOrNull("directory2")) Some(c.getString("directory2")) else None,
             linkRadiusMeters = if (c.hasPathOrNull("linkRadiusMeters")) c.getDouble("linkRadiusMeters") else 10000.0,
+            logPoolPressureWarnings =
+              c.hasPathOrNull("logPoolPressureWarnings") && c.getBoolean("logPoolPressureWarnings"),
             mNetBuilder = BeamConfig.Beam.Routing.R5.MNetBuilder(
               if (c.hasPathOrNull("mNetBuilder")) c.getConfig("mNetBuilder")
               else com.typesafe.config.ConfigFactory.parseString("mNetBuilder{}")
@@ -4894,6 +4902,10 @@ object BeamConfig {
             osmMapdbFile =
               if (c.hasPathOrNull("osmMapdbFile")) c.getString("osmMapdbFile")
               else "/test/input/beamville/r5/osm.mapdb",
+            routingRequestTimeout =
+              if (c.hasPathOrNull("routingRequestTimeout"))
+                c.getDuration("routingRequestTimeout", java.util.concurrent.TimeUnit.MILLISECONDS)
+              else 0,
             snapRadiusMeters = if (c.hasPathOrNull("snapRadiusMeters")) c.getDouble("snapRadiusMeters") else 5.0,
             statePoolSize = BeamConfig.Beam.Routing.R5.StatePoolSize(
               if (c.hasPathOrNull("statePoolSize")) c.getConfig("statePoolSize")
@@ -4906,7 +4918,9 @@ object BeamConfig {
             transitAlternativeList =
               if (c.hasPathOrNull("transitAlternativeList")) c.getString("transitAlternativeList") else "SUBOPTIMAL",
             travelTimeNoiseFraction =
-              if (c.hasPathOrNull("travelTimeNoiseFraction")) c.getDouble("travelTimeNoiseFraction") else 0.0
+              if (c.hasPathOrNull("travelTimeNoiseFraction")) c.getDouble("travelTimeNoiseFraction") else 0.0,
+            useMcRaptorRouterPooling =
+              !c.hasPathOrNull("useMcRaptorRouterPooling") || c.getBoolean("useMcRaptorRouterPooling")
           )
         }
       }

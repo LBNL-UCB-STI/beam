@@ -2,6 +2,7 @@ package beam.physsim.jdeqsim;
 
 import akka.actor.ActorRef;
 import beam.agentsim.agents.vehicles.BeamVehicleType;
+import beam.agentsim.events.BeamPersonDepartureEvent;
 import beam.agentsim.events.LeavingParkingEvent;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.agentsim.infrastructure.parking.ParkingType;
@@ -51,6 +52,7 @@ import org.matsim.core.population.PopulationUtils;
 import org.matsim.core.population.routes.NetworkRoute;
 import org.matsim.core.population.routes.RouteUtils;
 import org.matsim.core.router.util.TravelTime;
+import org.matsim.core.utils.misc.OptionalTime;
 import org.matsim.core.utils.misc.Time;
 import org.matsim.households.Household;
 import org.matsim.utils.objectattributes.attributable.Attributes;
@@ -112,9 +114,17 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private Map<Id<Person>, Household> personToHouseHold;
 
     private final List<PathTraversalEvent> traversalEventsForPhysSimulation = new LinkedList<>();
+    private final Map<String, String> driverToCurrentTripToken = new HashMap<>();
+    private final Map<String, Long> driverToSyntheticTripCounter = new HashMap<>();
 
     private static final String ATTRIBUTE_PAYLOAD_IDS = "payloads";
     private static final String ATTRIBUTE_WEIGHT = "weight";
+    private static final String ATTRIBUTE_DRIVER_ID = "driver_id";
+    private static final String ATTRIBUTE_REROUTED_BY_MULTI_JDEQ_SIM = "rerouted_by_multi_jdeqsim";
+    private static final String ATTRIBUTE_TRIP_ID_UNDERSCORE = "trip_id";
+    private static final String ATTRIBUTE_TRIP_ID_CAMEL = "tripId";
+    private static final double ROUTE_SYNC_DEPARTURE_TIME_TOLERANCE_SEC = 180.0;
+    private static final int MAX_ROUTE_SYNC_DETAILS_AT_DEBUG = 500;
 
     public AgentSimToPhysSimPlanConverter(EventsManager eventsManager,
                                           TransportNetwork transportNetwork,
@@ -159,6 +169,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private void preparePhysSimForNewIteration() {
         jdeqsimPopulation = PopulationUtils.createPopulation(agentSimScenario.getConfig());
         buildPersonToHousehold();
+        driverToCurrentTripToken.clear();
+        driverToSyntheticTripCounter.clear();
     }
 
     public void buildPersonToHousehold() {
@@ -325,8 +337,20 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         cfg.setMaxTime(endTimeInSeconds);
         Network network = agentSimScenario.getNetwork();
         LinkStatsWithVehicleCategory linkStats = new LinkStatsWithVehicleCategory(network, cfg);
-        String filePath = controlerIO.getIterationFilename(iterationEndsEvent.getIteration(), "linkstats.csv.gz"); // TODO: Make configurable
+        String filePath = controlerIO.getIterationFilename(
+                iterationEndsEvent.getIteration(),
+                String.format("linkstats.%s", linkStatsOutputFileType())
+        );
         linkStats.writeLinkStatsWithTruckVolumes(volumesAnalyzer, travelTimeForR5, filePath);
+    }
+
+    private String linkStatsOutputFileType() {
+        String fileType = beamConfig.beam().physsim().linkStatsOutputFileType();
+        if (fileType == null) return "csv.gz";
+        fileType = fileType.trim();
+        if (fileType.isEmpty()) return "csv.gz";
+        if (fileType.startsWith(".")) fileType = fileType.substring(1);
+        return fileType.toLowerCase();
     }
 
     private boolean shouldWritePlans(int iterationNumber) {
@@ -358,11 +382,44 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             agentSimPhysSimInterfaceDebugger.handleEvent(event);
         }
 
-        if (event instanceof PathTraversalEvent) {
+        if (event instanceof BeamPersonDepartureEvent || BeamPersonDepartureEvent.EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
+            handleBeamPersonDepartureEvent(event);
+        } else if (event instanceof PathTraversalEvent) {
             handlePathTraversalEvent((PathTraversalEvent) event);
         } else if (event instanceof LeavingParkingEvent) {
             handleLeavingParkingEvent((LeavingParkingEvent) event);
         }
+    }
+
+    private void handleBeamPersonDepartureEvent(Event event) {
+        String driverId;
+        String tripToken;
+
+        if (event instanceof BeamPersonDepartureEvent) {
+            BeamPersonDepartureEvent beamEvent = (BeamPersonDepartureEvent) event;
+            driverId = normalizeTripId(beamEvent.getPersonId().toString());
+            tripToken = normalizeTripId(beamEvent.getTripId());
+        } else {
+            Map<String, String> attributes = event.getAttributes();
+            driverId = normalizeTripId(attributes.get(BeamPersonDepartureEvent.ATTRIBUTE_PERSON));
+            if (driverId == null) {
+                driverId = normalizeTripId(attributes.get("person"));
+            }
+            tripToken = normalizeTripId(attributes.get(BeamPersonDepartureEvent.ATTRIBUTE_TRIP_ID));
+            if (tripToken == null) {
+                tripToken = normalizeTripId(attributes.get("tripId"));
+            }
+        }
+
+        if (driverId == null) {
+            return;
+        }
+
+        if (tripToken == null) {
+            long next = driverToSyntheticTripCounter.merge(driverId, 1L, Long::sum);
+            tripToken = "depSeq:" + next;
+        }
+        driverToCurrentTripToken.put(driverId, tripToken);
     }
 
     private void handleLeavingParkingEvent(LeavingParkingEvent event) {
@@ -460,6 +517,13 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             leg.getAttributes().putAttribute(ATTRIBUTE_PAYLOAD_IDS, payloadIdString);
             leg.getAttributes().putAttribute(ATTRIBUTE_WEIGHT, weightString);
         }
+        if (leg != null) {
+            leg.getAttributes().putAttribute(ATTRIBUTE_DRIVER_ID, driverId);
+            String tripToken = resolveTripTokenForLeg(driverId, connectedLeg);
+            if (tripToken != null) {
+                leg.getAttributes().putAttribute(ATTRIBUTE_TRIP_ID_UNDERSCORE, tripToken);
+            }
+        }
 
         if (leg == null) {
             return;
@@ -467,7 +531,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         if (connectedLeg == null) {
             Activity previousActivity = jdeqsimPopulation.getFactory().createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getStartLinkId());
-            previousActivity.setEndTime(leg.getDepartureTime().seconds());
+            Double departureTime = getLegAttributeAsDouble(leg, "departure_time");
+            previousActivity.setEndTime(departureTime == null ? pte.departureTime() : departureTime);
             plan.addActivity(previousActivity);
             plan.addLeg(leg);
         } else {
@@ -575,9 +640,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         route.setDistance(length);
 
         Leg leg = jdeqsimPopulation.getFactory().createLeg(CAR);
-        double actualDepartureTime = connectedLeg == null
-                ? pte.departureTime()
-                : connectedLeg.getDepartureTime().seconds();
+        Double connectedDepartureTime = connectedLeg == null ? null : getLegAttributeAsDouble(connectedLeg, "departure_time");
+        if (connectedDepartureTime == null && connectedLeg != null) {
+            connectedDepartureTime = optionalTimeToSeconds(connectedLeg.getDepartureTime());
+        }
+        double actualDepartureTime = connectedDepartureTime == null ? pte.departureTime() : connectedDepartureTime;
         double departureTime = Math.max(0.0, actualDepartureTime + departureTimeShift);
         double travelTime = pte.arrivalTime() - actualDepartureTime;
         leg.setDepartureTime(departureTime);
@@ -604,8 +671,529 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         writePhyssimPlans(iterationEndsEvent);
         long start = System.currentTimeMillis();
         setupActorsAndRunPhysSim(iterationEndsEvent);
+        synchronizePhysSimRoutesToAgentSimPlans(iterationEndsEvent.getIteration());
         log.info("PhysSim for iteration {} took {} ms", iterationEndsEvent.getIteration(), System.currentTimeMillis() - start);
         preparePhysSimForNewIteration();
+    }
+
+    private void synchronizePhysSimRoutesToAgentSimPlans(int iterationNumber) {
+        int synchronizedPeople = 0;
+        int synchronizedLegs = 0;
+        int consideredDrivers = 0;
+        int skippedCloneMappings = 0;
+        int skippedMissingPeople = 0;
+        int skippedNoCompatibleLegs = 0;
+        int skippedMissingPlans = 0;
+        int perfectMatches = 0;
+        int partialMatches = 0;
+        int mismatchedCounts = 0;
+        int matchedByTripId = 0;
+        int matchedByTripIdWithEndLinkMismatch = 0;
+        int detailedInfoLogs = 0;
+        int suppressedDetailedInfoLogs = 0;
+        final boolean routeSyncDebugEnabled = log.isDebugEnabled();
+
+        Map<Id<Person>, List<Leg>> driverToPhysSimCarLegs = new HashMap<>();
+        for (Person physSimPerson : jdeqsimPopulation.getPersons().values()) {
+            Plan physSimPlan = physSimPerson.getSelectedPlan();
+            if (physSimPlan == null) {
+                continue;
+            }
+            for (Leg leg : getCarLegs(physSimPlan)) {
+                Object driverIdRaw = leg.getAttributes().getAttribute(ATTRIBUTE_DRIVER_ID);
+                if (driverIdRaw == null) {
+                    continue;
+                }
+                if (!isTrue(leg.getAttributes().getAttribute(ATTRIBUTE_REROUTED_BY_MULTI_JDEQ_SIM))) {
+                    continue;
+                }
+                Id<Person> driverId = Id.createPersonId(driverIdRaw.toString());
+                if (driverId.toString().contains("_clone")) {
+                    skippedCloneMappings++;
+                    continue;
+                }
+                driverToPhysSimCarLegs.computeIfAbsent(driverId, id -> new ArrayList<>()).add(leg);
+            }
+        }
+
+        for (Map.Entry<Id<Person>, List<Leg>> entry : driverToPhysSimCarLegs.entrySet()) {
+            consideredDrivers++;
+            Id<Person> driverId = entry.getKey();
+            Person agentSimDriverPerson = agentSimScenario.getPopulation().getPersons().get(driverId);
+            if (agentSimDriverPerson == null) {
+                skippedMissingPeople++;
+                continue;
+            }
+
+            Plan agentSimPlan = agentSimDriverPerson.getSelectedPlan();
+            if (agentSimPlan == null) {
+                skippedMissingPlans++;
+                continue;
+            }
+
+            List<Leg> physSimCarLegs = sortLegsByDepartureTime(entry.getValue());
+            List<Leg> agentSimCarLegs = sortLegsByDepartureTime(getCarLegs(agentSimPlan));
+            if (physSimCarLegs.isEmpty() || agentSimCarLegs.isEmpty()) {
+                continue;
+            }
+
+            if (physSimCarLegs.size() != agentSimCarLegs.size()) {
+                mismatchedCounts++;
+            }
+
+            List<LegMatch> matches = matchLegsForSynchronization(physSimCarLegs, agentSimCarLegs);
+            if (matches.isEmpty()) {
+                skippedNoCompatibleLegs++;
+                if (routeSyncDebugEnabled) {
+                    if (detailedInfoLogs < MAX_ROUTE_SYNC_DETAILS_AT_DEBUG) {
+                        log.debug(
+                                "Skipping route synchronization for driver {} at iteration {} due to no compatible legs (physSimRerouted={}, agentSimCar={}). Sample physSim legs: {}. Sample agentSim legs: {}",
+                                driverId,
+                                iterationNumber,
+                                physSimCarLegs.size(),
+                                agentSimCarLegs.size(),
+                                summarizeLegs(physSimCarLegs, 3),
+                                summarizeLegs(agentSimCarLegs, 3)
+                        );
+                        detailedInfoLogs++;
+                    } else {
+                        suppressedDetailedInfoLogs++;
+                    }
+                }
+                continue;
+            }
+
+            if (matches.size() == physSimCarLegs.size() && matches.size() == agentSimCarLegs.size()) {
+                perfectMatches++;
+            } else {
+                partialMatches++;
+                if (routeSyncDebugEnabled) {
+                    if (detailedInfoLogs < MAX_ROUTE_SYNC_DETAILS_AT_DEBUG) {
+                        log.debug(
+                                "Route synchronization partially matched driver {} at iteration {} (physSimRerouted={}, agentSimCar={}, matched={}, unmatchedPhys={}, unmatchedAgent={}). Sample unmatched physSim legs: {}. Sample unmatched agentSim legs: {}",
+                                driverId,
+                                iterationNumber,
+                                physSimCarLegs.size(),
+                                agentSimCarLegs.size(),
+                                matches.size(),
+                                physSimCarLegs.size() - matches.size(),
+                                agentSimCarLegs.size() - matches.size(),
+                                summarizeUnmatchedLegs(physSimCarLegs, matches, true, 3),
+                                summarizeUnmatchedLegs(agentSimCarLegs, matches, false, 3)
+                        );
+                        detailedInfoLogs++;
+                    } else {
+                        suppressedDetailedInfoLogs++;
+                    }
+                }
+            }
+
+            matchedByTripId += (int) matches.stream().filter(match -> match.matchedByTripId).count();
+            matchedByTripIdWithEndLinkMismatch += (int) matches.stream()
+                    .filter(match -> match.matchedByTripId && !legEndLinksMatch(match.sourceLeg, match.targetLeg))
+                    .count();
+
+            int updatedLegsForPerson = 0;
+            for (LegMatch match : matches) {
+                if (copyLegRouteAndTiming(match.sourceLeg, match.targetLeg)) {
+                    updatedLegsForPerson++;
+                    synchronizedLegs++;
+                }
+            }
+            if (updatedLegsForPerson > 0) {
+                synchronizedPeople++;
+            }
+        }
+
+        log.info(
+                "PhysSim route synchronization at iteration {} considered {} drivers and updated {} car legs for {} persons. Matching summary: perfectMatches={}, partialMatches={}, countMismatches={}, matchedByTripId={}, matchedByTripIdWithEndLinkMismatch={}, skippedNoCompatibleLegs={}. Other skips: cloneMappings={}, missingPeople={}, missingPlans={}. Detailed debug logs emitted={}, suppressed={}",
+                iterationNumber,
+                consideredDrivers,
+                synchronizedLegs,
+                synchronizedPeople,
+                perfectMatches,
+                partialMatches,
+                mismatchedCounts,
+                matchedByTripId,
+                matchedByTripIdWithEndLinkMismatch,
+                skippedNoCompatibleLegs,
+                skippedCloneMappings,
+                skippedMissingPeople,
+                skippedMissingPlans,
+                detailedInfoLogs,
+                suppressedDetailedInfoLogs
+        );
+    }
+
+    private List<LegMatch> matchLegsForSynchronization(List<Leg> sourceLegs, List<Leg> targetLegs) {
+        if (sourceLegs.size() == targetLegs.size()) {
+            List<LegMatch> orderedMatches = new ArrayList<>();
+            for (int i = 0; i < sourceLegs.size(); i++) {
+                Leg sourceLeg = sourceLegs.get(i);
+                Leg targetLeg = targetLegs.get(i);
+                if (legTripIdsConflict(sourceLeg, targetLeg)) {
+                    continue;
+                }
+                orderedMatches.add(new LegMatch(sourceLeg, targetLeg, i, i, hasSameTripId(sourceLeg, targetLeg)));
+            }
+            return orderedMatches;
+        }
+
+        List<LegMatch> matches = new ArrayList<>();
+        int targetSearchStart = 0;
+
+        for (int sourceIdx = 0; sourceIdx < sourceLegs.size(); sourceIdx++) {
+            Leg sourceLeg = sourceLegs.get(sourceIdx);
+            int bestTargetIdx = -1;
+            int bestTripIdPriority = Integer.MAX_VALUE;
+            double bestDepartureScore = Double.MAX_VALUE;
+            boolean bestMatchedByTripId = false;
+
+            for (int targetIdx = targetSearchStart; targetIdx < targetLegs.size(); targetIdx++) {
+                Leg targetLeg = targetLegs.get(targetIdx);
+                if (!legsCompatibleForRouteSync(sourceLeg, targetLeg)) {
+                    continue;
+                }
+
+                boolean sameTripId = hasSameTripId(sourceLeg, targetLeg);
+                int tripIdPriority = sameTripId ? 0 : 1;
+                double departureScore = departureTimeDifferenceOrMax(sourceLeg, targetLeg);
+
+                if (tripIdPriority < bestTripIdPriority
+                        || (tripIdPriority == bestTripIdPriority && departureScore < bestDepartureScore)) {
+                    bestTripIdPriority = tripIdPriority;
+                    bestDepartureScore = departureScore;
+                    bestTargetIdx = targetIdx;
+                    bestMatchedByTripId = sameTripId;
+                }
+            }
+
+            if (bestTargetIdx >= 0) {
+                matches.add(new LegMatch(sourceLeg, targetLegs.get(bestTargetIdx), sourceIdx, bestTargetIdx, bestMatchedByTripId));
+                targetSearchStart = bestTargetIdx + 1;
+            }
+        }
+
+        return matches;
+    }
+
+    private boolean legsCompatibleForRouteSync(Leg sourceLeg, Leg targetLeg) {
+        if (legTripIdsConflict(sourceLeg, targetLeg)) {
+            return false;
+        }
+
+        if (!(sourceLeg.getRoute() instanceof NetworkRoute) || !(targetLeg.getRoute() instanceof NetworkRoute)) {
+            return false;
+        }
+        NetworkRoute sourceRoute = (NetworkRoute) sourceLeg.getRoute();
+        NetworkRoute targetRoute = (NetworkRoute) targetLeg.getRoute();
+        if (sourceRoute.getStartLinkId() == null || sourceRoute.getEndLinkId() == null) {
+            return false;
+        }
+        if (targetRoute.getStartLinkId() == null || targetRoute.getEndLinkId() == null) {
+            return false;
+        }
+
+        boolean sameTripId = hasSameTripId(sourceLeg, targetLeg);
+        if (!Objects.equals(sourceRoute.getStartLinkId(), targetRoute.getStartLinkId())) {
+            return false;
+        }
+        if (!sameTripId && !Objects.equals(sourceRoute.getEndLinkId(), targetRoute.getEndLinkId())) {
+            return false;
+        }
+
+        return legsDepartureTimesCompatible(sourceLeg, targetLeg);
+    }
+
+    private boolean legsDepartureTimesCompatible(Leg sourceLeg, Leg targetLeg) {
+        Double sourceDepartureTime = getLegDepartureTimeOrNull(sourceLeg);
+        Double targetDepartureTime = getLegDepartureTimeOrNull(targetLeg);
+        if (sourceDepartureTime == null || targetDepartureTime == null) {
+            return true;
+        }
+        return Math.abs(sourceDepartureTime - targetDepartureTime) <= ROUTE_SYNC_DEPARTURE_TIME_TOLERANCE_SEC;
+    }
+
+    private boolean legEndLinksMatch(Leg sourceLeg, Leg targetLeg) {
+        if (!(sourceLeg.getRoute() instanceof NetworkRoute) || !(targetLeg.getRoute() instanceof NetworkRoute)) {
+            return false;
+        }
+        NetworkRoute sourceRoute = (NetworkRoute) sourceLeg.getRoute();
+        NetworkRoute targetRoute = (NetworkRoute) targetLeg.getRoute();
+        return Objects.equals(sourceRoute.getEndLinkId(), targetRoute.getEndLinkId());
+    }
+
+    private boolean legTripIdsConflict(Leg sourceLeg, Leg targetLeg) {
+        String sourceTripId = getLegTripId(sourceLeg);
+        String targetTripId = getLegTripId(targetLeg);
+        return sourceTripId != null && targetTripId != null && !sourceTripId.equals(targetTripId);
+    }
+
+    private boolean hasSameTripId(Leg sourceLeg, Leg targetLeg) {
+        String sourceTripId = getLegTripId(sourceLeg);
+        String targetTripId = getLegTripId(targetLeg);
+        return sourceTripId != null && sourceTripId.equals(targetTripId);
+    }
+
+    private double departureTimeDifferenceOrMax(Leg sourceLeg, Leg targetLeg) {
+        Double sourceDepartureTime = getLegDepartureTimeOrNull(sourceLeg);
+        Double targetDepartureTime = getLegDepartureTimeOrNull(targetLeg);
+        if (sourceDepartureTime == null || targetDepartureTime == null) {
+            return Double.MAX_VALUE;
+        }
+        return Math.abs(sourceDepartureTime - targetDepartureTime);
+    }
+
+    private String summarizeLegs(List<Leg> legs, int maxItems) {
+        return legs.stream().limit(maxItems).map(this::describeLeg).collect(Collectors.joining("; "));
+    }
+
+    private String summarizeUnmatchedLegs(List<Leg> legs, List<LegMatch> matches, boolean source, int maxItems) {
+        Set<Integer> matchedIndices = matches.stream()
+                .map(match -> source ? match.sourceIndex : match.targetIndex)
+                .collect(Collectors.toSet());
+        return IntStream.range(0, legs.size())
+                .filter(idx -> !matchedIndices.contains(idx))
+                .mapToObj(legs::get)
+                .limit(maxItems)
+                .map(this::describeLeg)
+                .collect(Collectors.joining("; "));
+    }
+
+    private String describeLeg(Leg leg) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("dep=").append(formatTimeForLog(getLegDepartureTimeOrNull(leg)));
+        builder.append(",travel=").append(formatTimeForLog(getLegTravelTimeOrNull(leg)));
+        builder.append(",tripId=").append(Optional.ofNullable(getLegTripId(leg)).orElse("none"));
+        if (leg.getRoute() instanceof NetworkRoute) {
+            NetworkRoute route = (NetworkRoute) leg.getRoute();
+            builder.append(",start=").append(route.getStartLinkId());
+            builder.append(",end=").append(route.getEndLinkId());
+            builder.append(",intermediate=").append(route.getLinkIds().size());
+        } else {
+            builder.append(",routeType=").append(leg.getRoute() == null ? "null" : leg.getRoute().getClass().getSimpleName());
+        }
+        builder.append(",rerouted=").append(isTrue(leg.getAttributes().getAttribute(ATTRIBUTE_REROUTED_BY_MULTI_JDEQ_SIM)));
+        return builder.toString();
+    }
+
+    private String formatTimeForLog(Double value) {
+        if (value == null || !isDefinedTime(value)) {
+            return "undefined";
+        }
+        return String.format(Locale.US, "%.1f", value);
+    }
+
+    private List<Leg> sortLegsByDepartureTime(List<Leg> legs) {
+        List<Leg> sorted = new ArrayList<>(legs);
+        sorted.sort(Comparator.comparingDouble(this::getLegDepartureTime));
+        return sorted;
+    }
+
+    private double getLegDepartureTime(Leg leg) {
+        Double departureTime = getLegDepartureTimeOrNull(leg);
+        return departureTime != null && isDefinedTime(departureTime) ? departureTime : Double.MAX_VALUE;
+    }
+
+    private Double getLegDepartureTimeOrNull(Leg leg) {
+        Double departureTime = getLegAttributeAsDouble(leg, "departure_time");
+        if (departureTime == null) {
+            departureTime = optionalTimeToSeconds(leg.getDepartureTime());
+        }
+        return departureTime != null && isDefinedTime(departureTime) ? departureTime : null;
+    }
+
+    private Double getLegTravelTimeOrNull(Leg leg) {
+        Double travelTime = getLegAttributeAsDouble(leg, "travel_time");
+        if (travelTime == null) {
+            travelTime = optionalTimeToSeconds(leg.getTravelTime());
+        }
+        return travelTime != null && isDefinedTime(travelTime) ? travelTime : null;
+    }
+
+    private List<Leg> getCarLegs(Plan plan) {
+        List<Leg> carLegs = new ArrayList<>();
+        for (PlanElement element : plan.getPlanElements()) {
+            if (element instanceof Leg) {
+                Leg leg = (Leg) element;
+                if (isCarMode(leg.getMode())) {
+                    carLegs.add(leg);
+                }
+            }
+        }
+        return carLegs;
+    }
+
+    private boolean copyLegRouteAndTiming(Leg sourceLeg, Leg targetLeg) {
+        if (!(sourceLeg.getRoute() instanceof NetworkRoute)) {
+            return false;
+        }
+        NetworkRoute sourceRoute = (NetworkRoute) sourceLeg.getRoute();
+        NetworkRoute copiedRoute = copyNetworkRoute(sourceRoute);
+        if (copiedRoute == null) {
+            return false;
+        }
+
+        targetLeg.setRoute(copiedRoute);
+        targetLeg.setMode(sourceLeg.getMode());
+
+        Double departureTime = getLegAttributeAsDouble(sourceLeg, "departure_time");
+        if (departureTime == null) {
+            departureTime = optionalTimeToSeconds(sourceLeg.getDepartureTime());
+        }
+        if (departureTime != null && isDefinedTime(departureTime)) {
+            targetLeg.setDepartureTime(departureTime);
+        } else {
+            targetLeg.setDepartureTimeUndefined();
+        }
+
+        Double travelTime = getLegAttributeAsDouble(sourceLeg, "travel_time");
+        if (travelTime == null) {
+            travelTime = optionalTimeToSeconds(sourceLeg.getTravelTime());
+        }
+        if (travelTime != null && isDefinedTime(travelTime)) {
+            targetLeg.setTravelTime(travelTime);
+        } else {
+            targetLeg.setTravelTimeUndefined();
+        }
+
+        copyLegAttribute(sourceLeg, targetLeg, "travel_time");
+        copyLegAttribute(sourceLeg, targetLeg, "departure_time");
+        copyLegAttribute(sourceLeg, targetLeg, "event_time");
+        copyLegAttribute(sourceLeg, targetLeg, "ended_with_double_parking");
+        copyLegAttribute(sourceLeg, targetLeg, ATTRIBUTE_PAYLOAD_IDS);
+        copyLegAttribute(sourceLeg, targetLeg, ATTRIBUTE_WEIGHT);
+        copyLegAttribute(sourceLeg, targetLeg, ATTRIBUTE_REROUTED_BY_MULTI_JDEQ_SIM);
+        return true;
+    }
+
+    private NetworkRoute copyNetworkRoute(NetworkRoute sourceRoute) {
+        if (sourceRoute.getStartLinkId() == null || sourceRoute.getEndLinkId() == null) {
+            return null;
+        }
+        List<Id<Link>> routeLinks = new ArrayList<>();
+        routeLinks.add(sourceRoute.getStartLinkId());
+        routeLinks.addAll(sourceRoute.getLinkIds());
+        routeLinks.add(sourceRoute.getEndLinkId());
+
+        NetworkRoute copiedRoute = RouteUtils.createNetworkRoute(routeLinks, agentSimScenario.getNetwork());
+        copiedRoute.setDistance(sourceRoute.getDistance());
+
+        Double routeTravelTime = optionalTimeToSeconds(sourceRoute.getTravelTime());
+        if (routeTravelTime != null && isDefinedTime(routeTravelTime)) {
+            copiedRoute.setTravelTime(routeTravelTime);
+        } else {
+            copiedRoute.setTravelTimeUndefined();
+        }
+        return copiedRoute;
+    }
+
+    private Double getLegAttributeAsDouble(Leg leg, String attributeKey) {
+        Object value = leg.getAttributes().getAttribute(attributeKey);
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        }
+        if (value != null) {
+            try {
+                return Double.parseDouble(value.toString());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private Double optionalTimeToSeconds(OptionalTime optionalTime) {
+        if (optionalTime == null) {
+            return null;
+        }
+        try {
+            return optionalTime.seconds();
+        } catch (NoSuchElementException ignored) {
+            return null;
+        }
+    }
+
+    private boolean isDefinedTime(double value) {
+        return !Double.isNaN(value) && !Double.isInfinite(value);
+    }
+
+    private String getLegTripId(Leg leg) {
+        Object underscore = leg.getAttributes().getAttribute(ATTRIBUTE_TRIP_ID_UNDERSCORE);
+        String tripId = normalizeTripId(underscore);
+        if (tripId != null) {
+            return tripId;
+        }
+        Object camel = leg.getAttributes().getAttribute(ATTRIBUTE_TRIP_ID_CAMEL);
+        return normalizeTripId(camel);
+    }
+
+    private String normalizeTripId(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.toString().trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String resolveTripTokenForLeg(String driverId, Leg connectedLeg) {
+        if (connectedLeg != null) {
+            String connectedLegTripId = getLegTripId(connectedLeg);
+            if (connectedLegTripId != null) {
+                return connectedLegTripId;
+            }
+        }
+        return getCurrentTripTokenForDriver(driverId);
+    }
+
+    private String getCurrentTripTokenForDriver(String driverId) {
+        String direct = normalizeTripId(driverToCurrentTripToken.get(driverId));
+        if (direct != null) {
+            return direct;
+        }
+        String baseDriverId = getBaseDriverId(driverId);
+        if (!baseDriverId.equals(driverId)) {
+            return normalizeTripId(driverToCurrentTripToken.get(baseDriverId));
+        }
+        return null;
+    }
+
+    private String getBaseDriverId(String driverId) {
+        int cloneSuffixIndex = driverId.indexOf("_clone");
+        if (cloneSuffixIndex > 0) {
+            return driverId.substring(0, cloneSuffixIndex);
+        }
+        return driverId;
+    }
+
+    private void copyLegAttribute(Leg sourceLeg, Leg targetLeg, String attributeKey) {
+        Object value = sourceLeg.getAttributes().getAttribute(attributeKey);
+        if (value != null) {
+            targetLeg.getAttributes().putAttribute(attributeKey, value);
+        }
+    }
+
+    private boolean isTrue(Object value) {
+        if (value instanceof Boolean) {
+            return (Boolean) value;
+        }
+        return value != null && Boolean.parseBoolean(value.toString());
+    }
+
+    private static final class LegMatch {
+        private final Leg sourceLeg;
+        private final Leg targetLeg;
+        private final int sourceIndex;
+        private final int targetIndex;
+        private final boolean matchedByTripId;
+
+        private LegMatch(Leg sourceLeg, Leg targetLeg, int sourceIndex, int targetIndex, boolean matchedByTripId) {
+            this.sourceLeg = sourceLeg;
+            this.targetLeg = targetLeg;
+            this.sourceIndex = sourceIndex;
+            this.targetIndex = targetIndex;
+            this.matchedByTripId = matchedByTripId;
+        }
     }
 
     private void createLastActivityOfDayForPopulation() {

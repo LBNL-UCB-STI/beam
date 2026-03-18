@@ -1204,7 +1204,7 @@ class RideHailAgent(
     val destinationUtm = rideHailAgentLocation.getCurrentLocationUTM(vehicle.spaceTime.time, beamServices)
     val time = Math.max(vehicle.spaceTime.time, rideHailAgentLocation.latestUpdatedLocationUTM.time)
     val parkingDuration =
-      if (shifts.isEmpty || isCurrentlyOnShift) 0
+      if (shifts.isEmpty || isCurrentlyOnShift) 30 * 60 // 30  minutes for charging
       else {
         val latestShift = shifts.get.filter(_.range.upperBound >= time).head
         val nextLatestShift = shifts.get.filter(_.range.lowerBound < time).last
@@ -1267,6 +1267,15 @@ class RideHailAgent(
         }
       case None =>
         log.error("RHA {}: was expecting to release a triggerId but None found", id)
+        (receivedTriggerId, attemptRefuel) match {
+          case (Some(triggerId), false) =>
+            log.debug("RHA {}: completing received trigger and scheduling {}", id, newTriggers)
+            if (debugEnabled) outgoingMessages += CompletionNotice(triggerId, newTriggers)
+            scheduler ! CompletionNotice(triggerId, newTriggers)
+          case (None, false) =>
+            log.error("RHA {}: no triggerId received", id)
+          case _ =>
+        }
     }
   }
 

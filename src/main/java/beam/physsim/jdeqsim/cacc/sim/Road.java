@@ -91,7 +91,8 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
         updateEarliestDepartureTimeOfCar(nextAvailableTimeForLeavingStreet);
 
-        latestTimeToLeaveRoad.put(vehicle, simTime + link.getLength() / minimumRoadSpeedInMetersPerSecond);
+        double maxDepartureTime = simTime + link.getLength() / minimumRoadSpeedInMetersPerSecond;
+        latestTimeToLeaveRoad.put(vehicle, maxDepartureTime);
 
         if (this.carsOnTheRoad.size() == 1) {
             double lastTimeLEavingPlusInverseCapacity = timeOfLastLeavingVehicle + getInverseCapacity(vehicle, simTime);
@@ -105,7 +106,6 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
             // congestion, LinkStats can detect and flag links operating at exactly minimum speed if needed.
             // WARNING: This physical constraint takes precedence over flow capacity calculations. Monitor for
             // potential impacts on congestion modeling accuracy, especially in scenarios with severe bottlenecks.
-            double maxDepartureTime = this.latestTimeToLeaveRoad.get(vehicle);
             nextAvailableTimeForLeavingStreet = Math.min(nextAvailableTimeForLeavingStreet, maxDepartureTime);
 
             vehicle.scheduleEndRoadMessage(nextAvailableTimeForLeavingStreet, this);

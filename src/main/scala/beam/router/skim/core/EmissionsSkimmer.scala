@@ -122,13 +122,13 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
     "name": "EmissionsSkimRecord",
     "namespace": "beam.router.skim.emissions",
     "fields": [
+      {"name": "hour", "type": "int"},
       {"name": "linkId", "type": "int"},
       {"name": "vehicleTypeId", "type": "string"},
-      {"name": "hour", "type": "int"},
-      {"name": "emissionsProcess", "type": "string"},
-      {"name": "pollutants", "type": "string"},
-      {"name": "travelTime", "type": "double"},
-      {"name": "parkingDuration", "type": "double"},
+      {"name": "process", "type": "string"},
+      {"name": "emissions", "type": "string"},
+      {"name": "travelTimeInSecond", "type": "double"},
+      {"name": "parkingDurationInSecond", "type": "double"},
       {"name": "observations", "type": "int"},
       {"name": "iterations", "type": "int"}
     ]
@@ -146,20 +146,20 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
     val record = new GenericData.Record(schema)
 
     // Set key fields
+    record.put("hour", key.hour)
     record.put("linkId", key.linkId)
     record.put("vehicleTypeId", key.vehicleTypeId)
-    record.put("hour", key.hour)
-    record.put("emissionsProcess", key.emissionsProcess.toString)
-
-    // Set value fields
-    record.put("travelTime", value.travelTime)
-    record.put("parkingDuration", value.parkingDuration)
-    record.put("observations", value.observations)
-    record.put("iterations", value.iterations)
+    record.put("process", key.emissionsProcess.toString)
 
     // Convert emissions to pollutants string
     val pollutantsString = convertEmissionsToPollutantsString(value.emissions)
-    record.put("pollutants", pollutantsString)
+    record.put("emissions", pollutantsString)
+
+    // Set value fields
+    record.put("travelTimeInSecond", value.travelTime)
+    record.put("parkingDurationInSecond", value.parkingDuration)
+    record.put("observations", value.observations)
+    record.put("iterations", value.iterations)
 
     record
   }
@@ -239,10 +239,10 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
 
     try {
       // Extract key fields with safe access
+      val hour = getSafeInt("hour")
       val linkId = getSafeInt("linkId")
       val vehicleTypeId = getSafeString("vehicleTypeId")
-      val hour = getSafeInt("hour")
-      val emissionsProcessStr = getSafeString("emissionsProcess")
+      val emissionsProcessStr = getSafeString("process")
 
       // Convert string back to EmissionsProfile enum with fallback
       val emissionsProfile = EmissionsProfile.fromString(emissionsProcessStr).getOrElse {
@@ -254,11 +254,12 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
       val key = EmissionsSkimmerKey(linkId, vehicleTypeId, hour, emissionsProfile)
 
       // Extract value fields with safe access
-      val travelTime = getSafeDouble("travelTime")
-      val parkingDuration = getSafeDouble("parkingDuration")
+      val travelTime = getSafeDouble("travelTimeInSecond")
+      val parkingDuration = getSafeDouble("parkingDurationInSecond")
       val observations = getSafeInt("observations")
       val iterations = getSafeInt("iterations")
-      val pollutantsString = getSafeString("pollutants")
+
+      val pollutantsString = getSafeString("emissions")
 
       // Convert pollutants string back to Emissions object
       val emissions = parsePollutantsString(pollutantsString)

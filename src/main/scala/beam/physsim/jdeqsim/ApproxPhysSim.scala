@@ -157,7 +157,11 @@ class ApproxPhysSim(
       )
       val simulationResult =
         ProfilingUtils.timed(s"Physsim simulation $agentSimIterationNumber.$currentIter", x => logger.info(x)) {
-          jdeqSimRunner.simulate(currentIter, writeEvents = shouldWritePhysSimEvents && currentIter == nIterations)
+          jdeqSimRunner.simulate(
+            currentIter,
+            nIterations,
+            writeEvents = shouldWritePhysSimEvents && currentIter == nIterations
+          )
         }
       carTravelTimeWriter.writeRow(
         Vector(
@@ -176,7 +180,12 @@ class ApproxPhysSim(
       val before = rerouter.printRouteStats(s"Before rerouting at $currentIter iter", finalPopulation)
       //        logger.info("AverageCarTravelTime before replanning")
 
+      val rerouteStart = System.nanoTime()
       val reroutedTravelTimeStats = rerouter.reroutePeople(simulationResult.travelTime, nextSetOfPeople.toVector)
+      val rerouteDurationMs = (System.nanoTime() - rerouteStart) / 1000000
+      logger.info(
+        s"MultiJDEQSim iteration $currentIter rerouting completed in ${rerouteDurationMs}ms for ${nextSetOfPeople.size}/${finalPopulation.getPersons.size} people"
+      )
       reroutedTravelTimeWriter.writeRow(
         Vector(
           currentIter,

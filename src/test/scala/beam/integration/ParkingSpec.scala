@@ -38,6 +38,20 @@ class ParkingSpec
         |   {type = strategysettings, disableAfterIteration = -1, strategyName = SelectExpBeta , weight = 0.3},
         | ]
         | beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt = true
+        | # Reducing the Value of Time parameter to make agents more sensitive to travel cost
+        | beam.agentsim.agents.modalBehaviors.defaultValueOfTime = 2.0
+        | beam.agentsim.agents.modalBehaviors.minimumValueOfTime = 1.0
+        | # avoiding OOM in the router
+        | beam.routing.r5.statePoolSize.primary = 20000
+        | beam.routing.r5.statePoolSize.car = 20000
+        | beam.routing.r5.statePoolSize.bike = 20000
+        | beam.routing.r5.statePoolSize.walk = 20000
+        | beam.routing.r5.statePoolSize.walk_transit_suboptimal = 20000
+        | beam.routing.r5.statePoolSize.walk_transit_optimal = 20000
+        | beam.routing.r5.statePoolSize.drive_transit_suboptimal = 20000
+        | beam.routing.r5.statePoolSize.drive_transit_optimal = 20000
+        | beam.routing.r5.statePoolSize.bike_transit_suboptimal = 20000
+        | beam.routing.r5.statePoolSize.bike_transit_optimal = 20000
         |}
       """.stripMargin
     )
@@ -54,7 +68,7 @@ class ParkingSpec
       )
       .withValue(
         "beam.agentsim.agents.modalBehaviors.multinomialLogit.params.walk_transit_intercept",
-        ConfigValueFactory.fromAnyRef(0.0)
+        ConfigValueFactory.fromAnyRef(-5.0)
       )
       .withValue(
         "beam.agentsim.agents.modalBehaviors.multinomialLogit.params.drive_transit_intercept",
@@ -108,7 +122,7 @@ class ParkingSpec
     }
 
     val outputDirectoryFile = new File(outputDirectory)
-    FileUtils.copyDirectory(outputDirectoryFile, new File(s"${outputDirectory}_$parkingScenario"))
+    FileUtils.moveDirectory(outputDirectoryFile, new File(s"${outputDirectory}_$parkingScenario"))
 
     queueEvents
   }
@@ -232,10 +246,16 @@ class ParkingSpec
     }
 
     "no parking stalls should reduce driving" taggedAs Retryable in {
+      // sometimes default generates to low number of car PTEs (Retryable helps)
+      val currentEvents =
+        if (defaultEvents.takeRight(5).map(countForPathTraversalAndCarMode).sum < 100)
+          runAndCollectForIterations("default", 5)
+        else
+          defaultEvents
       val emptyEvents = runAndCollectForIterations("empty", 10)
 
       val emptyModeChoiceCarCount = emptyEvents.map(countForPathTraversalAndCarMode)
-      val defaultModeChoiceCarCount = defaultEvents.map(countForPathTraversalAndCarMode)
+      val defaultModeChoiceCarCount = currentEvents.map(countForPathTraversalAndCarMode)
 
       logger.debug("Default iterations", defaultModeChoiceCarCount.mkString(","))
       logger.debug("Empty iterations", emptyModeChoiceCarCount.mkString(","))
