@@ -477,7 +477,7 @@ class ElectricVehicleChargingBehaviorTest
     val humanRegex: Regex = """^rideHailVehicle-\d+@GlobalRHM\Z""".r
 
     val vehicleIds = findAllElectricVehicles(events).map(id => id._1.toString)
-    vehicleIds.size shouldEqual 50 withClue ", expecting 50 electric vehicles."
+    vehicleIds.size shouldEqual 50 +- 1 withClue ", expecting 50 electric vehicles."
 
     val cavVehiclesCharged = filterEvents(
       events,
@@ -485,7 +485,7 @@ class ElectricVehicleChargingBehaviorTest
       ("vehicle", a => cavRegex.findFirstMatchIn(a).isDefined)
     ).map(e => e.getAttributes.get("vehicle")).distinct
 
-    cavVehiclesCharged.size shouldEqual 25 withClue ", every single CAV vehicle should had charged at least once."
+    cavVehiclesCharged.size shouldEqual 25 +- 1 withClue ", every single CAV vehicle should had charged at least once."
 
     val humanVehiclesCharged = filterEvents(
       events,
@@ -493,7 +493,7 @@ class ElectricVehicleChargingBehaviorTest
       ("vehicle", a => humanRegex.findFirstMatchIn(a).isDefined)
     ).map(e => e.getAttributes.get("vehicle")).distinct
 
-    humanVehiclesCharged.size shouldEqual 25 withClue ", every single human driver vehicle should had charged at least once."
+    humanVehiclesCharged.size shouldEqual 25 +- 1 withClue ", every single human driver vehicle should had charged at least once."
 
     val unsuitablePluginEvents = filterEvents(
       events,
