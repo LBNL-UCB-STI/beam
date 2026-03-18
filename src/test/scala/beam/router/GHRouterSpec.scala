@@ -19,6 +19,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.Id
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.time.{Millis, Minute, Seconds, Span}
 import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.concurrent.duration._
@@ -114,6 +115,10 @@ class GHRouterSpec extends AnyWordSpecLike with Matchers with BeamHelper with Sc
         )
 
       implicit val timeout: Timeout = 1 minute
+
+      // future require different type of timeout
+      implicit val patienceConfig: PatienceConfig = PatienceConfig(Span(1, Minute))
+
       val future = (worker ? request).mapTo[RoutingResponse]
       val response: RoutingResponse = future.futureValue
       response.itineraries.count(_.router.contains("GH")) shouldBe 3
