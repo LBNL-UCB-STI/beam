@@ -695,7 +695,7 @@ class PersonAgent(
             currentTripMode = modeOfNextLeg,
             currentTourMode = currentTourModeChoiceStrategy.tourMode,
             currentTourPersonalVehicle =
-              currentTourModeChoiceStrategy.tourVehicle.orElse(data.currentTourPersonalVehicle),
+              data.currentTourPersonalVehicle.orElse(currentTourModeChoiceStrategy.tourVehicle),
             passengerSchedule = PassengerSchedule(),
             numberOfReplanningAttempts = 0,
             failedTrips = IndexedSeq.empty,
@@ -801,12 +801,24 @@ class PersonAgent(
             s"Person ${this.id}: Current tour strategy references vehicle $currentTourVehicle " +
             s"in $context, but it's not available. Available vehicles: ${availableVehicleIds.mkString(", ")}"
           )
+          logTourVehicleDiagnostics(
+            newPersonData,
+            availableVehicles,
+            context,
+            s"current-tour-strategy vehicle $currentTourVehicle missing from available vehicle set"
+          )
         }
         // Also check if personData is being reset to None while strategy has vehicle
         if (newPersonData.currentTourPersonalVehicle.isEmpty) {
           logger.warn(
             s"Person ${this.id}: currentTourPersonalVehicle reset to None in $context, " +
             s"but current tour strategy still references vehicle $currentTourVehicle"
+          )
+          logTourVehicleDiagnostics(
+            newPersonData,
+            availableVehicles,
+            context,
+            s"current-tour-strategy vehicle $currentTourVehicle set while personData currentTourPersonalVehicle is empty"
           )
         }
       case None => // No current tour vehicle, that's fine
@@ -821,12 +833,24 @@ class PersonAgent(
             s"Person ${this.id}: Parent tour strategy references vehicle $parentTourVehicle " +
             s"in $context, but it's not available. Available vehicles: ${availableVehicleIds.mkString(", ")}"
           )
+          logTourVehicleDiagnostics(
+            newPersonData,
+            availableVehicles,
+            context,
+            s"parent-tour-strategy vehicle $parentTourVehicle missing from available vehicle set"
+          )
         }
         // Also check if personData is being reset to None while parent strategy has vehicle
         if (newPersonData.currentTourPersonalVehicle.isEmpty) {
           logger.warn(
             s"Person ${this.id}: currentTourPersonalVehicle reset to None in $context, " +
             s"but parent tour strategy still references vehicle $parentTourVehicle"
+          )
+          logTourVehicleDiagnostics(
+            newPersonData,
+            availableVehicles,
+            context,
+            s"parent-tour-strategy vehicle $parentTourVehicle set while personData currentTourPersonalVehicle is empty"
           )
         }
       case Some(parentTourVehicle) =>
@@ -836,6 +860,61 @@ class PersonAgent(
         )
       case _ => // No parent tour vehicle, that's fine
     }
+  }
+
+  protected def logTourVehicleDiagnostics(
+    data: BasePersonData,
+    availableVehicles: Vector[VehicleOrToken],
+    context: String,
+    reason: String
+  ): Unit = {
+    def formatCoord(coord: Coord): String =
+      if (coord == null) "null" else f"(${coord.getX}%.1f,${coord.getY}%.1f)"
+
+    def formatActivity(activity: Activity): String =
+      s"${activity.getType}@${formatCoord(activity.getCoord)} link=${Option(activity.getLinkId).map(_.toString).getOrElse("null")}"
+
+    def formatLeg(leg: Leg): String = {
+      val attrs = leg.getAttributes
+      val tourId = Option(attrs.getAttribute("tour_id")).getOrElse("null")
+      val tourMode = Option(attrs.getAttribute("tour_mode")).getOrElse("null")
+      val tourVehicle = Option(attrs.getAttribute("tour_vehicle")).getOrElse("null")
+      s"mode=${leg.getMode},tourId=$tourId,tourMode=$tourMode,tourVehicle=$tourVehicle"
+    }
+
+    def formatTour(tour: Tour): String = {
+      val strategy = _experiencedBeamPlan.getStrategy[TourModeChoiceStrategy](tour)
+      val acts = tour.activities.map(_.getType).mkString("->")
+      val origin = tour.originActivity.map(_.getType).getOrElse("none")
+      s"id=${tour.tourId},origin=$origin,activities=$acts,strategy=$strategy"
+    }
+
+    val currentActOpt = Try(currentActivity(data)).toOption
+    val nextActOpt = nextActivity(data)
+    val currentTourOpt = Try(currentTour(data)).toOption
+    val currentTourStrategyOpt = Try(getCurrentTourStrategy(data)).toOption
+    val parentTourOpt =
+      currentTourOpt.flatMap(_.originActivity.flatMap(act => Try(_experiencedBeamPlan.getTourContaining(act)).toOption))
+    val parentTourStrategyOpt = Try(getParentTourStrategy(data)).toOption.flatten
+    val nextTripLegOpt = nextActOpt.flatMap(act => Try(_experiencedBeamPlan.getTripContaining(act).leg).toOption.flatten)
+    val availableVehicleIds = availableVehicles.map(_.id).mkString(", ")
+    val beamVehicleIds = beamVehicles.keys.map(_.toString).toVector.sorted.mkString(", ")
+    val allTours = _experiencedBeamPlan.tours.map(formatTour).mkString(" || ")
+    val tripStrategyOpt = nextActOpt.map(act => _experiencedBeamPlan.getTripStrategy[TripModeChoiceStrategy](act))
+
+    logger.debug(
+      s"Person ${this.id}: Tour vehicle diagnostics [$reason] in $context. " +
+      s"state=$stateName, tick=${_currentTick.getOrElse(-1)}, currentActivityIndex=${data.currentActivityIndex}, " +
+      s"currentActivity=${currentActOpt.map(formatActivity).getOrElse("none")}, " +
+      s"nextActivity=${nextActOpt.map(formatActivity).getOrElse("none")}, " +
+      s"personData(currentTripMode=${data.currentTripMode}, currentTourMode=${data.currentTourMode}, " +
+      s"currentTourPersonalVehicle=${data.currentTourPersonalVehicle}, hasDeparted=${data.hasDeparted}, " +
+      s"numberOfReplanningAttempts=${data.numberOfReplanningAttempts}), " +
+      s"tripStrategy=${tripStrategyOpt.getOrElse("none")}, currentTour=${currentTourOpt.map(formatTour).getOrElse("none")}, " +
+      s"currentTourStrategy=${currentTourStrategyOpt.getOrElse("none")}, parentTour=${parentTourOpt.map(formatTour).getOrElse("none")}, " +
+      s"parentTourStrategy=${parentTourStrategyOpt.getOrElse("none")}, nextTripLeg=${nextTripLegOpt.map(formatLeg).getOrElse("none")}, " +
+      s"availableVehicleIds=[$availableVehicleIds], beamVehicleIds=[$beamVehicleIds], allTours=[$allTours]"
+    )
   }
 
   private def canUseCars(currentCoord: Coord, nextCoord: Coord): Boolean = {
@@ -911,6 +990,7 @@ class PersonAgent(
       rideHail2TransitRoutingResponse = None,
       rideHail2TransitAccessResult = None,
       rideHail2TransitEgressResult = None,
+      allAvailableStreetVehicles = beamVehicles.values.toVector,
       isWithinTripReplanning = true,
       excludeModes = (if (data.numberOfReplanningAttempts > 0) Set(RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT)
                       else Set()) ++ (if (canUseCars(currentCoord, nextCoord)) Set.empty[BeamMode]
@@ -971,6 +1051,7 @@ class PersonAgent(
         rideHail2TransitRoutingResponse = None,
         rideHail2TransitAccessResult = None,
         rideHail2TransitEgressResult = None,
+        allAvailableStreetVehicles = beamVehicles.values.toVector,
         isWithinTripReplanning = true,
         excludeModes = excludedMode.toSet ++ (
           if (canUseCars(currentCoord, nextCoord)) Set.empty
@@ -1460,6 +1541,7 @@ class PersonAgent(
         rideHail2TransitRoutingResponse = None,
         rideHail2TransitAccessResult = None,
         rideHail2TransitEgressResult = None,
+        allAvailableStreetVehicles = beamVehicles.values.toVector,
         isWithinTripReplanning = true,
         excludeModes = excludedMode.toSet ++ (if (canUseCars(currentCoord, nextCoord)) Set.empty
                                               else Set(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV))
@@ -1685,7 +1767,8 @@ class PersonAgent(
             triggerId,
             Vector(ScheduleTrigger(ActivityEndTrigger(nextLegDepartureTime), self))
           )
-          val currentTourStrategy = _experiencedBeamPlan.getStrategy[TourModeChoiceStrategy](currentTour(data))
+          val currentTourAtArrival = currentTour(data)
+          val currentTourStrategy = _experiencedBeamPlan.getStrategy[TourModeChoiceStrategy](currentTourAtArrival)
 
           goto(PerformingActivity) using data.copy(
             currentActivityIndex = data.currentActivityIndex + 1,
@@ -1696,10 +1779,47 @@ class PersonAgent(
               case Some(personalVehId) if beamVehicles.contains(personalVehId) =>
                 val personalVeh = beamVehicles(personalVehId).asInstanceOf[ActualVehicle].vehicle
                 if (atHome(activity) && _experiencedBeamPlan.isLastElementInTour(activity)) {
-                  potentiallyChargingBeamVehicles.put(personalVeh.id, beamVehicles(personalVeh.id))
-                  beamVehicles -= personalVeh.id
-                  personalVeh.getManager.get ! ReleaseVehicle(personalVeh, triggerId)
-                  None
+                  val parentStrategyOpt = getParentTourStrategy(data)
+                  val nextActivityAfterArrival = _experiencedBeamPlan.activities.lift(data.currentActivityIndex + 2)
+                  val nextTourStrategyOpt =
+                    nextActivityAfterArrival.map(_experiencedBeamPlan.getTourStrategy[TourModeChoiceStrategy])
+                  val currentTourOriginReason = currentTourAtArrival.originActivity.flatMap { act =>
+                    val originType = act.getType
+                    if (originType.equalsIgnoreCase("home") || originType.equalsIgnoreCase("work")) None
+                    else Some(s"completed tour origin is $originType")
+                  }
+                  val suppressReleaseReasons = Vector(
+                    currentTourOriginReason,
+                    parentStrategyOpt.filter(_.tourVehicle.contains(personalVehId)).map(_ =>
+                      s"parent tour still references vehicle $personalVehId"
+                    ),
+                    nextTourStrategyOpt.filter(_.tourVehicle.contains(personalVehId)).map(_ =>
+                      s"next activity's tour strategy still references vehicle $personalVehId"
+                    )
+                  ).flatten
+                  val postArrivalLookahead =
+                    s"postArrivalNextActivity=${nextActivityAfterArrival.map(_.getType).getOrElse("none")}, " +
+                    s"postArrivalNextTourStrategy=${nextTourStrategyOpt.getOrElse("none")}"
+
+                  if (suppressReleaseReasons.nonEmpty) {
+                    logger.debug(
+                      s"Suppressing release of vehicle $personalVehId for person ${this.id} at end-of-tour home " +
+                      s"arrival because ${suppressReleaseReasons.mkString("; ")}. $postArrivalLookahead"
+                    )
+                    logTourVehicleDiagnostics(
+                      data,
+                      beamVehicles.values.toVector,
+                      "Arriving at home on last element in current tour",
+                      s"suppressed release of vehicle $personalVehId because ${suppressReleaseReasons.mkString("; ")}; " +
+                        postArrivalLookahead
+                    )
+                    data.currentTourPersonalVehicle
+                  } else {
+                    potentiallyChargingBeamVehicles.put(personalVeh.id, beamVehicles(personalVeh.id))
+                    beamVehicles -= personalVeh.id
+                    personalVeh.getManager.get ! ReleaseVehicle(personalVeh, triggerId)
+                    None
+                  }
                 } else if (_experiencedBeamPlan.isLastElementInTour(data.currentActivityIndex + 1)) {
                   getParentTourStrategy(data) match {
                     case Some(parentStrategy) =>
@@ -1713,7 +1833,7 @@ class PersonAgent(
                           .map(x => x.toString)
                           .getOrElse("HOME")}, but not currently on a " +
                         s"subtour. Keeping my current vehicle. Perhaps there was a malformed tour for " +
-                        s"person ${this.id}: ${currentTour(data).activities.map(act => act.getType + "->")}"
+                        s"person ${this.id}: ${currentTourAtArrival.activities.map(act => act.getType + "->")}"
                       )
                       data.currentTourPersonalVehicle
                   }
