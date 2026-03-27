@@ -1,6 +1,6 @@
 package beam.utils.csv.writers
 
-import beam.agentsim.agents.vehicles.VehicleEmissions.Emissions.{EmissionType, formatName, init}
+import beam.agentsim.agents.vehicles.VehicleEmissions.Emissions.{formatName, EmissionType}
 import beam.agentsim.agents.vehicles.VehicleEmissions.{Emissions, EmissionsProfile}
 import beam.router.skim.core.{AbstractSkimmerInternal, AbstractSkimmerKey}
 import beam.router.skim.core.EmissionsSkimmer.{EmissionsSkimmerInternal, EmissionsSkimmerKey}
@@ -8,6 +8,7 @@ import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.core.utils.io.IOUtils
 
+import scala.collection.mutable
 import scala.util.control.NonFatal
 
 class EmissionsSkimTotalsWriter extends LazyLogging {
@@ -20,13 +21,17 @@ class EmissionsSkimTotalsWriter extends LazyLogging {
   ): Unit = {
     require(expansionFactor > 0, s"Expected positive expansion factor, got $expansionFactor")
 
+    val totals = EmissionsSkimTotalsWriter.aggregateTotals(skim, expansionFactor)
+    val pollutantIndexes = EmissionsSkimTotalsWriter.pollutantIndexes(pollutantOrder)
+
     var writer = null: java.io.BufferedWriter
     try {
       writer = IOUtils.getBufferedWriter(filePath)
       writer.write(EmissionsSkimTotalsWriter.header(pollutantOrder) + "\n")
-      EmissionsSkimTotalsWriter
-        .totalsRows(skim, expansionFactor, pollutantOrder)
-        .foreach(row => writer.write(row.toCsv + "\n"))
+      totals.foreach { case (key, pollutantTotals) =>
+        writer.write(EmissionsSkimTotalsWriter.toCsv(key, pollutantTotals, pollutantIndexes))
+        writer.write("\n")
+      }
     } catch {
       case NonFatal(ex) =>
         logger.error(s"Could not write emissions totals in '$filePath': ${ex.getMessage}", ex)
@@ -41,10 +46,26 @@ object EmissionsSkimTotalsWriter {
   final val fileBaseName = "skimsEmissionsTotals"
   final val fileName = s"$fileBaseName.csv.gz"
   private val defaultPollutantOrder: IndexedSeq[EmissionType] = Emissions.values.toIndexedSeq
+  private val pollutantToIndex: Map[EmissionType, Int] = defaultPollutantOrder.zipWithIndex.toMap
+
+  case class TotalsKey(linkId: Int, vehicleTypeId: String, process: EmissionsProfile.EmissionsProcess)
+
+  case class TotalsRow(
+    linkId: Int,
+    vehicleTypeId: String,
+    process: EmissionsProfile.EmissionsProcess,
+    emissions: Emissions,
+    pollutantOrder: IndexedSeq[EmissionType]
+  ) {
+
+    def toCsv: String = {
+      val pollutantValues = pollutantOrder.map(pollutant => emissions.values.getOrElse(pollutant, 0.0).toString)
+      (Seq(linkId.toString, vehicleTypeId, process.toString) ++ pollutantValues).mkString(",")
+    }
+  }
 
   def pollutantOrderFromFilter(pollutantsFilter: String): IndexedSeq[EmissionType] = {
-    val configuredPollutants = Option(pollutantsFilter)
-      .toSeq
+    val configuredPollutants = Option(pollutantsFilter).toSeq
       .flatMap(_.split(","))
       .map(_.trim)
       .filter(_.nonEmpty)
@@ -57,19 +78,51 @@ object EmissionsSkimTotalsWriter {
   def header(pollutantOrder: IndexedSeq[EmissionType]): String =
     (Seq("linkId", "vehicleTypeId", "process") ++ pollutantOrder.map(formatName)).mkString(",")
 
-  case class TotalsKey(linkId: Int, vehicleTypeId: String, process: EmissionsProfile.EmissionsProcess)
+  private[csv] def pollutantIndexes(pollutantOrder: IndexedSeq[EmissionType]): IndexedSeq[Int] =
+    pollutantOrder.map(pollutantToIndex)
 
-  case class TotalsRow(
-    linkId: Int,
-    vehicleTypeId: String,
-    process: EmissionsProfile.EmissionsProcess,
-    emissions: Emissions,
-    pollutantOrder: IndexedSeq[EmissionType]
-  ) {
-    def toCsv: String = {
-      val pollutantValues = pollutantOrder.map(pollutant => emissions.values.getOrElse(pollutant, 0.0).toString)
-      (Seq(linkId.toString, vehicleTypeId, process.toString) ++ pollutantValues).mkString(",")
+  private[csv] def aggregateTotals(
+    skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal],
+    expansionFactor: Double
+  ): mutable.LinkedHashMap[TotalsKey, Array[Double]] = {
+    require(expansionFactor > 0, s"Expected positive expansion factor, got $expansionFactor")
+
+    val accumulatedTotals = mutable.LinkedHashMap.empty[TotalsKey, Array[Double]]
+
+    skim.foreach {
+      case (key: EmissionsSkimmerKey, value: EmissionsSkimmerInternal) =>
+        val totalsKey = TotalsKey(key.linkId, key.vehicleTypeId, key.emissionsProcess)
+        val pollutantTotals =
+          accumulatedTotals.getOrElseUpdate(totalsKey, Array.fill[Double](defaultPollutantOrder.size)(0.0))
+        val observations = value.observations.toDouble
+
+        value.emissions.values.foreach { case (pollutant, pollutantValue) =>
+          pollutantTotals(pollutantToIndex(pollutant)) += pollutantValue * observations * expansionFactor
+        }
+      case _ =>
     }
+
+    accumulatedTotals
+  }
+
+  private[csv] def toCsv(
+    key: TotalsKey,
+    pollutantTotals: Array[Double],
+    pollutantIndexes: IndexedSeq[Int]
+  ): String = {
+    val row = new java.lang.StringBuilder
+    row.append(key.linkId)
+    row.append(',')
+    row.append(key.vehicleTypeId)
+    row.append(',')
+    row.append(key.process.toString)
+
+    pollutantIndexes.foreach { pollutantIndex =>
+      row.append(',')
+      row.append(pollutantTotals(pollutantIndex))
+    }
+
+    row.toString
   }
 
   def totalsRows(
@@ -77,19 +130,13 @@ object EmissionsSkimTotalsWriter {
     expansionFactor: Double,
     pollutantOrder: IndexedSeq[EmissionType] = defaultPollutantOrder
   ): IndexedSeq[TotalsRow] = {
-    require(expansionFactor > 0, s"Expected positive expansion factor, got $expansionFactor")
-
-    skim.collect { case (key: EmissionsSkimmerKey, value: EmissionsSkimmerInternal) => key -> value }
-      .groupBy { case (key, _) => TotalsKey(key.linkId, key.vehicleTypeId, key.emissionsProcess) }
-      .map { case (key, values) =>
-        val observedTotals = values.foldLeft(init() -> 0) { case ((emissionsAcc, observationsAcc), (_, value)) =>
-          (emissionsAcc + value.emissions * value.observations.toDouble, observationsAcc + value.observations)
-        }
-        val scaledTotals = observedTotals._1 * expansionFactor
-        TotalsRow(key.linkId, key.vehicleTypeId, key.process, scaledTotals, pollutantOrder)
+    val indexes = pollutantIndexes(pollutantOrder)
+    aggregateTotals(skim, expansionFactor).iterator.map { case (key, pollutantTotals) =>
+      val emissions = pollutantOrder.zip(indexes).collect {
+        case (pollutant, index) if pollutantTotals(index) != 0.0 => pollutant -> pollutantTotals(index)
       }
-      .toIndexedSeq
-      .sortBy(row => (row.linkId, row.vehicleTypeId, row.process.toString))
+      TotalsRow(key.linkId, key.vehicleTypeId, key.process, Emissions(emissions: _*), pollutantOrder)
+    }.toIndexedSeq
   }
 
   def iterationOutputDataDescriptor: OutputDataDescriptor =

@@ -828,17 +828,28 @@ object VehicleEmissions extends LazyLogging {
                                   case Some(emissionsProcessFilter) =>
                                     emissionsProcessFilter.get(emissionProcess) match {
                                       case Some(existingRates) =>
-                                        log.error(
-                                          "Two emission rates found for the same bin combination: " +
-                                          "County = {}; Speed In Miles Per Hour Bin = {}; " +
-                                          "Grade Percent Bin = {}; Weight kg Bin = {}; Soak Time Bin = {}. " +
-                                          s"Keeping first rate of $existingRates and ignoring new rate of $ratesInGramsPerMile.",
-                                          county,
-                                          speedInMilesPerHourBin,
-                                          gradePercentBin,
-                                          weightKgBin,
-                                          soakTimeBin
-                                        )
+                                        val overlappingPollutants =
+                                          existingRates.values.keySet.intersect(ratesInGramsPerMile.values.keySet)
+                                        val conflictingPollutants = overlappingPollutants.filter { pollutant =>
+                                          existingRates.values.getOrElse(pollutant, 0.0) != ratesInGramsPerMile.values
+                                            .getOrElse(pollutant, 0.0)
+                                        }
+                                        if (conflictingPollutants.nonEmpty) {
+                                          log.warn(
+                                            "Two emission rates found for the same bin combination: " +
+                                            "County = {}; Speed In Miles Per Hour Bin = {}; " +
+                                            "Grade Percent Bin = {}; Weight kg Bin = {}; Soak Time Bin = {}. " +
+                                            s"Merging rates, but found conflicting values for pollutants ${conflictingPollutants
+                                              .mkString(", ")}. " +
+                                            s"Existing rate: $existingRates. New rate: $ratesInGramsPerMile.",
+                                            county,
+                                            speedInMilesPerHourBin,
+                                            gradePercentBin,
+                                            weightKgBin,
+                                            soakTimeBin
+                                          )
+                                        }
+                                        emissionsProcessFilter += emissionProcess -> (existingRates + ratesInGramsPerMile)
                                       case None =>
                                         emissionsProcessFilter += emissionProcess -> ratesInGramsPerMile
                                     }

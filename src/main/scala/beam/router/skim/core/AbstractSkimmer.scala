@@ -63,20 +63,29 @@ abstract class AbstractSkimmerEvent(eventTime: Double) extends Event(eventTime) 
 
 abstract class AbstractSkimmerReadOnly extends LazyLogging {
   private[core] var currentIterationInternal: Int = -1
-  private[core] var aggregatedFromPastSkimsInternal = Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
+  private[core] val aggregatedFromPastSkimsInternal = mutable.HashMap.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
   private[core] val pastSkimsInternal = mutable.HashMap.empty[Int, Map[AbstractSkimmerKey, AbstractSkimmerInternal]]
   var numberOfRequests: Long = 0
   var numberOfSkimValueFound: Long = 0
   def currentIteration: Int = currentIterationInternal
-  def aggregatedFromPastSkims: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = aggregatedFromPastSkimsInternal
-  def pastSkims: Map[Int, collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]] = pastSkimsInternal.toMap
 
-  def getSkimValueByKey[T <: AbstractSkimmerKey, InternalKey](key: T): Option[InternalKey] = {
-    val skimValue = pastSkims
+  def aggregatedFromPastSkims: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal] =
+    aggregatedFromPastSkimsInternal
+  def pastSkims: collection.Map[Int, collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]] = pastSkimsInternal
+
+  protected def isLatestPastSkimEmpty: Boolean = pastSkimsInternal.isEmpty
+
+  protected def latestPastSkimValue[T](key: AbstractSkimmerKey): Option[T] =
+    pastSkimsInternal
       .get(currentIteration - 1)
       .flatMap(_.get(key))
-      .orElse(aggregatedFromPastSkims.get(key))
-      .asInstanceOf[Option[InternalKey]]
+      .asInstanceOf[Option[T]]
+
+  protected def aggregatedSkimValue[T](key: AbstractSkimmerKey): Option[T] =
+    aggregatedFromPastSkimsInternal.get(key).asInstanceOf[Option[T]]
+
+  def getSkimValueByKey[T <: AbstractSkimmerKey, InternalKey](key: T): Option[InternalKey] = {
+    val skimValue = latestPastSkimValue[InternalKey](key).orElse(aggregatedSkimValue[InternalKey](key))
 
     if (skimValue.nonEmpty) {
       numberOfSkimValueFound = numberOfSkimValueFound + 1
@@ -134,7 +143,11 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
     currObservation: AbstractSkimmerInternal
   ): AbstractSkimmerInternal
 
-  protected[skim] def currentSkim: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = currentSkimInternal.asScala.toMap
+  protected[skim] def currentSkim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal] =
+    currentSkimInternal.asScala
+
+  protected[skim] def currentSkimSnapshot: Map[AbstractSkimmerKey, AbstractSkimmerInternal] =
+    currentSkimInternal.asScala.toMap
 
   protected[skim] def getCurrentSkimValue(key: AbstractSkimmerKey): Option[AbstractSkimmerInternal] =
     Option(currentSkimInternal.get(key))
@@ -166,7 +179,8 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
     ) {
       val filePath = skimFilePath.get.skimsFilePath
       val file = File(filePath)
-      aggregatedFromPastSkimsInternal = if (file.isFile) {
+      aggregatedFromPastSkimsInternal.clear()
+      val warmStartSkims = if (file.isFile) {
         readSkimsFromFile(filePath).readAggregatedSkims
       } else {
         val filePattern = s"*${BeamWarmStart.fileNameSubstringToDetectIfReadSkimsInParallelMode}*"
@@ -176,6 +190,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
           }
           .toMap
       }
+      aggregatedFromPastSkimsInternal ++= warmStartSkims
     }
   }
 
@@ -184,16 +199,18 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
     if (skimCfg.keepKLatestSkims > 0) {
       if (pastSkimsInternal.size >= skimCfg.keepKLatestSkims)
         pastSkimsInternal.remove(currentIterationInternal - skimCfg.keepKLatestSkims)
-      pastSkimsInternal.put(currentIterationInternal, currentSkim)
+      pastSkimsInternal.put(currentIterationInternal, currentSkimSnapshot)
     } else logger.warn("keepKLatestSkims is negative!")
     // aggregate
     if (beamConfig.beam.routing.overrideNetworkTravelTimesUsingSkims) {
       logger.warn("skim aggregation is skipped as 'overrideNetworkTravelTimesUsingSkims' enabled")
     } else {
-      aggregatedFromPastSkimsInternal =
-        (aggregatedFromPastSkimsInternal.keySet ++ currentSkimInternal.asScala.keySet).map { key =>
-          key -> aggregateOverIterations(aggregatedFromPastSkimsInternal.get(key), Option(currentSkimInternal.get(key)))
-        }.toMap
+      currentSkimInternal.asScala.foreach { case (key, currentValue) =>
+        aggregatedFromPastSkimsInternal.update(
+          key,
+          aggregateOverIterations(aggregatedFromPastSkimsInternal.get(key), Option(currentValue))
+        )
+      }
     }
     // write
     writeToDisk(event)

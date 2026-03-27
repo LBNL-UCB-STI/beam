@@ -46,7 +46,8 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
       val expansionFactor = 1.0 / sampleFraction
       val pollutantOrder = EmissionsSkimTotalsWriter
         .pollutantOrderFromFilter(beamConfig.beam.agentsim.agents.vehicles.emissions.pollutantsFilter)
-      val filePath = matsimServices.getControlerIO.getIterationFilename(event.getIteration, EmissionsSkimTotalsWriter.fileName)
+      val filePath =
+        matsimServices.getControlerIO.getIterationFilename(event.getIteration, EmissionsSkimTotalsWriter.fileName)
       totalsWriter.write(currentSkim, filePath, expansionFactor, pollutantOrder)
     }
   }
