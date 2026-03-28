@@ -426,12 +426,10 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     Try(freshRouter.getPaths.asScala) match {
       case Success(paths) => paths
       case Failure(retryError) =>
-        driveTransitDiagnostics.incrementMcRaptorExceptions()
         logger.error(
           s"[MCRAPTOR-FRESH-RETRY-FAILED] requestId=$requestId mode=$mode fromTime=${profileRequest.fromTime} toTime=${profileRequest.toTime}",
           retryError
         )
-        handleMcRaptorGetPathsFailure(mode, retryError)
         Nil
     }
   }
