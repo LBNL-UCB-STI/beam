@@ -151,7 +151,6 @@ object BeamOutputDataDescriptionGenerator {
     beam.router.skim.core.DriveTimeSkimmer.aggregatedDriveTimeSkimOutputDataDescriptor,
     beam.router.skim.core.EmissionsSkimmer.emissionsSkimOutputDataDescriptor,
     beam.router.skim.core.EmissionsSkimmer.aggregatedEmissionsSkimOutputDataDescriptor,
-    beam.utils.csv.writers.EmissionsSkimTotalsWriter.iterationOutputDataDescriptor,
     beam.analysis.TransitOccupancyByStopAnalysis.transitOccupancySkimOutputDataDescriptor,
     StopWatchOutputs,
     ScoreStatsOutputs,

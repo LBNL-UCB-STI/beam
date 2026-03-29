@@ -5,7 +5,6 @@ import beam.agentsim.agents.vehicles.VehicleEmissions.{Emissions, EmissionsProfi
 import beam.router.skim.{readonly, Skims}
 import beam.sim.config.BeamConfig
 import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject}
-import beam.utils.csv.writers.EmissionsSkimTotalsWriter
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.avro.Schema
@@ -25,7 +24,6 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
     extends AbstractSkimmer(beamConfig, matsimServices.getControlerIO) {
   import EmissionsSkimmer._
   private val config: BeamConfig.Beam.Router.Skim = beamConfig.beam.router.skim
-  private val totalsWriter = new EmissionsSkimTotalsWriter
 
   override lazy val readOnlySkim: AbstractSkimmerReadOnly = new readonly.EmissionsSkims()
 
@@ -36,20 +34,6 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
 
   override protected val skimFileHeader: String = {
     s"hour,linkId,vehicleTypeId,process,emissions,travelTimeInSecond,parkingDurationInSecond,observations,iterations"
-  }
-
-  override def writeToDisk(event: org.matsim.core.controler.events.IterationEndsEvent): Unit = {
-    super.writeToDisk(event)
-
-    if (config.writeSkimsInterval > 0 && event.getIteration % config.writeSkimsInterval == 0) {
-      val sampleFraction = beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation
-      val expansionFactor = 1.0 / sampleFraction
-      val pollutantOrder = EmissionsSkimTotalsWriter
-        .pollutantOrderFromFilter(beamConfig.beam.agentsim.agents.vehicles.emissions.pollutantsFilter)
-      val filePath =
-        matsimServices.getControlerIO.getIterationFilename(event.getIteration, EmissionsSkimTotalsWriter.fileName)
-      totalsWriter.write(currentSkim, filePath, expansionFactor, pollutantOrder)
-    }
   }
 
   private def writeSkimsAsParquet(
