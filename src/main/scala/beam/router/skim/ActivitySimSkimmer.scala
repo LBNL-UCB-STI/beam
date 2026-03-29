@@ -309,8 +309,8 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
 
     ProfilingUtils.timed("Writing skims that are created during simulation ", x => logger.info(x)) {
 
-      val excerptData: Map[ActivitySimKey, Seq[ActivitySimSkimmerInternal]] = currentSkim
-        .asInstanceOf[Map[ActivitySimSkimmerKey, ActivitySimSkimmerInternal]]
+      val excerptData: Map[ActivitySimKey, Seq[ActivitySimSkimmerInternal]] = currentSkim.iterator
+        .collect { case (k: ActivitySimSkimmerKey, v: ActivitySimSkimmerInternal) => k -> v }
         .toSeq
         .flatMap { case (key, value) =>
           val baseEntry = Seq(key -> value)
