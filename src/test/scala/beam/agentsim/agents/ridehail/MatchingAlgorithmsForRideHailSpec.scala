@@ -230,7 +230,7 @@ object MatchingAlgorithmsForRideHailSpec {
         VehicleManager
           .createOrGetReservedFor(
             services.beamConfig.beam.agentsim.agents.rideHail.managers.head.name,
-            VehicleManager.TypeEnum.RideHail
+            Some(VehicleManager.TypeEnum.RideHail)
           )
           .managerId
       )
@@ -245,7 +245,7 @@ object MatchingAlgorithmsForRideHailSpec {
         VehicleManager
           .createOrGetReservedFor(
             services.beamConfig.beam.agentsim.agents.rideHail.managers.head.name,
-            VehicleManager.TypeEnum.RideHail
+            Some(VehicleManager.TypeEnum.RideHail)
           )
           .managerId
       )
@@ -314,7 +314,7 @@ object MatchingAlgorithmsForRideHailSpec {
         VehicleManager
           .createOrGetReservedFor(
             services.beamConfig.beam.agentsim.agents.rideHail.managers.head.name,
-            VehicleManager.TypeEnum.RideHail
+            Some(VehicleManager.TypeEnum.RideHail)
           )
           .managerId
       )
@@ -329,7 +329,7 @@ object MatchingAlgorithmsForRideHailSpec {
         VehicleManager
           .createOrGetReservedFor(
             services.beamConfig.beam.agentsim.agents.rideHail.managers.head.name,
-            VehicleManager.TypeEnum.RideHail
+            Some(VehicleManager.TypeEnum.RideHail)
           )
           .managerId
       )
@@ -424,7 +424,7 @@ object MatchingAlgorithmsForRideHailSpec {
         VehicleManager
           .createOrGetReservedFor(
             services.beamConfig.beam.agentsim.agents.rideHail.managers.head.name,
-            VehicleManager.TypeEnum.RideHail
+            Some(VehicleManager.TypeEnum.RideHail)
           )
           .managerId
       )
@@ -439,7 +439,7 @@ object MatchingAlgorithmsForRideHailSpec {
         VehicleManager
           .createOrGetReservedFor(
             services.beamConfig.beam.agentsim.agents.rideHail.managers.head.name,
-            VehicleManager.TypeEnum.RideHail
+            Some(VehicleManager.TypeEnum.RideHail)
           )
           .managerId
       )

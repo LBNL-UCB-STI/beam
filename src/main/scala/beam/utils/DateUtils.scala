@@ -27,6 +27,11 @@ object DateUtils {
     timeAr(0).toInt * 3600 + timeAr(1).toInt * 60 + timeAr(2).toInt
   }
 
+  def getLastTransitTripTime(beamConfig: beam.sim.config.BeamConfig): Int = {
+    val timeAr = beamConfig.beam.agentsim.lastTransitTrip.split(":")
+    timeAr(0).toInt * 3600 + timeAr(1).toInt * 60 + timeAr(2).toInt
+  }
+
   def getMaxHour(beamConfig: beam.sim.config.BeamConfig): Int =
     Math
       .ceil(

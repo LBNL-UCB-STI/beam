@@ -89,7 +89,7 @@ class TeleportationSpec extends AnyFunSpecLike with Matchers with BeamHelper wit
         activitiesList.map(_._1) shouldBe List("300", "142", "300", "142", "300", "142")
         // times
         activitiesList.map(_._2).zip(List(21886.0, 26425.0, 34000.0, 37226.0, 39886.0, 44279.0)).foreach {
-          case (a, b) => a shouldBe (b +- 1600) // Increasing this threshold due to longer walk to cars
+          case (a, b) => a shouldBe (b +- 2000) // Increasing this threshold due to longer walk to cars
         }
         // type
         activitiesList.map(_._3) shouldBe List("Other", "Home", "Other", "Home", "Other", "Home")

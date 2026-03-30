@@ -34,41 +34,94 @@ class TollCalculator @Inject() (val config: BeamConfig) extends LazyLogging {
     }
     intHashMap
   }
+
+  private final val hasAnyTolledLinks: Boolean = !tollsByLinkId.isEmpty
   private val tollsByWayId: java.util.Map[Long, Array[Toll]] = readFromCacheFileOrOSM()
+  private final val tollPriceMultiplier: Double = config.beam.agentsim.tuning.tollPrice
 
   logger.info("tollsByLinkId size: {}", tollsByLinkId.size)
   logger.info("tollsByWayId size: {}", tollsByWayId.size)
 
+  def hasAnyTolls: Boolean = hasAnyTolledLinks
+
   def calcTollByOsmIds(osmIds: IndexedSeq[Long]): Double = {
-    if (osmIds.isEmpty || tollsByWayId.isEmpty) 0
-    else {
-      osmIds
-        .map(tollsByWayId.get)
-        .filter(toll => toll != null)
-        .map(toll => applyTimeDependentTollAtTime(toll, 0))
-        .sum
+    if (osmIds.isEmpty || tollsByWayId.isEmpty) {
+      0.0
+    } else {
+      var total = 0.0
+      var i = 0
+      while (i < osmIds.length) {
+        val tolls = tollsByWayId.get(osmIds(i))
+        if (tolls != null) {
+          total += applyTimeDependentTollAtTime(tolls, 0)
+        }
+        i += 1
+      }
+      total
     }
   }
 
   def calcTollByLinkIds(path: BeamPath): Double = {
-    val linkEnterTimes =
-      path.linkTravelTime.scanLeft(path.startPoint.time.toDouble)(_ + _).map(time => math.round(time.toFloat))
-    path.linkIds
-      .zip(linkEnterTimes)
-      .map((calcTollByLinkId _).tupled)
-      .sum
+    val linkIds = path.linkIds
+
+    // FAST PATH: Early exit if no tolls
+    if (linkIds.isEmpty || !hasAnyTolledLinks) {
+      return 0.0
+    }
+
+    val linkTravelTimes = path.linkTravelTime
+    var total = 0.0
+    var currentTime = path.startPoint.time.toDouble
+    var i = 0
+
+    while (i < linkIds.length) {
+      val linkId = linkIds(i)
+      val tolls = tollsByLinkId.get(linkId)
+      if (tolls != null) {
+        val time = currentTime.toInt
+        if (tollPriceMultiplier == 1.0) {
+          total += applyTimeDependentTollAtTime(tolls, time)
+        } else {
+          total += applyTimeDependentTollAtTime(tolls, time) * tollPriceMultiplier
+        }
+      }
+
+      // Advance time for next link
+      if (i < linkTravelTimes.length) {
+        currentTime += linkTravelTimes(i)
+      }
+      i += 1
+    }
+    total
   }
 
+  @inline
   def calcTollByLinkId(linkId: Int, time: Int): Double = {
+    if (!hasAnyTolledLinks) {
+      return 0.0
+    }
     val tolls = tollsByLinkId.get(linkId)
-    if (tolls == null) 0
-    else {
-      applyTimeDependentTollAtTime(tolls, time) * config.beam.agentsim.tuning.tollPrice
+    if (tolls == null) {
+      0.0
+    } else if (tollPriceMultiplier == 1.0) {
+      applyTimeDependentTollAtTime(tolls, time)
+    } else {
+      applyTimeDependentTollAtTime(tolls, time) * tollPriceMultiplier
     }
   }
 
+  @inline
   private def applyTimeDependentTollAtTime(tolls: Array[Toll], time: Int): Double = {
-    tolls.filter(toll => toll.timeRange.has(time)).map(toll => toll.amount).sum
+    var total = 0.0
+    var i = 0
+    while (i < tolls.length) {
+      val toll = tolls(i)
+      if (toll.timeRange.has(time)) {
+        total += toll.amount
+      }
+      i += 1
+    }
+    total
   }
 
   private def readTollPrices(tollPricesFile: String): java.util.Map[Int, Array[Toll]] = {

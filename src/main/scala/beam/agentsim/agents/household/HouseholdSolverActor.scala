@@ -25,17 +25,14 @@ class HouseholdSolverActor extends LoggingMessageActor with ActorLogging {
 
   override def loggedReceive: Receive = {
     case BeginSolving =>
-      //println(self + ": Starting Solving")
       val ongoingSolver: Future[Unit] = Future { solve() }
       ongoingSolver.map(_ => SolutionComplete) pipeTo self
-      //ongoingSolver.onComplete(println)
       contextBecome(solving)
     case _ =>
   }
 
   def solving: Receive = {
     case SolutionComplete =>
-      //println(self + ": This is where you can tell the parent what you learned")
       context stop self
     case _ =>
   }
@@ -52,8 +49,6 @@ class HouseholdSolverActor extends LoggingMessageActor with ActorLogging {
     maximize(10 * x1 + 6 * x2 + 4 * x3)
     subjectTo((x1 + x2 + x3) <:= 100, (10 * x1 + 4 * x2 + 5 * x3) <:= 600, (2 * x1 + 2 * x2 + 6 * x3) <:= 300)
     start()
-    //println(s"$self: objective: $objectiveValue")
-    //println(s"$self: x1 = ${x1.value} x2 = ${x2.value} x3 = ${x3.value}")
     release()
   }
 
@@ -73,11 +68,6 @@ class HouseholdSolverActor extends LoggingMessageActor with ActorLogging {
       val startTime = System.currentTimeMillis
       val mb = 1024 * 1024
       val runtime = Runtime.getRuntime
-      /*println("** Used Memory:  " + (runtime.totalMemory - runtime.freeMemory) / mb)
-      println("** Free Memory:  " + runtime.freeMemory / mb)
-      println("** Total Memory: " + runtime.totalMemory / mb)
-      println("** Max Memory:   " + runtime.maxMemory / mb)
-       */
       val usedMemStart = (runtime.totalMemory - runtime.freeMemory) / mb
       implicit val lp: MPModel = MPModel(SolverLib.oJSolver)
 

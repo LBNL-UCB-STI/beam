@@ -1,13 +1,15 @@
 package beam.agentsim.planning
 
-import beam.agentsim.agents.planning.{BeamPlan, Tour}
+import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.agents.planning.Strategy.{TourModeChoiceStrategy, TripModeChoiceStrategy}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAR
 import beam.router.TourModes.BeamTourMode
 import beam.router.TourModes.BeamTourMode.WALK_BASED
 import beam.sim.BeamHelper
-import org.matsim.api.core.v01.Coord
+import beam.sim.config.MatSimBeamConfigBuilder
+import beam.utils.TestConfigUtils.testConfig
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.core.population.PopulationUtils
 import org.scalatest.matchers.should.Matchers
@@ -20,14 +22,21 @@ import scala.collection.JavaConverters._
   */
 class BeamPlanSpec extends AnyWordSpecLike with Matchers with BeamHelper {
 
+  private val populationFactory = {
+    val config = testConfig("test/input/beamville/beam.conf").resolve()
+    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
+    val population = PopulationUtils.createPopulation(matsimConfig)
+    population.getFactory
+  }
+
   "A BeamPlan" must {
 
-    val matsimPlanOfActivities: Plan = PopulationUtils.createPlan(null)
+    val matsimPlanOfActivities: Plan = PopulationUtils.createPlan(populationFactory.createPerson(Id.createPersonId(1)))
     PopulationUtils.createAndAddActivityFromCoord(matsimPlanOfActivities, "Home", new Coord(0.0, 0.0))
     PopulationUtils.createAndAddActivityFromCoord(matsimPlanOfActivities, "Work", new Coord(0.0, 0.0))
     PopulationUtils.createAndAddActivityFromCoord(matsimPlanOfActivities, "Shop", new Coord(0.0, 0.0))
     PopulationUtils.createAndAddActivityFromCoord(matsimPlanOfActivities, "Home", new Coord(0.0, 0.0))
-    val matsimPlan: Plan = PopulationUtils.createPlan(null)
+    val matsimPlan: Plan = PopulationUtils.createPlan(populationFactory.createPerson(Id.createPersonId(2)))
     PopulationUtils.createAndAddActivityFromCoord(matsimPlan, "Home", new Coord(0.0, 0.0))
     addLegToPlan(matsimPlan, Some(BeamMode.CAR))
     PopulationUtils.createAndAddActivityFromCoord(matsimPlan, "Work", new Coord(0.0, 0.0))
@@ -133,7 +142,7 @@ class BeamPlanSpec extends AnyWordSpecLike with Matchers with BeamHelper {
   }
   "A BeamPlan with tour modes" must {
 
-    val matsimPlan: Plan = PopulationUtils.createPlan(null)
+    val matsimPlan: Plan = PopulationUtils.createPlan(populationFactory.createPerson(Id.createPersonId(3)))
     PopulationUtils.createAndAddActivityFromCoord(matsimPlan, "Home", new Coord(0.0, 0.0))
     addLegToPlan(matsimPlan, Some(BeamMode.CAR), Some(101), Some(BeamTourMode.CAR_BASED), Some("car-1"))
     PopulationUtils.createAndAddActivityFromCoord(matsimPlan, "Work", new Coord(0.0, 0.0))
@@ -219,7 +228,7 @@ class BeamPlanSpec extends AnyWordSpecLike with Matchers with BeamHelper {
 
   "A BeamPlan with tour ids but no modes" must {
 
-    val matsimPlan: Plan = PopulationUtils.createPlan(null)
+    val matsimPlan: Plan = PopulationUtils.createPlan(populationFactory.createPerson(Id.createPersonId(4)))
     PopulationUtils.createAndAddActivityFromCoord(matsimPlan, "Home", new Coord(0.0, 0.0))
     addLegToPlan(matsimPlan, None, Some(101), None)
     PopulationUtils.createAndAddActivityFromCoord(matsimPlan, "Work", new Coord(0.0, 0.0))

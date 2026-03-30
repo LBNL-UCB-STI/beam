@@ -76,7 +76,6 @@ object BeamVehicleUtils extends LazyLogging {
       case VehicleCategory.Bike                => 80
       case VehicleCategory.Car                 => 2000 // Class 1&2a (GVWR <= 8500 lbs.)
       case VehicleCategory.MediumDutyPassenger => 2500
-      case VehicleCategory.Class2b3Vocational  => 4000 // Class 2b&3 (GVWR 8501-14000 lbs. => 2* Curb weight)
       case VehicleCategory.Class456Vocational =>
         9000 // Class 4-6 (GVWR 14001-26000 lbs. => 6000-15000, and average of 8000-9000 lbs curb weight)
       case VehicleCategory.Class78Vocational => 13000 // CLass 7&8 (GVWR 26001 to >33,001 lbs.)
@@ -124,6 +123,10 @@ object BeamVehicleUtils extends LazyLogging {
             parseEmissionsString(_, Some(vehicleTypeId.toString))
           )
         val emissionsRatesFile = Option(line.get("emissionsRatesFile"))
+        val vehicleUse =
+          Option(line.get("vehicleUse")).flatMap(VehicleUse.fromStringOptional).getOrElse {
+            if (payloadCapacity.exists(_ > 0)) VehicleUse.Freight else VehicleUse.Passenger
+          }
 
         val bvt = BeamVehicleType(
           vehicleTypeId,
@@ -154,7 +157,8 @@ object BeamVehicleUtils extends LazyLogging {
           wheelchairAccessible,
           restrictRoadsByFreeSpeed,
           emissionsRatesFile,
-          emissionsRatesInGramsPerMile
+          emissionsRatesInGramsPerMile,
+          vehicleUse = vehicleUse
         )
         z += ((vehicleTypeId, bvt))
     }.toMap
@@ -266,8 +270,8 @@ object BeamVehicleUtils extends LazyLogging {
     emissionsString: String,
     vehicleTypeId: Option[String] = None
   ): Option[VehicleEmissions.EmissionsProfile] = {
-    import VehicleEmissions.Emissions
-    import VehicleEmissions.EmissionsProfile
+    import VehicleEmissions.{Emissions, EmissionsProfile}
+
     import scala.util.Try
 
     // Regular expression pattern to match emission sources and their values.

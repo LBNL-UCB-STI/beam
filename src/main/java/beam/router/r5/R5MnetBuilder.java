@@ -29,12 +29,13 @@ import java.util.Set;
 public class R5MnetBuilder {
 
     private static final Logger log = LoggerFactory.getLogger(R5MnetBuilder.class);
+    private static final int MAX_DETAILED_TOPOLOGY_LOGS = 10;
 
     private final TransportNetwork r5Network;
     private final Network mNetwork;
     private final GeotoolsTransformation transform;
     private final String osmFile;
-    private final Map<Coord, Id<Node>> coordinateNodes = new HashMap<>();
+    private final Map<Integer, Id<Node>> vertexNodes = new HashMap<>();
     private final HighwaySetting highwaySetting;
     private final BeamConfig beamConfig;
 
@@ -64,9 +65,10 @@ public class R5MnetBuilder {
 
         EdgeStore.Edge cursor = r5Network.streetLayer.edgeStore.getCursor();  // Iterator of edges in R5 network
         OsmToMATSim OTM = new OsmToMATSim(mNetwork, true, highwaySetting.speedsMeterPerSecondMap, highwaySetting.capacityMap, highwaySetting.lanesMap, highwaySetting.alphaMap, highwaySetting.betaMap);
-
-        int numberOfFixes = 0;
-        HashMap<String, Integer> highwayTypeToCounts = new HashMap<>();
+        int trueSelfLoopCount = 0;
+        int coordinateCollisionCount = 0;
+        int detailedTrueSelfLoopLogs = 0;
+        int detailedCoordinateCollisionLogs = 0;
 
         while (cursor.advance()) {
 //            log.debug("Edge Index:{}. Cursor {}.", cursor.getEdgeIndex(), cursor);
@@ -75,10 +77,6 @@ public class R5MnetBuilder {
             Integer edgeIndex = cursor.getEdgeIndex();
             long osmID = cursor.getOSMID();  // id of edge in the OSM db
             Way way = ways.get(osmID);
-
-            Set<Integer> deezNodes = new HashSet<>(2);
-            deezNodes.add(cursor.getFromVertex());
-            deezNodes.add(cursor.getToVertex());
 
             final HashSet<String> flagStrings = new HashSet<>();
             for (EdgeStore.EdgeFlag eF : cursor.getFlags()) {
@@ -98,10 +96,12 @@ public class R5MnetBuilder {
             Coordinate tempToCoord = tempCoords[tempCoords.length - 1];
             Coord toCoord = transform.transform(new Coord(tempToCoord.x, tempToCoord.y));
 
-            // Add R5 start and end nodes to the MATSim network
-            // Grab existing nodes from mNetwork if they already exist, else make new ones and add to mNetwork
-            Node fromNode = getOrMakeNode(fromCoord);
-            Node toNode = getOrMakeNode(toCoord);
+            int fromVertex = cursor.getFromVertex();
+            int toVertex = cursor.getToVertex();
+
+            // Add R5 start and end vertices as MATSim nodes (vertex ID is node identity; coord is positional only)
+            Node fromNode = getOrMakeNode(fromVertex, fromCoord);
+            Node toNode = getOrMakeNode(toVertex, toCoord);
             Link link;
             if (way == null) {
                 // Made up numbers, this is a PT to road network connector or something
@@ -113,19 +113,107 @@ public class R5MnetBuilder {
                 mNetwork.addLink(link);
                 log.debug("Created regular link: {}", link);
             }
-            if (fromNode.getId() == toNode.getId()) {
-                cursor.setLengthMm(1);
-                cursor.setSpeed((short) 2905); // 65 miles per hour
-                link.setLength(0.001);
-                link.setCapacity(10000);
-                link.setFreespeed(29.0576);   // 65 miles per hour
-                numberOfFixes += 1;
+            boolean sameMatsimNode = fromNode.getId().equals(toNode.getId());
+            if (sameMatsimNode) {
+                boolean sameR5Vertex = fromVertex == toVertex;
+
+                if (sameR5Vertex) {
+                    trueSelfLoopCount++;
+                    if (detailedTrueSelfLoopLogs < MAX_DETAILED_TOPOLOGY_LOGS) {
+                        detailedTrueSelfLoopLogs++;
+                        log.error(formatNodeIssueLog(
+                                "true-self-loop",
+                                osmID,
+                                fromVertex,
+                                toVertex,
+                                fromNode.getId(),
+                                toNode.getId(),
+                                edgeIndex,
+                                length,
+                                sameR5Vertex,
+                                sameMatsimNode
+                        ));
+                    }
+                } else {
+                    coordinateCollisionCount++;
+                    if (detailedCoordinateCollisionLogs < MAX_DETAILED_TOPOLOGY_LOGS) {
+                        detailedCoordinateCollisionLogs++;
+                        log.warn(formatNodeIssueLog(
+                                "coordinate-collision",
+                                osmID,
+                                fromVertex,
+                                toVertex,
+                                fromNode.getId(),
+                                toNode.getId(),
+                                edgeIndex,
+                                length,
+                                sameR5Vertex,
+                                sameMatsimNode
+                        ));
+                    }
+                }
             }
         }
-        if (numberOfFixes > 0) {
-            log.warn("Fixed {} links which were having the same `fromNode` and `toNode`", numberOfFixes);
-        }
 
+        int suppressedTrueSelfLoopLogs = trueSelfLoopCount - detailedTrueSelfLoopLogs;
+        int suppressedCoordinateCollisionLogs = coordinateCollisionCount - detailedCoordinateCollisionLogs;
+
+        if (trueSelfLoopCount > 0) {
+            log.error(
+                    "R5->MATSim topology summary: trueSelfLoops={}, coordinateCollisions={}, detailedTrueSelfLoopLogs={}, detailedCoordinateCollisionLogs={}, suppressedTrueSelfLoopLogs={}, suppressedCoordinateCollisionLogs={}",
+                    trueSelfLoopCount,
+                    coordinateCollisionCount,
+                    detailedTrueSelfLoopLogs,
+                    detailedCoordinateCollisionLogs,
+                    suppressedTrueSelfLoopLogs,
+                    suppressedCoordinateCollisionLogs
+            );
+        } else if (coordinateCollisionCount > 0) {
+            log.warn(
+                    "R5->MATSim topology summary: trueSelfLoops={}, coordinateCollisions={}, detailedTrueSelfLoopLogs={}, detailedCoordinateCollisionLogs={}, suppressedTrueSelfLoopLogs={}, suppressedCoordinateCollisionLogs={}",
+                    trueSelfLoopCount,
+                    coordinateCollisionCount,
+                    detailedTrueSelfLoopLogs,
+                    detailedCoordinateCollisionLogs,
+                    suppressedTrueSelfLoopLogs,
+                    suppressedCoordinateCollisionLogs
+            );
+        }
+    }
+
+    private String formatNodeIssueLog(
+            String issueType,
+            long osmID,
+            int fromVertex,
+            int toVertex,
+            Id<Node> fromNodeId,
+            Id<Node> toNodeId,
+            int edgeIndex,
+            double lengthMeters,
+            boolean sameR5Vertex,
+            boolean sameMatsimNode
+    ) {
+        return String.format(
+                "R5->MATSim topology issue detected:\n" +
+                        "  issueType: %s\n" +
+                        "  OSM way: %d\n" +
+                        "  R5 vertices: %d -> %d\n" +
+                        "  MATSim nodes: %s -> %s\n" +
+                        "  edgeIndex: %d\n" +
+                        "  lengthMeters: %.3f\n" +
+                        "  sameR5Vertex: %s\n" +
+                        "  sameMatsimNode: %s",
+                issueType,
+                osmID,
+                fromVertex,
+                toVertex,
+                fromNodeId,
+                toNodeId,
+                edgeIndex,
+                lengthMeters,
+                sameR5Vertex,
+                sameMatsimNode
+        );
     }
 
     private Link buildLink(Integer edgeIndex, Set<String> flagStrings, double length, Node fromNode, Node toNode) {
@@ -142,25 +230,26 @@ public class R5MnetBuilder {
         return mNetwork;
     }
 
-    /**
-     * Checks whether we already have a MATSim Node at the Coord. If so, returns that Node. If not, makes and adds
-     * a new Node to the network.
-     *
-     * @param coord
-     * @return
-     */
-    private Node getOrMakeNode(Coord coord) {
+    private Node getOrMakeNode(int vertexId, Coord coord) {
         Node dummyNode;
         Id<Node> id;
-        final boolean nodeAlreadyExists = coordinateNodes.containsKey(coord);
+        final boolean nodeAlreadyExists = vertexNodes.containsKey(vertexId);
         if (nodeAlreadyExists) {
-            id = this.coordinateNodes.get(coord);
+            id = this.vertexNodes.get(vertexId);
             dummyNode = this.mNetwork.getNodes().get(id);
+            if (dummyNode != null && !dummyNode.getCoord().equals(coord)) {
+                log.warn(
+                        "R5 vertex {} has inconsistent transformed coordinates. existingCoord={}, newCoord={}",
+                        vertexId,
+                        dummyNode.getCoord(),
+                        coord
+                );
+            }
         } else { // need to make new fromID and node and increment the matsimNetworkNodeId
             id = Id.createNodeId(this.matsimNetworkNodeId);
             this.matsimNetworkNodeId++;
             dummyNode = NetworkUtils.createAndAddNode(mNetwork, id, coord);
-            this.coordinateNodes.put(coord, id);
+            this.vertexNodes.put(vertexId, id);
         }
         return dummyNode;
     }

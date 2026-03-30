@@ -132,7 +132,12 @@ trait NetworkCoordinator extends LazyLogging {
               logger.info(
                 s"Initializing the second router by creating network from directory: ${path2.toAbsolutePath}"
               )
-              TransportNetwork.fromDirectory(path2.toFile)
+              TransportNetwork.fromDirectory(
+                path2.toFile,
+                beamConfig.beam.physsim.network.removeIslands,
+                false,
+                beamConfig.beam.routing.r5.linkRadiusMeters
+              )
             }
 
             networks2 = for {
@@ -175,6 +180,17 @@ trait NetworkCoordinator extends LazyLogging {
         network
       }
       .get
+  }
+
+  def overwriteShortLinkStorageCapacity(
+    network: Network,
+    storageCapacityOverride: beam.sim.config.BeamConfig.Beam.Physsim.Jdeqsim.ShortLink.StorageCapacityOverride
+  ): Unit = {
+    network.getLinks.values.asScala.foreach { link =>
+      if (link.getLength <= storageCapacityOverride.minimumLinkLengthThreshold) {
+        link.setNumberOfLanes(storageCapacityOverride.overriddenNumLanesPerLink)
+      }
+    }
   }
 
   def overwriteLinkParams(
@@ -242,6 +258,13 @@ trait NetworkCoordinator extends LazyLogging {
 
     // Overwrite link stats if needed
     overwriteLinkParams(getOverwriteLinkParam(beamConfig), transportNetwork, network)
+
+    if (beamConfig.beam.physsim.name.equalsIgnoreCase("jdeqsim")) {
+      overwriteShortLinkStorageCapacity(
+        network,
+        beamConfig.beam.physsim.jdeqsim.shortLink.storageCapacityOverride
+      )
+    }
 
     // Scale the speed after overwriting link params. Important!
     network.getLinks.values.asScala.foreach { link =>

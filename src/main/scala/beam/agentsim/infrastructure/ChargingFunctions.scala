@@ -2,17 +2,20 @@ package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleManager}
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType.{Charge, EnRoute, Home, Work}
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType._
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode.EnRouteCharging
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
 import beam.router.skim.{Skims, SkimsUtils}
 import beam.sim.config.BeamConfig
 import org.locationtech.jts.geom.Envelope
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.utils.collections.QuadTree
 
 class ChargingFunctions(
   tazTreeMap: TAZTreeMap,
@@ -27,10 +30,7 @@ class ChargingFunctions(
       tazTreeMap,
       parkingZones,
       distanceFunction,
-      parkingConfig.minSearchRadius,
-      parkingConfig.maxSearchRadius,
-      0.0,
-      parkingConfig.searchMaxDistanceRelativeToEllipseFoci,
+      parkingConfig.search.params,
       parkingConfig.estimatedMinParkingDurationInSeconds,
       parkingConfig.estimatedMeanEnRouteChargingDurationInSeconds,
       parkingConfig.fractionOfSameTypeZones,
@@ -68,8 +68,8 @@ class ChargingFunctions(
     */
   private def ifChargeActivityThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
     inquiry.parkingActivityType match {
-      case Charge => zone.chargingPointType.exists(ChargingPointType.isFastCharger)
-      case _      => true // if it is not Charge activity then it does not matter
+      case Charging => zone.chargingPointType.exists(ChargingPointType.isFastCharger)
+      case _        => true // if it is not Charge activity then it does not matter
     }
   }
 
@@ -121,7 +121,7 @@ class ChargingFunctions(
     val verifyCharger = inquiry.beamVehicle.isDefined &&
       inquiry.beamVehicle.get.beamVehicleType.chargingCapability.isDefined && (
         inquiry.searchMode == ParkingSearchMode.EnRouteCharging ||
-        inquiry.parkingActivityType == Charge ||
+        inquiry.parkingActivityType == Charging ||
         inquiry.parkingActivityType == EnRoute
       )
     if (!verifyCharger) {
@@ -139,13 +139,13 @@ class ChargingFunctions(
   }
 
   private def isHomeWorkOrOvernight(inquiry: ParkingInquiry): Boolean = {
-    val isHomeOrWork = List(Home, Work).contains(inquiry.parkingActivityType)
+    val isHomeOrWork = List(Home, Working).contains(inquiry.parkingActivityType)
     val isOvernight = inquiry.searchMode == ParkingSearchMode.Init
     isHomeOrWork || isOvernight
   }
 
   private def hasLongParkingDurationButNotCharge(inquiry: ParkingInquiry): Boolean = {
-    inquiry.parkingDuration > 3600.0 && inquiry.searchMode != ParkingSearchMode.EnRouteCharging && inquiry.parkingActivityType != Charge
+    inquiry.parkingDuration > 3600.0 && inquiry.searchMode != ParkingSearchMode.EnRouteCharging && inquiry.parkingActivityType != Charging
   }
 
   /**
@@ -164,8 +164,8 @@ class ChargingFunctions(
     val chargeFastChargingOnly: Boolean = ifChargeActivityThenFastChargingOnly(zone, inquiry)
     val overnightStaySlowChargingOnly: Boolean = ifHomeWorkOrLongParkingDurationThenSlowChargingOnly(zone, inquiry)
     val validChargingCapability: Boolean = hasValidChargingCapability(zone, inquiry)
-    val preferredParkingTypes = getPreferredParkingTypes(inquiry)
-    val canCarParkHere: Boolean = canThisCarParkHere(zone, inquiry, preferredParkingTypes)
+    val allowedParkingTypes = getAllowedParkingTypes(inquiry)
+    val canCarParkHere: Boolean = canThisCarParkHere(zone, inquiry, allowedParkingTypes)
     rideHailFastChargingOnly && validChargingCapability && canCarParkHere && enRouteFastChargingOnly && chargeFastChargingOnly && overnightStaySlowChargingOnly
   }
 
@@ -267,8 +267,10 @@ class ChargingFunctions(
     inquiry: ParkingInquiry,
     parkingZone: ParkingZone,
     taz: TAZ,
+    linkQuadTree: Option[QuadTree[Link]],
     inClosestZone: Boolean = false
-  ): Coord = super[ParkingFunctions].sampleParkingStallLocation(inquiry, parkingZone, taz, inClosestZone)
+  ): (Coord, Option[Link]) =
+    super[ParkingFunctions].sampleParkingStallLocation(inquiry, parkingZone, taz, linkQuadTree, inClosestZone)
 
   /**
     * getTravelTime
@@ -295,15 +297,16 @@ class ChargingFunctions(
     } getOrElse SkimsUtils.distanceAndTime(BeamMode.CAR, origin, dest)._2
   }
 
-  override protected def getPreferredParkingTypes(inquiry: ParkingInquiry): Set[ParkingType] = {
-    import ParkingSearchMode._
-    if (parkingConfig.forceParkingType && !List(EnRouteCharging, Init).contains(inquiry.searchMode)) {
-      inquiry.parkingActivityType match {
-        case Home   => Set(ParkingType.Residential)
-        case Work   => Set(ParkingType.Workplace)
-        case Charge => Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
-        case _      => Set(ParkingType.Public)
-      }
-    } else super[ParkingFunctions].getPreferredParkingTypes(inquiry)
+  override protected def getAllowedParkingTypes(inquiry: ParkingInquiry): Set[ParkingType] = {
+    inquiry.parkingActivityType match {
+      case Home if inquiry.searchMode == EnRouteCharging    => Set(ParkingType.Residential, ParkingType.Public)
+      case Home                                             => Set(ParkingType.Residential)
+      case Working if inquiry.searchMode == EnRouteCharging => Set(ParkingType.Workplace, ParkingType.Public)
+      case Working                                          => Set(ParkingType.Workplace)
+      case Charging                                         => Set(ParkingType.Depot, ParkingType.Public) // ridehail CAV fleet
+      case FreightOperations                                => Set(ParkingType.Commercial) // freight
+      case FreightDepot                                     => Set(ParkingType.Depot, ParkingType.Public, ParkingType.Commercial) // freight or ridehail
+      case _                                                => Set(ParkingType.Public) // public is default
+    }
   }
 }

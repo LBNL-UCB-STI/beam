@@ -144,15 +144,17 @@ class BeamMobsim @Inject() (
 
     clearRoutesAndModesIfNeeded(matsimServices.getIterationNumber)
     planCleaner.clearModesAccordingToStrategy(matsimServices.getIterationNumber)
-    ConcurrentUtils.parallelExecution(
-      beamScenario.freightCarriers.zipWithIndex.map { case (carrier, i) =>
-        () =>
-          val rnd = new Random(beamConfig.matsim.modules.global.randomSeed + i)
-          val reader = FreightReader(beamServices)
-          new FreightReplanner(beamServices, skims.od_skimmer, rnd, reader)
-            .replanIfNeeded(carrier, matsimServices.getIterationNumber)
-      }
-    )(scala.concurrent.ExecutionContext.global)
+    if (beamConfig.beam.agentsim.agents.freight.enabled) {
+      ConcurrentUtils.parallelExecution(
+        beamScenario.freightCarriers.values.zipWithIndex.map { case (carrier, i) =>
+          () =>
+            val rnd = new Random(beamConfig.matsim.modules.global.randomSeed + i)
+            val reader = FreightReader(beamServices)
+            new FreightReplanner(beamServices, skims.od_skimmer, rnd, reader)
+              .replanIfNeeded(carrier, matsimServices.getIterationNumber)
+        }.toSeq
+      )(scala.concurrent.ExecutionContext.global)
+    }
 
     if (beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities) {
       logger.info("Filling in secondary trips in plans")
@@ -455,7 +457,8 @@ class BeamMobsimIteration(
     if (beamServices.beamConfig.beam.agentsim.agents.rideHail.managers.size == 1) {
       val managerConfig = beamConfig.beam.agentsim.agents.rideHail.managers.head
       val rhmName = managerConfig.name
-      val rideHailManagerId = VehicleManager.createOrGetReservedFor(rhmName, VehicleManager.TypeEnum.RideHail).managerId
+      val rideHailManagerId =
+        VehicleManager.createOrGetReservedFor(rhmName, Some(VehicleManager.TypeEnum.RideHail)).managerId
       val rideHailFleetInitializer = rideHailFleetInitializerProvider.get(rhmName)
       Props(
         new RideHailManager(

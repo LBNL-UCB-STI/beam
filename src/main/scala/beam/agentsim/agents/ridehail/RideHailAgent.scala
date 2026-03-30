@@ -302,7 +302,17 @@ class RideHailAgent(
       log.debug("myUnhandled state({}): {}", stateName, ev)
       if (isCurrentlyOnShift) {
         val actualLastTick = Time.parseTime(beamScenario.beamConfig.beam.agentsim.endTime).toInt - 1
-        eventsManager.processEvent(new ShiftEvent(actualLastTick, EndShift, id.toString, vehicle))
+        val maybeIDLEVehicleActivity = BeamVehicle.getRideHailIdlingActivityForEmissions(
+          actualLastTick,
+          currentBeamVehicle,
+          beamServices
+        )
+        val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
+          maybeIDLEVehicleActivity.toIndexedSeq,
+          classOf[LeavingParkingEvent],
+          beamServices
+        )
+        eventsManager.processEvent(new ShiftEvent(actualLastTick, EndShift, id.toString, vehicle, emissionsProfileIDLE))
       }
       stop
 
@@ -453,10 +463,11 @@ class RideHailAgent(
         )
       }
       val newShiftToSchedule = if (needsToEndShift) {
-        val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivityForEmissions(tick, currentBeamVehicle, beamServices)
+        val maybeIDLEVehicleActivity =
+          BeamVehicle.getRideHailIdlingActivityForEmissions(tick, currentBeamVehicle, beamServices)
         val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
-          maybeIDLEVehicleActivity,
-          classOf[PathTraversalEvent],
+          maybeIDLEVehicleActivity.toIndexedSeq,
+          classOf[LeavingParkingEvent],
           beamServices
         )
         eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle, emissionsProfileIDLE))
@@ -485,10 +496,11 @@ class RideHailAgent(
         stay()
       } else {
         if (needsToEndShift) {
-          val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivityForEmissions(tick, currentBeamVehicle, beamServices)
+          val maybeIDLEVehicleActivity =
+            BeamVehicle.getRideHailIdlingActivityForEmissions(tick, currentBeamVehicle, beamServices)
           val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
-            maybeIDLEVehicleActivity,
-            classOf[PathTraversalEvent],
+            maybeIDLEVehicleActivity.toIndexedSeq,
+            classOf[LeavingParkingEvent],
             beamServices
           )
           currentBeamVehicle.resetLastVehicleLinkTime()
@@ -621,14 +633,14 @@ class RideHailAgent(
         ) =>
       log.debug(s"state(RideHailAgent.Idle.EndShiftTrigger; Trigger ID: $triggerId; Vehicle ID: ${vehicle.id}")
       updateLatestObservedTick(tick)
-      val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivityForEmissions(
+      val maybeIDLEVehicleActivity = BeamVehicle.getRideHailIdlingActivityForEmissions(
         tick,
         currentBeamVehicle,
         beamServices
       )
       val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
-        maybeIDLEVehicleActivity,
-        classOf[PathTraversalEvent],
+        maybeIDLEVehicleActivity.toIndexedSeq,
+        classOf[LeavingParkingEvent],
         beamServices
       )
       currentBeamVehicle.resetLastVehicleLinkTime()
@@ -1142,8 +1154,7 @@ class RideHailAgent(
       Some(energyCharged),
       id,
       parkingManager,
-      beamServices,
-      eventsManager
+      beamServices
     )
   }
 
@@ -1193,7 +1204,7 @@ class RideHailAgent(
     val destinationUtm = rideHailAgentLocation.getCurrentLocationUTM(vehicle.spaceTime.time, beamServices)
     val time = Math.max(vehicle.spaceTime.time, rideHailAgentLocation.latestUpdatedLocationUTM.time)
     val parkingDuration =
-      if (shifts.isEmpty || isCurrentlyOnShift) 0
+      if (shifts.isEmpty || isCurrentlyOnShift) 30 * 60 // 30  minutes for charging
       else {
         val latestShift = shifts.get.filter(_.range.upperBound >= time).head
         val nextLatestShift = shifts.get.filter(_.range.lowerBound < time).last
@@ -1256,6 +1267,15 @@ class RideHailAgent(
         }
       case None =>
         log.error("RHA {}: was expecting to release a triggerId but None found", id)
+        (receivedTriggerId, attemptRefuel) match {
+          case (Some(triggerId), false) =>
+            log.debug("RHA {}: completing received trigger and scheduling {}", id, newTriggers)
+            if (debugEnabled) outgoingMessages += CompletionNotice(triggerId, newTriggers)
+            scheduler ! CompletionNotice(triggerId, newTriggers)
+          case (None, false) =>
+            log.error("RHA {}: no triggerId received", id)
+          case _ =>
+        }
     }
   }
 

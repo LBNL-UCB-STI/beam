@@ -20,6 +20,7 @@ import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import scala.Option;
 
+import java.lang.reflect.Method;
 import java.nio.file.Paths;
 import java.util.List;
 
@@ -87,6 +88,26 @@ public class PhyssimCalcLinkStatsTest {
         Double expectedResult = 111.0;
         Double actualResult = physsimCalcLinkStats.getRelativeSpeedCountOfSpecificCategory(0);
         assertEquals(expectedResult, actualResult);
+    }
+
+    @Test
+    public void testShouldUseIntermediateLinkStatsFileNameForNonFinalPhysSimIteration() throws Exception {
+        Method method = PhyssimCalcLinkStats.class.getDeclaredMethod("getLinkStatsFileName", int.class, int.class);
+        method.setAccessible(true);
+
+        String fileName = (String) method.invoke(physsimCalcLinkStats, 2, 5);
+
+        assertEquals("linkstats_unmodified_physSimIter2.csv.gz", fileName);
+    }
+
+    @Test
+    public void testShouldUseLegacyLinkStatsFileNameForFinalPhysSimIteration() throws Exception {
+        Method method = PhyssimCalcLinkStats.class.getDeclaredMethod("getLinkStatsFileName", int.class, int.class);
+        method.setAccessible(true);
+
+        String fileName = (String) method.invoke(physsimCalcLinkStats, 5, 5);
+
+        assertEquals("linkstats_unmodified.csv.gz", fileName);
     }
 
 }

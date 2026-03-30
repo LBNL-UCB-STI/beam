@@ -9,7 +9,14 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.router.util.TravelTime
-
+import org.apache.avro.Schema
+import org.apache.avro.generic.GenericData
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.Path
+import org.apache.parquet.avro.AvroParquetWriter
+import org.apache.parquet.hadoop.ParquetWriter
+import org.apache.parquet.hadoop.metadata.CompressionCodecName
+import org.apache.parquet.hadoop.util.HadoopOutputFile
 import scala.collection.JavaConverters._
 import scala.util.Try
 
@@ -38,7 +45,7 @@ class LinkStatsWithVehicleCategory(
     (totalLinkData, linkData, calc.getNofHours)
   }
 
-  def writeToFile(
+  private def writeToFile(
     totalLinkData: Map[Id[Link], BeamCalcLinkStats.LinkData],
     linkData: Map[String, Map[Id[Link], BeamCalcLinkStats.LinkData]],
     nofHours: Int,
@@ -78,6 +85,76 @@ class LinkStatsWithVehicleCategory(
     csvWriter.writeAllAndClose(rows)
   }
 
+  private def writeToFileParquet(
+    totalLinkData: Map[Id[Link], BeamCalcLinkStats.LinkData],
+    linkData: Map[String, Map[Id[Link], BeamCalcLinkStats.LinkData]],
+    nofHours: Int,
+    aggregation: Seq[(Seq[String], String)],
+    filePath: String
+  ): Try[Unit] = {
+    val header = Seq("link", "from", "to", "hour", "length", "freespeed", "capacity", "stat", "volume") ++
+      aggregation.map(_._2) :+ "traveltime"
+
+    val schema = {
+      val fields = header.map { fieldName =>
+        val fieldSchema = fieldName match {
+          case "length" | "freespeed" | "capacity" | "volume" | "traveltime" =>
+            Schema.create(Schema.Type.DOUBLE)
+          case "hour" =>
+            Schema.create(Schema.Type.INT)
+          case _ if fieldName.startsWith("volume_") =>
+            Schema.create(Schema.Type.DOUBLE)
+          case _ =>
+            Schema.create(Schema.Type.STRING)
+        }
+        new Schema.Field(fieldName, fieldSchema, "", null)
+      }
+      Schema.createRecord("LinkStats", "", "beam.physsim.analysis", false, fields.asJava)
+    }
+
+    val writer: ParquetWriter[GenericData.Record] = {
+      val path = new Path(filePath)
+      val outputFile = HadoopOutputFile.fromPath(path, new Configuration())
+      AvroParquetWriter
+        .builder[GenericData.Record](outputFile)
+        .withSchema(schema)
+        .withCompressionCodec(CompressionCodecName.ZSTD)
+        .build()
+    }
+
+    Try {
+      totalLinkData.foreach { case (linkId, data) =>
+        val link = network.getLinks.get(linkId)
+        for (hour <- 0 until nofHours) {
+          val categories = aggregation.flatMap(_._1).distinct
+          val categoryToVolume = categories.map { category =>
+            category -> linkData(category).get(linkId).map(_.getSumVolume(hour)).getOrElse(0.0)
+          }.toMap
+          val aggregatedVolumes = aggregation.map { case (categoryGroup, _) =>
+            categoryGroup.map(category => categoryToVolume(category)).sum
+          }
+          val otherVolume = totalLinkData.get(linkId).map(_.getSumVolume(hour)).getOrElse(0.0)
+
+          val record = new GenericData.Record(schema)
+          record.put("link", linkId.toString)
+          record.put("from", link.getFromNode.getId.toString)
+          record.put("to", link.getToNode.getId.toString)
+          record.put("hour", hour)
+          record.put("length", link.getLength)
+          record.put("freespeed", link.getFreespeed)
+          record.put("capacity", link.getCapacity)
+          record.put("stat", "AVG")
+          record.put("volume", otherVolume)
+          aggregation.map(_._2).zip(aggregatedVolumes).foreach { case (col, vol) =>
+            record.put(col, vol)
+          }
+          record.put("traveltime", data.calculateAverageTravelTime(hour))
+          writer.write(record)
+        }
+      }
+    }.map(_ => writer.close())
+  }
+
   def writeLinkStatsWithTruckVolumes(
     volumesAnalyzer: VolumesAnalyzer,
     travelTimeForR5: TravelTime,
@@ -85,14 +162,15 @@ class LinkStatsWithVehicleCategory(
   ): Try[(Map[Id[Link], LinkData], Map[String, Map[Id[Link], LinkData]], Int)] = {
 
     val categoryMapping = IndexedSeq(
-      Seq(VehicleCategory.Class2b3Vocational.toString) -> f"volume_${VehicleCategory.Class2b3Vocational.toString}",
       Seq(VehicleCategory.Class456Vocational.toString) -> f"volume_${VehicleCategory.Class456Vocational.toString}",
       Seq(VehicleCategory.Class78Vocational.toString)  -> f"volume_${VehicleCategory.Class78Vocational.toString}",
       Seq(VehicleCategory.Class78Tractor.toString)     -> f"volume_${VehicleCategory.Class78Tractor.toString}"
     )
     val categories = categoryMapping.flatMap(_._1).distinct
     val (totalLinkData, linkData, nofHours) = calculateLinkData(volumesAnalyzer, travelTimeForR5, categories)
-    writeToFile(totalLinkData, linkData, nofHours, categoryMapping, filePath)
+
+    val writeFunction = if (filePath.endsWith(".parquet")) writeToFileParquet _ else writeToFile _
+    writeFunction(totalLinkData, linkData, nofHours, categoryMapping, filePath)
       .map(_ => (totalLinkData, linkData, nofHours))
   }
 }

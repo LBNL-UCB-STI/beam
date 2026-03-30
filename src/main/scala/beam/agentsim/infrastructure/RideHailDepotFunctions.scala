@@ -12,7 +12,9 @@ import beam.router.Modes.BeamMode.CAR
 import beam.router.skim.Skims
 import beam.sim.config.BeamConfig
 import org.locationtech.jts.geom.Envelope
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.utils.collections.QuadTree
 
 import scala.util.Random
 
@@ -20,8 +22,7 @@ class RideHailDepotFunctions(
   tazTreeMap: TAZTreeMap,
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
-  minSearchRadius: Double,
-  maxSearchRadius: Double,
+  searchRadiusConfig: BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params,
   fractionOfSameTypeZones: Double,
   minNumberOfSameTypeZones: Int,
   boundingBox: Envelope,
@@ -35,10 +36,7 @@ class RideHailDepotFunctions(
       tazTreeMap,
       parkingZones,
       distanceFunction,
-      minSearchRadius,
-      maxSearchRadius,
-      0.0,
-      0.0,
+      searchRadiusConfig,
       estimatedMinParkingDurationInSeconds,
       0.0,
       fractionOfSameTypeZones,
@@ -134,7 +132,7 @@ class RideHailDepotFunctions(
             )
           ) =>
         logger.debug(
-          s"found ${parkingZonesSeen.length} parking zones over $iterations iterations"
+          s"found ${parkingZonesSeen.size} parking zones over $iterations iterations"
         )
         // override the sampled stall coordinate with the TAZ centroid -
         // we want all agents who park in this TAZ to park in the same location.
@@ -144,14 +142,9 @@ class RideHailDepotFunctions(
         result.copy(parkingStall = updatedParkingStall)
       case _ =>
         // didn't find any stalls, so, as a last resort, create a very expensive stall
-        val boxAroundRequest = new Envelope(
-          inquiry.destinationUtm.loc.getX + 100,
-          inquiry.destinationUtm.loc.getX - 100,
-          inquiry.destinationUtm.loc.getY + 100,
-          inquiry.destinationUtm.loc.getY - 100
-        )
-        val newStall = ParkingStall.lastResortStall(boxAroundRequest, new Random(seed))
-        ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
+        val (newStall, defaultZone) =
+          ParkingStall.lastResortStall(inquiry.destinationUtm.loc, new Random(seed), inquiry.parkingActivityType)
+        ParkingZoneSearch.ParkingZoneSearchResult(newStall, defaultZone)
     }
     Some(output)
   }
@@ -168,9 +161,10 @@ class RideHailDepotFunctions(
     inquiry: ParkingInquiry,
     parkingZone: ParkingZone,
     taz: TAZ,
+    linkQuadTree: Option[QuadTree[Link]],
     inClosestZone: Boolean = true
-  ): Coord = {
-    taz.coord
+  ): (Coord, Option[Link]) = {
+    (taz.coord, None)
   }
 
   /**
@@ -182,7 +176,7 @@ class RideHailDepotFunctions(
     * @param tick Int
     * @return
     */
-  def secondsToServiceQueueAndChargingVehicles(
+  private def secondsToServiceQueueAndChargingVehicles(
     parkingZone: ParkingZone,
     tick: Int
   ): Int = {
@@ -219,7 +213,7 @@ class RideHailDepotFunctions(
     * @param parkingZoneId ID of the parking zone
     * @return Parking zone location in UTM.
     */
-  def getParkingZoneLocationUtm(parkingZoneId: Id[ParkingZoneId]): Coord = {
+  private def getParkingZoneLocationUtm(parkingZoneId: Id[ParkingZoneId]): Coord = {
     val parkingZone = parkingZones(parkingZoneId)
     parkingZone.link.fold {
       tazTreeMap.idToTAZMapping(parkingZone.tazId).coord

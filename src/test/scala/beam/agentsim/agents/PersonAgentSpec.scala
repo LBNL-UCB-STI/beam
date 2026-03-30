@@ -2,17 +2,19 @@ package beam.agentsim.agents
 
 import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
 import akka.testkit.TestActors.ForwardActor
-import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKitBase, TestProbe}
+import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestKitBase, TestProbe}
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.{ModeChoiceUniformRandom, TourModeChoiceMultinomialLogit}
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
 import beam.agentsim.agents.ridehail.{RideHailRequest, RideHailResponse}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleFullError
 import beam.agentsim.agents.vehicles.{ReservationResponse, ReserveConfirmInfo, _}
 import beam.agentsim.events._
 import beam.agentsim.infrastructure.{InfrastructureUtils, ParkingNetworkManager, TrivialParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
+import beam.router.BeamRouter.IntermodalUse._
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_TRANSIT, WALK, WALK_TRANSIT}
@@ -41,6 +43,7 @@ import org.scalatest.BeforeAndAfter
 import org.scalatest.funspec.AnyFunSpecLike
 
 import scala.collection.{mutable, JavaConverters}
+import scala.concurrent.duration._
 
 class PersonAgentSpec
     extends AnyFunSpecLike
@@ -209,7 +212,7 @@ class PersonAgentSpec
       // This is the ridehail to transit request.
       // We don't provide an option.
       val request1 = expectMsgType[RoutingRequest]
-      assert(request1.streetVehiclesUseIntermodalUse == AccessAndEgress)
+      assert(request1.streetVehiclesUseIntermodalUse == AccessAndOrEgress)
       lastSender ! RoutingResponse(
         itineraries = Vector(),
         requestId = request1.requestId,
@@ -404,7 +407,7 @@ class PersonAgentSpec
           population = population,
           household = household,
           vehicles = Map(),
-          fallbackHomeCoord = new Coord(0.0, 0.0),
+          fallbackInitialLocationCoord = new Coord(0.0, 0.0),
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
@@ -561,6 +564,7 @@ class PersonAgentSpec
       val transitDriverProps = Props(new ForwardActor(self))
       val busId = Id.createVehicleId("bus:B3-WEST-1-175")
       val tramId = Id.createVehicleId("train:R2-SOUTH-1-93")
+      val nextTramId = Id.createVehicleId("train:R2-SOUTH-1-94")
 
       maybeIteration = Some(
         TestActorRef(
@@ -569,6 +573,7 @@ class PersonAgentSpec
               Props(new Actor() {
                 context.actorOf(transitDriverProps, "TransitDriverAgent-" + busId.toString)
                 context.actorOf(transitDriverProps, "TransitDriverAgent-" + tramId.toString)
+                context.actorOf(transitDriverProps, "TransitDriverAgent-" + nextTramId.toString)
 
                 override def receive: Receive = Actor.emptyBehavior
               }),
@@ -630,13 +635,13 @@ class PersonAgentSpec
           BeamPath(
             Array(),
             Array(),
-            Some(TransitStopsInfo("someAgency", "someRoute", tramId, 0, 1)),
+            Some(TransitStopsInfo("someAgency", "someRoute", nextTramId, 0, 1)),
             SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 35000),
             SpaceTime(services.geo.utm2Wgs(new Coord(190000.4, 1300)), 35600),
             1.0
           )
         ),
-        tramId,
+        nextTramId,
         Id.create("beamVilleCar", classOf[BeamVehicleType]),
         asDriver = false,
         0,

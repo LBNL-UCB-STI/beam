@@ -28,25 +28,25 @@ class FreightReplannerSpec extends AnyWordSpecLike with Matchers with BeamHelper
       val rnd = new Random(100)
       val freightReader = FreightReader(beamServices)
       val replanner = new FreightReplanner(beamServices, beamServices.skims.od_skimmer, rnd, freightReader)
-      val carrier =
-        beamServices.beamScenario.freightCarriers.find(_.carrierId == "freightCarrier-1".createId[FreightCarrier]).get
+      val (carrierID, carrier) =
+        beamServices.beamScenario.freightCarriers.find(x => x._2.carrierId == "ft-1".createId[FreightCarrier]).get
       val routes = replanner.calculateRoutes(carrier, "singleTour", 0)
       routes should have size 3
-      routes(0).vehicle.id should be("freightVehicle-1")
+      routes(0).vehicle.id should be("ft-1")
       routes(0).startTime should be(1000)
       routes(0).activities should have size 2
       routes(0).activities(0).service.id should be("payload-1")
       routes(0).activities(0).service shouldBe a[Dropoff]
       routes(0).activities(1).service.id should be("payload-2")
       routes(0).activities(1).service shouldBe a[Pickup]
-      routes(1).vehicle.id should be("freightVehicle-1")
+      routes(1).vehicle.id should be("ft-1")
       routes(1).startTime should be(7000)
       routes(1).activities should have size 2
       routes(1).activities(0).service.id should be("payload-4")
       routes(1).activities(0).service shouldBe a[Dropoff]
       routes(1).activities(1).service.id should be("payload-3")
       routes(1).activities(1).service shouldBe a[Dropoff]
-      routes(2).vehicle.id should be("freightVehicle-1")
+      routes(2).vehicle.id should be("ft-1")
       routes(2).startTime should be(15000)
       routes(2).activities should have size 3
       routes(2).activities(0).service.id should be("payload-6")
@@ -64,11 +64,11 @@ class FreightReplannerSpec extends AnyWordSpecLike with Matchers with BeamHelper
       val rnd = new Random(100)
       val freightReader = FreightReader(beamServices)
       val replanner = new FreightReplanner(beamServices, beamServices.skims.od_skimmer, rnd, freightReader)
-      val carrier =
-        beamServices.beamScenario.freightCarriers.find(_.carrierId == "freightCarrier-1".createId[FreightCarrier]).get
+      val (carrierID, carrier) =
+        beamServices.beamScenario.freightCarriers.find(x => x._2.carrierId == "ft-1".createId[FreightCarrier]).get
       val routes = replanner.calculateRoutes(carrier, "wholeFleet", 0)
       routes should have size 1
-      routes(0).vehicle.id should be("freightVehicle-1")
+      routes(0).vehicle.id should be("ft-1")
       routes(0).startTime should be(5515)
       routes(0).activities should have size 3
       routes(0).activities(0).service.id should be("payload-6")
@@ -83,11 +83,11 @@ class FreightReplannerSpec extends AnyWordSpecLike with Matchers with BeamHelper
       val rnd = new Random(100)
       val freightReader = FreightReader(beamServices)
       val replanner = new FreightReplanner(beamServices, beamServices.skims.od_skimmer, rnd, freightReader)
-      val carrier =
-        beamServices.beamScenario.freightCarriers.find(_.carrierId == "freightCarrier-2".createId[FreightCarrier]).get
+      val (carrierID, carrier) =
+        beamServices.beamScenario.freightCarriers.find(x => x._2.carrierId == "ft-2".createId[FreightCarrier]).get
       val routes = replanner.calculateRoutes(carrier, "wholeFleet", 0)
       routes should have size 2
-      routes(0).vehicle.id should be("freightVehicle-3")
+      routes(0).vehicle.id should be("ft-3")
       routes(0).startTime should be(5050)
       routes(0).activities should have size 3
       routes(0).activities(0).service.id should be("payload-11")
@@ -96,7 +96,7 @@ class FreightReplannerSpec extends AnyWordSpecLike with Matchers with BeamHelper
       routes(0).activities(1).service shouldBe a[Dropoff]
       routes(0).activities(2).service.id should be("payload-10")
       routes(0).activities(2).service shouldBe a[Pickup]
-      routes(1).vehicle.id should be("freightVehicle-2")
+      routes(1).vehicle.id should be("ft-2")
       routes(1).startTime should be(5515)
       routes(1).activities should have size 1
       routes(1).activities(0).service.id should be("payload-8")
@@ -118,21 +118,21 @@ class FreightReplannerSpec extends AnyWordSpecLike with Matchers with BeamHelper
       val rnd = new Random(100)
       val freightReader = FreightReader(beamServices)
       val replanner = new FreightReplanner(beamServices, beamServices.skims.od_skimmer, rnd, freightReader)
-      val carrier =
-        beamServices.beamScenario.freightCarriers.find(_.carrierId == "freightCarrier-1".createId[FreightCarrier]).get
+      val (carrierID, carrier) =
+        beamServices.beamScenario.freightCarriers.find(x => x._2.carrierId == "ft-1".createId[FreightCarrier]).get
       replanner.replan(carrier)
       val person = beamServices.matsimServices.getScenario.getPopulation.getPersons
-        .get(Id.createPersonId("freightDriver-1"))
+        .get(Id.createPersonId("ft-1"))
       val plan = person.getSelectedPlan
       plan.getPlanElements should have size 9
       plan.getPlanElements.get(0) shouldBe a[Activity]
       val activity0 = plan.getPlanElements.get(0).asInstanceOf[Activity]
-      activity0.getType should be("Warehouse")
+      activity0.getType should be(FreightActivityType.Depot.toString)
       activity0.getEndTime.seconds() should be(11915.0)
-      plan.getPlanElements.get(2).asInstanceOf[Activity].getType should be("Unloading")
-      plan.getPlanElements.get(4).asInstanceOf[Activity].getType should be("Unloading")
-      plan.getPlanElements.get(6).asInstanceOf[Activity].getType should be("Loading")
-      plan.getPlanElements.get(8).asInstanceOf[Activity].getType should be("Warehouse")
+      plan.getPlanElements.get(2).asInstanceOf[Activity].getType should be(FreightActivityType.Unloading.toString)
+      plan.getPlanElements.get(4).asInstanceOf[Activity].getType should be(FreightActivityType.Unloading.toString)
+      plan.getPlanElements.get(6).asInstanceOf[Activity].getType should be(FreightActivityType.Loading.toString)
+      plan.getPlanElements.get(8).asInstanceOf[Activity].getType should be(FreightActivityType.Depot.toString)
     }
 
   }

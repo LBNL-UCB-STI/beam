@@ -1,3 +1,8 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:27135d9254bc48e02a28daf17fe677bf834bcbd1799711ddb9d1e7a839fc72b7
-size 77
+numpy>=1.11.0
+pandas>=0.19.0
+doppelganger
+dask
+geopandas
+tqdm
+shapely
+joblib

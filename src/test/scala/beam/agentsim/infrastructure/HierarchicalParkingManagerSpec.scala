@@ -7,8 +7,9 @@ import beam.agentsim.agents.BeamvilleFixtures
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ, TAZTreeMap}
 import beam.sim.BeamHelper
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.BeamConfig
@@ -47,11 +48,22 @@ class HierarchicalParkingManagerSpec
   val randomSeed: Int = 0
 
   // a coordinate in the center of the UTM coordinate system
-  val coordCenterOfUTM = new Coord(500000, 5000000)
-  val centerSpaceTime = SpaceTime(coordCenterOfUTM, 0)
+  val coordCenterOfUTM: Coord = new Coord(500000, 5000000)
+  val centerSpaceTime: SpaceTime = SpaceTime(coordCenterOfUTM, 0)
 
   val beamConfig: BeamConfig = BeamConfig(system.settings.config)
   val geo = new GeoUtilsImpl(beamConfig)
+
+  private val searchDistancesConfig = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params(
+    freight =
+      BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params.Freight(minSearchRadius = 10.0, maxSearchRadius = 200.0),
+    passenger = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params
+      .Passenger(minSearchRadius = 250.0, maxSearchRadius = 8000.0),
+    searchDoubleParkingRadius = 0,
+    searchMaxDistanceRelativeToEllipseFoci = 4.0,
+    enableLinkBasedSearch = false,
+    searchSampleSize = 500
+  )
 
   describe("HierarchicalParkingManager with no parking") {
     it("should return a response with an emergency stall") {
@@ -63,15 +75,14 @@ class HierarchicalParkingManagerSpec
           xMin = 167000,
           yMin = 0,
           xMax = 833000,
-          yMax = 10000000
+          yMax = 10000000,
+          scenarioCRS = geo.localCRS
         ) // one TAZ at agent coordinate
         parkingManager = HierarchicalParkingManager.init(
           Map.empty[Id[ParkingZoneId], ParkingZone],
           tazTreeMap,
           geo.distUTMInMeters,
-          250.0,
-          8000.0,
-          0.0,
+          searchDistancesConfig,
           boundingBox,
           randomSeed,
           beamConfig.beam.agentsim.agents.parking.multinomialLogit,
@@ -82,10 +93,10 @@ class HierarchicalParkingManagerSpec
 
         val inquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 10)
         val envelope = new Envelope(
-          inquiry.destinationUtm.loc.getX + 100,
-          inquiry.destinationUtm.loc.getX - 100,
-          inquiry.destinationUtm.loc.getY + 100,
-          inquiry.destinationUtm.loc.getY - 100
+          inquiry.destinationUtm.loc.getX + 1000,
+          inquiry.destinationUtm.loc.getX - 1000,
+          inquiry.destinationUtm.loc.getY + 1000,
+          inquiry.destinationUtm.loc.getY - 1000
         )
         val response = parkingManager.processParkingInquiry(inquiry)
         assert(response.triggerId == 10)
@@ -98,15 +109,14 @@ class HierarchicalParkingManagerSpec
   describe("HierarchicalParkingManager with no taz") {
     it("should return a response with an emergency stall") {
 
-      val tazTreeMap = new TAZTreeMap(new QuadTree[TAZ](0, 0, 0, 0))
+      val tazTreeMap = new TAZTreeMap(new QuadTree[TAZ](0, 0, 0, 0), scenarioCRS = geo.localCRS)
+      tazTreeMap.searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(tazTreeMap, Map.empty))
 
       val parkingManager = HierarchicalParkingManager.init(
         Map.empty[Id[ParkingZoneId], ParkingZone],
         tazTreeMap,
         geo.distUTMInMeters,
-        250.0,
-        8000.0,
-        0.0,
+        searchDistancesConfig,
         boundingBox,
         randomSeed,
         beamConfig.beam.agentsim.agents.parking.multinomialLogit,
@@ -116,10 +126,10 @@ class HierarchicalParkingManagerSpec
 
       val inquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 34347)
       val envelope = new Envelope(
-        inquiry.destinationUtm.loc.getX + 100,
-        inquiry.destinationUtm.loc.getX - 100,
-        inquiry.destinationUtm.loc.getY + 100,
-        inquiry.destinationUtm.loc.getY - 100
+        inquiry.destinationUtm.loc.getX + 1000,
+        inquiry.destinationUtm.loc.getX - 1000,
+        inquiry.destinationUtm.loc.getY + 1000,
+        inquiry.destinationUtm.loc.getY - 1000
       )
 
       val response = parkingManager.processParkingInquiry(inquiry)
@@ -139,7 +149,8 @@ class HierarchicalParkingManagerSpec
           167000,
           0,
           833000,
-          10000000
+          10000000,
+          scenarioCRS = geo.localCRS
         ) // one TAZ at agent coordinate
         oneParkingOption: Iterator[String] =
           """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
@@ -157,9 +168,7 @@ class HierarchicalParkingManagerSpec
           parking.zones.toMap,
           tazTreeMap,
           geo.distUTMInMeters,
-          250.0,
-          8000.0,
-          0.0,
+          searchDistancesConfig,
           boundingBox,
           randomSeed,
           beamConfig.beam.agentsim.agents.parking.multinomialLogit,
@@ -180,7 +189,7 @@ class HierarchicalParkingManagerSpec
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
-            "work",
+            ParkingActivityType.Working,
             reservedFor = VehicleManager.AnyManager
           )
         val response1 = parkingManager.processParkingInquiry(firstInquiry)
@@ -211,7 +220,8 @@ class HierarchicalParkingManagerSpec
           167000,
           0,
           833000,
-          10000000
+          10000000,
+          scenarioCRS = geo.localCRS
         ) // one TAZ at agent coordinate
         oneParkingOption: Iterator[String] =
           """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
@@ -230,9 +240,7 @@ class HierarchicalParkingManagerSpec
           parking.zones.toMap,
           tazTreeMap,
           geo.distUTMInMeters,
-          250.0,
-          8000.0,
-          0.0,
+          searchDistancesConfig,
           boundingBox,
           randomSeed,
           beamConfig.beam.agentsim.agents.parking.multinomialLogit,
@@ -253,7 +261,7 @@ class HierarchicalParkingManagerSpec
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
-            "work",
+            ParkingActivityType.Working,
             reservedFor = VehicleManager.AnyManager
           )
 
@@ -302,7 +310,15 @@ class HierarchicalParkingManagerSpec
       for {
         _ <- 1 to trials
         numStalls = math.max(4, random1.nextInt(maxParkingStalls))
-        tazTreeMap <- ZonalParkingManagerSpec.mockTazTreeMap(tazList, startAtId = 1, 0, 0, 100, 100)
+        tazTreeMap <- ZonalParkingManagerSpec.mockTazTreeMap(
+          tazList,
+          startAtId = 1,
+          0,
+          0,
+          100,
+          100,
+          scenarioCRS = geo.localCRS
+        )
         split = ZonalParkingManagerSpec.randomSplitOfMaxStalls(numStalls, 4, random1)
         parkingConfiguration: Iterator[String] = ZonalParkingManagerSpec.makeParkingConfiguration(split)
         random = new Random(randomSeed)
@@ -316,9 +332,7 @@ class HierarchicalParkingManagerSpec
           parking.zones.toMap,
           tazTreeMap,
           geo.distUTMInMeters,
-          250.0,
-          8000.0,
-          0.0,
+          searchDistancesConfig,
           boundingBox,
           randomSeed,
           beamConfig.beam.agentsim.agents.parking.multinomialLogit,
@@ -366,9 +380,7 @@ class HierarchicalParkingManagerSpec
         stalls,
         scenario.tazTreeMap,
         geo.distUTMInMeters,
-        250.0,
-        8000.0,
-        0.0,
+        searchDistancesConfig,
         boundingBox,
         randomSeed,
         beamConfig.beam.agentsim.agents.parking.multinomialLogit,

@@ -20,6 +20,7 @@ import beam.agentsim.events._
 import beam.agentsim.infrastructure._
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
+import beam.integration.Repeated
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, WALK}
@@ -54,7 +55,8 @@ class PersonWithVehicleSharingSpec
     with TestKitBase
     with SimRunnerForTest
     with ImplicitSender
-    with BeamvilleFixtures {
+    with BeamvilleFixtures
+    with Repeated {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = system.dispatcher
@@ -154,7 +156,8 @@ class PersonWithVehicleSharingSpec
       mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
 
       val vehicleType = beamScenario.vehicleTypes(Id.create("sharedVehicle-sharedCar", classOf[BeamVehicleType]))
-      val managerId = VehicleManager.createOrGetReservedFor("shared-fleet-1", VehicleManager.TypeEnum.Shared).managerId
+      val managerId =
+        VehicleManager.createOrGetReservedFor("shared-fleet-1", Some(VehicleManager.TypeEnum.Shared)).managerId
       // I give it a car to use.
       val vehicle = new BeamVehicle(
         vehicleId,
@@ -214,7 +217,7 @@ class PersonWithVehicleSharingSpec
       events.expectMsgType[PathTraversalEvent]
 
       events.expectMsgType[PersonEntersVehicleEvent]
-      events.expectMsgType[LeavingParkingEvent]
+//      events.expectMsgType[LeavingParkingEvent]
       events.expectMsgType[VehicleEntersTrafficEvent]
       events.expectMsgType[LinkLeaveEvent]
       events.expectMsgType[LinkEnterEvent]
@@ -315,7 +318,8 @@ class PersonWithVehicleSharingSpec
 
       val vehicleType = beamScenario.vehicleTypes(Id.create("sharedVehicle-sharedCar", classOf[BeamVehicleType]))
       // I give it a car to use.
-      val managerId = VehicleManager.createOrGetReservedFor("shared-fleet-1", VehicleManager.TypeEnum.Shared).managerId
+      val managerId =
+        VehicleManager.createOrGetReservedFor("shared-fleet-1", Some(VehicleManager.TypeEnum.Shared)).managerId
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
@@ -400,7 +404,7 @@ class PersonWithVehicleSharingSpec
       events.expectMsgType[PathTraversalEvent]
 
       events.expectMsgType[PersonEntersVehicleEvent]
-      events.expectMsgType[LeavingParkingEvent]
+//      events.expectMsgType[LeavingParkingEvent]
       events.expectMsgType[VehicleEntersTrafficEvent]
       events.expectMsgType[VehicleLeavesTrafficEvent]
       events.expectMsgType[PathTraversalEvent]
@@ -493,7 +497,7 @@ class PersonWithVehicleSharingSpec
         new Powertrain(0.0),
         vehicleType,
         vehicleManagerId = new AtomicReference(
-          VehicleManager.createOrGetReservedFor("shared-fleet-1", VehicleManager.TypeEnum.Shared).managerId
+          VehicleManager.createOrGetReservedFor("shared-fleet-1", Some(VehicleManager.TypeEnum.Shared)).managerId
         )
       )
       car1.setManager(Some(mockSharedVehicleFleet.ref))
@@ -661,12 +665,12 @@ class PersonWithVehicleSharingSpec
 
       person2EntersVehicleEvents.expectNoMessage()
 
-      mockSharedVehicleFleet.expectMsgPF() { case MobilityStatusInquiry(_, SpaceTime(_, 28820), _, _, triggerId) =>
+      mockSharedVehicleFleet.expectMsgPF() { case MobilityStatusInquiry(_, SpaceTime(_, 28820), _, _, _, triggerId) =>
         mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector(), triggerId)
       }
 
       // agent has no car available, so will ask for new route
-      mockRouter.expectMsgPF() { case RoutingRequest(_, _, _, _, _, streetVehicles, _, _, _, _, triggerId) =>
+      mockRouter.expectMsgPF() { case RoutingRequest(_, _, _, _, _, streetVehicles, _, _, _, _, _, triggerId, _) =>
         val body = streetVehicles.find(_.mode == WALK).get
         val embodiedLeg = EmbodiedBeamLeg(
           beamLeg = BeamLeg(

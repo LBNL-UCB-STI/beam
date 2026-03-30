@@ -1,21 +1,23 @@
 package beam.agentsim.infrastructure.parking
 
 import beam.agentsim.agents.choice.logit.MultinomialLogit
-import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleManager.{ReservedFor, TypeEnum}
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
+import beam.agentsim.agents.vehicles.VehicleUse.{Freight, VehicleUse}
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode.DoubleParkingAllowed
+import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging._
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.VehicleRestrictionKey
+import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZ}
 import beam.router.BeamRouter.Location
+import beam.sim.config.BeamConfig
 import beam.utils.MathUtils
 import org.locationtech.jts.geom.Envelope
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
 import scala.annotation.tailrec
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.Random
 
@@ -33,19 +35,13 @@ object ParkingZoneSearch {
   /**
     * static configuration for all parking zone searches in this simulation
     *
-    * @param searchStartRadius radius of the first concentric ring search
-    * @param searchMaxRadius maximum distance for the search
-    * @param searchDoubleParkingRadius max distance for the search if double parking is allowed
-    * @param searchMaxDistanceRelativeToEllipseFoci max distance to both foci of an ellipse
+    * @param searchParams parking search parameters in terms of distance and datastructure
     * @param boundingBox limiting coordinate bounds for simulation area
     * @param distanceFunction function which computes distance (based on underlying coordinate system)
     * @param searchExpansionFactor factor by which the radius is expanded
     */
   case class ParkingZoneSearchConfiguration(
-    searchStartRadius: Double,
-    searchMaxRadius: Double,
-    searchDoubleParkingRadius: Double,
-    searchMaxDistanceRelativeToEllipseFoci: Double,
+    searchParams: BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params,
     boundingBox: Envelope,
     distanceFunction: (Coord, Coord) => Double,
     estimatedMinParkingDurationInSeconds: Double,
@@ -63,7 +59,7 @@ object ParkingZoneSearch {
     * @param parkingMNLConfig utility function which evaluates [[ParkingAlternative]]s
     * @param zoneCollections a nested map lookup of [[ParkingZone]]s
     * @param parkingZones the stored state of all [[ParkingZone]]s
-    * @param zoneQuadTree [[ParkingZone]]s are associated with a TAZ, which are themselves stored in this Quad Tree
+    * @param searchQuadTree search quad tree for finding [[ParkingZone]]s
     * @param random random number generator
     */
   case class ParkingZoneSearchParams(
@@ -73,11 +69,12 @@ object ParkingZoneSearch {
     parkingMNLConfig: ParkingMNL.ParkingMNLConfig,
     zoneCollections: Map[Id[TAZ], ParkingZoneCollection],
     parkingZones: Map[Id[ParkingZoneId], ParkingZone],
-    zoneQuadTree: QuadTree[TAZ],
+    searchQuadTree: SearchQuadTree,
     random: Random,
     originUTM: Option[Location],
     reservedFor: ReservedFor,
-    activityType: String
+    parkingActivityType: ParkingActivityType,
+    vehicleUse: VehicleUse
   )
 
   /**
@@ -90,7 +87,7 @@ object ParkingZoneSearch {
   case class ParkingZoneSearchResult(
     parkingStall: ParkingStall,
     parkingZone: ParkingZone,
-    parkingZoneIdsSeen: List[Id[ParkingZoneId]] = List.empty,
+    parkingZoneIdsSeen: Set[Id[ParkingZoneId]] = Set.empty,
     parkingZonesSampled: List[(Id[ParkingZoneId], Option[ChargingPointType], ParkingType, Double)] = List.empty,
     iterations: Int = 1
   )
@@ -111,7 +108,8 @@ object ParkingZoneSearch {
     parkingZone: ParkingZone,
     coord: Coord,
     costInDollars: Double,
-    parkingDuration: Int
+    parkingDuration: Int,
+    link: Option[Link]
   )
 
   /**
@@ -139,7 +137,7 @@ object ParkingZoneSearch {
     config: ParkingZoneSearchConfiguration,
     params: ParkingZoneSearchParams,
     parkingZoneFilterFunction: ParkingZone => Boolean,
-    parkingZoneLocSamplingFunction: ParkingZone => Coord,
+    parkingZoneLocSamplingFunction: (ParkingZone, Option[QuadTree[Link]]) => (Coord, Option[Link]),
     parkingZoneMNLParamsFunction: ParkingAlternative => Map[ParkingMNL.Parameters, Double]
   ): Option[ParkingZoneSearchResult] = {
 
@@ -152,12 +150,12 @@ object ParkingZoneSearch {
       iterations: Int = 1
     ): Option[ParkingZoneSearchResult] = {
       // a lookup of the (next) search ring for TAZs
-      searchMode.lookupParkingZonesInNextSearchAreaUnlessThresholdReached(params.zoneQuadTree) match {
-        case Some(theseZones) =>
-          // ParkingZones as as ParkingAlternatives
-          val alternatives: List[ParkingSearchAlternative] = {
+      searchMode.lookupParkingZonesInNextSearchAreaUnlessThresholdReached(params.searchQuadTree) match {
+        case Some(theseZones) if theseZones.zones.nonEmpty =>
+          // ParkingZones as ParkingAlternatives
+          val alternatives: Set[ParkingSearchAlternative] = {
             for {
-              zone           <- theseZones
+              zone           <- theseZones.zones
               zoneCollection <- params.zoneCollections.get(zone.tazId).toSeq
               parkingZone <- zoneCollection.getFreeZones(
                 config.fractionOfSameTypeZones,
@@ -168,7 +166,11 @@ object ParkingZoneSearch {
               if parkingZoneFilterFunction(parkingZone)
             } yield {
               // wrap ParkingZone in a ParkingAlternative
-              val stallLocation: Coord = parkingZoneLocSamplingFunction(parkingZone)
+              val zoneLinks = theseZones.tazToLinks.flatMap(_.get(zone))
+              // Enhanced location sampling: prefer links if available
+              val (stallLocation: Coord, linkLocation: Option[Link]) =
+                parkingZoneLocSamplingFunction(parkingZone, zoneLinks)
+
               // end-of-day parking durations are set to zero, which will be mis-interpreted here
               val parkingDuration = Math.max(
                 config.estimatedMinParkingDurationInSeconds.toInt, // at least a small duration of charging
@@ -178,12 +180,7 @@ object ParkingZoneSearch {
                 }
               )
               val stallPriceInDollars: Double = parkingZone.pricingModel
-                .map(
-                  PricingModel.evaluateParkingTicket(
-                    _,
-                    parkingDuration
-                  )
-                )
+                .map(PricingModel.evaluateParkingTicket(_, parkingDuration))
                 .getOrElse(0.0)
               val parkingAlternative: ParkingAlternative =
                 ParkingAlternative(
@@ -192,7 +189,8 @@ object ParkingZoneSearch {
                   parkingZone,
                   stallLocation,
                   stallPriceInDollars,
-                  parkingDuration
+                  parkingDuration,
+                  linkLocation
                 )
               val parkingAlternativeUtility: Map[ParkingMNL.Parameters, Double] =
                 parkingZoneMNLParamsFunction(parkingAlternative)
@@ -219,24 +217,24 @@ object ParkingZoneSearch {
               )
 
             mnl.sampleAlternative(alternativesToSample, params.random).map { result =>
-              val ParkingAlternative(taz, parkingType, parkingZone, coordinate, costInDollars, _) =
+              val ParkingAlternative(taz, parkingType, parkingZone, coordinate, costInDollars, _, linkMaybe) =
                 result.alternativeType
 
               // create a new stall instance. you win!
               val parkingStall = ParkingStall(
-                taz.tazId,
-                parkingZone.parkingZoneId,
-                coordinate,
+                tazId = taz.tazId,
+                parkingZoneId = parkingZone.parkingZoneId,
+                locationUTM = coordinate,
                 costInDollars,
                 parkingZone.chargingPointType,
                 parkingZone.pricingModel,
                 parkingType,
-                params.activityType,
+                params.parkingActivityType,
                 parkingZone.reservedFor,
-                parkingZone.link
+                linkMaybe
               )
 
-              val theseParkingZoneIds: List[Id[ParkingZoneId]] = alternatives.map {
+              val theseParkingZoneIds: Set[Id[ParkingZoneId]] = alternatives.map {
                 _.parkingAlternative.parkingZone.parkingZoneId
               }
               val theseSampledParkingZoneIds
@@ -259,7 +257,10 @@ object ParkingZoneSearch {
               )
             }
           }
-        case _ => None
+        case Some(_) =>
+          _search(searchMode, parkingZoneIdsSeen, parkingZoneIdsSampled, iterations + 1)
+        case None =>
+          None // exceeded max search distance
       }
     }
 
@@ -278,7 +279,7 @@ object ParkingZoneSearch {
     parkingType: ParkingType,
     chargingPointType: Option[ChargingPointType],
     pricingModel: Option[PricingModel],
-    timeRestrictions: Map[VehicleCategory, Range]
+    timeRestrictions: Map[VehicleRestrictionKey, Range]
   )
 
   object ParkingZoneInfo {
@@ -349,29 +350,38 @@ object ParkingZoneSearch {
   }
 
   trait SearchMode {
-    def lookupParkingZonesInNextSearchAreaUnlessThresholdReached(zoneQuadTree: QuadTree[TAZ]): Option[List[TAZ]]
+
+    def lookupParkingZonesInNextSearchAreaUnlessThresholdReached(
+      searchQuadTree: SearchQuadTree
+    ): Option[SearchQuadTree.SearchQuadTreeResults]
   }
 
   object SearchMode {
 
     case class DestinationSearch(
+      params: ParkingZoneSearchParams,
       destinationUTM: Location,
       searchStartRadius: Double,
       searchMaxRadius: Double,
-      expansionFactor: Double
+      expansionFactor: Double,
+      sampleSize: Int
     ) extends SearchMode {
       private var thisInnerRadius: Double = 0.0
       private var thisOuterRadius: Double = searchStartRadius
 
       override def lookupParkingZonesInNextSearchAreaUnlessThresholdReached(
-        zoneQuadTree: QuadTree[TAZ]
-      ): Option[List[TAZ]] = {
+        searchQuadTree: SearchQuadTree
+      ): Option[SearchQuadTree.SearchQuadTreeResults] = {
+        // Rest of your existing code
         if (thisInnerRadius > searchMaxRadius) None
         else {
-          val result = zoneQuadTree
-            .getRing(destinationUTM.getX, destinationUTM.getY, thisInnerRadius, thisOuterRadius)
-            .asScala
-            .toList
+          val result = searchQuadTree.getRing(
+            destinationUTM.getX,
+            destinationUTM.getY,
+            thisInnerRadius,
+            thisOuterRadius,
+            sampleSize
+          )
           thisInnerRadius = thisOuterRadius
           thisOuterRadius = thisOuterRadius * expansionFactor
           Some(result)
@@ -384,24 +394,41 @@ object ParkingZoneSearch {
       destinationUTM: Location,
       searchMaxDistanceToFociInPercent: Double,
       expansionFactor: Double,
-      distanceFunction: (Coord, Coord) => Double
+      distanceFunction: (Coord, Coord) => Double,
+      sampleSize: Int
     ) extends SearchMode {
       private val startDistance: Double = distanceFunction(originUTM, destinationUTM) * 1.01
       private val maxDistance: Double = startDistance * searchMaxDistanceToFociInPercent
       private var thisInnerDistance: Double = startDistance
 
       override def lookupParkingZonesInNextSearchAreaUnlessThresholdReached(
-        zoneQuadTree: QuadTree[TAZ]
-      ): Option[List[TAZ]] = {
-        if (thisInnerDistance >= maxDistance) None
-        else {
-          val result = zoneQuadTree
-            .getElliptical(originUTM.getX, originUTM.getY, destinationUTM.getX, destinationUTM.getY, thisInnerDistance)
-            .asScala
-            .toList
+        searchQuadTree: SearchQuadTree
+      ): Option[SearchQuadTree.SearchQuadTreeResults] = {
+        if (thisInnerDistance >= maxDistance) {
+          None
+        } else {
+          val result = searchQuadTree.getElliptical(
+            originUTM.getX,
+            originUTM.getY,
+            destinationUTM.getX,
+            destinationUTM.getY,
+            thisInnerDistance,
+            sampleSize
+          )
           thisInnerDistance = thisInnerDistance * expansionFactor
           Some(result)
         }
+      }
+    }
+
+    private def getMinMaxSearchDistance(
+      config: ParkingZoneSearchConfiguration,
+      params: ParkingZoneSearchParams
+    ): (Double, Double) = {
+      if (params.vehicleUse == Freight) {
+        (config.searchParams.freight.minSearchRadius, config.searchParams.freight.maxSearchRadius)
+      } else {
+        (config.searchParams.passenger.minSearchRadius, config.searchParams.passenger.maxSearchRadius)
       }
     }
 
@@ -414,25 +441,31 @@ object ParkingZoneSearch {
           EnrouteSearch(
             params.originUTM.getOrElse(throw new RuntimeException("Enroute process is expecting an origin location")),
             params.destinationUTM,
-            config.searchMaxDistanceRelativeToEllipseFoci,
+            config.searchParams.searchMaxDistanceRelativeToEllipseFoci,
             config.searchExpansionFactor,
-            config.distanceFunction
+            config.distanceFunction,
+            config.searchParams.searchSampleSize
           )
-        case DoubleParkingAllowed if config.searchDoubleParkingRadius > 0 =>
-          DestinationSearch(
-            params.destinationUTM,
-            math.min(config.searchStartRadius, config.searchDoubleParkingRadius),
-            math.min(config.searchMaxRadius, config.searchDoubleParkingRadius),
-            config.searchExpansionFactor
-          )
+
         case _ =>
+          val (minRadius, maxRadius) = getMinMaxSearchDistance(config, params)
+          val doubleParkingRadius = config.searchParams.searchDoubleParkingRadius
+          val (startRadius, searchMaxRadius) = params.searchMode match {
+            case DoubleParkingAllowed if doubleParkingRadius > 0 =>
+              (math.min(minRadius, doubleParkingRadius), math.min(maxRadius, doubleParkingRadius))
+            case _ =>
+              (minRadius, maxRadius)
+          }
           DestinationSearch(
+            params,
             params.destinationUTM,
-            config.searchStartRadius,
-            config.searchMaxRadius,
-            config.searchExpansionFactor
+            startRadius,
+            searchMaxRadius,
+            config.searchExpansionFactor,
+            config.searchParams.searchSampleSize
           )
       }
     }
   }
+
 }

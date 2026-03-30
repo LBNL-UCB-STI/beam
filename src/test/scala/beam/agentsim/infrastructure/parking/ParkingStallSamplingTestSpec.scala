@@ -1,16 +1,17 @@
 package beam.agentsim.infrastructure.parking
 
-import scala.util.Random
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
-import org.locationtech.jts.geom.{Coordinate, Geometry, GeometryFactory, PrecisionModel}
-import org.matsim.api.core.v01.network.{Link, NetworkFactory, Node}
+import org.locationtech.jts.geom.{Coordinate, GeometryFactory, PrecisionModel}
+import org.matsim.api.core.v01.network.{Link, Node}
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.network.{LinkFactory, NetworkUtils}
+import org.matsim.core.network.NetworkUtils
 import org.matsim.core.utils.collections.QuadTree
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.util.Random
 
 class ParkingStallSamplingTestSpec extends AnyWordSpec with Matchers {
   val trialsPerTest: Int = 100
@@ -19,32 +20,34 @@ class ParkingStallSamplingTestSpec extends AnyWordSpec with Matchers {
       "100% availability" should {
         "place parking stall as close as possible to agent location" in new ParkingStallSamplingTestSpec.SquareTAZWorld {
           val availabilityRatio: Double = 1.0
-          val result: Coord = ParkingStallSampling.linkBasedSampling(
+          val (result: Coord, _) = ParkingStallSampling.linkBasedSampling(
             random,
-            agent,
+            agentCoord,
             tazTreeMap.tazToLinkIdMapping.get(taz.tazId),
             distance,
             availabilityRatio,
             taz,
-            true
+            inClosestZone = true,
+            1000.0
           )
-          distance(agent, result) should equal(100.0) // Request at 100, 100 gets snapped to point at line on y=200
+          distance(agentCoord, result) should equal(100.0) // Request at 100, 100 gets snapped to point at line on y=200
         }
       }
       "80% availability" should {
         "place stall on the closest link most of the time" in new ParkingStallSamplingTestSpec.SquareTAZWorld {
           val availabilityRatio: Double = 0.8
           val distances = (1 to 100).map { x =>
-            val result: Coord = ParkingStallSampling.linkBasedSampling(
+            val (result: Coord, _) = ParkingStallSampling.linkBasedSampling(
               random,
-              agent,
+              agentCoord,
               tazTreeMap.tazToLinkIdMapping.get(taz.tazId),
               distance,
               availabilityRatio,
               taz,
-              true
+              inClosestZone = true,
+              1000.0
             )
-            distance(agent, result)
+            distance(agentCoord, result)
           }
           // Should create a stall on the closest point (100m away) most of the time, rarely create one really far away
           val numberOfTimesAtClosestLink = distances.count(_ == 100.0)
@@ -60,16 +63,17 @@ class ParkingStallSamplingTestSpec extends AnyWordSpec with Matchers {
         "place stall farther away more often" in new ParkingStallSamplingTestSpec.SquareTAZWorld {
           val availabilityRatio: Double = 0.3
           val distances = (1 to 100).map { x =>
-            val result: Coord = ParkingStallSampling.linkBasedSampling(
+            val (result: Coord, _) = ParkingStallSampling.linkBasedSampling(
               random,
-              agent,
+              agentCoord,
               tazTreeMap.tazToLinkIdMapping.get(taz.tazId),
               distance,
               availabilityRatio,
               taz,
-              true
+              inClosestZone = true,
+              1000.0
             )
-            distance(agent, result)
+            distance(agentCoord, result)
           }
           // Should be more likely to create a stall farther away
           val numberOfTimesAtClosestLink = distances.count(_ == 100.0)
@@ -88,12 +92,12 @@ class ParkingStallSamplingTestSpec extends AnyWordSpec with Matchers {
           val availabilityRatio: Double = 1.0
           val result: Coord = ParkingStallSampling.availabilityAwareSampling(
             random,
-            agent,
+            agentCoord,
             taz,
             availabilityRatio,
             true
           )
-          distance(agent, result) should equal(0.0)
+          distance(agentCoord, result) should equal(0.0)
         }
       }
       ">75% availability" should {
@@ -104,13 +108,13 @@ class ParkingStallSamplingTestSpec extends AnyWordSpec with Matchers {
           } {
             val result = ParkingStallSampling.availabilityAwareSampling(
               random,
-              agent,
+              agentCoord,
               taz,
               availabilityRatio,
               true
             )
 
-            val dist: Double = distance(agent, result)
+            val dist: Double = distance(agentCoord, result)
 
             // allow points placed at a distance up to 20% of the taz diameter
             val errorBounds: Double = tazD * 0.20
@@ -126,13 +130,13 @@ class ParkingStallSamplingTestSpec extends AnyWordSpec with Matchers {
           } {
             val result = ParkingStallSampling.availabilityAwareSampling(
               random,
-              agent,
+              agentCoord,
               taz,
               availabilityRatio,
               true
             )
 
-            val dist: Double = distance(agent, result)
+            val dist: Double = distance(agentCoord, result)
 
             // allow points placed at a distance up to 50% of the taz diameter
             val errorBounds: Double = tazD * 0.50
@@ -148,13 +152,13 @@ class ParkingStallSamplingTestSpec extends AnyWordSpec with Matchers {
           } {
             val result = ParkingStallSampling.availabilityAwareSampling(
               random,
-              agent,
+              agentCoord,
               taz,
               availabilityRatio,
               true
             )
 
-            val dist: Double = distance(agent, result)
+            val dist: Double = distance(agentCoord, result)
 
             // allow points placed at a distance up to 100% of the taz diameter
             val errorBounds: Double = tazD
@@ -172,7 +176,7 @@ class ParkingStallSamplingTestSpec extends AnyWordSpec with Matchers {
 
             val result = ParkingStallSampling.availabilityAwareSampling(
               random,
-              agent,
+              agentCoord,
               taz,
               availabilityRatio,
               true
@@ -288,11 +292,13 @@ object ParkingStallSamplingTestSpec {
 
     val tazQuadTree = new QuadTree[TAZ](0.0, 0.0, 500.0, 500.0)
     tazQuadTree.put(geometry.getCentroid.getX, geometry.getCentroid.getY, taz)
-    val tazTreeMap = new TAZTreeMap(tazQuadTree)
+    val tazTreeMap = new TAZTreeMap(tazQuadTree, scenarioCRS = s"EPSG:${projection}")
+    tazTreeMap.mapNetworkToTAZs(
+      network.getLinks.asScala.toMap,
+      enableLinkBasedSearch = false
+    )
 
-    tazTreeMap.mapNetworkToTAZs(network)
-
-    val agent: Coord = new Coord(100.0, 100.0)
+    val agentCoord: Coord = new Coord(100.0, 100.0)
 
     // Euclidian distance for tests
     def distance(a: Coord, b: Coord): Double = math.sqrt(math.pow(a.getY - b.getY, 2) + math.pow(a.getX - b.getX, 2))

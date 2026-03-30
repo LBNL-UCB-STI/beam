@@ -164,7 +164,6 @@ class DestinationChoiceModel(
     } match {
       case Success(out) => Some(out)
       case Failure(f) =>
-        println(f)
         None
       case _ => None
     }
@@ -185,7 +184,6 @@ class DestinationChoiceModel(
       case Success(_) =>
         DefaultActivityRates
       case Failure(e) =>
-        println(e)
         DefaultActivityRates
     }
   }
@@ -234,7 +232,6 @@ class DestinationChoiceModel(
           case _            => (DefaultActivityVOTs, DefaultActivityDurations)
         }
       case Failure(e) =>
-        println(e)
         (DefaultActivityVOTs, DefaultActivityDurations)
     }
   }

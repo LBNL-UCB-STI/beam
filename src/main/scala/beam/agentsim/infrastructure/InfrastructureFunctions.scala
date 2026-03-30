@@ -3,13 +3,15 @@ package beam.agentsim.infrastructure
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.ParkingZone.UbiqiutousParkingAvailability
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch._
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.StrictLogging
 import org.locationtech.jts.geom.Envelope
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.utils.collections.QuadTree
 
 import scala.util.Random
 
@@ -17,10 +19,7 @@ abstract class InfrastructureFunctions(
   tazTreeMap: TAZTreeMap,
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
-  minSearchRadius: Double,
-  maxSearchRadius: Double,
-  searchDoubleParkingRadius: Double,
-  searchMaxDistanceRelativeToEllipseFoci: Double,
+  searchParams: BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params,
   estimatedMinParkingDurationInSeconds: Double,
   estimatedMeanEnRouteChargingDurationInSeconds: Double,
   fractionOfSameTypeZones: Double,
@@ -73,26 +72,17 @@ abstract class InfrastructureFunctions(
     inquiry: ParkingInquiry,
     parkingZone: ParkingZone,
     taz: TAZ,
+    linkQuadTree: Option[QuadTree[Link]],
     inClosestZone: Boolean = false
-  ): Coord
+  ): (Coord, Option[Link])
 
   // ************
 
   import InfrastructureFunctions._
 
-  val DefaultParkingZone: ParkingZone =
-    ParkingZone.defaultInit(
-      TAZ.DefaultTAZId,
-      ParkingType.Public,
-      UbiqiutousParkingAvailability
-    )
-
-  val parkingZoneSearchConfiguration: ParkingZoneSearchConfiguration =
+  private val parkingZoneSearchConfiguration: ParkingZoneSearchConfiguration =
     ParkingZoneSearchConfiguration(
-      minSearchRadius,
-      maxSearchRadius,
-      searchDoubleParkingRadius,
-      searchMaxDistanceRelativeToEllipseFoci,
+      searchParams,
       boundingBox,
       distanceFunction,
       estimatedMinParkingDurationInSeconds,
@@ -141,18 +131,16 @@ abstract class InfrastructureFunctions(
         mnlMultiplierParameters,
         zoneCollections,
         parkingZones,
-        tazTreeMap.tazQuadTree,
+        tazTreeMap.searchQuadTree.get,
         new Random(seed + inquiryHash),
         inquiry.departureLocation,
         inquiry.reservedFor,
-        inquiry.activityType
+        inquiry.parkingActivityType,
+        inquiry.vehicleUse
       )
 
     val closestZone =
-      Option(
-        parkingZoneSearchParams.zoneQuadTree
-          .getClosest(inquiry.destinationUtm.loc.getX, inquiry.destinationUtm.loc.getY)
-      )
+      Option(tazTreeMap.tazQuadTree.getClosest(inquiry.destinationUtm.loc.getX, inquiry.destinationUtm.loc.getY))
 
     val closestZoneId = closestZone match {
       case Some(foundZone) => foundZone.tazId
@@ -165,17 +153,17 @@ abstract class InfrastructureFunctions(
       (zone: ParkingZone) => setupSearchFilterPredicates(zone, inquiry)
 
     // generates a coordinate for an embodied ParkingStall from a ParkingZone
-    val parkingZoneLocSamplingFunction: ParkingZone => Coord =
-      (zone: ParkingZone) => {
+    val parkingZoneLocSamplingFunction: (ParkingZone, Option[QuadTree[Link]]) => (Coord, Option[Link]) =
+      (zone: ParkingZone, zoneLinks: Option[QuadTree[Link]]) => {
         tazTreeMap.idToTAZMapping.get(zone.tazId) match {
           case None =>
             logger.error(
               s"somehow have a ParkingZone with tazId ${zone.tazId} which is not found in the idToGeoMapping"
             )
-            new Coord()
+            (new Coord(), None)
           case Some(taz) =>
             val inClosestZone = closestZoneId == zone.tazId
-            sampleParkingStallLocation(inquiry, zone, taz, inClosestZone)
+            sampleParkingStallLocation(inquiry, zone, taz, zoneLinks, inClosestZone)
         }
       }
 
@@ -220,7 +208,7 @@ abstract class InfrastructureFunctions(
             )
           ) =>
         logger.debug(
-          s"sampled over ${parkingZonesSampled.length} (found ${parkingZonesSeen.length}) parking zones over $iterations iterations."
+          s"sampled over ${parkingZonesSampled.length} (found ${parkingZonesSeen.size}) parking zones over $iterations iterations."
         )
         logger.debug(
           "sampled stats:\n    ChargerTypes: {};\n    Parking Types: {};\n    Costs: {};",
@@ -245,12 +233,11 @@ abstract class InfrastructureFunctions(
     zoneCollections.get(parkingZone.tazId).foreach(_.releaseZone(parkingZone))
     result
   }
-
 }
 
 object InfrastructureFunctions {
 
-  def chargingTypeToNo(
+  private def chargingTypeToNo(
     parkingZonesSampled: List[(Id[ParkingZoneId], Option[ChargingPointType], ParkingType, Double)]
   ): String = {
     parkingZonesSampled
@@ -266,7 +253,7 @@ object InfrastructureFunctions {
       .mkString(", ")
   }
 
-  def parkingTypeToNo(
+  private def parkingTypeToNo(
     parkingZonesSampled: List[(Id[ParkingZoneId], Option[ChargingPointType], ParkingType, Double)]
   ): String = {
     parkingZonesSampled
@@ -277,7 +264,7 @@ object InfrastructureFunctions {
       .mkString(", ")
   }
 
-  def listOfCosts(
+  private def listOfCosts(
     parkingZonesSampled: List[(Id[ParkingZoneId], Option[ChargingPointType], ParkingType, Double)]
   ): String = {
     parkingZonesSampled

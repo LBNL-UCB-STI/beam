@@ -55,7 +55,7 @@ class RideHailMaster(
   private val rideHailManagers: Map[String, RideHailManagerData] =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.managers.map { managerConfig =>
       val rideHailManagerId =
-        VehicleManager.createOrGetReservedFor(managerConfig.name, VehicleManager.TypeEnum.RideHail).managerId
+        VehicleManager.createOrGetReservedFor(managerConfig.name, Some(VehicleManager.TypeEnum.RideHail)).managerId
       val rideHailFleetInitializer = rideHailFleetInitializerProvider.get(managerConfig.name)
       val rhmActorRef = context.actorOf(
         Props(
@@ -159,9 +159,10 @@ class RideHailMaster(
         responsesInRandomOrder.filter(_.travelProposal.exists(_.modeOptions.contains(RIDE_HAIL)))
       else
         responsesInRandomOrder.filter(_.travelProposal.isDefined)
-    if (availableProposals.isEmpty)
+    if (availableProposals.isEmpty) {
+      logger.debug(f"Can't find a driver because no available proposals for request ${request.toString}")
       RideHailResponse.dummyWithError(DriverNotFoundError, request)
-    else
+    } else
       bestResponseType match {
         case "MIN_COST"    => availableProposals.minBy(findCost(customer, _))
         case "MIN_UTILITY" => sampleProposals(customer, availableProposals)

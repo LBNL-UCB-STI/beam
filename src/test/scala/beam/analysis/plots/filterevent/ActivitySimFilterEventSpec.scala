@@ -8,8 +8,7 @@ import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, PlanElement}
 import org.matsim.core.controler.MatsimServices
-import org.mockito.Mockito
-import org.mockito.Mockito.{doAnswer, mock}
+import org.mockito.Mockito.{mock, when}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
@@ -53,7 +52,7 @@ class ActivitySimFilterEventSpec extends AnyWordSpecLike with Matchers {
     "process event when is enabled and plans contains valid plans" in {
       val validPlans = Seq(IndexedSeq(activityWork, activityHome), IndexedSeq(activityHome, activityWork))
       val event = buildModeChoice(activityTypeHome)
-      val eventFilter = buildActivitySimFilter(beamConfigEnabled, event, choose(validPlans: _*))
+      val eventFilter = buildActivitySimFilter(beamConfigEnabled, choose(validPlans: _*))
       val result = eventFilter.shouldProcessEvent(event)
       assert(result)
     }
@@ -61,7 +60,7 @@ class ActivitySimFilterEventSpec extends AnyWordSpecLike with Matchers {
     "NOT process event when is disabled and contains valid plans" in {
       val validPlans = Seq(IndexedSeq(activityWork, activityHome), IndexedSeq(activityHome, activityWork))
       val event = buildModeChoice(activityTypeHome)
-      val eventFilter = buildActivitySimFilter(beamConfigDisabled, event, choose(validPlans: _*))
+      val eventFilter = buildActivitySimFilter(beamConfigDisabled, choose(validPlans: _*))
       val result = eventFilter.shouldProcessEvent(event)
       assert(!result)
     }
@@ -75,7 +74,7 @@ class ActivitySimFilterEventSpec extends AnyWordSpecLike with Matchers {
       )
       val event = buildModeChoice(activityTypeHome)
       val eventFilter =
-        buildActivitySimFilter(beamConfigEnabled, event, choose(invalidPlans: _*))
+        buildActivitySimFilter(beamConfigEnabled, choose(invalidPlans: _*))
       val result = eventFilter.shouldProcessEvent(event)
       assert(!result)
     }
@@ -83,12 +82,13 @@ class ActivitySimFilterEventSpec extends AnyWordSpecLike with Matchers {
 
   private def buildActivitySimFilter(
     beamConfig: BeamConfig,
-    event: ModeChoiceEvent,
-    eventPlans: IndexedSeq[PlanElement]
+    plans: IndexedSeq[PlanElement]
   ): ActivitySimFilterEvent = {
-    val result = Mockito.spy(new ActivitySimFilterEvent(beamConfig, matsimServices))
-    doAnswer(_ => eventPlans).when(result).eventPlans(event)
-    result
+    new ActivitySimFilterEvent(beamConfig, matsimServices) {
+      override private[filterevent] def eventPlans(event: ModeChoiceEvent): scala.collection.Seq[Activity] = {
+        plans.collect { case activity: Activity => activity }
+      }
+    }
   }
 
   private def buildModeChoice(chosenMode: String): ModeChoiceEvent = {
@@ -113,7 +113,7 @@ class ActivitySimFilterEventSpec extends AnyWordSpecLike with Matchers {
 
   private def buildActivity(activityType: String): Activity = {
     val result = mock(classOf[Activity])
-    Mockito.when(result.getType).thenReturn(activityType)
+    when(result.getType).thenReturn(activityType)
     result
   }
 

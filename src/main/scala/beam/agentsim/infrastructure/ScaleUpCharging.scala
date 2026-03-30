@@ -7,7 +7,7 @@ import beam.agentsim.events.RefuelSessionEvent.NotApplicable
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode.{DestinationCharging, EnRouteCharging}
-import beam.agentsim.infrastructure.ParkingInquiry.{activityTypeStringToEnum, ParkingActivityType, ParkingSearchMode}
+import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.ParkingNetworkManager._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -120,8 +120,7 @@ trait ScaleUpCharging extends {
         None,
         personId,
         getParkingManager,
-        getBeamServices,
-        getBeamServices.matsimServices.getEvents
+        getBeamServices
       )
     case reply @ UnpluggingVehicle(tick, personId, vehicle, _, energyCharged) =>
       log.debug(s"Received UnpluggingVehicle: $reply")
@@ -131,8 +130,7 @@ trait ScaleUpCharging extends {
         Some(energyCharged),
         personId,
         getParkingManager,
-        getBeamServices,
-        getBeamServices.matsimServices.getEvents
+        getBeamServices
       )
   }
 
@@ -165,7 +163,7 @@ trait ScaleUpCharging extends {
               val totDurationInSec = listDur.sum
               val meanDur: Double = listDur.sum / numObservation.toDouble
               val varianceDur: Double = listDur.map(d => d - meanDur).map(t => t * t).sum / numObservation
-              val parkingActivityType: ParkingActivityType = activityTypeStringToEnum(activityType)
+              val parkingActivityType: ParkingActivityType = ParkingActivityType.fromString(activityType)
               val scaledUpObservation: Double = scaleUpFactor * numObservation
               val activities = ObservedActivities(
                 activityType,
@@ -302,7 +300,7 @@ trait ScaleUpCharging extends {
       val remainingRangeInMeters = vehicle.getRemainingRange._1
       val activityType =
         if (inquiry.activityType.startsWith(ChargingNetwork.EnRouteLabel))
-          ParkingActivityType.Charge.entryName
+          ParkingActivityType.Charging.entryName
         else inquiry.activityType
       vehicleRequests.add(
         ChargingEvent(

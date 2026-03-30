@@ -156,7 +156,7 @@ object Modes {
       )
 
     def fromString(stringMode: String): Option[BeamMode] = {
-      if (stringMode.equals("") || stringMode.equals("other")) {
+      if (stringMode.equals("") || stringMode.equals("other") || stringMode.equals("goods")) {
         None
       } else if (stringMode.equalsIgnoreCase("drive")) {
         Some(CAR)
@@ -268,13 +268,13 @@ object TourModes {
 
     private def getModeFromVehicle(beamVehicle: BeamVehicle): BeamMode = {
       beamVehicle.beamVehicleType.vehicleCategory match {
-        case VehicleCategory.Car                => CAR
-        case VehicleCategory.Bike               => BIKE
-        case VehicleCategory.Class78Tractor     => FREIGHT
-        case VehicleCategory.Class78Vocational  => FREIGHT
-        case VehicleCategory.Class456Vocational => FREIGHT
-        case VehicleCategory.Class2b3Vocational => FREIGHT
-        case _                                  => WALK
+        case VehicleCategory.Car if beamVehicle.isFreight => FREIGHT
+        case VehicleCategory.Car                          => CAR
+        case VehicleCategory.Bike                         => BIKE
+        case VehicleCategory.Class78Tractor               => FREIGHT
+        case VehicleCategory.Class78Vocational            => FREIGHT
+        case VehicleCategory.Class456Vocational           => FREIGHT
+        case _                                            => WALK
       }
     }
 
@@ -315,10 +315,10 @@ object TourModes {
       trips.foreach { trip =>
         trip.tripClassifier match {
           case CAR | CAR_HOV2 | CAR_HOV3 =>
-            if (availableVehicles.forall(_.vehicle.isFreightVehicle) && availableVehicles.nonEmpty) {
+            if (availableVehicles.forall(_.vehicle.isFreight) && availableVehicles.nonEmpty) {
               outcome
                 .getOrElseUpdate(Some(FREIGHT_TOUR), mutable.Map.empty[EmbodiedBeamTrip, Option[BeamVehicle]])
-                .update(trip, findVehicle(_.vehicle.isFreightVehicle))
+                .update(trip, findVehicle(_.vehicle.isFreight))
             } else if (currentTourPersonalVehicle.nonEmpty) {
               if (availableVehicles.map(_.id).contains(currentTourPersonalVehicle.get)) {
                 outcome
@@ -379,9 +379,14 @@ object TourModes {
                 )
               )
           case _ =>
+//            val retainedVehicle = availableVehicles
+//              .find(v => currentTourPersonalVehicle.find(availableVehicles.map(_.id).contains).contains(v.id))
+//              .map(_.vehicle)
+            val retainedVehicle = None // TEMP: Trying out not retaining parent tour vehicles on subtours
+
             outcome
               .getOrElseUpdate(Some(WALK_BASED), mutable.Map.empty[EmbodiedBeamTrip, Option[BeamVehicle]])
-              .update(trip, None)
+              .update(trip, retainedVehicle)
         }
       }
       outcome
@@ -447,7 +452,7 @@ object TourModes {
     case object FREIGHT_TOUR
         extends BeamTourMode(
           "freight_tour",
-          Seq(Car, Class2b3Vocational, Class456Vocational, Class78Vocational, Class78Tractor),
+          Seq(Car, Class456Vocational, Class78Vocational, Class78Tractor),
           Seq[BeamMode](CAR, FREIGHT),
           Seq[BeamMode](CAR, FREIGHT)
         ) {
@@ -456,7 +461,7 @@ object TourModes {
         vehicles: Vector[VehicleOrToken],
         firstOrLastLeg: Boolean
       ): Seq[BeamMode] = {
-        if (vehicles.exists(_.vehicle.isFreightVehicle)) {
+        if (vehicles.exists(_.vehicle.isFreight)) {
           allowedBeamModes
         } else {
           Seq.empty[BeamMode]

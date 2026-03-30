@@ -15,8 +15,12 @@ import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerEventFactory}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes, PopulationAdjustment}
+import com.conveyal.r5.transit.TransportNetwork
+import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters._
 import scala.util.Try
 
@@ -31,9 +35,15 @@ class ODRequester(
   val withTransit: Boolean,
   val buildDirectWalkRoute: Boolean,
   val buildDirectCarRoute: Boolean,
-  val skimmerEventFactory: AbstractSkimmerEventFactory
-) {
-  var requestsExecutionTime: RouteExecutionInfo = RouteExecutionInfo()
+  val skimmerEventFactory: AbstractSkimmerEventFactory,
+  val transportNetwork: Option[TransportNetwork] = None
+) extends StrictLogging {
+
+  // Thread-safe execution time tracking for concurrent batch processing
+  private val _requestsExecutionTime: AtomicReference[RouteExecutionInfo] =
+    new AtomicReference(RouteExecutionInfo())
+
+  def requestsExecutionTime: RouteExecutionInfo = _requestsExecutionTime.get()
 
   private val dummyPersonAttributes = createDummyPersonAttribute
 
@@ -49,14 +59,39 @@ class ODRequester(
   private val dummyBikeVehicleType: BeamVehicleType =
     vehicleTypes.values.find(theType => theType.vehicleCategory == VehicleCategory.Bike).get
 
+  // Pre-created vehicle IDs to avoid per-request allocations
+  private val dummyCarVehicleId = Id.createVehicleId("dummy-car-for-skim-observations")
+  private val dummyBikeVehicleId = Id.createVehicleId("dummy-bike-for-skim-observations")
+  private val dummyBodyVehicleId = Id.createVehicleId("dummy-body-for-skim-observations")
+
+  // Pre-allocated mode array for drive-only routing
+  private val driveOnlyModes: Array[BeamMode] = Array(BeamMode.CAR)
+
+  // Check if this requester is configured for drive-only mode (optimization flag)
+  val isDriveOnly: Boolean = beamModes.size == 1 && beamModes.head == BeamMode.CAR && !withTransit
+
   private val thresholdDistanceForBikeMeters: Double =
     beamConfig.beam.urbansim.backgroundODSkimsCreator.maxTravelDistanceInMeters.bike
 
   private val thresholdDistanceForWalkMeters: Double =
     beamConfig.beam.urbansim.backgroundODSkimsCreator.maxTravelDistanceInMeters.walk
 
+  // Standard link radius from config (typically 10km)
+  private val linkRadiusMeters: Double = beamConfig.beam.routing.r5.linkRadiusMeters
+
+  // Progressive fallback radii for remote areas (50km, 100km, 200km, 400km)
+  private val fallbackRadiiMeters: Array[Double] = Array(50000.0, 100000.0, 200000.0, 400000.0)
+
+  // Thread-safe cache for snapped coordinates to avoid repeated R5 lookups
+  // Key: original coordinate string, Value: snapped coordinate (or original if unreachable)
+  private val snappedCoordinateCache: ConcurrentHashMap[String, Coord] = new ConcurrentHashMap[String, Coord]()
+
+  // Thread-safe set to track coordinates that couldn't be snapped (logged once per unique coordinate)
+  private val unreachableCoordinates: ConcurrentHashMap.KeySetView[String, java.lang.Boolean] =
+    ConcurrentHashMap.newKeySet[String]()
+
   def route(srcIndex: GeoIndex, dstIndex: GeoIndex, requestTime: Int): ODRequester.Response = {
-    val (srcCoord, dstCoord) = (srcIndex, dstIndex) match {
+    val (rawSrcCoord, rawDstCoord) = (srcIndex, dstIndex) match {
       case (h3SrcIndex: H3Index, h3DestIndex: H3Index) =>
         H3Clustering.getGeoIndexCenters(geoUtils, h3SrcIndex, h3DestIndex)
       case (tazSrcIndex: TAZIndex, tazDestIndex: TAZIndex) =>
@@ -66,6 +101,9 @@ class ODRequester(
           s"The type of src index (${srcIndex.getClass}) does not match the type of dst index (${dstIndex.getClass})."
         )
     }
+
+    // Snap coordinates to nearest road to handle remote TAZ centroids
+    val (srcCoord, dstCoord) = snapCoordinatesToRoad(rawSrcCoord, rawDstCoord)
 
     val dist = distanceWithMargin(srcCoord, dstCoord)
     val considerModes: Array[BeamMode] = beamModes.filter(mode => isDistanceWithinRange(mode, dist)).toArray
@@ -89,9 +127,11 @@ class ODRequester(
             buildDirectCarRoute = buildDirectCarRoute,
             buildDirectWalkRoute = buildDirectWalkRoute && walkDistanceWithinRange
           )
-        requestsExecutionTime = RouteExecutionInfo.sum(
-          requestsExecutionTime,
-          RouteExecutionInfo(r5ExecutionTime = System.nanoTime() - startExecution, r5Responses = 1)
+        _requestsExecutionTime.updateAndGet(current =>
+          RouteExecutionInfo.sum(
+            current,
+            RouteExecutionInfo(r5ExecutionTime = System.nanoTime() - startExecution, r5Responses = 1)
+          )
         )
         response
       }
@@ -100,6 +140,141 @@ class ODRequester(
       }
 
     ODRequester.Response(srcIndex, dstIndex, considerModes, maybeResponse, requestTime)
+  }
+
+  /**
+    * Route with explicit transit mode category and trip direction support.
+    * Used for mode-filtered transit routing and return trip parking handling.
+    *
+    * @param workItem The work item containing OD pair, time, transit category, and trip direction
+    * @return Response containing routing results
+    */
+  def route(workItem: ODWorkItem): ODRequester.Response = {
+    val (srcIndex, dstIndex, requestTime) = (workItem.srcIndex, workItem.dstIndex, workItem.time)
+    val (rawSrcCoord, rawDstCoord) = getCoordinates(srcIndex, dstIndex)
+
+    // Snap coordinates to nearest road to handle remote TAZ centroids
+    val (srcCoord, dstCoord) = snapCoordinatesToRoad(rawSrcCoord, rawDstCoord)
+
+    val dist = distanceWithMargin(srcCoord, dstCoord)
+    val considerModes: Array[BeamMode] = beamModes.filter(mode => isDistanceWithinRange(mode, dist)).toArray
+    val walkDistanceWithinRange = dist < thresholdDistanceForWalkMeters
+
+    // For return trips with DRIVE_TRANSIT, we need to handle vehicle location differently
+    val (effectiveSrcCoord, vehicleLocationForReturn) = workItem.tripDirection match {
+      case TripDirection.Return if considerModes.contains(DRIVE_TRANSIT) =>
+        // For return trips, find the nearest transit stop to the destination (home)
+        // where the car would have been parked during the outbound trip
+        val nearestStop = findNearestTransitStopCoord(dstCoord)
+        (srcCoord, nearestStop)
+      case _ =>
+        (srcCoord, None)
+    }
+
+    val streetVehicles = workItem.tripDirection match {
+      case TripDirection.Return if vehicleLocationForReturn.isDefined =>
+        // For return trips with drive-transit, create street vehicles with modified locations
+        considerModes.flatMap { mode =>
+          mode match {
+            case DRIVE_TRANSIT =>
+              // Vehicle is at the transit stop near destination, not at origin
+              Some(createStreetVehicleAt(mode, requestTime, vehicleLocationForReturn.get))
+            case _ =>
+              Some(createStreetVehicle(mode, requestTime, effectiveSrcCoord))
+          }
+        }
+      case _ =>
+        considerModes.map(createStreetVehicle(_, requestTime, effectiveSrcCoord))
+    }
+
+    val transitModes = workItem.transitCategory.map(_.toR5TransitModes)
+
+    val maybeResponse: Try[RoutingResponse] =
+      if (streetVehicles.nonEmpty && (buildDirectCarRoute || buildDirectWalkRoute || withTransit)) Try {
+        val routingReq = RoutingRequest(
+          originUTM = effectiveSrcCoord,
+          destinationUTM = dstCoord,
+          departureTime = requestTime,
+          withTransit = withTransit,
+          streetVehicles = streetVehicles,
+          attributesOfIndividual = Some(dummyPersonAttributes),
+          triggerId = -1,
+          transitModes = transitModes
+        )
+        val startExecution = System.nanoTime()
+        val response =
+          router.calcRoute(
+            routingReq,
+            buildDirectCarRoute = buildDirectCarRoute,
+            buildDirectWalkRoute = buildDirectWalkRoute && walkDistanceWithinRange
+          )
+        _requestsExecutionTime.updateAndGet(current =>
+          RouteExecutionInfo.sum(
+            current,
+            RouteExecutionInfo(r5ExecutionTime = System.nanoTime() - startExecution, r5Responses = 1)
+          )
+        )
+        response
+      }
+      else {
+        Try(RoutingResponse.dummyRoutingResponse.get)
+      }
+
+    ODRequester.Response(srcIndex, dstIndex, considerModes, maybeResponse, requestTime)
+  }
+
+  /**
+    * Optimized route method for drive-only skim generation.
+    * Reduces object allocations by reusing pre-created vehicle IDs and avoiding
+    * unnecessary distance checks and mode filtering.
+    */
+  def routeDriveOnly(srcIndex: GeoIndex, dstIndex: GeoIndex, requestTime: Int): ODRequester.Response = {
+    val (rawSrcCoord, rawDstCoord) = (srcIndex, dstIndex) match {
+      case (tazSrc: TAZIndex, tazDst: TAZIndex) =>
+        TAZClustering.getGeoIndexCenters(tazSrc, tazDst)
+      case (h3Src: H3Index, h3Dst: H3Index) =>
+        H3Clustering.getGeoIndexCenters(geoUtils, h3Src, h3Dst)
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Expected matching index types, got ${srcIndex.getClass} and ${dstIndex.getClass}"
+        )
+    }
+
+    // Snap coordinates to nearest road to handle remote TAZ centroids
+    val (srcCoord, dstCoord) = snapCoordinatesToRoad(rawSrcCoord, rawDstCoord)
+
+    val streetVehicle = StreetVehicle(
+      dummyCarVehicleId,
+      dummyCarVehicleType.id,
+      new SpaceTime(srcCoord, requestTime),
+      BeamMode.CAR,
+      asDriver = true,
+      needsToCalculateCost = false
+    )
+
+    val routingReq = RoutingRequest(
+      originUTM = srcCoord,
+      destinationUTM = dstCoord,
+      departureTime = requestTime,
+      withTransit = false,
+      streetVehicles = Array(streetVehicle),
+      attributesOfIndividual = Some(dummyPersonAttributes),
+      triggerId = -1
+    )
+
+    val maybeResponse = Try {
+      val startExecution = System.nanoTime()
+      val response = router.calcRoute(routingReq, buildDirectCarRoute = true, buildDirectWalkRoute = false)
+      _requestsExecutionTime.updateAndGet(current =>
+        RouteExecutionInfo.sum(
+          current,
+          RouteExecutionInfo(r5ExecutionTime = System.nanoTime() - startExecution, r5Responses = 1)
+        )
+      )
+      response
+    }
+
+    ODRequester.Response(srcIndex, dstIndex, driveOnlyModes, maybeResponse, requestTime)
   }
 
   def createSkimEvent(
@@ -170,38 +345,24 @@ class ODRequester(
   }
 
   def createStreetVehicle(mode: BeamMode, requestTime: Int, srcCoord: Coord): StreetVehicle = {
-    val streetVehicle: StreetVehicle = mode match {
+    val (vehicleId, vehicleTypeId, beamMode) = mode match {
       case BeamMode.CAR | BeamMode.DRIVE_TRANSIT =>
-        StreetVehicle(
-          Id.createVehicleId("dummy-car-for-skim-observations"),
-          dummyCarVehicleType.id,
-          new SpaceTime(srcCoord, requestTime),
-          BeamMode.CAR,
-          asDriver = true,
-          needsToCalculateCost = false
-        )
+        (dummyCarVehicleId, dummyCarVehicleType.id, BeamMode.CAR)
       case BeamMode.BIKE =>
-        StreetVehicle(
-          Id.createVehicleId("dummy-bike-for-skim-observations"),
-          dummyBikeVehicleType.id,
-          new SpaceTime(srcCoord, requestTime),
-          BeamMode.BIKE,
-          asDriver = true,
-          needsToCalculateCost = false
-        )
+        (dummyBikeVehicleId, dummyBikeVehicleType.id, BeamMode.BIKE)
       case BeamMode.WALK | BeamMode.WALK_TRANSIT =>
-        StreetVehicle(
-          Id.createVehicleId("dummy-body-for-skim-observations"),
-          dummyBodyVehicleType.id,
-          new SpaceTime(srcCoord, requestTime),
-          WALK,
-          asDriver = true,
-          needsToCalculateCost = false
-        )
+        (dummyBodyVehicleId, dummyBodyVehicleType.id, WALK)
       case x =>
         throw new IllegalArgumentException(s"Get mode $x, but don't know what to do with it.")
     }
-    streetVehicle
+    StreetVehicle(
+      vehicleId,
+      vehicleTypeId,
+      new SpaceTime(srcCoord, requestTime),
+      beamMode,
+      asDriver = true,
+      needsToCalculateCost = false
+    )
   }
 
   private def createDummyPersonAttribute: AttributesOfIndividual = {
@@ -232,6 +393,226 @@ class ODRequester(
       age = None,
       income = Some(dummyHouseholdAttributes.householdIncome)
     )
+  }
+
+  /**
+    * Get coordinates from GeoIndex pair.
+    */
+  private def getCoordinates(srcIndex: GeoIndex, dstIndex: GeoIndex): (Coord, Coord) = {
+    (srcIndex, dstIndex) match {
+      case (h3SrcIndex: H3Index, h3DestIndex: H3Index) =>
+        H3Clustering.getGeoIndexCenters(geoUtils, h3SrcIndex, h3DestIndex)
+      case (tazSrcIndex: TAZIndex, tazDestIndex: TAZIndex) =>
+        TAZClustering.getGeoIndexCenters(tazSrcIndex, tazDestIndex)
+      case _ =>
+        throw new MatchError(
+          s"The type of src index (${srcIndex.getClass}) does not match the type of dst index (${dstIndex.getClass})."
+        )
+    }
+  }
+
+  /**
+    * Create a street vehicle at a specific location (used for return trips where vehicle is at transit stop).
+    */
+  private def createStreetVehicleAt(mode: BeamMode, requestTime: Int, vehicleCoord: Coord): StreetVehicle = {
+    val (vehicleId, vehicleTypeId, beamMode) = mode match {
+      case BeamMode.CAR | BeamMode.DRIVE_TRANSIT =>
+        (dummyCarVehicleId, dummyCarVehicleType.id, BeamMode.CAR)
+      case BeamMode.BIKE =>
+        (dummyBikeVehicleId, dummyBikeVehicleType.id, BeamMode.BIKE)
+      case BeamMode.WALK | BeamMode.WALK_TRANSIT =>
+        (dummyBodyVehicleId, dummyBodyVehicleType.id, WALK)
+      case x =>
+        throw new IllegalArgumentException(s"Get mode $x, but don't know what to do with it.")
+    }
+    StreetVehicle(
+      vehicleId,
+      vehicleTypeId,
+      new SpaceTime(vehicleCoord, requestTime),
+      beamMode,
+      asDriver = true,
+      needsToCalculateCost = false
+    )
+  }
+
+  /**
+    * Find the nearest transit stop to a given coordinate.
+    * Uses R5's transit layer to locate stops that could be used for park-and-ride.
+    *
+    * @param coord The coordinate to search near (in UTM)
+    * @return The coordinate of the nearest transit stop (in UTM), or None if no transit network available
+    */
+  private def findNearestTransitStopCoord(coord: Coord): Option[Coord] = {
+    transportNetwork.flatMap { network =>
+      val transitLayer = network.transitLayer
+      val streetLayer = network.streetLayer
+      if (transitLayer == null || transitLayer.stopIdForIndex == null || transitLayer.stopIdForIndex.size() == 0) {
+        None
+      } else {
+        // Convert to WGS84 for comparison with transit stop coordinates
+        val wgsCoord = geoUtils.utm2Wgs(coord)
+
+        var minDistance = Double.MaxValue
+        var nearestStopCoord: Option[Coord] = None
+
+        // Search through transit stops to find the nearest one
+        val stopCount = transitLayer.stopIdForIndex.size()
+        var i = 0
+        while (i < stopCount) {
+          // Get the street vertex for this stop
+          val streetVertexIdx = transitLayer.streetVertexForStop.get(i)
+          if (streetVertexIdx >= 0) {
+            // Get the coordinates from the street layer
+            val vertex = streetLayer.vertexStore.getCursor(streetVertexIdx)
+            val stopLat = vertex.getLat
+            val stopLon = vertex.getLon
+
+            val stopCoord = new Coord(stopLon, stopLat)
+            val distance = GeoUtils.distFormula(wgsCoord, stopCoord)
+            if (distance < minDistance) {
+              minDistance = distance
+              nearestStopCoord = Some(geoUtils.wgs2Utm(stopCoord))
+            }
+          }
+          i += 1
+        }
+
+        nearestStopCoord
+      }
+    }
+  }
+
+  /**
+    * Snap a coordinate to the nearest road network vertex.
+    * First tries with the standard linkRadiusMeters, then progressively tries larger radii
+    * (50km, 100km, 200km, 400km) until a road is found.
+    * Results are cached to avoid repeated R5 lookups.
+    *
+    * @param coord The coordinate to snap (in UTM)
+    * @return The snapped coordinate (in UTM), or the original if snapping fails
+    */
+  private def snapToNearestRoad(coord: Coord): Coord = {
+    val coordKey = s"${coord.getX},${coord.getY}"
+
+    // Check cache first (thread-safe)
+    val cached = snappedCoordinateCache.get(coordKey)
+    if (cached != null) {
+      return cached
+    }
+
+    val snapped = transportNetwork match {
+      case Some(network) =>
+        val streetLayer = network.streetLayer
+        val wgsCoord = geoUtils.utm2Wgs(coord)
+
+        // Try with standard radius first
+        var split = streetLayer.findSplit(
+          wgsCoord.getY,
+          wgsCoord.getX,
+          linkRadiusMeters,
+          com.conveyal.r5.profile.StreetMode.CAR
+        )
+
+        // If standard radius fails, try progressively larger fallback radii (50km, 100km, 200km, 400km)
+        if (split == null) {
+          var i = 0
+          while (split == null && i < fallbackRadiiMeters.length) {
+            val fallbackRadius = fallbackRadiiMeters(i)
+            split = streetLayer.findSplit(
+              wgsCoord.getY,
+              wgsCoord.getX,
+              fallbackRadius,
+              com.conveyal.r5.profile.StreetMode.CAR
+            )
+            i += 1
+          }
+        }
+
+        if (split != null) {
+          // Get the snapped coordinate from the split
+          val vertex = streetLayer.vertexStore.getCursor(split.vertex0)
+          val snappedWgs = new Coord(vertex.getLon, vertex.getLat)
+          geoUtils.wgs2Utm(snappedWgs)
+        } else {
+          // findSplit failed - coordinate is likely in an area with no roads (e.g., mountains)
+          // Brute-force search: find the closest vertex in the entire network
+          val closestVertex = findClosestNetworkVertex(streetLayer, wgsCoord)
+
+          closestVertex match {
+            case Some((vertexLat, vertexLon, _)) =>
+              val snappedWgs = new Coord(vertexLon, vertexLat)
+              geoUtils.wgs2Utm(snappedWgs)
+            case None =>
+              if (unreachableCoordinates.add(coordKey)) {
+                logger.warn(s"Could not snap coordinate (${wgsCoord.getY}, ${wgsCoord.getX}) - no vertices in network")
+              }
+              coord
+          }
+        }
+
+      case None =>
+        coord
+    }
+
+    // Cache the result (putIfAbsent is thread-safe, returns existing value if already present)
+    val existing = snappedCoordinateCache.putIfAbsent(coordKey, snapped)
+    if (existing != null) existing else snapped
+  }
+
+  /**
+    * Snap both source and destination coordinates to the road network.
+    * This ensures routing requests use coordinates that R5 can actually reach.
+    *
+    * @param srcCoord Original source coordinate (in UTM)
+    * @param dstCoord Original destination coordinate (in UTM)
+    * @return Tuple of (snapped source, snapped destination) coordinates
+    */
+  private def snapCoordinatesToRoad(srcCoord: Coord, dstCoord: Coord): (Coord, Coord) = {
+    (snapToNearestRoad(srcCoord), snapToNearestRoad(dstCoord))
+  }
+
+  /**
+    * Find the closest vertex in the street network using brute-force search.
+    * Used as a last resort when findSplit fails (e.g., for coordinates in roadless areas).
+    *
+    * @param streetLayer The R5 street layer
+    * @param wgsCoord The target coordinate in WGS84
+    * @return Option of (lat, lon, distanceKm) for the closest vertex, or None if network is empty
+    */
+  private def findClosestNetworkVertex(
+    streetLayer: com.conveyal.r5.streets.StreetLayer,
+    wgsCoord: Coord
+  ): Option[(Double, Double, Double)] = {
+    val vertexStore = streetLayer.vertexStore
+    val numVertices = vertexStore.getVertexCount
+
+    if (numVertices == 0) return None
+
+    var minDistSq = Double.MaxValue
+    var closestLat = 0.0
+    var closestLon = 0.0
+
+    val cursor = vertexStore.getCursor()
+    var i = 0
+    while (i < numVertices) {
+      cursor.seek(i)
+      val vLat = cursor.getLat
+      val vLon = cursor.getLon
+
+      val dLat = vLat - wgsCoord.getY
+      val dLon = vLon - wgsCoord.getX
+      val distSq = dLat * dLat + dLon * dLon
+
+      if (distSq < minDistSq) {
+        minDistSq = distSq
+        closestLat = vLat
+        closestLon = vLon
+      }
+      i += 1
+    }
+
+    val distKm = Math.sqrt(minDistSq) * 111.0
+    Some((closestLat, closestLon, distKm))
   }
 }
 

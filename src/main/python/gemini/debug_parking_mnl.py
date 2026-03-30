@@ -6,7 +6,7 @@ mnl_search_lines = ["parkingZoneId,geoId,parkingType,chargingPointType,pricingMo
                     "validChargingCapability,hasAvailability,validParkingType,isValidTime,isValidVehicleManager\n"]
 mnl_param_lines = ["parkingZoneId,geoId,parkingType,chargingPointType,pricingModel,reservedFor,stallsAvailable,"
                    "maxStalls,vehicleId,parkingDuration,activityType,valueOfTime,requestId,costInDollars,RangeAnxietyCost,"
-                   "WalkingEgressCost,ParkingTicketCost,HomeActivityPrefersResidentialParking\n"]
+                   "WalkingEgressCost,ParkingTicketCost,ParkingTypePreference\n"]
 output_log_file = os.path.expanduser('~/Data/GEMINI/2022Mars-Calibration/beamLog.out.txt')
 with open(output_log_file) as infile:
     for line in infile:

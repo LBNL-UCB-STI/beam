@@ -1,5 +1,6 @@
 package beam.agentsim.agents.planning
 
+import beam.agentsim.agents.freight.FreightEntities.FREIGHT_ID_PREFIX
 import beam.agentsim.agents.planning.BeamPlan.atHome
 
 import java.{lang, util}
@@ -159,7 +160,11 @@ class BeamPlan extends Plan {
 //  }
 
   private def getTourModeFromMatsimLeg(leg: Leg): Option[BeamTourMode] = {
-    Option(leg.getAttributes.getAttribute("tour_mode")).flatMap(x => BeamTourMode.fromString(x.toString))
+    if (person.getId.toString.startsWith(FREIGHT_ID_PREFIX)) {
+      Some(BeamTourMode.FREIGHT_TOUR)
+    } else {
+      Option(leg.getAttributes.getAttribute("tour_mode")).flatMap(x => BeamTourMode.fromString(x.toString))
+    }
   }
 
   private def getTourVehicleFromMatsimLeg(leg: Leg): Option[Id[BeamVehicle]] = {
@@ -292,6 +297,18 @@ class BeamPlan extends Plan {
         tour.trips.last == trip
       case _ =>
         throw new RuntimeException(s"Unexpected PlanElement $planElement.")
+    }
+  }
+
+  def isLastElementInTour(idx: Int): Boolean = {
+    val tour = getTourContaining(idx)
+    actsLegs.lift(idx) match {
+      case Some(act: Activity) =>
+        tour.trips.last.activity == act
+      case Some(leg: Leg) =>
+        tour.trips.last.leg.contains(leg)
+      case _ =>
+        throw new RuntimeException(s"Unexpected PlanElementIndex $idx.")
     }
   }
 

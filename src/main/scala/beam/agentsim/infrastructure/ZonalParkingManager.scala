@@ -1,13 +1,12 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
 import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.utils.collections.QuadTree
 
 import scala.util.Random
 
@@ -34,9 +33,7 @@ object ZonalParkingManager extends LazyLogging {
     tazTreeMap: TAZTreeMap,
     distanceFunction: (Coord, Coord) => Double,
     boundingBox: Envelope,
-    minSearchRadius: Double,
-    maxSearchRadius: Double,
-    searchDoubleParkingRadius: Double,
+    searchRadiusConfig: BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params,
     fractionOfSameTypeZones: Double,
     minNumberOfSameTypeZones: Int,
     seed: Int,
@@ -44,20 +41,12 @@ object ZonalParkingManager extends LazyLogging {
     estimatedMinParkingDurationInSeconds: Double
   ): ZonalParkingManager = {
     new ZonalParkingManager(parkingZones) {
-      if (maxSearchRadius < minSearchRadius) {
-        logger.warn(
-          s"maxSearchRadius of $maxSearchRadius meters provided from config is less than the fixed minimum search radius of $minSearchRadius; no searches will occur with these settings."
-        )
-      }
       override val searchFunctions: Option[InfrastructureFunctions] = Some(
         new ParkingFunctions(
           tazTreeMap,
           parkingZones,
           distanceFunction,
-          minSearchRadius,
-          maxSearchRadius,
-          searchDoubleParkingRadius,
-          0.0,
+          searchRadiusConfig,
           estimatedMinParkingDurationInSeconds,
           0.0,
           fractionOfSameTypeZones,
@@ -87,9 +76,7 @@ object ZonalParkingManager extends LazyLogging {
       TAZTreeMap,
       distanceFunction,
       envelopeInUTM,
-      beamConfig.beam.agentsim.agents.parking.minSearchRadius,
-      beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
-      beamConfig.beam.agentsim.agents.parking.searchDoubleParkingRadius,
+      beamConfig.beam.agentsim.agents.parking.search.params,
       beamConfig.beam.agentsim.agents.parking.fractionOfSameTypeZones,
       beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
       beamConfig.matsim.modules.global.randomSeed,
@@ -109,9 +96,7 @@ object ZonalParkingManager extends LazyLogging {
     TAZTreeMap: TAZTreeMap,
     boundingBox: Envelope,
     distanceFunction: (Coord, Coord) => Double,
-    minSearchRadius: Double,
-    maxSearchRadius: Double,
-    searchDoubleParkingRadius: Double,
+    searchRadiusConfig: BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params,
     seed: Int,
     mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
     beamConfig: BeamConfig,
@@ -128,9 +113,7 @@ object ZonalParkingManager extends LazyLogging {
       TAZTreeMap,
       distanceFunction,
       boundingBox,
-      minSearchRadius,
-      maxSearchRadius,
-      searchDoubleParkingRadius,
+      searchRadiusConfig,
       0.5,
       10,
       seed,

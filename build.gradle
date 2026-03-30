@@ -1,5 +1,4 @@
 import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
-import com.bmuschko.gradle.docker.tasks.image.DockerTagImage
 import com.bmuschko.gradle.docker.tasks.image.Dockerfile
 
 import java.time.Instant
@@ -27,7 +26,7 @@ plugins {
     id "org.scoverage" version "8.0.3"
     id 'maven-publish'
     id "me.champeau.gradle.jmh" version "0.5.3"
-    id 'com.bmuschko.docker-java-application' version '9.4.0'
+    id 'com.bmuschko.docker-remote-api' version '9.4.0'  // Changed from docker-java-application
     id "cz.alenkacz.gradle.scalafmt" version "1.16.2"
     id "java-library"
 }
@@ -44,7 +43,7 @@ apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
 
 group = 'beam'
-version = '1.0.beta'
+version = '1.1-beta-v260316'
 
 description = """"""
 
@@ -131,6 +130,7 @@ allprojects {
         maven { url "https://mvn.slimjars.com" }
         mavenLocal()
         maven { url "https://jitpack.io" }
+        maven { url "https://artifacts.unidata.ucar.edu/repository/unidata-all/" }
     }
 }
 
@@ -139,25 +139,47 @@ configurations {
     scalaCompilerPlugin
 }
 
+dependencies {
+    scalaCompilerPlugin 'org.slf4j:slf4j-api:1.7.36'
+}
+
 
 configurations.all {
     resolutionStrategy {
         // we need this in order to get Elki library working fine.
         force 'net.jafama:jafama:2.3.2'
         // we need this in order to get Elki library working fine.
-        force 'it.unimi.dsi:fastutil:8.5.4'
+        force 'it.unimi.dsi:fastutil:8.5.12'
 
-        force 'org.apache.logging.log4j:log4j-core:2.15.0'
-        force 'org.apache.logging.log4j:log4j-api:2.15.0'
+        force 'org.apache.logging.log4j:log4j-core:2.19.0'
+        force 'org.apache.logging.log4j:log4j-api:2.19.0'
+        force 'org.apache.logging.log4j:log4j-1.2-api:2.19.0'
+        force 'org.apache.parquet:parquet-avro:1.12.3'
+        force 'org.apache.parquet:parquet-hadoop:1.12.3'
+        force 'org.apache.parquet:parquet-common:1.12.3'
+        force 'org.apache.parquet:parquet-column:1.12.3'
+        force 'org.apache.parquet:parquet-encoding:1.12.3'
+        force 'edu.ucar:cdm-core:5.8.0'
+        force 'edu.ucar:netcdf4:5.8.0'
+
+        // Force slf4j-api to 1.7.36 to match logback-classic 1.2.3
+        force 'org.slf4j:slf4j-api:1.7.36'
     }
     exclude group: "log4j", module: "log4j"
     exclude group: "org.matsim", module: "matsim"
+    exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+    exclude group: 'org.slf4j', module: 'slf4j-reload4j'
+    exclude group: 'org.apache.logging.log4j', module: 'log4j-1.2-api'
+    exclude group: 'org.apache.logging.log4j', module: 'log4j-slf4j2-impl'
 }
 
 dependencies {
 
     // TODO FIXME
     implementation(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: '0.3.4')
+
+    // Explicitly add slf4j-api 1.7.36 to ensure SLF4J classes are on the compile classpath
+    api 'org.slf4j:slf4j-api:1.7.36'
 
     ////////////////////////////
     // Java dependencies
@@ -167,6 +189,13 @@ dependencies {
     implementation group: 'com.google.inject.extensions', name: 'guice-multibindings', version: '4.1.0'
     implementation group: 'org.apache.commons', name: 'commons-collections4', version: '4.4'
     implementation group: 'org.apache.commons', name: 'commons-math3', version: '3.6.1'
+    implementation 'org.apache.commons:commons-lang3:3.12.0'
+    implementation 'commons-io:commons-io:2.11.0'
+    implementation 'org.apache.commons:commons-csv:1.8'
+    implementation 'org.apache.commons:commons-text:1.10.0'
+    implementation 'commons-lang:commons-lang:2.6'
+    implementation 'org.glassfish:javax.el:3.0.0'
+    implementation 'javax.el:javax.el-api:3.0.0'
     implementation group: 'org.apache.httpcomponents', name: 'fluent-hc', version: '4.5.13'
 
     // Apache 2.0
@@ -181,6 +210,7 @@ dependencies {
 
     implementation group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.12.3'
     implementation group: 'com.fasterxml.jackson.module', name: 'jackson-module-scala_2.12', version: '2.12.3'
+    implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.12.3'
     implementation group: 'javax.inject', name: 'javax.inject', version: '1'
     implementation group: 'jdom', name: 'jdom', version: '1.1'
     implementation group: 'org.jdom', name: 'jdom2', version: '2.0.5'
@@ -207,8 +237,9 @@ dependencies {
 
     implementation(group: 'org.matsim.contrib', name: 'decongestion', version: '12.0')
 
-    implementation(group: 'com.github.LBNL-UCB-STI.matsim', name: 'matsim', version: '12.0-beam-8') {
+    implementation(group: 'com.github.LBNL-UCB-STI.matsim', name: 'matsim', version: '12.0-beam-11') {
         exclude group: 'log4j', module: 'log4j'
+        changing = true
     }
 
     implementation "org.slf4j:slf4j-api:${slf4jVersion}"
@@ -216,9 +247,10 @@ dependencies {
     implementation "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.9.0"
     implementation "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
 
-    implementation(group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'v4.9.0') {
+    implementation(group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'v4.13.beta') {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
         exclude group: 'org.slf4j', module: 'slf4j-simple'
+        changing = true
     }
     implementation group: 'com.graphhopper', name: 'graphhopper-core', version: '2.3'
     implementation "com.sigopt:sigopt-java:4.9.0"
@@ -226,7 +258,13 @@ dependencies {
 
     implementation("com.uber:h3:3.7.2")
     implementation("com.github.LBNL-UCB-STI:jsprit-wrapper:v0.5.1")
-    implementation("com.github.LBNL-UCB-STI:omx-java:v2.0.2")
+    implementation("com.github.LBNL-UCB-STI:omx-java:v2.0.7")
+
+    implementation("com.github.LBNL-UCB-STI:jzarr:v0.4.10")
+    implementation "edu.ucar:cdm-core:5.8.0"
+    implementation group: 'edu.ucar', name: 'netcdf4', version: '5.8.0'
+    implementation group: 'org.lasersonlab', name: 'jblosc', version: '1.0.1'
+    //    runtimeOnly group: 'org.slf4j', name: 'slf4j-jdk14', version: '1.7.36'
 
     testImplementation group: 'junit', name: 'junit', version: '4.8'
     testImplementation group: 'org.mockito', name: 'mockito-inline', version: '2.27.0'
@@ -280,12 +318,12 @@ dependencies {
     // https://mvnrepository.com/artifact/io.circe/circe-parser_2.12
     implementation group: 'io.circe', name: "circe-parser_${scalaBinaryVersion}", version: circeBinaryVersion
 
-    implementation group: 'com.typesafe.play', name: "play-json_${scalaBinaryVersion}", version: '2.6.3'
+    implementation group: 'com.typesafe.play', name: "play-json_${scalaBinaryVersion}", version: '2.8.1'
 
     implementation(group: 'com.github.romix.akka', name: "akka-kryo-serialization_${scalaBinaryVersion}", version: '0.5.2') {
         exclude group: 'com.esotericsoftware', module: 'kryo'
     }
-    implementation group: 'com.esotericsoftware', name: 'kryo', version: '4.0.2'
+    implementation group: 'com.esotericsoftware', name: 'kryo', version: '4.0.3'
 
     implementation "com.github.vagmcs:optimus_${scalaBinaryVersion}:3.1.0"
     implementation "com.github.vagmcs:optimus-solver-oj_${scalaBinaryVersion}:3.1.0"
@@ -326,17 +364,39 @@ dependencies {
 
     implementation group: 'com.zaxxer', name: 'nuprocess', version: '1.2.4'
 
+    def sparkVersion = "3.4.2" // Use your desired Spark version
+
+    implementation("org.apache.spark:spark-core_${scalaBinaryVersion}:${sparkVersion}") {
+        exclude group: 'org.apache.hadoop'
+        exclude group: 'org.slf4j'
+    }
+    implementation("org.apache.spark:spark-sql_${scalaBinaryVersion}:${sparkVersion}") {
+        exclude group: 'org.apache.hadoop'
+        exclude group: 'org.slf4j'
+    }
+    testImplementation("org.apache.spark:spark-core_${scalaBinaryVersion}:${sparkVersion}") {
+        exclude group: 'org.apache.hadoop'
+        exclude group: 'org.slf4j'
+    }
+    testImplementation("org.apache.spark:spark-sql_${scalaBinaryVersion}:${sparkVersion}") {
+        exclude group: 'org.apache.hadoop'
+        exclude group: 'org.slf4j'
+    }
+
     def parquet = "1.12.3"
-    implementation group: 'org.apache.parquet', name: 'parquet-hadoop', version: parquet
-    implementation group: 'org.apache.parquet', name: 'parquet-avro', version: parquet
-    implementation(group: 'org.apache.hadoop', name: 'hadoop-client', version: '2.7.3') {
-        exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+    // Parquet dependencies with shading
+    implementation 'org.apache.parquet:parquet-avro:1.12.3'
+    implementation 'org.apache.parquet:parquet-hadoop:1.12.3'
+    implementation 'org.apache.hadoop:hadoop-common:3.3.4'
+    implementation 'org.apache.hadoop:hadoop-mapreduce-client-core:3.3.4'
+    implementation('org.apache.hadoop:hadoop-client:3.3.6') {
         // Exclude `ASM` because it is binary incompatible with the one which is gotten from `com.conveyal:kryo-tools`: `org.ow2.asm:asm:5.0.4`
         exclude group: 'asm', module: 'asm'
         // Exclude jsp-api because it contains an older version of javax.el (Expression Language) which is incompatible
         // with one that Hibernate-validator uses
         exclude group: 'javax.servlet.jsp', module: 'jsp-api'
     }
+    implementation 'it.unimi.dsi:fastutil:8.5.12'
 
     implementation(group: 'com.lihaoyi', name: "sourcecode_${scalaBinaryVersion}", version: '0.1.9')
 
@@ -354,6 +414,20 @@ dependencies {
     // AWS S3
     implementation group: 'software.amazon.awssdk', name: 's3', version: '2.16.68'
     implementation group: 'org.ini4j', name: 'ini4j', version: '0.5.4'
+}
+
+
+task printRuntimeClasspath(type: JavaExec) {
+    mainClass = 'java.lang.Object' // Dummy main class, won't run
+    doFirst {
+        println "Runtime classpath:"
+        sourceSets.main.runtimeClasspath.each { file ->
+            println file.name
+        }
+    }
+    classpath = sourceSets.main.runtimeClasspath
+    // Prevent actual execution
+    enabled = false
 }
 
 // Autoformatting using scalafmt
@@ -403,14 +477,22 @@ tasks.withType(JavaExec).configureEach { task ->
     }
 }
 
-
-// Task to run scala tests, as Scala tests not picked up by Gradle by default.
-// You can run it with a number of threads: ./gradlew spec -PnumThreads=4
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
     def n = project.hasProperty('numThreads') ? numThreads : 4
     mainClass = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-h', 'build/scalatest-report', '-u', 'build/scalatest-report-xml', '-oD', '-l', 'beam.tags.ExcludeRegular',
-            "-PS$n", '-T', '120', '-W', '300', '60']
+
+    // Install the custom security manager to catch System.exit() when running tests
+    jvmArgs "-Djava.security.manager=beam.NoExitForSpecSecurityManager"
+
+    args = ['-R', 'build/classes/scala/test',
+            '-h', 'build/scalatest-report',
+            '-u', 'build/scalatest-report-xml',
+            '-oD',
+            '-l', 'beam.tags.ExcludeRegular',
+            "-C", "beam.TestStatusReporter",   // custom reporter, to track running tests
+            "-PS$n",
+            '-T', '120',
+            '-W', '300', '60']
     classpath = sourceSets.test.runtimeClasspath
 }
 build.dependsOn spec
@@ -558,15 +640,13 @@ def logGC = ["-XX:+PrintGCDetails", "-Xloggc:gc_${getCurrentTimestamp()}.log"]
 // Use following for remote debug mode
 def remoteDebug = ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
 
-def jfr = ["-XX:+UnlockCommercialFeatures", "-XX:+FlightRecorder",
-           "-XX:FlightRecorderOptions=defaultrecording=true,disk=true,maxage=10h,dumponexit=true,loglevel=info"]
+def jfr = ["-XX:StartFlightRecording=delay=30m,disk=true,maxage=150m,dumponexit=true"]
 
 // On the running machine there should be file /usr/lib/jvm/java-8-oracle/jre/lib/jfr/profile_heap_exception.jfc  with content from
 // https://pastebin.com/N3uuUfPz - it's Java Mission Control with metrics about heap allocation and details about exceptions
 def jfrWithMem = ["-XX:+UnlockCommercialFeatures", "-XX:+UnlockDiagnosticVMOptions", "-XX:+DebugNonSafepoints",
                   "-XX:StartFlightRecording=delay=2s,duration=180m,name=mem_ex,filename=recording.jfr,settings=profile_heap_exception",
                   "-XX:+FlightRecorder", "-XX:FlightRecorderOptions=disk=true,maxage=10h,dumponexit=true,loglevel=info"]
-
 
 def jmx = ["-Dcom.sun.management.jmxremote", "-Dcom.sun.management.jmxremote.port=9005", "-Dcom.sun.management.jmxremote.rmi.port=9005", "-Dcom.sun.management.jmxremote.host=127.0.0.1",
            "-Dcom.sun.management.jmxremote.local.only=true", "-Dcom.sun.management.jmxremote.authenticate=false", "-Dcom.sun.management.jmxremote.ssl=false",
@@ -583,11 +663,142 @@ if (profilerTypeConfig.toString().equalsIgnoreCase('cpu')) {
     profilerOption = jfrWithMem
 }
 
+// ============================================================================
+// SMART GC CONFIGURATION FOR LOCAL DEVELOPMENT
+// ============================================================================
 
-// UseParallelGC
-applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${halfOfAvailableMem}g",
-                             "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M", "-Djava.awt.headless=true",
-                             "-Dlogback.configurationFile=${logbackConfig}", "-Xss2048k"] + profilerOption + logGC + jmx
+// Auto-detect system memory and set reasonable heap size
+def getSystemMemoryGB() {
+    def os = org.gradle.internal.os.OperatingSystem.current()
+    if (os.isMacOsX()) {
+        try {
+            def sysctl = ['sysctl', '-n', 'hw.memsize'].execute()
+            def bytes = sysctl.text.trim().toLong()
+            return (bytes / 1024 / 1024 / 1024).toInteger()
+        } catch (Exception e) {
+            logger.warn("Could not detect macOS memory, defaulting to 16GB")
+            return 16
+        }
+    } else if (os.isLinux()) {
+        try {
+            def meminfo = new File('/proc/meminfo').text
+            def matcher = meminfo =~ /MemTotal:\s+(\d+)\s+kB/
+            if (matcher.find()) {
+                def kb = matcher.group(1).toLong()
+                return (kb / 1024 / 1024).toInteger()
+            }
+        } catch (Exception e) {
+            logger.warn("Could not detect Linux memory, defaulting to 16GB")
+            return 16
+        }
+    }
+    return 16  // Default fallback
+}
+
+// Calculate optimal heap size for local development
+def calculateOptimalHeap() {
+    def totalRAM = getSystemMemoryGB()
+    def heapSize
+
+    if (totalRAM >= 32) {
+        // Large machine: use 60% of RAM
+        heapSize = (totalRAM * 0.6).toInteger()
+    } else if (totalRAM >= 24) {
+        // Medium machine: use 55% of RAM
+        heapSize = (totalRAM * 0.55).toInteger()
+    } else if (totalRAM >= 16) {
+        // Typical dev machine: use 50% of RAM
+        heapSize = (totalRAM * 0.5).toInteger()
+    } else {
+        // Small machine: use 40% of RAM
+        heapSize = Math.max(4, (totalRAM * 0.4).toInteger())
+    }
+
+    logger.lifecycle("Detected ${totalRAM}GB system RAM, setting heap to ${heapSize}GB")
+    return heapSize
+}
+
+// Calculate GC thread counts based on CPU cores
+def calculateGCThreads() {
+    def cores = Runtime.getRuntime().availableProcessors()
+    def parallelThreads = Math.max(4.0, Math.min(cores * 0.8, 16.0)).toInteger()
+    def concurrentThreads = Math.max(2.0, (parallelThreads / 4)).toInteger()
+
+    logger.lifecycle("Detected ${cores} CPU cores, using ${parallelThreads} parallel GC threads and ${concurrentThreads} concurrent GC threads")
+    return [parallel: parallelThreads, concurrent: concurrentThreads]
+}
+
+// Allow override via gradle properties
+def heapSize = project.findProperty('beamHeap') ?: calculateOptimalHeap()
+def gcThreads = calculateGCThreads()
+
+// G1GC settings optimized for local development (50k-100k agents)
+def g1GCSettings = [
+        // Core G1GC settings
+        "-XX:+UseG1GC",
+        "-XX:G1HeapRegionSize=16M",  // Smaller regions for smaller heap
+
+        // Thread counts (auto-scaled to your machine)
+        "-XX:ParallelGCThreads=${gcThreads.parallel}",
+        "-XX:ConcGCThreads=${gcThreads.concurrent}",
+
+        // Young generation sizing (flexible range)
+        "-XX:+UnlockExperimentalVMOptions",
+        "-XX:G1NewSizePercent=40",      // Min young gen: 40%
+        "-XX:G1MaxNewSizePercent=60",   // Max young gen: 60%
+
+        // Object tenuring (die faster in young gen)
+        "-XX:MaxTenuringThreshold=6", // ← NEW (reduce survivor bouncing)
+        "-XX:SurvivorRatio=6",
+
+        // Pause time target (balanced for local dev)
+        "-XX:MaxGCPauseMillis=2000",    // 2s target (comfortable for local)
+
+        // Concurrent marking settings
+        "-XX:InitiatingHeapOccupancyPercent=35",  // Start marking earlier
+
+        // Reserve and evacuation settings
+        "-XX:G1ReservePercent=10",      // 10% reserve
+
+        // Mixed GC settings (less aggressive than HPC)
+        "-XX:G1MixedGCCountTarget=8",           // Fewer mixed GCs
+        "-XX:G1MixedGCLiveThresholdPercent=85", // Conservative threshold
+
+        // Metaspace (reasonable default)
+        "-XX:MetaspaceSize=256M",
+        "-XX:MaxMetaspaceSize=512M",
+
+        // GC Logging (modern format for Java 9+)
+        "-Xlog:gc*=info:file=gc_${getCurrentTimestamp()}.log:time,uptime,level,tags",
+        "-Xlog:gc+heap=debug:file=heap-detail_${getCurrentTimestamp()}.log:time,uptime",
+
+        // Performance options
+        "-XX:+AlwaysPreTouch",          // Pre-touch heap pages (faster startup)
+        "-Djava.awt.headless=true",
+        "-Xss2048k"
+]
+
+// Main JVM args combining everything
+applicationDefaultJvmArgs = [
+        // Heap settings (match Xms and Xmx for consistency)
+        "-Xms${heapSize}g",
+        "-Xmx${heapSize}g"
+] + g1GCSettings + [
+        // Logging
+        "-Dlogback.configurationFile=${logbackConfig}"
+] + profilerOption + jmx
+
+// Print configuration summary
+logger.lifecycle("")
+logger.lifecycle("========================================")
+logger.lifecycle("BEAM Local Development GC Configuration")
+logger.lifecycle("========================================")
+logger.lifecycle("Heap Size: ${heapSize}GB")
+logger.lifecycle("Parallel GC Threads: ${gcThreads.parallel}")
+logger.lifecycle("Concurrent GC Threads: ${gcThreads.concurrent}")
+logger.lifecycle("GC: G1 (optimized for 50k-100k agents)")
+logger.lifecycle("========================================")
+logger.lifecycle("")
 println(applicationDefaultJvmArgs)
 
 run {
@@ -672,32 +883,92 @@ And that would only happen if the committed code is not formatted as expected.""
     }
 }
 
-docker {
-    registryCredentials {
-        url = 'https://index.docker.io/v1/'
-        username = System.getenv("DOCKER_USER")
-        password = System.getenv("DOCKER_PASSWORD")
+
+// Ensure docker build context is recreated from scratch to avoid stale jars.
+tasks.register('cleanDockerContext', Delete) {
+    delete layout.buildDirectory.dir('docker')
+}
+
+// Create a task to copy all dependencies
+task copyDependencies(type: Copy) {
+    dependsOn classes, cleanDockerContext  // Changed from 'build'
+    from configurations.runtimeClasspath
+    into 'build/docker/libs'
+}
+
+// Copy build outputs
+task copyBuildOutputs(type: Copy) {
+    dependsOn classes, copyDependencies
+    into 'build/docker'  // Add this line
+
+    from(sourceSets.main.output.classesDirs) {
+        into 'classes'
+    }
+    from(sourceSets.main.output.resourcesDir) {
+        into 'resources'
+    }
+    from('src/main/python') {
+        into 'src/main/python'
+    }
+    from('test/input/common') {
+        into 'test/input/common'
+    }
+    from('test/input/dtd') {
+        into 'test/input/dtd'
+    }
+    from('test/input/beamville') {
+        into 'test/input/beamville'
+    }
+    from('test/input/sf-light') {
+        into 'test/input/sf-light'
+    }
+    from('docker/entrypoint.sh') {
+        into '.'
     }
 }
 
-dockerSyncBuildContext {
-    from('src/main/python') {
-        into('src/main/python')
-    }
-    from('test/input/common') {
-        into('test/input/common')
-    }
-    from('test/input/dtd') {
-        into('test/input/dtd')
-    }
-    from('test/input/beamville') {
-        into('test/input/beamville')
-    }
-    from('test/input/sf-light') {
-        into('test/input/sf-light')
+tasks.register('createDockerfile', Dockerfile) {
+    dependsOn copyBuildOutputs
+    destFile = project.file('build/docker/Dockerfile')
+
+    from 'zaneedell/beam-environment:jdk-11-4.01-v2'
+    label(['maintainer': 'LBNL Beam Team'])
+    workingDir("/app")
+    runCommand("apt-get update && apt-get install -y libblosc-dev")
+
+    instruction 'RUN mkdir /app/output'
+    copyFile("libs", "libs")
+    copyFile("resources", "resources")
+    copyFile("classes", "classes")
+    copyFile("test/input/common", "test/input/common")
+    copyFile("test/input/dtd", "test/input/dtd")
+    copyFile("test/input/beamville", "test/input/beamville")
+    copyFile("test/input/sf-light", "test/input/sf-light")
+    addFile 'src/main/python', 'src/main/python'
+    addFile 'entrypoint.sh', 'entrypoint.sh'
+    runCommand('chmod +x /app/entrypoint.sh')
+    entryPoint('/app/entrypoint.sh')
+}
+
+
+tasks.register('buildImage', DockerBuildImage) {
+    dependsOn createDockerfile
+    inputDir = file('build/docker')
+    platform = 'linux/amd64'
+
+    String repo = getDockerRepository()
+    String tagName = getDockerTag()
+
+    if (repo.isEmpty() || tagName.isEmpty()) {
+        throw new GradleException("Please specify a tag using -Ptag=repository:version")
     }
 
-    from file('docker/entrypoint.sh')
+    String fullTag = "${repo}:${tagName}"
+    images.add(fullTag)
+
+    doFirst {
+        println "Building Docker image: ${fullTag}"
+    }
 }
 
 jmh {
@@ -738,60 +1009,6 @@ tasks.register('deploy') {
     }
 }
 
-docker {
-    registryCredentials {
-        url = 'https://index.docker.io/v1/'
-        username = System.getenv("DOCKER_USER")
-        password = System.getenv("DOCKER_PASSWORD")
-    }
-}
-
-dockerSyncBuildContext {
-    duplicatesStrategy = DuplicatesStrategy.INCLUDE
-    from('src/main/python') {
-        into('src/main/python')
-    }
-    from('test/input/common') {
-        into('test/input/common')
-    }
-    from('test/input/dtd') {
-        into('test/input/dtd')
-    }
-    from('test/input/beamville') {
-        into('test/input/beamville')
-    }
-    from('test/input/sf-light') {
-        into('test/input/sf-light')
-    }
-    from file('docker/entrypoint.sh')
-}
-
-// Some examples of manual docker file creation can be found https://github.com/bmuschko/gradle-docker-plugin/blob/3736ff644bed1cbfeed6fc7f844a5513c4208bc2/src/functTest/groovy/com/bmuschko/gradle/docker/DockerWorkflowFunctionalTest.groovy#L24
-// Also here: https://bmuschko.github.io/gradle-docker-plugin/#modifying_instructions_of_a_dockerfile_task
-tasks.register('createDockerfile', Dockerfile) {
-    dependsOn dockerSyncBuildContext
-
-    // assuming all required modules / dependencies are installed in beammodel/beam-environment
-    from 'beammodel/beam-environment:jdk-11-4.01'
-    label(['maintainer': 'LBNL Beam Team'])
-    workingDir("/app")
-    instruction 'RUN mkdir /app/output'
-    // dependencies, resources and compiled Java classes
-    copyFile("libs", "libs")
-    copyFile("resources", "resources")
-    copyFile("classes", "classes")
-    // Test scenarios
-    copyFile("test/input/common", "test/input/common")
-    copyFile("test/input/dtd", "test/input/dtd")
-    copyFile("test/input/beamville", "test/input/beamville")
-    copyFile("test/input/sf-light", "test/input/sf-light")
-    // python scripts
-    addFile 'src/main/python', 'src/main/python'
-    // entry point
-    addFile 'entrypoint.sh', 'entrypoint.sh'
-    runCommand('chmod +x /app/entrypoint.sh')
-    entryPoint('/app/entrypoint.sh')
-}
 
 ext.getDockerTag = { ->
     if (project.hasProperty("tag")) {
@@ -813,19 +1030,4 @@ ext.getDockerRepository = { ->
     } else {
         return ""
     }
-}
-
-tasks.register('buildImageWithoutTags', DockerBuildImage) { dependsOn createDockerfile }
-
-// one can build a docker image with command ./gradlew -Ptag=beammodel/beam:0.9.12 buildImage
-tasks.register('buildImage', DockerTagImage) {
-    description 'Builds the Docker BEAM image, all code and test data are included into the image.'
-    group 'Docker'
-
-    dependsOn buildImageWithoutTags
-
-    tag = getDockerTag()
-    repository = getDockerRepository()
-    println("The new image will be tagged '$getDockerRepository:$getDockerTag'. To change use 'tag' project parameter, i.e. '-Ptag=<value>'")
-    targetImageId buildImageWithoutTags.getImageId()
 }

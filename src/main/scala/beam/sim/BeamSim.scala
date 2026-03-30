@@ -23,7 +23,7 @@ import beam.router.BeamRouter.{ODSkimmerReady, UpdateTravelTimeLocal}
 import beam.router.Modes.BeamMode
 import beam.router.osm.TollCalculator
 import beam.router.r5.RouteDumper
-import beam.router.skim.urbansim.{BackgroundSkimsCreator, GeoClustering, H3Clustering, TAZClustering}
+import beam.router.skim.urbansim.{BackgroundFullSkimsCreator, GeoClustering, H3Clustering, TAZClustering}
 import beam.router.{BeamRouter, FreeFlowTravelTime, RouteHistory}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.metrics.{BeamStaticMetricsWriter, MetricsSupport}
@@ -35,6 +35,7 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
+import kamon.Kamon
 import org.apache.commons.lang3.StringUtils
 import org.jfree.data.category.DefaultCategoryDataset
 import org.matsim.api.core.v01.Scenario
@@ -173,7 +174,7 @@ class BeamSim @Inject() (
     eventsManager
   )
 
-  var backgroundSkimsCreator: Option[BackgroundSkimsCreator] = None
+  var backgroundSkimsCreator: Option[BackgroundFullSkimsCreator] = None
 
   private var initialTravelTime = Option.empty[TravelTime]
 
@@ -311,9 +312,9 @@ class BeamSim @Inject() (
           case "taz" => new TAZClustering(beamScenario.tazTreeMapForASimSkimmer)
         }
 
-      val abstractSkimmer = BackgroundSkimsCreator.createSkimmer(beamServices, geoClustering)
+      val abstractSkimmer = BackgroundFullSkimsCreator.createSkimmer(beamServices, geoClustering)
       val backgroundODSkimsCreatorConfig = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator
-      val skimCreator = new BackgroundSkimsCreator(
+      val skimCreator = new BackgroundFullSkimsCreator(
         beamServices,
         beamScenario,
         geoClustering,
@@ -323,7 +324,8 @@ class BeamSim @Inject() (
         withTransit = backgroundODSkimsCreatorConfig.modesToBuild.transit,
         buildDirectWalkRoute = backgroundODSkimsCreatorConfig.modesToBuild.walk,
         buildDirectCarRoute = false,
-        calculationTimeoutHours = backgroundODSkimsCreatorConfig.calculationTimeoutHours
+        calculationTimeoutHours = backgroundODSkimsCreatorConfig.calculationTimeoutHours,
+        parallelism = 0 // Auto-scale during simulation
       )(actorSystem)
       skimCreator.start()
       backgroundSkimsCreator = Some(skimCreator)
@@ -592,17 +594,31 @@ class BeamSim @Inject() (
       "dumpMatsimStuffAtTheBeginningOfSimulation in the beginning of simulation",
       x => logger.info(x)
     ) {
-      // `DumpDataAtEnd` during `notifyShutdown` dumps network, plans, person attributes and other things.
-      // Reusing it to get `outputPersonAttributes.xml.gz` which is needed for warmstart
-      val dumper = beamServices.injector.getInstance(classOf[DumpDataAtEnd])
-      dumper match {
-        case listener: ShutdownListener =>
-          val event = new ShutdownEvent(beamServices.matsimServices, false)
-          // Create files
-          listener.notifyShutdown(event)
-          dumpHouseholdAttributes
+      // Get the specific logger and save its original level
+      val dumpLogger = org.apache.log4j.Logger.getLogger("org.matsim.core.controler.corelisteners.DumpDataAtEndImpl")
+      val originalLevel = dumpLogger.getLevel
 
-        case _ => logger.warn(s"dumper is not `ShutdownListener` - $dumper")
+      // Temporarily set log level to WARN to suppress ERROR messages
+      dumpLogger.setLevel(org.apache.log4j.Level.WARN)
+
+      try {
+        val dumper = beamServices.injector.getInstance(classOf[DumpDataAtEnd])
+        dumper match {
+          case listener: ShutdownListener =>
+            val event = new ShutdownEvent(beamServices.matsimServices, false)
+            try {
+              // Create files
+              listener.notifyShutdown(event)
+              dumpHouseholdAttributes()
+            } catch {
+              case ex: Throwable =>
+                logger.error(s"Exception during initial data dump: ${ex.getMessage}")
+            }
+          case _ => logger.warn(s"dumper is not `ShutdownListener` - $dumper")
+        }
+      } finally {
+        // Restore original logging configuration
+        dumpLogger.setLevel(originalLevel)
       }
     }
   }
@@ -628,7 +644,7 @@ class BeamSim @Inject() (
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
-    finalizeBackgroundSkimsCreator()
+    finalizeBackgroundFullSkimsCreator()
 
     carTravelTimeFromPtes.foreach(_.notifyShutdown(event))
 
@@ -659,6 +675,7 @@ class BeamSim @Inject() (
     logger.info("Actor system shut down")
 
     deleteMATSimOutputFiles(event.getServices.getIterationNumber)
+    Kamon.stopModules()
 
     // simulation python scripts
     for {
@@ -848,7 +865,7 @@ class BeamSim @Inject() (
     )
   }
 
-  private def finalizeBackgroundSkimsCreator(): Unit = {
+  private def finalizeBackgroundFullSkimsCreator(): Unit = {
     val timeoutForSkimmer = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.calculationTimeoutHours.hours
     backgroundSkimsCreator match {
       case Some(skimCreator) =>
@@ -860,7 +877,7 @@ class BeamSim @Inject() (
           .travelTime
 
         val backgroundODSkimsCreatorConfig = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator
-        val carAndDriveTransitSkimCreator = new BackgroundSkimsCreator(
+        val carAndDriveTransitSkimCreator = new BackgroundFullSkimsCreator(
           beamServices,
           beamScenario,
           skimCreator.ODs,
@@ -870,10 +887,10 @@ class BeamSim @Inject() (
           withTransit = backgroundODSkimsCreatorConfig.modesToBuild.transit,
           buildDirectWalkRoute = false,
           buildDirectCarRoute = backgroundODSkimsCreatorConfig.modesToBuild.drive,
-          calculationTimeoutHours = backgroundODSkimsCreatorConfig.calculationTimeoutHours
+          calculationTimeoutHours = backgroundODSkimsCreatorConfig.calculationTimeoutHours,
+          parallelism = Runtime.getRuntime.availableProcessors() // Use 100% for final iteration
         )(actorSystem)
         carAndDriveTransitSkimCreator.start()
-        carAndDriveTransitSkimCreator.increaseParallelismTo(Runtime.getRuntime.availableProcessors())
         try {
           val finalSkimmer = Await.result(carAndDriveTransitSkimCreator.getResult, timeoutForSkimmer).abstractSkimmer
           carAndDriveTransitSkimCreator.stop()

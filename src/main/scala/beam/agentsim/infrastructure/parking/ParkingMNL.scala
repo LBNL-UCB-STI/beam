@@ -7,11 +7,11 @@ object ParkingMNL {
   type ParkingMNLConfig = Map[ParkingMNL.Parameters, UtilityFunctionOperation]
 
   val DefaultMNLParameters: ParkingMNLConfig = Map(
-    Parameters.ParkingTicketCost                     -> UtilityFunctionOperation.Multiplier(-1.0),
-    Parameters.RangeAnxietyCost                      -> UtilityFunctionOperation.Multiplier(-1.0),
-    Parameters.WalkingEgressCost                     -> UtilityFunctionOperation.Multiplier(-1.0),
-    Parameters.EnrouteDetourCost                     -> UtilityFunctionOperation.Multiplier(-1.0),
-    Parameters.HomeActivityPrefersResidentialParking -> UtilityFunctionOperation.Multiplier(1.0)
+    Parameters.ParkingTicketCost     -> UtilityFunctionOperation.Multiplier(-1.0),
+    Parameters.RangeAnxietyCost      -> UtilityFunctionOperation.Multiplier(-1.0),
+    Parameters.WalkingEgressCost     -> UtilityFunctionOperation.Multiplier(-1.0),
+    Parameters.EnrouteDetourCost     -> UtilityFunctionOperation.Multiplier(-1.0),
+    Parameters.ParkingTypePreference -> UtilityFunctionOperation.Multiplier(1.0)
   )
 
   /**
@@ -71,19 +71,19 @@ object ParkingMNL {
     final case object DrivingTimeCost extends Parameters with Serializable
     final case object QueueingTimeCost extends Parameters with Serializable
     final case object ChargingTimeCost extends Parameters with Serializable
-    final case object HomeActivityPrefersResidentialParking extends Parameters with Serializable
+    final case object ParkingTypePreference extends Parameters with Serializable
     final case object EnrouteDetourCost extends Parameters with Serializable
 
     def shortName(parameter: Parameters): String = parameter match {
-      case ParkingTicketCost                     => "park"
-      case WalkingEgressCost                     => "dist"
-      case RangeAnxietyCost                      => "anx"
-      case InsufficientRangeCost                 => "range"
-      case DrivingTimeCost                       => "time"
-      case QueueingTimeCost                      => "queue"
-      case ChargingTimeCost                      => "charge"
-      case HomeActivityPrefersResidentialParking => "home"
-      case EnrouteDetourCost                     => "enroute"
+      case ParkingTicketCost     => "park"
+      case WalkingEgressCost     => "dist"
+      case RangeAnxietyCost      => "anx"
+      case InsufficientRangeCost => "range"
+      case DrivingTimeCost       => "time"
+      case QueueingTimeCost      => "queue"
+      case ChargingTimeCost      => "charge"
+      case ParkingTypePreference => "home"
+      case EnrouteDetourCost     => "enroute"
     }
   }
 }

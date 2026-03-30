@@ -8,8 +8,9 @@ class PersonMerger(inputHousehold: Map[String, InputHousehold]) extends Merger[I
   override def merge(iter: Iterator[InputPersonInfo]): Iterator[PersonInfo] = iter.map(inputToOutput)
 
   private def inputToOutput(inputPersonInfo: InputPersonInfo): PersonInfo = {
-    val inputIncome = inputHousehold(inputPersonInfo.householdId).income
-    val income = PopulationAdjustment.incomeToValueOfTime(inputIncome).getOrElse(0d)
+    val valueOfTime = inputPersonInfo.valueOfTime.getOrElse(
+      PopulationAdjustment.incomeToValueOfTime(inputHousehold(inputPersonInfo.householdId).income).getOrElse(0d)
+    )
 
     PersonInfo(
       personId = PersonId(inputPersonInfo.personId),
@@ -19,7 +20,7 @@ class PersonMerger(inputHousehold: Map[String, InputHousehold]) extends Merger[I
       excludedModes = Seq.empty,
       rideHailServiceSubscription = Seq.empty,
       isFemale = inputPersonInfo.sex.isFemale,
-      valueOfTime = income,
+      valueOfTime = valueOfTime,
       industry = inputPersonInfo.industry
     )
   }

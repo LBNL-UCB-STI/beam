@@ -1,13 +1,13 @@
 package beam.agentsim.events
 
-import java.util
-
 import beam.agentsim.infrastructure.ParkingStall
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.internal.HasPersonId
 import org.matsim.vehicles.Vehicle
+
+import java.util
 
 case class ChargingPlugOutEvent(
   tick: Double,
@@ -49,6 +49,7 @@ case class ChargingPlugOutEvent(
     attributes.put(ATTRIBUTE_PRICING_MODEL, pricingModelString)
     attributes.put(ATTRIBUTE_CHARGING_TYPE, chargingPointString)
     attributes.put(ATTRIBUTE_PARKING_TAZ, stall.tazId.toString)
+    attributes.put(ATTRIBUTE_PARKING_ZONE_ID, stall.parkingZoneId.toString)
     attributes
   }
 
@@ -66,5 +67,5 @@ object ChargingPlugOutEvent {
   val ATTRIBUTE_PRICING_MODEL: String = "pricingModel"
   val ATTRIBUTE_CHARGING_TYPE: String = "chargingPointType"
   val ATTRIBUTE_PARKING_TAZ: String = "parkingTaz"
-
+  val ATTRIBUTE_PARKING_ZONE_ID: String = "parkingZoneId"
 }

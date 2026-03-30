@@ -19,6 +19,7 @@ import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.households._
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
+import beam.utils.OptionalUtils.OptionalTimeExtension
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
@@ -44,7 +45,7 @@ class UrbanSimScenarioLoader(
 
   private val rand: Random = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
-  private val wereCoordinatesInWGS = beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm
+  private val wereCoordinatesInWGS = false //beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm // make false
 
   def utmCoord(x: Double, y: Double, fromExistingPlans: Boolean = false): Coord = {
     val coord = new Coord(x, y)
@@ -54,10 +55,16 @@ class UrbanSimScenarioLoader(
   private def buildAndAddLegToPlan(currentPlan: Plan, planElement: PlanElement): Leg = {
     val leg = PopulationUtils.createAndAddLeg(currentPlan, planElement.legMode.getOrElse(""))
     planElement.legDepartureTime.foreach(v => leg.setDepartureTime(v.toDouble))
-    planElement.legTravelTime.foreach(v => leg.setTravelTime(v.toDouble))
+    planElement.legTravelTime.foreach(travelTimeStr => {
+      val travelTime = travelTimeStr.toDouble
+      if (travelTime == beam.UNDEFINED_TIME) leg.setTravelTimeUndefined()
+      else leg.setTravelTime(travelTime)
+    })
     planElement.legMode.foreach(v => leg.setMode(v))
     leg.getAttributes.putAttribute("trip_id", planElement.tripId)
     leg.getAttributes.putAttribute("tour_id", planElement.tourId)
+    leg.getAttributes.putAttribute("trip_dur_min", planElement.legExpectedTravelTime.getOrElse(""))
+    leg.getAttributes.putAttribute("trip_cost_dollars", planElement.legExpectedCost.getOrElse(""))
 
     val legRoute: NetworkRoute = {
       val links = planElement.legRouteLinks.map(v => Id.create(v, classOf[Link])).asJava

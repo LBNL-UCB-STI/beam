@@ -1,10 +1,9 @@
 package beam.agentsim.infrastructure.parking
 
-import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.power.SitePowerManager
+import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.VehicleRestrictionKey
 import beam.agentsim.infrastructure.taz.TAZ
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
@@ -32,7 +31,7 @@ class ParkingZone(
   val reservedFor: ReservedFor,
   val chargingPointType: Option[ChargingPointType],
   val pricingModel: Option[PricingModel],
-  val timeRestrictions: Map[VehicleCategory, Range],
+  val timeRestrictions: Map[VehicleRestrictionKey, Range],
   val link: Option[Link],
   val sitePowerManager: Option[String],
   val energyStorageCapacityInKWh: Option[Double],
@@ -68,14 +67,45 @@ class ParkingZone(
 
 object ParkingZone extends LazyLogging {
 
-  val DefaultParkingZoneId: Id[ParkingZoneId] = Id.create("default", classOf[ParkingZoneId])
-
   // used in place of Int.MaxValue to avoid possible buffer overrun due to async failures
   // in other words, while stallsAvailable of a ParkingZone should never exceed the numStalls
   // it started with, it could be possible in the system to happen due to scheduler issues. if
   // it does, it would be more helpful for it to reflect with a reasonable number, ie., 1000001,
   // which would tell us that we had 1 extra releaseStall event.
-  val UbiqiutousParkingAvailability: Int = 1000000
+  val UbiquitousParkingAvailability: Int = 10000
+
+  val DefaultParkingZone: ParkingZone = {
+    val defaultParkingZoneId: Id[ParkingZoneId] = Id.create("-1", classOf[ParkingZoneId])
+    init(
+      Some(defaultParkingZoneId),
+      TAZ.DefaultTAZId,
+      ParkingType.Public,
+      VehicleManager.AnyManager,
+      UbiquitousParkingAvailability
+    )
+  }
+
+  val ObstructiveParkingZone: ParkingZone = {
+    val defaultParkingZoneId: Id[ParkingZoneId] = Id.create("obstructive", classOf[ParkingZoneId])
+    init(
+      Some(defaultParkingZoneId),
+      TAZ.DefaultTAZId,
+      ParkingType.Public,
+      VehicleManager.AnyManager,
+      UbiquitousParkingAvailability
+    )
+  }
+
+  val EmergencyParkingZone: ParkingZone = {
+    val defaultParkingZoneId: Id[ParkingZoneId] = Id.create("emergency", classOf[ParkingZoneId])
+    init(
+      Some(defaultParkingZoneId),
+      TAZ.EmergencyTAZId,
+      ParkingType.Public,
+      VehicleManager.AnyManager,
+      UbiquitousParkingAvailability
+    )
+  }
 
   /**
     * creates a new StallValues object
@@ -93,7 +123,7 @@ object ParkingZone extends LazyLogging {
     maxStalls: Int = 0,
     chargingPointType: Option[ChargingPointType] = None,
     pricingModel: Option[PricingModel] = None,
-    timeRestrictions: Map[VehicleCategory, Range] = Map.empty,
+    timeRestrictions: Map[VehicleRestrictionKey, Range] = Map.empty,
     link: Option[Link] = None,
     sitePowerManager: Option[String] = None,
     energyStorageCapacityInKWh: Option[Double] = None,
@@ -115,20 +145,6 @@ object ParkingZone extends LazyLogging {
       energyStorageSOC
     )
 
-  def defaultInit(
-    geoId: Id[TAZ],
-    parkingType: ParkingType,
-    numStalls: Int
-  ): ParkingZone = {
-    init(
-      Some(DefaultParkingZoneId),
-      geoId,
-      parkingType,
-      VehicleManager.AnyManager,
-      numStalls
-    )
-  }
-
   def init(
     parkingZoneIdMaybe: Option[Id[ParkingZoneId]],
     geoId: Id[TAZ],
@@ -137,7 +153,7 @@ object ParkingZone extends LazyLogging {
     maxStalls: Int = 0,
     chargingPointType: Option[ChargingPointType] = None,
     pricingModel: Option[PricingModel] = None,
-    timeRestrictions: Map[VehicleCategory, Range] = Map.empty,
+    timeRestrictions: Map[VehicleRestrictionKey, Range] = Map.empty,
     link: Option[Link] = None,
     sitePowerManager: Option[String] = None,
     energyStorageCapacityInKWh: Option[Double] = None,
@@ -171,7 +187,7 @@ object ParkingZone extends LazyLogging {
     * @return True|False (representing success) wrapped in an effect type
     */
   def releaseStall(parkingZone: ParkingZone): Boolean =
-    if (parkingZone.parkingZoneId == DefaultParkingZoneId) {
+    if (parkingZone.parkingZoneId == DefaultParkingZone.parkingZoneId) {
       // this zone does not exist in memory but it has infinitely many stalls to release
       true
     } else if (parkingZone.stallsAvailable + 1 > parkingZone.maxStalls) {
@@ -189,7 +205,7 @@ object ParkingZone extends LazyLogging {
     * @return True|False (representing success) wrapped in an effect type
     */
   def claimStall(parkingZone: ParkingZone): Boolean =
-    if (parkingZone.parkingZoneId == DefaultParkingZoneId) {
+    if (parkingZone.parkingZoneId == DefaultParkingZone.parkingZoneId) {
       // this zone does not exist in memory but it has infinitely many stalls to release
       true
     } else if (parkingZone.stallsAvailable - 1 >= 0) {
@@ -199,24 +215,6 @@ object ParkingZone extends LazyLogging {
       // log debug that we tried to claim a stall when there were no free stalls
       false
     }
-
-  /**
-    * Option-wrapped Array index lookup for Array[ParkingZone]
-    *
-    * @param parkingZones collection of parking zones
-    * @param parkingZoneId an array index
-    * @return Optional ParkingZone
-    */
-  def getParkingZone(
-    parkingZones: Map[Id[ParkingZoneId], ParkingZone],
-    parkingZoneId: Id[ParkingZoneId]
-  ): Option[ParkingZone] = {
-    val result = parkingZones.get(parkingZoneId)
-    if (result.isEmpty) {
-      logger.warn(s"attempting to access parking zone with illegal parkingZoneId $parkingZoneId, will be ignored")
-    }
-    result
-  }
 
   /**
     * construct ID of a Parking Zone
@@ -238,9 +236,7 @@ object ParkingZone extends LazyLogging {
     val chargingPointType = chargingPointTypeMaybe.getOrElse("NoCharger")
     val pricingModel = pricingModelMaybe.getOrElse("Free")
     val costInCents = pricingModelMaybe.map(x => (x.costInDollars * 100).toInt).getOrElse(0)
-    createId(
-      s"zone-${reservedFor}-${geoId}-${parkingType}-${chargingPointType}-${pricingModel}-${costInCents}-$numStalls"
-    )
+    createId(s"zone-$reservedFor-$geoId-$parkingType-$chargingPointType-$pricingModel-$costInCents-$numStalls")
   }
 
   /**

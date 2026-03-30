@@ -1,11 +1,11 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.infrastructure.parking.{ParkingZone, ParkingZoneId}
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{SearchQuadTree, TAZTreeMap}
 import beam.sim.BeamServices
+import beam.sim.config.BeamConfig
 import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
-import org.matsim.core.utils.collections.QuadTree
 
 class RideHailDepotNetwork(override val parkingZones: Map[Id[ParkingZoneId], ParkingZone])
     extends ChargingNetwork(parkingZones) {
@@ -18,10 +18,21 @@ object RideHailDepotNetwork {
 
   // a ride hail agent is searching for a charging depot and is not in service of an activity.
   // for this reason, a higher max radius is reasonable.
-  val SearchStartRadius: Double = 40000.0 // meters
-  val SearchMaxRadius: Int = 80465 // 50 miles, in meters
-  val FractionOfSameTypeZones: Double = 0.2 // 20%
-  val MinNumberOfSameTypeZones: Int = 5
+  private val SearchStartRadius: Double = 40000.0 // meters
+  private val SearchMaxRadius: Int = 80465 // 50 miles, in meters
+  private val FractionOfSameTypeZones: Double = 0.2 // 20%
+  private val MinNumberOfSameTypeZones: Int = 5
+
+  private val searchDistancesConfig = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params(
+    freight =
+      BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params.Freight(minSearchRadius = 10.0, maxSearchRadius = 200.0),
+    passenger = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params
+      .Passenger(minSearchRadius = SearchStartRadius, maxSearchRadius = SearchMaxRadius),
+    searchDoubleParkingRadius = 0,
+    searchMaxDistanceRelativeToEllipseFoci = 4.0,
+    enableLinkBasedSearch = false,
+    searchSampleSize = 100
+  )
 
   def apply(
     parkingZones: Map[Id[ParkingZoneId], ParkingZone],
@@ -35,8 +46,7 @@ object RideHailDepotNetwork {
           tazTreeMap,
           parkingZones,
           beamServices.geo.distUTMInMeters,
-          SearchStartRadius,
-          SearchMaxRadius,
+          searchDistancesConfig,
           FractionOfSameTypeZones,
           MinNumberOfSameTypeZones,
           boundingBox,

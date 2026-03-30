@@ -16,6 +16,8 @@ import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.nio.file.{FileAlreadyExistsException, Files, Path, Paths}
 import java.text.SimpleDateFormat
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.stream
 import java.util.zip.{GZIPInputStream, ZipEntry, ZipInputStream}
 import scala.annotation.tailrec
@@ -331,13 +333,17 @@ object FileUtils extends LazyLogging {
     val srcName = getName(srcPath)
     val srcBaseName = getBaseName(srcPath)
 
+    // Create timestamp for uniqueness
+    val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
+    val timestampedName = s"${srcBaseName}_$timestamp.${getExtension(srcName)}"
+
     val localPath =
       if (isRemote(srcPath, remoteIfStartsWith)) {
-        val tmpPath = Paths.get(getTempDirectoryPath, srcName).toString
+        val tmpPath = Paths.get(getTempDirectoryPath, timestampedName).toString
         downloadFile(srcPath, tmpPath)
         tmpPath
       } else if (isS3Remote(srcPath, "s3")) {
-        val tmpPath = Paths.get(getTempDirectoryPath, srcName).toString
+        val tmpPath = Paths.get(getTempDirectoryPath, timestampedName).toString
         downloadS3File(srcPath, tmpPath)
         tmpPath
       } else
@@ -345,7 +351,7 @@ object FileUtils extends LazyLogging {
 
     val unpackedPath =
       if (isZipArchive(localPath)) {
-        val tmpPath = Paths.get(getTempDirectoryPath, srcBaseName).toString
+        val tmpPath = Paths.get(getTempDirectoryPath, s"${srcBaseName}_$timestamp").toString
         unzip(localPath, tmpPath, false)
         tmpPath
       } else

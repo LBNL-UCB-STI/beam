@@ -24,6 +24,8 @@ class PlanMerger(modeMap: Map[String, String]) extends Merger[InputPlanElement, 
       inputPlanElement.tripMode.map(convertMode),
       legDepartureTime = None,
       legTravelTime = None,
+      legExpectedTravelTime = inputPlanElement.expectedDurationMinutes,
+      legExpectedCost = inputPlanElement.expectedCostDollars,
       legRouteType = None,
       legRouteStartLink = None,
       legRouteEndLink = None,
@@ -34,5 +36,5 @@ class PlanMerger(modeMap: Map[String, String]) extends Merger[InputPlanElement, 
     )
   }
 
-  private def convertMode(inputMode: String): String = modeMap(inputMode)
+  private def convertMode(inputMode: String): String = modeMap.getOrElse(inputMode, inputMode)
 }

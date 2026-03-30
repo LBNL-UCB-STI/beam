@@ -14,7 +14,11 @@ import beam.utils.FileUtils
 import com.typesafe.scalalogging.StrictLogging
 import org.jheaps.annotations.VisibleForTesting
 
-class BikeLanesAdjustment @Inject() (bikeLanesData: BikeLanesData) {
+trait IBikeLanesAdjustment {
+  def scaleFactor(linkId: LinkId): Double
+}
+
+class BikeLanesAdjustment @Inject() (bikeLanesData: BikeLanesData) extends IBikeLanesAdjustment {
   private val scaleFactorFromConfig = bikeLanesData.scaleFactorFromConfig
   private val bikeLanesLinkIds = bikeLanesData.bikeLanesLinkIds
 
@@ -24,6 +28,10 @@ class BikeLanesAdjustment @Inject() (bikeLanesData: BikeLanesData) {
     } else {
       1d
     }
+  }
+
+  def bikeScaleFactor(linkId: LinkId): Double = {
+    scaleFactor(linkId)
   }
 
   def scaleFactor(vehicleType: BeamVehicleType, linkId: LinkId): Double = {
@@ -51,6 +59,14 @@ object BikeLanesAdjustment extends StrictLogging {
     new BikeLanesAdjustment(BikeLanesData(beamConfig = config))
   }
 
+  def bikeLanesAdjustment(config: BeamConfig): IBikeLanesAdjustment = {
+    val bikeLanesData = BikeLanesData(beamConfig = config)
+    if (bikeLanesData.bikeLanesLinkIds.isEmpty)
+      (_: LinkId) => 1d
+    else
+      new BikeLanesAdjustment(bikeLanesData)
+  }
+
   @VisibleForTesting
   private[r5] def loadBikeLaneLinkIds(beamConfig: BeamConfig): Set[Int] = {
     val bikeLaneLinkIdsPath: String = beamConfig.beam.routing.r5.bikeLaneLinkIdsFilePath
@@ -67,7 +83,7 @@ object BikeLanesAdjustment extends StrictLogging {
           Set.empty
         }
       }
-      result.flatMap(str => Try(Some(str.toInt)).getOrElse(None))
+      result.flatMap(str => Try(str.toInt).toOption)
     } match {
       case Failure(exception) =>
         logger.error("Could not load the bikeLaneLinkIds", exception)

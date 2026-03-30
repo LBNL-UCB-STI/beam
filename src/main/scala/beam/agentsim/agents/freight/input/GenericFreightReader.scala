@@ -1,22 +1,23 @@
 package beam.agentsim.agents.freight.input
 
+import beam.agentsim.agents.freight.FreightEntities.FREIGHT_ID_PREFIX
 import beam.agentsim.agents.freight._
-import beam.agentsim.agents.freight.input.FreightReader.{FREIGHT_ID_PREFIX, NO_CARRIER_ID, NO_VEHICLE_ID}
+import beam.agentsim.agents.freight.input.FreightReader._
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
+import beam.sim.config.BeamConfig.Beam.Agentsim.SnapLocationAndRemoveInvalidInputs
 import beam.utils.BeamVehicleUtils.readBeamVehicleTypeFile
-import beam.utils.SnapCoordinateUtils
 import beam.utils.SnapCoordinateUtils._
 import beam.utils.csv.GenericCsvReader
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
+import beam.utils.{NetworkUtilsWrapper, SnapCoordinateUtils}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.lang3.StringUtils.isBlank
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.network.NetworkUtils
 import org.matsim.households.Household
 
 import scala.collection.mutable.ListBuffer
@@ -30,7 +31,8 @@ class GenericFreightReader(
   val geoUtils: GeoUtils,
   rnd: Random,
   tazTree: TAZTreeMap,
-  val snapLocationAndRemoveInvalidInputs: Boolean,
+  val snapLocationAndRemoveInvalidInputsParams: SnapLocationAndRemoveInvalidInputs.Params,
+  schedulerParallelismWindow: Int,
   val snapLocationHelper: SnapLocationHelper,
   networkMaybe: Option[Network] = None,
   val outputDirMaybe: Option[String] = None
@@ -54,16 +56,16 @@ class GenericFreightReader(
         def get(key: String): String = getRowValue(config.toursFilePath, row, key)
         // tourId,departureTimeInSec,departureLocationZone,departureLocationX,departureLocationY,maxTourDurationInSec
         val tourId: Id[FreightTour] = get("tourId").createId[FreightTour]
-        val departureTimeInSec = get("departureTimeInSec").toInt
+        val departureTimeInSec = Math.max(get("departureTimeInSec").toInt, schedulerParallelismWindow + 1)
         val maxTourDurationInSec = get("maxTourDurationInSec").toInt
         val departureLocationX = row.get("departureLocationX")
         val departureLocationY = row.get("departureLocationY")
 
-        extractCoordInUtmOrTaz(
+        extractProjectedCoordOrTaz(
           departureLocationX,
           departureLocationY,
           row.get("departureLocationZone"),
-          snapLocationAndRemoveInvalidInputs
+          snapLocationAndRemoveInvalidInputsParams
         ) match {
           case (_, Right(_)) =>
             Some(
@@ -114,32 +116,31 @@ class GenericFreightReader(
     val maybePlans = GenericCsvReader
       .readAsSeq[Option[PayloadPlan]](config.plansFilePath) { row =>
         def get(key: String): String = getRowValue(config.plansFilePath, row, key)
-        // payloadId,sequenceRank,tourId,payloadType,weightInKg,requestType,locationZone,locationX,locationY,
+        // payloadId,sequenceRank,tourId,payloadType,weightInKg,activityType,locationZone,locationX,locationY,
         // estimatedTimeOfArrivalInSec,arrivalTimeWindowInSecLower,arrivalTimeWindowInSecUpper,operationDurationInSec
-        val requestType = get("requestType").toLowerCase() match {
-          case "1" | "unloading" => FreightRequestType.Unloading
-          case "0" | "loading"   => FreightRequestType.Loading
+        val unloadingStr = FreightActivityType.Unloading.toString.toLowerCase
+        val loadingStr = FreightActivityType.Loading.toString.toLowerCase
+        val depotStr = FreightActivityType.Depot.toString.toLowerCase
+        val activityType = get("activityType").toLowerCase() match {
+          case "1" | `unloadingStr` => FreightActivityType.Unloading
+          case "0" | `loadingStr`   => FreightActivityType.Loading
+          case `depotStr`           => FreightActivityType.Depot
           case wrongValue =>
             throw new IllegalArgumentException(
-              s"Value of requestType $wrongValue is unexpected."
+              s"Value of activityType $wrongValue is unexpected."
             )
         }
         val operationDurationInSec = get("operationDurationInSec").toDouble.round.toInt
-        val activityType = if (config.generateFixedActivitiesDurations) {
-          s"${requestType.toString}|$operationDurationInSec"
-        } else {
-          requestType.toString
-        }
 
         val payloadId = get("payloadId").createId[PayloadPlan]
         val locationX = row.get("locationX")
         val locationY = row.get("locationY")
 
-        extractCoordInUtmOrTaz(
+        extractProjectedCoordOrTaz(
           locationX,
           locationY,
           row.get("locationZone"),
-          snapLocationAndRemoveInvalidInputs
+          snapLocationAndRemoveInvalidInputsParams
         ) match {
           case (locationZoneMaybe, Right(coord)) =>
             Some(
@@ -149,7 +150,6 @@ class GenericFreightReader(
                 get("tourId").createId,
                 get("payloadType").createId[PayloadType],
                 get("weightInKg").toDouble,
-                requestType,
                 activityType,
                 locationZoneMaybe,
                 coord,
@@ -213,14 +213,14 @@ class GenericFreightReader(
       tourId: Id[FreightTour],
       vehicleId: Id[BeamVehicle],
       vehicleTypeId: Id[BeamVehicleType],
-      warehouseLocationZone: Option[Id[TAZ]],
-      warehouseLocationUTM: Coord
+      depotLocationZone: Option[Id[TAZ]],
+      depotLocationUTM: Coord
     )
 
     def createCarrierVehicles(
       carrierId: Id[FreightCarrier],
       carrierRows: IndexedSeq[FreightCarrierRow],
-      warehouseLocationUTM: Coord
+      depotLocationUTM: Coord
     ): IndexedSeq[BeamVehicle] = {
       val vehicles: IndexedSeq[BeamVehicle] = carrierRows
         .filterNot(_.vehicleId == NO_VEHICLE_ID)
@@ -237,25 +237,25 @@ class GenericFreightReader(
             throw new IllegalArgumentException(
               s"Vehicle type ${firstRow.vehicleTypeId} for vehicle $vehicleId has no payloadCapacityInKg defined"
             )
-          createFreightVehicle(vehicleId, vehicleType, carrierId, warehouseLocationUTM, rnd.nextInt())
+          createFreightVehicle(vehicleId, vehicleType, carrierId, depotLocationUTM, rnd.nextInt())
         }
         .toIndexedSeq
       vehicles
     }
 
     def createCarrier(carrierId: Id[FreightCarrier], carrierRows: IndexedSeq[FreightCarrierRow]) = {
-      val warehouseLocationUTM: Coord = carrierRows.head.warehouseLocationUTM
-      val warehouseLocationZone: Option[Id[TAZ]] = carrierRows.head.warehouseLocationZone
+      val depotLocationUTM: Coord = carrierRows.head.depotLocationUTM
+      val depotLocationZone: Option[Id[TAZ]] = carrierRows.head.depotLocationZone
       val vehicleMap: Map[Id[BeamVehicle], BeamVehicle] = {
-        val vehicles: IndexedSeq[BeamVehicle] = createCarrierVehicles(carrierId, carrierRows, warehouseLocationUTM)
+        val vehicles: IndexedSeq[BeamVehicle] = createCarrierVehicles(carrierId, carrierRows, depotLocationUTM)
         vehicles.map(vehicle => vehicle.id -> vehicle).toMap
       }
 
       val tourMap: Map[Id[BeamVehicle], IndexedSeq[FreightTour]] = carrierRows
         .groupBy(_.vehicleId)
-        .mapValues { rows =>
-          rows
-            //setting the tour warehouse location to be the carrier warehouse location
+        .mapValues {
+          _
+            //setting the tour depot location to be the carrier depot location
             .map(row => tours(row.tourId))
             .sortBy(_.departureTimeInSec)
         }
@@ -268,16 +268,34 @@ class GenericFreightReader(
         }.toMap
       val carrierPlanIds: Set[Id[PayloadPlan]] = plansPerTour.values.flatten.map(_.payloadId).toSet
       val payloadMap = carrierPlanIds.map(planId => planId -> plans(planId)).toMap
+      val fleetDistribution: Map[BeamVehicleType, Double] =
+        calculateFreightDistribution(vehicleMap).iterator.map { case (vehicleTypeId, share) =>
+          freightVehicleTypes(vehicleTypeId) -> share
+        }.toMap
 
       FreightCarrier(
         carrierId,
         tourMap,
         payloadMap,
         vehicleMap,
+        fleetDistribution,
         plansPerTour,
-        warehouseLocationZone,
-        warehouseLocationUTM
+        depotLocationZone,
+        depotLocationUTM
       )
+    }
+
+    def calculateFreightDistribution(fleet: Map[Id[BeamVehicle], BeamVehicle]): Map[Id[BeamVehicleType], Double] = {
+      if (fleet.isEmpty) Map.empty
+      else {
+        val total = fleet.size.toDouble
+        val counts = new scala.collection.mutable.HashMap[Id[BeamVehicleType], Int]()
+        fleet.valuesIterator.foreach { vehicle =>
+          val key = vehicle.beamVehicleType.id
+          counts.update(key, counts.getOrElse(key, 0) + 1)
+        }
+        counts.map { case (k, v) => (k, v / total) }.toMap
+      }
     }
 
     val errors: ListBuffer[ErrorInfo] = ListBuffer()
@@ -285,19 +303,22 @@ class GenericFreightReader(
     val maybeCarrierRows = GenericCsvReader.readAsSeq[Option[FreightCarrierRow]](config.carriersFilePath) { row =>
       def get(key: String): String = getRowValue(config.carriersFilePath, row, key)
 
-      //carrierId,tourId,vehicleId,vehicleTypeId,warehouseZone,warehouseX,warehouseY
+      //carrierId,tourId,vehicleId,vehicleTypeId,depotZone,depotX,depotY
       val vehicleIdStr = get("vehicleId")
-      val isGoodsCarrier = vehicleIdStr == null || vehicleIdStr.isBlank
+      val isOnDemandShipment = vehicleIdStr == null || vehicleIdStr.isBlank
       val carrierIdStr = get("carrierId")
       val carrierId: Id[FreightCarrier] =
-        if (isGoodsCarrier)
-          if (carrierIdStr == null || carrierIdStr.isBlank) NO_CARRIER_ID
-          else carrierIdStr.createId
-        else s"${FREIGHT_ID_PREFIX}Carrier-$carrierIdStr".createId[FreightCarrier]
+        if (isOnDemandShipment) {
+          if (carrierIdStr == null || carrierIdStr.isBlank) NO_CARRIER_ID else carrierIdStr.createId
+        } else if (carrierIdStr.startsWith(s"$FREIGHT_ID_PREFIX-")) carrierIdStr.createId
+        else s"$FREIGHT_ID_PREFIX-$carrierIdStr".createId
       val tourId: Id[FreightTour] = get("tourId").createId
       val vehicleId: Id[BeamVehicle] =
-        if (isGoodsCarrier) NO_VEHICLE_ID else Id.createVehicleId(s"${FREIGHT_ID_PREFIX}Vehicle-$vehicleIdStr")
-      val vehicleTypeId: Id[BeamVehicleType] = if (isGoodsCarrier) "no-type".createId else get("vehicleTypeId").createId
+        if (isOnDemandShipment) NO_VEHICLE_ID
+        else if (vehicleIdStr.startsWith(s"$FREIGHT_ID_PREFIX-")) vehicleIdStr.createId
+        else s"$FREIGHT_ID_PREFIX-$vehicleIdStr".createId
+      val vehicleTypeId: Id[BeamVehicleType] =
+        if (isOnDemandShipment) "no-type".createId else get("vehicleTypeId").createId
       if (!existingAllTours.contains(tourId)) {
         logger.error(f"Following freight carrier row discarded because tour $tourId was filtered out: $row")
         None
@@ -305,25 +326,25 @@ class GenericFreightReader(
         logger.debug(f"Following freight carrier row ignored because tour $tourId was sampled out: $row")
         None
       } else {
-        val warehouseX = row.get("warehouseX")
-        val warehouseY = row.get("warehouseY")
+        val depotX = row.get("depotX")
+        val depotY = row.get("depotY")
 
-        extractCoordInUtmOrTaz(
-          row.get("warehouseX"),
-          row.get("warehouseY"),
-          row.get("warehouseZone"),
-          snapLocationAndRemoveInvalidInputs
+        extractProjectedCoordOrTaz(
+          row.get("depotX"),
+          row.get("depotY"),
+          row.get("depotZone"),
+          snapLocationAndRemoveInvalidInputsParams
         ) match {
-          case (warehouseZoneMaybe, Right(coord)) =>
-            Some(FreightCarrierRow(carrierId, tourId, vehicleId, vehicleTypeId, warehouseZoneMaybe, coord))
+          case (depotZoneMaybe, Right(coord)) =>
+            Some(FreightCarrierRow(carrierId, tourId, vehicleId, vehicleTypeId, depotZoneMaybe, coord))
           case (_, Left(error)) =>
             errors.append(
               ErrorInfo(
                 carrierId.toString,
                 Category.FreightCarrier,
                 error,
-                warehouseX.toDouble,
-                warehouseY.toDouble
+                depotX.toDouble,
+                depotY.toDouble
               )
             )
             None
@@ -353,39 +374,47 @@ class GenericFreightReader(
     case None      => throw new IllegalArgumentException(s"Cannot find taz with id $tazId")
   }
 
-  private def extractCoordInUtmOrTaz(
+  private def extractProjectedCoordOrTaz(
     strX: String,
     strY: String,
     strZone: String,
-    snapLocationAndRemoveInvalidInputs: Boolean
+    snapLocationAndRemoveInvalidInputsParams: SnapLocationAndRemoveInvalidInputs.Params
   ): (Option[Id[TAZ]], SnapCoordinateResult) = {
     if (isBlank(strX) || isBlank(strY)) {
       val taz = getTaz(strZone)
       val coord =
-        if (snapLocationAndRemoveInvalidInputs) TAZTreeMap.randomLocationInTAZ(taz, rnd, snapLocationHelper)
+        if (snapLocationAndRemoveInvalidInputsParams.enabled)
+          TAZTreeMap.randomLocationInTAZ(taz, rnd, snapLocationHelper)
         else TAZTreeMap.randomLocationInTAZ(taz, rnd)
       (Some(taz.tazId), Right(coord))
     } else {
       val loc = new Coord(strX.toDouble, strY.toDouble)
       val locInUtm = if (config.isWgs) geoUtils.wgs2Utm(loc) else loc
-      val newLocIntUtm = networkMaybe.map(NetworkUtils.getNearestLink(_, locInUtm).getCoord).getOrElse(locInUtm)
-      val coordInUtm =
-        if (snapLocationAndRemoveInvalidInputs) snapLocationHelper.computeResult(newLocIntUtm)
-        else Right(locInUtm)
+      val coordInUtm = if (snapLocationAndRemoveInvalidInputsParams.enabled) {
+        val nearestLinkMaybe = networkMaybe.flatMap(network =>
+          Option(
+            NetworkUtilsWrapper.getNearestLinkByMode(
+              network,
+              coord = locInUtm,
+              modes = Array("car", "walk"),
+              scenarioCRS = geoUtils.localCRS,
+              minRadiusInMeter = snapLocationAndRemoveInvalidInputsParams.minRadiusInMeter,
+              maxRadiusInMeter = snapLocationAndRemoveInvalidInputsParams.maxRadiusInMeter
+            )
+          )
+        )
+        val newLocIntUtm = nearestLinkMaybe.map(_.getCoord).getOrElse(locInUtm)
+        snapLocationHelper.computeResult(newLocIntUtm)
+      } else Right(locInUtm)
+
       (None, coordInUtm)
     }
   }
 
   @Override
-  def createPersonId(carrierId: Id[FreightCarrier], vehicleId: Id[BeamVehicle]): Id[Person] = {
-    val updatedVehicleId = vehicleId.toString.replace(FREIGHT_ID_PREFIX + "Vehicle-", "")
-    Id.createPersonId(s"${FREIGHT_ID_PREFIX}Driver-$updatedVehicleId")
-  }
+  def createPersonId(vehicleId: Id[BeamVehicle]): Id[Person] = vehicleId.toString.createId
 
   @Override
-  def createHouseholdId(carrierId: Id[FreightCarrier]): Id[Household] = {
-    val updatedCarrierId = carrierId.toString.replace(FREIGHT_ID_PREFIX + "Carrier-", "")
-    s"${FREIGHT_ID_PREFIX}Household-$updatedCarrierId".createId
-  }
+  def createHouseholdId(carrierId: Id[FreightCarrier]): Id[Household] = carrierId.toString.createId
 
 }

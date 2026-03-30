@@ -37,6 +37,15 @@ import scala.util.Random
   */
 object HOVModeTransformer extends ExponentialLazyLogging {
 
+  private val summaryStats = mutable.Map[String, Int](
+    "forcedHOV2Teleports" -> 0,
+    "forcedHOV3Teleports" -> 0,
+    "forcedCarHOV2Count"  -> 0,
+    "forcedCarHOV3Count"  -> 0,
+    "randomHOV2Choices"   -> 0,
+    "randomHOV3Choices"   -> 0
+  )
+
   def reseedRandomGenerator(randomSeed: Int): Unit = rand.setSeed(randomSeed)
 
   private implicit val rand: Random = new Random(42)
@@ -65,13 +74,12 @@ object HOVModeTransformer extends ExponentialLazyLogging {
   def transformHOVtoHOVCARorHOVTeleportation(
     plansProbablyWithHOV: Iterable[PlanElement]
   ): Iterable[PlanElement] = {
-    val allHOVUsers: Set[PersonId] = plansProbablyWithHOV
-      .filter(planElement => {
-        val legMode = planElement.legMode.map(_.toLowerCase)
-        legMode.contains(hov2) || legMode.contains(hov3)
-      })
-      .map(_.personId)
-      .toSet
+
+    val allHOVUsers: Set[PersonId] =
+      plansProbablyWithHOV
+        .filter(x => x.legMode.exists(m => m.toLowerCase.contains(hov2) || m.toLowerCase.contains(hov3)))
+        .map(_.personId)
+        .toSet
 
     var forcedHOV2Teleports = 0
     var forcedHOV3Teleports = 0
@@ -91,10 +99,12 @@ object HOVModeTransformer extends ExponentialLazyLogging {
       trip.map {
         case hov2Leg if itIsAnHOV2Leg(hov2Leg) =>
           forcedHOV2Teleports -= 1
+          summaryStats("forcedCarHOV2Count") += 1
           hov2Leg.copy(legMode = Some(CAR_HOV2.value))
         case hov3Leg if itIsAnHOV3Leg(hov3Leg) =>
           // as car_hov3 contains two passengers, reduce by 2
           forcedHOV3Teleports -= 2
+          summaryStats("forcedCarHOV3Count") += 1
           hov3Leg.copy(legMode = Some(CAR_HOV3.value))
         case other => other
       }
@@ -104,9 +114,11 @@ object HOVModeTransformer extends ExponentialLazyLogging {
       trip.map {
         case hov2Leg if itIsAnHOV2Leg(hov2Leg) =>
           forcedCarHOV2Count -= 1
+          summaryStats("forcedHOV2Teleports") += 1
           hov2Leg.copy(legMode = Some(HOV2_TELEPORTATION.value))
         case hov3Leg if itIsAnHOV3Leg(hov3Leg) =>
           forcedCarHOV3Count -= 1
+          summaryStats("forcedHOV3Teleports") += 1
           hov3Leg.copy(legMode = Some(HOV3_TELEPORTATION.value))
         case other => other
       }
@@ -119,23 +131,39 @@ object HOVModeTransformer extends ExponentialLazyLogging {
             val (mappedTrip, forcedHOV2, forcedHOV3) = mapToForcedHOVTeleportation(trip)
             forcedHOV2Teleports += forcedHOV2
             forcedHOV3Teleports += forcedHOV3
+            summaryStats("forcedHOV2Teleports") += forcedHOV2
+            summaryStats("forcedHOV3Teleports") += forcedHOV3
             mappedTrip
           } else if (isForcedCarHOVTrip(trip)) {
             val (mappedTrip, forcedHOV2, forcedHOV3) = mapToForcedCarHOVTrip(trip)
             forcedCarHOV2Count += forcedHOV2
             forcedCarHOV3Count += forcedHOV3
+            summaryStats("forcedCarHOV2Count") += forcedHOV2
+            summaryStats("forcedCarHOV3Count") += forcedHOV3
             mappedTrip
           } else if (thereAreMoreHOVTeleportations) {
             replaceHOVwithCar(trip)
           } else if (thereAreMoreHOVCars) {
             replaceHOVwithTeleportation(trip)
           } else {
-            mapRandomHOVTeleportationOrCar(trip)
+            val transformedTrip = mapRandomHOVTeleportationOrCar(trip)
+            transformedTrip.foreach {
+              case leg if itIsAnHOV2Leg(leg) => summaryStats("randomHOV2Choices") += 1
+              case leg if itIsAnHOV3Leg(leg) => summaryStats("randomHOV3Choices") += 1
+              case _                         =>
+            }
+            transformedTrip
           }
         } else {
           trip
         }
       }
+
+    // Log summary at the end
+    logger.info(
+      s"Summary of HOV transformation: ${summaryStats.map { case (k, v) => s"$k: $v" }.mkString(", ")}"
+    )
+
     // we need to merge plans without creating duplicates of home activity for persons with more than one trip
     val plans = joinTripsIntoPlans(tripsTransformed)
     plans
@@ -252,17 +280,17 @@ object HOVModeTransformer extends ExponentialLazyLogging {
 
   def itIsAnHOV2Leg(planElement: PlanElement): Boolean = {
     planElement.planElementType == PlanElement.Leg &&
-    planElement.legMode.exists(legMode => legMode.toLowerCase == hov2)
+    planElement.legMode.exists(legMode => legMode.toLowerCase.contains(hov2))
   }
 
   def itIsAnHOV3Leg(planElement: PlanElement): Boolean = {
     planElement.planElementType == PlanElement.Leg &&
-    planElement.legMode.exists(legMode => legMode.toLowerCase == hov3)
+    planElement.legMode.exists(legMode => legMode.toLowerCase.contains(hov3))
   }
 
   def itIsASOVLeg(planElement: PlanElement): Boolean = {
     planElement.planElementType == PlanElement.Leg &&
-    planElement.legMode.exists(legMode => legMode.toLowerCase == "car")
+    planElement.legMode.exists(legMode => legMode.toLowerCase.contains("car"))
   }
 
   object ForcedHOVTeleportationTransformer {

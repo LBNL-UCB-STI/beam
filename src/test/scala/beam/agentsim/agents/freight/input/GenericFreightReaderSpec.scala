@@ -1,15 +1,16 @@
 package beam.agentsim.agents.freight.input
 
 import beam.agentsim.agents.freight._
-import beam.agentsim.agents.freight.input.FreightReader.{PAYLOAD_IDS, PAYLOAD_WEIGHT_IN_KG}
+import beam.agentsim.agents.freight.input.FreightReader.{PAYLOAD_ID, PAYLOAD_IDS, PAYLOAD_WEIGHT_IN_KG}
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.sim.BeamHelper
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
+import beam.sim.config.BeamConfig.Beam.Agentsim.SnapLocationAndRemoveInvalidInputs
 import beam.utils.BeamVehicleUtils
 import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import beam.utils.matsim_conversion.MatsimPlanConversion.{AttributesOps, IdOps}
-import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan, PopulationFactory}
+import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.households.{Household, HouseholdImpl, HouseholdsFactory}
 import org.mockito.ArgumentMatchers.any
@@ -28,11 +29,11 @@ import scala.util.Random
   */
 class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHelper {
   private val freightInputDir = s"${System.getenv("PWD")}/test/test-resources/beam/agentsim/freight"
-  private val tazMap: TAZTreeMap = TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
 
   private val geoUtils = new GeoUtils {
     override def localCRS: String = "epsg:26910"
   }
+  private val tazMap: TAZTreeMap = TAZTreeMap("test/input/beamville/taz-centers.csv", scenarioCRS = geoUtils.localCRS)
 
   private val freightConfig: Freight = new Freight(
     carrierParkingFilePath = None,
@@ -74,25 +75,31 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
       geoUtils,
       rnd,
       tazMap,
-      snapLocationAndRemoveInvalidInputs = false,
+      snapLocationAndRemoveInvalidInputsParams = SnapLocationAndRemoveInvalidInputs.Params(
+        enabled = false,
+        maxRadiusInMeter = 500000.0,
+        minRadiusInMeter = 100.0
+      ),
+      schedulerParallelismWindow = 60,
       snapLocationHelperMock
     )
 
   "PayloadPlansConverter" should {
     "read Payload Plans" in {
       val payloadPlans: Map[Id[PayloadPlan], PayloadPlan] = reader.readPayloadPlans()
-      payloadPlans should have size 8
+      payloadPlans should have size 16
       val plan7 = payloadPlans("payload-7".createId)
       plan7.payloadId should be("payload-7".createId)
-      plan7.locationUTM should be(new Coord(169624.51213105154, 3272.492326224974))
+      plan7.locationUTM.getX shouldBe (169369.8 +- 621)
+      plan7.locationUTM.getY shouldBe (3326.017 +- 621)
       plan7.estimatedTimeOfArrivalInSec should be(18000)
       plan7.arrivalTimeWindowInSecLower should be(1800)
       plan7.operationDurationInSec should be(500)
-      plan7.sequenceRank should be(3)
+      plan7.sequenceRank should be(4)
       plan7.tourId should be("tour-3".createId[FreightTour])
       plan7.payloadType should be("goods".createId[PayloadType])
       plan7.weightInKg should be(1500)
-      plan7.requestType should be(FreightRequestType.Loading)
+      plan7.activityType should be(FreightActivityType.Loading)
     }
 
     "read Freight Tours" in {
@@ -113,29 +120,29 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
 
     def checkFreightCarriers(freightCarriers: scala.IndexedSeq[FreightCarrier]): Unit = {
       freightCarriers should have size 2
-      val result = freightCarriers.find(_.carrierId == "freightCarrier-1".createId[FreightCarrier])
+      val result = freightCarriers.find(_.carrierId == "ft-1".createId[FreightCarrier])
       result should be('defined)
       val carrier1 = result.get
       carrier1.fleet should have size 2
-      carrier1.payloadPlans should have size 7
+      carrier1.payloadPlans should have size 13
       carrier1.tourMap should have size 2
-      carrier1.tourMap should contain key Id.createVehicleId("freightVehicle-2")
-      carrier1.tourMap(Id.createVehicleId("freightVehicle-2")) should have size 1
-      carrier1.tourMap(Id.createVehicleId("freightVehicle-2")).head should have(
+      carrier1.tourMap should contain key Id.createVehicleId("ft-2")
+      carrier1.tourMap(Id.createVehicleId("ft-2")) should have size 1
+      carrier1.tourMap(Id.createVehicleId("ft-2")).head should have(
         'tourId ("tour-1".createId[FreightTour]),
         'departureTimeInSec (1000),
         'maxTourDurationInSec (36000)
       )
       carrier1.plansPerTour should have size 3
-      carrier1.plansPerTour("tour-1".createId) should have size 2
-      carrier1.plansPerTour("tour-2".createId) should have size 2
-      carrier1.plansPerTour("tour-3".createId) should have size 3
+      carrier1.plansPerTour("tour-1".createId) should have size 4
+      carrier1.plansPerTour("tour-2".createId) should have size 4
+      carrier1.plansPerTour("tour-3".createId) should have size 5
 
-      val result2 = freightCarriers.find(_.carrierId == "freightCarrier-2".createId[FreightCarrier])
+      val result2 = freightCarriers.find(_.carrierId == "ft-2".createId[FreightCarrier])
       result2 should be('defined)
       val carrier2 = result2.get
       carrier2.fleet should have size 1
-      carrier2.payloadPlans should have size 1
+      carrier2.payloadPlans should have size 3
       carrier2.tourMap should have size 1
       carrier2.plansPerTour should have size 1
     }
@@ -177,21 +184,22 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
       }
 
       reader.generatePopulation(
-        readCarriers(s"$freightInputDir/vehicleTypes.csv", freightConfig),
+        readCarriers(s"$freightInputDir/vehicleTypes.csv", freightConfig).map(x => x.carrierId -> x).toMap,
         populationFactory,
         householdFactory
       )
 
       personPlans should have size 3
-      val plan1 = personPlans(Id.createPersonId("freightDriver-1"))
+      val plan1 = personPlans(Id.createPersonId("ft-1"))
       plan1.getPlanElements should have size 15
-      plan1.getPlanElements.get(2).asInstanceOf[Activity].getCoord should be(
-        new Coord(169567.3017564815, 836.6518909569604)
-      )
+      val firstPayloadCoord = plan1.getPlanElements.get(2).asInstanceOf[Activity].getCoord
+      firstPayloadCoord.getX shouldBe (169369.8 +- 621)
+      firstPayloadCoord.getY shouldBe (1112.351 +- 621)
       val leg1 = plan1.getPlanElements.get(1).asInstanceOf[Leg]
       leg1.getAttributes.typedValue[Seq[Id[PayloadPlan]]](PAYLOAD_IDS) shouldBe empty
       leg1.getAttributes.getAttribute(PAYLOAD_WEIGHT_IN_KG) shouldBe 0.0
       val leg2 = plan1.getPlanElements.get(3).asInstanceOf[Leg]
+      leg2.getAttributes.typedValue[Id[PayloadPlan]](PAYLOAD_ID) shouldBe "payload-3".createId[PayloadPlan]
       leg2.getAttributes.typedValue[Seq[Id[PayloadPlan]]](PAYLOAD_IDS).loneElement shouldBe "payload-3"
         .createId[PayloadPlan]
       leg2.getAttributes.getAttribute(PAYLOAD_WEIGHT_IN_KG) shouldBe 1300.0
@@ -199,21 +207,26 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
       leg7.getAttributes.typedValue[Seq[Id[PayloadPlan]]](PAYLOAD_IDS) shouldBe empty
       leg7.getAttributes.getAttribute(PAYLOAD_WEIGHT_IN_KG) shouldBe 0.0
       val leg13 = plan1.getPlanElements.get(13).asInstanceOf[Leg]
+      leg13.getAttributes.typedValue[Id[PayloadPlan]](PAYLOAD_ID) shouldBe "payload-7".createId[PayloadPlan]
       leg13.getAttributes.typedValue[Seq[Id[PayloadPlan]]](PAYLOAD_IDS) should contain theSameElementsInOrderAs Seq(
         "payload-5",
         "payload-6",
         "payload-7"
       ).map(_.createId[PayloadPlan])
       leg13.getAttributes.getAttribute(PAYLOAD_WEIGHT_IN_KG) shouldBe 4300.0
-      plan1.getPlanElements.get(12).asInstanceOf[Activity].getCoord should be(
-        new Coord(169576.80444138843, 3380.0075111142937)
-      )
-      val plan4 = personPlans(Id.createPersonId("freightDriver-3"))
+      val payload7Act = plan1.getPlanElements.get(12).asInstanceOf[Activity]
+      payload7Act.getAttributes.getAttribute(PAYLOAD_ID) shouldBe "payload-7".createId[PayloadPlan]
+      val payload7Coord = payload7Act.getCoord
+      payload7Coord.getX shouldBe (169369.8 +- 621)
+      payload7Coord.getY shouldBe (3326.017 +- 621)
+      val plan4 = personPlans(Id.createPersonId("ft-3"))
       plan4.getPlanElements should have size 5
-      plan4.getPlanElements.get(2).asInstanceOf[Activity].getCoord should be(
-        new Coord(169900.11498160253, 3510.2356380579545)
-      )
-      plan4.getPlanElements.get(4).asInstanceOf[Activity].getType should be("Warehouse")
+      val payload8Act = plan4.getPlanElements.get(2).asInstanceOf[Activity]
+      payload8Act.getAttributes.getAttribute(PAYLOAD_ID) shouldBe "payload-8".createId[PayloadPlan]
+      val payload8Coord = payload8Act.getCoord
+      payload8Coord.getX shouldBe (169369.8 +- 621)
+      payload8Coord.getY shouldBe (3326.017 +- 621)
+      plan4.getPlanElements.get(4).asInstanceOf[Activity].getType should be(FreightActivityType.Depot.toString)
     }
   }
 
@@ -223,7 +236,12 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
       geoUtils,
       new Random(4324L),
       tazMap,
-      snapLocationAndRemoveInvalidInputs = false,
+      snapLocationAndRemoveInvalidInputsParams = SnapLocationAndRemoveInvalidInputs.Params(
+        enabled = false,
+        maxRadiusInMeter = 500000.0,
+        minRadiusInMeter = 100.0
+      ),
+      schedulerParallelismWindow = 60,
       snapLocationHelperMock
     )
     val payloadPlans: Map[Id[PayloadPlan], PayloadPlan] = converter.readPayloadPlans()
@@ -235,7 +253,12 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
         geoUtils,
         new Random(73737L),
         tazMap,
-        snapLocationAndRemoveInvalidInputs = false,
+        snapLocationAndRemoveInvalidInputsParams = SnapLocationAndRemoveInvalidInputs.Params(
+          enabled = false,
+          maxRadiusInMeter = 500000.0,
+          minRadiusInMeter = 100.0
+        ),
+        schedulerParallelismWindow = 60,
         snapLocationHelperMock
       ).readFreightCarriers(
         tours,

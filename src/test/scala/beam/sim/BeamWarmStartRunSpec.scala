@@ -6,6 +6,7 @@ import beam.utils.{FileUtils, MathUtils}
 import com.typesafe.config.ConfigFactory
 import org.matsim.core.config.groups.ControlerConfigGroup.CompressionType
 import org.matsim.core.controler.OutputDirectoryHierarchy
+import org.scalatest.AppendedClues.convertToClueful
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.tagobjects.Retryable
@@ -25,6 +26,8 @@ class BeamWarmStartRunSpec
     with BeamHelper
     with BeforeAndAfterAllConfigMap
     with Retries {
+
+  import BeamWarmStartRunSpec.extractFileName
 
   "Beam WarmStart" must {
 
@@ -65,7 +68,12 @@ class BeamWarmStartRunSpec
         "ITERS/it.2/2.rideHailFleet-GlobalRHM.csv.gz"
       )
 
-      files should equal(expectedFiles)
+      val missing = expectedFiles.diff(files)
+      val extra = files.diff(expectedFiles)
+
+      withClue(s"Missing in the output: $missing\nExtra files in the output: $extra\n") {
+        files should contain theSameElementsAs expectedFiles
+      }
     }
 
     "run beamville scenario for two iterations with warmstart" taggedAs Retryable in {
@@ -116,21 +124,21 @@ class BeamWarmStartRunSpec
       (averageCarSpeedIt1 / averageCarSpeedIt0) should be > 29.5
     }
 
-    "run beamville scenario with linkStatsOnly warmstart with linkstats only file" taggedAs Retryable in {
+    "run beamville scenario with linkStatsOnly warmstart with linkstats only file affecting simulation" taggedAs Retryable in {
       val baseConf = ConfigFactory
         .parseString(s"""
-         beam.agentsim.lastIteration = 1
+         beam.agentsim.lastIteration = 0
          beam.warmStart.type = "linkStatsOnly"
-         beam.warmStart.path = "test/input/beamville/warmstart/warmstart_data_linkstats_only.zip"
+         beam.warmStart.path = "test/input/beamville/warmstart/warmstart_data_fake_linkstats_high.zip"
          """)
-        .withFallback(testConfig("test/input/beamville/beam-warmstart.conf"))
+        .withFallback(testConfig("test/input/beamville/beam.conf"))
         .resolve()
+
       val (_, output, _) = runBeamWithConfig(baseConf)
       // TODO Using median travel time instead of average due to outliers in the WarmStart file. Network not relaxed!?
-      val averageCarSpeedIt0 = BeamWarmStartRunSpec.medianCarModeFromCsv(extractFileName(output, 0))
-      val averageCarSpeedIt1 = BeamWarmStartRunSpec.medianCarModeFromCsv(extractFileName(output, 1))
-      logger.info("average car speed per iterations: {}, {}", averageCarSpeedIt0, averageCarSpeedIt1)
-      averageCarSpeedIt0 / averageCarSpeedIt1 should equal(1.0 +- 0.80)
+      val medianCarSpeedIt0 = BeamWarmStartRunSpec.medianCarModeFromCsv(extractFileName(output, 0))
+      logger.info("average car speed in iteration0 {}", medianCarSpeedIt0)
+      medianCarSpeedIt0 should be < 100.0 withClue "with fake high link speeds median speed in iteration 0 should be ~96.0"
     }
 
     "run beamville scenario with linkStatsOnly warmstart and full file with fake skims" in {
@@ -152,19 +160,51 @@ class BeamWarmStartRunSpec
     }
   }
 
-  private def extractFileName(
-    outputDir: String,
-    iterationNumber: Int,
-    fileName: String = "CarRideStats.personal.csv.gz"
-  ): String = {
-    val outputDirectoryHierarchy =
-      new OutputDirectoryHierarchy(
-        outputDir,
-        OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles,
-        CompressionType.none
+  "sf-light scenario with emissions skims format set to parquet" must {
+    "prepare WarmStart data with parquet emissions skims" in {
+      val maxIt = 1
+      val baseConf = ConfigFactory
+        .parseString(f"""beam.agentsim.lastIteration = $maxIt
+                beam.warmStart.prepareData = true
+                beam.router.skim.emissions-skimmer.fileOutputFormat = "parquet"
+                """)
+        .withFallback(testConfig("test/input/sf-light/sf-light-1k-emissions.conf"))
+        .resolve()
+      val (_, output, _) = runBeamWithConfig(baseConf)
+      val warmStartData = new File(output, "warmstart_data.zip")
+
+      warmStartData.exists() shouldBe true
+
+      val zipIn = new ZipInputStream(new FileInputStream(warmStartData))
+      val files = Stream.continually(zipIn.getNextEntry).takeWhile(_ != null).map(_.getName).toList
+      zipIn.close()
+
+      val itX = f"it.$maxIt/$maxIt"
+      val expectedFiles = List(
+        "population.csv.gz",
+        "households.csv.gz",
+        "vehicles.csv.gz",
+        s"ITERS/$itX.skimsOD_Aggregated.csv.gz",
+        s"ITERS/$itX.skimsTAZ_Aggregated.csv.gz",
+        s"ITERS/$itX.skimsTravelTimeObservedVsSimulated_Aggregated.csv.gz",
+        s"ITERS/$itX.skimsRidehail_Aggregated.csv.gz",
+        s"ITERS/$itX.skimsODVehicleType_Aggregated.csv.gz",
+        s"ITERS/$itX.skimsFreight_Aggregated.csv.gz",
+        s"ITERS/$itX.skimsParking_Aggregated.csv.gz",
+        s"ITERS/$itX.skimsTransitCrowding_Aggregated.csv.gz",
+        s"ITERS/$itX.skimsEmissions_Aggregated.parquet",
+        s"ITERS/$itX.linkstats.csv.gz",
+        s"ITERS/$itX.plans.csv.gz",
+        s"ITERS/$itX.rideHailFleet-GlobalRHM.csv.gz"
       )
 
-    outputDirectoryHierarchy.getIterationFilename(iterationNumber, fileName)
+      val missing = expectedFiles.diff(files)
+      val extra = files.diff(expectedFiles)
+
+      withClue(s"Missing in the output: $missing\nExtra files in the output: $extra\n") {
+        files should contain theSameElementsAs expectedFiles
+      }
+    }
   }
 
   private def testOutputFiles(fileIdentifiers: Array[String], output: String, itr: Int): Unit = {
@@ -239,6 +279,21 @@ class BeamWarmStartRunSpec
 }
 
 object BeamWarmStartRunSpec {
+
+  def extractFileName(
+    outputDir: String,
+    iterationNumber: Int,
+    fileName: String = "CarRideStats.personal.csv.gz"
+  ): String = {
+    val outputDirectoryHierarchy =
+      new OutputDirectoryHierarchy(
+        outputDir,
+        OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles,
+        CompressionType.none
+      )
+
+    outputDirectoryHierarchy.getIterationFilename(iterationNumber, fileName)
+  }
 
   def avgCarModeFromCsv(filePath: String): Double = {
     val (rdr, toClose) =

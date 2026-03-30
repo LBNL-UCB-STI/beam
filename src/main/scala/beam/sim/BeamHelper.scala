@@ -287,7 +287,8 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       vehicleTypesBasePaths,
       vehicleTypes,
       beamConfig.beam.agentsim.agents.vehicles.linkToGradePercentFilePath,
-      beamConfig.beam.exchange.output.emissions.pollutantsToFilterOut.getOrElse(List.empty)
+      beamConfig.beam.agentsim.agents.vehicles.emissions.pollutantsFilter,
+      beamConfig.beam.agentsim.agents.vehicles.emissions.ratesFilter
     )
 
     val dates = DateUtils(
@@ -299,10 +300,15 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     val gtfs = GTFSUtils.loadGTFS(beamConfig.beam.routing.r5.directory)
     val trainStopQuadTree = GTFSUtils.toQuadTree(GTFSUtils.trainStations(gtfs), new GeoUtilsImpl(beamConfig))
     val taz = beamConfig.beam.agentsim.taz
-    val tazMap = TAZTreeMap.getTazTreeMap(taz.filePath, Some(taz.tazIdFieldName))
-    tazMap.mapNetworkToTAZs(networkCoordinator.network)
+    val tazMap = TAZTreeMap(
+      taz.filePath,
+      beamConfig.beam.spatial.localCRS,
+      Some(taz.tazIdFieldName),
+      networkCoordinator.network.getLinks.asScala.toMap,
+      beamConfig.beam.agentsim.agents.parking.search.params.enableLinkBasedSearch
+    )
     val taz2Map = if (beamConfig.beam.exchange.output.activity_sim_skimmer.exists(_.secondary.enabled)) {
-      TAZTreeMap.getSecondaryTazTreeMap(
+      TAZTreeMap(
         beamConfig.beam.exchange.output.activity_sim_skimmer.get.secondary.taz,
         beamConfig.beam.agentsim.taz,
         tazMap
@@ -315,7 +321,8 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
         networkCoordinator.transportNetwork.streetLayer,
         Some(networkCoordinator.network),
         vehicleTypes,
-        outputDirMaybe
+        outputDirMaybe,
+        Some(tazMap)
       )
 
     val fixedActivitiesDurationsFromConfig: Map[String, Double] = {
@@ -368,13 +375,21 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     streetLayer: StreetLayer,
     networkMaybe: Option[Network],
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
-    outputDirMaybe: Option[String]
-  ): (IndexedSeq[FreightCarrier], IndexedSeq[FreightCarrier], Map[String, Double]) = {
+    outputDirMaybe: Option[String],
+    tazMapMaybe: Option[TAZTreeMap]
+  ): (
+    Map[Id[FreightCarrier], FreightCarrier], // goodCarriers
+    Map[Id[FreightCarrier], FreightCarrier], // all carriers
+    Map[String, Double] // activity durations
+  ) = {
+
     val freightConfig = beamConfig.beam.agentsim.agents.freight
 
     if (freightConfig.enabled) {
       val geoUtils = new GeoUtilsImpl(beamConfig)
-      val freightReader = FreightReader(beamConfig, geoUtils, streetLayer, networkMaybe, outputDirMaybe)
+      val freightReader = FreightReader(beamConfig, geoUtils, streetLayer, networkMaybe, outputDirMaybe, tazMapMaybe)
+
+      // Read tours and payload plans from files
       val tours = freightReader.readFreightTours()
       val plans = freightReader.readPayloadPlans()
       logger.info(s"Freight before sampling: ${tours.size} tours. ${plans.size} payloads")
@@ -382,19 +397,27 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       val (goodCarriers, carriers) = freightReader
         .readFreightCarriers(tours, plans, vehicleTypes)
         .partition(carrier => carrier.fleet.isEmpty)
+
+      // Logging final stats for all carriers
       val finalNumTours = carriers.flatMap(_.tourMap.values).flatten.size
       val finalNumPlans = carriers.flatMap(_.payloadPlans.values).size
       val finalNumCarriers = carriers.size
       logger.info(s"Freight after merging: $finalNumTours tours. $finalNumPlans payloads. $finalNumCarriers carriers")
-      val activityNameToDuration = if (freightConfig.generateFixedActivitiesDurations) {
-        plans.map { case (_, plan) => plan.activityType -> plan.operationDurationInSec.toDouble }
-      } else {
-        Map.empty[String, Double]
-      }
 
-      (goodCarriers, carriers, activityNameToDuration)
+      // Optional: Fixed activity durations
+      val activityNameToDuration: Map[String, Double] =
+        if (freightConfig.generateFixedActivitiesDurations) {
+          plans.map { case (_, plan) =>
+            plan.activityType.toString -> plan.operationDurationInSec.toDouble
+          }
+        } else {
+          Map.empty
+        }
+
+      (goodCarriers.map(c => c.carrierId -> c).toMap, carriers.map(c => c.carrierId -> c).toMap, activityNameToDuration)
+
     } else {
-      (IndexedSeq.empty[FreightCarrier], IndexedSeq.empty[FreightCarrier], Map.empty[String, Double])
+      (Map.empty, Map.empty, Map.empty)
     }
   }
 
@@ -705,7 +728,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       PopulationScaling.samplePopulation(scenario, beamScenario, beamServices.beamConfig, beamServices, outputDir)
     }
 
-    if (beamScenario.beamConfig.beam.agentsim.snapLocationAndRemoveInvalidInputs) {
+    if (beamScenario.beamConfig.beam.agentsim.snapLocationAndRemoveInvalidInputs.params.enabled) {
       logger.info(s"""
       |The parameter `beam.agentsim.snapLocationAndRemoveInvalidInputs` is enabled.
       |This may take some time to finish depending on the size of population/households.""".stripMargin)
@@ -835,23 +858,27 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
             val source = src match {
               case "urbansim" => buildUrbansimScenarioSource(geoUtils, beamConfig)
               case "urbansim_v2" =>
-                val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"
-                val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv.gz"
-                val pathToPlans = s"${beamConfig.beam.exchange.scenario.folder}/plans.csv.gz"
-                val pathToBlocks = s"${beamConfig.beam.exchange.scenario.folder}/blocks.csv.gz"
-                val pathToVehicles = s"${beamConfig.beam.exchange.scenario.folder}/vehicles.csv.gz"
+                val baseFolder = beamConfig.beam.exchange.scenario.folder
+                def getPath(filename: String): String = {
+                  val csvPath = s"$baseFolder/$filename.csv.gz"
+                  val parquetPath = s"$baseFolder/$filename.parquet"
+                  if (beamConfig.beam.exchange.scenario.fileFormat.equalsIgnoreCase("parquet")) parquetPath
+                  else csvPath
+                }
+
                 new UrbansimReaderV2(
-                  inputPersonPath = pathToPersonFile,
-                  inputPlanPath = pathToPlans,
-                  inputHouseholdPath = pathToHouseholds,
-                  inputVehiclePath = pathToVehicles,
-                  inputBlockPath = pathToBlocks,
+                  inputPersonPath = getPath("persons"),
+                  inputPlanPath = getPath("plans"),
+                  inputHouseholdPath = getPath("households"),
+                  inputVehiclePath = getPath("vehicles"),
+                  inputBlockPath = getPath("blocks"),
                   geoUtils,
                   shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm,
                   modeMap = BeamConfigUtils.parseListToMap(
                     beamConfig.beam.exchange.scenario.modeMap
                       .getOrElse(throw new RuntimeException("beam.exchange.scenario.modeMap must be set"))
-                  )
+                  ),
+                  fileFormat = beamConfig.beam.exchange.scenario.fileFormat
                 )
               case "generic" =>
                 val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"
@@ -937,29 +964,53 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     households: Households,
     converter: FreightReader
   ): Unit = {
-    beamScenario.freightCarriers
-      .flatMap(_.fleet)
-      .foreach { case (id, vehicle) => beamScenario.privateVehicles.put(id, vehicle) }
+
     val allowedModes = Seq(BeamMode.CAR.value)
-    converter
+
+    // --- Step 1: Add all freight vehicles to privateVehicles ---
+    val carrierIter = beamScenario.freightCarriers.valuesIterator
+    while (carrierIter.hasNext) {
+      val carrier = carrierIter.next()
+      val fleetIter = carrier.fleet.iterator
+      while (fleetIter.hasNext) {
+        val (id, vehicle) = fleetIter.next()
+        beamScenario.privateVehicles.put(id, vehicle)
+      }
+    }
+
+    // --- Step 2: Generate population directly from existing carriers map ---
+    val generatedPopIter = converter
       .generatePopulation(
         beamScenario.freightCarriers,
         population.getFactory,
         households.getFactory
       )
-      .foreach { case (carrier, household, plan, person, vehicleId) =>
-        HouseholdUtils.putHouseholdAttribute(household, "homecoordx", carrier.warehouseLocationUTM.getX)
-        HouseholdUtils.putHouseholdAttribute(household, "homecoordy", carrier.warehouseLocationUTM.getY)
-        PopulationUtils.putPersonAttribute(person, "vehicle", vehicleId.toString)
-        households.getHouseholds.put(household.getId, household)
-        population.addPerson(plan.getPerson)
-        AvailableModeUtils.setAvailableModesForPerson_v2(
-          beamScenario,
-          plan.getPerson,
-          household,
-          allowedModes
-        )
-      }
+      .iterator
+
+    // --- Step 3: Post-process generated population ---
+    while (generatedPopIter.hasNext) {
+      val (carrier, household, plan, person, vehicleId) = generatedPopIter.next()
+
+      // Set household attributes (depot location)
+      val depotCoord = carrier.depotLocationUTM
+      HouseholdUtils.putHouseholdAttribute(household, "homecoordx", depotCoord.getX)
+      HouseholdUtils.putHouseholdAttribute(household, "homecoordy", depotCoord.getY)
+
+      // Link person to assigned freight vehicle
+      PopulationUtils.putPersonAttribute(person, "vehicle", vehicleId.toString)
+
+      // Add household & person to MATSim
+      households.getHouseholds.put(household.getId, household)
+      population.addPerson(plan.getPerson)
+
+      // Restrict available modes to CAR
+      AvailableModeUtils.setAvailableModesForPerson_v2(
+        beamScenario,
+        plan.getPerson,
+        household,
+        allowedModes
+      )
+    }
   }
 
   def setupBeamWithConfig(

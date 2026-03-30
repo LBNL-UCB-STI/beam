@@ -23,7 +23,9 @@ case class LeavingParkingEvent(
   parkingType: ParkingType,
   pricingModel: Option[PricingModel],
   ChargingPointType: Option[ChargingPointType],
-  emissionsProfile: Option[EmissionsProfile]
+  linkIds: IndexedSeq[Int],
+  emissionsProfile: Option[EmissionsProfile],
+  parkingZoneId: Id[ParkingZoneId]
 ) extends Event(time)
     with ScalaEvent {
   import LeavingParkingEvent._
@@ -42,6 +44,9 @@ case class LeavingParkingEvent(
     attr.put(ATTRIBUTE_EMISSIONS_PROFILE, emissionsProfile.map(BeamVehicleUtils.buildEmissionsString).getOrElse(""))
     attr.put(ATTRIBUTE_PARKING_DURATION, parkingDuration.toString)
     attr.put(ATTRIBUTE_COST, pricingModel.map(_.costInDollars.toString).getOrElse("0"))
+    attr.put(ATTRIBUTE_LINK_IDS, linkIds.mkString(","))
+    attr.put(ATTRIBUTE_PARKING_ZONE_ID, parkingZoneId.toString)
+
     attr
   }
 }
@@ -74,6 +79,8 @@ object LeavingParkingEvent {
   val ATTRIBUTE_DRIVER_ID: String = "driver"
   val ATTRIBUTE_EMISSIONS_PROFILE: String = "emissions"
   val ATTRIBUTE_PARKING_DURATION: String = "duration"
+  val ATTRIBUTE_LINK_IDS: String = "links"
+  val ATTRIBUTE_PARKING_ZONE_ID: String = "parkingZoneId"
 
   def apply(
     time: Double,
@@ -93,7 +100,9 @@ object LeavingParkingEvent {
       stall.parkingType,
       stall.pricingModel,
       stall.chargingPointType,
-      emissionsProfile
+      stall.link.map(_.getId.toString.toInt).toIndexedSeq,
+      emissionsProfile,
+      parkingZoneId = stall.parkingZoneId
     )
   }
 
@@ -112,6 +121,10 @@ object LeavingParkingEvent {
     val chargingPointType: Option[ChargingPointType] = attr.get(ATTRIBUTE_CHARGING_TYPE).flatMap(ChargingPointType(_))
     val emissionsProfile = attr.get(ATTRIBUTE_EMISSIONS_PROFILE).flatMap(BeamVehicleUtils.parseEmissionsString(_))
     val duration: Double = attr.get(ATTRIBUTE_PARKING_DURATION).map(_.toDouble).getOrElse(0.0)
+    val linkIdsAsStr = attr.getOrElse(ATTRIBUTE_LINK_IDS, "")
+    val linkIds: IndexedSeq[Int] = if (linkIdsAsStr == "") IndexedSeq.empty else linkIdsAsStr.split(",").map(_.toInt)
+    val parkingZoneStr = attr.getOrElse(ATTRIBUTE_PARKING_ZONE_ID, "unknownPZ")
+    val parkingZoneId: Id[ParkingZoneId] = Id.create(parkingZoneStr, classOf[ParkingZoneId])
     LeavingParkingEvent(
       time,
       personId,
@@ -122,7 +135,9 @@ object LeavingParkingEvent {
       parkingType,
       pricingModel,
       chargingPointType,
-      emissionsProfile
+      linkIds,
+      emissionsProfile,
+      parkingZoneId
     )
   }
 }

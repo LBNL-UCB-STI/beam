@@ -5,6 +5,7 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType.Miscellaneous
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, ParkingZoneId, PricingModel}
 import beam.agentsim.scheduler.BeamAgentScheduler
@@ -19,7 +20,7 @@ import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
-import org.scalatest.BeforeAndAfterEach
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.tagobjects.Retryable
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -44,6 +45,7 @@ class ChargingNetworkManagerSpec
     with BeamHelper
     with ImplicitSender
     with BeforeAndAfterEach
+    with BeforeAndAfterAll
     with Repeated {
 
   private val filesPath = s"""$${beam.inputDirectory}"/../../test-resources/beam/input"""
@@ -127,7 +129,7 @@ class ChargingNetworkManagerSpec
       Some(chargingPointType),
       Some(pricingModel),
       ParkingType.Public,
-      "",
+      Miscellaneous,
       reservedFor = VehicleManager.AnyManager
     )
   var scheduler: TestActorRef[BeamAgentSchedulerRedirect] = _
@@ -549,6 +551,10 @@ class ChargingNetworkManagerSpec
     chargingNetworkManager ! Finish
     parkingManager.ref ! Finish
     personAgent.ref ! Finish
+  }
+
+  override protected def afterAll(): Unit = {
+    TestKit.shutdownActorSystem(system)
   }
 
 }

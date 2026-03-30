@@ -1,14 +1,12 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.Resource.ReleaseParkingStall
-import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.infrastructure.HierarchicalParkingManager._
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.ParkingZone.UbiqiutousParkingAvailability
+import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.VehicleRestrictionKey
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
-import beam.router.BeamRouter.Location
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.matsim_conversion.ShapeUtils
@@ -32,9 +30,7 @@ class HierarchicalParkingManager(
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   tazMap: TAZTreeMap,
   distanceFunction: (Coord, Coord) => Double,
-  minSearchRadius: Double,
-  maxSearchRadius: Double,
-  searchDoubleParkingRadius: Double,
+  searchRadiusConfig: BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params,
   boundingBox: Envelope,
   seed: Int,
   mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
@@ -52,10 +48,7 @@ class HierarchicalParkingManager(
       tazMap,
       tazParkingZones,
       distanceFunction,
-      minSearchRadius,
-      maxSearchRadius,
-      searchDoubleParkingRadius,
-      0.0,
+      searchRadiusConfig,
       0.0,
       estimatedMinParkingDurationInSeconds,
       1.0,
@@ -66,17 +59,10 @@ class HierarchicalParkingManager(
     )
   )
 
-  val DefaultParkingZone: ParkingZone =
-    ParkingZone.defaultInit(
-      TAZ.DefaultTAZId,
-      ParkingType.Public,
-      UbiqiutousParkingAvailability
-    )
-
   /**
     * For each TAZ it contains a Map: ParkingZoneDescription -> ParkingZoneTreeMap
     */
-  protected val tazSearchMap: Map[Id[TAZ], Map[ParkingZoneDescription, QuadTree[ParkingZone]]] =
+  private val tazSearchMap: Map[Id[TAZ], Map[ParkingZoneDescription, QuadTree[ParkingZone]]] =
     createDescriptionToZonesMapForEachTaz(parkingZones, tazMap.idToTAZMapping)
 
   if (checkThatNumberOfStallsMatch) {
@@ -103,7 +89,7 @@ class HierarchicalParkingManager(
       searchFunctions.get.searchForParkingStall(inquiry)
 
     val (parkingStall: ParkingStall, parkingZone: ParkingZone) =
-      if (TAZ.isSpecialTazId(tazParkingStall.tazId)) tazParkingStall -> DefaultParkingZone
+      if (TAZ.isSpecialTazId(tazParkingStall.tazId)) tazParkingStall -> ParkingZone.DefaultParkingZone
       else {
         val descriptionToZone = tazSearchMap(tazParkingZone.tazId)
         findAppropriateLinkParkingZoneWithinTaz(tazParkingZone, descriptionToZone, inquiry.destinationUtm.loc) match {
@@ -118,7 +104,9 @@ class HierarchicalParkingManager(
               "Cannot find link parking parking zone for taz zone {}. Parallel changing of stallsAvailable?",
               tazParkingZone
             )
-            lastResortStallAndZone(inquiry.destinationUtm.loc)
+            val (newStall, _) =
+              ParkingStall.lastResortStall(inquiry.destinationUtm.loc, new Random(seed), inquiry.parkingActivityType)
+            newStall
         }
       }
 
@@ -171,7 +159,7 @@ class HierarchicalParkingManager(
     */
   override def processReleaseParkingStall(release: ReleaseParkingStall): Boolean = {
     val parkingZoneId = release.stall.parkingZoneId
-    if (parkingZoneId == ParkingZone.DefaultParkingZoneId) {
+    if (parkingZoneId == ParkingZone.DefaultParkingZone.parkingZoneId) {
       // this is an infinitely available resource; no update required
       logger.debug("Releasing a stall in the default/emergency zone")
       true
@@ -208,17 +196,6 @@ class HierarchicalParkingManager(
         if (tazStalls != linkStalls) Some(taz.tazId) else None
       }
   }
-
-  private def lastResortStallAndZone(location: Location) = {
-    val boxAroundRequest = new Envelope(
-      location.getX + 100,
-      location.getX - 100,
-      location.getY + 100,
-      location.getY - 100
-    )
-    val newStall = ParkingStall.lastResortStall(boxAroundRequest, new Random(seed))
-    newStall -> DefaultParkingZone
-  }
 }
 
 object HierarchicalParkingManager {
@@ -235,10 +212,10 @@ object HierarchicalParkingManager {
     reservedFor: ReservedFor,
     chargingPointType: Option[ChargingPointType],
     pricingModel: Option[PricingModel],
-    timeRestrictions: Map[VehicleCategory, Range]
+    timeRestrictions: Map[VehicleRestrictionKey, Range]
   )
 
-  object ParkingZoneDescription {
+  private object ParkingZoneDescription {
 
     def describeParkingZone(zone: ParkingZone): ParkingZoneDescription = {
       new ParkingZoneDescription(
@@ -255,9 +232,7 @@ object HierarchicalParkingManager {
     parkingZones: Map[Id[ParkingZoneId], ParkingZone],
     tazMap: TAZTreeMap,
     distanceFunction: (Coord, Coord) => Double,
-    minSearchRadius: Double,
-    maxSearchRadius: Double,
-    searchDoubleParkingRadius: Double,
+    searchRadiusConfig: BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params,
     boundingBox: Envelope,
     seed: Int,
     mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
@@ -268,9 +243,7 @@ object HierarchicalParkingManager {
       parkingZones,
       tazMap,
       distanceFunction,
-      minSearchRadius,
-      maxSearchRadius,
-      searchDoubleParkingRadius,
+      searchRadiusConfig,
       boundingBox,
       seed,
       mnlParkingConfig,
@@ -283,9 +256,7 @@ object HierarchicalParkingManager {
     parkingZones: Map[Id[ParkingZoneId], ParkingZone],
     tazMap: TAZTreeMap,
     distanceFunction: (Coord, Coord) => Double,
-    minSearchRadius: Double,
-    maxSearchRadius: Double,
-    searchDoubleParkingRadius: Double,
+    searchRadiusConfig: BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params,
     boundingBox: Envelope,
     seed: Int,
     mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
@@ -296,9 +267,7 @@ object HierarchicalParkingManager {
       parkingZones,
       tazMap,
       distanceFunction,
-      minSearchRadius,
-      maxSearchRadius,
-      searchDoubleParkingRadius,
+      searchRadiusConfig,
       boundingBox,
       seed,
       mnlParkingConfig,

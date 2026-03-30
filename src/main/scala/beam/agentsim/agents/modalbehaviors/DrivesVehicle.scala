@@ -18,7 +18,7 @@ import beam.agentsim.events.RefuelSessionEvent.NotApplicable
 import beam.agentsim.events._
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
-import beam.agentsim.infrastructure.{ParkingInquiry, ParkingStall}
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingNetworkManager, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{HasTriggerId, Trigger}
@@ -234,10 +234,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         ) if data.currentTripMode.contains(HOV2_TELEPORTATION) || data.currentTripMode.contains(HOV3_TELEPORTATION) =>
       updateLatestObservedTick(tick)
 
-      val dataForNextLegOrActivity: BasePersonData = data.copy(
-        currentVehicle = Vector(),
-        currentTripCosts = 0.0
-      )
+      val dataForNextLegOrActivity: BasePersonData = data.copy(currentVehicle = Vector(), currentTripCosts = 0.0)
 
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using dataForNextLegOrActivity.asInstanceOf[T]
@@ -258,9 +255,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       val payloadData = payloadDataForLeg(currentLeg, data)
       val (payloadIds, payloadWeight) = payloadData.getOrElse((IndexedSeq.empty, 0.0))
       val vehicleActivityData = BeamVehicle.collectVehicleActivityData(
-        currentLeg.startTime,
+        tick,
         Left(currentLeg),
-        currentBeamVehicle.beamVehicleType,
+        currentBeamVehicle,
         Some(payloadWeight),
         None,
         beamServices
@@ -343,17 +340,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         }
       }
 
-      val vehicleActivityDataFixed = BeamVehicle.addFirstLinkActivityForEmissions(
-        currentLeg.startTime,
-        vehicleActivityData,
-        currentBeamVehicle.beamVehicleType,
-        Some(payloadWeight),
-        currentLeg,
-        None,
-        beamServices
-      )
       currentBeamVehicle.setLastVehicleLink(currentLeg.travelPath.linkIds.headOption)
-      val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivityForEmissions(
+      val maybeIDLEVehicleActivity = BeamVehicle.getRideHailIdlingActivityForEmissions(
         currentLeg.startTime,
         currentBeamVehicle,
         beamServices
@@ -364,18 +352,17 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       )
 
       val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
-        maybeIDLEVehicleActivity,
-        classOf[PathTraversalEvent],
+        maybeIDLEVehicleActivity.toIndexedSeq,
+        classOf[LeavingParkingEvent],
         beamServices
       )
       val emissionsProfilePTE = currentBeamVehicle.emitEmissions(
-        vehicleActivityDataFixed,
+        vehicleActivityData,
         classOf[PathTraversalEvent],
         beamServices
       )
       val emissionsProfile = EmissionsProfile.join(emissionsProfilePTE, emissionsProfileIDLE)
       val numberOfPassengers: Int = calculateNumberOfPassengersBasedOnCurrentTripMode(data, currentLeg, riders)
-      val currentTourMode: Option[String] = getCurrentTripMode(data)
       val pte = PathTraversalEvent(
         tick,
         currentVehicleUnderControl,
@@ -384,15 +371,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         numberOfPassengers,
         currentLeg,
         getCurrentTripMode(data),
-        fuelConsumed.primaryFuel,
-        fuelConsumed.secondaryFuel,
-        currentBeamVehicle.primaryFuelLevelInJoules,
-        currentBeamVehicle.secondaryFuelLevelInJoules,
-        tollOnCurrentLeg,
-        payloadIds,
-        currentBeamVehicle.beamVehicleType.curbWeightInKg + payloadWeight,
+        fuelConsumed.primaryFuel.toFloat,
+        fuelConsumed.secondaryFuel.toFloat,
+        currentBeamVehicle.primaryFuelLevelInJoules.toFloat,
+        currentBeamVehicle.secondaryFuelLevelInJoules.toFloat,
+        tollOnCurrentLeg.toFloat,
+        payloadIds.toArray,
+        (currentBeamVehicle.beamVehicleType.curbWeightInKg + payloadWeight).toFloat,
         emissionsProfile,
-        riders
+        riders.toArray
       )
 
       eventsManager.processEvent(pte)
@@ -402,18 +389,19 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         case data: BasePersonData => data.enrouteData.isEnrouting; case _ => false
       }
       if (!isLastLeg) {
+        val nextLeg =
+          data.passengerSchedule.schedule.keys.view
+            .drop(data.currentLegPassengerScheduleIndex + 1)
+            .head
+        val ableToPark = nextLeg.mode != BeamMode.WALK
         // we don't want to choose parking stall if vehicle is in enroute
-        if (data.hasParkingBehaviors && !isInEnrouteState) {
+        if (data.hasParkingBehaviors && !isInEnrouteState && ableToPark) {
           holdTickAndTriggerId(tick, triggerId)
           log.debug(s"state(DrivesVehicle.Driving) $id is going to ReadyToChooseParking")
           goto(ReadyToChooseParking) using data
             .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
             .asInstanceOf[T]
         } else {
-          val nextLeg =
-            data.passengerSchedule.schedule.keys.view
-              .drop(data.currentLegPassengerScheduleIndex + 1)
-              .head
           val startLegTriggerTick = if (nextLeg.startTime < tick) {
             logger.warn(s"Start time of next leg ${nextLeg.startTime} was less than current tick $tick.")
             tick
@@ -585,24 +573,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
 
       val currentLocation = if (updatedStopTick > currentLeg.startTime) {
         val vehicleActivityData = BeamVehicle.collectVehicleActivityData(
-          currentLeg.startTime,
-          Left(currentLeg),
-          currentBeamVehicle.beamVehicleType,
+          updatedStopTick,
+          Left(partiallyCompletedBeamLeg),
+          currentBeamVehicle,
           Some(payloadWeight),
           None,
           beamServices
         )
         val fuelConsumed = currentBeamVehicle.useFuel(partiallyCompletedBeamLeg, vehicleActivityData, beamScenario)
-        val vehicleActivityDataFixed = BeamVehicle.addFirstLinkActivityForEmissions(
-          currentLeg.startTime,
-          vehicleActivityData,
-          currentBeamVehicle.beamVehicleType,
-          Some(payloadWeight),
-          currentLeg,
-          None,
-          beamServices
-        )
-        val maybeIDLEVehicleActivity = BeamVehicle.getIDLEActivityForEmissions(
+        val maybeIDLEVehicleActivity = BeamVehicle.getRideHailIdlingActivityForEmissions(
           currentLeg.startTime,
           currentBeamVehicle,
           beamServices
@@ -613,12 +592,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         )
 
         val emissionsProfileIDLE = currentBeamVehicle.emitEmissions(
-          maybeIDLEVehicleActivity,
-          classOf[PathTraversalEvent],
+          maybeIDLEVehicleActivity.toIndexedSeq,
+          classOf[LeavingParkingEvent],
           beamServices
         )
         val emissionsProfilePTE = currentBeamVehicle.emitEmissions(
-          vehicleActivityDataFixed,
+          vehicleActivityData,
           classOf[PathTraversalEvent],
           beamServices
         )
@@ -628,7 +607,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         tollsAccumulated += tollOnCurrentLeg
         val numberOfPassengers: Int =
           calculateNumberOfPassengersBasedOnCurrentTripMode(data, partiallyCompletedBeamLeg, riders)
-        val currentTourMode: Option[String] = getCurrentTripMode(data)
         val pte = PathTraversalEvent(
           updatedStopTick,
           currentVehicleUnderControl,
@@ -637,15 +615,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           numberOfPassengers,
           partiallyCompletedBeamLeg,
           getCurrentTripMode(data),
-          fuelConsumed.primaryFuel,
-          fuelConsumed.secondaryFuel,
-          currentBeamVehicle.primaryFuelLevelInJoules,
-          currentBeamVehicle.secondaryFuelLevelInJoules,
-          tollOnCurrentLeg,
-          payloadIds,
-          currentBeamVehicle.beamVehicleType.curbWeightInKg + payloadWeight,
+          fuelConsumed.primaryFuel.toFloat,
+          fuelConsumed.secondaryFuel.toFloat,
+          currentBeamVehicle.primaryFuelLevelInJoules.toFloat,
+          currentBeamVehicle.secondaryFuelLevelInJoules.toFloat,
+          tollOnCurrentLeg.toFloat,
+          payloadIds.toArray,
+          (currentBeamVehicle.beamVehicleType.curbWeightInKg + payloadWeight).toFloat,
           emissionsProfile,
-          riders
+          riders.toArray
         )
         eventsManager.processEvent(pte)
         generateTCSEventIfPossible(pte)
@@ -762,15 +740,14 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
               currentBeamVehicle.id == currentVehicleUnderControl,
               currentBeamVehicle.id + " " + currentVehicleUnderControl
             )
-            currentBeamVehicle.stall.foreach { theStall =>
-              parkingManager ! ReleaseParkingStall(theStall, tick)
-              currentBeamVehicle.setLastVehicleTimeLink(
-                Some(tick),
-                theStall.link.map(_.getId.toString.toInt)
-              )
-            }
-            currentBeamVehicle.unsetParkingStall()
-
+            ParkingNetworkManager.handleReleasingParkingSpot(
+              tick,
+              currentBeamVehicle,
+              None,
+              id,
+              parkingManager,
+              beamServices
+            )
           case None =>
         }
         val triggerToSchedule: Vector[ScheduleTrigger] = data.passengerSchedule
@@ -1034,10 +1011,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       case Some(vehicle) if inquiry.reserveStall =>
         vehicle.isEV && List(DestinationCharging, EnRouteCharging).contains(inquiry.searchMode)
       // If non vehicle has been specified, then verify if the request is a charge request
-      case _ => inquiry.parkingActivityType == ParkingActivityType.Charge
+      case _ => inquiry.parkingActivityType == ParkingActivityType.Charging
     }
 
-    if (isChargingRequest)
+    if (isChargingRequest && (inquiry.parkingDuration > beamConfig.beam.agentsim.schedulerParallelismWindow))
       chargingNetworkManager ! inquiry
     else
       parkingManager ! inquiry

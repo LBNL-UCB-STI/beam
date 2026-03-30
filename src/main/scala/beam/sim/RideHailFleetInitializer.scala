@@ -1,7 +1,7 @@
 package beam.sim
 
 import akka.actor.ActorRef
-import beam.agentsim.agents.freight.input.FreightReader
+import beam.agentsim.agents.freight.FreightEntities.FREIGHT_ID_PREFIX
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailVehicleId, Shift}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory, VehicleManager}
@@ -19,7 +19,6 @@ import beam.utils.{OutputDataDescriptor, UniformRealDistributionEnhanced}
 import com.google.inject.Inject
 import com.typesafe.scalalogging.{LazyLogging, Logger}
 import org.apache.commons.io.FilenameUtils
-import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.locationtech.jts.geom.{Coordinate, Geometry, GeometryFactory}
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
@@ -47,7 +46,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     val id = GenericCsvReader.getIfNotNull(rec, "id")
     val rideHailManagerIdStr = GenericCsvReader.getIfNotNull(rec, "rideHailManagerId")
     val rideHailManagerId =
-      VehicleManager.createOrGetReservedFor(rideHailManagerIdStr, VehicleManager.TypeEnum.RideHail).managerId
+      VehicleManager.createOrGetReservedFor(rideHailManagerIdStr, Some(VehicleManager.TypeEnum.RideHail)).managerId
     val vehicleType = GenericCsvReader.getIfNotNull(rec, "vehicleType")
     val initialLocationX = GenericCsvReader.getIfNotNull(rec, "initialLocationX").toDouble
     val initialLocationY = GenericCsvReader.getIfNotNull(rec, "initialLocationY").toDouble
@@ -629,15 +628,15 @@ class ProceduralRideHailFleetInitializer(
   val realDistribution: UniformRealDistributionEnhanced = new UniformRealDistributionEnhanced()
   realDistribution.reseedRandomGenerator(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
-  val passengerPopulation: Iterable[Person] = scenario.getPopulation.getPersons
+  private val passengerPopulation: Iterable[Person] = scenario.getPopulation.getPersons
     .values()
     .asScala
-    .filterNot(_.getId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX))
+    .filterNot(_.getId.toString.startsWith(FREIGHT_ID_PREFIX))
 
-  val passengerHousehold: Iterable[Household] = scenario.getHouseholds.getHouseholds
+  private val passengerHousehold: Iterable[Household] = scenario.getHouseholds.getHouseholds
     .values()
     .asScala
-    .filterNot(_.getId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX))
+    .filterNot(_.getId.toString.startsWith(FREIGHT_ID_PREFIX))
 
   private def computeNumRideHailAgents: Long = {
     val fleet: Double = beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
@@ -652,6 +651,12 @@ class ProceduralRideHailFleetInitializer(
       }
       .count(beamVehicleType => beamVehicleType.vehicleCategory == VehicleCategory.Car) / fleet
 
+    logger.info(
+      s"Manager: ${managerConfig.name}: Number of household vehicles: $initialNumHouseholdVehicles, " +
+      s"fraction of initial vehicle fleet: ${managerConfig.initialization.procedural.fractionOfInitialVehicleFleet}, " +
+      s"ride hail agents to be generated: ${math.round(initialNumHouseholdVehicles * managerConfig.initialization.procedural.fractionOfInitialVehicleFleet)}"
+    )
+
     math.round(
       initialNumHouseholdVehicles *
       managerConfig.initialization.procedural.fractionOfInitialVehicleFleet
@@ -665,7 +670,14 @@ class ProceduralRideHailFleetInitializer(
     val averageOnDutyHoursPerDay = managerConfig.initialization.procedural.averageOnDutyHoursPerDay
     val meanLogShiftDurationHours = managerConfig.initialization.procedural.meanLogShiftDurationHours
     val stdLogShiftDurationHours = managerConfig.initialization.procedural.stdLogShiftDurationHours
-    var equivalentNumberOfDrivers = managerConfig.initialization.procedural.equivalentNumberOfDrivers
+    var equivalentNumberOfDrivers = if (managerConfig.initialization.procedural.equivalentNumberOfDrivers >= 0) {
+      managerConfig.initialization.procedural.equivalentNumberOfDrivers
+    } else {
+      logger.warn(
+        s"Equivalent number of drivers is set to ${managerConfig.initialization.procedural.equivalentNumberOfDrivers}, setting it to 0 instead"
+      )
+      0
+    }
 
     val personsWithMoreThanOneActivity = passengerPopulation.filter(_.getSelectedPlan.getPlanElements.size > 1)
     val persons: Array[Person] = rand.shuffle(personsWithMoreThanOneActivity).toArray
@@ -687,60 +699,80 @@ class ProceduralRideHailFleetInitializer(
     val rideHailAgentInitializers: ArrayBuffer[RideHailFleetInitializer.RideHailAgentInitializer] = new ArrayBuffer()
     var idx = 0
     val numRideHailAgents = computeNumRideHailAgents
+    var warned = false
     while (equivalentNumberOfDrivers < numRideHailAgents.toDouble) {
-      if (idx >= persons.length) {
-        throw new IllegalStateException("Can't have more ridehail drivers than total population")
-      } else {
-        try {
-          val person = persons(idx)
-          val vehicleType = vehiclesAdjustment
-            .sampleVehicleTypes(
-              numVehicles = 1,
-              vehicleCategory = VehicleCategory.Car,
-              realDistribution
+      if ((idx >= persons.length) && !warned) {
+        logger.warn(
+          s"We need ${numRideHailAgents.toDouble} ridehail agents, which is more than total population of ${persons.length}"
+        )
+        logger.info(s"Current ratio of drivers to agents is $idx agents, $equivalentNumberOfDrivers drivers")
+        warned = true
+      }
+      try {
+        val person = persons(idx % persons.length)
+        val vehicleType = vehiclesAdjustment
+          .sampleVehicleTypes(
+            numVehicles = 1,
+            vehicleCategory = VehicleCategory.Car,
+            realDistribution
+          )
+          .head
+        val rideInitialLocation: Location = getRideInitLocation(person, activityQuadTreeBounds)
+
+        val meanSoc = beamServices.beamConfig.beam.agentsim.agents.vehicles.meanRidehailVehicleStartingSOC
+        val initialStateOfCharge =
+          beam.utils.BeamVehicleUtils.randomSocFromUniformDistribution(rand, vehicleType, meanSoc)
+
+        val (shiftsOpt, shiftEquivalentNumberOfDrivers) = if (vehicleType.isConnectedAutomatedVehicle) {
+          (None, 1.0)
+        } else {
+          val shiftDuration =
+            math.round(math.exp(rand.nextGaussian() * stdLogShiftDurationHours + meanLogShiftDurationHours) * 3600)
+          val shiftMidPointTime = activityEndTimes(rand.nextInt(activityEndTimes.length))
+          val shiftStartTime = max(shiftMidPointTime - (shiftDuration / 2).toInt, 10)
+          val shiftEndTime = min(shiftMidPointTime + (shiftDuration / 2).toInt, 30 * 3600)
+
+          val shiftEquivalentNumberOfDrivers_ = (shiftEndTime - shiftStartTime) / (averageOnDutyHoursPerDay * 3600)
+          if (shiftEquivalentNumberOfDrivers_ < 0.0) {
+            logger.warn(
+              s"How did we end up with a negative equivalent number of drivers? " +
+              s"shiftStartTime: $shiftStartTime, shiftEndTime: $shiftEndTime, shiftDuration: $shiftDuration"
             )
-            .head
-          val rideInitialLocation: Location = getRideInitLocation(person, activityQuadTreeBounds)
-
-          val meanSoc = beamServices.beamConfig.beam.agentsim.agents.vehicles.meanRidehailVehicleStartingSOC
-          val initialStateOfCharge =
-            beam.utils.BeamVehicleUtils.randomSocFromUniformDistribution(rand, vehicleType, meanSoc)
-
-          val (shiftsOpt, shiftEquivalentNumberOfDrivers) = if (vehicleType.isConnectedAutomatedVehicle) {
-            (None, 1.0)
+            (Some(List(Shift(Range(shiftStartTime, shiftEndTime), None))), 1.0)
           } else {
-            val shiftDuration =
-              math.round(math.exp(rand.nextGaussian() * stdLogShiftDurationHours + meanLogShiftDurationHours) * 3600)
-            val shiftMidPointTime = activityEndTimes(rand.nextInt(activityEndTimes.length))
-            val shiftStartTime = max(shiftMidPointTime - (shiftDuration / 2).toInt, 10)
-            val shiftEndTime = min(shiftMidPointTime + (shiftDuration / 2).toInt, 30 * 3600)
-
-            val shiftEquivalentNumberOfDrivers_ = (shiftEndTime - shiftStartTime) / (averageOnDutyHoursPerDay * 3600)
-
             (Some(List(Shift(Range(shiftStartTime, shiftEndTime), None))), shiftEquivalentNumberOfDrivers_)
           }
 
-          val rideHailAgentInitializer = RideHailAgentInitializer(
-            person.getId.toString,
-            vehicleType,
-            rideHailManagerId,
-            shiftsOpt,
-            initialStateOfCharge,
-            rideInitialLocation,
-            geofence = None,
-            fleetId = managerConfig.name
-          )
-
-          rideHailAgentInitializers += rideHailAgentInitializer
-
-          equivalentNumberOfDrivers += shiftEquivalentNumberOfDrivers
-        } catch {
-          case ex: Throwable =>
-            logger.error(s"Could not generate RideHailAgentInitializer: ${ex.getMessage}")
-            throw ex
         }
-        idx += 1
+
+        val rideHailAgentInitializer = RideHailAgentInitializer(
+          person.getId.toString,
+          vehicleType,
+          rideHailManagerId,
+          shiftsOpt,
+          initialStateOfCharge,
+          rideInitialLocation,
+          geofence = None,
+          fleetId = managerConfig.name
+        )
+
+        rideHailAgentInitializers += rideHailAgentInitializer
+
+        equivalentNumberOfDrivers += shiftEquivalentNumberOfDrivers
+      } catch {
+        case ex: Throwable =>
+          logger.error(s"Could not generate RideHailAgentInitializer: ${ex.getMessage}")
+          throw ex
       }
+      idx += 1
+    }
+
+    if (warned) {
+      logger.warn(
+        s"Generated $equivalentNumberOfDrivers ride hail agents for $idx shifts " +
+        s"for $rideHailManagerId, which is more than the total " +
+        s"population of ${persons.length}."
+      )
     }
 
     rideHailAgentInitializers.toIndexedSeq
@@ -924,7 +956,7 @@ case class ShpGeofence(
     geometries.exists(_.contains(point))
   }
 
-  override def toString() = {
+  override def toString(): String = {
     s"ShpGeofence(${geometries.size} features from file: $geofenceShpFile)"
   }
 

@@ -154,7 +154,7 @@ class RideHailAgentSpec
             VehicleManager
               .createOrGetReservedFor(
                 services.beamConfig.beam.agentsim.agents.rideHail.managers.head.name,
-                VehicleManager.TypeEnum.RideHail
+                Some(VehicleManager.TypeEnum.RideHail)
               )
               .managerId
           )
@@ -240,7 +240,7 @@ class RideHailAgentSpec
             VehicleManager
               .createOrGetReservedFor(
                 services.beamConfig.beam.agentsim.agents.rideHail.managers.head.name,
-                VehicleManager.TypeEnum.RideHail
+                Some(VehicleManager.TypeEnum.RideHail)
               )
               .managerId
           )
@@ -319,7 +319,7 @@ class RideHailAgentSpec
             VehicleManager
               .createOrGetReservedFor(
                 services.beamConfig.beam.agentsim.agents.rideHail.managers.head.name,
-                VehicleManager.TypeEnum.RideHail
+                Some(VehicleManager.TypeEnum.RideHail)
               )
               .managerId
           )

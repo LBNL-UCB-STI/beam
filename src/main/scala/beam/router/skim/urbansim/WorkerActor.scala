@@ -14,6 +14,9 @@ class WorkerActor(val masterActor: ActorRef, val r5Requester: ODRequester)(impli
   var nTotalRequests: Int = 0
   var nSuccess: Int = 0
 
+  // Use optimized drive-only routing when applicable
+  private val useDriveOnlyOptimization: Boolean = r5Requester.isDriveOnly
+
   override def preStart(): Unit = {
     requestWork()
   }
@@ -23,16 +26,62 @@ class WorkerActor(val masterActor: ActorRef, val r5Requester: ODRequester)(impli
   }
 
   override def receive: Receive = {
+    case MasterActor.Response.WorkBatch(items) =>
+      nTotalRequests += items.length
+      Future {
+        items.flatMap { case (srcIndex, dstIndex, requestTime) =>
+          try {
+            val response = if (useDriveOnlyOptimization) {
+              r5Requester.routeDriveOnly(srcIndex, dstIndex, requestTime)
+            } else {
+              r5Requester.route(srcIndex, dstIndex, requestTime)
+            }
+            Some(response)
+          } catch {
+            case NonFatal(ex) =>
+              log.error(ex, s"route failed: ${ex.getMessage}")
+              None
+          }
+        }
+      }.pipeTo(self)
+
+    case MasterActor.Response.EnhancedWorkBatch(items) =>
+      nTotalRequests += items.length
+      Future {
+        items.flatMap { workItem =>
+          try {
+            Some(r5Requester.route(workItem))
+          } catch {
+            case NonFatal(ex) =>
+              log.error(ex, s"route failed for enhanced work item: ${ex.getMessage}")
+              None
+          }
+        }
+      }.pipeTo(self)
+
+    case responses: Array[ODRequester.Response @unchecked] =>
+      responses.foreach { resp =>
+        if (resp.maybeRoutingResponse.isSuccess) nSuccess += 1
+        masterActor ! resp
+      }
+      requestWork()
+
+    // Keep backward compatibility with single work items
     case resp: ODRequester.Response =>
       if (resp.maybeRoutingResponse.isSuccess)
         nSuccess += 1
       masterActor ! resp
       requestWork()
+
     case work: MasterActor.Response.Work =>
       nTotalRequests += 1
       Future {
         try {
-          r5Requester.route(work.srcIndex, work.dstIndex, work.requestTime)
+          if (useDriveOnlyOptimization) {
+            r5Requester.routeDriveOnly(work.srcIndex, work.dstIndex, work.requestTime)
+          } else {
+            r5Requester.route(work.srcIndex, work.dstIndex, work.requestTime)
+          }
         } catch {
           case NonFatal(ex) =>
             log.error(ex, s"route failed: ${ex.getMessage}")

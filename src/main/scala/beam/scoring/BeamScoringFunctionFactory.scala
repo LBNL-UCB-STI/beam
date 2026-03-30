@@ -11,6 +11,7 @@ import beam.sim.population.AttributesOfIndividual
 import beam.sim.population.PopulationAdjustment._
 import beam.utils.{FileUtils, OutputDataDescriptor}
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.commons.lang3.math.NumberUtils
 import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.core.controler.OutputDirectoryHierarchy
@@ -149,20 +150,66 @@ class BeamScoringFunctionFactory @Inject() (
           leg.getAttributes.putAttribute("vehicles", trip.vehiclesInTrip.mkString(","))
         }
 
-        val allDayScore = modeChoiceCalculator.computeAllDayUtility(trips, person, attributes)
+        // TODO: Factor in ivt multipliers from ASim to downweight extra time on transit:
+//        ivt_cost_multiplier: 0.6
+//        ivt_lrt_multiplier: 0.9
+//        ivt_ferry_multiplier: 0.8
+//        ivt_exp_multiplier: 1
+//        ivt_hvy_multiplier: 0.8
+//        ivt_com_multiplier: 0.7
+
+        val tripsWithUpdatedAttributes = trips
+          .zip(personLegs)
+          .map { case (x, y) =>
+            x -> Map("travelTimeRatio" -> (Option(y.getAttributes.getAttribute("trip_dur_min")) match {
+              case Some(expectedTravelTime) =>
+                x.totalTravelTimeInSecs.toDouble / 60.0 / NumberUtils.toDouble(expectedTravelTime.toString)
+              case None =>
+                logger.debug(s"Missing expected travel time ratio for leg $y")
+                1.0
+            }))
+          }
+          .toMap
+        val allDayExpectedScore = if (beamConfig.beam.replanning.subtractExpectedScores) {
+          modeChoiceCalculator.computeAllDayUtility(
+            tripsWithUpdatedAttributes,
+            person,
+            attributes,
+            overrideAttributes = true
+          )
+        } else { 0.0 }
+        val allDayScore =
+          modeChoiceCalculator.computeAllDayUtility(
+            tripsWithUpdatedAttributes,
+            person,
+            attributes,
+            overrideAttributes = false
+          )
+
         val personActivities = person.getSelectedPlan.getPlanElements.asScala
           .collect { case activity: Activity =>
             activity
           }
           .filter(activity => !activity.getType.equalsIgnoreCase("Home") & !activity.getType.equalsIgnoreCase("Work"))
-        val activityScore = personActivities.foldLeft(0.0)(_ + getActivityBenefit(_, attributes))
+        val activityScore = if (beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.score_activities) {
+          personActivities.foldLeft(0.0)(_ + getActivityBenefit(_, attributes))
+        } else { 0.0 }
         val replanningScore = -replanningEventCount.toFloat * beamConfig.beam.replanning.replanningPenaltyInDollars
+        val utilsConversion = beamConfig.beam.agentsim.agents.modalBehaviors.multinomialLogit.units.toLowerCase match {
+          case "utils" =>
+            beamConfig.beam.agentsim.agents.modalBehaviors.multinomialLogit.params.time / attributes.valueOfTime * 60.0 // Convert hours to minutes
+          case "dollars" => 1.0
+        }
 
-        finalScore = allDayScore + leavingParkingEventScore + activityScore + replanningScore
-        finalScore = Math.max(
-          finalScore,
-          -100000
-        ) // keep scores no further below -100k to keep MATSim happy (doesn't like -Infinity) but knowing
+        finalScore =
+          (allDayScore + leavingParkingEventScore + activityScore + replanningScore - allDayExpectedScore) * utilsConversion
+        finalScore = if (finalScore.isNaN) { -1000 }
+        else {
+          Math.max(
+            finalScore,
+            -100000
+          )
+        } // keep scores no further below -100k to keep MATSim happy (doesn't like -Infinity) but knowing
         // that if changes to utility function drive the true scores below -100k, this will need to be replaced with another big number.
 
         // Write the individual's trip scores to csv

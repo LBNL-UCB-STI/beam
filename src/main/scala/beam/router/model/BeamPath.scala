@@ -86,6 +86,26 @@ object BeamPath extends Ordering[BeamPath] {
 
   import scala.annotation.tailrec
 
+  @tailrec
+  private def compareIntArray(xArr: Array[Int], yArr: Array[Int], idx: Int = 0): Int = {
+    if (idx >= xArr.length) 0
+    else {
+      val cmp = java.lang.Integer.compare(xArr(idx), yArr(idx))
+      if (cmp != 0) cmp
+      else compareIntArray(xArr, yArr, idx + 1)
+    }
+  }
+
+  @tailrec
+  private def compareDoubleArray(xArr: Array[Double], yArr: Array[Double], idx: Int = 0): Int = {
+    if (idx >= xArr.length) 0
+    else {
+      val cmp = java.lang.Double.compare(xArr(idx), yArr(idx))
+      if (cmp != 0) cmp
+      else compareDoubleArray(xArr, yArr, idx + 1)
+    }
+  }
+
   // TODO: looks like a bug on scapegoat.
   //  it does not recognize the usage of implicit ev variable (used inside internal function)
   @SuppressWarnings(Array("UnusedMethodParameter"))
@@ -114,44 +134,53 @@ object BeamPath extends Ordering[BeamPath] {
   }
 
   override def compare(x: BeamPath, y: BeamPath): Int = {
-    import scala.math.Ordered.orderingToOrdered
-
     // Compare distance
-    var r = x.distanceInM.compare(y.distanceInM)
-    if (r != 0) r
-    else {
-      // Compare start point
-      r = x.startPoint.compare(y.startPoint)
-      if (r != 0) r
-      else {
-        // Compare end point
-        r = x.endPoint.compare(y.endPoint)
-        if (r != 0) r
+    var r = java.lang.Double.compare(x.distanceInM, y.distanceInM)
+    if (r != 0) return r
+
+    // Compare start point
+    r = x.startPoint.compare(y.startPoint)
+    if (r != 0) return r
+
+    // Compare end point
+    r = x.endPoint.compare(y.endPoint)
+    if (r != 0) return r
+
+    // Compare transitStops without creating tuples
+    r = (x.transitStops, y.transitStops) match {
+      case (None, None)                     => 0
+      case (None, Some(_))                  => -1
+      case (Some(_), None)                  => 1
+      case (Some(xTransit), Some(yTransit)) =>
+        // Compare fields directly - no tuple allocation
+        var cmp = xTransit.agencyId.compareTo(yTransit.agencyId)
+        if (cmp != 0) cmp
         else {
-          // Transform to the tuples
-          val xTransitTuple = x.transitStops.map(TransitStopsInfo.unapply(_).get)
-          val yTransitTuple = y.transitStops.map(TransitStopsInfo.unapply(_).get)
-          // And compare tuples
-          r = xTransitTuple.compareTo(yTransitTuple)
-          if (r != 0) r
+          cmp = xTransit.routeId.compareTo(yTransit.routeId)
+          if (cmp != 0) cmp
           else {
-            // Compare the length of `linkIds` vector. Keep in mind that `linkIds` and `linkTravelTime` have the same size
-            r = x.linkIds.length.compareTo(y.linkIds.length)
-            if (r != 0) r
+            cmp = xTransit.vehicleId.compareTo(yTransit.vehicleId)
+            if (cmp != 0) cmp
             else {
-              // Compare the elements of `linkIds`
-              r = BeamPath.compareSeq(x.linkIds, y.linkIds)
-              if (r != 0) r
-              else {
-                // Compare the elements of `linkTravelTime`
-                r = BeamPath.compareSeq(x.linkTravelTime, y.linkTravelTime)
-                r
-              }
+              cmp = java.lang.Integer.compare(xTransit.fromIdx, yTransit.fromIdx)
+              if (cmp != 0) cmp
+              else java.lang.Integer.compare(xTransit.toIdx, yTransit.toIdx)
             }
           }
         }
-      }
     }
+    if (r != 0) return r
 
+    // Compare array lengths
+    r = java.lang.Integer.compare(x.linkIds.length, y.linkIds.length)
+    if (r != 0) return r
+
+    // Compare linkIds - specialized, no boxing
+    r = compareIntArray(x.linkIds, y.linkIds)
+    if (r != 0) return r
+
+    // Compare linkTravelTime - specialized, no boxing
+    compareDoubleArray(x.linkTravelTime, y.linkTravelTime)
   }
+
 }

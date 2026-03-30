@@ -20,9 +20,16 @@ class MasterActor(
   val abstractSkimmer: AbstractSkimmer,
   val odRequester: ODRequester,
   val requestTimes: Seq[Int],
-  val ODs: Array[(GeoIndex, GeoIndex)]
+  rawODs: Array[(GeoIndex, GeoIndex)],
+  val transitModeCategories: Seq[TransitModeCategory] = Seq.empty,
+  val generateReturnTrips: Boolean = false,
+  val requestedParallelism: Int = 0 // 0 = auto-scale (80% of CPUs), >0 = use exact number
 ) extends Actor
     with ActorLogging {
+
+  // Filter out same-origin pairs (src == dst) - no point routing to same location
+  private val ODs: Array[(GeoIndex, GeoIndex)] = rawODs.filter { case (src, dst) => src != dst }
+  private val skippedSameOriginPairs: Int = rawODs.length - ODs.length
 
   override def postStop(): Unit = {
     logStat()
@@ -30,16 +37,72 @@ class MasterActor(
     maybeMonitor.foreach(_.cancel())
   }
 
-  private val maxWorkers: Int = Runtime.getRuntime.availableProcessors()
+  private val batchSize: Int = 500
+  private val availableProcessors: Int = Runtime.getRuntime.availableProcessors()
 
-  private val maxRequestsNumber: Int = ODs.length * requestTimes.length
+  // If parallelism is explicitly requested (>0), use that; otherwise auto-scale to 80% of CPUs
+  private val initialWorkers: Int = if (requestedParallelism > 0) {
+    Math.min(requestedParallelism, availableProcessors)
+  } else {
+    Math.max(1, (availableProcessors * 0.8).toInt)
+  }
 
+  // Determine if we're using enhanced mode (with transit categories and/or return trips)
+  private val useEnhancedMode: Boolean = transitModeCategories.nonEmpty || generateReturnTrips
+
+  // For enhanced mode, we pre-generate all work items
+  private val workItems: Array[ODWorkItem] = if (useEnhancedMode) {
+    generateWorkItems()
+  } else {
+    Array.empty
+  }
+
+  // Calculate max requests based on mode
+  private val maxRequestsNumber: Int = if (useEnhancedMode) {
+    workItems.length
+  } else {
+    ODs.length * requestTimes.length
+  }
+
+  // Current position in the work items array (for enhanced mode)
+  private var currentWorkItemIdx: Int = 0
+
+  // Legacy iteration state (for backward compatibility)
   private var currentIdx: Int = 0
   private var currentTime: Int = 0
 
   log.info(
-    s"Total number of OD pairs: ${ODs.length}, number of request time entries: ${requestTimes.length}, maxWorkers: $maxWorkers"
+    s"Total number of OD pairs: ${ODs.length} (skipped $skippedSameOriginPairs same-origin pairs), " +
+    s"number of request time entries: ${requestTimes.length}, " +
+    s"transit categories: ${transitModeCategories.size}, generateReturnTrips: $generateReturnTrips, " +
+    s"total work items: $maxRequestsNumber, initialWorkers: $initialWorkers"
   )
+
+  /**
+    * Generate all work items for enhanced mode with transit categories and trip directions.
+    */
+  private def generateWorkItems(): Array[ODWorkItem] = {
+    val tripDirections = if (generateReturnTrips) {
+      Seq(TripDirection.Outbound, TripDirection.Return)
+    } else {
+      Seq(TripDirection.Outbound)
+    }
+
+    val categories: Seq[Option[TransitModeCategory]] = if (transitModeCategories.nonEmpty) {
+      transitModeCategories.map(Some(_))
+    } else {
+      Seq(None)
+    }
+
+    val items = for {
+      (src, dst) <- ODs
+      time       <- requestTimes
+      category   <- categories
+      direction  <- tripDirections
+    } yield ODWorkItem(src, dst, time, category, direction)
+
+    items.toArray
+  }
 
   private var workers: Set[ActorRef] = Set.empty
   private var workerToEc: Map[ActorRef, ExecutionContextExecutorService] = Map.empty
@@ -100,9 +163,14 @@ class MasterActor(
 
         case Request.Start =>
           if (!started) {
-            val (workerRef, ec) = createWorker()
-            context.watch(workerRef)
-            addWorkerWithEc(workerRef, ec)
+            val parallelismSource =
+              if (requestedParallelism > 0) "explicitly requested" else "auto-scaled (80% of CPUs)"
+            log.info(s"Starting with $initialWorkers workers ($parallelismSource, $availableProcessors CPUs available)")
+            (1 to initialWorkers).foreach { _ =>
+              val (workerRef, ec) = createWorker()
+              context.watch(workerRef)
+              addWorkerWithEc(workerRef, ec)
+            }
 
             started = true
             startedAt = System.currentTimeMillis()
@@ -116,14 +184,15 @@ class MasterActor(
         case Request.IncreaseParallelismTo(parallelism) =>
           log.info(s"Need to increase parallelism to $parallelism. Current number of workers: ${workers.size}")
           val nCreateWorkers = parallelism - workers.size
-          if (nCreateWorkers > 0 && parallelism <= maxWorkers) {
+          // Allow explicit requests up to 100% of available processors
+          if (nCreateWorkers > 0 && parallelism <= availableProcessors) {
             (1 to nCreateWorkers).foreach { _ =>
               val (worker, ec) = createWorker()
               addWorkerWithEc(worker, ec)
               context.watch(worker)
             }
           } else {
-            log.warning(s"Provided parallelism $parallelism is out of the range (0, $maxWorkers]")
+            log.warning(s"Provided parallelism $parallelism is out of the range (0, $availableProcessors]")
           }
         case Request.ReduceParallelismTo(parallelism) =>
           val newWorkers = workers.take(parallelism)
@@ -140,9 +209,15 @@ class MasterActor(
           checkIfNeedToStop(worker)
           if (workers.contains(worker)) {
             if (moreWorkExist) {
-              val (srcIndex, dstIndex, requestTime) = getNextODTime
-              nRouteSent += 1
-              worker ! Response.Work(srcIndex, dstIndex, requestTime)
+              if (useEnhancedMode) {
+                val batch = getNextWorkItemBatch(batchSize)
+                nRouteSent += batch.length
+                worker ! Response.EnhancedWorkBatch(batch)
+              } else {
+                val batch = getNextBatch(batchSize)
+                nRouteSent += batch.length
+                worker ! Response.WorkBatch(batch)
+              }
             } else {
               worker ! Response.NoWork
             }
@@ -167,7 +242,11 @@ class MasterActor(
   }
 
   private def moreWorkExist: Boolean = {
-    currentIdx < ODs.length && currentTime < requestTimes.length
+    if (useEnhancedMode) {
+      currentWorkItemIdx < workItems.length
+    } else {
+      currentIdx < ODs.length && currentTime < requestTimes.length
+    }
   }
 
   private def getNextODTime: (GeoIndex, GeoIndex, Int) = {
@@ -183,8 +262,39 @@ class MasterActor(
     (o, d, requestTime)
   }
 
+  /**
+    * Get next batch of work items for enhanced mode.
+    */
+  private def getNextWorkItemBatch(size: Int): Array[ODWorkItem] = {
+    val endIdx = Math.min(currentWorkItemIdx + size, workItems.length)
+    val batch = workItems.slice(currentWorkItemIdx, endIdx)
+    currentWorkItemIdx = endIdx
+    batch
+  }
+
+  private def getNextBatch(size: Int): Array[(GeoIndex, GeoIndex, Int)] = {
+    val result = new scala.collection.mutable.ArrayBuffer[(GeoIndex, GeoIndex, Int)](size)
+    var count = 0
+    while (count < size && legacyModeWorkExist) {
+      val requestTime = requestTimes(currentTime)
+      val (o, d) = ODs(currentIdx)
+      currentTime += 1
+      if (currentTime >= requestTimes.length) {
+        currentTime = 0
+        currentIdx += 1
+      }
+      result += ((o, d, requestTime))
+      count += 1
+    }
+    result.toArray
+  }
+
+  private def legacyModeWorkExist: Boolean = {
+    currentIdx < ODs.length && currentTime < requestTimes.length
+  }
+
   private def checkAndGiveTheResult(): Unit = {
-    if (totalResponses == ODs.length * requestTimes.length) {
+    if (totalResponses == maxRequestsNumber) {
       replyToWhenFinish.foreach { actorRef =>
         actorRef ! PopulatedSkimmer(abstractSkimmer)
       }
@@ -239,6 +349,8 @@ object MasterActor {
 
   object Response {
     case class Work(srcIndex: GeoIndex, dstIndex: GeoIndex, requestTime: Int) extends Response
+    case class WorkBatch(items: Array[(GeoIndex, GeoIndex, Int)]) extends Response
+    case class EnhancedWorkBatch(items: Array[ODWorkItem]) extends Response
     case object NoWork extends Response
 
     case class PopulatedSkimmer(abstractSkimmer: AbstractSkimmer) extends Response
@@ -248,8 +360,31 @@ object MasterActor {
     abstractSkimmer: AbstractSkimmer,
     odR5Requester: ODRequester,
     requestTimes: Seq[Int],
-    ODs: Array[(GeoIndex, GeoIndex)]
+    ODs: Array[(GeoIndex, GeoIndex)],
+    parallelism: Int = 0
   ): Props = {
-    Props(new MasterActor(abstractSkimmer, odR5Requester: ODRequester, requestTimes, ODs))
+    Props(new MasterActor(abstractSkimmer, odR5Requester, requestTimes, ODs, Seq.empty, false, parallelism))
+  }
+
+  def props(
+    abstractSkimmer: AbstractSkimmer,
+    odR5Requester: ODRequester,
+    requestTimes: Seq[Int],
+    ODs: Array[(GeoIndex, GeoIndex)],
+    transitModeCategories: Seq[TransitModeCategory],
+    generateReturnTrips: Boolean,
+    parallelism: Int
+  ): Props = {
+    Props(
+      new MasterActor(
+        abstractSkimmer,
+        odR5Requester,
+        requestTimes,
+        ODs,
+        transitModeCategories,
+        generateReturnTrips,
+        parallelism
+      )
+    )
   }
 }

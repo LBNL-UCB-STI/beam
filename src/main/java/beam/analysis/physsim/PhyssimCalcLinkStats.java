@@ -84,18 +84,39 @@ public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
     }
 
     public void notifyIterationEnds(int iteration, TravelTime travelTime) {
-        processData(iteration, travelTime);
+        notifyIterationEnds(iteration, 1, 1, travelTime);
+    }
+
+    public void notifyIterationEnds(int iteration, int currentPhysSimIter, int totalPhysSimIters, TravelTime travelTime) {
+        boolean shouldWriteLinkStats = isNotTestMode() && writeLinkStats(iteration);
+        boolean shouldWriteGraphs = beamConfig.beam().outputs().writeGraphs();
+        // Keep data processing enabled in test mode (controllerIO == null) because tests assert relative speed buckets.
+        boolean shouldProcessData = !isNotTestMode() || shouldWriteLinkStats || shouldWriteGraphs;
+
+        if (shouldProcessData) {
+            processData(iteration, travelTime);
+        }
+
         if (this.controllerIO != null) {
-            if (isNotTestMode() && writeLinkStats(iteration)) {
-                String filePath = this.controllerIO.getIterationFilename(iteration, "linkstats_unmodified.csv.gz");
+            if (shouldWriteLinkStats) {
+                String fileName = getLinkStatsFileName(currentPhysSimIter, totalPhysSimIters);
+                String filePath = this.controllerIO.getIterationFilename(iteration, fileName);
                 LinkStatsWithVehicleCategory linkStats = new LinkStatsWithVehicleCategory(network, ttcConfigGroup);
                 linkStats.writeLinkStatsWithTruckVolumes(volumes, travelTime, filePath);
             }
-            if (beamConfig.beam().outputs().writeGraphs()) {
+            if (shouldWriteGraphs) {
                 CategoryDataset dataset = buildAndGetGraphCategoryDataset();
                 createModesFrequencyGraph(dataset, iteration);
             }
         }
+    }
+
+    private String getLinkStatsFileName(int currentPhysSimIter, int totalPhysSimIters) {
+        String fileType = linkStatsOutputFileType();
+        if (totalPhysSimIters > 1 && currentPhysSimIter < totalPhysSimIters) {
+            return String.format("linkstats_unmodified_physSimIter%d.%s", currentPhysSimIter, fileType);
+        }
+        return String.format("linkstats_unmodified.%s", fileType);
     }
 
     private boolean isNotTestMode() {
@@ -113,6 +134,15 @@ public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
 
     private boolean writeInIteration(int iterationNumber, int interval) {
         return interval == 1 || (interval > 0 && iterationNumber % interval == 0);
+    }
+
+    private String linkStatsOutputFileType() {
+        String fileType = beamConfig.beam().physsim().linkStatsOutputFileType();
+        if (fileType == null) return "csv.gz";
+        fileType = fileType.trim();
+        if (fileType.isEmpty()) return "csv.gz";
+        if (fileType.startsWith(".")) fileType = fileType.substring(1);
+        return fileType.toLowerCase();
     }
 
     private void processData(int iteration, TravelTime travelTime) {

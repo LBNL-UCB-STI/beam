@@ -38,7 +38,7 @@ class VehicleEnergy(
     BeamVehicleUtils.loadLinkIdToGradeMapFromCSV(csvParser, linkToGradePercentFilePath)
   private val conversionRateForMilesPerHourFromMetersPerSecond = 2.23694
 
-  def vehicleEnergyMappingExistsFor(vehicleType: BeamVehicleType): Boolean = {
+  private def vehicleEnergyMappingExistsFor(vehicleType: BeamVehicleType): Boolean = {
     consumptionRateFilterStore.hasPrimaryConsumptionRateFilterFor(vehicleType) ||
     consumptionRateFilterStore.hasSecondaryConsumptionRateFilterFor(vehicleType)
   }
@@ -71,7 +71,9 @@ class VehicleEnergy(
     else {
       val BeamVehicle.VehicleActivityData(
         _,
+        _,
         linkId,
+        _,
         vehicleType,
         payloadKg,
         numberOfLanesOption,
