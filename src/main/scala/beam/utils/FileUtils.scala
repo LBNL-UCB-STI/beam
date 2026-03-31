@@ -39,7 +39,7 @@ object FileUtils extends LazyLogging {
 
   def setConfigOutputFile(beamConfig: BeamConfig, matsimConfig: Config): String = {
     val baseOutputDir = Paths.get(beamConfig.beam.outputs.baseOutputDirectory)
-    if (!Files.exists(baseOutputDir)) baseOutputDir.toFile.mkdir()
+    if (!Files.exists(baseOutputDir)) baseOutputDir.toFile.mkdirs()
 
     val optionalSuffix: String = getOptionalOutputPathSuffix(
       beamConfig.beam.outputs.addTimestampToOutputDirectory
@@ -51,7 +51,7 @@ object FileUtils extends LazyLogging {
         beamConfig.beam.outputs.baseOutputDirectory + File.separator + beamConfig.beam.agentsim.simulationName + optionalSuffix + uniqueSuffix
       )
       .toFile
-    outputDir.mkdir()
+    outputDir.mkdirs()
     logger.debug(s"Beam output directory is: ${outputDir.getAbsolutePath}")
     matsimConfig.controler.setOutputDirectory(outputDir.getAbsolutePath)
     outputDir.getAbsolutePath
@@ -63,7 +63,7 @@ object FileUtils extends LazyLogging {
     addTimestampToOutputDirectory: Boolean
   ): String = {
     val baseOutputDir = Paths.get(outputDirectoryBasePath)
-    if (!Files.exists(baseOutputDir)) baseOutputDir.toFile.mkdir()
+    if (!Files.exists(baseOutputDir)) baseOutputDir.toFile.mkdirs()
 
     val optionalSuffix: String = getOptionalOutputPathSuffix(addTimestampToOutputDirectory)
     val uniqueSuffix = randomString(suffixLength)
@@ -71,8 +71,14 @@ object FileUtils extends LazyLogging {
     val outputDir = Paths
       .get(outputDirectoryBasePath + File.separator + simulationName + "_" + optionalSuffix + "_" + uniqueSuffix)
       .toFile
-    outputDir.mkdir()
+    outputDir.mkdirs()
     outputDir.getAbsolutePath
+  }
+
+  def writeOutputDirectoryPointer(outputDirectoryBasePath: String, pointerName: String, outputDirectory: String): Path = {
+    val pointerPath = Paths.get(outputDirectoryBasePath, pointerName)
+    Files.write(pointerPath, (outputDirectory + System.lineSeparator()).getBytes(StandardCharsets.UTF_8))
+    pointerPath
   }
 
   def getOptionalOutputPathSuffix(addTimestampToOutputDirectory: Boolean): String = {

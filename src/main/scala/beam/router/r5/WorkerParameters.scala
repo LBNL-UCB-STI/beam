@@ -34,11 +34,14 @@ object WorkerParameters {
 
   def fromConfig(config: Config): WorkerParameters = {
     val beamConfig = BeamConfig(config)
-    val outputDirectory = FileUtils.getConfigOutputFile(
+    val outputDirectory = R5Parameters.outputDirectory(config, beamConfig)
+    val pointerPath = FileUtils.writeOutputDirectoryPointer(
       beamConfig.beam.outputs.baseOutputDirectory,
-      beamConfig.beam.agentsim.simulationName,
-      beamConfig.beam.outputs.addTimestampToOutputDirectory
+      R5Parameters.outputPointerName(config),
+      outputDirectory
     )
+    println(s"[ROUTING-WORKER-OUTPUT] $outputDirectory")
+    println(s"[ROUTING-WORKER-OUTPUT-POINTER] ${pointerPath.toAbsolutePath}")
     val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.init()
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()

@@ -38,6 +38,10 @@ import beam.utils.scenario.generic.GenericScenarioSource
 import beam.utils.scenario.matsim.BeamScenarioSource
 import beam.utils.scenario.urbansim.censusblock.{ScenarioAdjuster, UrbansimReaderV2}
 import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
+import akka.actor.ActorSystem
+import akka.cluster.{Cluster, Member, MemberStatus}
+import akka.pattern.ask
+import akka.util.Timeout
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -70,6 +74,7 @@ import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
+import scala.concurrent.duration._
 import scala.sys.process.Process
 import scala.util.{Random, Try}
 
@@ -565,30 +570,33 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
 
   private def runClusterWorkerUsing(config: TypesafeConfig): Unit = {
     val actorSystemName = Try(config.getString("beam.actorSystemName")).getOrElse("ClusterSystem")
+    val beamConfig = BeamConfig(config)
+    val workerOutputDirectory = R5Parameters.outputDirectory(config, beamConfig)
+    val workerOutputPointer = FileUtils.writeOutputDirectoryPointer(
+      beamConfig.beam.outputs.baseOutputDirectory,
+      R5Parameters.outputPointerName(config),
+      workerOutputDirectory
+    )
     val clusterConfig = ConfigFactory
-      .parseString("""
+      .parseString(s"""
            |akka.cluster.roles = [compute]
            |akka.actor.deployment {
-           |      /statsService/singleton/workerRouter {
+           |      /statsServiceProxy/workerRouter {
            |        router = round-robin-pool
-           |        cluster {
-           |          enabled = on
-           |          max-nr-of-instances-per-node = 1
-           |          allow-local-routees = on
-           |          use-roles = ["compute"]
-           |        }
+           |        nr-of-instances = ${math.max(1, beamConfig.beam.cluster.routingWorkersPerNode)}
            |      }
            |    }
           """.stripMargin)
+      .withFallback(
+        ConfigFactory.parseMap(
+          Map(
+            "beam.cluster.workerOutputDirectory" -> workerOutputDirectory
+          ).asJava
+        )
+      )
       .withFallback(config)
 
-    import akka.actor.{ActorSystem, DeadLetter, PoisonPill, Props}
-    import akka.cluster.singleton.{
-      ClusterSingletonManager,
-      ClusterSingletonManagerSettings,
-      ClusterSingletonProxy,
-      ClusterSingletonProxySettings
-    }
+    import akka.actor.{ActorSystem, DeadLetter, Props}
     import beam.router.ClusterWorkerRouter
     import beam.sim.monitoring.DeadLetterReplayer
 
@@ -599,23 +607,11 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       Try(clusterConfig.getString("akka.remote.artery.canonical.port")).getOrElse(""),
       Try(clusterConfig.getStringList("akka.cluster.seed-nodes").asScala.mkString(",")).getOrElse("")
     )
+    println(s"[ROUTING-WORKER-OUTPUT] $workerOutputDirectory")
+    println(s"[ROUTING-WORKER-OUTPUT-POINTER] ${workerOutputPointer.toAbsolutePath}")
 
     val system = ActorSystem(actorSystemName, clusterConfig)
-    system.actorOf(
-      ClusterSingletonManager.props(
-        singletonProps = Props(classOf[ClusterWorkerRouter], clusterConfig),
-        terminationMessage = PoisonPill,
-        settings = ClusterSingletonManagerSettings(system).withRole("compute")
-      ),
-      name = "statsService"
-    )
-    system.actorOf(
-      ClusterSingletonProxy.props(
-        singletonManagerPath = "/user/statsService",
-        settings = ClusterSingletonProxySettings(system).withRole("compute")
-      ),
-      name = "statsServiceProxy"
-    )
+    system.actorOf(Props(classOf[ClusterWorkerRouter], clusterConfig), name = "statsServiceProxy")
     val replayer = system.actorOf(DeadLetterReplayer.props())
     system.eventStream.subscribe(replayer, classOf[DeadLetter])
 
@@ -639,6 +635,9 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       services: BeamServices,
       plansMerged: Boolean
     ) = prepareBeamService(config, abstractModule)
+
+    val actorSystem = services.injector.getInstance(classOf[ActorSystem])
+    BeamHelper.awaitExpectedRemoteWorkers(actorSystem, services.beamConfig)
 
     runBeam(
       services,
@@ -1136,7 +1135,85 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
   }
 }
 
-object BeamHelper {
+object BeamHelper extends LazyLogging {
+
+  private val RemoteWorkerStartupTimeout: FiniteDuration = 10.minutes
+  private val RemoteWorkerPollInterval: FiniteDuration = 1.second
+  private val RemoteWorkerReadyCheckTimeout: FiniteDuration = 5.seconds
+
+  private[sim] def shouldAwaitRemoteWorkers(beamConfig: BeamConfig): Boolean =
+    beamConfig.beam.cluster.enabled &&
+    !beamConfig.beam.useLocalWorker &&
+    beamConfig.beam.cluster.clusterType.contains("master")
+
+  private[sim] def countUpComputeMembers(members: Iterable[Member]): Int =
+    members.count(member => member.hasRole("compute") && member.status == MemberStatus.Up)
+
+  private[sim] def upComputeMemberAddresses(members: Iterable[Member]): Iterable[akka.actor.Address] =
+    members.collect { case member if member.hasRole("compute") && member.status == MemberStatus.Up => member.address }
+
+  private[sim] def hasExpectedRemoteWorkersUp(beamConfig: BeamConfig, members: Iterable[Member]): Boolean =
+    countUpComputeMembers(members) >= math.max(1, beamConfig.beam.cluster.expectedWorkerNodes)
+
+  private[sim] def areRemoteWorkersReady(actorSystem: ActorSystem, addresses: Iterable[akka.actor.Address]): Boolean = {
+    implicit val timeout: Timeout = Timeout(RemoteWorkerReadyCheckTimeout)
+    import actorSystem.dispatcher
+
+    addresses.forall { address =>
+      Try {
+        Await.result(
+          (actorSystem.actorSelection(akka.actor.RootActorPath(address) / "user" / "statsServiceProxy") ? beam.router.ClusterWorkerRouter.ReadyCheck)
+            .mapTo[Boolean],
+          RemoteWorkerReadyCheckTimeout
+        )
+      }.getOrElse(false)
+    }
+  }
+
+  private[sim] def awaitExpectedRemoteWorkers(actorSystem: ActorSystem, beamConfig: BeamConfig): Unit = {
+    if (!shouldAwaitRemoteWorkers(beamConfig)) return
+
+    val cluster = Cluster(actorSystem)
+    val deadline = RemoteWorkerStartupTimeout.fromNow
+    val expectedWorkers = math.max(1, beamConfig.beam.cluster.expectedWorkerNodes)
+
+    while (deadline.hasTimeLeft() && !hasExpectedRemoteWorkersUp(beamConfig, cluster.state.members)) {
+      logger.info(
+        "Waiting for {} compute members to reach Up before starting simulation; currently {}",
+        Int.box(expectedWorkers),
+        Int.box(countUpComputeMembers(cluster.state.members))
+      )
+      Thread.sleep(RemoteWorkerPollInterval.toMillis)
+    }
+
+    if (!hasExpectedRemoteWorkersUp(beamConfig, cluster.state.members)) {
+      throw new RuntimeException(
+        s"Timed out after $RemoteWorkerStartupTimeout waiting for $expectedWorkers compute members to reach Up"
+      )
+    }
+
+    logger.info(
+      "All expected compute members are Up: {}/{}",
+      Int.box(countUpComputeMembers(cluster.state.members)),
+      Int.box(expectedWorkers)
+    )
+
+    while (
+      deadline.hasTimeLeft() &&
+      !areRemoteWorkersReady(actorSystem, upComputeMemberAddresses(cluster.state.members))
+    ) {
+      logger.info("Waiting for remote routing workers to become ready on all compute members")
+      Thread.sleep(RemoteWorkerPollInterval.toMillis)
+    }
+
+    if (!areRemoteWorkersReady(actorSystem, upComputeMemberAddresses(cluster.state.members))) {
+      throw new RuntimeException(
+        s"Timed out after $RemoteWorkerStartupTimeout waiting for remote routing workers to become ready"
+      )
+    }
+
+    logger.info("Remote routing workers are ready on all compute members")
+  }
 
   /**
     * We need to copy the old config values to the first element of rideHail.managers collection.

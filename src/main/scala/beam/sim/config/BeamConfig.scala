@@ -2853,7 +2853,9 @@ object BeamConfig {
 
     case class Cluster(
       clusterType: scala.Option[java.lang.String],
-      enabled: scala.Boolean
+      expectedWorkerNodes: scala.Int,
+      enabled: scala.Boolean,
+      routingWorkersPerNode: scala.Int
     )
 
     object Cluster {
@@ -2861,7 +2863,11 @@ object BeamConfig {
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Cluster = {
         BeamConfig.Beam.Cluster(
           clusterType = if (c.hasPathOrNull("clusterType")) Some(c.getString("clusterType")) else None,
-          enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled")
+          expectedWorkerNodes =
+            if (c.hasPathOrNull("expectedWorkerNodes")) c.getInt("expectedWorkerNodes") else 1,
+          enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+          routingWorkersPerNode =
+            if (c.hasPathOrNull("routingWorkersPerNode")) c.getInt("routingWorkersPerNode") else 1
         )
       }
     }

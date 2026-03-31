@@ -32,13 +32,33 @@ case class R5Parameters(
 
 object R5Parameters {
 
+  def outputPointerName(config: Config): String = {
+    val host = if (config.hasPath("node.host")) config.getString("node.host").replaceAll("[^A-Za-z0-9._-]", "_") else "local"
+    val port = if (config.hasPath("node.port")) config.getString("node.port").replaceAll("[^A-Za-z0-9._-]", "_") else "na"
+    s"latest-routing-worker-output-$host-$port.txt"
+  }
+
+  def outputDirectory(config: Config, beamConfig: BeamConfig): String = {
+    if (config.hasPath("beam.cluster.workerOutputDirectory"))
+      config.getString("beam.cluster.workerOutputDirectory")
+    else
+      FileUtils.getConfigOutputFile(
+        beamConfig.beam.outputs.baseOutputDirectory,
+        beamConfig.beam.agentsim.simulationName,
+        beamConfig.beam.outputs.addTimestampToOutputDirectory
+      )
+  }
+
   def fromConfig(config: Config): (R5Parameters, Option[(TransportNetwork, Network)]) = {
     val beamConfig = BeamConfig(config)
-    val outputDirectory = FileUtils.getConfigOutputFile(
+    val outputDirectory = R5Parameters.outputDirectory(config, beamConfig)
+    val pointerPath = FileUtils.writeOutputDirectoryPointer(
       beamConfig.beam.outputs.baseOutputDirectory,
-      beamConfig.beam.agentsim.simulationName,
-      beamConfig.beam.outputs.addTimestampToOutputDirectory
+      outputPointerName(config),
+      outputDirectory
     )
+    println(s"[ROUTING-WORKER-OUTPUT] $outputDirectory")
+    println(s"[ROUTING-WORKER-OUTPUT-POINTER] ${pointerPath.toAbsolutePath}")
     val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.init()
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()

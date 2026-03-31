@@ -1,24 +1,40 @@
 package beam.router
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.pattern.{ask, pipe}
 import akka.routing.FromConfig
+import akka.util.Timeout
 import com.typesafe.config.Config
 
+import scala.concurrent.duration._
+
+object ClusterWorkerRouter {
+  case object ReadyCheck
+}
+
 class ClusterWorkerRouter(config: Config) extends Actor with ActorLogging {
+  import ClusterWorkerRouter._
+  import context.dispatcher
 
-  // This router is used both with lookup and deploy of routees. If you
-  // have a router with only lookup of routees you can use Props.empty
-  // instead of Props[StatsWorker.class].
+  private implicit val readyCheckTimeout: Timeout = Timeout(10.seconds)
 
-  val workerRouter: ActorRef = context.actorOf(
+  private val workerRouter: ActorRef = context.actorOf(
     FromConfig.props(RoutingWorker.propsFromConfig(config)),
     name = "workerRouter"
   )
-  def getNameAndHashCode: String = s"ClusterWorkerRouter[${hashCode()}], Path: `${self.path}`"
+
+  private def getNameAndHashCode: String = s"ClusterWorkerRouter[${hashCode()}], Path: `${self.path}`"
+
   log.info("{} inited. workerRouter => {}", getNameAndHashCode, workerRouter)
 
-  def receive: Receive = { case other =>
-    log.debug("{} received {}", getNameAndHashCode, other)
-    workerRouter.forward(other)
+  override def receive: Receive = {
+    case ReadyCheck =>
+      (workerRouter ? BeamRouter.WorkAvailable)
+        .map(_ == BeamRouter.GimmeWork)
+        .recover { case _ => false }
+        .pipeTo(sender())
+    case other =>
+      log.debug("{} received {}", getNameAndHashCode, other)
+      workerRouter.forward(other)
   }
 }

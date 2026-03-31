@@ -1,7 +1,9 @@
 package beam.sim
 
+import akka.cluster.{Member, MemberStatus}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
+import org.mockito.Mockito.{mock, when}
 import org.scalatest.AppendedClues.convertToClueful
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -10,6 +12,94 @@ import org.scalatest.wordspec.AnyWordSpecLike
   * @author Dmitry Openkov
   */
 class BeamHelperSpec extends AnyWordSpecLike with Matchers {
+  "shouldAwaitRemoteWorkers" should {
+    "be enabled for clustered masters without a local worker" in {
+      val cfg = ConfigFactory
+        .parseString("""
+            |beam.cluster.enabled = true
+            |beam.cluster.clusterType = master
+            |beam.useLocalWorker = false
+            |""".stripMargin)
+        .withFallback(testConfig("test/input/beamville/beam.conf"))
+        .resolve()
+
+      BeamHelper.shouldAwaitRemoteWorkers(beam.sim.config.BeamConfig(cfg)) shouldBe true
+    }
+
+    "be disabled for workers and non-clustered runs" in {
+      val workerCfg = ConfigFactory
+        .parseString("""
+            |beam.cluster.enabled = true
+            |beam.cluster.clusterType = worker
+            |beam.useLocalWorker = false
+            |""".stripMargin)
+        .withFallback(testConfig("test/input/beamville/beam.conf"))
+        .resolve()
+
+      val localCfg = ConfigFactory
+        .parseString("""
+            |beam.cluster.enabled = false
+            |beam.useLocalWorker = true
+            |""".stripMargin)
+        .withFallback(testConfig("test/input/beamville/beam.conf"))
+        .resolve()
+
+      BeamHelper.shouldAwaitRemoteWorkers(beam.sim.config.BeamConfig(workerCfg)) shouldBe false
+      BeamHelper.shouldAwaitRemoteWorkers(beam.sim.config.BeamConfig(localCfg)) shouldBe false
+    }
+  }
+
+  "hasExpectedRemoteWorkersUp" should {
+    "require the configured number of compute members to be Up" in {
+      val cfg = ConfigFactory
+        .parseString("""
+            |beam.cluster.enabled = true
+            |beam.cluster.clusterType = master
+            |beam.cluster.expectedWorkerNodes = 2
+            |beam.useLocalWorker = false
+            |""".stripMargin)
+        .withFallback(testConfig("test/input/beamville/beam.conf"))
+        .resolve()
+
+      val member1 = mock(classOf[Member])
+      when(member1.hasRole("compute")).thenReturn(true)
+      when(member1.status).thenReturn(MemberStatus.Up)
+
+      val member2 = mock(classOf[Member])
+      when(member2.hasRole("compute")).thenReturn(true)
+      when(member2.status).thenReturn(MemberStatus.Up)
+
+      val joining = mock(classOf[Member])
+      when(joining.hasRole("compute")).thenReturn(true)
+      when(joining.status).thenReturn(MemberStatus.Joining)
+
+      BeamHelper.hasExpectedRemoteWorkersUp(beam.sim.config.BeamConfig(cfg), Seq(member1)) shouldBe false
+      BeamHelper.hasExpectedRemoteWorkersUp(beam.sim.config.BeamConfig(cfg), Seq(member1, joining)) shouldBe false
+      BeamHelper.hasExpectedRemoteWorkersUp(beam.sim.config.BeamConfig(cfg), Seq(member1, member2)) shouldBe true
+    }
+  }
+
+  "upComputeMemberAddresses" should {
+    "return only compute members that are Up" in {
+      val member1 = mock(classOf[Member])
+      when(member1.hasRole("compute")).thenReturn(true)
+      when(member1.status).thenReturn(MemberStatus.Up)
+      when(member1.address).thenReturn(akka.actor.Address("akka", "ClusterSystem", "127.0.0.1", 25521))
+
+      val member2 = mock(classOf[Member])
+      when(member2.hasRole("compute")).thenReturn(true)
+      when(member2.status).thenReturn(MemberStatus.Joining)
+      when(member2.address).thenReturn(akka.actor.Address("akka", "ClusterSystem", "127.0.0.1", 25522))
+
+      val member3 = mock(classOf[Member])
+      when(member3.hasRole("compute")).thenReturn(false)
+      when(member3.status).thenReturn(MemberStatus.Up)
+      when(member3.address).thenReturn(akka.actor.Address("akka", "ClusterSystem", "127.0.0.1", 25523))
+
+      BeamHelper.upComputeMemberAddresses(Seq(member1, member2, member3)).toSeq shouldBe Seq(member1.address)
+    }
+  }
+
   "updateConfigToCurrentVersion" when {
     "config doesn't contain a root RH config parameter" should {
       "not update the first rideHail manager with that parameter value" in {
