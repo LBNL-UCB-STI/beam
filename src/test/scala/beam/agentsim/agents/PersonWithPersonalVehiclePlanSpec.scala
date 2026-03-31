@@ -1043,14 +1043,14 @@ class PersonWithPersonalVehiclePlanSpec
             lastSender ! walkResponse(req)
             finished = true
           }
-        case _: Event =>
+        case _: Event        =>
         case _: HasTriggerId =>
       }
     }
 
     expectMsgType[CompletionNotice]
     receiveWhile() {
-      case _: Event =>
+      case _: Event        =>
       case _: HasTriggerId =>
     }
   }

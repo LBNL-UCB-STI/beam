@@ -896,7 +896,8 @@ class PersonAgent(
     val parentTourOpt =
       currentTourOpt.flatMap(_.originActivity.flatMap(act => Try(_experiencedBeamPlan.getTourContaining(act)).toOption))
     val parentTourStrategyOpt = Try(getParentTourStrategy(data)).toOption.flatten
-    val nextTripLegOpt = nextActOpt.flatMap(act => Try(_experiencedBeamPlan.getTripContaining(act).leg).toOption.flatten)
+    val nextTripLegOpt =
+      nextActOpt.flatMap(act => Try(_experiencedBeamPlan.getTripContaining(act).leg).toOption.flatten)
     val availableVehicleIds = availableVehicles.map(_.id).mkString(", ")
     val beamVehicleIds = beamVehicles.keys.map(_.toString).toVector.sorted.mkString(", ")
     val allTours = _experiencedBeamPlan.tours.map(formatTour).mkString(" || ")
@@ -911,8 +912,10 @@ class PersonAgent(
       s"currentTourPersonalVehicle=${data.currentTourPersonalVehicle}, hasDeparted=${data.hasDeparted}, " +
       s"numberOfReplanningAttempts=${data.numberOfReplanningAttempts}), " +
       s"tripStrategy=${tripStrategyOpt.getOrElse("none")}, currentTour=${currentTourOpt.map(formatTour).getOrElse("none")}, " +
-      s"currentTourStrategy=${currentTourStrategyOpt.getOrElse("none")}, parentTour=${parentTourOpt.map(formatTour).getOrElse("none")}, " +
-      s"parentTourStrategy=${parentTourStrategyOpt.getOrElse("none")}, nextTripLeg=${nextTripLegOpt.map(formatLeg).getOrElse("none")}, " +
+      s"currentTourStrategy=${currentTourStrategyOpt
+        .getOrElse("none")}, parentTour=${parentTourOpt.map(formatTour).getOrElse("none")}, " +
+      s"parentTourStrategy=${parentTourStrategyOpt
+        .getOrElse("none")}, nextTripLeg=${nextTripLegOpt.map(formatLeg).getOrElse("none")}, " +
       s"availableVehicleIds=[$availableVehicleIds], beamVehicleIds=[$beamVehicleIds], allTours=[$allTours]"
     )
   }
@@ -1328,7 +1331,9 @@ class PersonAgent(
       _experiencedBeamPlan.putStrategy(nextAct, TripModeChoiceStrategy(mode = None))
       val (updatedTourMode, updatedTourPersonalVehicle): (Option[BeamTourMode], Option[Id[BeamVehicle]]) =
         if (nextAct.getType.equalsIgnoreCase("Home")) { (None, None) }
-        else { (basePersonData.currentTourMode, sanitizeTourPersonalVehicle(basePersonData.currentTourPersonalVehicle)) }
+        else {
+          (basePersonData.currentTourMode, sanitizeTourPersonalVehicle(basePersonData.currentTourPersonalVehicle))
+        }
       goto(ChoosingMode) using ChoosesModeData.validated(
         basePersonData.copy(
           currentTrip = None,
@@ -1803,12 +1808,12 @@ class PersonAgent(
                   }
                   val suppressReleaseReasons = Vector(
                     currentTourOriginReason,
-                    parentStrategyOpt.filter(_.tourVehicle.contains(personalVehId)).map(_ =>
-                      s"parent tour still references vehicle $personalVehId"
-                    ),
-                    nextTourStrategyOpt.filter(_.tourVehicle.contains(personalVehId)).map(_ =>
-                      s"next activity's tour strategy still references vehicle $personalVehId"
-                    )
+                    parentStrategyOpt
+                      .filter(_.tourVehicle.contains(personalVehId))
+                      .map(_ => s"parent tour still references vehicle $personalVehId"),
+                    nextTourStrategyOpt
+                      .filter(_.tourVehicle.contains(personalVehId))
+                      .map(_ => s"next activity's tour strategy still references vehicle $personalVehId")
                   ).flatten
                   val postArrivalLookahead =
                     s"postArrivalNextActivity=${nextActivityAfterArrival.map(_.getType).getOrElse("none")}, " +
@@ -1824,7 +1829,7 @@ class PersonAgent(
                       beamVehicles.values.toVector,
                       "Arriving at home on last element in current tour",
                       s"suppressed release of vehicle $personalVehId because ${suppressReleaseReasons.mkString("; ")}; " +
-                        postArrivalLookahead
+                      postArrivalLookahead
                     )
                     sanitizeTourPersonalVehicle(data.currentTourPersonalVehicle)
                   } else {

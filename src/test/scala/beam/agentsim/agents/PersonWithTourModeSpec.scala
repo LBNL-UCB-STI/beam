@@ -9,7 +9,12 @@ import scala.concurrent.duration._
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.logit.TourModeChoiceModel
 import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
-import beam.agentsim.agents.household.HouseholdActor.{HouseholdActor, MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle}
+import beam.agentsim.agents.household.HouseholdActor.{
+  HouseholdActor,
+  MobilityStatusInquiry,
+  MobilityStatusResponse,
+  ReleaseVehicle
+}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
@@ -1936,7 +1941,12 @@ class PersonWithTourModeSpec
     homeActivity.setCoord(homeLocation)
     plan.addActivity(homeActivity)
 
-    def addTourLeg(tourId: String, tourMode: Option[BeamTourMode], tripMode: Option[BeamMode], vehicle: Option[Id[BeamVehicle]]) = {
+    def addTourLeg(
+      tourId: String,
+      tourMode: Option[BeamTourMode],
+      tripMode: Option[BeamMode],
+      vehicle: Option[Id[BeamVehicle]]
+    ) = {
       val leg = PopulationUtils.createLeg(tripMode.map(_.matsimMode).getOrElse(""))
       leg.getAttributes.putAttribute("tour_id", tourId)
       tourMode.foreach(mode => leg.getAttributes.putAttribute("tour_mode", mode.value))
