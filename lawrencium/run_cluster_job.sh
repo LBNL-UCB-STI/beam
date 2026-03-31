@@ -92,7 +92,30 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
   set +x
 
 else
+  set -euo pipefail
+
+  if [[ -z "${BEAM_BASE_DIR:-}" ]]; then
+    if [[ -n "${JOB_LOG_FILE_PATH:-}" ]]; then
+      BEAM_BASE_DIR="$(dirname "$JOB_LOG_FILE_PATH")"
+    else
+      echo "Error: neither BEAM_BASE_DIR nor JOB_LOG_FILE_PATH is set"
+      exit 1
+    fi
+  fi
+
+  if [[ -z "${JOB_LOG_FILE_PATH:-}" ]]; then
+    JOB_LOG_FILE_PATH="$BEAM_BASE_DIR/cluster-log-file.log"
+  fi
+
+  mkdir -p "$BEAM_BASE_DIR"
+  touch "$JOB_LOG_FILE_PATH"
+  exec >>"$JOB_LOG_FILE_PATH" 2>&1
+
   echo "Executing the multi-node job .."
+  echo "Run directory: $BEAM_BASE_DIR"
+  echo "Image mode: ${BEAM_IMAGE_MODE:-clone}"
+  echo "Config: ${BEAM_CONFIG:-<unset>}"
+  echo "Started at: $(date "+%Y-%m-%d-%H:%M:%S")"
 
   export NOTIFICATION_INSTANCE_ID=$SLURMD_NODENAME
   export NOTIFICATION_INSTANCE_TYPE="Lawrencium $SLURM_JOB_PARTITION"
