@@ -160,6 +160,7 @@ else
   }
 
   MASTER_DIR="$BEAM_BASE_DIR/master"
+  mkdir -p "$MASTER_DIR"
   MASTER_CONFIG="$MASTER_DIR/cluster-master.conf"
   cat >"$MASTER_CONFIG" <<EOF
 include required(file("$BEAM_CONFIG"))
