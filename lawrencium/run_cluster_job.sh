@@ -1,0 +1,211 @@
+#!/bin/bash
+
+# Multi-node BEAM launcher for Lawrencium.
+# It allocates one Slurm job across multiple nodes, then runs one BEAM master
+# process plus one BEAM worker process per remaining node.
+
+CODE_PHRASE="Execute the body of the multi-node job."
+
+if [[ "$1" != "$CODE_PHRASE" ]]; then
+  echo "Starting the multi-node job .."
+
+  export BEAM_BRANCH_NAME="develop"
+  export BEAM_COMMIT_SHA=""
+  export BEAM_DATA_BRANCH_NAME="develop"
+  export BEAM_DATA_COMMIT_SHA=""
+  export BEAM_CONFIG="test/input/beamville/beam.conf"
+  export PROFILER=""
+  export BEAM_IMAGE_MODE="${BEAM_IMAGE_MODE:-clone}"
+
+  export PULL_CODE="true"
+  export PULL_DATA="true"
+
+  PARTITION="es1"
+  QOS="es_normal"
+  MEMORY_LIMIT="480"
+  TOTAL_NODES="${3:-2}"
+  AKKA_PORT="${AKKA_PORT:-25520}"
+
+  export S3_REGION="us-east-2"
+  export S3_PUBLISH="false"
+  export AWS_SECRET_ACCESS_KEY=""
+  export AWS_ACCESS_KEY_ID=""
+
+  export SEND_NOTIFICATION="false"
+  export SLACK_HOOK_WITH_TOKEN=""
+  export SIMULATIONS_SPREADSHEET_UPDATE_URL=""
+
+  ACCOUNT="pc_beamcore"
+
+  RUN_NAME="$1"
+  EXPECTED_EXECUTION_DURATION="$2"
+
+  if [[ -z "$RUN_NAME" ]]; then
+    echo "Error: RUN_NAME is not set."
+    exit 1
+  fi
+
+  if [[ -z "$EXPECTED_EXECUTION_DURATION" ]]; then
+    echo "Error: EXPECTED_EXECUTION_DURATION is not set."
+    exit 1
+  fi
+
+  if [[ "$TOTAL_NODES" -lt 2 ]]; then
+    echo "Error: TOTAL_NODES must be at least 2 (1 master + 1 worker)."
+    exit 1
+  fi
+
+  export MAX_RAM="$MEMORY_LIMIT"
+  export NOTIFICATION_TITLED="$USER/$RUN_NAME"
+
+  RANDOM_PART=$(tr -dc A-Z0-9 </dev/urandom | head -c 8)
+  DATETIME=$(date "+%Y.%m.%d-%H.%M.%S")
+  NAME_SUFFIX="$DATETIME.$RANDOM_PART.$PARTITION.$QOS.$MEMORY_LIMIT.cluster"
+
+  BEAM_BASE_DIR="/global/scratch/users/$USER/out_beam_$NAME_SUFFIX"
+  mkdir -p "$BEAM_BASE_DIR"
+
+  JOB_LOG_FILE_NAME="cluster-log-file.log"
+  JOB_LOG_FILE_PATH="$BEAM_BASE_DIR/$JOB_LOG_FILE_NAME"
+  LINK_TO_JOB_LOG_FILE="$(pwd)/out.cluster.$NAME_SUFFIX.log"
+  touch "$JOB_LOG_FILE_PATH"
+  ln -s "$JOB_LOG_FILE_PATH" "$LINK_TO_JOB_LOG_FILE"
+
+  export JOB_LOG_FILE_PATH
+  export LINK_TO_JOB_LOG_FILE
+  export BEAM_BASE_DIR
+  export AKKA_PORT
+
+  JOB_NAME="$RANDOM_PART.$DATETIME.multi"
+
+  set -x
+  sbatch --partition="$PARTITION" \
+      --exclusive \
+      --nodes="$TOTAL_NODES" \
+      --mem="${MEMORY_LIMIT}G" \
+      --qos="$QOS" \
+      --account="$ACCOUNT" \
+      --job-name="$JOB_NAME" \
+      --output="$JOB_LOG_FILE_PATH" \
+      --time="$EXPECTED_EXECUTION_DURATION" \
+      "$0" "$CODE_PHRASE"
+  set +x
+
+else
+  echo "Executing the multi-node job .."
+
+  export NOTIFICATION_INSTANCE_ID=$SLURMD_NODENAME
+  export NOTIFICATION_INSTANCE_TYPE="Lawrencium $SLURM_JOB_PARTITION"
+  export NOTIFICATION_HOST_NAME=$HOSTNAME
+  export NOTIFICATION_WEB_BROWSER="TODO"
+  export NOTIFICATION_INSTANCE_REGION=""
+  export NOTIFICATION_SHUTDOWN_WAIT=""
+
+  IMAGE_NAME="beam-environment"
+  IMAGE_TAG="${IMAGE_TAG:-jdk-11-4.01}"
+  DOCKER_IMAGE_NAME="${DOCKER_IMAGE_NAME:-docker://beammodel/${IMAGE_NAME}:${IMAGE_TAG}}"
+  SINGULARITY_IMAGE_PATH="$BEAM_BASE_DIR/${IMAGE_NAME}_${IMAGE_TAG}.sif"
+  export ENFORCE_HTTPS_FOR_DATA_REPOSITORY="true"
+
+  mkdir -p "$BEAM_BASE_DIR/logs"
+
+  echo "Pulling docker image '$DOCKER_IMAGE_NAME' to '$SINGULARITY_IMAGE_PATH' ..."
+  set -x
+  singularity pull --force "$SINGULARITY_IMAGE_PATH" "$DOCKER_IMAGE_NAME"
+  set +x
+
+  mapfile -t HOSTS < <(scontrol show hostnames "$SLURM_JOB_NODELIST")
+  if [[ "${#HOSTS[@]}" -lt 2 ]]; then
+    echo "Error: Expected at least 2 hosts in allocation, found ${#HOSTS[@]}"
+    exit 1
+  fi
+
+  MASTER_HOST="${HOSTS[0]}"
+  SEED_ADDRESS="${MASTER_HOST}:${AKKA_PORT}"
+  EXPECTED_WORKER_NODES=$((${#HOSTS[@]} - 1))
+  PIDS=()
+
+  launch_role() {
+    local host="$1"
+    local role="$2"
+    local role_dir="$3"
+    local app_args="$4"
+    local role_config_path="$5"
+
+    mkdir -p "$role_dir"
+
+    if [[ "$BEAM_IMAGE_MODE" == "baked" ]]; then
+      srun --nodes=1 --ntasks=1 --exclusive -w "$host" \
+        --output="$BEAM_BASE_DIR/logs/${role}-%N.log" \
+        bash -lc "
+          set -euo pipefail
+          export PULL_CODE='false'
+          export PULL_DATA='false'
+          export GRADLE_CACHE_PATH='/root/data/.gradle'
+          export BEAM_CONFIG='$role_config_path'
+          export BEAM_APP_ARGS=\"$app_args\"
+          singularity run --writable-tmpfs -B \"$role_dir:/root/data\" \"$SINGULARITY_IMAGE_PATH\"
+        " &
+    else
+      srun --nodes=1 --ntasks=1 --exclusive -w "$host" \
+        --output="$BEAM_BASE_DIR/logs/${role}-%N.log" \
+        bash -lc "
+          set -euo pipefail
+          export BEAM_DIR='$role_dir'
+          export BEAM_APP_ARGS=\"$app_args\"
+          singularity run -B \"$role_dir:/root/sources\" \"$SINGULARITY_IMAGE_PATH\"
+        " &
+    fi
+    PIDS+=($!)
+  }
+
+  MASTER_DIR="$BEAM_BASE_DIR/master"
+  MASTER_CONFIG="$MASTER_DIR/cluster-master.conf"
+  cat >"$MASTER_CONFIG" <<EOF
+include required(file("$BEAM_CONFIG"))
+
+beam.cluster.expectedWorkerNodes = $EXPECTED_WORKER_NODES
+beam.outputs.baseOutputDirectory = "/root/data/output"
+EOF
+  if [[ "$BEAM_IMAGE_MODE" == "baked" ]]; then
+    MASTER_CONFIG_IN_CONTAINER="/root/data/cluster-master.conf"
+  else
+    MASTER_CONFIG_IN_CONTAINER="$MASTER_CONFIG"
+  fi
+  MASTER_ARGS="['--config', '$MASTER_CONFIG_IN_CONTAINER', '--cluster-type', 'master', '--node-host', '$MASTER_HOST', '--node-port', '$AKKA_PORT', '--seed-address', '$SEED_ADDRESS', '--use-local-worker', 'false']"
+  launch_role "$MASTER_HOST" "master" "$MASTER_DIR" "$MASTER_ARGS" "$MASTER_CONFIG_IN_CONTAINER"
+
+  sleep 20
+
+  for host in "${HOSTS[@]:1}"; do
+    WORKER_DIR="$BEAM_BASE_DIR/$host"
+    mkdir -p "$WORKER_DIR"
+    WORKER_CONFIG="$WORKER_DIR/cluster-worker.conf"
+    cat >"$WORKER_CONFIG" <<EOF
+include required(file("$BEAM_CONFIG"))
+
+beam.cluster.expectedWorkerNodes = $EXPECTED_WORKER_NODES
+beam.outputs.baseOutputDirectory = "/root/data/output"
+EOF
+    if [[ "$BEAM_IMAGE_MODE" == "baked" ]]; then
+      WORKER_CONFIG_IN_CONTAINER="/root/data/cluster-worker.conf"
+    else
+      WORKER_CONFIG_IN_CONTAINER="$WORKER_CONFIG"
+    fi
+    WORKER_ARGS="['--config', '$WORKER_CONFIG_IN_CONTAINER', '--cluster-type', 'worker', '--node-host', '$host', '--node-port', '$AKKA_PORT', '--seed-address', '$SEED_ADDRESS']"
+    launch_role "$host" "worker" "$WORKER_DIR" "$WORKER_ARGS" "$WORKER_CONFIG_IN_CONTAINER"
+  done
+
+  STATUS=0
+  for pid in "${PIDS[@]}"; do
+    if ! wait "$pid"; then
+      STATUS=1
+    fi
+  done
+
+  echo "Removing a link to the job's log file."
+  echo "The original job log file is in '$JOB_LOG_FILE_PATH'"
+  rm "$LINK_TO_JOB_LOG_FILE"
+
+  exit "$STATUS"
+fi
