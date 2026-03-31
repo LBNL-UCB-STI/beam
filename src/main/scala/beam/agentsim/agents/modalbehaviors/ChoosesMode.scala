@@ -1740,6 +1740,8 @@ trait ChoosesMode {
       val availableAlts = Some(itinerariesOfCorrectMode.map(_.tripClassifier).mkString(":"))
 
       def resolvedCurrentTourPersonalVehicle(chosenTrip: EmbodiedBeamTrip): Option[Id[BeamVehicle]] =
+        // Keep the already-held vehicle unless this choice selected a more specific one. This allows a failed or
+        // reset subtour to continue carrying an inherited parent-tour vehicle through replanning.
         chosenCurrentTourPersonalVehicle
           .get(chosenTrip)
           .flatten

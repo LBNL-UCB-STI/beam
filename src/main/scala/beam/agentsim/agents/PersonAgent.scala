@@ -694,6 +694,9 @@ class PersonAgent(
             // use the mode of the next leg as the new trip mode.
             currentTripMode = modeOfNextLeg,
             currentTourMode = currentTourModeChoiceStrategy.tourMode,
+            // Prefer the currently carried vehicle over the current tour strategy. During replanning, the
+            // current tour strategy may be cleared while the person still needs to hold onto a parent-tour
+            // vehicle that remains physically available.
             currentTourPersonalVehicle =
               data.currentTourPersonalVehicle.orElse(currentTourModeChoiceStrategy.tourVehicle),
             passengerSchedule = PassengerSchedule(),
