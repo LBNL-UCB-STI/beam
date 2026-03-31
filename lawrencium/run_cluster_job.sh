@@ -9,20 +9,20 @@ CODE_PHRASE="Execute the body of the multi-node job."
 if [[ "$1" != "$CODE_PHRASE" ]]; then
   echo "Starting the multi-node job .."
 
-  export BEAM_BRANCH_NAME="develop"
-  export BEAM_COMMIT_SHA=""
-  export BEAM_DATA_BRANCH_NAME="develop"
-  export BEAM_DATA_COMMIT_SHA=""
-  export BEAM_CONFIG="test/input/beamville/beam.conf"
-  export PROFILER=""
+  export BEAM_BRANCH_NAME="${BEAM_BRANCH_NAME:-develop}"
+  export BEAM_COMMIT_SHA="${BEAM_COMMIT_SHA:-}"
+  export BEAM_DATA_BRANCH_NAME="${BEAM_DATA_BRANCH_NAME:-develop}"
+  export BEAM_DATA_COMMIT_SHA="${BEAM_DATA_COMMIT_SHA:-}"
+  export BEAM_CONFIG="${BEAM_CONFIG:-test/input/beamville/beam.conf}"
+  export PROFILER="${PROFILER:-}"
   export BEAM_IMAGE_MODE="${BEAM_IMAGE_MODE:-clone}"
 
-  export PULL_CODE="true"
-  export PULL_DATA="true"
+  export PULL_CODE="${PULL_CODE:-true}"
+  export PULL_DATA="${PULL_DATA:-true}"
 
-  PARTITION="lr5"
-  QOS="lr_normal"
-  MEMORY_LIMIT="60"
+  PARTITION="${PARTITION:-lr5}"
+  QOS="${QOS:-lr_normal}"
+  MEMORY_LIMIT="${MEMORY_LIMIT:-60}"
   TOTAL_NODES="${3:-2}"
   AKKA_PORT="${AKKA_PORT:-25520}"
 
@@ -35,7 +35,7 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
   export SLACK_HOOK_WITH_TOKEN=""
   export SIMULATIONS_SPREADSHEET_UPDATE_URL=""
 
-  ACCOUNT="ac_beamcore"
+  ACCOUNT="${ACCOUNT:-ac_beamcore}"
 
   RUN_NAME="$1"
   EXPECTED_EXECUTION_DURATION="$2"
@@ -69,7 +69,7 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
   JOB_LOG_FILE_PATH="$BEAM_BASE_DIR/$JOB_LOG_FILE_NAME"
   LINK_TO_JOB_LOG_FILE="$(pwd)/out.cluster.$NAME_SUFFIX.log"
   touch "$JOB_LOG_FILE_PATH"
-  ln -s "$JOB_LOG_FILE_PATH" "$LINK_TO_JOB_LOG_FILE"
+  ln -snf "$JOB_LOG_FILE_PATH" "$LINK_TO_JOB_LOG_FILE"
 
   export JOB_LOG_FILE_PATH
   export LINK_TO_JOB_LOG_FILE
@@ -85,6 +85,7 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
       --mem="${MEMORY_LIMIT}G" \
       --qos="$QOS" \
       --account="$ACCOUNT" \
+      --export=ALL \
       --job-name="$JOB_NAME" \
       --output="$JOB_LOG_FILE_PATH" \
       --time="$EXPECTED_EXECUTION_DURATION" \
