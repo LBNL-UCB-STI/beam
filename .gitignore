@@ -1,3 +1,4 @@
+*.sif
 venv/
 .*
 !.gitignore

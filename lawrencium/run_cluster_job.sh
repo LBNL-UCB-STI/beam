@@ -20,9 +20,9 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
   export PULL_CODE="true"
   export PULL_DATA="true"
 
-  PARTITION="es1"
-  QOS="es_normal"
-  MEMORY_LIMIT="480"
+  PARTITION="lr5"
+  QOS="lr_normal"
+  MEMORY_LIMIT="60"
   TOTAL_NODES="${3:-2}"
   AKKA_PORT="${AKKA_PORT:-25520}"
 
@@ -35,7 +35,7 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
   export SLACK_HOOK_WITH_TOKEN=""
   export SIMULATIONS_SPREADSHEET_UPDATE_URL=""
 
-  ACCOUNT="pc_beamcore"
+  ACCOUNT="ac_beamcore"
 
   RUN_NAME="$1"
   EXPECTED_EXECUTION_DURATION="$2"
