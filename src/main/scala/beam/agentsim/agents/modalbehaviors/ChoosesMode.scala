@@ -65,7 +65,7 @@ trait ChoosesMode {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
   private val BUFFER_PER_REPLANNING_ATTEMPT_IN_SEC: Int = 5
-  private val MAX_FINAL_INTERMODAL_EGRESS_ROUTE_ATTEMPTS: Int = 3
+  private val MAX_FINAL_INTERMODAL_EGRESS_ROUTE_ATTEMPTS: Int = 2
 
   private val dummyRHVehicle: StreetVehicle = createDummyVehicle(
     RideHailVehicleId.dummyVehicleId,
@@ -182,16 +182,19 @@ trait ChoosesMode {
           .mkString("[", ", ", "]")
       }
 
-    val requestSummary = routingResponseOpt.flatMap(_.request).map { request =>
-      val requestVehicleIds = request.streetVehicles.map(_.id.toString).mkString("[", ", ", "]")
-      val possibleEgressVehicleIds = request.possibleEgressVehicles.map(_.id.toString).mkString("[", ", ", "]")
-      s"requestId=${request.requestId}, departureTime=${request.departureTime}, withTransit=${request.withTransit}, " +
-      s"requestedMode=${request.requestedMode.map(_.value).getOrElse("None")}, " +
-      s"intermodalUse=${request.streetVehiclesUseIntermodalUse}, searchedModes=${routingResponseOpt
-        .map(_.searchedModes.map(_.value).toVector.sorted.mkString("[", ", ", "]"))
-        .getOrElse("[]")}, heldVehicleInRequest=${request.streetVehicles.exists(_.id == vehicleId)}, " +
-      s"requestStreetVehicles=$requestVehicleIds, possibleEgressVehicles=$possibleEgressVehicleIds"
-    }.getOrElse("request=none")
+    val requestSummary = routingResponseOpt
+      .flatMap(_.request)
+      .map { request =>
+        val requestVehicleIds = request.streetVehicles.map(_.id.toString).mkString("[", ", ", "]")
+        val possibleEgressVehicleIds = request.possibleEgressVehicles.map(_.id.toString).mkString("[", ", ", "]")
+        s"requestId=${request.requestId}, departureTime=${request.departureTime}, withTransit=${request.withTransit}, " +
+        s"requestedMode=${request.requestedMode.map(_.value).getOrElse("None")}, " +
+        s"intermodalUse=${request.streetVehiclesUseIntermodalUse}, searchedModes=${routingResponseOpt
+          .map(_.searchedModes.map(_.value).toVector.sorted.mkString("[", ", ", "]"))
+          .getOrElse("[]")}, heldVehicleInRequest=${request.streetVehicles.exists(_.id == vehicleId)}, " +
+        s"requestStreetVehicles=$requestVehicleIds, possibleEgressVehicles=$possibleEgressVehicleIds"
+      }
+      .getOrElse("request=none")
 
     val heldVehicleLocation = routingResponseOpt
       .flatMap(_.request)
@@ -1392,15 +1395,16 @@ trait ChoosesMode {
 
     def logDangerousEmergencyVehicleDrop(beamVehicle: BeamVehicle, branch: String): Unit = {
       val reasons = Vector(
-        personData.currentTourPersonalVehicle.filter(_ == beamVehicle.id).map(_ =>
-          s"personData.currentTourPersonalVehicle=${beamVehicle.id}"
-        ),
-        currentTourStrategy.tourVehicle.filter(_ == beamVehicle.id).map(_ =>
-          s"currentTourStrategy.tourVehicle=${beamVehicle.id}"
-        ),
-        parentTourStrategy.flatMap(_.tourVehicle).filter(_ == beamVehicle.id).map(_ =>
-          s"parentTourStrategy.tourVehicle=${beamVehicle.id}"
-        )
+        personData.currentTourPersonalVehicle
+          .filter(_ == beamVehicle.id)
+          .map(_ => s"personData.currentTourPersonalVehicle=${beamVehicle.id}"),
+        currentTourStrategy.tourVehicle
+          .filter(_ == beamVehicle.id)
+          .map(_ => s"currentTourStrategy.tourVehicle=${beamVehicle.id}"),
+        parentTourStrategy
+          .flatMap(_.tourVehicle)
+          .filter(_ == beamVehicle.id)
+          .map(_ => s"parentTourStrategy.tourVehicle=${beamVehicle.id}")
       ).flatten
 
       if (BeamVehicle.isEmergencyVehicle(beamVehicle.id) && reasons.nonEmpty) {
@@ -1851,8 +1855,8 @@ trait ChoosesMode {
           // Send non-chosen trips to skimmer if configured to do so
           combinedItinerariesForChoice.foreach {
             case possibleTrip
-          if (possibleTrip != chosenTrip) && beamScenario.beamConfig.beam.router.skim.sendNonChosenTripsToSkimmer && !choosesModeData.personData.currentTourMode
-            .contains(FREIGHT_TOUR) =>
+                if (possibleTrip != chosenTrip) && beamScenario.beamConfig.beam.router.skim.sendNonChosenTripsToSkimmer && !choosesModeData.personData.currentTourMode
+                  .contains(FREIGHT_TOUR) =>
               generateSkimData(
                 possibleTrip.legs.lastOption.map(_.beamLeg.endTime).getOrElse(_currentTick.get),
                 possibleTrip,
@@ -1869,9 +1873,9 @@ trait ChoosesMode {
           )
           val shouldRefreshTourStrategy =
             currentTourStrategy.tourMode.isEmpty ||
-              currentTourStrategy.tourMode != chosenCurrentTourMode ||
-              currentTourStrategy.tourVehicle != chosenTourVehicle ||
-              strategyVehicleMissing
+            currentTourStrategy.tourMode != chosenCurrentTourMode ||
+            currentTourStrategy.tourVehicle != chosenTourVehicle ||
+            strategyVehicleMissing
 
           if (shouldRefreshTourStrategy) {
             updateTourModeStrategy(
@@ -2089,8 +2093,8 @@ trait ChoosesMode {
                     personData.currentTourPersonalVehicle.isDefined &&
                     (
                       (isLastTripWithinTour(nextAct) &&
-                        !shouldRetryFinalIntermodalEgressWithBuffer) ||
-                        personData.numberOfReplanningAttempts > 2
+                      !shouldRetryFinalIntermodalEgressWithBuffer) ||
+                      personData.numberOfReplanningAttempts > 2
                     )
                   ) {
                     // Abandon the vehicle because we have no route to get it home
@@ -3158,12 +3162,49 @@ trait ChoosesMode {
 
     currentTourStrategy.tourMode match {
       case Some(tourMode) =>
+        val distinctAvailableVehicles = availableVehicles.foldLeft(Vector.empty[VehicleOrToken]) {
+          case (acc, vehicle) if acc.exists(_.id == vehicle.id) => acc
+          case (acc, vehicle)                                   => acc :+ vehicle
+        }
+
+        val recoveredVehicleFromItineraries = firstLegItineraries
+          .flatMap(_.legs.find(leg => leg.asDriver && leg.beamLeg.mode != WALK).map(_.beamVehicleId))
+          .distinct
+          .filter(vehicleId => distinctAvailableVehicles.exists(_.id == vehicleId)) match {
+          case Seq(vehicleId) =>
+            logger.debug(
+              s"Person ${this.id}: Recovered missing $tourMode tour vehicle $vehicleId from available itineraries"
+            )
+            Some(vehicleId)
+          case _ =>
+            None
+        }
+
+        val recoveredVehicleFromAvailableVehicles =
+          distinctAvailableVehicles
+            .filterNot(_.vehicle.isSharedVehicle)
+            .filter(vehicle =>
+              tourMode.allowedBeamModesGivenAvailableVehicles(Vector(vehicle), firstOrLastLeg = true).nonEmpty
+            )
+            .map(_.id)
+            .distinct match {
+            case Seq(vehicleId) if recoveredVehicleFromItineraries.isEmpty =>
+              logger.debug(
+                s"Person ${this.id}: Recovered missing $tourMode tour vehicle $vehicleId from unique available vehicle"
+              )
+              Some(vehicleId)
+            case _ =>
+              None
+          }
+
         val effectiveTourVehicle = choosesModeData.personData.currentTourPersonalVehicle
           .orElse(
             // Check if current tour strategy has a vehicle that's available
-            currentTourStrategy.tourVehicle.filter(vehicleId => availableVehicles.exists(_.id == vehicleId))
+            currentTourStrategy.tourVehicle.filter(vehicleId => distinctAvailableVehicles.exists(_.id == vehicleId))
           )
-          .orElse(getInheritedTourVehicle(choosesModeData.personData, availableVehicles))
+          .orElse(getInheritedTourVehicle(choosesModeData.personData, distinctAvailableVehicles))
+          .orElse(recoveredVehicleFromItineraries)
+          .orElse(recoveredVehicleFromAvailableVehicles)
 
         (
           Some(tourMode),
@@ -3174,7 +3215,7 @@ trait ChoosesMode {
               if (tourMode != FREIGHT_TOUR) {
                 logger.warn(
                   f"Vehicle based tour mode without vehicle defined: Person ${this.id}, " +
-                  f"tour: $currentTourStrategy. Available vehicles: $availableVehicles"
+                  f"tour: $currentTourStrategy. Available vehicles: $distinctAvailableVehicles"
                 )
               }
               itin -> itin.legs.find(l => l.asDriver && (l.beamLeg.mode != WALK)).map(_.beamVehicleId)
@@ -3445,7 +3486,8 @@ trait ChoosesMode {
         logger.debug(s"Resetting tour mode to None for person ${this.id}")
       case _ =>
     }
-    val legStrategies = tour.trips.flatMap(_.leg).map(leg => _experiencedBeamPlan.getStrategy[TripModeChoiceStrategy](leg))
+    val legStrategies =
+      tour.trips.flatMap(_.leg).map(leg => _experiencedBeamPlan.getStrategy[TripModeChoiceStrategy](leg))
 
     val mismatchedLegStrategies = newTourMode match {
       case Some(tourMode) =>

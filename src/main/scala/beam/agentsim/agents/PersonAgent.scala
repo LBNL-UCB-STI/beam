@@ -1233,6 +1233,10 @@ class PersonAgent(
         nextNotifyVehicleResourceIdle.foreach(notifyVehicleIdle =>
           currentBeamVehicle.getManager match {
             case Some(manager) => manager ! notifyVehicleIdle
+            case None if BeamVehicle.isSharedTeleportationVehicle(currentBeamVehicle.id) =>
+              logger.debug(
+                s"Dropping shared teleportation vehicle ${currentBeamVehicle.id} without idle notification"
+              )
             case None =>
               logger.error(
                 s"Vehicle ${currentBeamVehicle.id} does not have a manager, " +
@@ -1256,7 +1260,16 @@ class PersonAgent(
             )) || BeamVehicle.isSharedTeleportationVehicle(currentBeamVehicle.id)
           ) {
             // Is a shared vehicle. Give it up.
-            currentBeamVehicle.getManager.get ! ReleaseVehicle(currentBeamVehicle, triggerId)
+            currentBeamVehicle.getManager match {
+              case Some(manager) =>
+                manager ! ReleaseVehicle(currentBeamVehicle, triggerId)
+              case _ if BeamVehicle.isSharedTeleportationVehicle(currentBeamVehicle.id) =>
+                logger.debug(
+                  s"Dropping shared teleportation vehicle ${currentBeamVehicle.id} without manager release"
+                )
+              case _ =>
+                logger.warn(s"Giving up vehicle ${currentBeamVehicle.id}, which doesn't have a manager set")
+            }
             beamVehicles -= data.currentVehicle.head
           }
         }
@@ -1315,13 +1328,13 @@ class PersonAgent(
       _experiencedBeamPlan.putStrategy(nextAct, TripModeChoiceStrategy(mode = None))
       val (updatedTourMode, updatedTourPersonalVehicle): (Option[BeamTourMode], Option[Id[BeamVehicle]]) =
         if (nextAct.getType.equalsIgnoreCase("Home")) { (None, None) }
-        else { (basePersonData.currentTourMode, basePersonData.currentTourPersonalVehicle) }
+        else { (basePersonData.currentTourMode, sanitizeTourPersonalVehicle(basePersonData.currentTourPersonalVehicle)) }
       goto(ChoosingMode) using ChoosesModeData.validated(
         basePersonData.copy(
           currentTrip = None,
           restOfCurrentTrip = List.empty[EmbodiedBeamLeg],
           currentTripMode = Some(WALK_TRANSIT),
-          currentTourPersonalVehicle = updatedTourPersonalVehicle,
+          currentTourPersonalVehicle = sanitizeTourPersonalVehicle(updatedTourPersonalVehicle),
           passengerSchedule = PassengerSchedule(),
           numberOfReplanningAttempts = basePersonData.numberOfReplanningAttempts + 1,
           failedTrips = basePersonData.failedTrips ++ basePersonData.currentTrip.map(trip =>
@@ -1663,7 +1676,7 @@ class PersonAgent(
           val nextTripTourPersonalVehicle = if (activity.getType.equalsIgnoreCase("Home")) {
             None
           } else {
-            data.currentTourPersonalVehicle
+            sanitizeTourPersonalVehicle(data.currentTourPersonalVehicle)
           }
           goto(PerformingActivity) using data.copy(
             currentActivityIndex = data.currentActivityIndex + 1,
@@ -1775,7 +1788,7 @@ class PersonAgent(
             currentTrip = None,
             restOfCurrentTrip = List(),
             currentTripMode = None,
-            currentTourPersonalVehicle = data.currentTourPersonalVehicle match {
+            currentTourPersonalVehicle = sanitizeTourPersonalVehicle(data.currentTourPersonalVehicle) match {
               case Some(personalVehId) if beamVehicles.contains(personalVehId) =>
                 val personalVeh = beamVehicles(personalVehId).asInstanceOf[ActualVehicle].vehicle
                 if (atHome(activity) && _experiencedBeamPlan.isLastElementInTour(activity)) {
@@ -1813,11 +1826,23 @@ class PersonAgent(
                       s"suppressed release of vehicle $personalVehId because ${suppressReleaseReasons.mkString("; ")}; " +
                         postArrivalLookahead
                     )
-                    data.currentTourPersonalVehicle
+                    sanitizeTourPersonalVehicle(data.currentTourPersonalVehicle)
                   } else {
-                    potentiallyChargingBeamVehicles.put(personalVeh.id, beamVehicles(personalVeh.id))
+                    val personalVehState = beamVehicles(personalVeh.id)
                     beamVehicles -= personalVeh.id
-                    personalVeh.getManager.get ! ReleaseVehicle(personalVeh, triggerId)
+                    if (BeamVehicle.isSharedTeleportationVehicle(personalVeh.id)) {
+                      logger.debug(
+                        s"Dropping shared teleportation vehicle ${personalVeh.id} at home arrival without manager release"
+                      )
+                    } else {
+                      potentiallyChargingBeamVehicles.put(personalVeh.id, personalVehState)
+                      personalVeh.getManager match {
+                        case Some(manager) =>
+                          manager ! ReleaseVehicle(personalVeh, triggerId)
+                        case _ =>
+                          logger.warn(s"Giving up vehicle ${personalVeh.id}, which doesn't have a manager set")
+                      }
+                    }
                     None
                   }
                 } else if (_experiencedBeamPlan.isLastElementInTour(data.currentActivityIndex + 1)) {
@@ -1835,11 +1860,16 @@ class PersonAgent(
                         s"subtour. Keeping my current vehicle. Perhaps there was a malformed tour for " +
                         s"person ${this.id}: ${currentTourAtArrival.activities.map(act => act.getType + "->")}"
                       )
-                      data.currentTourPersonalVehicle
+                      sanitizeTourPersonalVehicle(data.currentTourPersonalVehicle)
                   }
                 } else {
-                  data.currentTourPersonalVehicle
+                  sanitizeTourPersonalVehicle(data.currentTourPersonalVehicle)
                 }
+              case Some(personalVehId) if BeamVehicle.isSharedTeleportationVehicle(personalVehId) =>
+                logger.debug(
+                  s"Shared teleportation vehicle $personalVehId was already dropped for person ${this.id}"
+                )
+                None
               case Some(personalVehId) =>
                 logger.error(s"Vehicle ${personalVehId.toString} seems to have disappeared")
                 logger.warn("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
@@ -2118,6 +2148,11 @@ class PersonAgent(
       }
     }
   }
+
+  private def sanitizeTourPersonalVehicle(
+    vehicleId: Option[Id[BeamVehicle]]
+  ): Option[Id[BeamVehicle]] =
+    vehicleId.filterNot(BeamVehicle.isSharedTeleportationVehicle)
 
   protected def getParentTourStrategy(
     data: BasePersonData
