@@ -4,6 +4,8 @@ import java.io.{File, PrintWriter}
 import scala.collection.concurrent.TrieMap
 import scala.util.Random
 import beam.router.RouteHistory.RouteHistoryADT
+import beam.sim.config.BeamConfig
+import com.typesafe.config.ConfigFactory
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -40,6 +42,21 @@ class RouteHistorySpec extends AnyFlatSpec with BeforeAndAfter {
     } finally {
       file.delete()
     }
+  }
+
+  it should "skip caching entirely when disabled" in {
+    val routeHistory = new RouteHistory(
+      BeamConfig(
+        ConfigFactory
+          .parseString("beam.physsim.enableRouteHistory = false")
+          .withFallback(ConfigFactory.parseFile(new File("production/seattle/seattle-base.conf")))
+          .resolve()
+      )
+    )
+
+    routeHistory.rememberRoute(IndexedSeq(1, 2, 3), departTime = 3600)
+
+    assert(routeHistory.getRoute(1, 3, 3600).isEmpty)
   }
 
   private def writeToFile(file: File, content: String): Unit = {

@@ -11,7 +11,7 @@ class ClusterWorkerRouter(config: Config) extends Actor with ActorLogging {
   // instead of Props[StatsWorker.class].
 
   val workerRouter: ActorRef = context.actorOf(
-    FromConfig.props(Props(classOf[RoutingWorker], config)),
+    FromConfig.props(RoutingWorker.propsFromConfig(config)),
     name = "workerRouter"
   )
   def getNameAndHashCode: String = s"ClusterWorkerRouter[${hashCode()}], Path: `${self.path}`"

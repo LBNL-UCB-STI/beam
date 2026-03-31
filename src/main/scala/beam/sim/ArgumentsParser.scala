@@ -55,16 +55,13 @@ object ArgumentsParser {
         .action((value, args) => args.copy(useLocalWorker = Some(value)))
         .text(
           "Boolean determining whether to use a local worker. " +
-          "If cluster is NOT enabled this defaults to true and cannot be false. " +
-          "If cluster is specified then this defaults to false and must be explicitly set to true. " +
-          "NOTE: For cluster, this will ONLY be checked if cluster-type=master"
+          "If cluster is NOT enabled this defaults to true. " +
+          "If cluster is enabled this defaults to false."
         )
 
       checkConfig(args =>
         if (args.useCluster && (args.nodeHost.isEmpty || args.nodePort.isEmpty || args.seedAddress.isEmpty))
           failure("If using the cluster then node-host, node-port, and seed-address are required")
-        else if (args.useCluster && !args.useLocalWorker.getOrElse(true))
-          failure("If using the cluster then use-local-worker MUST be true (or unprovided)")
         else success
       )
     }

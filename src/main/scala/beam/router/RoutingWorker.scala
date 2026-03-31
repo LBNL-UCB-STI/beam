@@ -407,6 +407,7 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
       askForMoreWork()
 
     case UpdateTravelTimeRemote(map) =>
+      val replyTo = sender()
       val newTravelTime =
         TravelTimeCalculatorHelper.CreateTravelTimeCalculator(workerParams.beamConfig.beam.agentsim.timeBinSize, map)
       if (carRouter == "quasiDynamicGH") {
@@ -432,6 +433,7 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
         getNameAndHashCode,
         map.keySet().size()
       )
+      replyTo ! UpdateTravelTimeRemoteAck(self.path.toString)
       askForMoreWork()
 
     case EmbodyWithCurrentTravelTime(
@@ -627,10 +629,12 @@ object RoutingWorker {
 
   case object GetR5Wrapper
 
-  def fromConfig(config: Config) {
+  def fromConfig(config: Config): RoutingWorker = {
     val (workerParams, networks2) = R5Parameters.fromConfig(config)
     new RoutingWorker(workerParams, networks2)
   }
+
+  def propsFromConfig(config: Config): Props = Props(fromConfig(config))
 
   // 3.1 mph -> 1.38 meter per second, changed from 1 mph
   def props(

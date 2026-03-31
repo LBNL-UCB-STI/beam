@@ -20,6 +20,7 @@ class RouteHistory @Inject() (
 ) extends IterationEndsListener
     with LazyLogging {
 
+  private val enabled = beamConfig.beam.physsim.enableRouteHistory
   private var routeHistory: RouteHistoryADT = TrieMap()
   private val randUnif = Distribution.uniform
   @volatile private var cacheRequests = 0
@@ -30,6 +31,9 @@ class RouteHistory @Inject() (
   }
 
   def rememberRoute(route: IndexedSeq[Int], departTime: Int): Unit = {
+    if (!enabled || route.isEmpty) {
+      return
+    }
     val timeBin = timeToBin(departTime)
     @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val routeHead = route.head
@@ -49,6 +53,9 @@ class RouteHistory @Inject() (
   }
 
   def getRoute(orig: Int, dest: Int, time: Int): Option[IndexedSeq[Int]] = {
+    if (!enabled) {
+      return None
+    }
     cacheRequests += 1
     val timeBin = timeToBin(time)
     routeHistory.get(timeBin) match {
@@ -66,6 +73,9 @@ class RouteHistory @Inject() (
   }
 
   def expireRoutes(fracToExpire: Double): Unit = {
+    if (!enabled) {
+      return
+    }
     logger.info(
       "Overall cache hits {}/{} ({}%)",
       cacheHits,
@@ -93,7 +103,7 @@ class RouteHistory @Inject() (
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
 
-    if (shouldWriteInIteration(event.getIteration, beamConfig.beam.physsim.writeRouteHistoryInterval)) {
+    if (enabled && shouldWriteInIteration(event.getIteration, beamConfig.beam.physsim.writeRouteHistoryInterval)) {
       val filePath = event.getServices.getControlerIO.getIterationFilename(
         event.getServices.getIterationNumber,
         "routeHistory.csv.gz"

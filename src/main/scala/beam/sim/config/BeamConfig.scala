@@ -3499,6 +3499,7 @@ object BeamConfig {
       bprsim: BeamConfig.Beam.Physsim.Bprsim,
       cchRoutingAssignment: BeamConfig.Beam.Physsim.CchRoutingAssignment,
       duplicatePTE: BeamConfig.Beam.Physsim.DuplicatePTE,
+      enableRouteHistory: scala.Boolean,
       eventManager: BeamConfig.Beam.Physsim.EventManager,
       events: BeamConfig.Beam.Physsim.Events,
       eventsForFullVersionOfVia: scala.Boolean,
@@ -4403,6 +4404,7 @@ object BeamConfig {
             if (c.hasPathOrNull("duplicatePTE")) c.getConfig("duplicatePTE")
             else com.typesafe.config.ConfigFactory.parseString("duplicatePTE{}")
           ),
+          enableRouteHistory = !c.hasPathOrNull("enableRouteHistory") || c.getBoolean("enableRouteHistory"),
           eventManager = BeamConfig.Beam.Physsim.EventManager(
             if (c.hasPathOrNull("eventManager")) c.getConfig("eventManager")
             else com.typesafe.config.ConfigFactory.parseString("eventManager{}")

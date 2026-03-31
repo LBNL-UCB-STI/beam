@@ -52,12 +52,12 @@ import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.Vehicle
 
 import java.time.{ZoneOffset, ZonedDateTime}
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{TimeUnit, TimeoutException}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.{immutable, mutable}
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContextExecutor, Future}
+import scala.concurrent.{ExecutionContextExecutor, Future}
 
 class BeamRouter(
   beamScenario: BeamScenario,
@@ -78,6 +78,13 @@ class BeamRouter(
   type WorkWithOriginalSender = (Any, OriginalSender)
   type WorkId = Int
   type TimeSent = ZonedDateTime
+
+  private case class OutstandingWork(
+    work: Any,
+    originalSender: OriginalSender,
+    worker: Option[Worker],
+    sentAt: TimeSent
+  )
 
   var odSkimmer: Option[ODSkims] = None
   val clearRoutedOutstandingWorkEnabled: Boolean = beamScenario.beamConfig.beam.debug.clearRoutedOutstandingWorkEnabled
@@ -103,14 +110,8 @@ class BeamRouter(
     )
   val availableWorkers: mutable.Set[Worker] = mutable.Set.empty[Worker]
 
-  val outstandingWorkIdToOriginalSenderMap: mutable.Map[WorkId, OriginalSender] =
-    mutable.Map.empty[WorkId, OriginalSender]
-
-  val outstandingWorkIdToTimeSent: mutable.Map[WorkId, TimeSent] =
-    mutable.Map.empty[WorkId, TimeSent]
-  //TODO: Add actual request with who sent so can handle retry better
-  //TODO: Implement timeouts using stored sending time
-  //TODO: What is better for memory? Separate mutable maps or a custom object containing everything needed?
+  private val outstandingWorkById: mutable.Map[WorkId, OutstandingWork] =
+    mutable.Map.empty[WorkId, OutstandingWork]
 
   // TODO Fix me!
   val servicePath = "/user/statsServiceProxy"
@@ -187,7 +188,7 @@ class BeamRouter(
       }
     case `tick` =>
       if (isWorkAndNoAvailableWorkers) notifyWorkersOfAvailableWork()
-      logExcessiveOutstandingWorkAndClearIfEnabledAndOver
+      logExcessiveOutstandingWorkAndClearIfEnabledAndOver()
       log.info(
         "Router queue depth: {}, available workers: {}",
         availableWorkWithOriginalSender.size(),
@@ -206,13 +207,23 @@ class BeamRouter(
       travelTimeOpt = Some(msg.travelTime)
       localNodes.foreach(_.forward(msg))
     case UpdateTravelTimeRemote(map) =>
-      val nodes = remoteNodes
-      nodes.foreach { address =>
-        resolveAddressBlocking(address).foreach { serviceActor =>
-          log.info("Sending UpdateTravelTime_v2 to  {}", serviceActor)
-          serviceActor.ask(UpdateTravelTimeRemote(map))(updateTravelTimeTimeout)
-        }
-      }
+      val replyTo = sender()
+      val deliveryResults = Future.sequence(
+        remoteNodes.toSeq.map(address => deliverUpdateTravelTimeRemote(map)(address))
+      )
+      deliveryResults.foreach { results =>
+        val failures = results.filterNot(_.delivered)
+        if (failures.isEmpty)
+          log.info("UpdateTravelTimeRemote delivered to {} workers", results.size)
+        else
+          log.warning(
+            "UpdateTravelTimeRemote delivered to {} of {} workers; failures={}",
+            results.count(_.delivered),
+            results.size,
+            failures.map(f => s"${f.workerAddress}:${f.errorMessage.getOrElse("unknown")}").mkString(", ")
+          )
+        replyTo ! UpdateTravelTimeRemoteResults(results)
+      }(context.dispatcher)
     case GetMatSimNetwork =>
       sender ! MATSimNetwork(network)
     case GetTravelTime =>
@@ -235,14 +246,14 @@ class BeamRouter(
       other match {
         case MemberExited(_) | MemberRemoved(_, _) =>
           remoteNodes -= other.member.address
-          removeUnavailableMemberFromAvailableWorkers(other.member)
+          handleWorkerRemoval(other.member, s"${other.getClass.getSimpleName}")
         case _ =>
       }
     //Why is this a removal?
     case UnreachableMember(m) =>
       log.info("UnreachableMember: {}", m)
       remoteNodes -= m.address
-      removeUnavailableMemberFromAvailableWorkers(m)
+      handleWorkerRemoval(m, "UnreachableMember")
     case ReachableMember(m) if m.hasRole("compute") =>
       log.info("ReachableMember: {}", m)
       remoteNodes += m.address
@@ -275,14 +286,15 @@ class BeamRouter(
         .getOrElse(routingResp)
       routingStatistic.foreach(_ ! routingResp)
       pipeResponseToOriginalSender(updatedRoutingResponse)
-      logIfResponseTookExcessiveTime(updatedRoutingResponse.requestId)
     case routingFailure: RoutingFailure =>
       routingStatistic.foreach(_ ! routingFailure)
       pipeTransformedFailureToOriginalSender(routingFailure)
-      logIfResponseTookExcessiveTime(routingFailure.request.requestId)
     case ClearRoutedWorkerTracker(workIdToClear) =>
-      //TODO: Maybe do this for all tracker removals?
-      removeOutstandingWorkBy(workIdToClear)
+      failOutstandingWork(
+        workIdToClear,
+        new TimeoutException(s"Routing work id $workIdToClear timed out waiting for a remote worker"),
+        "timeout"
+      )
 
     case work =>
       processByEventsManagerIfNeeded(work)
@@ -330,10 +342,10 @@ class BeamRouter(
 
   private def getCurrentTime: ZonedDateTime = ZonedDateTime.now(ZoneOffset.UTC)
 
-  private def logExcessiveOutstandingWorkAndClearIfEnabledAndOver = Future {
+  private def logExcessiveOutstandingWorkAndClearIfEnabledAndOver(): Unit = {
     val currentTime = getCurrentTime
-    outstandingWorkIdToTimeSent.collect { case (workId: WorkId, timeSent: TimeSent) =>
-      val secondsSinceSent = timeSent.until(currentTime, java.time.temporal.ChronoUnit.SECONDS)
+    outstandingWorkById.collect { case (workId: WorkId, outstandingWork) =>
+      val secondsSinceSent = outstandingWork.sentAt.until(currentTime, java.time.temporal.ChronoUnit.SECONDS)
       if (clearRoutedOutstandingWorkEnabled && secondsSinceSent > secondsToWaitToClearRoutedOutstandingWork) {
         //TODO: Can the logs be combined?
         log.warning(
@@ -353,19 +365,17 @@ class BeamRouter(
     }
   }
 
-  private def removeUnavailableMemberFromAvailableWorkers(
-    member: Member
-  ): Unit = {
-    try {
-      val worker = Await.result(workerFrom(member.address).resolveOne, 60.seconds)
-      if (availableWorkers.contains(worker)) {
-        availableWorkers.remove(worker)
-      }
-      //TODO: If there is work outstanding then it needs handled
-    } catch {
-      case ex: Throwable =>
-        log.error(ex, s"removeUnavailableMemberFromAvailableWorkers failed with: ${ex.getMessage}")
-    }
+  private def handleWorkerRemoval(member: Member, reason: String): Unit = {
+    removeUnavailableMemberFromAvailableWorkers(member.address)
+    failOutstandingWorkAssignedTo(
+      member.address,
+      new RuntimeException(s"Routing worker at ${member.address} was removed because of $reason")
+    )
+  }
+
+  private def removeUnavailableMemberFromAvailableWorkers(address: Address): Unit = {
+    val workersToRemove = availableWorkers.filter(_.path.address == address).toSeq
+    workersToRemove.foreach(availableWorkers.remove)
   }
 
   private def notifyNewWorkerIfWorkAvailable(
@@ -387,18 +397,16 @@ class BeamRouter(
   ): Unit = {
     work match {
       case routingRequest: RoutingRequest =>
-        outstandingWorkIdToOriginalSenderMap.put(
+        outstandingWorkById.put(
           routingRequest.requestId,
-          originalSender
-        ) //TODO: Add a central Id trait so can just match on that and combine logic
-        outstandingWorkIdToTimeSent.put(routingRequest.requestId, getCurrentTime)
+          OutstandingWork(routingRequest, originalSender, Some(worker), getCurrentTime)
+        )
         worker ! work
       case embodyWithCurrentTravelTime: EmbodyWithCurrentTravelTime =>
-        outstandingWorkIdToOriginalSenderMap.put(
+        outstandingWorkById.put(
           embodyWithCurrentTravelTime.requestId,
-          originalSender
+          OutstandingWork(embodyWithCurrentTravelTime, originalSender, Some(worker), getCurrentTime)
         )
-        outstandingWorkIdToTimeSent.put(embodyWithCurrentTravelTime.requestId, getCurrentTime)
         worker ! work
       case _ =>
         log.warning(
@@ -411,8 +419,9 @@ class BeamRouter(
   }
 
   private def pipeResponseToOriginalSender(routingResp: RoutingResponse): Unit =
-    outstandingWorkIdToOriginalSenderMap.remove(routingResp.requestId) match {
-      case Some(originalSender) => originalSender ! routingResp
+    completeOutstandingWork(routingResp.requestId, routingResp) match {
+      case Some(outstandingWork) =>
+        logIfResponseTookExcessiveTime(routingResp.requestId, outstandingWork.sentAt)
       case None =>
         log.error(
           "Received a RoutingResponse that does not match a tracked WorkId: {}",
@@ -421,8 +430,9 @@ class BeamRouter(
     }
 
   private def pipeTransformedFailureToOriginalSender(routingFailure: RoutingFailure): Unit =
-    outstandingWorkIdToOriginalSenderMap.remove(routingFailure.request.requestId) match {
-      case Some(originalSender) => originalSender ! Failure(routingFailure.cause)
+    failOutstandingWork(routingFailure.request.requestId, routingFailure.cause, "remote worker failure") match {
+      case Some(outstandingWork) =>
+        logIfResponseTookExcessiveTime(routingFailure.request.requestId, outstandingWork.sentAt)
       case None =>
         log.error(
           "Received a RoutingFailure that does not match a tracked WorkId: {}",
@@ -430,17 +440,26 @@ class BeamRouter(
         )
     }
 
-  private def logIfResponseTookExcessiveTime(requestId: Int): Unit =
-    outstandingWorkIdToTimeSent.remove(requestId) match {
-      case Some(timeSent) =>
-        val secondsSinceSent = timeSent.until(getCurrentTime, java.time.temporal.ChronoUnit.SECONDS)
-        if (secondsSinceSent > 30)
-          log.warning(
-            "Took longer than 30 seconds to hear back from work id '{}' - {} seconds",
-            requestId,
-            secondsSinceSent
-          )
-      case None => //No matching id. No need to log since this is more for analysis
+  private def logIfResponseTookExcessiveTime(requestId: Int, sentAt: TimeSent): Unit = {
+    val secondsSinceSent = sentAt.until(getCurrentTime, java.time.temporal.ChronoUnit.SECONDS)
+    if (secondsSinceSent > 30)
+      log.warning(
+        "Took longer than 30 seconds to hear back from work id '{}' - {} seconds",
+        requestId,
+        secondsSinceSent
+      )
+  }
+
+  private def completeOutstandingWork(
+    requestId: Int,
+    routingResp: RoutingResponse
+  ): Option[OutstandingWork] =
+    outstandingWorkById.remove(requestId) match {
+      case Some(outstandingWork) =>
+        outstandingWork.originalSender ! routingResp
+        Some(outstandingWork)
+      case None =>
+        None
     }
 
   // TODO: availableWorkers is a SET (not sortedSet).
@@ -452,25 +471,68 @@ class BeamRouter(
     worker
   }
 
-  private def removeOutstandingWorkBy(workId: Int): Unit = {
-    outstandingWorkIdToOriginalSenderMap.remove(workId)
-    outstandingWorkIdToTimeSent.remove(workId)
-  }
-
-  private def resolveAddressBlocking(addr: Address, d: FiniteDuration = 60.seconds): Option[ActorRef] = {
-    Await.result(resolveAddress(addr, d), d)
-  }
-
   private def resolveAddress(addr: Address, duration: FiniteDuration = 60.seconds): Future[Option[ActorRef]] = {
     workerFrom(addr)
       .resolveOne(duration)
       .map { r =>
         Option(r)
       }
-      .recover { case t: Throwable =>
-        log.error(t, "Can't resolve '{}': {}", addr, t.getMessage)
+      .recover { case _: Throwable => None }
+  }
+
+  private def deliverUpdateTravelTimeRemote(
+    map: java.util.Map[String, Array[Double]]
+  )(address: Address): Future[UpdateTravelTimeRemoteResult] = {
+    resolveAddress(address).flatMap {
+      case Some(serviceActor) =>
+        log.info("Sending UpdateTravelTimeRemote to {}", serviceActor)
+        serviceActor
+          .ask(UpdateTravelTimeRemote(map))(updateTravelTimeTimeout)
+          .map {
+            case UpdateTravelTimeRemoteAck(workerPath) =>
+              UpdateTravelTimeRemoteResult(address, delivered = true, None, Some(workerPath))
+            case unexpected =>
+              UpdateTravelTimeRemoteResult(
+                address,
+                delivered = false,
+                Some(s"Unexpected response: ${unexpected.getClass.getSimpleName}"),
+                None
+              )
+          }(context.dispatcher)
+          .recover { case ex: Throwable =>
+            log.error(ex, "UpdateTravelTimeRemote failed for {}", address)
+            UpdateTravelTimeRemoteResult(address, delivered = false, Some(ex.getMessage), None)
+          }(context.dispatcher)
+      case None =>
+        val error = new RuntimeException(s"Unable to resolve remote routing worker at $address")
+        log.error(error, error.getMessage)
+        Future.successful(UpdateTravelTimeRemoteResult(address, delivered = false, Some(error.getMessage), None))
+    }(context.dispatcher)
+  }
+
+  private def failOutstandingWork(requestId: Int, cause: Throwable, reason: String): Option[OutstandingWork] =
+    outstandingWorkById.remove(requestId) match {
+      case Some(outstandingWork) =>
+        log.warning(
+          "Failing routed work id '{}' because of {}: {}",
+          requestId,
+          reason,
+          cause.getMessage
+        )
+        outstandingWork.originalSender ! Failure(cause)
+        Some(outstandingWork)
+      case None =>
         None
-      }
+    }
+
+  private def failOutstandingWorkAssignedTo(address: Address, cause: Throwable): Unit = {
+    val workIds = outstandingWorkById.collect {
+      case (workId, outstandingWork) if outstandingWork.worker.exists(_.path.address == address) =>
+        workId
+    }.toSeq
+    workIds.foreach { workId =>
+      failOutstandingWork(workId, cause, s"worker loss at $address")
+    }
   }
 
   def shouldWriteR5Routes(iteration: Int): Boolean = {
@@ -505,6 +567,17 @@ object BeamRouter {
   case class TryToSerialize(obj: Object)
 
   case class UpdateTravelTimeRemote(linkIdToTravelTimePerHour: java.util.Map[String, Array[Double]])
+
+  case class UpdateTravelTimeRemoteResult(
+    workerAddress: Address,
+    delivered: Boolean,
+    errorMessage: Option[String],
+    workerPath: Option[String]
+  )
+
+  case class UpdateTravelTimeRemoteResults(results: Seq[UpdateTravelTimeRemoteResult])
+
+  case class UpdateTravelTimeRemoteAck(workerPath: String)
 
   object IntermodalUse {
     sealed trait IntermodalUse extends Product with Serializable

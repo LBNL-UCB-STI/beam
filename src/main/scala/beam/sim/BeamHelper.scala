@@ -115,6 +115,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     parsedArgs: Arguments,
     config: TypesafeConfig
   ): TypesafeConfig = {
+    val actorSystemName = Try(config.getString("beam.actorSystemName")).getOrElse("ClusterSystem")
     val primaryConfigEntries = ConfigFactory.parseMap(
       parsedArgs.pythonExecutable.map("beam.outputs.analysis.pythonExecutable" -> _).toMap.asJava
     )
@@ -133,7 +134,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
               "akka.remote.artery.canonical.hostname" -> parsedArgs.nodeHost.get,
               "akka.remote.artery.canonical.port"     -> parsedArgs.nodePort.get,
               "akka.cluster.seed-nodes" -> java.util.Arrays
-                .asList(s"akka://ClusterSystem@${parsedArgs.seedAddress.get}")
+                .asList(s"akka://$actorSystemName@${parsedArgs.seedAddress.get}")
             )
           else Map.empty[String, Any]
         }
@@ -563,6 +564,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
   }
 
   private def runClusterWorkerUsing(config: TypesafeConfig): Unit = {
+    val actorSystemName = Try(config.getString("beam.actorSystemName")).getOrElse("ClusterSystem")
     val clusterConfig = ConfigFactory
       .parseString("""
            |akka.cluster.roles = [compute]
@@ -590,7 +592,15 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     import beam.router.ClusterWorkerRouter
     import beam.sim.monitoring.DeadLetterReplayer
 
-    val system = ActorSystem("ClusterSystem", clusterConfig)
+    logger.info(
+      "Starting cluster worker actor system '{}' on {}:{} with seeds {}",
+      actorSystemName,
+      Try(clusterConfig.getString("akka.remote.artery.canonical.hostname")).getOrElse(""),
+      Try(clusterConfig.getString("akka.remote.artery.canonical.port")).getOrElse(""),
+      Try(clusterConfig.getStringList("akka.cluster.seed-nodes").asScala.mkString(",")).getOrElse("")
+    )
+
+    val system = ActorSystem(actorSystemName, clusterConfig)
     system.actorOf(
       ClusterSingletonManager.props(
         singletonProps = Props(classOf[ClusterWorkerRouter], clusterConfig),
