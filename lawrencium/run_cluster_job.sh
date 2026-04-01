@@ -81,8 +81,20 @@ if [[ "${!BATCH_MODE_SENTINEL:-submit}" != "batch" ]]; then
   export AKKA_PORT
 
   JOB_NAME="$RANDOM_PART.$DATETIME.multi"
-  BATCH_WRAPPER_PATH="$BEAM_BASE_DIR/run_cluster_job.batch.sh"
-  cat >"$BATCH_WRAPPER_PATH" <<EOF
+
+  set -x
+  SBATCH_OUTPUT=$(
+    sbatch --parsable \
+      --partition="$PARTITION" \
+      --exclusive \
+      --nodes="$TOTAL_NODES" \
+      --mem="${MEMORY_LIMIT}G" \
+      --qos="$QOS" \
+      --account="$ACCOUNT" \
+      --export=ALL \
+      --job-name="$JOB_NAME" \
+      --output="$SLURM_STDOUT_PATH" \
+      --time="$EXPECTED_EXECUTION_DURATION" <<EOF
 #!/bin/bash
 set -euo pipefail
 export ${BATCH_MODE_SENTINEL}=batch
@@ -97,27 +109,11 @@ export IMAGE_TAG='${IMAGE_TAG:-}'
 export PREBUILT_SIF_PATH='${PREBUILT_SIF_PATH:-}'
 touch "$BEAM_BASE_DIR/batch-wrapper-entered.txt"
 exec >>"\$JOB_LOG_FILE_PATH" 2>&1
-echo "Entered batch wrapper at \$(date "+%Y-%m-%d-%H:%M:%S")"
-echo "Wrapper cwd: \$(pwd)"
-echo "Wrapper script path: $SCRIPT_PATH"
+echo "Entered inline batch script at \$(date "+%Y-%m-%d-%H:%M:%S")"
+echo "Inline batch cwd: \$(pwd)"
+echo "Launcher path: $SCRIPT_PATH"
 exec "$SCRIPT_PATH"
 EOF
-  chmod +x "$BATCH_WRAPPER_PATH"
-
-  set -x
-  SBATCH_OUTPUT=$(
-    sbatch --parsable \
-      --partition="$PARTITION" \
-      --exclusive \
-      --nodes="$TOTAL_NODES" \
-      --mem="${MEMORY_LIMIT}G" \
-      --qos="$QOS" \
-      --account="$ACCOUNT" \
-      --export=ALL \
-      --job-name="$JOB_NAME" \
-      --output="$SLURM_STDOUT_PATH" \
-      --time="$EXPECTED_EXECUTION_DURATION" \
-      "$BATCH_WRAPPER_PATH"
   )
   set +x
   JOB_ID="${SBATCH_OUTPUT%%;*}"
