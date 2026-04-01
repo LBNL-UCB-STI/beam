@@ -68,6 +68,7 @@ if [[ "${!BATCH_MODE_SENTINEL:-submit}" != "batch" ]]; then
 
   JOB_LOG_FILE_NAME="cluster-log-file.log"
   JOB_LOG_FILE_PATH="$BEAM_BASE_DIR/$JOB_LOG_FILE_NAME"
+  SLURM_STDOUT_PATH="$BEAM_BASE_DIR/slurm-batch.log"
   LINK_TO_JOB_LOG_FILE="$(pwd)/out.cluster.$NAME_SUFFIX.log"
   touch "$JOB_LOG_FILE_PATH"
   ln -snf "$JOB_LOG_FILE_PATH" "$LINK_TO_JOB_LOG_FILE"
@@ -94,6 +95,7 @@ export BEAM_CONFIG='${BEAM_CONFIG}'
 export DOCKER_IMAGE_NAME='${DOCKER_IMAGE_NAME:-}'
 export IMAGE_TAG='${IMAGE_TAG:-}'
 export PREBUILT_SIF_PATH='${PREBUILT_SIF_PATH:-}'
+touch "$BEAM_BASE_DIR/batch-wrapper-entered.txt"
 exec >>"\$JOB_LOG_FILE_PATH" 2>&1
 echo "Entered batch wrapper at \$(date "+%Y-%m-%d-%H:%M:%S")"
 echo "Wrapper cwd: \$(pwd)"
@@ -113,7 +115,7 @@ EOF
       --account="$ACCOUNT" \
       --export=ALL \
       --job-name="$JOB_NAME" \
-      --output="$JOB_LOG_FILE_PATH" \
+      --output="$SLURM_STDOUT_PATH" \
       --time="$EXPECTED_EXECUTION_DURATION" \
       "$BATCH_WRAPPER_PATH"
   )
