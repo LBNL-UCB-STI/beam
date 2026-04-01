@@ -66,7 +66,6 @@ if [[ "${!BATCH_MODE_SENTINEL:-submit}" != "batch" ]]; then
   BEAM_BASE_DIR="/global/scratch/users/$USER/out_beam_$NAME_SUFFIX"
   mkdir -p "$BEAM_BASE_DIR"
   SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
-  BATCH_HELPER_PATH="$(cd "$(dirname "$0")" && pwd)/run_cluster_job_batch.sh"
 
   JOB_LOG_FILE_NAME="cluster-log-file.log"
   JOB_LOG_FILE_PATH="$BEAM_BASE_DIR/$JOB_LOG_FILE_NAME"
@@ -84,7 +83,8 @@ if [[ "${!BATCH_MODE_SENTINEL:-submit}" != "batch" ]]; then
 
   JOB_NAME="$RANDOM_PART.$DATETIME.multi"
   SBATCH_EXPORTS="ALL"
-  BATCH_ENV_PREFIX="BEAM_BASE_DIR='$BEAM_BASE_DIR' JOB_LOG_FILE_PATH='$JOB_LOG_FILE_PATH' LINK_TO_JOB_LOG_FILE='$LINK_TO_JOB_LOG_FILE' AKKA_PORT='$AKKA_PORT' BEAM_IMAGE_MODE='${BEAM_IMAGE_MODE}' BEAM_CONFIG='${BEAM_CONFIG}' DOCKER_IMAGE_NAME='${DOCKER_IMAGE_NAME:-}' IMAGE_TAG='${IMAGE_TAG:-}' PREBUILT_SIF_PATH='${PREBUILT_SIF_PATH:-}' LAUNCHER_SMOKE_ONLY='${LAUNCHER_SMOKE_ONLY}'"
+  BATCH_ENV_PREFIX="BEAM_BASE_DIR='$BEAM_BASE_DIR' JOB_LOG_FILE_PATH='$JOB_LOG_FILE_PATH' LINK_TO_JOB_LOG_FILE='$LINK_TO_JOB_LOG_FILE' AKKA_PORT='$AKKA_PORT' BEAM_IMAGE_MODE='${BEAM_IMAGE_MODE}' BEAM_CONFIG='${BEAM_CONFIG}' DOCKER_IMAGE_NAME='${DOCKER_IMAGE_NAME:-}' IMAGE_TAG='${IMAGE_TAG:-}' PREBUILT_SIF_PATH='${PREBUILT_SIF_PATH:-}' LAUNCHER_SMOKE_ONLY='${LAUNCHER_SMOKE_ONLY}' RUN_CLUSTER_JOB_MODE=batch"
+  BATCH_LAUNCH_COMMAND="set -exo pipefail; touch \"\$BEAM_BASE_DIR/batch-wrapper-entered.txt\"; exec >>\"\$JOB_LOG_FILE_PATH\" 2>&1; echo \"Entered batch wrapper at \$(date '+%Y-%m-%d-%H:%M:%S')\"; echo \"Wrapper cwd: \$(pwd)\"; echo \"Launcher path: $SCRIPT_PATH\"; exec bash \"$SCRIPT_PATH\""
 
   set -x
   SBATCH_OUTPUT=$(
@@ -99,7 +99,7 @@ if [[ "${!BATCH_MODE_SENTINEL:-submit}" != "batch" ]]; then
       --job-name="$JOB_NAME" \
       --output="$SLURM_STDOUT_PATH" \
       --time="$EXPECTED_EXECUTION_DURATION" \
-      --wrap="env $BATCH_ENV_PREFIX bash '$BATCH_HELPER_PATH'"
+      --wrap="env $BATCH_ENV_PREFIX bash -lc '$BATCH_LAUNCH_COMMAND'"
   )
   set +x
   JOB_ID="${SBATCH_OUTPUT%%;*}"
