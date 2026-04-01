@@ -64,6 +64,7 @@ if [[ "${!BATCH_MODE_SENTINEL:-submit}" != "batch" ]]; then
 
   BEAM_BASE_DIR="/global/scratch/users/$USER/out_beam_$NAME_SUFFIX"
   mkdir -p "$BEAM_BASE_DIR"
+  SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 
   JOB_LOG_FILE_NAME="cluster-log-file.log"
   JOB_LOG_FILE_PATH="$BEAM_BASE_DIR/$JOB_LOG_FILE_NAME"
@@ -79,6 +80,14 @@ if [[ "${!BATCH_MODE_SENTINEL:-submit}" != "batch" ]]; then
   export AKKA_PORT
 
   JOB_NAME="$RANDOM_PART.$DATETIME.multi"
+  BATCH_WRAPPER_PATH="$BEAM_BASE_DIR/run_cluster_job.batch.sh"
+  cat >"$BATCH_WRAPPER_PATH" <<EOF
+#!/bin/bash
+set -euo pipefail
+export ${BATCH_MODE_SENTINEL}=batch
+exec "$SCRIPT_PATH"
+EOF
+  chmod +x "$BATCH_WRAPPER_PATH"
 
   set -x
   SBATCH_OUTPUT=$(
@@ -89,11 +98,11 @@ if [[ "${!BATCH_MODE_SENTINEL:-submit}" != "batch" ]]; then
       --mem="${MEMORY_LIMIT}G" \
       --qos="$QOS" \
       --account="$ACCOUNT" \
-      --export=ALL,${BATCH_MODE_SENTINEL}=batch \
+      --export=ALL \
       --job-name="$JOB_NAME" \
       --output="$JOB_LOG_FILE_PATH" \
       --time="$EXPECTED_EXECUTION_DURATION" \
-      "$0"
+      "$BATCH_WRAPPER_PATH"
   )
   set +x
   JOB_ID="${SBATCH_OUTPUT%%;*}"
