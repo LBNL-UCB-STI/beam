@@ -85,6 +85,19 @@ if [[ "${!BATCH_MODE_SENTINEL:-submit}" != "batch" ]]; then
 #!/bin/bash
 set -euo pipefail
 export ${BATCH_MODE_SENTINEL}=batch
+export BEAM_BASE_DIR='$BEAM_BASE_DIR'
+export JOB_LOG_FILE_PATH='$JOB_LOG_FILE_PATH'
+export LINK_TO_JOB_LOG_FILE='$LINK_TO_JOB_LOG_FILE'
+export AKKA_PORT='$AKKA_PORT'
+export BEAM_IMAGE_MODE='${BEAM_IMAGE_MODE}'
+export BEAM_CONFIG='${BEAM_CONFIG}'
+export DOCKER_IMAGE_NAME='${DOCKER_IMAGE_NAME:-}'
+export IMAGE_TAG='${IMAGE_TAG:-}'
+export PREBUILT_SIF_PATH='${PREBUILT_SIF_PATH:-}'
+exec >>"\$JOB_LOG_FILE_PATH" 2>&1
+echo "Entered batch wrapper at \$(date "+%Y-%m-%d-%H:%M:%S")"
+echo "Wrapper cwd: \$(pwd)"
+echo "Wrapper script path: $SCRIPT_PATH"
 exec "$SCRIPT_PATH"
 EOF
   chmod +x "$BATCH_WRAPPER_PATH"
