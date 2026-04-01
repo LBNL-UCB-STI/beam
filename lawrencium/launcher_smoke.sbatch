@@ -42,7 +42,7 @@ srun --nodes=1 --ntasks=1 --exclusive -w "$MASTER_HOST" \
 for host in "${HOSTS[@]:1}"; do
   srun --nodes=1 --ntasks=1 --exclusive -w "$host" \
     --output="$RUN_BASE_DIR/logs/worker-%N.log" \
-    bash -lc "set -euo pipefail; echo worker-host=\$(hostname); touch '$RUN_BASE_DIR/worker-\$(hostname).txt'; sleep 5"
+    bash -lc "set -euo pipefail; HOSTNAME_VALUE=\$(hostname); echo worker-host=\$HOSTNAME_VALUE; touch '$RUN_BASE_DIR'/worker-\$HOSTNAME_VALUE.txt; sleep 5"
 done
 
 if [[ -n "$PREBUILT_SIF_PATH" ]]; then

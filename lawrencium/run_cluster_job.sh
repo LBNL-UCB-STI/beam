@@ -82,7 +82,7 @@ if [[ "${!BATCH_MODE_SENTINEL:-submit}" != "batch" ]]; then
   export AKKA_PORT
 
   JOB_NAME="$RANDOM_PART.$DATETIME.multi"
-  WRAP_COMMAND=$(
+  BATCH_BODY_COMMAND=$(
     cat <<EOF
 export ${BATCH_MODE_SENTINEL}=batch
 export BEAM_BASE_DIR='$BEAM_BASE_DIR'
@@ -100,7 +100,7 @@ exec >>"$JOB_LOG_FILE_PATH" 2>&1
 echo "Entered sbatch --wrap command at \$(date "+%Y-%m-%d-%H:%M:%S")"
 echo "Wrap cwd: \$(pwd)"
 echo "Launcher path: $SCRIPT_PATH"
-exec "$SCRIPT_PATH"
+exec bash "$SCRIPT_PATH"
 EOF
   )
 
@@ -117,7 +117,7 @@ EOF
       --job-name="$JOB_NAME" \
       --output="$SLURM_STDOUT_PATH" \
       --time="$EXPECTED_EXECUTION_DURATION" \
-      --wrap="$WRAP_COMMAND"
+      --wrap="$BATCH_BODY_COMMAND"
   )
   set +x
   JOB_ID="${SBATCH_OUTPUT%%;*}"
