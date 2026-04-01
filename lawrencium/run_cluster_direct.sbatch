@@ -50,7 +50,7 @@ fi
 
 BASE_CONFIG_FOR_INCLUDE="$BEAM_CONFIG"
 if [[ "$BEAM_IMAGE_MODE" == "baked" && "$BEAM_CONFIG" != /* ]]; then
-  BASE_CONFIG_FOR_INCLUDE="/root/sources/$BEAM_CONFIG"
+  BASE_CONFIG_FOR_INCLUDE="/app/$BEAM_CONFIG"
 fi
 
 MASTER_HOST="${HOSTS[0]}"
@@ -72,12 +72,7 @@ launch_role() {
       --output="$RUN_BASE_DIR/logs/${role}-%N.log" \
       bash -lc "
         set -euo pipefail
-        export PULL_CODE='false'
-        export PULL_DATA='false'
-        export GRADLE_CACHE_PATH='/root/data/.gradle'
-        export BEAM_CONFIG='$role_config_path'
-        export BEAM_APP_ARGS=\"$app_args\"
-        singularity run --writable-tmpfs -B \"$role_dir:/root/data\" \"$SINGULARITY_IMAGE_PATH\"
+        singularity exec --writable-tmpfs -B \"$role_dir:/root/data\" \"$SINGULARITY_IMAGE_PATH\" /app/entrypoint.sh $app_args
       " &
   else
     srun --nodes=1 --ntasks=1 --exclusive -w "$host" \
@@ -122,7 +117,13 @@ else
   MASTER_CONFIG_IN_CONTAINER="$MASTER_CONFIG"
 fi
 
-MASTER_ARGS="['--config', '$MASTER_CONFIG_IN_CONTAINER', '--cluster-type', 'master', '--node-host', '$MASTER_HOST', '--node-port', '$AKKA_PORT', '--seed-address', '$SEED_ADDRESS', '--use-local-worker', 'false']"
+printf -v MASTER_ARGS "%q " \
+  --config "$MASTER_CONFIG_IN_CONTAINER" \
+  --cluster-type master \
+  --node-host "$MASTER_HOST" \
+  --node-port "$AKKA_PORT" \
+  --seed-address "$SEED_ADDRESS" \
+  --use-local-worker false
 launch_role "$MASTER_HOST" "master" "$MASTER_DIR" "$MASTER_ARGS" "$MASTER_CONFIG_IN_CONTAINER"
 
 sleep 20
@@ -144,7 +145,12 @@ EOF
     WORKER_CONFIG_IN_CONTAINER="$WORKER_CONFIG"
   fi
 
-  WORKER_ARGS="['--config', '$WORKER_CONFIG_IN_CONTAINER', '--cluster-type', 'worker', '--node-host', '$host', '--node-port', '$AKKA_PORT', '--seed-address', '$SEED_ADDRESS']"
+  printf -v WORKER_ARGS "%q " \
+    --config "$WORKER_CONFIG_IN_CONTAINER" \
+    --cluster-type worker \
+    --node-host "$host" \
+    --node-port "$AKKA_PORT" \
+    --seed-address "$SEED_ADDRESS"
   launch_role "$host" "worker" "$WORKER_DIR" "$WORKER_ARGS" "$WORKER_CONFIG_IN_CONTAINER"
 done
 
