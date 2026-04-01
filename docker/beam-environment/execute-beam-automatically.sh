@@ -177,6 +177,9 @@ if [ "$PULL_DATA" = true ]; then
   git lfs pull
 else
   echo "Pulling the data from github is disabled (PULL_DATA set to '$PULL_DATA')."
+  if [ -e "$BEAM_CONFIG" ]; then
+    echo "BEAM_CONFIG points to an existing absolute path, using '$BEAM_CONFIG'"
+  else
   combined_config_path1="/root/data/${BEAM_CONFIG#*/}"
   combined_config_path2="/root/sources/${BEAM_CONFIG}"
   echo "Trying combined path1 from data volume: '$combined_config_path1'"
@@ -189,6 +192,7 @@ else
   else
     print_error "Unable to locate config by path '$BEAM_CONFIG', please specify correct path."
     exit 1
+  fi
   fi
 fi
 
@@ -246,7 +250,14 @@ fi
 ## we shouldn't use the gradle daemon on NERSC, it seems that it's somehow shared within different nodes
 ## and all the subsequent runs have output dir somewhere else.
 ##
-./gradlew --no-daemon --gradle-user-home="$GRADLE_CACHE_PATH" clean :run -PappArgs="['--config', '$BEAM_CONFIG']" -PmaxRAM="$MAX_RAM" -Pprofiler_type="$PROFILER"
+if [ -n "$BEAM_APP_ARGS" ]; then
+  echo "BEAM_APP_ARGS provided, using explicit RunBeam args: $BEAM_APP_ARGS"
+  GRADLE_APP_ARGS="$BEAM_APP_ARGS"
+else
+  GRADLE_APP_ARGS="['--config', '$BEAM_CONFIG']"
+fi
+
+./gradlew --no-daemon --gradle-user-home="$GRADLE_CACHE_PATH" clean :run -PappArgs="$GRADLE_APP_ARGS" -PmaxRAM="$MAX_RAM" -Pprofiler_type="$PROFILER"
 
 
 ##

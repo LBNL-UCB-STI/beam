@@ -1,13 +1,21 @@
-#!/bin/bash -l
-set -euo pipefail
+#!/bin/bash
+set -exo pipefail
 
-RUN_BASE_DIR="${RUN_BASE_DIR:-/global/scratch/users/$USER/launcher_smoke_${SLURM_JOB_ID}}"
+USER_NAME="${USER:-$(id -un)}"
+JOB_ID_FOR_PATH="${SLURM_JOB_ID:-manual}"
+RUN_BASE_DIR="${RUN_BASE_DIR:-/global/scratch/users/${USER_NAME}/launcher_smoke_${JOB_ID_FOR_PATH}}"
 PREBUILT_SIF_PATH="${PREBUILT_SIF_PATH:-}"
+
+echo "launcher_smoke entered"
+echo "launcher_smoke job id: ${SLURM_JOB_ID:-unset}"
+echo "launcher_smoke run dir: ${RUN_BASE_DIR}"
 
 mkdir -p "$RUN_BASE_DIR/logs"
 
 LOG_PATH="$RUN_BASE_DIR/cluster-log-file.log"
 exec >>"$LOG_PATH" 2>&1
+
+set -u
 
 echo "Launcher smoke started at $(date '+%Y-%m-%d-%H:%M:%S')"
 echo "Job id: ${SLURM_JOB_ID:-unset}"
