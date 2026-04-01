@@ -4,9 +4,9 @@
 # It allocates one Slurm job across multiple nodes, then runs one BEAM master
 # process plus one BEAM worker process per remaining node.
 
-CODE_PHRASE="Execute the body of the multi-node job."
+BATCH_MODE_SENTINEL="RUN_CLUSTER_JOB_MODE"
 
-if [[ "$1" != "$CODE_PHRASE" ]]; then
+if [[ "${!BATCH_MODE_SENTINEL:-submit}" != "batch" ]]; then
   echo "Starting the multi-node job .."
 
   export BEAM_BRANCH_NAME="${BEAM_BRANCH_NAME:-develop}"
@@ -89,11 +89,11 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
       --mem="${MEMORY_LIMIT}G" \
       --qos="$QOS" \
       --account="$ACCOUNT" \
-      --export=ALL \
+      --export=ALL,${BATCH_MODE_SENTINEL}=batch \
       --job-name="$JOB_NAME" \
       --output="$JOB_LOG_FILE_PATH" \
       --time="$EXPECTED_EXECUTION_DURATION" \
-      "$0" "$CODE_PHRASE"
+      "$0"
   )
   set +x
   JOB_ID="${SBATCH_OUTPUT%%;*}"
@@ -122,6 +122,7 @@ else
   exec >>"$JOB_LOG_FILE_PATH" 2>&1
 
   echo "Executing the multi-node job .."
+  echo "Batch sentinel: ${!BATCH_MODE_SENTINEL}"
   echo "Run directory: $BEAM_BASE_DIR"
   echo "Image mode: ${BEAM_IMAGE_MODE:-clone}"
   echo "Config: ${BEAM_CONFIG:-<unset>}"
@@ -137,15 +138,28 @@ else
   IMAGE_NAME="beam-environment"
   IMAGE_TAG="${IMAGE_TAG:-jdk-11-4.01}"
   DOCKER_IMAGE_NAME="${DOCKER_IMAGE_NAME:-docker://beammodel/${IMAGE_NAME}:${IMAGE_TAG}}"
-  SINGULARITY_IMAGE_PATH="$BEAM_BASE_DIR/${IMAGE_NAME}_${IMAGE_TAG}.sif"
+  PREBUILT_SIF_PATH="${PREBUILT_SIF_PATH:-${SINGULARITY_IMAGE_PATH:-}}"
+  if [[ -n "$PREBUILT_SIF_PATH" ]]; then
+    SINGULARITY_IMAGE_PATH="$PREBUILT_SIF_PATH"
+  else
+    SINGULARITY_IMAGE_PATH="$BEAM_BASE_DIR/${IMAGE_NAME}_${IMAGE_TAG}.sif"
+  fi
   export ENFORCE_HTTPS_FOR_DATA_REPOSITORY="true"
 
   mkdir -p "$BEAM_BASE_DIR/logs"
 
-  echo "Pulling docker image '$DOCKER_IMAGE_NAME' to '$SINGULARITY_IMAGE_PATH' ..."
-  set -x
-  singularity pull --force "$SINGULARITY_IMAGE_PATH" "$DOCKER_IMAGE_NAME"
-  set +x
+  if [[ -n "$PREBUILT_SIF_PATH" ]]; then
+    if [[ ! -f "$SINGULARITY_IMAGE_PATH" ]]; then
+      echo "Error: prebuilt SIF not found at '$SINGULARITY_IMAGE_PATH'"
+      exit 1
+    fi
+    echo "Using prebuilt SIF '$SINGULARITY_IMAGE_PATH'"
+  else
+    echo "Pulling docker image '$DOCKER_IMAGE_NAME' to '$SINGULARITY_IMAGE_PATH' ..."
+    set -x
+    singularity pull --force "$SINGULARITY_IMAGE_PATH" "$DOCKER_IMAGE_NAME"
+    set +x
+  fi
 
   mapfile -t HOSTS < <(scontrol show hostnames "$SLURM_JOB_NODELIST")
   if [[ "${#HOSTS[@]}" -lt 2 ]]; then
