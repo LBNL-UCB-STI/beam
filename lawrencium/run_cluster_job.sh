@@ -70,6 +70,8 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
   LINK_TO_JOB_LOG_FILE="$(pwd)/out.cluster.$NAME_SUFFIX.log"
   touch "$JOB_LOG_FILE_PATH"
   ln -snf "$JOB_LOG_FILE_PATH" "$LINK_TO_JOB_LOG_FILE"
+  echo "Submitted from: $(date "+%Y-%m-%d-%H:%M:%S")" >>"$JOB_LOG_FILE_PATH"
+  echo "Run directory: $BEAM_BASE_DIR" >>"$JOB_LOG_FILE_PATH"
 
   export JOB_LOG_FILE_PATH
   export LINK_TO_JOB_LOG_FILE
@@ -79,7 +81,9 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
   JOB_NAME="$RANDOM_PART.$DATETIME.multi"
 
   set -x
-  sbatch --partition="$PARTITION" \
+  SBATCH_OUTPUT=$(
+    sbatch --parsable \
+      --partition="$PARTITION" \
       --exclusive \
       --nodes="$TOTAL_NODES" \
       --mem="${MEMORY_LIMIT}G" \
@@ -90,7 +94,12 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
       --output="$JOB_LOG_FILE_PATH" \
       --time="$EXPECTED_EXECUTION_DURATION" \
       "$0" "$CODE_PHRASE"
+  )
   set +x
+  JOB_ID="${SBATCH_OUTPUT%%;*}"
+  echo "$JOB_ID" >"$BEAM_BASE_DIR/slurm-job-id.txt"
+  echo "Slurm job id: $JOB_ID" | tee -a "$JOB_LOG_FILE_PATH"
+  echo "Track with: sacct -j $JOB_ID --format=JobID,JobName,State,ExitCode,Elapsed,NodeList" | tee -a "$JOB_LOG_FILE_PATH"
 
 else
   set -euo pipefail
