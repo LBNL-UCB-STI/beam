@@ -194,6 +194,11 @@ else
     exit 1
   fi
 
+  BASE_CONFIG_FOR_INCLUDE="$BEAM_CONFIG"
+  if [[ "$BEAM_IMAGE_MODE" == "baked" && "$BEAM_CONFIG" != /* ]]; then
+    BASE_CONFIG_FOR_INCLUDE="/root/sources/$BEAM_CONFIG"
+  fi
+
   MASTER_HOST="${HOSTS[0]}"
   SEED_ADDRESS="${MASTER_HOST}:${AKKA_PORT}"
   EXPECTED_WORKER_NODES=$((${#HOSTS[@]} - 1))
@@ -268,7 +273,7 @@ else
   mkdir -p "$MASTER_DIR"
   MASTER_CONFIG="$MASTER_DIR/cluster-master.conf"
   cat >"$MASTER_CONFIG" <<EOF
-include required(file("$BEAM_CONFIG"))
+include required(file("$BASE_CONFIG_FOR_INCLUDE"))
 
 beam.cluster.expectedWorkerNodes = $EXPECTED_WORKER_NODES
 beam.outputs.baseOutputDirectory = "/root/data/output"
@@ -288,7 +293,7 @@ EOF
     mkdir -p "$WORKER_DIR"
     WORKER_CONFIG="$WORKER_DIR/cluster-worker.conf"
     cat >"$WORKER_CONFIG" <<EOF
-include required(file("$BEAM_CONFIG"))
+include required(file("$BASE_CONFIG_FOR_INCLUDE"))
 
 beam.cluster.expectedWorkerNodes = $EXPECTED_WORKER_NODES
 beam.outputs.baseOutputDirectory = "/root/data/output"
