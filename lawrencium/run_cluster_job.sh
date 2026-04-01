@@ -16,6 +16,7 @@ if [[ "${!BATCH_MODE_SENTINEL:-submit}" != "batch" ]]; then
   export BEAM_CONFIG="${BEAM_CONFIG:-test/input/beamville/beam.conf}"
   export PROFILER="${PROFILER:-}"
   export BEAM_IMAGE_MODE="${BEAM_IMAGE_MODE:-clone}"
+  export LAUNCHER_SMOKE_ONLY="${LAUNCHER_SMOKE_ONLY:-false}"
 
   export PULL_CODE="${PULL_CODE:-true}"
   export PULL_DATA="${PULL_DATA:-true}"
@@ -146,6 +147,7 @@ else
   echo "Run directory: $BEAM_BASE_DIR"
   echo "Image mode: ${BEAM_IMAGE_MODE:-clone}"
   echo "Config: ${BEAM_CONFIG:-<unset>}"
+  echo "Launcher smoke only: ${LAUNCHER_SMOKE_ONLY:-false}"
   echo "Started at: $(date "+%Y-%m-%d-%H:%M:%S")"
 
   export NOTIFICATION_INSTANCE_ID=$SLURMD_NODENAME
@@ -191,6 +193,37 @@ else
   SEED_ADDRESS="${MASTER_HOST}:${AKKA_PORT}"
   EXPECTED_WORKER_NODES=$((${#HOSTS[@]} - 1))
   PIDS=()
+
+  if [[ "${LAUNCHER_SMOKE_ONLY:-false}" == "true" ]]; then
+    echo "Running launcher smoke only; skipping Singularity and BEAM startup"
+    echo "Hosts: ${HOSTS[*]}"
+    mkdir -p "$BEAM_BASE_DIR/logs" "$BEAM_BASE_DIR/master"
+    printf '%s\n' "${HOSTS[@]}" >"$BEAM_BASE_DIR/allocated-hosts.txt"
+
+    srun --nodes=1 --ntasks=1 --exclusive -w "$MASTER_HOST" \
+      --output="$BEAM_BASE_DIR/logs/master-%N.log" \
+      bash -lc "set -euo pipefail; echo master-host=\$(hostname); touch '$BEAM_BASE_DIR/master/master-smoke.txt'; sleep 30" &
+    PIDS+=($!)
+
+    for host in "${HOSTS[@]:1}"; do
+      WORKER_DIR="$BEAM_BASE_DIR/$host"
+      mkdir -p "$WORKER_DIR"
+      srun --nodes=1 --ntasks=1 --exclusive -w "$host" \
+        --output="$BEAM_BASE_DIR/logs/worker-%N.log" \
+        bash -lc "set -euo pipefail; echo worker-host=\$(hostname); touch '$WORKER_DIR/worker-smoke.txt'; sleep 30" &
+      PIDS+=($!)
+    done
+
+    STATUS=0
+    for pid in "${PIDS[@]}"; do
+      if ! wait "$pid"; then
+        STATUS=1
+      fi
+    done
+
+    echo "Launcher smoke completed with status $STATUS"
+    exit "$STATUS"
+  fi
 
   launch_role() {
     local host="$1"
