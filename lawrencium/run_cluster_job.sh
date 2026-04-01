@@ -66,6 +66,7 @@ if [[ "${!BATCH_MODE_SENTINEL:-submit}" != "batch" ]]; then
   BEAM_BASE_DIR="/global/scratch/users/$USER/out_beam_$NAME_SUFFIX"
   mkdir -p "$BEAM_BASE_DIR"
   SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+  BATCH_HELPER_PATH="$(cd "$(dirname "$0")" && pwd)/run_cluster_job_batch.sh"
 
   JOB_LOG_FILE_NAME="cluster-log-file.log"
   JOB_LOG_FILE_PATH="$BEAM_BASE_DIR/$JOB_LOG_FILE_NAME"
@@ -82,29 +83,6 @@ if [[ "${!BATCH_MODE_SENTINEL:-submit}" != "batch" ]]; then
   export AKKA_PORT
 
   JOB_NAME="$RANDOM_PART.$DATETIME.multi"
-  BATCH_WRAPPER_PATH="$BEAM_BASE_DIR/run_cluster_job.batch.sh"
-  cat >"$BATCH_WRAPPER_PATH" <<EOF
-#!/bin/bash
-set -exo pipefail
-export ${BATCH_MODE_SENTINEL}=batch
-export BEAM_BASE_DIR='$BEAM_BASE_DIR'
-export JOB_LOG_FILE_PATH='$JOB_LOG_FILE_PATH'
-export LINK_TO_JOB_LOG_FILE='$LINK_TO_JOB_LOG_FILE'
-export AKKA_PORT='$AKKA_PORT'
-export BEAM_IMAGE_MODE='${BEAM_IMAGE_MODE}'
-export BEAM_CONFIG='${BEAM_CONFIG}'
-export DOCKER_IMAGE_NAME='${DOCKER_IMAGE_NAME:-}'
-export IMAGE_TAG='${IMAGE_TAG:-}'
-export PREBUILT_SIF_PATH='${PREBUILT_SIF_PATH:-}'
-export LAUNCHER_SMOKE_ONLY='${LAUNCHER_SMOKE_ONLY}'
-touch "$BEAM_BASE_DIR/batch-wrapper-entered.txt"
-exec >>"$JOB_LOG_FILE_PATH" 2>&1
-echo "Entered batch wrapper at \$(date "+%Y-%m-%d-%H:%M:%S")"
-echo "Wrapper cwd: \$(pwd)"
-echo "Launcher path: $SCRIPT_PATH"
-exec bash "$SCRIPT_PATH"
-EOF
-  chmod +x "$BATCH_WRAPPER_PATH"
 
   set -x
   SBATCH_OUTPUT=$(
@@ -119,7 +97,7 @@ EOF
       --job-name="$JOB_NAME" \
       --output="$SLURM_STDOUT_PATH" \
       --time="$EXPECTED_EXECUTION_DURATION" \
-      --wrap="bash '$BATCH_WRAPPER_PATH'"
+      --wrap="export BEAM_BASE_DIR='$BEAM_BASE_DIR' JOB_LOG_FILE_PATH='$JOB_LOG_FILE_PATH' LINK_TO_JOB_LOG_FILE='$LINK_TO_JOB_LOG_FILE' AKKA_PORT='$AKKA_PORT' BEAM_IMAGE_MODE='${BEAM_IMAGE_MODE}' BEAM_CONFIG='${BEAM_CONFIG}' DOCKER_IMAGE_NAME='${DOCKER_IMAGE_NAME:-}' IMAGE_TAG='${IMAGE_TAG:-}' PREBUILT_SIF_PATH='${PREBUILT_SIF_PATH:-}' LAUNCHER_SMOKE_ONLY='${LAUNCHER_SMOKE_ONLY}' ; bash '$BATCH_HELPER_PATH'"
   )
   set +x
   JOB_ID="${SBATCH_OUTPUT%%;*}"
