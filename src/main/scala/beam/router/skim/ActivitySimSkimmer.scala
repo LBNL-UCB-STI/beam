@@ -43,7 +43,10 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
   override protected val skimFileBaseName: String = config.activity_sim_skimmer.fileBaseName
   override protected val skimFileHeader: String = ExcerptData.csvHeader
 
-  override def writeToDisk(event: IterationEndsEvent): Unit =
+  override protected def writeToDisk(
+    event: IterationEndsEvent,
+    skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
+  ): Unit =
     if (config.writeSkimsInterval > 0 && event.getIteration % config.writeSkimsInterval == 0) {
       val extension = config.activity_sim_skimmer.fileOutputFormat.toLowerCase match {
         case "csv"  => "csv.gz"
@@ -52,7 +55,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       }
       val filePath = event.getServices.getControlerIO
         .getIterationFilename(event.getServices.getIterationNumber, s"${skimFileBaseName}_current.$extension")
-      writePresentedSkims(filePath)
+      writePresentedSkims(filePath, skim)
     }
 
   override def fromCsv(
@@ -175,15 +178,21 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     origin: GeoUnit,
     destination: GeoUnit,
     pathType: ActivitySimPathType,
-    fleet: Option[String] = None
+    fleet: Option[String] = None,
+    skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
   ): Unit = {
     ActivitySimTimeBin.values.foreach { timeBin =>
-      val excerptData = getExcerptData(timeBin, origin, destination, pathType, fleet)
+      val excerptData = getExcerptData(timeBin, origin, destination, pathType, fleet, skim)
       writer.write(excerptData.toCsvString)
     }
   }
 
-  protected def writeSkimsForTimePeriods(origins: Seq[GeoUnit], destinations: Seq[GeoUnit], filePath: String): Unit = {
+  protected def writeSkimsForTimePeriods(
+    origins: Seq[GeoUnit],
+    destinations: Seq[GeoUnit],
+    filePath: String,
+    skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
+  ): Unit = {
 
     val pathTypes = ActivitySimPathType.allPathTypes
     var writer: BufferedWriter = null
@@ -199,13 +208,13 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
               pathType match {
                 case TNC_SINGLE =>
                   allRideHailFleets(RIDE_HAIL).foreach { fleet =>
-                    writeSkimRow(writer, origin, destination, pathType, Some(fleet))
+                    writeSkimRow(writer, origin, destination, pathType, Some(fleet), skim)
                   }
                 case TNC_SHARED =>
                   allRideHailFleets(RIDE_HAIL_POOLED).foreach { fleet =>
-                    writeSkimRow(writer, origin, destination, pathType, Some(fleet))
+                    writeSkimRow(writer, origin, destination, pathType, Some(fleet), skim)
                   }
-                case _ => writeSkimRow(writer, origin, destination, pathType)
+                case _ => writeSkimRow(writer, origin, destination, pathType, None, skim)
               }
 
             }
@@ -220,6 +229,9 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
         writer.close()
     }
   }
+
+  protected def writeSkimsForTimePeriods(origins: Seq[GeoUnit], destinations: Seq[GeoUnit], filePath: String): Unit =
+    writeSkimsForTimePeriods(origins, destinations, filePath, currentSkimSnapshot)
 
   /*
   @author:haitamlaarabi
@@ -262,7 +274,10 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
      v                        v
  [DefaultSkim]            MappedSkim
    */
-  private def writePresentedSkims(filePath: String): Unit = {
+  private def writePresentedSkims(
+    filePath: String,
+    skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
+  ): Unit = {
     case class ActivitySimKey(
       timeBin: ActivitySimTimeBin,
       pathType: ActivitySimPathType,
@@ -308,8 +323,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     }
 
     ProfilingUtils.timed("Writing skims that are created during simulation ", x => logger.info(x)) {
-
-      val excerptData: Map[ActivitySimKey, Seq[ActivitySimSkimmerInternal]] = currentSkim.iterator
+      val excerptData: Map[ActivitySimKey, Seq[ActivitySimSkimmerInternal]] = skim.iterator
         .collect { case (k: ActivitySimSkimmerKey, v: ActivitySimSkimmerInternal) => k -> v }
         .toSeq
         .flatMap { case (key, value) =>
@@ -375,13 +389,14 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     origin: GeoUnit,
     destination: GeoUnit,
     pathType: ActivitySimPathType,
-    maybeFleetName: Option[String] = None
+    maybeFleetName: Option[String],
+    skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
   ): Option[ExcerptData] = {
     if (pathType == ActivitySimPathType.WALK && timeBin != ActivitySimTimeBin.EARLY_AM) {
       None
     } else {
       val individualSkims = timeBin.hours.flatMap { hour =>
-        getCurrentSkimValue(ActivitySimSkimmerKey(hour, pathType, origin.id, destination.id))
+        getSkimValue(skim, ActivitySimSkimmerKey(hour, pathType, origin.id, destination.id))
           .map(_.asInstanceOf[ActivitySimSkimmerInternal])
       }
       if (individualSkims.isEmpty) {
@@ -391,6 +406,15 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       }
     }
   }
+
+  private def getExcerptDataOption(
+    timeBin: ActivitySimTimeBin,
+    origin: GeoUnit,
+    destination: GeoUnit,
+    pathType: ActivitySimPathType,
+    maybeFleetName: Option[String] = None
+  ): Option[ExcerptData] =
+    getExcerptDataOption(timeBin, origin, destination, pathType, maybeFleetName, currentSkimSnapshot)
 
   private def weightedData(
     timePeriodString: String,
@@ -465,9 +489,10 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     origin: GeoUnit,
     destination: GeoUnit,
     pathType: ActivitySimPathType,
-    maybeFleetName: Option[String]
+    maybeFleetName: Option[String],
+    skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
   ): ExcerptData = {
-    getExcerptDataOption(timeBin, origin, destination, pathType, maybeFleetName).getOrElse(
+    getExcerptDataOption(timeBin, origin, destination, pathType, maybeFleetName, skim).getOrElse(
       ExcerptData(
         timeBin.toString,
         pathType,
@@ -495,6 +520,15 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       )
     )
   }
+
+  def getExcerptData(
+    timeBin: ActivitySimTimeBin,
+    origin: GeoUnit,
+    destination: GeoUnit,
+    pathType: ActivitySimPathType,
+    maybeFleetName: Option[String]
+  ): ExcerptData =
+    getExcerptData(timeBin, origin, destination, pathType, maybeFleetName, currentSkimSnapshot)
 }
 
 object ActivitySimSkimmer extends LazyLogging {

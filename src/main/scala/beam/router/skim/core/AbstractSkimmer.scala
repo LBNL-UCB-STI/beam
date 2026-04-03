@@ -152,6 +152,12 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
   protected[skim] def getCurrentSkimValue(key: AbstractSkimmerKey): Option[AbstractSkimmerInternal] =
     Option(currentSkimInternal.get(key))
 
+  protected[skim] def getSkimValue(
+    skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal],
+    key: AbstractSkimmerKey
+  ): Option[AbstractSkimmerInternal] =
+    skim.get(key)
+
   private def readSkimsFromFile(filePath: String): SkimReader[AbstractSkimmerKey, AbstractSkimmerInternal] = {
     filePath.toLowerCase match {
       case path if path.endsWith(".parquet") =>
@@ -195,17 +201,18 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
+    val skimSnapshot = currentSkimSnapshot
     // keep in memory
     if (skimCfg.keepKLatestSkims > 0) {
       if (pastSkimsInternal.size >= skimCfg.keepKLatestSkims)
         pastSkimsInternal.remove(currentIterationInternal - skimCfg.keepKLatestSkims)
-      pastSkimsInternal.put(currentIterationInternal, currentSkimSnapshot)
+      pastSkimsInternal.put(currentIterationInternal, skimSnapshot)
     } else logger.warn("keepKLatestSkims is negative!")
     // aggregate
     if (beamConfig.beam.routing.overrideNetworkTravelTimesUsingSkims) {
       logger.warn("skim aggregation is skipped as 'overrideNetworkTravelTimesUsingSkims' enabled")
     } else {
-      currentSkimInternal.asScala.foreach { case (key, currentValue) =>
+      skimSnapshot.foreach { case (key, currentValue) =>
         aggregatedFromPastSkimsInternal.update(
           key,
           aggregateOverIterations(aggregatedFromPastSkimsInternal.get(key), Option(currentValue))
@@ -213,7 +220,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
       }
     }
     // write
-    writeToDisk(event)
+    writeToDisk(event, skimSnapshot)
     // clear
     currentSkimInternal.clear()
   }
@@ -234,11 +241,16 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
       "beam.router.skim.writeSkims",
       v => logger.info(v)
     ) {
-      writeSkim(currentSkim, filePath)
+      writeSkim(currentSkimSnapshot, filePath)
     }
   }
 
-  def writeToDisk(event: IterationEndsEvent): Unit = {
+  def writeToDisk(event: IterationEndsEvent): Unit = writeToDisk(event, currentSkimSnapshot)
+
+  protected def writeToDisk(
+    event: IterationEndsEvent,
+    skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
+  ): Unit = {
     if (skimCfg.writeSkimsInterval > 0 && currentIterationInternal % skimCfg.writeSkimsInterval == 0)
       ProfilingUtils.timed(
         s"beam.router.skim.writeSkimsInterval on iteration $currentIterationInternal",
@@ -246,7 +258,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
       ) {
         val filePath =
           ioController.getIterationFilename(currentIterationInternal, s"$skimFileBaseName.$skimOutputFormat")
-        writeSkim(currentSkim, filePath)
+        writeSkim(skim, filePath)
       }
 
     if (

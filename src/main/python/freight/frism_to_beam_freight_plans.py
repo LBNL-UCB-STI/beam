@@ -1,3 +1,4 @@
+import argparse
 import multiprocessing as mp
 import os
 import random
@@ -79,7 +80,7 @@ area_config = {
     "seattle": {
         "work_dir": os.path.expanduser("~/Workspace/Simulation/seattle"),
         "network_osm_pbf": os.path.expanduser(
-            "~/Workspace/Simulation/seattle/network/seattle-area-cbg120-ferry-weakConn-network/seattle-area-cbg120-ferry-weakConn-network.osm.pbf"),
+            "~/Workspace/Simulation/seattle/network/seattle-cbg120-ferry-weakConn-network/seattle-cbg120-ferry-weakConn-network.osm.pbf"),
         "target_epsg": 32048,
         "year": 2018,
         "primary_powertrain": fastsim_routee_files["primary_powertrain"],
@@ -92,16 +93,71 @@ area_config = {
 
 # ************************************************************************************************
 
-AREA = "seattle"  # seattle or sfbay
-BATCH = "20260309"
-SCENARIO = "Baseline"
-FRISM_VERSION = 1.5
-SNAP_COORDINATES = False # Snapping here might relocate points to walk only links, so be cautious
+DEFAULT_AREA = "seattle"
+DEFAULT_BATCH = "20260309"
+DEFAULT_SCENARIO = "2018-Baseline"
+DEFAULT_FRISM_VERSION = 1.5
+DEFAULT_SNAP_COORDINATES = False
+DEFAULT_TRACE_VEHICLE_TYPES = False
+DEFAULT_OUTPUT_FORMAT = "parquet"
+
+
+def parse_cli_args():
+    parser = argparse.ArgumentParser(description="Convert FRISM outputs into BEAM freight plans.")
+    parser.add_argument("--area", choices=sorted(area_config.keys()), required=True, help="Scenario area.")
+    parser.add_argument("--batch", required=True, help="FRISM batch identifier.")
+    parser.add_argument("--scenario", required=True, help="Scenario label, for example 2018-Baseline.")
+    parser.add_argument(
+        "--frism-version",
+        type=float,
+        default=DEFAULT_FRISM_VERSION,
+        help=f"FRISM version. Defaults to {DEFAULT_FRISM_VERSION}."
+    )
+    parser.add_argument(
+        "--snap-coordinates",
+        action="store_true",
+        help="Snap coordinates to the road network."
+    )
+    parser.add_argument(
+        "--trace-vehicle-types",
+        action="store_true",
+        help="Print vehicle type and fuel resolution details while generating vehicletypes output."
+    )
+    parser.add_argument(
+        "--output-format",
+        choices=["csv", "parquet"],
+        default=DEFAULT_OUTPUT_FORMAT,
+        help=f"Output format for carriers, tours, and payloads. Defaults to {DEFAULT_OUTPUT_FORMAT}."
+    )
+    return parser.parse_args()
+
+
+if __name__ == '__main__':
+    _cli_args = parse_cli_args()
+else:
+    _cli_args = argparse.Namespace(
+        area=DEFAULT_AREA,
+        batch=DEFAULT_BATCH,
+        scenario=DEFAULT_SCENARIO,
+        frism_version=DEFAULT_FRISM_VERSION,
+        snap_coordinates=DEFAULT_SNAP_COORDINATES,
+        trace_vehicle_types=DEFAULT_TRACE_VEHICLE_TYPES,
+        output_format=DEFAULT_OUTPUT_FORMAT
+    )
+
+
+AREA = _cli_args.area  # seattle or sfbay
+BATCH = _cli_args.batch
+SCENARIO = _cli_args.scenario
+FRISM_VERSION = _cli_args.frism_version
+SNAP_COORDINATES = _cli_args.snap_coordinates  # Snapping here might relocate points to walk only links
+TRACE_VEHICLE_TYPES = _cli_args.trace_vehicle_types
+OUTPUT_FORMAT = _cli_args.output_format
 BUFFER_DISTANCE_METERS = 100  # 100 meters
 MAX_DISTANCE_METERS = 200000  # 200km
 CHUNK_SIZE = 10000  # this affects speed and parallelization of the script
 JOULE_PER_METER_BASE_RATE = 1.213e8  # Base rate for joules per meter, used in fuel consumption calculations
-CONFIG = area_config[AREA]
+CONFIG = dict(area_config[AREA])
 CONFIG["batch"] = BATCH
 CONFIG["scenario"] = SCENARIO
 CONFIG["frism_version"] = FRISM_VERSION
@@ -114,7 +170,7 @@ SCENARIO_LABEL = CONFIG["scenario"].replace("_", "")
 # File paths and directories
 DIRECTORY_INPUT = f'{CONFIG["work_dir"]}/frism/{CONFIG["batch"]}/{CONFIG["scenario"]}'
 DIRECTORY_BATCH = f'{CONFIG["work_dir"]}/beam-ft/{CONFIG["batch"]}'
-DIRECTORY_OUTPUT = f'{DIRECTORY_BATCH}/{CONFIG["year"]}-{SCENARIO_LABEL}'
+DIRECTORY_OUTPUT = f'{DIRECTORY_BATCH}/{SCENARIO_LABEL}'
 DIRECTORY_VEHICLE_TECH = f'{CONFIG["work_dir"]}/vehicle-tech'
 DIRECTORY_SCENARIO = f'{DIRECTORY_OUTPUT}'
 # if SNAP_COORDINATES:
@@ -205,7 +261,8 @@ def load_osm_network(pbf_path, min_distance_from_edge):
             print(f"Warning: Could not determine CRS units: {str(e)}")
             return 'unknown', distance_meters
 
-    print(f"Creating {str(int(BUFFER_DISTANCE_METERS / 1000))}km road buffer...")
+    buffer_label = format_distance_label(BUFFER_DISTANCE_METERS)
+    print(f"Creating {buffer_label} road buffer...")
 
     # Check if the current CRS is geographic (uses degrees)
     is_geographic = edges.crs.is_geographic if edges.crs else True
@@ -241,7 +298,7 @@ def load_osm_network(pbf_path, min_distance_from_edge):
 
     # Create buffered pbf if it doesn't exist
     path_without_ext, ext = os.path.splitext(pbf_path)
-    buffer_path = f"{path_without_ext}_{str(int(BUFFER_DISTANCE_METERS / 1000))}km_road_buffer.geojson"
+    buffer_path = f"{path_without_ext}_{buffer_label}_road_buffer.geojson"
 
     # Check if file exists and handle overwriting
     if os.path.exists(buffer_path):
@@ -342,6 +399,73 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
     return new
 
 
+def normalize_beam_fuel_type(fuel_type):
+    if pd.isna(fuel_type):
+        return np.nan
+
+    normalized = str(fuel_type).strip().lower()
+    fuel_type_map = {
+        'diesel': 'diesel',
+        'gasoline': 'gasoline',
+        'battery electric': 'electricity',
+        'electricity': 'electricity',
+        'h2 fuel cell': 'hydrogen',
+        'hydrogen': 'hydrogen',
+        'natural gas': 'naturalgas',
+        'naturalgas': 'naturalgas',
+        'biodiesel': 'biodiesel',
+        'food': 'food',
+        'phev': 'electricity',
+    }
+    return fuel_type_map.get(normalized, 'undefined')
+
+
+def format_distance_label(distance_meters):
+    if float(distance_meters).is_integer() and distance_meters < 1000:
+        return f"{int(distance_meters)}m"
+
+    distance_km = distance_meters / 1000
+    if float(distance_km).is_integer():
+        return f"{int(distance_km)}km"
+
+    return f"{distance_km:g}km"
+
+
+def resolve_phev_secondary_fuel_type(original_veh_type_id, veh_class, vehicle_class_fuel_rates):
+    secondary_config = CONFIG["secondary_powertrain"].get(original_veh_type_id)
+    if isinstance(secondary_config, (list, tuple, np.ndarray)) and len(secondary_config) > 0:
+        return normalize_beam_fuel_type(secondary_config[0])
+
+    gasoline_key = f"{veh_class}-gasoline"
+    diesel_key = f"{veh_class}-diesel"
+
+    # Light-duty PHEVs are inferred as gasoline hybrids when config does not specify a fuel.
+    if "Class 1&2A" in veh_class or "Class 2&B3" in veh_class:
+        if gasoline_key in vehicle_class_fuel_rates:
+            return "gasoline"
+
+    if diesel_key in vehicle_class_fuel_rates:
+        return "diesel"
+    if gasoline_key in vehicle_class_fuel_rates:
+        return "gasoline"
+
+    return None
+
+
+def ensure_zone_columns_str(df):
+    for column in df.columns:
+        if column.lower().endswith('zone'):
+            df[column] = df[column].astype(str)
+    return df
+
+
+def write_output_table(df, path_without_ext):
+    if OUTPUT_FORMAT == "parquet":
+        df.to_parquet(f"{path_without_ext}.parquet", index=False)
+    else:
+        df.to_csv(f"{path_without_ext}.csv", index=False)
+
+
 def format_payload(_payload_plans: pd.DataFrame) -> pd.DataFrame:
     """
     Format payload and adjust coordinates where needed using road buffer for efficiency
@@ -363,6 +487,10 @@ def format_payload(_payload_plans: pd.DataFrame) -> pd.DataFrame:
         "SellerNAICS": "sellerNAICS"
     }
     _payload_plans.rename(columns=payload_plans_renames, inplace=True)
+
+    for naics_column in ['buyerNAICS', 'sellerNAICS']:
+        if naics_column in _payload_plans.columns:
+            _payload_plans[naics_column] = _payload_plans[naics_column].astype(str)
 
     int_columns = [
         'sequenceRank', 'payloadType', 'requestType', 'estimatedTimeOfArrivalInSec',
@@ -849,7 +977,8 @@ if __name__ == '__main__':
                 axis=1).tolist()
             df['vehicleTypeId'] = df['vehicleTypeId'].apply(remove_third_segment)
             df['vehicleIdOrig'] = df.apply(
-                lambda row: add_prefix(f'{business_type}--', 'vehicleId', row),
+                lambda row: f"{str(row['tourId']).lower().replace('_', '-')}--"
+                            f"{str(row['vehicleId']).lower().replace('_', '-')}",
                 axis=1).tolist()
             # Check for collisions before applying hash
             df, seen_veh_ids, seen_veh_hashes = resolve_collisions(
@@ -858,7 +987,7 @@ if __name__ == '__main__':
                 new_col='vehicleId',
                 hash_func=short_hash,
                 check_collisions=check_collisions,  # can be None, not used in this version
-                hash_length=6,
+                hash_length=7,
                 seen_ids=seen_veh_ids,
                 seen_hashes=seen_veh_hashes
             )
@@ -907,12 +1036,13 @@ if __name__ == '__main__':
                 veh_class = row['veh_class']
                 fuel_type = row['primary_fuel_type']
                 fuel_rate = row['primary_fuel_rate']
+                normalized_fuel_type = normalize_beam_fuel_type(fuel_type)
 
                 if 'PHEV' not in str(row['veh_type_id']):
-                    vehicle_class_fuel_rates[f"{veh_class}-{fuel_type}"] = fuel_rate
+                    vehicle_class_fuel_rates[f"{veh_class}-{normalized_fuel_type}"] = fuel_rate
 
             # Process all vehicles, handling PHEVs specially
-            empty_vectors = list(np.repeat("", len(df.index)))
+            nan_vectors = list(np.repeat(np.nan, len(df.index)))
             vehicle_types_ids = []
             original_vehicle_types_ids = []
             primary_fuel_types = []
@@ -933,32 +1063,52 @@ if __name__ == '__main__':
 
                 veh_class = row['veh_class']
                 fuel_type = row['primary_fuel_type']
+                secondary_fuel_type = resolve_phev_secondary_fuel_type(
+                    original_veh_type_id,
+                    veh_class,
+                    vehicle_class_fuel_rates
+                )
+                is_phev = 'PHEV' in str(row['veh_type_id'])
+
+                if TRACE_VEHICLE_TYPES and is_phev:
+                    print(
+                        f"[trace] PHEV row veh_type_id={original_veh_type_id} "
+                        f"veh_class={veh_class} primary_fuel_type={fuel_type} "
+                        f"resolved_secondary_fuel_type={secondary_fuel_type}"
+                    )
 
                 # Check if this is a PHEV vehicle
-                if ('PHEV' in str(row['veh_type_id']) and
-                        f"{veh_class}-Electricity" in vehicle_class_fuel_rates and
-                        f"{veh_class}-{fuel_type}" in vehicle_class_fuel_rates):
+                if (is_phev and
+                        f"{veh_class}-electricity" in vehicle_class_fuel_rates and
+                        secondary_fuel_type is not None and
+                        f"{veh_class}-{secondary_fuel_type}" in vehicle_class_fuel_rates):
 
                     # Primary
-                    primary_fuel_types.append('Electricity')
-                    fuel_rate_1 = vehicle_class_fuel_rates[f"{veh_class}-Electricity"]
+                    primary_fuel_types.append(normalize_beam_fuel_type('Electricity'))
+                    fuel_rate_1 = vehicle_class_fuel_rates[f"{veh_class}-electricity"]
                     primary_fuel_consumption.append(JOULE_PER_METER_BASE_RATE / (float(fuel_rate_1) * 1609.34))
                     primary_fuel_capacities.append(12000000000000000 * 0.25)  # 25% of standard capacity
 
                     # Secondary
-                    secondary_fuel_types.append(fuel_type)
-                    fuel_rate_2 = vehicle_class_fuel_rates[f"{veh_class}-{fuel_type}"]
+                    secondary_fuel_types.append(normalize_beam_fuel_type(secondary_fuel_type))
+                    fuel_rate_2 = vehicle_class_fuel_rates[f"{veh_class}-{secondary_fuel_type}"]
                     secondary_fuel_consumption.append(JOULE_PER_METER_BASE_RATE / (float(fuel_rate_2) * 1609.34))
                     secondary_fuel_capacities.append(12000000000000000 * 0.75)  # 75% of standard capacity
                 else:
                     # For non-PHEV vehicles, use standard processing
-                    primary_fuel_types.append(row["primary_fuel_type"])
+                    primary_fuel_types.append(normalize_beam_fuel_type('Electricity' if is_phev else row["primary_fuel_type"]))
                     primary_fuel_consumption.append(JOULE_PER_METER_BASE_RATE /
                                                     (np.float64(row["primary_fuel_rate"]) * 1609.34))
-                    primary_fuel_capacities.append(12000000000000000)
+                    primary_fuel_capacities.append(12000000000000000 * 0.25 if is_phev else 12000000000000000)
                     secondary_fuel_types.append(np.nan)
                     secondary_fuel_consumption.append(np.nan)
                     secondary_fuel_capacities.append(np.nan)
+                    if TRACE_VEHICLE_TYPES and is_phev:
+                        print(
+                            f"[trace] PHEV fallback veh_type_id={original_veh_type_id} "
+                            f"electricity_key_present={f'{veh_class}-electricity' in vehicle_class_fuel_rates} "
+                            f"secondary_key_present={secondary_fuel_type is not None and f'{veh_class}-{secondary_fuel_type}' in vehicle_class_fuel_rates}"
+                        )
 
             # Create the vehicles techs dictionary with our processed values
             vehicles_techs = {
@@ -980,13 +1130,13 @@ if __name__ == '__main__':
                         CONFIG["secondary_powertrain"][index], (list, tuple, np.ndarray)) else np.nan for
                     index in original_vehicle_types_ids],
                 "automationLevel": list(np.repeat(1, len(df.index))),
-                "maxVelocity": df["max_speed(mph)"],
-                "passengerCarUnit": empty_vectors,
-                "rechargeLevel2RateLimitInWatts": empty_vectors,
-                "rechargeLevel3RateLimitInWatts": empty_vectors,
+                "maxVelocity": df["max_speed(mph)"].astype(float) * 0.44704,
+                "passengerCarUnit": list(np.repeat(1.0, len(df.index))),
+                "rechargeLevel2RateLimitInWatts": nan_vectors,
+                "rechargeLevel3RateLimitInWatts": nan_vectors,
                 "vehicleCategory": list(np.repeat("Class456Vocational", len(df.index))),
-                "sampleProbabilityWithinCategory": empty_vectors,
-                "sampleProbabilityString": empty_vectors,
+                "sampleProbabilityWithinCategory": list(np.repeat(1.0, len(df.index))),
+                "sampleProbabilityString": nan_vectors,
                 "payloadCapacityInKg": df["payload_capacity_weight"],
                 "vehicleUse": "Freight",
                 "vehicleClass": df["veh_class"]
@@ -1011,7 +1161,7 @@ if __name__ == '__main__':
 
     _vehicle_types.drop(columns=['index', 'Unnamed: 0'], errors='ignore', inplace=True)
     _vehicle_types.to_csv(
-        f'{DIRECTORY_VEHICLE_TECH}/vehicletypes--frism--{CONFIG["year"]}-{SCENARIO_LABEL}.csv',
+        f'{DIRECTORY_VEHICLE_TECH}/vehicletypes--frism--{SCENARIO_LABEL}.csv',
         index=False)
 
     # Load OSM network and create buffer
@@ -1040,8 +1190,9 @@ if __name__ == '__main__':
             "depotY",
             _coordinate_lookup
         )
+    _carriers = ensure_zone_columns_str(_carriers)
     # Write
-    _carriers.to_csv(f'{DIRECTORY_SCENARIO}/carriers--{CONFIG["year"]}-{SCENARIO_LABEL}.csv', index=False)
+    write_output_table(_carriers, f'{DIRECTORY_SCENARIO}/carriers--{SCENARIO_LABEL}')
 
     # tourId,departureTimeInSec,departureLocationZone,maxTourDurationInSec,departureLocationX,departureLocationY
     tours_renames = {
@@ -1064,8 +1215,9 @@ if __name__ == '__main__':
             "departureLocationY",
             _coordinate_lookup
         )
+    _tours = ensure_zone_columns_str(_tours)
     # Write
-    _tours.to_csv(f'{DIRECTORY_SCENARIO}/tours--{CONFIG["year"]}-{SCENARIO_LABEL}.csv', index=False)
+    write_output_table(_tours, f'{DIRECTORY_SCENARIO}/tours--{SCENARIO_LABEL}')
 
     # Process payloads
     print("Processing payload plans...")
@@ -1087,7 +1239,8 @@ if __name__ == '__main__':
     _payload_plans["operationDurationInSecOG"] = _payload_plans["operationDurationInSec"]
     # _payload_plans = update_operation_duration(CONFIG, _payload_plans, _tours, _carriers, _vehicle_types)
     _payload_plans.drop(columns=['index', 'Unnamed: 0', 'requestType'], errors='ignore', inplace=True)
-    _payload_plans.to_csv(f'{DIRECTORY_SCENARIO}/payloads--{CONFIG["year"]}-{SCENARIO_LABEL}.csv', index=False)
+    _payload_plans = ensure_zone_columns_str(_payload_plans)
+    write_output_table(_payload_plans, f'{DIRECTORY_SCENARIO}/payloads--{SCENARIO_LABEL}')
 
     if _ondemand_plans is not None:
         print("Processing ondemand plans...")
@@ -1095,19 +1248,21 @@ if __name__ == '__main__':
         if SNAP_COORDINATES:
             # Snap coordinates and save, reusing the lookup table
             _ondemand_plans, _coordinate_lookup = snap_coordinates_when_too_far(
-                _ondemand_plans,
-                _osm_edges_utm,
-                "locationX",
-                "locationY",
-                _coordinate_lookup
-            )
+            _ondemand_plans,
+            _osm_edges_utm,
+            "locationX",
+            "locationY",
+            _coordinate_lookup
+        )
         _ondemand_plans.drop(columns=['index', 'Unnamed: 0'], errors='ignore', inplace=True)
-        _ondemand_plans.to_csv(f'{DIRECTORY_SCENARIO}/ondemand--{CONFIG["year"]}-{SCENARIO_LABEL}.csv', index=False)
+        _ondemand_plans = ensure_zone_columns_str(_ondemand_plans)
+        _ondemand_plans.to_csv(f'{DIRECTORY_SCENARIO}/ondemand--{SCENARIO_LABEL}.csv', index=False)
 
         # Create combined plans file with both regular plans and ondemand plans
         if _payload_plans is not None:
             print("Creating combined plans file of payloads and crowdshipments...")
             # Save the combined file
-            pd.concat([_payload_plans, _ondemand_plans], ignore_index=True).to_csv(
-                f'{DIRECTORY_SCENARIO}/payloads+crowdshipments--{CONFIG["year"]}-{SCENARIO_LABEL}.csv', index=False
+            combined_payloads = ensure_zone_columns_str(pd.concat([_payload_plans, _ondemand_plans], ignore_index=True))
+            combined_payloads.to_csv(
+                f'{DIRECTORY_SCENARIO}/payloads+crowdshipments--{SCENARIO_LABEL}.csv', index=False
             )

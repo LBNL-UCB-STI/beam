@@ -9,19 +9,29 @@ import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
 import beam.sim.config.BeamConfig.Beam.Agentsim.SnapLocationAndRemoveInvalidInputs
 import beam.utils.BeamVehicleUtils
 import beam.utils.SnapCoordinateUtils.SnapLocationHelper
+import beam.utils.csv.GenericCsvReader
 import beam.utils.matsim_conversion.MatsimPlanConversion.{AttributesOps, IdOps}
+import org.apache.avro.Schema
+import org.apache.avro.generic.GenericData
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.Path
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.households.{Household, HouseholdImpl, HouseholdsFactory}
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito
 import org.mockito.Mockito.when
+import org.apache.parquet.avro.AvroParquetWriter
+import org.apache.parquet.hadoop.metadata.CompressionCodecName
+import org.apache.parquet.hadoop.util.HadoopOutputFile
 import org.scalatest.LoneElement.convertToCollectionLoneElementWrapper
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
+import java.nio.file.Files
 import java.util
 import scala.collection.mutable
+import scala.jdk.CollectionConverters._
 import scala.util.Random
 
 /**
@@ -63,6 +73,29 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
     generateFixedActivitiesDurations = false,
     tourSampleSizeAsFractionOfTotal = 1.0,
     vehicleTypesFilePath = Some(s"$freightInputDir/vehicleTypesFreightOnly.csv")
+  )
+
+  private val parquetInputDir = Files.createTempDirectory("beam-freight-parquet-spec")
+  writeParquetFromCsv(
+    s"$freightInputDir/freight-carriers.csv",
+    parquetInputDir.resolve("freight-carriers.parquet").toString
+  )
+  writeParquetFromCsv(s"$freightInputDir/payload-plans.csv", parquetInputDir.resolve("payload-plans.parquet").toString)
+  writeParquetFromCsv(s"$freightInputDir/freight-tours.csv", parquetInputDir.resolve("freight-tours.parquet").toString)
+
+  private val freightConfigParquet: Freight = new Freight(
+    carrierParkingFilePath = None,
+    carriersFilePath = parquetInputDir.resolve("freight-carriers.parquet").toString,
+    plansFilePath = parquetInputDir.resolve("payload-plans.parquet").toString,
+    toursFilePath = parquetInputDir.resolve("freight-tours.parquet").toString,
+    isWgs = false,
+    enabled = true,
+    name = "Freight",
+    reader = "Generic",
+    replanning = new Freight.Replanning(departureTime = 0, disableAfterIteration = -1, strategy = ""),
+    generateFixedActivitiesDurations = false,
+    tourSampleSizeAsFractionOfTotal = 1.0,
+    vehicleTypesFilePath = None
   )
 
   val rnd = new Random(2333L)
@@ -109,6 +142,31 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
       tour3.tourId should be("tour-3".createId)
       tour3.departureTimeInSec should be(15000)
       tour3.maxTourDurationInSec should be(36000)
+    }
+
+    "read freight input from parquet files" in {
+      val parquetReader = new GenericFreightReader(
+        freightConfigParquet,
+        geoUtils,
+        new Random(4324L),
+        tazMap,
+        snapLocationAndRemoveInvalidInputsParams = SnapLocationAndRemoveInvalidInputs.Params(
+          enabled = false,
+          maxRadiusInMeter = 500000.0,
+          minRadiusInMeter = 100.0
+        ),
+        schedulerParallelismWindow = 60,
+        snapLocationHelperMock
+      )
+
+      val payloadPlans = parquetReader.readPayloadPlans()
+      val tours = parquetReader.readFreightTours()
+      val vehicleTypes = BeamVehicleUtils.readBeamVehicleTypeFile(s"$freightInputDir/vehicleTypes.csv")
+      val freightCarriers = parquetReader.readFreightCarriers(tours, payloadPlans, vehicleTypes)
+
+      payloadPlans should have size 16
+      tours should have size 4
+      checkFreightCarriers(freightCarriers)
     }
 
     "fail to read freight carriers" in {
@@ -266,5 +324,32 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
         vehicleTypes
       )
     freightCarriers
+  }
+
+  private def writeParquetFromCsv(csvPath: String, parquetPath: String): Unit = {
+    val rows = GenericCsvReader.readAsSeq[java.util.Map[String, String]](csvPath) { row =>
+      new java.util.HashMap[String, String](row)
+    }
+    val header = rows.head.keySet().asScala.toIndexedSeq.sorted
+    val unionSchema =
+      Schema.createUnion(List(Schema.create(Schema.Type.NULL), Schema.create(Schema.Type.STRING)).asJava)
+    val fields = header.map(fieldName => new Schema.Field(fieldName, unionSchema, "", null))
+    val schema = Schema.createRecord("FreightInput", "", "beam.agentsim.agents.freight.input", false, fields.asJava)
+    val outputFile = HadoopOutputFile.fromPath(new Path(parquetPath), new Configuration())
+    val writer = AvroParquetWriter
+      .builder[GenericData.Record](outputFile)
+      .withSchema(schema)
+      .withCompressionCodec(CompressionCodecName.SNAPPY)
+      .build()
+
+    try {
+      rows.foreach { row =>
+        val record = new GenericData.Record(schema)
+        header.foreach(fieldName => record.put(fieldName, row.get(fieldName)))
+        writer.write(record)
+      }
+    } finally {
+      writer.close()
+    }
   }
 }

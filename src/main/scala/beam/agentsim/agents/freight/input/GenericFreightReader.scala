@@ -9,6 +9,7 @@ import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
 import beam.sim.config.BeamConfig.Beam.Agentsim.SnapLocationAndRemoveInvalidInputs
 import beam.utils.BeamVehicleUtils.readBeamVehicleTypeFile
+import beam.utils.ParquetReader
 import beam.utils.SnapCoordinateUtils._
 import beam.utils.csv.GenericCsvReader
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
@@ -20,6 +21,7 @@ import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.households.Household
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
@@ -39,6 +41,28 @@ class GenericFreightReader(
 ) extends LazyLogging
     with FreightReader {
 
+  private def readRowsAsSeq[T](path: String)(mapper: java.util.Map[String, String] => T): IndexedSeq[T] = {
+    if (path.toLowerCase.endsWith(".parquet")) {
+      val (iter, toClose) = ParquetReader.read(path)
+      try {
+        iter.map(recordToMap).map(mapper).toIndexedSeq
+      } finally {
+        toClose.close()
+      }
+    } else {
+      GenericCsvReader.readAsSeq[T](path)(mapper)
+    }
+  }
+
+  private def recordToMap(record: org.apache.avro.generic.GenericRecord): java.util.Map[String, String] = {
+    val row = new java.util.HashMap[String, String]()
+    record.getSchema.getFields.asScala.foreach { field =>
+      val value = record.get(field.name)
+      row.put(field.name, if (value == null) null else value.toString)
+    }
+    row
+  }
+
   private def getRowValue(table: String, row: java.util.Map[String, String], key: String): String = {
     if (row.containsKey(key)) {
       row.get(key)
@@ -51,43 +75,42 @@ class GenericFreightReader(
   def readFreightTours(): Map[Id[FreightTour], FreightTour] = {
     val errors: ListBuffer[ErrorInfo] = ListBuffer()
 
-    val maybeTours = GenericCsvReader
-      .readAsSeq[Option[FreightTour]](config.toursFilePath) { row =>
-        def get(key: String): String = getRowValue(config.toursFilePath, row, key)
-        // tourId,departureTimeInSec,departureLocationZone,departureLocationX,departureLocationY,maxTourDurationInSec
-        val tourId: Id[FreightTour] = get("tourId").createId[FreightTour]
-        val departureTimeInSec = Math.max(get("departureTimeInSec").toInt, schedulerParallelismWindow + 1)
-        val maxTourDurationInSec = get("maxTourDurationInSec").toInt
-        val departureLocationX = row.get("departureLocationX")
-        val departureLocationY = row.get("departureLocationY")
+    val maybeTours = readRowsAsSeq[Option[FreightTour]](config.toursFilePath) { row =>
+      def get(key: String): String = getRowValue(config.toursFilePath, row, key)
+      // tourId,departureTimeInSec,departureLocationZone,departureLocationX,departureLocationY,maxTourDurationInSec
+      val tourId: Id[FreightTour] = get("tourId").createId[FreightTour]
+      val departureTimeInSec = Math.max(get("departureTimeInSec").toInt, schedulerParallelismWindow + 1)
+      val maxTourDurationInSec = get("maxTourDurationInSec").toInt
+      val departureLocationX = row.get("departureLocationX")
+      val departureLocationY = row.get("departureLocationY")
 
-        extractProjectedCoordOrTaz(
-          departureLocationX,
-          departureLocationY,
-          row.get("departureLocationZone"),
-          snapLocationAndRemoveInvalidInputsParams
-        ) match {
-          case (_, Right(_)) =>
-            Some(
-              FreightTour(
-                tourId,
-                departureTimeInSec,
-                maxTourDurationInSec
-              )
+      extractProjectedCoordOrTaz(
+        departureLocationX,
+        departureLocationY,
+        row.get("departureLocationZone"),
+        snapLocationAndRemoveInvalidInputsParams
+      ) match {
+        case (_, Right(_)) =>
+          Some(
+            FreightTour(
+              tourId,
+              departureTimeInSec,
+              maxTourDurationInSec
             )
-          case (_, Left(error)) =>
-            errors.append(
-              ErrorInfo(
-                tourId.toString,
-                Category.FreightTour,
-                error,
-                departureLocationX.toDouble,
-                departureLocationY.toDouble
-              )
+          )
+        case (_, Left(error)) =>
+          errors.append(
+            ErrorInfo(
+              tourId.toString,
+              Category.FreightTour,
+              error,
+              departureLocationX.toDouble,
+              departureLocationY.toDouble
             )
-            None
-        }
+          )
+          None
       }
+    }
 
     outputDirMaybe.foreach { path =>
       if (errors.isEmpty) logger.info("No 'snap location' error to report for freight tours.")
@@ -113,65 +136,64 @@ class GenericFreightReader(
     // TODO: Incorporate all changes
     val errors: ListBuffer[ErrorInfo] = ListBuffer()
 
-    val maybePlans = GenericCsvReader
-      .readAsSeq[Option[PayloadPlan]](config.plansFilePath) { row =>
-        def get(key: String): String = getRowValue(config.plansFilePath, row, key)
-        // payloadId,sequenceRank,tourId,payloadType,weightInKg,activityType,locationZone,locationX,locationY,
-        // estimatedTimeOfArrivalInSec,arrivalTimeWindowInSecLower,arrivalTimeWindowInSecUpper,operationDurationInSec
-        val unloadingStr = FreightActivityType.Unloading.toString.toLowerCase
-        val loadingStr = FreightActivityType.Loading.toString.toLowerCase
-        val depotStr = FreightActivityType.Depot.toString.toLowerCase
-        val activityType = get("activityType").toLowerCase() match {
-          case "1" | `unloadingStr` => FreightActivityType.Unloading
-          case "0" | `loadingStr`   => FreightActivityType.Loading
-          case `depotStr`           => FreightActivityType.Depot
-          case wrongValue =>
-            throw new IllegalArgumentException(
-              s"Value of activityType $wrongValue is unexpected."
-            )
-        }
-        val operationDurationInSec = get("operationDurationInSec").toDouble.round.toInt
-
-        val payloadId = get("payloadId").createId[PayloadPlan]
-        val locationX = row.get("locationX")
-        val locationY = row.get("locationY")
-
-        extractProjectedCoordOrTaz(
-          locationX,
-          locationY,
-          row.get("locationZone"),
-          snapLocationAndRemoveInvalidInputsParams
-        ) match {
-          case (locationZoneMaybe, Right(coord)) =>
-            Some(
-              PayloadPlan(
-                payloadId,
-                get("sequenceRank").toDouble.round.toInt,
-                get("tourId").createId,
-                get("payloadType").createId[PayloadType],
-                get("weightInKg").toDouble,
-                activityType,
-                locationZoneMaybe,
-                coord,
-                get("estimatedTimeOfArrivalInSec").toDouble.toInt,
-                get("arrivalTimeWindowInSecLower").toDouble.toInt,
-                get("arrivalTimeWindowInSecUpper").toDouble.toInt,
-                operationDurationInSec
-              )
-            )
-          case (_, Left(error)) =>
-            errors.append(
-              ErrorInfo(
-                payloadId.toString,
-                Category.FreightPayloadPlan,
-                error,
-                locationX.toDouble,
-                locationY.toDouble
-              )
-            )
-            None
-        }
+    val maybePlans = readRowsAsSeq[Option[PayloadPlan]](config.plansFilePath) { row =>
+      def get(key: String): String = getRowValue(config.plansFilePath, row, key)
+      // payloadId,sequenceRank,tourId,payloadType,weightInKg,activityType,locationZone,locationX,locationY,
+      // estimatedTimeOfArrivalInSec,arrivalTimeWindowInSecLower,arrivalTimeWindowInSecUpper,operationDurationInSec
+      val unloadingStr = FreightActivityType.Unloading.toString.toLowerCase
+      val loadingStr = FreightActivityType.Loading.toString.toLowerCase
+      val depotStr = FreightActivityType.Depot.toString.toLowerCase
+      val activityType = get("activityType").toLowerCase() match {
+        case "1" | `unloadingStr` => FreightActivityType.Unloading
+        case "0" | `loadingStr`   => FreightActivityType.Loading
+        case `depotStr`           => FreightActivityType.Depot
+        case wrongValue =>
+          throw new IllegalArgumentException(
+            s"Value of activityType $wrongValue is unexpected."
+          )
       }
+      val operationDurationInSec = get("operationDurationInSec").toDouble.round.toInt
+
+      val payloadId = get("payloadId").createId[PayloadPlan]
+      val locationX = row.get("locationX")
+      val locationY = row.get("locationY")
+
+      extractProjectedCoordOrTaz(
+        locationX,
+        locationY,
+        row.get("locationZone"),
+        snapLocationAndRemoveInvalidInputsParams
+      ) match {
+        case (locationZoneMaybe, Right(coord)) =>
+          Some(
+            PayloadPlan(
+              payloadId,
+              get("sequenceRank").toDouble.round.toInt,
+              get("tourId").createId,
+              get("payloadType").createId[PayloadType],
+              get("weightInKg").toDouble,
+              activityType,
+              locationZoneMaybe,
+              coord,
+              get("estimatedTimeOfArrivalInSec").toDouble.toInt,
+              get("arrivalTimeWindowInSecLower").toDouble.toInt,
+              get("arrivalTimeWindowInSecUpper").toDouble.toInt,
+              operationDurationInSec
+            )
+          )
+        case (_, Left(error)) =>
+          errors.append(
+            ErrorInfo(
+              payloadId.toString,
+              Category.FreightPayloadPlan,
+              error,
+              locationX.toDouble,
+              locationY.toDouble
+            )
+          )
+          None
+      }
+    }
 
     outputDirMaybe.foreach { path =>
       if (errors.isEmpty) logger.info("No 'snap location' error to report for freight payload plans.")
@@ -300,7 +322,7 @@ class GenericFreightReader(
 
     val errors: ListBuffer[ErrorInfo] = ListBuffer()
 
-    val maybeCarrierRows = GenericCsvReader.readAsSeq[Option[FreightCarrierRow]](config.carriersFilePath) { row =>
+    val maybeCarrierRows = readRowsAsSeq[Option[FreightCarrierRow]](config.carriersFilePath) { row =>
       def get(key: String): String = getRowValue(config.carriersFilePath, row, key)
 
       //carrierId,tourId,vehicleId,vehicleTypeId,depotZone,depotX,depotY
