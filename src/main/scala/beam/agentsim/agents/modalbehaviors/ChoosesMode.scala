@@ -853,28 +853,6 @@ trait ChoosesMode {
         )
       }
 
-      // If person plan doesn't have a route for an activity create and save it
-      for {
-        activity <- nextActivity(choosesModeData.personData)
-        leg      <- _experiencedBeamPlan.getTripContaining(activity).leg if leg.getRoute == null
-      } {
-        val links =
-          response.itineraries
-            .flatMap(_.beamLegs)
-            .find(_.mode == BeamMode.CAR)
-            .map { beamLeg =>
-              beamLeg.travelPath.linkIds
-                .map(id => Id.create(id, classOf[Link]))
-                .toList
-            }
-            .getOrElse(List.empty)
-
-        if (links.nonEmpty) {
-          val route = RouteUtils.createNetworkRoute(JavaConverters.seqAsJavaList(links), beamScenario.network)
-          leg.setRoute(route)
-        }
-      }
-
       stay() using newData
 
     case Event(theRideHailResult: RideHailResponse, choosesModeData: ChoosesModeData) =>
@@ -1213,10 +1191,14 @@ trait ChoosesMode {
   ): Option[Id[BeamVehicle]] = {
     getParentTourStrategy(personData)
       .flatMap(_.tourVehicle)
+      .filterNot(BeamVehicle.isSharedTeleportationVehicle)
       .filter { parentVehicleId =>
         availableVehicles.exists(_.id == parentVehicleId)
       }
   }
+
+  private def sanitizeTourVehicleId(vehicleId: Option[Id[BeamVehicle]]): Option[Id[BeamVehicle]] =
+    vehicleId.filterNot(BeamVehicle.isSharedTeleportationVehicle)
 
   case object FinishingModeChoice extends BeamAgentState
 
@@ -1742,11 +1724,13 @@ trait ChoosesMode {
       def resolvedCurrentTourPersonalVehicle(chosenTrip: EmbodiedBeamTrip): Option[Id[BeamVehicle]] =
         // Keep the already-held vehicle unless this choice selected a more specific one. This allows a failed or
         // reset subtour to continue carrying an inherited parent-tour vehicle through replanning.
-        chosenCurrentTourPersonalVehicle
+        sanitizeTourVehicleId(
+          chosenCurrentTourPersonalVehicle
           .get(chosenTrip)
           .flatten
           .orElse(choosesModeData.personData.currentTourPersonalVehicle)
           .orElse(getInheritedTourVehicle(choosesModeData.personData, allAvailableStreetVehicles))
+        )
 
       def gotoFinishingModeChoice(chosenTrip: EmbodiedBeamTrip) = {
         goto(FinishingModeChoice) using choosesModeData.safeCopy(
@@ -3199,7 +3183,8 @@ trait ChoosesMode {
               None
           }
 
-        val effectiveTourVehicle = choosesModeData.personData.currentTourPersonalVehicle
+        val effectiveTourVehicle = sanitizeTourVehicleId(
+          choosesModeData.personData.currentTourPersonalVehicle
           .orElse(
             // Check if current tour strategy has a vehicle that's available
             currentTourStrategy.tourVehicle.filter(vehicleId => distinctAvailableVehicles.exists(_.id == vehicleId))
@@ -3207,6 +3192,7 @@ trait ChoosesMode {
           .orElse(getInheritedTourVehicle(choosesModeData.personData, distinctAvailableVehicles))
           .orElse(recoveredVehicleFromItineraries)
           .orElse(recoveredVehicleFromAvailableVehicles)
+        )
 
         (
           Some(tourMode),
@@ -3276,10 +3262,11 @@ trait ChoosesMode {
                         if tourMode
                           .allowedBeamModesGivenAvailableVehicles(availableVehicles, firstOrLastLeg = true)
                           .contains(itin.tripClassifier) =>
-                      itin.vehiclesInTrip
+                      sanitizeTourVehicleId(
+                        itin.vehiclesInTrip
                         .find(availableVehicles.map(_.id).contains)
                         .orElse(parentTourStrategy.flatMap(_.tourVehicle).filter(itin.vehiclesInTrip.contains))
-                        .map(vid => itin -> Some(vid))
+                      ).map(vid => itin -> Some(vid))
                   }
                   .flatten
                   .toMap
@@ -3387,6 +3374,16 @@ trait ChoosesMode {
         )
     }
 
+    for {
+      chosenTrip <- chosenTripMaybe
+      destinationActivity <- nextActivity(data.personData)
+      leg <- _experiencedBeamPlan.getTripContaining(destinationActivity).leg
+      originLinkId <- Option(_experiencedBeamPlan.activities(data.personData.currentActivityIndex).getLinkId)
+      destinationLinkId <- Option(destinationActivity.getLinkId)
+    } {
+      updateMatsimPlanLegRoute(leg, chosenTrip, originLinkId, destinationLinkId)
+    }
+
     val tripId: String = _experiencedBeamPlan.trips
       .lift(data.personData.currentActivityIndex + 1) match {
       case Some(trip) =>
@@ -3420,6 +3417,34 @@ trait ChoosesMode {
       tripId
     )
     eventsManager.processEvent(modeChoiceEvent)
+  }
+
+  private def updateMatsimPlanLegRoute(
+    leg: Leg,
+    chosenTrip: EmbodiedBeamTrip,
+    originLinkId: Id[Link],
+    destinationLinkId: Id[Link]
+  ): Unit = {
+    val networkLegOpt = chosenTrip.legs.find { embodiedLeg =>
+      embodiedLeg.asDriver &&
+      embodiedLeg.beamLeg.mode != WALK &&
+      !embodiedLeg.beamLeg.mode.isTransit &&
+      embodiedLeg.beamLeg.travelPath.linkIds.nonEmpty
+    }
+
+    val route =
+      networkLegOpt match {
+        case Some(networkLeg) =>
+          val links = networkLeg.beamLeg.travelPath.linkIds.map(id => Id.create(id, classOf[Link])).toList
+          RouteUtils.createNetworkRoute(JavaConverters.seqAsJavaList(links), beamScenario.network)
+        case _ =>
+          RouteUtils.createGenericRouteImpl(originLinkId, destinationLinkId)
+      }
+
+    route.setTravelTime(chosenTrip.totalTravelTimeInSecs.toDouble)
+    route.setDistance(chosenTrip.totalDistanceInM)
+    leg.setRoute(route)
+    leg.setTravelTime(chosenTrip.totalTravelTimeInSecs)
   }
 
   private def updateTourModeStrategy(
@@ -3477,6 +3502,7 @@ trait ChoosesMode {
     vehicles: Vector[VehicleOrToken],
     allowVehicleBasedTourWithoutVehicle: Boolean = false
   ): TourModeChoiceStrategy = {
+    val sanitizedTourVehicle = sanitizeTourVehicleId(newTourVehicle)
     (newTourMode, newTourVehicle) match {
       case (Some(tourMode), None) if tourMode.isVehicleBased && allowVehicleBasedTourWithoutVehicle =>
         logger.debug(
@@ -3514,7 +3540,7 @@ trait ChoosesMode {
     val updatedTourStrategy =
       TourModeChoiceStrategy(
         newTourMode,
-        newTourVehicle
+        sanitizedTourVehicle
       )
     _experiencedBeamPlan.putStrategy(tour, updatedTourStrategy)
     updatedTourStrategy

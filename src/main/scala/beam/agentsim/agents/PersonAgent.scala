@@ -683,7 +683,22 @@ class PersonAgent(
         logDebug(s"wants to go to ${nextAct.getType} @ $tick")
         holdTickAndTriggerId(tick, triggerId)
         val modeOfNextLeg = _experiencedBeamPlan.getTripStrategy[TripModeChoiceStrategy](nextAct).mode
+        val currentTour = _experiencedBeamPlan.getTourContaining(nextAct)
         val currentTourModeChoiceStrategy = _experiencedBeamPlan.getTourStrategy[TourModeChoiceStrategy](nextAct)
+        val sanitizedCurrentTourModeChoiceStrategy =
+          currentTourModeChoiceStrategy.tourVehicle match {
+            case Some(vehicleId)
+                if BeamVehicle.isEmergencyVehicle(vehicleId) &&
+                  !beamVehicles.contains(vehicleId) =>
+              logger.debug(
+                s"Person ${this.id}: Clearing stale emergency tour vehicle $vehicleId before ChoosingMode"
+              )
+              val updatedStrategy = TourModeChoiceStrategy(currentTourModeChoiceStrategy.tourMode, None)
+              _experiencedBeamPlan.putStrategy(currentTour, updatedStrategy)
+              updatedStrategy
+            case _ =>
+              currentTourModeChoiceStrategy
+          }
         val currentCoord = currentActivity(data).getCoord
         val nextCoord = nextActivity(data).get.getCoord
 
@@ -693,12 +708,12 @@ class PersonAgent(
             // If we have the currentTourPersonalVehicle then we should use it
             // use the mode of the next leg as the new trip mode.
             currentTripMode = modeOfNextLeg,
-            currentTourMode = currentTourModeChoiceStrategy.tourMode,
+            currentTourMode = sanitizedCurrentTourModeChoiceStrategy.tourMode,
             // Prefer the currently carried vehicle over the current tour strategy. During replanning, the
             // current tour strategy may be cleared while the person still needs to hold onto a parent-tour
             // vehicle that remains physically available.
             currentTourPersonalVehicle =
-              data.currentTourPersonalVehicle.orElse(currentTourModeChoiceStrategy.tourVehicle),
+              data.currentTourPersonalVehicle.orElse(sanitizedCurrentTourModeChoiceStrategy.tourVehicle),
             passengerSchedule = PassengerSchedule(),
             numberOfReplanningAttempts = 0,
             failedTrips = IndexedSeq.empty,
