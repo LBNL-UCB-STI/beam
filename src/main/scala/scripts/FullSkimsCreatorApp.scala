@@ -400,10 +400,11 @@ object FullSkimsCreatorApp extends App with BeamHelper {
           try {
             writer = org.matsim.core.utils.io.IOUtils.getBufferedWriter(filePath)
             writer.write(skimFileHeader + "\n")
+            val skimSnapshot = currentSkimSnapshot
 
             rows.foreach { case ODRow(origin, destination) =>
               BeamMode.allModes.foreach { beamMode =>
-                writeSkimRow(writer, uniqueTimeBins, origin, destination, beamMode, "")
+                writeSkimRow(writer, uniqueTimeBins, origin, destination, beamMode, "", skimSnapshot)
               }
             }
           } catch {

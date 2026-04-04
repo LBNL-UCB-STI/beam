@@ -23,6 +23,7 @@ import org.matsim.households.Household
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
+import scala.reflect.ClassTag
 import scala.util.Random
 
 /**
@@ -41,7 +42,7 @@ class GenericFreightReader(
 ) extends LazyLogging
     with FreightReader {
 
-  private def readRowsAsSeq[T](path: String)(mapper: java.util.Map[String, String] => T): IndexedSeq[T] = {
+  private def readRowsAsSeq[T: ClassTag](path: String)(mapper: java.util.Map[String, String] => T): IndexedSeq[T] = {
     if (path.toLowerCase.endsWith(".parquet")) {
       val (iter, toClose) = ParquetReader.read(path)
       try {

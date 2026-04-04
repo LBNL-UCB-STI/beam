@@ -68,7 +68,7 @@ area_config = {
     "sfbay": {
         "work_dir": os.path.expanduser("~/Workspace/Simulation/sfbay"),
         "network_osm_pbf": os.path.expanduser(
-            "~/Workspace/Simulation/sfbay/network/sfbay-area-cbg5500-network-strong/sfbay-area-cbg5500-network.osm.pbf"),
+            "~/Workspace/Simulation/sfbay/network/sfbay-cbg5500-weakConn-network/sfbay-cbg5500-weakConn-network.osm.pbf"),
         "target_epsg": 26910,
         "year": 2018,
         "primary_powertrain": fastsim_routee_files["primary_powertrain"],
