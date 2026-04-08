@@ -170,14 +170,14 @@ SCENARIO_LABEL = CONFIG["scenario"].replace("_", "")
 # File paths and directories
 DIRECTORY_INPUT = f'{CONFIG["work_dir"]}/frism/{CONFIG["batch"]}/{CONFIG["scenario"]}'
 DIRECTORY_BATCH = f'{CONFIG["work_dir"]}/beam-ft/{CONFIG["batch"]}'
-DIRECTORY_OUTPUT = f'{DIRECTORY_BATCH}/{SCENARIO_LABEL}'
-DIRECTORY_VEHICLE_TECH = f'{CONFIG["work_dir"]}/vehicle-tech'
-DIRECTORY_SCENARIO = f'{DIRECTORY_OUTPUT}'
+DIRECTORY_SCENARIO = f'{DIRECTORY_BATCH}/{SCENARIO_LABEL}'
+DIRECTORY_VEHICLE_TECH = f'{DIRECTORY_BATCH}/vehicle-tech'
+
 # if SNAP_COORDINATES:
 #     # Define the snapped directory path
-#     DIRECTORY_SCENARIO = f'{DIRECTORY_OUTPUT}--snapped-to-{CONFIG_NAME}'
+#     DIRECTORY_SCENARIO = f'{DIRECTORY_SCENARIO}--snapped-to-{CONFIG_NAME}'
 # else:
-#     DIRECTORY_SCENARIO = f'{DIRECTORY_OUTPUT}'
+#     DIRECTORY_SCENARIO = f'{DIRECTORY_SCENARIO}'
 
 # Create necessary directories if they don't exist
 Path(DIRECTORY_SCENARIO).mkdir(parents=True, exist_ok=True)
@@ -1223,7 +1223,7 @@ if __name__ == '__main__':
     print("Processing payload plans...")
     # Add random_state for reproducibility
     # sampled_df = _payload_plans.sample(n=1000, random_state=42).copy().reset_index(drop=True)
-    # sampled_df.to_csv(f'{DIRECTORY_OUTPUT}/payloads-sampled--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
+    # sampled_df.to_csv(f'{DIRECTORY_SCENARIO}/payloads-sampled--{YEAR}-{SCENARIO_LABEL}.csv', index=False)
     # Then format and save
     # Create shared coordinate lookup table
     _payload_plans = format_payload(_payload_plans)
