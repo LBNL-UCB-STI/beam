@@ -760,11 +760,7 @@ object VehicleEmissions extends LazyLogging {
 
       override def getDouble(header: String): Option[Double] =
         if (!record.getMetaData.containsColumn(header)) None
-        else
-          Option(record.getValue(header)).map {
-            case n: java.lang.Number => n.doubleValue()
-            case other               => other.toString.toDouble
-          }
+        else Option(record.getString(header)).map(_.trim).filter(_.nonEmpty).map(_.toDouble)
 
       override def debugString: String = record.toString
     }
