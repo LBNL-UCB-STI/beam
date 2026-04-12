@@ -30,6 +30,7 @@ process_color_map = {
     'RUNLOSS': '#4b0082',   # Indigo
     'HOTSOAK': '#414487',  # Purple-blue
     'DIURN': '#440154',  # Dark purple
+    'PTOEX': '#31688e',  # Steel blue
 }
 
 
@@ -147,20 +148,18 @@ def read_skims_emissions_chunked(
         ('CO2', pa.float64()),
         ('HC', pa.float64()),
         ('NH3', pa.float64()),
+        ('N2O', pa.float64()),
         ('NOx', pa.float64()),
         ('PM', pa.float64()),
         ('PM10', pa.float64()),
-        ('PM2_5', pa.float64()),
+        ('PM25', pa.float64()),
         ('ROG', pa.float64()),
         ('SOx', pa.float64()),
         ('TOG', pa.float64()),
-        ('BC', pa.float64()),
-        ('BCm', pa.float64()),
-        ('BCh', pa.float64())
+        ('BC', pa.float64())
     ])
     # List of pollutants to process
-    pollutant_cols = ['CH4', 'CO', 'CO2', 'HC', 'NH3', 'NOx', 'PM', 'PM10', 'PM2_5', 'ROG', 'SOx', 'TOG', 'BC', 'BCm',
-                      'BCh']
+    pollutant_cols = ['CH4', 'CO', 'CO2', 'HC', 'NH3', 'N2O', 'NOx', 'PM', 'PM10', 'PM25', 'ROG', 'SOx', 'TOG', 'BC']
 
     start_time = time.time()
     print(f"Processing emissions data from {emissions_skims_file}")

@@ -1893,11 +1893,9 @@ object BeamConfig {
 
             case class RatesFilter(
               county: java.lang.String,
-              grade: java.lang.String,
               roadCategory: java.lang.String,
               soakTime: java.lang.String,
-              speed: java.lang.String,
-              weight: java.lang.String
+              speed: java.lang.String
             )
 
             object RatesFilter {
@@ -1908,12 +1906,10 @@ object BeamConfig {
                 BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.RatesFilter(
                   county =
                     if (c.hasPathOrNull("county")) c.getString("county")
-                    else "RUNEX,IDLEX,STREX,HOTSOAK,DIURN,RUNLOSS,PMTW,PMBW,PRDUST",
-                  grade = if (c.hasPathOrNull("grade")) c.getString("grade") else "",
+                    else "RUNEX,IDLEX,STREX,HOTSOAK,DIURN,RUNLOSS,PMTW,PMBW,PRDUST,PTOEX",
                   roadCategory = if (c.hasPathOrNull("roadCategory")) c.getString("roadCategory") else "PRDUST",
                   soakTime = if (c.hasPathOrNull("soakTime")) c.getString("soakTime") else "STREX",
-                  speed = if (c.hasPathOrNull("speed")) c.getString("speed") else "RUNEX,PMBW",
-                  weight = if (c.hasPathOrNull("weight")) c.getString("weight") else ""
+                  speed = if (c.hasPathOrNull("speed")) c.getString("speed") else "RUNEX,PTOEX,PMBW"
                 )
               }
             }
@@ -1944,7 +1940,7 @@ object BeamConfig {
                 events = c.hasPathOrNull("events") && c.getBoolean("events"),
                 pollutantsFilter =
                   if (c.hasPathOrNull("pollutantsFilter")) c.getString("pollutantsFilter")
-                  else "CH4,CO,CO2,HC,NH3,NOx,PM,PM10,PM2_5,ROG,SOx,TOG,BC,BCm,BCh",
+                  else "CH4,CO,CO2,HC,NH3,N2O,NOx,PM,PM10,PM25,ROG,SOx,TOG,BC",
                 ratesFilter = BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.RatesFilter(
                   if (c.hasPathOrNull("ratesFilter")) c.getConfig("ratesFilter")
                   else com.typesafe.config.ConfigFactory.parseString("ratesFilter{}")

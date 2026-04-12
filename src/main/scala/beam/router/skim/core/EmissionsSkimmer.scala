@@ -201,7 +201,7 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
           val parts = entry.split(":")
           if (parts.length == 2) {
             try {
-              Some(Emissions.withName(parts(0)) -> parts(1).toDouble)
+              Emissions.fromString(parts(0)).map(_ -> parts(1).toDouble)
             } catch {
               case _: Exception => None
             }
@@ -244,10 +244,8 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
       val vehicleTypeId = getSafeString("vehicleTypeId")
       val emissionsProcessStr = getSafeString("process")
 
-      // Convert string back to EmissionsProfile enum with fallback
       val emissionsProfile = EmissionsProfile.fromString(emissionsProcessStr).getOrElse {
-        logger.warn(s"Unknown emissions process: '$emissionsProcessStr', using RUNEX as default")
-        EmissionsProfile.RUNEX
+        throw new IllegalArgumentException(s"Unknown emissions process: '$emissionsProcessStr'")
       }
 
       // Create the key
@@ -300,7 +298,7 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
         val parts = entry.split(":")
         if (parts.length == 2) {
           try {
-            Some(Emissions.withName(parts(0)) -> parts(1).toDouble)
+            Emissions.fromString(parts(0)).map(_ -> parts(1).toDouble)
           } catch {
             case _: Exception => None
           }
