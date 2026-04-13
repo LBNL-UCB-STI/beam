@@ -6,10 +6,12 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.sim.common.{DoubleTypedRange, Range}
 import beam.sim.config.BeamConfig
+import beam.utils.scenario.VehicleInfo
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import com.typesafe.scalalogging.LazyLogging
 import com.univocity.parsers.common.record.Record
 import com.univocity.parsers.csv.CsvParser
+import org.apache.avro.generic.GenericRecord
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.io.IOUtils
 import org.supercsv.io.CsvMapReader
@@ -28,15 +30,12 @@ object BeamVehicleUtils extends LazyLogging {
     vehicleManagerId: Id[VehicleManager]
   ): (Map[Id[BeamVehicle], BeamVehicle], Map[Id[BeamVehicle], Double]) = {
     val rand: Random = new Random(randomSeed)
+    val vehicles = readVehicleInfos(filePath)
 
-    readCsvFileByLine(filePath, (Map.empty[Id[BeamVehicle], BeamVehicle], Map.empty[Id[BeamVehicle], Double])) {
-      case (line, (vehicleAcc, socAcc)) =>
-        val vehicleIdString = line.get("vehicleId")
-        val vehicleId = Id.create(vehicleIdString, classOf[BeamVehicle])
-
-        val vehicleTypeIdString = line.get("vehicleTypeId")
-        val vehicleType = vehiclesTypeMap(Id.create(vehicleTypeIdString, classOf[BeamVehicleType]))
-
+    vehicles.foldLeft((Map.empty[Id[BeamVehicle], BeamVehicle], Map.empty[Id[BeamVehicle], Double])) {
+      case ((vehicleAcc, socAcc), vehicleInfo) =>
+        val vehicleId = Id.create(vehicleInfo.vehicleId, classOf[BeamVehicle])
+        val vehicleType = vehiclesTypeMap(Id.create(vehicleInfo.vehicleTypeId, classOf[BeamVehicleType]))
         val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
 
         val beamVehicle =
@@ -48,11 +47,66 @@ object BeamVehicleUtils extends LazyLogging {
             randomSeed = rand.nextInt
           )
 
-        val initialSocStr = Option(line.get("stateOfCharge")).map(_.trim).getOrElse("")
         (
           vehicleAcc + (vehicleId -> beamVehicle),
-          if (initialSocStr.isEmpty) socAcc else socAcc + (vehicleId -> initialSocStr.toDouble)
+          vehicleInfo.initialSoc.fold(socAcc)(soc => socAcc + (vehicleId -> soc))
         )
+    }
+  }
+
+  private def readVehicleInfos(filePath: String): Iterable[VehicleInfo] = {
+    if (filePath.toLowerCase.endsWith(".parquet")) {
+      readParquetVehiclesFile(filePath)
+    } else {
+      readCsvFileByLine(filePath, Vector.empty[VehicleInfo]) { case (line, acc) =>
+        acc :+ toVehicleInfo(line: java.util.Map[String, String])
+      }
+    }
+  }
+
+  private[utils] def readParquetVehiclesFile(filePath: String): Iterable[VehicleInfo] = {
+    val (iter, toClose) = ParquetReader.read(filePath)
+    try {
+      iter.map(record => toVehicleInfo(record)).toVector
+    } finally {
+      toClose.close()
+    }
+  }
+
+  private[utils] def toVehicleInfo(line: java.util.Map[String, String]): VehicleInfo = {
+    val initialSocStr = Option(line.get("stateOfCharge")).map(_.trim).filter(_.nonEmpty)
+    VehicleInfo(
+      vehicleId = line.get("vehicleId"),
+      vehicleTypeId = line.get("vehicleTypeId"),
+      initialSoc = initialSocStr.map(_.toDouble),
+      householdId = line.get("householdId")
+    )
+  }
+
+  private[utils] def toVehicleInfo(record: GenericRecord): VehicleInfo = {
+    VehicleInfo(
+      vehicleId = getIfNotNull(record, "vehicleId").toString,
+      vehicleTypeId = getIfNotNull(record, "vehicleTypeId").toString,
+      initialSoc = Option(record.get("stateOfCharge")).map(asDouble),
+      householdId = getIfNotNull(record, "householdId").toString
+    )
+  }
+
+  private def getIfNotNull(record: GenericRecord, column: String): AnyRef = {
+    val value = record.get(column)
+    assert(value != null, s"Value in column '$column' is null")
+    value
+  }
+
+  private def asDouble(value: AnyRef): Double = {
+    value match {
+      case n: java.lang.Double  => n.doubleValue()
+      case n: java.lang.Float   => n.doubleValue()
+      case n: java.lang.Long    => n.doubleValue()
+      case n: java.lang.Integer => n.doubleValue()
+      case n: java.lang.Short   => n.doubleValue()
+      case n: java.lang.Byte    => n.doubleValue()
+      case other                => other.toString.toDouble
     }
   }
 
