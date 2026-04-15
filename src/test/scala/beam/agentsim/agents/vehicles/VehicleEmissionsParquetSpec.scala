@@ -10,20 +10,76 @@ import org.apache.hadoop.fs.Path
 import org.apache.parquet.avro.AvroParquetWriter
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.HadoopOutputFile
-import org.scalatest.BeforeAndAfterAll
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funspec.AnyFunSpecLike
 import org.scalatest.matchers.should.Matchers
 
+import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path => NioPath}
 import scala.jdk.CollectionConverters._
 
-class VehicleEmissionsParquetSpec extends AnyFunSpecLike with Matchers with BeforeAndAfterAll {
+class VehicleEmissionsParquetSpec
+    extends AnyFunSpecLike
+    with Matchers
+    with BeforeAndAfterAll
+    with BeforeAndAfterEach {
 
   private var tempDir: NioPath = _
+  private val county = "alameda"
+  private val roadCategory = "motorway"
+  private val allPollutants: Map[String, Double] = Map(
+    "ch4_gram"  -> 1.0,
+    "co_gram"   -> 2.0,
+    "co2_gram"  -> 3.0,
+    "hc_gram"   -> 4.0,
+    "nh3_gram"  -> 5.0,
+    "n2o_gram"  -> 6.0,
+    "nox_gram"  -> 7.0,
+    "pm_gram"   -> 8.0,
+    "pm10_gram" -> 9.0,
+    "pm25_gram" -> 10.0,
+    "rog_gram"  -> 11.0,
+    "sox_gram"  -> 12.0,
+    "tog_gram"  -> 13.0,
+    "bc_gram"   -> 14.0
+  )
+  private val expectedEmissions = Emissions(
+    Emissions.CH4  -> 1.0,
+    Emissions.CO   -> 2.0,
+    Emissions.CO2  -> 3.0,
+    Emissions.HC   -> 4.0,
+    Emissions.NH3  -> 5.0,
+    Emissions.N2O  -> 6.0,
+    Emissions.NOx  -> 7.0,
+    Emissions.PM   -> 8.0,
+    Emissions.PM10 -> 9.0,
+    Emissions.PM25 -> 10.0,
+    Emissions.ROG  -> 11.0,
+    Emissions.SOx  -> 12.0,
+    Emissions.TOG  -> 13.0,
+    Emissions.BC   -> 14.0
+  )
+  private val processActivityValues: Vector[(EmissionsProfile.EmissionsProcess, Double)] = Vector(
+    EmissionsProfile.RUNEX   -> 25.0,
+    EmissionsProfile.IDLEX   -> 0.0,
+    EmissionsProfile.STREX   -> 1.0,
+    EmissionsProfile.HOTSOAK -> 2.0,
+    EmissionsProfile.DIURN   -> 3.0,
+    EmissionsProfile.RUNLOSS -> 4.0,
+    EmissionsProfile.PMTW    -> 35.0,
+    EmissionsProfile.PMBW    -> 45.0,
+    EmissionsProfile.PRDUST  -> 55.0,
+    EmissionsProfile.PTOEX   -> 65.0
+  )
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
     tempDir = Files.createTempDirectory("vehicle-emissions-parquet-spec")
+  }
+
+  override protected def beforeEach(): Unit = {
+    super.beforeEach()
+    VehicleEmissions.Emissions.filter = None
   }
 
   override protected def afterAll(): Unit = {
@@ -32,29 +88,11 @@ class VehicleEmissionsParquetSpec extends AnyFunSpecLike with Matchers with Befo
   }
 
   describe("EmissionsRateTableLoader") {
-    it("should load RUNEX emissions rates from shared-store parquet files referenced by relative emfacId paths") {
-      val relativeFile = "dataset/emfacId=post2014LDAGas/post2014LDAGas.parquet"
+    it("should load all pollutants for every process from parquet files") {
+      val relativeFile = "dataset/all-processes/emissions.parquet"
       val absoluteFile = tempDir.resolve(relativeFile)
       Files.createDirectories(absoluteFile.getParent)
-      writeParquet(
-        absoluteFile,
-        Map(
-          "speedMph_timeMin" -> 25.0,
-          "county"           -> "alameda",
-          "roadCategory"     -> "motorway",
-          "process"          -> EmissionsProfile.RUNEX.toString,
-          "co2_gram"         -> 321.5,
-          "n2o_gram"         -> 1.25,
-          "pm25_gram"        -> 0.75
-        )
-      )
-
-      val csvParser = {
-        val settings = new CsvParserSettings()
-        settings.setHeaderExtractionEnabled(true)
-        settings.detectFormatAutomatically()
-        new CsvParser(settings)
-      }
+      writeParquet(absoluteFile, processRows)
 
       val store = VehicleEmissions.EmissionsRateTableLoader.loadFromFile(
         IndexedSeq(tempDir.toString),
@@ -62,33 +100,14 @@ class VehicleEmissionsParquetSpec extends AnyFunSpecLike with Matchers with Befo
         csvParser
       )
 
-      val speedBin = convertRecordStringToDoubleTypedRange("[22.5,27.5]")
-
-      store("alameda")(EmissionsProfile.RUNEX.toString)("motorway")(speedBin) shouldBe
-      Emissions(Map(Emissions.CO2 -> 321.5, Emissions.N2O -> 1.25, Emissions.PM25 -> 0.75))
+      assertStore(store)
     }
 
-    it("should load PTOEX emissions rates from shared-store parquet files using speed bins") {
-      val relativeFile = "dataset/emfacId=ptoHeavy/ptoHeavy.parquet"
+    it("should load all pollutants for every process from csv files") {
+      val relativeFile = "dataset/all-processes/emissions.csv"
       val absoluteFile = tempDir.resolve(relativeFile)
       Files.createDirectories(absoluteFile.getParent)
-      writeParquet(
-        absoluteFile,
-        Map(
-          "speedMph_timeMin" -> 20.0,
-          "county"           -> "alameda",
-          "process"          -> EmissionsProfile.PTOEX.toString,
-          "co_gram"          -> 4.5,
-          "bc_gram"          -> 0.2
-        )
-      )
-
-      val csvParser = {
-        val settings = new CsvParserSettings()
-        settings.setHeaderExtractionEnabled(true)
-        settings.detectFormatAutomatically()
-        new CsvParser(settings)
-      }
+      writeCsv(absoluteFile, processRows)
 
       val store = VehicleEmissions.EmissionsRateTableLoader.loadFromFile(
         IndexedSeq(tempDir.toString),
@@ -96,31 +115,59 @@ class VehicleEmissionsParquetSpec extends AnyFunSpecLike with Matchers with Befo
         csvParser
       )
 
-      val speedBin = convertRecordStringToDoubleTypedRange("[17.5,22.5]")
-
-      store("alameda")(EmissionsProfile.PTOEX.toString)("")(speedBin) shouldBe
-      Emissions(Map(Emissions.CO -> 4.5, Emissions.BC -> 0.2))
+      assertStore(store)
     }
   }
 
-  private def writeParquet(path: NioPath, row: Map[String, Any]): Unit = {
-    val fields = row.toIndexedSeq.map { case (name, value) =>
+  private def csvParser: CsvParser = {
+    val settings = new CsvParserSettings()
+    settings.setHeaderExtractionEnabled(true)
+    settings.detectFormatAutomatically()
+    new CsvParser(settings)
+  }
+
+  private def processRows: IndexedSeq[Map[String, Any]] =
+    processActivityValues.map { case (process, activityValue) =>
+      Map(
+        "speedMph_timeMin" -> activityValue,
+        "county"           -> county,
+        "roadCategory"     -> roadCategory,
+        "process"          -> process.toString
+      ) ++ allPollutants
+    }
+
+  private def expectedBin(process: EmissionsProfile.EmissionsProcess, activityValue: Double) = {
+    process match {
+      case EmissionsProfile.STREX | EmissionsProfile.HOTSOAK | EmissionsProfile.DIURN | EmissionsProfile.RUNLOSS =>
+        convertRecordStringToDoubleTypedRange(s"[${activityValue - 0.5},${activityValue + 0.5}]")
+      case EmissionsProfile.RUNEX | EmissionsProfile.PMTW | EmissionsProfile.PMBW | EmissionsProfile.PRDUST |
+          EmissionsProfile.PTOEX =>
+        convertRecordStringToDoubleTypedRange(s"[${activityValue - 2.5},${activityValue + 2.5}]")
+      case EmissionsProfile.IDLEX =>
+        convertRecordStringToDoubleTypedRange("[0,200]")
+    }
+  }
+
+  private def assertStore(store: VehicleEmissions.EmissionsRateFilterStore.EmissionsRateFilter): Unit = {
+    store.keySet should contain(county)
+    store(county).keySet shouldBe EmissionsProfile.values.map(_.toString).toSet
+
+    processActivityValues.foreach { case (process, activityValue) =>
+      val processStore = store(county)(process.toString)
+      processStore.keySet should contain(roadCategory)
+      processStore(roadCategory)(expectedBin(process, activityValue)) shouldBe expectedEmissions
+    }
+  }
+
+  private def writeParquet(path: NioPath, rows: IndexedSeq[Map[String, Any]]): Unit = {
+    val fields = rows.head.toIndexedSeq.map { case (name, value) =>
       val schema = value match {
         case _: java.lang.Number => Schema.create(Schema.Type.DOUBLE)
-        case _: Number           => Schema.create(Schema.Type.DOUBLE)
         case _                   => Schema.create(Schema.Type.STRING)
       }
       new Schema.Field(name, schema, "", null)
     }
     val schema = Schema.createRecord("EmissionsRateRow", "", "beam.agentsim.agents.vehicles", false, fields.asJava)
-    val record = new GenericData.Record(schema)
-    row.foreach { case (name, value) =>
-      value match {
-        case n: java.lang.Number => record.put(name, n.doubleValue())
-        case n: Number           => record.put(name, n.doubleValue())
-        case other               => record.put(name, other.toString)
-      }
-    }
 
     val outputFile = HadoopOutputFile.fromPath(new Path(path.toString), new Configuration())
     val writer = AvroParquetWriter
@@ -129,8 +176,25 @@ class VehicleEmissionsParquetSpec extends AnyFunSpecLike with Matchers with Befo
       .withCompressionCodec(CompressionCodecName.SNAPPY)
       .build()
 
-    try writer.write(record)
+    try rows.foreach { row =>
+      val record = new GenericData.Record(schema)
+      row.foreach { case (name, value) =>
+        value match {
+          case n: java.lang.Number => record.put(name, n.doubleValue())
+          case other               => record.put(name, other.toString)
+        }
+      }
+      writer.write(record)
+    }
     finally writer.close()
+  }
+
+  private def writeCsv(path: NioPath, rows: IndexedSeq[Map[String, Any]]): Unit = {
+    val header = rows.head.keys.toIndexedSeq
+    val body = rows.map { row =>
+      header.map(col => row(col).toString).mkString(",")
+    }
+    Files.write(path, (header.mkString(",") +: body).mkString("\n").getBytes(StandardCharsets.UTF_8))
   }
 
   private def deleteRecursively(path: NioPath): Unit = {
