@@ -1,6 +1,6 @@
 package beam.agentsim.agents.vehicles
 
-import beam.agentsim.agents.freight.FreightActivityType
+import beam.agentsim.agents.vehicles.FuelType.{Diesel, Electricity, Gasoline, NaturalGas}
 import beam.agentsim.agents.vehicles.VehicleCategory.{
   Class456Vocational,
   Class78Tractor,
@@ -16,19 +16,30 @@ import beam.router.skim.event.EmissionsSkimmerEvent
 import beam.sim.BeamServices
 import beam.sim.common.DoubleTypedRange
 import beam.sim.config.BeamConfig
-import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.RatesFilter
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.{FuelFilter, RatesFilter}
 import beam.utils.BeamVehicleUtils.convertRecordStringToDoubleTypedRange
+import beam.utils.geospatial.GeoReader
 import beam.utils.{BeamVehicleUtils, NetworkHelper, ParquetReader}
 import com.typesafe.scalalogging.LazyLogging
 import com.univocity.parsers.common.record.Record
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
+import org.geotools.data.shapefile.ShapefileDataStore
+import org.geotools.geometry.jts.JTS
+import org.geotools.referencing.CRS
+import org.locationtech.jts.geom.{Envelope, Geometry}
+import org.locationtech.jts.geom.prep.{PreparedGeometry, PreparedGeometryFactory}
 import org.apache.avro.AvroRuntimeException
 import org.apache.avro.generic.GenericRecord
 import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.network.Network
 import org.matsim.core.utils.io.IOUtils
+import org.matsim.core.utils.geometry.geotools.MGC
+import org.opengis.referencing.operation.MathTransform
 import org.slf4j.LoggerFactory
 
+import java.io.File
 import java.nio.file.Paths
+import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
@@ -39,7 +50,9 @@ import scala.concurrent.{Await, Future}
 class VehicleEmissions(
   vehicleTypesBasePaths: IndexedSeq[String],
   vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
+  countyResolver: VehicleEmissions.CountyResolver,
   pollutantsFilter: String,
+  fuelFilter: FuelFilter,
   ratesFilter: RatesFilter
 ) {
   import VehicleEmissions._
@@ -64,14 +77,15 @@ class VehicleEmissions(
     vehicleActivity: Class[_ <: org.matsim.api.core.v01.events.Event],
     beamServices: BeamServices
   ): Option[EmissionsProfile] = {
-    val emissionsProfiles = for {
+    val emissionsProfiles = (for {
       data <- vehicleActivityData
-      EmissionsProcessAndRatesStore(process, ratesStore) <- identifyProcesses(
+      EmissionsProcessAndRatesStore(process, ratesStore, emissionsRatesFile) <- identifyProcesses(
         data,
         vehicleActivity,
-        emissionsRatesFilterStore
+        emissionsRatesFilterStore,
+        fuelFilter
       )
-      rates <- getRatesUsing(data, process, ratesStore, beamServices.networkHelper)
+      rates <- getRatesUsing(data, process, ratesStore, emissionsRatesFile, beamServices.networkHelper)
 
     } yield {
       val emissions = calculationMap(process)(
@@ -95,11 +109,113 @@ class VehicleEmissions(
           )
         )
       }
-      process -> emissions
-    }
+      if (emissions.notValid) {
+        None
+      } else {
+        Some(process -> emissions)
+      }
+    }).flatten
 
-    if (emissionsProfiles.isEmpty) None else Some(EmissionsProfile(emissionsProfiles.toMap))
+    if (emissionsProfiles.isEmpty) {
+      None
+    } else Some(EmissionsProfile(emissionsProfiles.toMap))
   }
+
+  private def getRatesUsing(
+    data: BeamVehicle.VehicleActivityData,
+    process: EmissionsProcess,
+    ratesStore: EmissionsRateFilter,
+    emissionsRatesFile: Option[String],
+    networkHelper: NetworkHelper
+  ): Option[Emissions] = {
+    val speedMph =
+      data.averageSpeed.map(BeamVehicleUtils.convertFromMetersPerSecondToMilesPerHour).getOrElse(0.0)
+    val soakTimeMin = data.parkingDuration.map(_ / 60.0).getOrElse(0.0)
+    val county = countyResolver.resolve(data.linkId).getOrElse("")
+    val roadCategory =
+      networkHelper
+        .getLink(data.linkId)
+        .flatMap(link => Option(link.getAttributes.getAttribute("type")).map(_.toString.toLowerCase))
+        .getOrElse("unclassified")
+    val processStr = process.toString
+    val activityValue = if (usesTimeLikeActivityBin(process)) soakTimeMin else speedMph
+    val preferWiderActivityRanges =
+      if (usesTimeLikeActivityBin(process)) !containsConfiguredProcess(ratesFilter.soakTime, processStr)
+      else !containsConfiguredProcess(ratesFilter.speed, processStr)
+    val vehicleTypeId = data.vehicleType.id.toString
+
+    val countyMatch = findString(ratesStore, county, !containsConfiguredProcess(ratesFilter.county, processStr))
+    if (countyMatch.isEmpty) {
+      recordLookupMiss(
+        kind = "county",
+        details = Seq(
+          "vehicleType"        -> vehicleTypeId,
+          "emissionsRatesFile" -> emissionsRatesFile.getOrElse("<none>"),
+          "process"            -> processStr,
+          "county"             -> county
+        )
+      )
+      return None
+    }
+    val (matchedCounty, countyFilter) = countyMatch.get
+
+    val processMatch = VehicleEmissions.findString(countyFilter, process.toString, preferEmptyKey = false)
+    if (processMatch.isEmpty) {
+      recordLookupMiss(
+        kind = "process",
+        details = Seq(
+          "vehicleType"        -> vehicleTypeId,
+          "emissionsRatesFile" -> emissionsRatesFile.getOrElse("<none>"),
+          "county"             -> matchedCounty,
+          "process"            -> processStr
+        )
+      )
+      return None
+    }
+    val (matchedProcess, processIndex) = processMatch.get
+
+    val processLookup = processIndex.find(
+      roadCategory = roadCategory,
+      preferEmptyRoadCategory = !containsConfiguredProcess(ratesFilter.roadCategory, processStr),
+      activityValue = activityValue,
+      preferWiderActivityRanges = preferWiderActivityRanges
+    )
+    if (processLookup.isEmpty) {
+      if (processIndex.usesRoadCategory) {
+        recordLookupMiss(
+          kind = "roadCategory",
+          details = Seq(
+            "vehicleType"        -> vehicleTypeId,
+            "emissionsRatesFile" -> emissionsRatesFile.getOrElse("<none>"),
+            "county"             -> matchedCounty,
+            "process"            -> matchedProcess,
+            "roadCategory"       -> roadCategory
+          )
+        )
+      } else if (processIndex.usesActivityBin) {
+        recordLookupMiss(
+          kind = "activityBin",
+          details = Seq(
+            "vehicleType"        -> vehicleTypeId,
+            "emissionsRatesFile" -> emissionsRatesFile.getOrElse("<none>"),
+            "county"             -> matchedCounty,
+            "process"            -> matchedProcess,
+            "activityValue"      -> f"$activityValue%.3f"
+          )
+        )
+      }
+      return None
+    }
+    val lookupMatch = processLookup.get
+    val matchedRoadCategory = lookupMatch.matchedRoadCategory
+    val matchedActivityBin = lookupMatch.matchedActivityBin
+    val rates = lookupMatch.rates
+
+    Some(rates)
+  }
+}
+
+object VehicleEmissions extends LazyLogging {
 
   private def findString[T](
     map: Map[String, T],
@@ -107,9 +223,9 @@ class VehicleEmissions(
     preferEmptyKey: Boolean = true
   ): Option[(String, T)] = {
     if (preferEmptyKey) {
-      map.find(_._1 == "").orElse(map.find(_._1 == value))
+      map.get("").map("" -> _).orElse(map.get(value).map(value -> _))
     } else {
-      map.find(_._1 == value).orElse(map.find(_._1 == ""))
+      map.get(value).map(value -> _).orElse(map.get("").map("" -> _))
     }
   }
 
@@ -133,62 +249,360 @@ class VehicleEmissions(
     }
   }
 
-  private def getRatesUsing(
-    data: BeamVehicle.VehicleActivityData,
+  trait CountyResolver {
+    def resolve(linkId: Int): Option[String]
+  }
+
+  object CountyResolver {
+
+    private case class CountyGeometry(
+      county: String,
+      geometry: PreparedGeometry,
+      rawGeometry: Geometry,
+      envelope: Envelope
+    )
+
+    private object EmptyCountyResolver extends CountyResolver {
+      override def resolve(linkId: Int): Option[String] = None
+    }
+
+    def build(
+      network: Network,
+      localCrs: String,
+      countyLookup: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.CountyLookup,
+      emissionsEnabled: Boolean
+    ): CountyResolver = {
+      if (!emissionsEnabled) {
+        EmptyCountyResolver
+      } else {
+        require(
+          countyLookup.filePath.trim.nonEmpty,
+          "Emissions countyLookup.filePath must be configured when emissions are enabled."
+        )
+        require(
+          countyLookup.countyFieldName.trim.nonEmpty,
+          "Emissions countyLookup.countyFieldName must be configured when emissions are enabled."
+        )
+
+        val countyFile = new File(countyLookup.filePath)
+        require(
+          countyFile.exists(),
+          s"Emissions county lookup file does not exist: ${countyFile.getPath}"
+        )
+
+        validateCountyLookupSchema(countyFile, countyLookup.countyFieldName)
+        val countyGeometries = loadCountyGeometries(localCrs, countyFile.getPath, countyLookup.countyFieldName)
+        require(
+          countyGeometries.nonEmpty,
+          s"Emissions county lookup file ${countyFile.getPath} did not contain any usable polygons."
+        )
+
+        logger.info(
+          s"Building emissions county resolver from ${countyFile.getPath} using field '${countyLookup.countyFieldName}'."
+        )
+
+        val links = network.getLinks.values.asScala.toSeq
+        val maxLinkId = links.map(_.getId.toString.toInt).max
+        val linkIdToCounty = Array.fill[String](maxLinkId + 1)(null)
+        var resolvedWithinPolygon = 0
+        var resolvedToNearestCounty = 0
+
+        links.foreach { link =>
+          val point = MGC.coord2Point(link.getCoord)
+          val x = point.getX
+          val y = point.getY
+          val containingCounty = countyGeometries.collectFirst {
+            case CountyGeometry(name, geometry, _, envelope) if envelope.contains(x, y) && geometry.contains(point) =>
+              name
+          }
+          val resolvedCounty = containingCounty.orElse {
+            if (countyGeometries.nonEmpty) {
+              Some(countyGeometries.minBy(countyGeometry => countyGeometry.rawGeometry.distance(point)).county)
+            } else {
+              None
+            }
+          }
+          resolvedCounty.foreach { value =>
+            linkIdToCounty(link.getId.toString.toInt) = value
+            if (containingCounty.contains(value)) {
+              resolvedWithinPolygon += 1
+            } else {
+              resolvedToNearestCounty += 1
+            }
+          }
+        }
+
+        logger.info(
+          s"Built emissions county resolver for ${links.size} links. " +
+          s"ResolvedWithinPolygon=$resolvedWithinPolygon, " +
+          s"resolvedToNearestCounty=$resolvedToNearestCounty, " +
+          s"unresolved=${links.size - resolvedWithinPolygon - resolvedToNearestCounty}."
+        )
+
+        new CountyResolver {
+          override def resolve(linkId: Int): Option[String] =
+            if (linkId >= 0 && linkId < linkIdToCounty.length) Option(linkIdToCounty(linkId)) else None
+        }
+      }
+    }
+
+    private def validateCountyLookupSchema(countyFile: File, countyFieldName: String): Unit = {
+      val features = GeoReader.readFeatures(countyFile.getPath).asScala.toSeq
+      require(features.nonEmpty, s"Emissions county lookup file ${countyFile.getPath} does not contain any features.")
+
+      val firstFeature = features.head
+      val geometryDescriptor = firstFeature.getFeatureType.getGeometryDescriptor
+      require(
+        geometryDescriptor != null,
+        s"Emissions county lookup file ${countyFile.getPath} does not contain a geometry column."
+      )
+
+      val attributeNames = firstFeature.getFeatureType.getAttributeDescriptors.asScala.map(_.getLocalName).toSeq
+      require(
+        attributeNames.exists(_.equalsIgnoreCase(countyFieldName)),
+        s"Emissions county lookup file ${countyFile.getPath} does not contain required county field '$countyFieldName'. Available fields: ${attributeNames.sorted
+          .mkString(", ")}"
+      )
+    }
+
+    private def loadCountyGeometries(
+      localCrs: String,
+      path: String,
+      countyFieldName: String
+    ): IndexedSeq[CountyGeometry] = {
+      val countyFieldNameLower = countyFieldName.toLowerCase
+      val mathTransform = createCountyLookupTransform(path, localCrs)
+      GeoReader
+        .readFeatures(path)
+        .asScala
+        .toIndexedSeq
+        .map { feature =>
+          val county = feature.getProperties.asScala
+            .find(_.getName.toString.equalsIgnoreCase(countyFieldNameLower))
+            .map(_.getValue.toString.trim.toLowerCase)
+            .getOrElse(
+              throw new IllegalArgumentException(
+                s"Feature ${feature.getID} in emissions county lookup file $path is missing required county field '$countyFieldName'."
+              )
+            )
+          val geometry = Option(feature.getDefaultGeometry)
+            .map(_.asInstanceOf[Geometry])
+            .getOrElse(
+              throw new IllegalArgumentException(
+                s"Feature ${feature.getID} in emissions county lookup file $path is missing geometry."
+              )
+            )
+          county -> JTS.transform(geometry, mathTransform)
+        }
+        .toIndexedSeq
+        .map { case (county, geometry) =>
+          CountyGeometry(
+            county,
+            new PreparedGeometryFactory().create(geometry),
+            geometry,
+            geometry.getEnvelopeInternal
+          )
+        }
+    }
+
+    private def createCountyLookupTransform(path: String, localCrs: String): MathTransform = {
+      val targetCrs = CRS.decode(localCrs, true)
+      val sourceCrs =
+        if (path.toLowerCase.endsWith(".geojson")) {
+          CRS.decode("EPSG:4326", true)
+        } else if (path.toLowerCase.endsWith(".shp")) {
+          val dataStore = new ShapefileDataStore(new File(path).toURI.toURL)
+          try {
+            dataStore.getSchema.getCoordinateReferenceSystem
+          } finally {
+            dataStore.dispose()
+          }
+        } else {
+          throw new IllegalArgumentException(
+            s"Unsupported emissions county lookup file format for $path. Supported: .shp, .geojson"
+          )
+        }
+      CRS.findMathTransform(sourceCrs, targetCrs, true)
+    }
+  }
+
+  case class EmissionsProcessAndRatesStore(
     process: EmissionsProcess,
     ratesStore: EmissionsRateFilter,
-    networkHelper: NetworkHelper
-  ): Option[Emissions] = {
-    val speedMph =
-      data.averageSpeed.map(BeamVehicleUtils.convertFromMetersPerSecondToMilesPerHour).getOrElse(0.0)
-    val soakTimeMin = data.parkingDuration.map(_ / 60.0).getOrElse(0.0)
-    val county = data.taz.flatMap(_.county).getOrElse("").trim.toLowerCase
-    val roadCategory =
-      networkHelper
-        .getLink(data.linkId)
-        .flatMap(link => Option(link.getAttributes.getAttribute("type")).map(_.toString.toLowerCase))
-        .getOrElse("unclassified")
-    val processStr = process.toString
-    val activityValue = if (usesTimeLikeActivityBin(process)) soakTimeMin else speedMph
-    val preferWiderActivityRanges =
-      if (usesTimeLikeActivityBin(process)) !ratesFilter.soakTime.contains(processStr)
-      else !ratesFilter.speed.contains(processStr)
+    emissionsRatesFile: Option[String]
+  )
 
-    val ratesMaybe = for {
-      (_, countyFilter)   <- findString(ratesStore, county, !ratesFilter.county.contains(processStr))
-      (_, processFilter)  <- findString(countyFilter, process.toString, false)
-      (_, roadFilter)     <- findString(processFilter, roadCategory, !ratesFilter.roadCategory.contains(processStr))
-      (_, activityFilter) <- findInterval(roadFilter, activityValue, preferWiderActivityRanges)
-      rates               <- Some(activityFilter)
-    } yield rates
+  private val canonicalProcessesByUppercaseName: Map[String, String] =
+    EmissionsProfile.values.map(process => process.toString.toUpperCase -> process.toString).toMap
 
-    ratesMaybe
+  private def canonicalConfiguredProcess(process: String): Option[String] = {
+    val normalized = process.trim.toUpperCase
+    canonicalProcessesByUppercaseName.get(normalized).orElse {
+      if (normalized.nonEmpty && shouldWarn(s"invalid-configured-process:$normalized")) {
+        logger.warn(
+          s"Unrecognized configured emissions process '$process'. Supported values are: " +
+          canonicalProcessesByUppercaseName.values.toSeq.sorted.mkString(", ")
+        )
+      }
+      None
+    }
   }
-}
 
-object VehicleEmissions extends LazyLogging {
+  private def parseConfiguredProcesses(configValue: String): Set[String] =
+    Option(configValue).toSeq
+      .flatMap(_.split(","))
+      .map(_.trim)
+      .filter(_.nonEmpty)
+      .flatMap(canonicalConfiguredProcess)
+      .toSet
 
-  case class EmissionsProcessAndRatesStore(process: EmissionsProcess, ratesStore: EmissionsRateFilter)
+  private def containsConfiguredProcess(configValue: String, process: String): Boolean =
+    parseConfiguredProcesses(configValue).contains(process.trim.toUpperCase)
+
+  private val warningCounts: TrieMap[String, AtomicInteger] = TrieMap.empty
+  private val lookupMissCounts: TrieMap[String, AtomicInteger] = TrieMap.empty
+  private val lookupMissTotals: TrieMap[String, AtomicInteger] = TrieMap.empty
+  private val lookupMissSummaryFrequency = 5000
+
+  private def shouldWarn(key: String): Boolean =
+    warningCounts.getOrElseUpdate(key, new AtomicInteger(0)).incrementAndGet() == 1
+
+  private def incrementCounter(counterMap: TrieMap[String, AtomicInteger], key: String): Int = {
+    val counter = counterMap.getOrElseUpdate(key, new AtomicInteger(0))
+    counter.incrementAndGet()
+  }
+
+  private def recordLookupMiss(kind: String, details: Seq[(String, String)]): Unit = {
+    val detailString = details.map { case (key, value) => s"$key=$value" }.mkString(", ")
+    val aggregateKey = s"$kind|${details.map { case (key, value) => s"$key=$value" }.mkString("|")}"
+    val entryCount = incrementCounter(lookupMissCounts, aggregateKey)
+    val totalCount = incrementCounter(lookupMissTotals, kind)
+
+    if (entryCount <= 3) {
+      logger.debug(s"Emissions lookup miss [$kind]: $detailString (occurrence=$entryCount)")
+    }
+    if (totalCount == 1 || totalCount % lookupMissSummaryFrequency == 0) {
+      logLookupMissSummary(kind, totalCount)
+    }
+  }
+
+  private def logLookupMissSummary(kind: String, totalCount: Int): Unit = {
+    val kindPrefix = s"$kind|"
+    val topMisses = lookupMissCounts.iterator
+      .collect {
+        case (key, count) if key.startsWith(kindPrefix) =>
+          key.stripPrefix(kindPrefix) -> count.get()
+      }
+      .toSeq
+      .sortBy { case (_, count) => -count }
+      .take(10)
+      .map { case (key, count) => s"$count x [$key]" }
+      .mkString("; ")
+
+    logger.warn(
+      s"Emissions lookup miss summary [$kind]: total=$totalCount, unique=${lookupMissCounts.keys
+        .count(_.startsWith(kindPrefix))}, top=[$topMisses]"
+    )
+  }
 
   private def usesTimeLikeActivityBin(process: EmissionsProcess): Boolean =
     Set(EmissionsProfile.STREX, EmissionsProfile.DIURN, EmissionsProfile.HOTSOAK, EmissionsProfile.RUNLOSS).contains(
       process
     )
 
+  private def multiplyIfPositive(rates: Emissions, factor: Double): Emissions =
+    if (factor <= 0.0) Emissions() else rates * factor
+
   object EmissionsRateFilterStore {
 
-    // county -> (emissionProcess -> (roadCategory -> (activityBin -> rate)))
+    sealed trait ActivityLookupMode
+    case object NoActivityLookup extends ActivityLookupMode
+    case object ActivityBinLookup extends ActivityLookupMode
+
+    case class ProcessLookupMatch(
+      matchedRoadCategory: Option[String],
+      matchedActivityBin: Option[DoubleTypedRange],
+      rates: Emissions
+    )
+
+    case class ProcessRateIndex(
+      roadCategoryToActivityRates: Map[String, Map[DoubleTypedRange, Emissions]],
+      usesRoadCategory: Boolean,
+      activityLookupMode: ActivityLookupMode
+    ) {
+
+      def usesActivityBin: Boolean = activityLookupMode == ActivityBinLookup
+
+      def find(
+        roadCategory: String,
+        preferEmptyRoadCategory: Boolean,
+        activityValue: Double,
+        preferWiderActivityRanges: Boolean
+      ): Option[ProcessLookupMatch] = {
+        val roadMatch =
+          if (usesRoadCategory) {
+            VehicleEmissions.findString(roadCategoryToActivityRates, roadCategory, preferEmptyRoadCategory)
+          } else {
+            roadCategoryToActivityRates.get("").map("" -> _).orElse(roadCategoryToActivityRates.headOption)
+          }
+
+        roadMatch.flatMap { case (matchedRoadCategory, ratesByActivity) =>
+          val activityMatch =
+            activityLookupMode match {
+              case ActivityBinLookup =>
+                VehicleEmissions.findInterval(ratesByActivity, activityValue, preferWiderActivityRanges)
+              case NoActivityLookup =>
+                ratesByActivity.toSeq.sortBy { case (range, _) => (range.lowerBound, range.upperBound) }.headOption
+            }
+          activityMatch.map { case (matchedActivityBin, rates) =>
+            ProcessLookupMatch(
+              matchedRoadCategory = if (usesRoadCategory) Some(matchedRoadCategory) else None,
+              matchedActivityBin = if (usesActivityBin) Some(matchedActivityBin) else None,
+              rates = rates
+            )
+          }
+        }
+      }
+    }
+
+    object ProcessRateIndex {
+
+      def fromRaw(
+        process: String,
+        roadCategoryToActivityRates: Map[String, Map[DoubleTypedRange, Emissions]]
+      ): ProcessRateIndex = {
+        val normalizedProcess = process.trim.toUpperCase
+        val usesRoadCategory = roadCategoryToActivityRates.keys.exists(_.nonEmpty)
+        val activityLookupMode =
+          if (
+            Set(
+              EmissionsProfile.RUNEX.toString,
+              EmissionsProfile.PTOEX.toString,
+              EmissionsProfile.PMBW.toString,
+              EmissionsProfile.PMTW.toString,
+              EmissionsProfile.PRDUST.toString,
+              EmissionsProfile.STREX.toString,
+              EmissionsProfile.DIURN.toString,
+              EmissionsProfile.HOTSOAK.toString,
+              EmissionsProfile.RUNLOSS.toString
+            ).contains(normalizedProcess)
+          ) ActivityBinLookup
+          else NoActivityLookup
+
+        ProcessRateIndex(
+          roadCategoryToActivityRates = roadCategoryToActivityRates,
+          usesRoadCategory = usesRoadCategory,
+          activityLookupMode = activityLookupMode
+        )
+      }
+    }
+
+    // county -> (emissionProcess -> process-specific lookup index)
     type EmissionsRateFilter = Map[
       String, // county
       Map[
         String, // emissionProcess
-        Map[
-          String, // road category
-          Map[
-            DoubleTypedRange, // activity bin (speed or soak time, depending on process)
-            Emissions // rate
-          ]
-        ]
+        ProcessRateIndex
       ]
     ]
   }
@@ -241,8 +655,8 @@ object VehicleEmissions extends LazyLogging {
           if (toKeep.nonEmpty) {
             val keeping = toKeep.map(_.toString).mkString(", ")
             val filtering = filter.map(_.map(_.toString).mkString(", ")).getOrElse("")
-            logger.info(s"Keeping only the following pollutants: $keeping")
-            logger.info(s"Filtering out: $filtering")
+            logger.debug(s"Keeping only the following pollutants: $keeping")
+            logger.debug(s"Filtering out: $filtering")
           }
         case _ =>
       }
@@ -274,6 +688,43 @@ object VehicleEmissions extends LazyLogging {
   object EmissionsProfile extends Enumeration {
     type EmissionsProcess = Value
     val RUNEX, IDLEX, STREX, HOTSOAK, DIURN, RUNLOSS, PMTW, PMBW, PRDUST, PTOEX = Value
+
+    sealed trait EmissionsFuelGroup {
+      def configuredProcesses(fuelFilter: FuelFilter): Set[String]
+    }
+
+    object EmissionsFuelGroup {
+
+      case object GasolinePowered extends EmissionsFuelGroup {
+
+        override def configuredProcesses(fuelFilter: FuelFilter): Set[String] =
+          parseConfiguredProcesses(fuelFilter.gasoline)
+      }
+
+      case object DieselPowered extends EmissionsFuelGroup {
+
+        override def configuredProcesses(fuelFilter: FuelFilter): Set[String] =
+          parseConfiguredProcesses(fuelFilter.diesel)
+      }
+
+      case object NaturalGasPowered extends EmissionsFuelGroup {
+
+        override def configuredProcesses(fuelFilter: FuelFilter): Set[String] =
+          parseConfiguredProcesses(fuelFilter.naturalgas)
+      }
+
+      case object PhevPowered extends EmissionsFuelGroup {
+
+        override def configuredProcesses(fuelFilter: FuelFilter): Set[String] =
+          parseConfiguredProcesses(fuelFilter.phev)
+      }
+
+      case object ElectricPowered extends EmissionsFuelGroup {
+
+        override def configuredProcesses(fuelFilter: FuelFilter): Set[String] =
+          parseConfiguredProcesses(fuelFilter.electric)
+      }
+    }
 
     def init(): EmissionsProfile = EmissionsProfile()
 
@@ -307,120 +758,78 @@ object VehicleEmissions extends LazyLogging {
       vehicleActivity == classOf[LeavingParkingEvent] && data.vehicleType.vehicleUse == VehicleUse.Freight
     }
 
+    private def fuelGroupFor(vehicleType: BeamVehicleType): Option[EmissionsFuelGroup] = {
+      import EmissionsFuelGroup._
+
+      (vehicleType.primaryFuelType, vehicleType.secondaryFuelType) match {
+        case (Electricity, Some(_)) => Some(PhevPowered)
+        case (Electricity, None)    => Some(ElectricPowered)
+        case (Gasoline, _)          => Some(GasolinePowered)
+        case (Diesel, _)            => Some(DieselPowered)
+        case (NaturalGas, _)        => Some(NaturalGasPowered)
+        case _                      => None
+      }
+    }
+
     def identifyProcesses(
       data: BeamVehicle.VehicleActivityData,
       event: Class[_ <: org.matsim.api.core.v01.events.Event],
-      emissionsRatesFilterStore: EmissionsRateFilterStore
+      emissionsRatesFilterStore: EmissionsRateFilterStore,
+      fuelFilter: FuelFilter
     ): IndexedSeq[EmissionsProcessAndRatesStore] = {
       emissionsRatesFilterStore
         .getEmissionsRateFilterFor(data.vehicleType)
         .map(future => Await.result(future, 1.minute)) match {
         case Some(rateFilter) =>
-          EmissionsProfile.values.flatMap {
-            /**
-              * IDLE activity should be the first element of VehicleActivity data sequence
-              * the type is PathTraversalEvent because there is no difference, IDLE activity happens between other events
-              *
-              * Idle Exhaust (IDLEX) emissions refer to the emissions during extended idling events (i.e., a continuous
-              * segment of vehicle activity that meets three criteria: all instantaneous vehicle speeds being lower
-              * than 5 mph, the total distance of less than 1 mile, and the total duration of more than 5 minutes)
-              * by heavy duty trucks. Extended idle may occur during loading or unloading goods, or to power accessories.
-              * Idle exhaust is calculated only for heavy-duty trucks. For light duty vehicles, the idle events during
-              * normal vehicle operation are already accounted for, i.e. RUNEX emission rates are based on driving
-              * cycles that include normal idling events. IDLEX emission rates do not vary by temperature and humidity
-              * and are not related to speed bins.
-              * https://ww2.arb.ca.gov/sites/default/files/2021-03/emfac2021_volume_2_pl_handbook.pdf
-              */
-            case process @ IDLEX if isIdlingDriving(data, event) || isIdlingParking(data, event) =>
-              Some(EmissionsProcessAndRatesStore(process, rateFilter))
+          val allowedProcessesByFuel = fuelGroupFor(data.vehicleType)
+            .map(_.configuredProcesses(fuelFilter))
+            .getOrElse(Set.empty[String])
+          val selectedProcesses = EmissionsProfile.values
+            .flatMap {
+              /**
+                * IDLE activity should be the first element of VehicleActivity data sequence
+                * the type is PathTraversalEvent because there is no difference, IDLE activity happens between other events
+                *
+                * Idle Exhaust (IDLEX) emissions refer to the emissions during extended idling events (i.e., a continuous
+                * segment of vehicle activity that meets three criteria: all instantaneous vehicle speeds being lower
+                * than 5 mph, the total distance of less than 1 mile, and the total duration of more than 5 minutes)
+                * by heavy duty trucks. Extended idle may occur during loading or unloading goods, or to power accessories.
+                * Idle exhaust is calculated only for heavy-duty trucks. For light duty vehicles, the idle events during
+                * normal vehicle operation are already accounted for, i.e. RUNEX emission rates are based on driving
+                * cycles that include normal idling events. IDLEX emission rates do not vary by temperature and humidity
+                * and are not related to speed bins.
+                * https://ww2.arb.ca.gov/sites/default/files/2021-03/emfac2021_volume_2_pl_handbook.pdf
+                */
+              case process @ IDLEX if isIdlingDriving(data, event) || isIdlingParking(data, event) =>
+                Some(EmissionsProcessAndRatesStore(process, rateFilter, data.vehicleType.emissionsRatesFile))
 
-            case process @ (RUNEX | PMBW | PMTW | RUNLOSS | PRDUST) if event == classOf[PathTraversalEvent] =>
-              Some(EmissionsProcessAndRatesStore(process, rateFilter))
+              case process @ (RUNEX | PMBW | PMTW | RUNLOSS | PRDUST) if event == classOf[PathTraversalEvent] =>
+                Some(EmissionsProcessAndRatesStore(process, rateFilter, data.vehicleType.emissionsRatesFile))
 
-            case process @ PTOEX
-                if event == classOf[PathTraversalEvent] && data.vehicleType.vehicleUse == VehicleUse.Freight =>
-              Some(EmissionsProcessAndRatesStore(process, rateFilter))
+              case process @ PTOEX
+                  if event == classOf[PathTraversalEvent] && data.vehicleType.vehicleUse == VehicleUse.Freight =>
+                Some(EmissionsProcessAndRatesStore(process, rateFilter, data.vehicleType.emissionsRatesFile))
 
-            case process @ (STREX | DIURN | HOTSOAK | RUNLOSS) if event == classOf[LeavingParkingEvent] =>
-              Some(EmissionsProcessAndRatesStore(process, rateFilter))
+              case process @ (STREX | DIURN | HOTSOAK | RUNLOSS) if event == classOf[LeavingParkingEvent] =>
+                Some(EmissionsProcessAndRatesStore(process, rateFilter, data.vehicleType.emissionsRatesFile))
 
-            case _ => None
-          }.toIndexedSeq
-        case _ => IndexedSeq.empty
+              case _ => None
+            }
+            .filter(selected => allowedProcessesByFuel.contains(selected.process.toString))
+            .toIndexedSeq
+
+          selectedProcesses
+        case _ =>
+          IndexedSeq.empty
       }
     }
 
     def fromString(process: String): Option[EmissionsProcess] = {
-      val depot = FreightActivityType.Depot.toString
-      val loading = FreightActivityType.Loading.toString
-      val unloading = FreightActivityType.Unloading.toString
-      process.toLowerCase match {
-        // Running Exhaust Emissions (RUNEX) that come out of the vehicle tailpipe while traveling on the road.
-        // TODO Embed it in PathTraversalEvent
-        // xVMT by speed bin => gram/veh-mile
-        case "running" | "runex" => Some(RUNEX)
-
-        // Idle Exhaust Emissions (IDLEX) that come out of the vehicle tailpipe while it is operating but not traveling
-        // any significant distance. This process captures emissions from heavy-duty vehicles that idle for
-        // extended periods of time while loading or unloading goods. Idle exhaust is calculated only
-        // for heavy-duty trucks.
-        // TODO Embed it in LeavingParkingEvent when 1) it is freight Load/Unload 2) overnight parking
-        // xNumber of Idle Hours (xParking Hour) => gram/veh-idle hour
-        case "idling" | "idlex" | "extidlex" | "hotelling" | `depot` | `loading` | `unloading` => Some(IDLEX)
-
-        // Start Exhaust Tailpipe Emissions (STREX) that occur when starting a vehicle. These emissions are independent
-        // of running exhaust emissions and represent the emissions occurring during the initial time period when
-        // a vehicle’s emissions after treatment system is warming up. The magnitude of these emissions is dependent
-        // on how long the vehicle has been sitting prior to starting. Please note that STREX is defined differently
-        // for heavy-duty diesel trucks than for other vehicles.
-        // More details can be found in the EMFAC2014 Technical Support Document.
-        // TODO Embed it in LeavingParkingEvent
-        // xNumber of starts per Soak time => gram/veh-start
-        case "start" | "strex" => Some(STREX)
-
-        // Diurnal Evaporative HC Emissions (DIURN) that occur when rising ambient temperatures cause fuel evaporation
-        // from vehicles sitting throughout the day. These losses are from leaks in the fuel system, fuel hoses,
-        // connectors, as a result of the breakthrough of vapors from the carbon canister.
-        // TODO Embed it in LeavingParkingEvent
-        // xCold soak hours (xParking Hour) => gram/veh-hour
-        case "diurnal" | "diurn" => Some(DIURN)
-
-        // Hot Soak Evaporative HC Emissions (HOTSOAK) that begin immediately from heated fuels after a car stops its
-        // engine operation and continue until the fuel tank reaches ambient temperature.
-        // TODO Embed it in LeavingParkingEvent
-        // xNumber of starts => gram/veh-start
-        case "hotsoak" => Some(HOTSOAK)
-
-        // Running Loss Evaporative HC Emissions (RUNLOSS) that occur as a result of hot fuel vapors escaping
-        // from the fuel system or overwhelming the carbon canister while the vehicle is operating.
-        // TODO Embed it in PathTraversalEvent and LeavingParkingEvent (loading/unloading/hotelling)
-        // xRunning hours (xVHT) => gram/veh-hour
-        case "runloss" => Some(RUNLOSS)
-
-        // Tire Wear Particulate Matter Emissions (PMTW) that originate from tires as a result of wear.
-        // TODO Embed it in PathTraversalEvent
-        // xVMT => gram/veh-mile
-        case "tirewear" | "pmtw" => Some(PMTW) // Embedded in PathTraversalEvent
-
-        // Brake Wear Particulate Matter Emissions (PMBW) that originate from brake usage.
-        // TODO Embed it in PathTraversalEvent
-        // xVMT by speed bin => gram/veh-mile
-        case "brakewear" | "pmbw" => Some(PMBW)
-
-        // Paved Road Dust Particulate Matter Emissions (PRDUST) calculated using EPA AP-42 methodology.
-        // Based on silt loading, vehicle weight, precipitation, and road type.
-        // E = k * (SL^0.91) * (W^1.02) * (1 - P/N/4) with PM2.5/PM10 fractions applied.
-        // xVMT => gram/veh-mile
-        case "dust" | "road_dust" | "paved_road_dust" | "prdust" => Some(PRDUST)
-
-        // Power take-off exhaust emissions during operation.
-        // PTOEX is treated as a traversal exhaust process with speed-bin lookup, not as a parking/start process.
-        case "ptoex" | "pto" | "power_take_off" => Some(PTOEX)
-
-        // if process is not recognized then RUNEX emission will be used
-        case _ =>
+      VehicleEmissions.canonicalConfiguredProcess(process).flatMap { canonicalProcess =>
+        EmissionsProfile.values.find(_.toString == canonicalProcess).orElse {
           logger.warn(s"Unrecognized emission process: $process")
           None
+        }
       }
     }
 
@@ -470,7 +879,7 @@ object VehicleEmissions extends LazyLogging {
 
           val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
 
-          ratesBySpeedBin * vehicleMilesTraveledInMiles
+          multiplyIfPositive(ratesBySpeedBin, vehicleMilesTraveledInMiles)
       },
       /**
         * Calculate Idle Exhaust Emissions (IDLEX)
@@ -509,7 +918,7 @@ object VehicleEmissions extends LazyLogging {
                 portionOfIdlingHours
             }
 
-          rates * idlingHours
+          multiplyIfPositive(rates, idlingHours)
       },
       /**
         * Calculate Start Exhaust Emissions (STREX)
@@ -531,7 +940,7 @@ object VehicleEmissions extends LazyLogging {
 
           val numberOfVehicleStartTimes = 1 // We calculate it for 1 leave parking event
 
-          ratesBySoakTime * numberOfVehicleStartTimes
+          multiplyIfPositive(ratesBySoakTime, numberOfVehicleStartTimes)
       },
       /**
         * Calculate Diurnal Evaporative Emissions (DIURN)
@@ -553,7 +962,7 @@ object VehicleEmissions extends LazyLogging {
 
           val vehicleParkingInHours = data.parkingDuration.map(_ / 3600.0).getOrElse(0.0)
 
-          rates * vehicleParkingInHours
+          multiplyIfPositive(rates, vehicleParkingInHours)
       },
       /**
         * Calculate Hot Soak Emissions (HOTSOAK)
@@ -575,7 +984,7 @@ object VehicleEmissions extends LazyLogging {
 
           val numberOfVehicleStartTimes = 1 // We calculate it for 1 leave parking event
 
-          rates * numberOfVehicleStartTimes
+          multiplyIfPositive(rates, numberOfVehicleStartTimes)
       },
       /**
         * Calculate Running Loss Evaporative Emissions (RUNLOSS)
@@ -597,7 +1006,7 @@ object VehicleEmissions extends LazyLogging {
           val vehicleHoursTraveledInHours =
             data.linkTravelTime.map(_ / 3600.0).orElse(data.parkingDuration.map(_ / 3600.0)).getOrElse(0.0)
 
-          rates * vehicleHoursTraveledInHours
+          multiplyIfPositive(rates, vehicleHoursTraveledInHours)
       },
       /**
         * Calculate Tire Wear Particulate Matter Emissions (PMTW)
@@ -618,7 +1027,7 @@ object VehicleEmissions extends LazyLogging {
 
           val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
 
-          rates * vehicleMilesTraveledInMiles
+          multiplyIfPositive(rates, vehicleMilesTraveledInMiles)
       },
       /**
         * Calculate Brake Wear Particulate Matter Emissions (PMBW)
@@ -639,7 +1048,7 @@ object VehicleEmissions extends LazyLogging {
 
           val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
 
-          ratesBySpeedBin * vehicleMilesTraveledInMiles
+          multiplyIfPositive(ratesBySpeedBin, vehicleMilesTraveledInMiles)
       },
       /**
         * Calculate Paved Road Dust Particulate Matter Emissions (PRDUST)
@@ -665,7 +1074,7 @@ object VehicleEmissions extends LazyLogging {
           val weightInShortTons = weightInKg * shortTonsPerKg
           val prdustWeightMultiplier = math.pow(weightInShortTons, 1.02)
 
-          rates * (vehicleMilesTraveledInMiles * prdustWeightMultiplier)
+          multiplyIfPositive(rates, vehicleMilesTraveledInMiles * prdustWeightMultiplier)
       },
       /**
         * Calculate Power Take-Off Exhaust Emissions (PTOEX)
@@ -684,7 +1093,7 @@ object VehicleEmissions extends LazyLogging {
 
           val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
 
-          ratesBySpeedBin * vehicleMilesTraveledInMiles
+          multiplyIfPositive(ratesBySpeedBin, vehicleMilesTraveledInMiles)
       }
     )
   }
@@ -706,6 +1115,10 @@ object VehicleEmissions extends LazyLogging {
     private def beginLoadingEmissionRateFiltersFor(
       files: IndexedSeq[(BeamVehicleType, Option[String])]
     ): Map[BeamVehicleType, Future[EmissionsRateFilterStore.EmissionsRateFilter]] = {
+      files.collect {
+        case (_, None)                                    =>
+        case (_, Some(filePath)) if filePath.trim.isEmpty =>
+      }
       files.collect {
         case (vehicleType, Some(filePath)) if filePath.trim.nonEmpty =>
           val consumptionFuture = Future {
@@ -742,6 +1155,8 @@ object VehicleEmissions extends LazyLogging {
     private val rateSOxHeaders = Seq("sox_gram")
     private val rateTOGHeaders = Seq("tog_gram")
     private val rateBCHeaders = Seq("bc_gram")
+
+    private def normalizeLookupKey(value: String): String = value.trim.toLowerCase
 
     private sealed trait EmissionsRateRow {
       def getString(header: String): Option[String]
@@ -845,10 +1260,10 @@ object VehicleEmissions extends LazyLogging {
     ): EmissionsRateFilterStore.EmissionsRateFilter = {
       val currentRateFilter =
         mutable.Map.empty[String, mutable.Map[String, mutable.Map[String, mutable.Map[DoubleTypedRange, Emissions]]]]
+      val validRowsByProcess = mutable.Map.empty[String, Int].withDefaultValue(0)
+      val invalidRowsByProcess = mutable.Map.empty[String, Int].withDefaultValue(0)
 
       var rowCount = 0
-      logger.info(s"Loading emission rates from file: $file")
-
       resolveFilePaths(baseFilePaths, file).foreach { resolvedPath =>
         getVehicleEmissionsRows(csvParser, resolvedPath).foreach { row =>
           rowCount += 1
@@ -859,8 +1274,8 @@ object VehicleEmissions extends LazyLogging {
               .map(_.toString)
               .getOrElse("")
           val activityBin = getActivityBin(row, emissionProcess)
-          val county = row.getStringAny(countyHeaders).getOrElse("")
-          val roadCategory = row.getStringAny(roadCategoryHeaders).getOrElse("")
+          val county = normalizeLookupKey(row.getStringAny(countyHeaders).getOrElse(""))
+          val roadCategory = normalizeLookupKey(row.getStringAny(roadCategoryHeaders).getOrElse(""))
 
           val ratesInGramsPerMile = Emissions(
             List(
@@ -881,9 +1296,12 @@ object VehicleEmissions extends LazyLogging {
             ).filter(_._2 != 0.0): _*
           )
           if (ratesInGramsPerMile.notValid) {
+            invalidRowsByProcess.update(emissionProcess, invalidRowsByProcess(emissionProcess) + 1)
             logger.error(
               s"Record ${row.debugString} does not contain a valid rate. Erroring early to bring attention and get it fixed."
             )
+          } else {
+            validRowsByProcess.update(emissionProcess, validRowsByProcess(emissionProcess) + 1)
           }
 
           val processFilter = currentRateFilter.getOrElseUpdate(county, mutable.Map.empty)
@@ -915,13 +1333,21 @@ object VehicleEmissions extends LazyLogging {
         }
       }
 
-      logger.info(s"Finished loading emission rates. Total number of emissions entries: $rowCount")
+      logger.debug(
+        s"Emission rate load summary for file=$file, totalRows=$rowCount, validRowsByProcess=${validRowsByProcess.toSeq
+          .sortBy(_._1)
+          .mkString("[", ", ", "]")}, " +
+        s"invalidRowsByProcess=${invalidRowsByProcess.toSeq.sortBy(_._1).mkString("[", ", ", "]")}"
+      )
 
       currentRateFilter.toMap.map { case (county, processMap) =>
         county -> processMap.toMap.map { case (emissionProcess, roadCategoryMap) =>
-          emissionProcess -> roadCategoryMap.toMap.map { case (roadCategory, activityBinMap) =>
-            roadCategory -> activityBinMap.toMap
-          }
+          emissionProcess -> EmissionsRateFilterStore.ProcessRateIndex.fromRaw(
+            emissionProcess,
+            roadCategoryMap.toMap.map { case (roadCategory, activityBinMap) =>
+              roadCategory -> activityBinMap.toMap
+            }
+          )
         }
       }
     }
