@@ -130,6 +130,8 @@ object BeamVehicleUtils extends LazyLogging {
       case VehicleCategory.Bike                => 80
       case VehicleCategory.Car                 => 2000 // Class 1&2a (GVWR <= 8500 lbs.)
       case VehicleCategory.MediumDutyPassenger => 2500
+      case VehicleCategory.Class12aVocational  => 2500 // Class 1-2a vocational
+      case VehicleCategory.Class2b3Vocational  => 5000 // Class 2b-3 vocational
       case VehicleCategory.Class456Vocational =>
         9000 // Class 4-6 (GVWR 14001-26000 lbs. => 6000-15000, and average of 8000-9000 lbs curb weight)
       case VehicleCategory.Class78Vocational => 13000 // CLass 7&8 (GVWR 26001 to >33,001 lbs.)

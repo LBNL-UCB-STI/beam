@@ -251,9 +251,17 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
         )
 
         val traversalProfile =
-          vehicleEmissions.getEmissionsProfileInGram(IndexedSeq(traversalData), classOf[PathTraversalEvent], beamServices)
+          vehicleEmissions.getEmissionsProfileInGram(
+            IndexedSeq(traversalData),
+            classOf[PathTraversalEvent],
+            beamServices
+          )
         val parkingProfile =
-          vehicleEmissions.getEmissionsProfileInGram(IndexedSeq(parkingData), classOf[LeavingParkingEvent], beamServices)
+          vehicleEmissions.getEmissionsProfileInGram(
+            IndexedSeq(parkingData),
+            classOf[LeavingParkingEvent],
+            beamServices
+          )
 
         traversalProfile.map(_.values.keySet).getOrElse(Set.empty) shouldBe Set(
           EmissionsProfile.RUNEX,
@@ -366,8 +374,7 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
         }
       }
       writer.write(record)
-    }
-    finally writer.close()
+    } finally writer.close()
   }
 
   private def deleteRecursively(path: Path): Unit = {

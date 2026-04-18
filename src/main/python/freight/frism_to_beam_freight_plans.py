@@ -1147,9 +1147,9 @@ if __name__ == '__main__':
                                               df2.vehicleCategory)
             df2["vehicleCategory"] = np.where(df2["vehicleTypeId"].str.contains('hdt'), 'Class78Tractor',
                                               df2.vehicleCategory)
-            df2["vehicleCategory"] = np.where(df2["vehicleTypeId"].str.contains('ld3'), 'Car',
+            df2["vehicleCategory"] = np.where(df2["vehicleTypeId"].str.contains('ld3'), 'Class2b3Vocational',
                                               df2.vehicleCategory)
-            df2["vehicleCategory"] = np.where(df2["vehicleTypeId"].str.contains('ld1'), 'Car',
+            df2["vehicleCategory"] = np.where(df2["vehicleTypeId"].str.contains('ld1'), 'Class12aVocational',
                                               df2.vehicleCategory)
 
             if _vehicle_types is None:

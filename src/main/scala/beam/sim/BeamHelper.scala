@@ -277,25 +277,34 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent.toString
     )
 
+    val networkCoordinator = buildNetworkCoordinator(beamConfig)
     val vehicleEnergy = new VehicleEnergy(
       vehicleTypesBasePaths,
       vehicleTypes,
       beamConfig.beam.agentsim.agents.vehicles.linkToGradePercentFilePath
     )
 
+    val emissionsConfig = beamConfig.beam.agentsim.agents.vehicles.emissions
+    val emissionsEnabled = emissionsConfig.events || emissionsConfig.skims
+    val countyResolver = VehicleEmissions.CountyResolver.build(
+      networkCoordinator.network,
+      beamConfig.beam.spatial.localCRS,
+      emissionsConfig.countyLookup,
+      emissionsEnabled
+    )
     val vehicleEmissions = new VehicleEmissions(
       vehicleTypesBasePaths,
       vehicleTypes,
-      beamConfig.beam.agentsim.agents.vehicles.emissions.pollutantsFilter,
-      beamConfig.beam.agentsim.agents.vehicles.emissions.ratesFilter
+      countyResolver,
+      emissionsConfig.pollutantsFilter,
+      emissionsConfig.fuelFilter,
+      emissionsConfig.ratesFilter
     )
 
     val dates = DateUtils(
       ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
       ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
     )
-
-    val networkCoordinator = buildNetworkCoordinator(beamConfig)
     val gtfs = GTFSUtils.loadGTFS(beamConfig.beam.routing.r5.directory)
     val trainStopQuadTree = GTFSUtils.toQuadTree(GTFSUtils.trainStations(gtfs), new GeoUtilsImpl(beamConfig))
     val taz = beamConfig.beam.agentsim.taz

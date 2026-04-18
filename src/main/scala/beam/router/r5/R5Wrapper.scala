@@ -1924,10 +1924,9 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       * the router was failing to return routes for.
       */
     vehicleCategory match {
-      case VehicleCategory.Class456Vocational => beamConfig.beam.routing.r5.maxTimeLimitForFreightInMinutes
-      case VehicleCategory.Class78Vocational  => beamConfig.beam.routing.r5.maxTimeLimitForFreightInMinutes
-      case VehicleCategory.Class78Tractor     => beamConfig.beam.routing.r5.maxTimeLimitForFreightInMinutes
-      case _                                  => default
+      case freightCategory if VehicleCategory.freightCategories.contains(freightCategory) =>
+        beamConfig.beam.routing.r5.maxTimeLimitForFreightInMinutes
+      case _ => default
     }
   }
 
@@ -2724,9 +2723,11 @@ object R5Wrapper extends StrictLogging {
     val values: Set[RoutingVehicleCategory] = Set(HeavyDuty, MediumDuty, Other)
 
     def fromCategory(category: VehicleCategory.VehicleCategory): RoutingVehicleCategory = category match {
-      case VehicleCategory.Class78Tractor | VehicleCategory.Class78Vocational => HeavyDuty
-      case VehicleCategory.Class456Vocational                                 => MediumDuty
-      case _                                                                  => Other
+      case freightCategory if VehicleCategory.heavyDutyFreightCategories.contains(freightCategory) => HeavyDuty
+      case freightCategory if VehicleCategory.mediumDutyFreightCategories.contains(freightCategory) =>
+        MediumDuty
+      case freightCategory if VehicleCategory.lightDutyFreightCategories.contains(freightCategory) => Other
+      case _                                                                                       => Other
     }
   }
 

@@ -18,15 +18,12 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path => NioPath}
 import scala.jdk.CollectionConverters._
 
-class VehicleEmissionsParquetSpec
-    extends AnyFunSpecLike
-    with Matchers
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach {
+class VehicleEmissionsParquetSpec extends AnyFunSpecLike with Matchers with BeforeAndAfterAll with BeforeAndAfterEach {
 
   private var tempDir: NioPath = _
   private val county = "alameda"
   private val roadCategory = "motorway"
+
   private val allPollutants: Map[String, Double] = Map(
     "ch4_gram"  -> 1.0,
     "co_gram"   -> 2.0,
@@ -43,6 +40,7 @@ class VehicleEmissionsParquetSpec
     "tog_gram"  -> 13.0,
     "bc_gram"   -> 14.0
   )
+
   private val expectedEmissions = Emissions(
     Emissions.CH4  -> 1.0,
     Emissions.CO   -> 2.0,
@@ -59,6 +57,7 @@ class VehicleEmissionsParquetSpec
     Emissions.TOG  -> 13.0,
     Emissions.BC   -> 14.0
   )
+
   private val processActivityValues: Vector[(EmissionsProfile.EmissionsProcess, Double)] = Vector(
     EmissionsProfile.RUNEX   -> 25.0,
     EmissionsProfile.IDLEX   -> 0.0,
@@ -154,8 +153,11 @@ class VehicleEmissionsParquetSpec
 
     processActivityValues.foreach { case (process, activityValue) =>
       val processStore = store(county)(process.toString)
-      processStore.keySet should contain(roadCategory)
-      processStore(roadCategory)(expectedBin(process, activityValue)) shouldBe expectedEmissions
+      processStore.usesRoadCategory shouldBe true
+      processStore.roadCategoryToActivityRates.keySet should contain(roadCategory)
+      processStore.roadCategoryToActivityRates(roadCategory)(
+        expectedBin(process, activityValue)
+      ) shouldBe expectedEmissions
     }
   }
 
@@ -185,8 +187,7 @@ class VehicleEmissionsParquetSpec
         }
       }
       writer.write(record)
-    }
-    finally writer.close()
+    } finally writer.close()
   }
 
   private def writeCsv(path: NioPath, rows: IndexedSeq[Map[String, Any]]): Unit = {

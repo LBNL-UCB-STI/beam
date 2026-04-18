@@ -1882,7 +1882,9 @@ object BeamConfig {
           }
 
           case class Emissions(
+            countyLookup: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.CountyLookup,
             events: scala.Boolean,
+            fuelFilter: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.FuelFilter,
             pollutantsFilter: java.lang.String,
             ratesFilter: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.RatesFilter,
             skims: scala.Boolean,
@@ -1890,6 +1892,52 @@ object BeamConfig {
           )
 
           object Emissions {
+
+            case class CountyLookup(
+              countyFieldName: java.lang.String,
+              filePath: java.lang.String
+            )
+
+            object CountyLookup {
+
+              def apply(
+                c: com.typesafe.config.Config
+              ): BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.CountyLookup = {
+                BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.CountyLookup(
+                  countyFieldName = if (c.hasPathOrNull("countyFieldName")) c.getString("countyFieldName") else "",
+                  filePath = if (c.hasPathOrNull("filePath")) c.getString("filePath") else ""
+                )
+              }
+            }
+
+            case class FuelFilter(
+              diesel: java.lang.String,
+              electric: java.lang.String,
+              gasoline: java.lang.String,
+              naturalgas: java.lang.String,
+              phev: java.lang.String
+            )
+
+            object FuelFilter {
+
+              def apply(
+                c: com.typesafe.config.Config
+              ): BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.FuelFilter = {
+                BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.FuelFilter(
+                  diesel =
+                    if (c.hasPathOrNull("diesel")) c.getString("diesel")
+                    else "PRDUST,RUNEX,STREX,IDLEX,PMBW,PMTW,PTOEX",
+                  electric = if (c.hasPathOrNull("electric")) c.getString("electric") else "PRDUST,PMBW,PMTW",
+                  gasoline =
+                    if (c.hasPathOrNull("gasoline")) c.getString("gasoline")
+                    else "PRDUST,RUNEX,STREX,IDLEX,HOTSOAK,RUNLOSS,DIURN,PMBW,PMTW",
+                  naturalgas = if (c.hasPathOrNull("naturalgas")) c.getString("naturalgas") else "",
+                  phev =
+                    if (c.hasPathOrNull("phev")) c.getString("phev")
+                    else "PRDUST,RUNEX,STREX,HOTSOAK,RUNLOSS,DIURN,PMBW,PMTW"
+                )
+              }
+            }
 
             case class RatesFilter(
               county: java.lang.String,
@@ -1937,7 +1985,15 @@ object BeamConfig {
 
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions = {
               BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions(
+                countyLookup = BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.CountyLookup(
+                  if (c.hasPathOrNull("countyLookup")) c.getConfig("countyLookup")
+                  else com.typesafe.config.ConfigFactory.parseString("countyLookup{}")
+                ),
                 events = c.hasPathOrNull("events") && c.getBoolean("events"),
+                fuelFilter = BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.FuelFilter(
+                  if (c.hasPathOrNull("fuelFilter")) c.getConfig("fuelFilter")
+                  else com.typesafe.config.ConfigFactory.parseString("fuelFilter{}")
+                ),
                 pollutantsFilter =
                   if (c.hasPathOrNull("pollutantsFilter")) c.getString("pollutantsFilter")
                   else "CH4,CO,CO2,HC,NH3,N2O,NOx,PM,PM10,PM25,ROG,SOx,TOG,BC",

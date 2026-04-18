@@ -212,7 +212,6 @@ object HouseholdActor {
       Map()
     private val trackingCAVAssignmentAtInitialization = mutable.HashMap.empty[Id[BeamVehicle], Id[Person]]
     private val householdVehicleCategories = List(Car, Bike)
-    // private val carrierVehicleCategories = List(Class78Tractor, Class78Vocational, Class456Vocational, Car)
     private var whoDrivesThisFreightVehicle: Map[Id[BeamVehicle], Id[Person]] = Map()
 
     override def loggedReceive: Receive = {
