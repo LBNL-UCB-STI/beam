@@ -117,7 +117,8 @@ object HouseholdActor {
     originActivity: Activity,
     vehicleUse: VehicleUse,
     requireVehicleCategoryAvailable: Option[VehicleCategory],
-    triggerId: Long
+    triggerId: Long,
+    allowEmergencyVehicle: Boolean = true
   ) extends HasTriggerId
 
   // TODO: Extend this to allow you to request a specific vehicle id
@@ -773,13 +774,9 @@ object HouseholdActor {
                   )
                 )
               }
-            logger.error(
-              s"Person $personId is requiring an emergency vehicle at time ${whenWhere.time} that belongs to use $vehicleUse. " +
-              s"Choosing a random vehicle of type ${vehicleType.map(_.id.toString).getOrElse("None")}"
-            )
             vehicleType
           case VehicleCategory.Car if vehicleUse == VehicleUse.Passenger =>
-            vehiclesAdjustment
+            val sampledVehicleType = vehiclesAdjustment
               .sampleVehicleTypesForHousehold(
                 1,
                 VehicleCategory.Car,
@@ -800,21 +797,39 @@ object HouseholdActor {
                   )
                 )
               }
+            sampledVehicleType
           case VehicleCategory.Bike if vehicleUse == VehicleUse.Passenger =>
-            beamScenario.vehicleTypes
+            val sampledVehicleType = beamScenario.vehicleTypes
               .get(
                 Id.create(
                   beamScenario.beamConfig.beam.agentsim.agents.vehicles.dummySharedBike.vehicleTypeId,
                   classOf[BeamVehicleType]
                 )
               )
+              .orElse {
+                beamScenario.vehicleTypes.values
+                  .find(vehicleType =>
+                    vehicleType.vehicleCategory == VehicleCategory.Bike && !vehicleType.isConnectedAutomatedVehicle
+                  )
+              }
+            if (sampledVehicleType.isEmpty) {
+              logger.warn(
+                s"Emergency bike vehicle type sampling returned no type for personId=$personId, " +
+                s"householdId=${household.getId}, dummySharedBikeVehicleTypeId=" +
+                s"${beamScenario.beamConfig.beam.agentsim.agents.vehicles.dummySharedBike.vehicleTypeId}, " +
+                s"time=${whenWhere.time}"
+              )
+            }
+            sampledVehicleType
           case _ =>
             logger.warn(
               s"Person $personId is requiring a vehicle that belongs to category $category that is neither Car nor Bike"
             )
             None
         }
-      } else None
+      } else {
+        None
+      }
     }
 
     def createAndAddVehicle(
@@ -840,6 +855,16 @@ object HouseholdActor {
       vehicle.initializeFuelLevelsFromUniformDistribution(
         beamScenario.beamConfig.beam.agentsim.agents.vehicles.meanPrivateVehicleStartingSOC
       )
+      val emergencyVehicleMessage =
+        s"Creating emergency vehicle ${vehicle.id} for person $personId at time ${whenWhere.time}. " +
+        s"vehicleType=${vehicleType.id}, category=${vehicleType.vehicleCategory}, manager=${manager.path.parent.name}"
+      if (
+        vehicleManagerType == VehicleManager.TypeEnum.Freight || vehicleType.vehicleCategory == VehicleCategory.Bike
+      ) {
+        logger.warn(emergencyVehicleMessage)
+      } else {
+        logger.debug(emergencyVehicleMessage)
+      }
       beamScenario.privateVehicles.put(vehicle.id, vehicle)
       vehicle.setManager(Some(manager))
       vehicle.spaceTime = whenWhere

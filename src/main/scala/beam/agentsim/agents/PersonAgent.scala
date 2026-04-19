@@ -783,13 +783,6 @@ class PersonAgent(
     context: String
   ): Unit = {
     val availableVehicleIds = availableVehicles.map(_.id).toSet
-    if (this.id.toString.startsWith("ft")) {
-      if (newPersonData.currentTrip.exists(_.tripClassifier != CAR)) {
-        logger.error("Why does the freight agent's trip classifier not have CAR")
-      } else if (newPersonData.currentTripMode.exists(m => m != CAR)) {
-        logger.error("Why is our mode not CAR")
-      }
-    }
     // Check current tour strategy
     val currentTourStrategy = getCurrentTourStrategy(newPersonData)
     currentTourStrategy.tourVehicle match {
@@ -1617,9 +1610,6 @@ class PersonAgent(
             )
           )
           assert(activity.getLinkId != null)
-          if (currentTrip.tripClassifier.value.equalsIgnoreCase("walk") && id.toString.startsWith("ft")) {
-            logger.error("WALK FREIGHT TRIP!!!!!")
-          }
           eventsManager.processEvent(
             new PersonArrivalEvent(tick, id, activity.getLinkId, currentTrip.tripClassifier.value)
           )

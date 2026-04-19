@@ -323,6 +323,7 @@ class BeamPlan extends Plan {
       true
     }
   }
+
   def tourIndexOfElement(planElement: PlanElement): Int = {
     (for (tour <- tours.zipWithIndex if tour._1 == getTourContaining(planElement))
       yield tour._2).head

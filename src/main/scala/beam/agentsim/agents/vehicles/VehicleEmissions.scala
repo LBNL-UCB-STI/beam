@@ -138,7 +138,8 @@ class VehicleEmissions(
       else !parsedRatesFilter.speed.contains(processStr)
     val vehicleTypeId = data.vehicleType.id.toString
 
-    val countyMatch = findString(ratesStore.countyToProcessRates, county, !parsedRatesFilter.county.contains(processStr))
+    val countyMatch =
+      findString(ratesStore.countyToProcessRates, county, !parsedRatesFilter.county.contains(processStr))
     if (countyMatch.isEmpty) {
       recordLookupMiss(
         kind = "county",
@@ -245,6 +246,7 @@ object VehicleEmissions extends LazyLogging {
     phev: Set[String],
     electric: Set[String]
   ) {
+
     def configuredProcesses(group: EmissionsProfile.EmissionsFuelGroup): Set[String] = group match {
       case EmissionsProfile.EmissionsFuelGroup.GasolinePowered   => gasoline
       case EmissionsProfile.EmissionsFuelGroup.DieselPowered     => diesel
@@ -255,6 +257,7 @@ object VehicleEmissions extends LazyLogging {
   }
 
   private object ParsedFuelFilter {
+
     def fromConfig(fuelFilter: FuelFilter): ParsedFuelFilter =
       ParsedFuelFilter(
         gasoline = parseConfiguredProcesses(fuelFilter.gasoline),
@@ -273,6 +276,7 @@ object VehicleEmissions extends LazyLogging {
   )
 
   private object ParsedRatesFilter {
+
     def fromConfig(ratesFilter: RatesFilter): ParsedRatesFilter =
       ParsedRatesFilter(
         speed = parseConfiguredProcesses(ratesFilter.speed),
@@ -714,11 +718,9 @@ object VehicleEmissions extends LazyLogging {
           else NoActivityLookup
 
         ProcessRateIndex(
-          roadCategoryToActivityRates = roadCategoryToActivityRates.iterator
-            .map { case (roadCategory, activityRates) =>
-              roadCategory -> toSortedActivityRangeEntries(activityRates)
-            }
-            .toMap,
+          roadCategoryToActivityRates = roadCategoryToActivityRates.iterator.map { case (roadCategory, activityRates) =>
+            roadCategory -> toSortedActivityRangeEntries(activityRates)
+          }.toMap,
           usesRoadCategory = usesRoadCategory,
           activityLookupMode = activityLookupMode
         )
@@ -1197,6 +1199,7 @@ object VehicleEmissions extends LazyLogging {
     baseFilePaths: IndexedSeq[String],
     emissionsRateFilePathsByVehicleType: IndexedSeq[(BeamVehicleType, Option[String])]
   ) {
+
     private val emissionRateFiltersByVehicleType: Map[BeamVehicleType, EmissionsRateFilterStore.EmissionsRateFilter] =
       beginLoadingEmissionRateFiltersFor(emissionsRateFilePathsByVehicleType)
 
