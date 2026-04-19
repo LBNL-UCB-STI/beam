@@ -35,17 +35,13 @@ import org.matsim.api.core.v01.network.Network
 import org.matsim.core.utils.io.IOUtils
 import org.matsim.core.utils.geometry.geotools.MGC
 import org.opengis.referencing.operation.MathTransform
-import org.slf4j.LoggerFactory
 
 import java.io.File
 import java.nio.file.Paths
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
 
 class VehicleEmissions(
   vehicleTypesBasePaths: IndexedSeq[String],
@@ -61,6 +57,8 @@ class VehicleEmissions(
   settings.setHeaderExtractionEnabled(true)
   settings.detectFormatAutomatically()
   private val csvParser = new CsvParser(settings)
+  private val parsedFuelFilter = ParsedFuelFilter.fromConfig(fuelFilter)
+  private val parsedRatesFilter = ParsedRatesFilter.fromConfig(ratesFilter)
 
   private lazy val emissionsRatesFilterStore = new EmissionsRateFilterStore(
     vehicleTypesBasePaths,
@@ -69,6 +67,7 @@ class VehicleEmissions(
 
   private lazy val vehicleOperationTimeTrieMap: TrieMap[Id[BeamVehicle], Double] =
     TrieMap.empty[Id[BeamVehicle], Double]
+  private val roadCategoryCache = new AtomicReference[Array[String]]()
 
   Emissions.setFilter(pollutantsFilter.split(","))
 
@@ -77,44 +76,43 @@ class VehicleEmissions(
     vehicleActivity: Class[_ <: org.matsim.api.core.v01.events.Event],
     beamServices: BeamServices
   ): Option[EmissionsProfile] = {
-    val emissionsProfiles = (for {
-      data <- vehicleActivityData
-      EmissionsProcessAndRatesStore(process, ratesStore, emissionsRatesFile) <- identifyProcesses(
+    val emissionsProfiles = mutable.Map.empty[EmissionsProcess, Emissions]
+    val emissionsConfig = beamServices.beamConfig.beam.agentsim.agents.vehicles.emissions
+
+    vehicleActivityData.foreach { data =>
+      identifyProcesses(
         data,
         vehicleActivity,
         emissionsRatesFilterStore,
-        fuelFilter
-      )
-      rates <- getRatesUsing(data, process, ratesStore, emissionsRatesFile, beamServices.networkHelper)
-
-    } yield {
-      val emissions = calculationMap(process)(
-        rates,
-        data,
-        vehicleOperationTimeTrieMap,
-        beamServices.beamConfig.beam.agentsim.agents.vehicles.emissions
-      )
-      if (!emissions.notValid && beamServices.beamConfig.beam.agentsim.agents.vehicles.emissions.skims) {
-        // Create and process EmissionsSkimmerEvent
-        beamServices.matsimServices.getEvents.processEvent(
-          EmissionsSkimmerEvent(
-            time = data.linkStartTime,
-            linkId = data.linkId,
-            vehicleType = data.vehicleType.id.toString,
-            emissions = emissions,
-            emissionsProcess = process,
-            travelTime = data.linkTravelTime.getOrElse(0.0),
-            parkingDuration = data.parkingDuration.getOrElse(0.0),
-            beamServices = beamServices
+        parsedFuelFilter
+      ).foreach { case EmissionsProcessAndRatesStore(process, ratesStore, emissionsRatesFile) =>
+        getRatesUsing(data, process, ratesStore, emissionsRatesFile, beamServices.networkHelper).foreach { rates =>
+          val emissions = calculationMap(process)(
+            rates,
+            data,
+            vehicleOperationTimeTrieMap,
+            emissionsConfig
           )
-        )
+          if (!emissions.notValid) {
+            if (emissionsConfig.skims) {
+              beamServices.matsimServices.getEvents.processEvent(
+                EmissionsSkimmerEvent(
+                  time = data.linkStartTime,
+                  linkId = data.linkId,
+                  vehicleType = data.vehicleType.id.toString,
+                  emissions = emissions,
+                  emissionsProcess = process,
+                  travelTime = data.linkTravelTime.getOrElse(0.0),
+                  parkingDuration = data.parkingDuration.getOrElse(0.0),
+                  beamServices = beamServices
+                )
+              )
+            }
+            emissionsProfiles.update(process, emissions)
+          }
+        }
       }
-      if (emissions.notValid) {
-        None
-      } else {
-        Some(process -> emissions)
-      }
-    }).flatten
+    }
 
     if (emissionsProfiles.isEmpty) {
       None
@@ -132,19 +130,15 @@ class VehicleEmissions(
       data.averageSpeed.map(BeamVehicleUtils.convertFromMetersPerSecondToMilesPerHour).getOrElse(0.0)
     val soakTimeMin = data.parkingDuration.map(_ / 60.0).getOrElse(0.0)
     val county = countyResolver.resolve(data.linkId).getOrElse("")
-    val roadCategory =
-      networkHelper
-        .getLink(data.linkId)
-        .flatMap(link => Option(link.getAttributes.getAttribute("type")).map(_.toString.toLowerCase))
-        .getOrElse("unclassified")
+    val roadCategory = resolveRoadCategory(data.linkId, networkHelper)
     val processStr = process.toString
     val activityValue = if (usesTimeLikeActivityBin(process)) soakTimeMin else speedMph
     val preferWiderActivityRanges =
-      if (usesTimeLikeActivityBin(process)) !containsConfiguredProcess(ratesFilter.soakTime, processStr)
-      else !containsConfiguredProcess(ratesFilter.speed, processStr)
+      if (usesTimeLikeActivityBin(process)) !parsedRatesFilter.soakTime.contains(processStr)
+      else !parsedRatesFilter.speed.contains(processStr)
     val vehicleTypeId = data.vehicleType.id.toString
 
-    val countyMatch = findString(ratesStore, county, !containsConfiguredProcess(ratesFilter.county, processStr))
+    val countyMatch = findString(ratesStore.countyToProcessRates, county, !parsedRatesFilter.county.contains(processStr))
     if (countyMatch.isEmpty) {
       recordLookupMiss(
         kind = "county",
@@ -176,7 +170,7 @@ class VehicleEmissions(
 
     val processLookup = processIndex.find(
       roadCategory = roadCategory,
-      preferEmptyRoadCategory = !containsConfiguredProcess(ratesFilter.roadCategory, processStr),
+      preferEmptyRoadCategory = !parsedRatesFilter.roadCategory.contains(processStr),
       activityValue = activityValue,
       preferWiderActivityRanges = preferWiderActivityRanges
     )
@@ -213,9 +207,80 @@ class VehicleEmissions(
 
     Some(rates)
   }
+
+  private def resolveRoadCategory(linkId: Int, networkHelper: NetworkHelper): String = {
+    val cached = roadCategoryCache.get()
+    if (cached != null && linkId >= 0 && linkId < cached.length) {
+      val roadCategory = cached(linkId)
+      if (roadCategory != null) return roadCategory
+    }
+
+    val built = buildRoadCategoryCache(networkHelper)
+    if (linkId >= 0 && linkId < built.length) Option(built(linkId)).getOrElse("unclassified") else "unclassified"
+  }
+
+  private def buildRoadCategoryCache(networkHelper: NetworkHelper): Array[String] = {
+    val cached = roadCategoryCache.get()
+    if (cached != null) cached
+    else {
+      val built = Array.fill[String](networkHelper.maxLinkId + 1)("unclassified")
+      networkHelper.allLinks.foreach { link =>
+        if (link != null) {
+          val roadCategory =
+            Option(link.getAttributes.getAttribute("type")).map(_.toString.trim.toLowerCase).filter(_.nonEmpty)
+          built(link.getId.toString.toInt) = roadCategory.getOrElse("unclassified")
+        }
+      }
+      if (roadCategoryCache.compareAndSet(null, built)) built else roadCategoryCache.get()
+    }
+  }
 }
 
 object VehicleEmissions extends LazyLogging {
+
+  case class ParsedFuelFilter(
+    gasoline: Set[String],
+    diesel: Set[String],
+    naturalgas: Set[String],
+    phev: Set[String],
+    electric: Set[String]
+  ) {
+    def configuredProcesses(group: EmissionsProfile.EmissionsFuelGroup): Set[String] = group match {
+      case EmissionsProfile.EmissionsFuelGroup.GasolinePowered   => gasoline
+      case EmissionsProfile.EmissionsFuelGroup.DieselPowered     => diesel
+      case EmissionsProfile.EmissionsFuelGroup.NaturalGasPowered => naturalgas
+      case EmissionsProfile.EmissionsFuelGroup.PhevPowered       => phev
+      case EmissionsProfile.EmissionsFuelGroup.ElectricPowered   => electric
+    }
+  }
+
+  private object ParsedFuelFilter {
+    def fromConfig(fuelFilter: FuelFilter): ParsedFuelFilter =
+      ParsedFuelFilter(
+        gasoline = parseConfiguredProcesses(fuelFilter.gasoline),
+        diesel = parseConfiguredProcesses(fuelFilter.diesel),
+        naturalgas = parseConfiguredProcesses(fuelFilter.naturalgas),
+        phev = parseConfiguredProcesses(fuelFilter.phev),
+        electric = parseConfiguredProcesses(fuelFilter.electric)
+      )
+  }
+
+  case class ParsedRatesFilter(
+    speed: Set[String],
+    soakTime: Set[String],
+    county: Set[String],
+    roadCategory: Set[String]
+  )
+
+  private object ParsedRatesFilter {
+    def fromConfig(ratesFilter: RatesFilter): ParsedRatesFilter =
+      ParsedRatesFilter(
+        speed = parseConfiguredProcesses(ratesFilter.speed),
+        soakTime = parseConfiguredProcesses(ratesFilter.soakTime),
+        county = parseConfiguredProcesses(ratesFilter.county),
+        roadCategory = parseConfiguredProcesses(ratesFilter.roadCategory)
+      )
+  }
 
   private def findString[T](
     map: Map[String, T],
@@ -229,23 +294,65 @@ object VehicleEmissions extends LazyLogging {
     }
   }
 
+  case class ActivityRangeEntry[T](
+    range: DoubleTypedRange,
+    value: T,
+    width: Double,
+    center: Double
+  )
+
+  private def toSortedActivityRangeEntries[T](map: Map[DoubleTypedRange, T]): IndexedSeq[ActivityRangeEntry[T]] =
+    map.iterator
+      .map { case (range, value) =>
+        ActivityRangeEntry(
+          range = range,
+          value = value,
+          width = range.upperBound - range.lowerBound,
+          center = (range.lowerBound + range.upperBound) / 2.0
+        )
+      }
+      .toIndexedSeq
+      .sortBy(entry => (entry.range.lowerBound, entry.range.upperBound))
+
   private def findInterval[T](
-    map: Map[DoubleTypedRange, T],
+    entries: IndexedSeq[ActivityRangeEntry[T]],
     value: Double,
     preferWiderRanges: Boolean = true
   ): Option[(DoubleTypedRange, T)] = {
-    val filteredMap = map.filter(_._1.has(value))
-    if (filteredMap.isEmpty) {
-      map.headOption.map { _ =>
-        map.minBy { case (range, _) =>
-          val center = (range.lowerBound + range.upperBound) / 2.0
-          math.abs(center - value)
+    if (entries.isEmpty) None
+    else {
+      var matched: ActivityRangeEntry[T] = null
+      var index = 0
+      while (index < entries.length) {
+        val candidate = entries(index)
+        if (candidate.range.has(value)) {
+          if (
+            matched == null ||
+            (preferWiderRanges && candidate.width > matched.width) ||
+            (!preferWiderRanges && candidate.width < matched.width)
+          ) {
+            matched = candidate
+          }
         }
+        index += 1
       }
-    } else {
-      Some(filteredMap.maxBy { case (range, _) =>
-        (range.upperBound - range.lowerBound) * (if (preferWiderRanges) 1 else -1)
-      })
+
+      if (matched != null) Some(matched.range -> matched.value)
+      else {
+        var nearest = entries.head
+        var smallestDistance = math.abs(nearest.center - value)
+        index = 1
+        while (index < entries.length) {
+          val candidate = entries(index)
+          val distance = math.abs(candidate.center - value)
+          if (distance < smallestDistance) {
+            nearest = candidate
+            smallestDistance = distance
+          }
+          index += 1
+        }
+        Some(nearest.range -> nearest.value)
+      }
     }
   }
 
@@ -456,9 +563,6 @@ object VehicleEmissions extends LazyLogging {
       .flatMap(canonicalConfiguredProcess)
       .toSet
 
-  private def containsConfiguredProcess(configValue: String, process: String): Boolean =
-    parseConfiguredProcesses(configValue).contains(process.trim.toUpperCase)
-
   private val warningCounts: TrieMap[String, AtomicInteger] = TrieMap.empty
   private val lookupMissCounts: TrieMap[String, AtomicInteger] = TrieMap.empty
   private val lookupMissTotals: TrieMap[String, AtomicInteger] = TrieMap.empty
@@ -513,6 +617,26 @@ object VehicleEmissions extends LazyLogging {
   private def multiplyIfPositive(rates: Emissions, factor: Double): Emissions =
     if (factor <= 0.0) Emissions() else rates * factor
 
+  private def getOrInitializeOperationTime(
+    operationTimeMap: TrieMap[Id[BeamVehicle], Double],
+    vehicleId: Id[BeamVehicle],
+    activityStartTime: Double
+  ): Double =
+    operationTimeMap.getOrElseUpdate(vehicleId, activityStartTime)
+
+  private def updateOperationTime(
+    operationTimeMap: TrieMap[Id[BeamVehicle], Double],
+    vehicleId: Id[BeamVehicle],
+    nextOperationTime: Double
+  ): Unit =
+    operationTimeMap.update(vehicleId, nextOperationTime)
+
+  private def clearOperationTime(
+    operationTimeMap: TrieMap[Id[BeamVehicle], Double],
+    vehicleId: Id[BeamVehicle]
+  ): Unit =
+    operationTimeMap.remove(vehicleId)
+
   object EmissionsRateFilterStore {
 
     sealed trait ActivityLookupMode
@@ -526,7 +650,7 @@ object VehicleEmissions extends LazyLogging {
     )
 
     case class ProcessRateIndex(
-      roadCategoryToActivityRates: Map[String, Map[DoubleTypedRange, Emissions]],
+      roadCategoryToActivityRates: Map[String, IndexedSeq[ActivityRangeEntry[Emissions]]],
       usesRoadCategory: Boolean,
       activityLookupMode: ActivityLookupMode
     ) {
@@ -552,7 +676,7 @@ object VehicleEmissions extends LazyLogging {
               case ActivityBinLookup =>
                 VehicleEmissions.findInterval(ratesByActivity, activityValue, preferWiderActivityRanges)
               case NoActivityLookup =>
-                ratesByActivity.toSeq.sortBy { case (range, _) => (range.lowerBound, range.upperBound) }.headOption
+                ratesByActivity.headOption.map(entry => entry.range -> entry.value)
             }
           activityMatch.map { case (matchedActivityBin, rates) =>
             ProcessLookupMatch(
@@ -590,21 +714,29 @@ object VehicleEmissions extends LazyLogging {
           else NoActivityLookup
 
         ProcessRateIndex(
-          roadCategoryToActivityRates = roadCategoryToActivityRates,
+          roadCategoryToActivityRates = roadCategoryToActivityRates.iterator
+            .map { case (roadCategory, activityRates) =>
+              roadCategory -> toSortedActivityRangeEntries(activityRates)
+            }
+            .toMap,
           usesRoadCategory = usesRoadCategory,
           activityLookupMode = activityLookupMode
         )
       }
     }
 
-    // county -> (emissionProcess -> process-specific lookup index)
-    type EmissionsRateFilter = Map[
-      String, // county
-      Map[
-        String, // emissionProcess
-        ProcessRateIndex
-      ]
-    ]
+    case class EmissionsRateFilter(
+      countyToProcessRates: Map[
+        String, // county
+        Map[
+          String, // emissionProcess
+          ProcessRateIndex
+        ]
+      ],
+      supportedProcesses: Set[String]
+    ) {
+      def supportsProcess(process: String): Boolean = supportedProcesses.contains(process.trim.toUpperCase)
+    }
   }
 
   case class Emissions(values: Map[EmissionType, Double] = Map.empty) {
@@ -689,41 +821,19 @@ object VehicleEmissions extends LazyLogging {
     type EmissionsProcess = Value
     val RUNEX, IDLEX, STREX, HOTSOAK, DIURN, RUNLOSS, PMTW, PMBW, PRDUST, PTOEX = Value
 
-    sealed trait EmissionsFuelGroup {
-      def configuredProcesses(fuelFilter: FuelFilter): Set[String]
-    }
+    sealed trait EmissionsFuelGroup
 
     object EmissionsFuelGroup {
 
-      case object GasolinePowered extends EmissionsFuelGroup {
+      case object GasolinePowered extends EmissionsFuelGroup
 
-        override def configuredProcesses(fuelFilter: FuelFilter): Set[String] =
-          parseConfiguredProcesses(fuelFilter.gasoline)
-      }
+      case object DieselPowered extends EmissionsFuelGroup
 
-      case object DieselPowered extends EmissionsFuelGroup {
+      case object NaturalGasPowered extends EmissionsFuelGroup
 
-        override def configuredProcesses(fuelFilter: FuelFilter): Set[String] =
-          parseConfiguredProcesses(fuelFilter.diesel)
-      }
+      case object PhevPowered extends EmissionsFuelGroup
 
-      case object NaturalGasPowered extends EmissionsFuelGroup {
-
-        override def configuredProcesses(fuelFilter: FuelFilter): Set[String] =
-          parseConfiguredProcesses(fuelFilter.naturalgas)
-      }
-
-      case object PhevPowered extends EmissionsFuelGroup {
-
-        override def configuredProcesses(fuelFilter: FuelFilter): Set[String] =
-          parseConfiguredProcesses(fuelFilter.phev)
-      }
-
-      case object ElectricPowered extends EmissionsFuelGroup {
-
-        override def configuredProcesses(fuelFilter: FuelFilter): Set[String] =
-          parseConfiguredProcesses(fuelFilter.electric)
-      }
+      case object ElectricPowered extends EmissionsFuelGroup
     }
 
     def init(): EmissionsProfile = EmissionsProfile()
@@ -775,14 +885,12 @@ object VehicleEmissions extends LazyLogging {
       data: BeamVehicle.VehicleActivityData,
       event: Class[_ <: org.matsim.api.core.v01.events.Event],
       emissionsRatesFilterStore: EmissionsRateFilterStore,
-      fuelFilter: FuelFilter
+      parsedFuelFilter: ParsedFuelFilter
     ): IndexedSeq[EmissionsProcessAndRatesStore] = {
-      emissionsRatesFilterStore
-        .getEmissionsRateFilterFor(data.vehicleType)
-        .map(future => Await.result(future, 1.minute)) match {
+      emissionsRatesFilterStore.getEmissionsRateFilterFor(data.vehicleType) match {
         case Some(rateFilter) =>
           val allowedProcessesByFuel = fuelGroupFor(data.vehicleType)
-            .map(_.configuredProcesses(fuelFilter))
+            .map(parsedFuelFilter.configuredProcesses)
             .getOrElse(Set.empty[String])
           val selectedProcesses = EmissionsProfile.values
             .flatMap {
@@ -807,7 +915,9 @@ object VehicleEmissions extends LazyLogging {
                 Some(EmissionsProcessAndRatesStore(process, rateFilter, data.vehicleType.emissionsRatesFile))
 
               case process @ PTOEX
-                  if event == classOf[PathTraversalEvent] && data.vehicleType.vehicleUse == VehicleUse.Freight =>
+                  if event == classOf[PathTraversalEvent] &&
+                    data.vehicleType.vehicleUse == VehicleUse.Freight &&
+                    rateFilter.supportsProcess(process.toString) =>
                 Some(EmissionsProcessAndRatesStore(process, rateFilter, data.vehicleType.emissionsRatesFile))
 
               case process @ (STREX | DIURN | HOTSOAK | RUNLOSS) if event == classOf[LeavingParkingEvent] =>
@@ -871,12 +981,9 @@ object VehicleEmissions extends LazyLogging {
         (
           ratesBySpeedBin: Emissions,
           data: BeamVehicle.VehicleActivityData,
-          operationTimeMap: TrieMap[Id[BeamVehicle], Double],
+          _: TrieMap[Id[BeamVehicle], Double],
           _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
-          if (!operationTimeMap.contains(data.vehicleId))
-            operationTimeMap.put(data.vehicleId, data.activityStartTime)
-
           val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
 
           multiplyIfPositive(ratesBySpeedBin, vehicleMilesTraveledInMiles)
@@ -901,16 +1008,24 @@ object VehicleEmissions extends LazyLogging {
               case Some(Idling) => // Hotelling
                 val vehicleParkingInSec = data.parkingDuration.getOrElse(0.0)
                 val operationDurationInSec =
-                  data.linkStartTime - operationTimeMap.getOrElseUpdate(data.vehicleId, data.activityStartTime)
-                operationTimeMap.update(data.vehicleId, data.linkStartTime + vehicleParkingInSec)
+                  data.linkStartTime - getOrInitializeOperationTime(
+                    operationTimeMap,
+                    data.vehicleId,
+                    data.activityStartTime
+                  )
+                updateOperationTime(operationTimeMap, data.vehicleId, data.linkStartTime + vehicleParkingInSec)
                 val hotellingInHours = (vehicleParkingInSec + operationDurationInSec) / 3600.0
                 hotellingInHours
 
               case _ =>
                 val vehicleDurationInSec = data.linkTravelTime.getOrElse(0.0).max(data.parkingDuration.getOrElse(0.0))
                 val operationDurationInSec =
-                  data.linkStartTime - operationTimeMap.getOrElseUpdate(data.vehicleId, data.activityStartTime)
-                operationTimeMap.update(data.vehicleId, data.linkStartTime + vehicleDurationInSec)
+                  data.linkStartTime - getOrInitializeOperationTime(
+                    operationTimeMap,
+                    data.vehicleId,
+                    data.activityStartTime
+                  )
+                updateOperationTime(operationTimeMap, data.vehicleId, data.linkStartTime + vehicleDurationInSec)
                 val workingIdleFactor =
                   workdayIdleFactor.get(data.vehicleType.vehicleCategory).map(_(emissionsConfig)).getOrElse(0.0)
                 val portionOfIdlingHours =
@@ -918,7 +1033,11 @@ object VehicleEmissions extends LazyLogging {
                 portionOfIdlingHours
             }
 
-          multiplyIfPositive(rates, idlingHours)
+          val emissions = multiplyIfPositive(rates, idlingHours)
+          if (emissions.notValid) {
+            clearOperationTime(operationTimeMap, data.vehicleId)
+          }
+          emissions
       },
       /**
         * Calculate Start Exhaust Emissions (STREX)
@@ -932,12 +1051,9 @@ object VehicleEmissions extends LazyLogging {
         (
           ratesBySoakTime: Emissions,
           data: BeamVehicle.VehicleActivityData,
-          operationTimeMap: TrieMap[Id[BeamVehicle], Double],
+          _: TrieMap[Id[BeamVehicle], Double],
           _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
-          if (!operationTimeMap.contains(data.vehicleId))
-            operationTimeMap.put(data.vehicleId, data.activityStartTime)
-
           val numberOfVehicleStartTimes = 1 // We calculate it for 1 leave parking event
 
           multiplyIfPositive(ratesBySoakTime, numberOfVehicleStartTimes)
@@ -954,12 +1070,9 @@ object VehicleEmissions extends LazyLogging {
         (
           rates: Emissions,
           data: BeamVehicle.VehicleActivityData,
-          operationTimeMap: TrieMap[Id[BeamVehicle], Double],
+          _: TrieMap[Id[BeamVehicle], Double],
           _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
-          if (!operationTimeMap.contains(data.vehicleId))
-            operationTimeMap.put(data.vehicleId, data.activityStartTime)
-
           val vehicleParkingInHours = data.parkingDuration.map(_ / 3600.0).getOrElse(0.0)
 
           multiplyIfPositive(rates, vehicleParkingInHours)
@@ -976,12 +1089,9 @@ object VehicleEmissions extends LazyLogging {
         (
           rates: Emissions,
           data: BeamVehicle.VehicleActivityData,
-          operationTimeMap: TrieMap[Id[BeamVehicle], Double],
+          _: TrieMap[Id[BeamVehicle], Double],
           _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
-          if (!operationTimeMap.contains(data.vehicleId))
-            operationTimeMap.put(data.vehicleId, data.activityStartTime)
-
           val numberOfVehicleStartTimes = 1 // We calculate it for 1 leave parking event
 
           multiplyIfPositive(rates, numberOfVehicleStartTimes)
@@ -997,12 +1107,9 @@ object VehicleEmissions extends LazyLogging {
         (
           rates: Emissions,
           data: BeamVehicle.VehicleActivityData,
-          operationTimeMap: TrieMap[Id[BeamVehicle], Double],
+          _: TrieMap[Id[BeamVehicle], Double],
           _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
-          if (!operationTimeMap.contains(data.vehicleId))
-            operationTimeMap.put(data.vehicleId, data.activityStartTime)
-
           val vehicleHoursTraveledInHours =
             data.linkTravelTime.map(_ / 3600.0).orElse(data.parkingDuration.map(_ / 3600.0)).getOrElse(0.0)
 
@@ -1019,12 +1126,9 @@ object VehicleEmissions extends LazyLogging {
         (
           rates: Emissions,
           data: BeamVehicle.VehicleActivityData,
-          operationTimeMap: TrieMap[Id[BeamVehicle], Double],
+          _: TrieMap[Id[BeamVehicle], Double],
           _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
-          if (!operationTimeMap.contains(data.vehicleId))
-            operationTimeMap.put(data.vehicleId, data.activityStartTime)
-
           val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
 
           multiplyIfPositive(rates, vehicleMilesTraveledInMiles)
@@ -1040,12 +1144,9 @@ object VehicleEmissions extends LazyLogging {
         (
           ratesBySpeedBin: Emissions,
           data: BeamVehicle.VehicleActivityData,
-          operationTimeMap: TrieMap[Id[BeamVehicle], Double],
+          _: TrieMap[Id[BeamVehicle], Double],
           _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
-          if (!operationTimeMap.contains(data.vehicleId))
-            operationTimeMap.put(data.vehicleId, data.activityStartTime)
-
           val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
 
           multiplyIfPositive(ratesBySpeedBin, vehicleMilesTraveledInMiles)
@@ -1062,12 +1163,9 @@ object VehicleEmissions extends LazyLogging {
         (
           rates: Emissions,
           data: BeamVehicle.VehicleActivityData,
-          operationTimeMap: TrieMap[Id[BeamVehicle], Double],
+          _: TrieMap[Id[BeamVehicle], Double],
           _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
-          if (!operationTimeMap.contains(data.vehicleId))
-            operationTimeMap.put(data.vehicleId, data.activityStartTime)
-
           val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
           val weightInKg = data.vehicleType.curbWeightInKg + data.payloadInKg.getOrElse(0.0)
           val shortTonsPerKg = 1.0 / 907.18474
@@ -1085,12 +1183,9 @@ object VehicleEmissions extends LazyLogging {
         (
           ratesBySpeedBin: Emissions,
           data: BeamVehicle.VehicleActivityData,
-          operationTimeMap: TrieMap[Id[BeamVehicle], Double],
+          _: TrieMap[Id[BeamVehicle], Double],
           _: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions
         ) =>
-          if (!operationTimeMap.contains(data.vehicleId))
-            operationTimeMap.put(data.vehicleId, data.activityStartTime)
-
           val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
 
           multiplyIfPositive(ratesBySpeedBin, vehicleMilesTraveledInMiles)
@@ -1102,35 +1197,24 @@ object VehicleEmissions extends LazyLogging {
     baseFilePaths: IndexedSeq[String],
     emissionsRateFilePathsByVehicleType: IndexedSeq[(BeamVehicleType, Option[String])]
   ) {
-    private lazy val log = LoggerFactory.getLogger(this.getClass)
-
-    private val emissionRateFiltersByVehicleType
-      : Map[BeamVehicleType, Future[EmissionsRateFilterStore.EmissionsRateFilter]] =
+    private val emissionRateFiltersByVehicleType: Map[BeamVehicleType, EmissionsRateFilterStore.EmissionsRateFilter] =
       beginLoadingEmissionRateFiltersFor(emissionsRateFilePathsByVehicleType)
 
     def getEmissionsRateFilterFor(
       vehicleType: BeamVehicleType
-    ): Option[Future[EmissionsRateFilterStore.EmissionsRateFilter]] = emissionRateFiltersByVehicleType.get(vehicleType)
+    ): Option[EmissionsRateFilterStore.EmissionsRateFilter] = emissionRateFiltersByVehicleType.get(vehicleType)
 
     private def beginLoadingEmissionRateFiltersFor(
       files: IndexedSeq[(BeamVehicleType, Option[String])]
-    ): Map[BeamVehicleType, Future[EmissionsRateFilterStore.EmissionsRateFilter]] = {
-      files.collect {
-        case (_, None)                                    =>
-        case (_, Some(filePath)) if filePath.trim.isEmpty =>
-      }
+    ): Map[BeamVehicleType, EmissionsRateFilterStore.EmissionsRateFilter] = {
       files.collect {
         case (vehicleType, Some(filePath)) if filePath.trim.nonEmpty =>
-          val consumptionFuture = Future {
-            //Do NOT move this out - sharing the parser between threads is questionable
-            val settings = new CsvParserSettings()
-            settings.setHeaderExtractionEnabled(true)
-            settings.detectFormatAutomatically()
-            val csvParser = new CsvParser(settings)
-            EmissionsRateTableLoader.loadFromFile(baseFilePaths, filePath, csvParser)
-          }
-          consumptionFuture.failed.map(ex => log.error(s"Error while loading emission rate filter", ex))
-          vehicleType -> consumptionFuture
+          // Keep parser local to the load; parser instances are not shared.
+          val settings = new CsvParserSettings()
+          settings.setHeaderExtractionEnabled(true)
+          settings.detectFormatAutomatically()
+          val csvParser = new CsvParser(settings)
+          vehicleType -> EmissionsRateTableLoader.loadFromFile(baseFilePaths, filePath, csvParser)
       }.toMap
     }
   }
@@ -1340,9 +1424,9 @@ object VehicleEmissions extends LazyLogging {
         s"invalidRowsByProcess=${invalidRowsByProcess.toSeq.sortBy(_._1).mkString("[", ", ", "]")}"
       )
 
-      currentRateFilter.toMap.map { case (county, processMap) =>
+      val countyToProcessRates = currentRateFilter.toMap.map { case (county, processMap) =>
         county -> processMap.toMap.map { case (emissionProcess, roadCategoryMap) =>
-          emissionProcess -> EmissionsRateFilterStore.ProcessRateIndex.fromRaw(
+          emissionProcess.trim.toUpperCase -> EmissionsRateFilterStore.ProcessRateIndex.fromRaw(
             emissionProcess,
             roadCategoryMap.toMap.map { case (roadCategory, activityBinMap) =>
               roadCategory -> activityBinMap.toMap
@@ -1350,6 +1434,12 @@ object VehicleEmissions extends LazyLogging {
           )
         }
       }
+      val supportedProcesses =
+        validRowsByProcess.collect { case (process, count) if count > 0 => process.trim.toUpperCase }.toSet
+      EmissionsRateFilterStore.EmissionsRateFilter(
+        countyToProcessRates = countyToProcessRates,
+        supportedProcesses = supportedProcesses
+      )
     }
 
     private def resolveFilePaths(baseFilePaths: IndexedSeq[String], file: String): IndexedSeq[String] = {
