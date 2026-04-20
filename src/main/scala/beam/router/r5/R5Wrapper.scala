@@ -409,9 +409,53 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     )
   }
 
+  private def formatStreetVehicles(streetVehicles: IndexedSeq[StreetVehicle]): String =
+    streetVehicles.map { vehicle =>
+      s"${vehicle.id}:${vehicle.mode}:${vehicle.vehicleTypeId}"
+    }.mkString("[", ", ", "]")
+
+  private def formatStopAccessMap(timesByMode: java.util.HashMap[LegMode, TIntIntMap]): String =
+    timesByMode.asScala
+      .map { case (mode, stops) =>
+        s"$mode:${Option(stops).map(_.size()).getOrElse(0)}"
+      }
+      .mkString("[", ", ", "]")
+
+  private def logMcRaptorFailureContext(
+    marker: String,
+    request: RoutingRequest,
+    mode: LegMode,
+    r5StreetMode: StreetMode,
+    profileRequest: ProfileRequest,
+    accessTimesJava: java.util.HashMap[LegMode, TIntIntMap],
+    egressTimesJava: java.util.HashMap[LegMode, TIntIntMap],
+    error: Throwable
+  ): Unit = {
+    val accessModes =
+      Option(profileRequest.accessModes).map(_.asScala.mkString("[", ", ", "]")).getOrElse("[]")
+    val egressModes =
+      Option(profileRequest.egressModes).map(_.asScala.mkString("[", ", ", "]")).getOrElse("[]")
+    logger.error(
+      s"[$marker] requestId=${request.requestId}, triggerId=${request.triggerId}, personId=${request.personId.getOrElse("<none>")}, " +
+      s"requestedMode=${request.requestedMode.getOrElse("<none>")}, withTransit=${request.withTransit}, mode=$mode, " +
+      s"streetMode=$r5StreetMode, departureTime=${request.departureTime}, fromTime=${profileRequest.fromTime}, toTime=${profileRequest.toTime}, " +
+      s"originUTM=${request.originUTM}, destinationUTM=${request.destinationUTM}, " +
+      s"originWGS=(${profileRequest.fromLat},${profileRequest.fromLon}), destinationWGS=(${profileRequest.toLat},${profileRequest.toLon}), " +
+      s"streetVehicles=${formatStreetVehicles(request.streetVehicles)}, " +
+      s"possibleEgressVehicles=${formatStreetVehicles(request.possibleEgressVehicles)}, " +
+      s"accessModes=$accessModes, " +
+      s"egressModes=$egressModes, " +
+      s"accessStops=${formatStopAccessMap(accessTimesJava)}, egressStops=${formatStopAccessMap(egressTimesJava)}, " +
+      s"initiatedFrom=${request.initiatedFrom}",
+      error
+    )
+  }
+
   private def getFreshMcRaptorPaths(
+    request: RoutingRequest,
     mode: LegMode,
     requestId: Int,
+    r5StreetMode: StreetMode,
     profileRequest: ProfileRequest,
     accessTimesJava: java.util.HashMap[LegMode, TIntIntMap],
     egressTimesJava: java.util.HashMap[LegMode, TIntIntMap],
@@ -426,6 +470,16 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     Try(freshRouter.getPaths.asScala) match {
       case Success(paths) => paths
       case Failure(retryError) =>
+        logMcRaptorFailureContext(
+          marker = "MCRAPTOR-FRESH-RETRY-FAILED-CONTEXT",
+          request = request,
+          mode = mode,
+          r5StreetMode = r5StreetMode,
+          profileRequest = profileRequest,
+          accessTimesJava = accessTimesJava,
+          egressTimesJava = egressTimesJava,
+          error = retryError
+        )
         logger.error(
           s"[MCRAPTOR-FRESH-RETRY-FAILED] requestId=$requestId mode=$mode fromTime=${profileRequest.fromTime} toTime=${profileRequest.toTime}",
           retryError
@@ -1433,6 +1487,16 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
                     case Failure(e: ArrayIndexOutOfBoundsException) =>
                       shouldReturnRouterToPool = false
                       driveTransitDiagnostics.incrementMcRaptorExceptions()
+                      logMcRaptorFailureContext(
+                        marker = "MCRAPTOR-POOL-INVALIDATED-CONTEXT",
+                        request = request,
+                        mode = mode,
+                        r5StreetMode = r5StreetMode,
+                        profileRequest = profileRequest,
+                        accessTimesJava = accessTimesJava,
+                        egressTimesJava = egressTimesJava,
+                        error = e
+                      )
                       logger.warn(
                         s"[MCRAPTOR-POOL-INVALIDATED] requestId=${request.requestId} mode=$mode streetMode=$r5StreetMode " +
                         s"fromTime=${profileRequest.fromTime} toTime=${profileRequest.toTime}. Retrying with a fresh router.",
@@ -1440,8 +1504,10 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
                       )
                       invalidateMcRaptorRouterPool(r5StreetMode, isDriveTransitRequest)
                       getFreshMcRaptorPaths(
+                        request,
                         mode,
                         request.requestId,
+                        r5StreetMode,
                         profileRequest,
                         accessTimesJava,
                         egressTimesJava,
