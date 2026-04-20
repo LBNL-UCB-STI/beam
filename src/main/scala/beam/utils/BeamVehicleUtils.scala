@@ -23,6 +23,16 @@ import scala.util.Random
 
 object BeamVehicleUtils extends LazyLogging {
 
+  def readVehicleInfosFile(filePath: String): Iterable[VehicleInfo] = {
+    if (filePath.toLowerCase.endsWith(".parquet")) {
+      readParquetVehiclesFile(filePath)
+    } else {
+      readCsvFileByLine(filePath, Vector.empty[VehicleInfo]) { case (line, acc) =>
+        acc :+ toVehicleInfo(line: java.util.Map[String, String])
+      }
+    }
+  }
+
   def readVehiclesFile(
     filePath: String,
     vehiclesTypeMap: scala.collection.Map[Id[BeamVehicleType], BeamVehicleType],
@@ -30,7 +40,7 @@ object BeamVehicleUtils extends LazyLogging {
     vehicleManagerId: Id[VehicleManager]
   ): (Map[Id[BeamVehicle], BeamVehicle], Map[Id[BeamVehicle], Double]) = {
     val rand: Random = new Random(randomSeed)
-    val vehicles = readVehicleInfos(filePath)
+    val vehicles = readVehicleInfosFile(filePath)
 
     vehicles.foldLeft((Map.empty[Id[BeamVehicle], BeamVehicle], Map.empty[Id[BeamVehicle], Double])) {
       case ((vehicleAcc, socAcc), vehicleInfo) =>
@@ -51,16 +61,6 @@ object BeamVehicleUtils extends LazyLogging {
           vehicleAcc + (vehicleId -> beamVehicle),
           vehicleInfo.initialSoc.fold(socAcc)(soc => socAcc + (vehicleId -> soc))
         )
-    }
-  }
-
-  private def readVehicleInfos(filePath: String): Iterable[VehicleInfo] = {
-    if (filePath.toLowerCase.endsWith(".parquet")) {
-      readParquetVehiclesFile(filePath)
-    } else {
-      readCsvFileByLine(filePath, Vector.empty[VehicleInfo]) { case (line, acc) =>
-        acc :+ toVehicleInfo(line: java.util.Map[String, String])
-      }
     }
   }
 
@@ -87,7 +87,9 @@ object BeamVehicleUtils extends LazyLogging {
     VehicleInfo(
       vehicleId = getIfNotNull(record, "vehicleId").toString,
       vehicleTypeId = getIfNotNull(record, "vehicleTypeId").toString,
-      initialSoc = Option(record.get("stateOfCharge")).map(asDouble),
+      initialSoc = Option(record.getSchema.getField("stateOfCharge"))
+        .flatMap(_ => Option(record.get("stateOfCharge")))
+        .map(asDouble),
       householdId = getIfNotNull(record, "householdId").toString
     )
   }

@@ -76,6 +76,7 @@
 
 
     <Logger name="org.apache.parquet" level="WARN" />
+    <Logger name="org.apache.hadoop.io.compress.CodecPool" level="WARN" />
     <Logger name="org.reflections" level="ERROR" />
 
 </configuration>
