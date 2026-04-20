@@ -19,6 +19,7 @@ import org.supercsv.prefs.CsvPreference
 
 import java.util
 import java.util.concurrent.atomic.AtomicReference
+import scala.collection.JavaConverters._
 import scala.util.Random
 
 object BeamVehicleUtils extends LazyLogging {
@@ -85,12 +86,12 @@ object BeamVehicleUtils extends LazyLogging {
 
   private[utils] def toVehicleInfo(record: GenericRecord): VehicleInfo = {
     VehicleInfo(
-      vehicleId = getIfNotNull(record, "vehicleId").toString,
+      vehicleId = getFirstIfNotNull(record, Seq("vehicleId", "vehicle_id")).toString,
       vehicleTypeId = getIfNotNull(record, "vehicleTypeId").toString,
       initialSoc = Option(record.getSchema.getField("stateOfCharge"))
         .flatMap(_ => Option(record.get("stateOfCharge")))
         .map(asDouble),
-      householdId = getIfNotNull(record, "householdId").toString
+      householdId = getFirstIfNotNull(record, Seq("householdId", "household_id")).toString
     )
   }
 
@@ -98,6 +99,21 @@ object BeamVehicleUtils extends LazyLogging {
     val value = record.get(column)
     assert(value != null, s"Value in column '$column' is null")
     value
+  }
+
+  private def getFirstIfNotNull(record: GenericRecord, columns: Seq[String]): AnyRef = {
+    val value = columns.iterator
+      .flatMap { column =>
+        Option(record.getSchema.getField(column)).map(_ => column -> record.get(column))
+      }
+      .collectFirst { case (column, value) if value != null => value }
+
+    value.getOrElse {
+      val availableColumns = record.getSchema.getFields.asScala.map(_.name()).mkString(", ")
+      throw new IllegalArgumentException(
+        s"None of the expected columns [${columns.mkString(", ")}] were found with non-null values. Available columns: $availableColumns"
+      )
+    }
   }
 
   private def asDouble(value: AnyRef): Double = {
