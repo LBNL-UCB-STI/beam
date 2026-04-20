@@ -536,20 +536,21 @@ trait ChoosesParking extends {
 
       // find car leg and split it for parking
       def createCarLegs(response: RoutingResponse, legLabel: String): Vector[EmbodiedBeamLeg] = {
-        response.itineraries
-          .view
+        response.itineraries.view
           .flatMap(_.legs)
           .find(leg => leg.beamVehicleId == currentBeamVehicle.id && leg.asDriver && leg.beamLeg.mode != WALK)
           .map { beamLeg =>
             EmbodiedBeamLeg.splitLegForParking(beamLeg, beamServices, transportNetwork)
           }
           .getOrElse {
-            val returnedItineraries = response.itineraries.map { itin =>
-              s"${itin.tripClassifier}:${itin.legs.map(_.beamLeg.mode).mkString("[", ", ", "]")}"
-            }.mkString("[", ", ", "]")
+            val returnedItineraries = response.itineraries
+              .map { itin =>
+                s"${itin.tripClassifier}:${itin.legs.map(_.beamLeg.mode).mkString("[", ", ", "]")}"
+              }
+              .mkString("[", ", ", "]")
             log.error(
               s"EnRoute: drivable leg for vehicle ${currentBeamVehicle.id} not found in $legLabel routing response. " +
-                s"Returned itineraries: $returnedItineraries"
+              s"Returned itineraries: $returnedItineraries"
             )
             Vector()
           }
@@ -562,7 +563,7 @@ trait ChoosesParking extends {
       if (vehicle2StallCarLegs.isEmpty || stall2DestinationCarLegs.isEmpty) {
         log.warning(
           s"EnRoute: skipping charging diversion for vehicle ${currentBeamVehicle.id} because at least one " +
-            s"reroute response had no drivable leg"
+          s"reroute response had no drivable leg"
         )
         resumeOriginalTripAfterFailedEnrouteRouting(data)
       } else {
