@@ -6,10 +6,12 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.sim.common.{DoubleTypedRange, Range}
 import beam.sim.config.BeamConfig
+import beam.utils.scenario.VehicleInfo
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import com.typesafe.scalalogging.LazyLogging
 import com.univocity.parsers.common.record.Record
 import com.univocity.parsers.csv.CsvParser
+import org.apache.avro.generic.GenericRecord
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.io.IOUtils
 import org.supercsv.io.CsvMapReader
@@ -17,9 +19,20 @@ import org.supercsv.prefs.CsvPreference
 
 import java.util
 import java.util.concurrent.atomic.AtomicReference
+import scala.collection.JavaConverters._
 import scala.util.Random
 
 object BeamVehicleUtils extends LazyLogging {
+
+  def readVehicleInfosFile(filePath: String): Iterable[VehicleInfo] = {
+    if (filePath.toLowerCase.endsWith(".parquet")) {
+      readParquetVehiclesFile(filePath)
+    } else {
+      readCsvFileByLine(filePath, Vector.empty[VehicleInfo]) { case (line, acc) =>
+        acc :+ toVehicleInfo(line: java.util.Map[String, String])
+      }
+    }
+  }
 
   def readVehiclesFile(
     filePath: String,
@@ -28,14 +41,12 @@ object BeamVehicleUtils extends LazyLogging {
     vehicleManagerId: Id[VehicleManager]
   ): (Map[Id[BeamVehicle], BeamVehicle], Map[Id[BeamVehicle], Double]) = {
     val rand: Random = new Random(randomSeed)
+    val vehicles = readVehicleInfosFile(filePath)
 
-    readCsvFileByLine(filePath, (Map.empty[Id[BeamVehicle], BeamVehicle], Map.empty[Id[BeamVehicle], Double])) {
-      case (line, (vehicleAcc, socAcc)) =>
-        val vehicleIdString = line.get("vehicleId")
-        val vehicleId = Id.create(vehicleIdString, classOf[BeamVehicle])
-
-        val vehicleTypeIdString = line.get("vehicleTypeId")
-        val vehicleType = vehiclesTypeMap(Id.create(vehicleTypeIdString, classOf[BeamVehicleType]))
+    vehicles.foldLeft((Map.empty[Id[BeamVehicle], BeamVehicle], Map.empty[Id[BeamVehicle], Double])) {
+      case ((vehicleAcc, socAcc), vehicleInfo) =>
+        val vehicleId = Id.create(vehicleInfo.vehicleId, classOf[BeamVehicle])
+        val vehicleType = vehiclesTypeMap(Id.create(vehicleInfo.vehicleTypeId, classOf[BeamVehicleType]))
 
         val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
 
@@ -48,11 +59,84 @@ object BeamVehicleUtils extends LazyLogging {
             randomSeed = rand.nextInt
           )
 
-        val initialSocStr = Option(line.get("stateOfCharge")).map(_.trim).getOrElse("")
         (
           vehicleAcc + (vehicleId -> beamVehicle),
-          if (initialSocStr.isEmpty) socAcc else socAcc + (vehicleId -> initialSocStr.toDouble)
+          vehicleInfo.initialSoc.fold(socAcc)(soc => socAcc + (vehicleId -> soc))
         )
+    }
+  }
+
+  private[utils] def readParquetVehiclesFile(filePath: String): Iterable[VehicleInfo] = {
+    val (iter, toClose) = ParquetReader.read(filePath)
+    try {
+      iter.map(record => toVehicleInfo(record)).toVector
+    } finally {
+      toClose.close()
+    }
+  }
+
+  private[utils] def toVehicleInfo(line: java.util.Map[String, String]): VehicleInfo = {
+    val initialSocStr = Option(line.get("stateOfCharge")).map(_.trim).filter(_.nonEmpty)
+    VehicleInfo(
+      vehicleId = line.get("vehicleId"),
+      vehicleTypeId = line.get("vehicleTypeId"),
+      initialSoc = initialSocStr.map(_.toDouble),
+      householdId = line.get("householdId")
+    )
+  }
+
+  private[utils] def toVehicleInfo(record: GenericRecord): VehicleInfo = {
+    VehicleInfo(
+      vehicleId = getFirstIfNotNull(record, Seq("vehicleId", "vehicle_id")).toString,
+      vehicleTypeId = getFirstIfNotNull(record, Seq("vehicleTypeId", "vehicle_type_id")).toString,
+      initialSoc = getOptional(record, Seq("stateOfCharge", "state_of_charge")).map(asDouble),
+      householdId = normalizeHouseholdId(getFirstIfNotNull(record, Seq("householdId", "household_id")))
+    )
+  }
+
+  private def getFirstIfNotNull(record: GenericRecord, columns: Seq[String]): AnyRef = {
+    val value = columns.iterator
+      .flatMap { column =>
+        Option(record.getSchema.getField(column)).map(_ => column -> record.get(column))
+      }
+      .collectFirst { case (_, value) if value != null => value }
+
+    value.getOrElse {
+      val availableColumns = record.getSchema.getFields.asScala.map(_.name()).mkString(", ")
+      throw new IllegalArgumentException(
+        s"None of the expected columns [${columns.mkString(", ")}] were found with non-null values. Available columns: $availableColumns"
+      )
+    }
+  }
+
+  private def getOptional(record: GenericRecord, columns: Seq[String]): Option[AnyRef] =
+    columns.iterator
+      .flatMap(column => Option(record.getSchema.getField(column)).flatMap(_ => Option(record.get(column))))
+      .toSeq
+      .headOption
+
+  private def normalizeHouseholdId(value: AnyRef): String = value match {
+    case n: java.lang.Double if n.doubleValue.isWhole => n.longValue.toString
+    case n: java.lang.Float if n.floatValue.isWhole   => n.longValue.toString
+    case n: java.lang.Long                            => n.toString
+    case n: java.lang.Integer                         => n.toString
+    case n: java.lang.Short                           => n.toString
+    case n: java.lang.Byte                            => n.toString
+    case other =>
+      val asString = other.toString
+      if (asString.matches("^-?\\d+\\.0+$")) asString.takeWhile(_ != '.')
+      else asString
+  }
+
+  private def asDouble(value: AnyRef): Double = {
+    value match {
+      case n: java.lang.Double  => n.doubleValue()
+      case n: java.lang.Float   => n.doubleValue()
+      case n: java.lang.Long    => n.doubleValue()
+      case n: java.lang.Integer => n.doubleValue()
+      case n: java.lang.Short   => n.doubleValue()
+      case n: java.lang.Byte    => n.doubleValue()
+      case other                => other.toString.toDouble
     }
   }
 

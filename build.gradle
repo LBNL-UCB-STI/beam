@@ -43,7 +43,7 @@ apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
 
 group = 'beam'
-version = '1.1-beta-v260316'
+version = '1.1-beta-v260421'
 
 description = """"""
 
@@ -503,11 +503,7 @@ build.dependsOn spec
 * ./gradlew taggedTest -Ptags="beam.tags.Performance beam.tags.Integration"
 * /////////////////////////////////////////////////// */
 
-processResources {
-    duplicatesStrategy = 'include'
-}
-
-processTestResources {
+tasks.matching { it.name in ['processResources', 'processTestResources', 'processScoverageResources'] }.configureEach {
     duplicatesStrategy = 'include'
 }
 

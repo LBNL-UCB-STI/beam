@@ -1,11 +1,11 @@
 package beam.utils.scenario.urbansim.censusblock
 
 import beam.sim.common.GeoUtils
-import beam.utils.csv.readers
 import beam.utils.scenario.urbansim.censusblock.entities.{Block, InputHousehold, InputPersonInfo, InputPlanElement}
 import beam.utils.scenario.urbansim.censusblock.merger.{HouseholdMerger, PersonMerger, PlanMerger}
 import beam.utils.scenario.urbansim.censusblock.reader._
 import beam.utils.scenario.{HouseholdInfo, PersonInfo, PlanElement, ScenarioSource, VehicleInfo}
+import beam.utils.BeamVehicleUtils
 import org.matsim.api.core.v01.Coord
 import com.typesafe.scalalogging.LazyLogging
 import beam.utils.scenario.urbansim.censusblock.reader.ReaderFactories._
@@ -24,8 +24,6 @@ class UrbansimReaderV2(
   val fileFormat: String = "csv"
 ) extends ScenarioSource
     with LazyLogging {
-
-  private val rdr = readers.BeamCsvScenarioReader
 
   if (fileFormat == "parquet") {
     val requiredFiles = List(
@@ -126,7 +124,7 @@ class UrbansimReaderV2(
 
   override lazy val getVehicles: Iterable[VehicleInfo] = {
     if (Files.exists(Paths.get(inputVehiclePath))) {
-      rdr.readVehiclesFile(inputVehiclePath)
+      BeamVehicleUtils.readVehicleInfosFile(inputVehiclePath)
     } else {
       Iterable.empty[VehicleInfo]
     }
