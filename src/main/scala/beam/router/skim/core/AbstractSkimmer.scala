@@ -122,6 +122,8 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
 
   private val awaitSkimLoading = 20.minutes
   private val skimCfg = beamConfig.beam.router.skim
+  protected def writeSkimsInterval: Int = skimCfg.writeSkimsInterval
+  protected def writeAggregatedSkimsInterval: Int = skimCfg.writeAggregatedSkimsInterval
 
   protected[core] val currentSkimInternal = new ConcurrentHashMap[AbstractSkimmerKey, AbstractSkimmerInternal]()
 
@@ -251,7 +253,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
     event: IterationEndsEvent,
     skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
   ): Unit = {
-    if (skimCfg.writeSkimsInterval > 0 && currentIterationInternal % skimCfg.writeSkimsInterval == 0)
+    if (writeSkimsInterval > 0 && currentIterationInternal % writeSkimsInterval == 0)
       ProfilingUtils.timed(
         s"beam.router.skim.writeSkimsInterval on iteration $currentIterationInternal",
         v => logger.info(v)
@@ -261,9 +263,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
         writeSkim(skim, filePath)
       }
 
-    if (
-      skimCfg.writeAggregatedSkimsInterval > 0 && currentIterationInternal % skimCfg.writeAggregatedSkimsInterval == 0
-    ) {
+    if (writeAggregatedSkimsInterval > 0 && currentIterationInternal % writeAggregatedSkimsInterval == 0) {
       ProfilingUtils.timed(
         s"beam.router.skim.writeAggregatedSkimsInterval on iteration $currentIterationInternal",
         v => logger.info(v)

@@ -3505,6 +3505,8 @@ object BeamConfig {
       }
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Outputs = {
+        val legacyWriteAnalysis =
+          if (c.hasPathOrNull("writeAnalysis")) scala.Some(c.getBoolean("writeAnalysis")) else scala.None
         BeamConfig.Beam.Outputs(
           addTimestampToOutputDirectory =
             !c.hasPathOrNull("addTimestampToOutputDirectory") || c.getBoolean("addTimestampToOutputDirectory"),
@@ -3515,9 +3517,11 @@ object BeamConfig {
           baseOutputDirectory =
             if (c.hasPathOrNull("baseOutputDirectory")) c.getString("baseOutputDirectory") else "output",
           collectAndCreateBeamAnalysisAndGraphs =
-            !c.hasPathOrNull("collectAndCreateBeamAnalysisAndGraphs") || c.getBoolean(
-              "collectAndCreateBeamAnalysisAndGraphs"
-            ),
+            if (c.hasPathOrNull("collectAndCreateBeamAnalysisAndGraphs"))
+              c.getBoolean(
+                "collectAndCreateBeamAnalysisAndGraphs"
+              )
+            else legacyWriteAnalysis.getOrElse(true),
           defaultWriteInterval = if (c.hasPathOrNull("defaultWriteInterval")) c.getInt("defaultWriteInterval") else 1,
           displayPerformanceTimings =
             c.hasPathOrNull("displayPerformanceTimings") && c.getBoolean("displayPerformanceTimings"),
@@ -3540,7 +3544,8 @@ object BeamConfig {
             else com.typesafe.config.ConfigFactory.parseString("stats{}")
           ),
           writeEventsInterval = if (c.hasPathOrNull("writeEventsInterval")) c.getInt("writeEventsInterval") else 1,
-          writeGraphs = !c.hasPathOrNull("writeGraphs") || c.getBoolean("writeGraphs"),
+          writeGraphs =
+            if (c.hasPathOrNull("writeGraphs")) c.getBoolean("writeGraphs") else legacyWriteAnalysis.getOrElse(true),
           writePlansInterval = if (c.hasPathOrNull("writePlansInterval")) c.getInt("writePlansInterval") else 0,
           writeR5RoutesInterval = if (c.hasPathOrNull("writeR5RoutesInterval")) c.getInt("writeR5RoutesInterval") else 0
         )
@@ -4643,7 +4648,9 @@ object BeamConfig {
         case class EmissionsSkimmer(
           fileBaseName: java.lang.String,
           fileOutputFormat: java.lang.String,
-          name: java.lang.String
+          name: java.lang.String,
+          writeAggregatedSkimsInterval: scala.Int,
+          writeSkimsInterval: scala.Int
         )
 
         object EmissionsSkimmer {
@@ -4652,7 +4659,10 @@ object BeamConfig {
             BeamConfig.Beam.Router.Skim.EmissionsSkimmer(
               fileBaseName = if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "skimsEmissions",
               fileOutputFormat = if (c.hasPathOrNull("fileOutputFormat")) c.getString("fileOutputFormat") else "csv.gz",
-              name = if (c.hasPathOrNull("name")) c.getString("name") else "emissions-skimmer"
+              name = if (c.hasPathOrNull("name")) c.getString("name") else "emissions-skimmer",
+              writeAggregatedSkimsInterval =
+                if (c.hasPathOrNull("writeAggregatedSkimsInterval")) c.getInt("writeAggregatedSkimsInterval") else -1,
+              writeSkimsInterval = if (c.hasPathOrNull("writeSkimsInterval")) c.getInt("writeSkimsInterval") else -1
             )
           }
         }

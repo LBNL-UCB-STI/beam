@@ -32,6 +32,15 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
   override protected val skimFileBaseName: String = config.emissions_skimmer.fileBaseName
   override protected val skimOutputFormat: String = config.emissions_skimmer.fileOutputFormat
 
+  override protected def writeSkimsInterval: Int =
+    if (config.emissions_skimmer.writeSkimsInterval >= 0) config.emissions_skimmer.writeSkimsInterval
+    else config.writeSkimsInterval
+
+  override protected def writeAggregatedSkimsInterval: Int =
+    if (config.emissions_skimmer.writeAggregatedSkimsInterval >= 0)
+      config.emissions_skimmer.writeAggregatedSkimsInterval
+    else config.writeAggregatedSkimsInterval
+
   override protected val skimFileHeader: String = {
     s"hour,linkId,vehicleTypeId,process,emissions,travelTimeInSecond,parkingDurationInSecond,observations,iterations"
   }
