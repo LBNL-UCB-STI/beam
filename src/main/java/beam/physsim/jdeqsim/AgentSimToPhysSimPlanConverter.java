@@ -62,6 +62,8 @@ import scala.Option;
 
 import java.io.FileOutputStream;
 import java.io.ObjectOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -232,14 +234,28 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         String objectiveFunction = beamConfig.beam().calibration().objectiveFunction();
         if (this.controlerIO != null
                 && objectiveFunction.toLowerCase().contains("counts")) {
-            try {
+            String inputCountsFile = beamConfig.matsim().modules().counts().inputCountsFile();
+            boolean countsConfigured = inputCountsFile != null
+                    && !inputCountsFile.trim().isEmpty()
+                    && !"null".equalsIgnoreCase(inputCountsFile.trim());
+
+            if (!countsConfigured) {
+                log.warn("Skipping counts objective evaluation because matsim.modules.counts.inputCountsFile is not configured.");
+            } else {
                 String outPath =
                         controlerIO
                                 .getIterationFilename(iterationNumber, "countsCompare.txt");
-                double countsError = CountsObjectiveFunction.evaluateFromRun(outPath);
-                log.info("counts Error: " + countsError);
-            } catch (Exception e) {
-                log.error("exception {}", e.getMessage());
+                Path countsComparePath = Path.of(outPath);
+                if (!Files.exists(countsComparePath)) {
+                    log.warn("Skipping counts objective evaluation because {} was not created.", countsComparePath);
+                } else {
+                    try {
+                        double countsError = CountsObjectiveFunction.evaluateFromRun(outPath);
+                        log.info("counts Error: " + countsError);
+                    } catch (Exception e) {
+                        log.error("Failed to evaluate counts objective from {}", countsComparePath, e);
+                    }
+                }
             }
         }
 
