@@ -357,6 +357,15 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
       .map(_.asInstanceOf[EmissionsSkimmerInternal])
       .getOrElse(EmissionsSkimmerInternal(init(), 0, 0, 0, iterations = matsimServices.getIterationNumber + 1))
     val currSkim = currObservation.asInstanceOf[EmissionsSkimmerInternal]
+    if (prevSkim.emissions == null || prevSkim.emissions.values == null || currSkim.emissions == null || currSkim.emissions.values == null) {
+      val message =
+        s"Null emissions passed into EmissionsSkimmer.aggregateWithinIteration: prevEmissions=${prevSkim.emissions}, " +
+        s"prevObservations=${prevSkim.observations}, prevIterations=${prevSkim.iterations}, " +
+        s"currEmissions=${currSkim.emissions}, currObservations=${currSkim.observations}, currIterations=${currSkim.iterations}, " +
+        s"currTravelTime=${currSkim.travelTime}, currParkingDuration=${currSkim.parkingDuration}"
+      logger.error(message)
+      throw new IllegalStateException(message)
+    }
     EmissionsSkimmerInternal(
       emissions =
         (prevSkim.emissions * prevSkim.observations + currSkim.emissions * currSkim.observations) / (prevSkim.observations + currSkim.observations),

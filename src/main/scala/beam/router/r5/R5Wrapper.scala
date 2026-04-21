@@ -410,9 +410,11 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
   }
 
   private def formatStreetVehicles(streetVehicles: IndexedSeq[StreetVehicle]): String =
-    streetVehicles.map { vehicle =>
-      s"${vehicle.id}:${vehicle.mode}:${vehicle.vehicleTypeId}"
-    }.mkString("[", ", ", "]")
+    streetVehicles
+      .map { vehicle =>
+        s"${vehicle.id}:${vehicle.mode}:${vehicle.vehicleTypeId}"
+      }
+      .mkString("[", ", ", "]")
 
   private def formatStopAccessMap(timesByMode: java.util.HashMap[LegMode, TIntIntMap]): String =
     timesByMode.asScala

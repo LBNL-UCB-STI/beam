@@ -53,6 +53,7 @@ class VehicleEmissions(
 ) {
   import VehicleEmissions._
   import EmissionsProfile._
+  private val logger = org.slf4j.LoggerFactory.getLogger(getClass)
   private val settings = new CsvParserSettings()
   settings.setHeaderExtractionEnabled(true)
   settings.detectFormatAutomatically()
@@ -86,13 +87,26 @@ class VehicleEmissions(
         emissionsRatesFilterStore,
         parsedFuelFilter
       ).foreach { case EmissionsProcessAndRatesStore(process, ratesStore, emissionsRatesFile) =>
+        val activityContext = describeVehicleActivityData(data, vehicleActivity)
         getRatesUsing(data, process, ratesStore, emissionsRatesFile, beamServices.networkHelper).foreach { rates =>
+          if (rates.values == null) {
+            val message =
+              s"Null rate map returned from getRatesUsing: process=$process, rates=$rates, $activityContext"
+            logger.error(message)
+            throw new IllegalStateException(message)
+          }
           val emissions = calculationMap(process)(
             rates,
             data,
             vehicleOperationTimeTrieMap,
             emissionsConfig
           )
+          if (emissions == null || emissions.values == null) {
+            val message =
+              s"Null emissions calculated: process=$process, rates=$rates, $activityContext"
+            logger.error(message)
+            throw new IllegalStateException(message)
+          }
           if (!emissions.notValid) {
             if (emissionsConfig.skims) {
               beamServices.matsimServices.getEvents.processEvent(
@@ -176,6 +190,10 @@ class VehicleEmissions(
       preferWiderActivityRanges = preferWiderActivityRanges
     )
     if (rates == null) {
+      logger.error(
+        s"Null emissions rates lookup result: ${describeRateLookupContext(data, process, emissionsRatesFile, county, roadCategory, activityValue, speedMph, soakTimeMin)}, " +
+        s"matchedCounty=$matchedCounty, matchedProcess=$matchedProcess, usesRoadCategory=${processIndex.usesRoadCategory}, usesActivityBin=${processIndex.usesActivityBin}"
+      )
       if (processIndex.usesRoadCategory) {
         recordLookupMiss(
           kind = "roadCategory",
@@ -202,8 +220,40 @@ class VehicleEmissions(
       return None
     }
 
+    logger.debug(
+      s"Emissions rates lookup success: ${describeRateLookupContext(data, process, emissionsRatesFile, county, roadCategory, activityValue, speedMph, soakTimeMin)}, " +
+      s"matchedCounty=$matchedCounty, matchedProcess=$matchedProcess, rates=$rates"
+    )
+
     Some(rates)
   }
+
+  private def describeVehicleActivityData(
+    data: BeamVehicle.VehicleActivityData,
+    vehicleActivity: Class[_ <: org.matsim.api.core.v01.events.Event]
+  ): String =
+    s"event=${vehicleActivity.getSimpleName}, vehicleId=${data.vehicleId}, vehicleType=${data.vehicleType.id}, " +
+    s"vehicleCategory=${data.vehicleType.vehicleCategory}, linkId=${data.linkId}, linkStartTime=${data.linkStartTime}, " +
+    s"activityStartTime=${data.activityStartTime}, averageSpeed=${data.averageSpeed}, linkLength=${data.linkLength}, " +
+    s"linkTravelTime=${data.linkTravelTime}, parkingDuration=${data.parkingDuration}, " +
+    s"parkingActivityType=${data.parkingActivityType}, payloadInKg=${data.payloadInKg}, " +
+    s"primaryFuel=${data.vehicleType.primaryFuelType}, emissionsRatesFile=${data.vehicleType.emissionsRatesFile}"
+
+  private def describeRateLookupContext(
+    data: BeamVehicle.VehicleActivityData,
+    process: EmissionsProcess,
+    emissionsRatesFile: Option[String],
+    county: String,
+    roadCategory: String,
+    activityValue: Double,
+    speedMph: Double,
+    soakTimeMin: Double
+  ): String =
+    s"process=$process, vehicleId=${data.vehicleId}, vehicleType=${data.vehicleType.id}, linkId=${data.linkId}, " +
+    s"linkStartTime=${data.linkStartTime}, county=$county, roadCategory=$roadCategory, activityValue=$activityValue, " +
+    s"speedMph=$speedMph, soakTimeMin=$soakTimeMin, payloadInKg=${data.payloadInKg}, " +
+    s"parkingDuration=${data.parkingDuration}, linkTravelTime=${data.linkTravelTime}, " +
+    s"emissionsRatesFile=${emissionsRatesFile.getOrElse("<none>")}"
 
   private def resolveRoadCategory(linkId: Int, networkHelper: NetworkHelper): String = {
     val cached = roadCategoryCache.get()
@@ -625,7 +675,12 @@ object VehicleEmissions extends LazyLogging {
     (process != null) && timeLikeActivityProcesses.contains(process)
 
   private def multiplyIfPositive(rates: Emissions, factor: Double): Emissions =
-    if (factor <= 0.0) Emissions() else rates * factor
+    if (rates == null || rates.values == null) {
+      val message = s"Null emissions rates passed to multiplyIfPositive: factor=$factor, rates=$rates"
+      logger.error(message)
+      throw new IllegalStateException(message)
+    } else if (factor <= 0.0) Emissions()
+    else rates * factor
 
   private def getOrInitializeOperationTime(
     operationTimeMap: TrieMap[Id[BeamVehicle], Double],
