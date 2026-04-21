@@ -169,13 +169,13 @@ class VehicleEmissions(
     }
     val (matchedProcess, processIndex) = processMatch.get
 
-    val processLookup = processIndex.find(
+    val rates = processIndex.find(
       roadCategory = roadCategory,
       preferEmptyRoadCategory = !parsedRatesFilter.roadCategory.contains(processStr),
       activityValue = activityValue,
       preferWiderActivityRanges = preferWiderActivityRanges
     )
-    if (processLookup.isEmpty) {
+    if (rates == null) {
       if (processIndex.usesRoadCategory) {
         recordLookupMiss(
           kind = "roadCategory",
@@ -201,10 +201,6 @@ class VehicleEmissions(
       }
       return None
     }
-    val lookupMatch = processLookup.get
-    val matchedRoadCategory = lookupMatch.matchedRoadCategory
-    val matchedActivityBin = lookupMatch.matchedActivityBin
-    val rates = lookupMatch.rates
 
     Some(rates)
   }
@@ -298,17 +294,17 @@ object VehicleEmissions extends LazyLogging {
     }
   }
 
-  case class ActivityRangeEntry[T](
-    range: DoubleTypedRange,
-    value: T,
-    width: Double,
-    center: Double
+  final class ActivityRangeEntry[T](
+    val range: DoubleTypedRange,
+    val value: T,
+    val width: Double,
+    val center: Double
   )
 
   private def toSortedActivityRangeEntries[T](map: Map[DoubleTypedRange, T]): IndexedSeq[ActivityRangeEntry[T]] =
     map.iterator
       .map { case (range, value) =>
-        ActivityRangeEntry(
+        new ActivityRangeEntry(
           range = range,
           value = value,
           width = range.upperBound - range.lowerBound,
@@ -322,8 +318,8 @@ object VehicleEmissions extends LazyLogging {
     entries: IndexedSeq[ActivityRangeEntry[T]],
     value: Double,
     preferWiderRanges: Boolean = true
-  ): Option[(DoubleTypedRange, T)] = {
-    if (entries.isEmpty) None
+  ): ActivityRangeEntry[T] = {
+    if (entries.isEmpty) null
     else {
       var matched: ActivityRangeEntry[T] = null
       var index = 0
@@ -341,7 +337,7 @@ object VehicleEmissions extends LazyLogging {
         index += 1
       }
 
-      if (matched != null) Some(matched.range -> matched.value)
+      if (matched != null) matched
       else {
         var nearest = entries.head
         var smallestDistance = math.abs(nearest.center - value)
@@ -355,7 +351,7 @@ object VehicleEmissions extends LazyLogging {
           }
           index += 1
         }
-        Some(nearest.range -> nearest.value)
+        nearest
       }
     }
   }
@@ -572,6 +568,18 @@ object VehicleEmissions extends LazyLogging {
   private val lookupMissTotals: TrieMap[String, AtomicInteger] = TrieMap.empty
   private val lookupMissSummaryFrequency = 5000
 
+  private val timeLikeActivityProcesses: Set[EmissionsProcess] =
+    Set(EmissionsProfile.STREX, EmissionsProfile.DIURN, EmissionsProfile.HOTSOAK, EmissionsProfile.RUNLOSS)
+
+  private val pathTraversalActivityProcesses: Set[EmissionsProcess] =
+    Set(
+      EmissionsProfile.RUNEX,
+      EmissionsProfile.PMBW,
+      EmissionsProfile.PMTW,
+      EmissionsProfile.RUNLOSS,
+      EmissionsProfile.PRDUST
+    )
+
   private def shouldWarn(key: String): Boolean =
     warningCounts.getOrElseUpdate(key, new AtomicInteger(0)).incrementAndGet() == 1
 
@@ -614,9 +622,7 @@ object VehicleEmissions extends LazyLogging {
   }
 
   private def usesTimeLikeActivityBin(process: EmissionsProcess): Boolean =
-    Set(EmissionsProfile.STREX, EmissionsProfile.DIURN, EmissionsProfile.HOTSOAK, EmissionsProfile.RUNLOSS).contains(
-      process
-    )
+    (process != null) && timeLikeActivityProcesses.contains(process)
 
   private def multiplyIfPositive(rates: Emissions, factor: Double): Emissions =
     if (factor <= 0.0) Emissions() else rates * factor
@@ -647,16 +653,10 @@ object VehicleEmissions extends LazyLogging {
     case object NoActivityLookup extends ActivityLookupMode
     case object ActivityBinLookup extends ActivityLookupMode
 
-    case class ProcessLookupMatch(
-      matchedRoadCategory: Option[String],
-      matchedActivityBin: Option[DoubleTypedRange],
-      rates: Emissions
-    )
-
-    case class ProcessRateIndex(
-      roadCategoryToActivityRates: Map[String, IndexedSeq[ActivityRangeEntry[Emissions]]],
-      usesRoadCategory: Boolean,
-      activityLookupMode: ActivityLookupMode
+    final class ProcessRateIndex(
+      val roadCategoryToActivityRates: Map[String, IndexedSeq[ActivityRangeEntry[Emissions]]],
+      val usesRoadCategory: Boolean,
+      val activityLookupMode: ActivityLookupMode
     ) {
 
       def usesActivityBin: Boolean = activityLookupMode == ActivityBinLookup
@@ -666,7 +666,7 @@ object VehicleEmissions extends LazyLogging {
         preferEmptyRoadCategory: Boolean,
         activityValue: Double,
         preferWiderActivityRanges: Boolean
-      ): Option[ProcessLookupMatch] = {
+      ): Emissions = {
         val roadMatch =
           if (usesRoadCategory) {
             VehicleEmissions.findString(roadCategoryToActivityRates, roadCategory, preferEmptyRoadCategory)
@@ -674,20 +674,15 @@ object VehicleEmissions extends LazyLogging {
             roadCategoryToActivityRates.get("").map("" -> _).orElse(roadCategoryToActivityRates.headOption)
           }
 
-        roadMatch.flatMap { case (matchedRoadCategory, ratesByActivity) =>
-          val activityMatch =
-            activityLookupMode match {
-              case ActivityBinLookup =>
-                VehicleEmissions.findInterval(ratesByActivity, activityValue, preferWiderActivityRanges)
-              case NoActivityLookup =>
-                ratesByActivity.headOption.map(entry => entry.range -> entry.value)
-            }
-          activityMatch.map { case (matchedActivityBin, rates) =>
-            ProcessLookupMatch(
-              matchedRoadCategory = if (usesRoadCategory) Some(matchedRoadCategory) else None,
-              matchedActivityBin = if (usesActivityBin) Some(matchedActivityBin) else None,
-              rates = rates
-            )
+        if (roadMatch.isEmpty) null
+        else {
+          val (_, ratesByActivity) = roadMatch.get
+          activityLookupMode match {
+            case ActivityBinLookup =>
+              val matched = VehicleEmissions.findInterval(ratesByActivity, activityValue, preferWiderActivityRanges)
+              if (matched == null) null else matched.value
+            case NoActivityLookup =>
+              if (ratesByActivity.isEmpty) null else ratesByActivity.head.value
           }
         }
       }
@@ -717,7 +712,7 @@ object VehicleEmissions extends LazyLogging {
           ) ActivityBinLookup
           else NoActivityLookup
 
-        ProcessRateIndex(
+        new ProcessRateIndex(
           roadCategoryToActivityRates = roadCategoryToActivityRates.iterator.map { case (roadCategory, activityRates) =>
             roadCategory -> toSortedActivityRangeEntries(activityRates)
           }.toMap,
@@ -913,7 +908,8 @@ object VehicleEmissions extends LazyLogging {
               case process @ IDLEX if isIdlingDriving(data, event) || isIdlingParking(data, event) =>
                 Some(EmissionsProcessAndRatesStore(process, rateFilter, data.vehicleType.emissionsRatesFile))
 
-              case process @ (RUNEX | PMBW | PMTW | RUNLOSS | PRDUST) if event == classOf[PathTraversalEvent] =>
+              case process
+                  if event == classOf[PathTraversalEvent] && pathTraversalActivityProcesses.contains(process) =>
                 Some(EmissionsProcessAndRatesStore(process, rateFilter, data.vehicleType.emissionsRatesFile))
 
               case process @ PTOEX

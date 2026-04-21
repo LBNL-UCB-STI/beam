@@ -655,6 +655,7 @@ def jmx = ["-Dcom.sun.management.jmxremote", "-Dcom.sun.management.jmxremote.por
 def logbackConfig = project.findProperty('logbackCfg') ?: "logback_prod.xml"
 
 def profilerTypeConfig = project.findProperty('profiler_type') ?: ""
+def extraJvmArgs = project.findProperty('extraJvmArgs') ? Eval.me(project.property('extraJvmArgs')) : []
 
 def profilerOption = []
 if (profilerTypeConfig.toString().equalsIgnoreCase('cpu')) {
@@ -786,7 +787,7 @@ applicationDefaultJvmArgs = [
 ] + g1GCSettings + [
         // Logging
         "-Dlogback.configurationFile=${logbackConfig}"
-] + profilerOption + jmx
+] + profilerOption + jmx + extraJvmArgs
 
 // Print configuration summary
 logger.lifecycle("")
