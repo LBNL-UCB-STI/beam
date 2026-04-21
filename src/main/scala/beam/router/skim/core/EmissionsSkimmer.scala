@@ -168,13 +168,7 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
     * Converts Emissions object to pollutants string format
     */
   private def convertEmissionsToPollutantsString(emissions: Emissions): String = {
-    Emissions.values.toList
-      .flatMap { emType =>
-        val value = emissions.get(emType).getOrElse(0.0)
-        if (value > 0) Some(s"${emType.toString}:$value")
-        else None
-      }
-      .mkString(";")
+    emissions.toPollutantsString
   }
 
   override def writeSkim(skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal], filePath: String): Unit = {
@@ -211,7 +205,7 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
         .toMap
     } else Map.empty[EmissionType, Double]
 
-    new Emissions(emissionsMap)
+    Emissions(emissionsMap)
   }
 
   override protected def fromParquetRow(row: Row): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
@@ -338,7 +332,7 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
       )
     EmissionsSkimmerInternal(
       emissions =
-        (prevSkim.emissions * prevSkim.iterations + currSkim.emissions * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
+        Emissions.weightedAverage(prevSkim.emissions, prevSkim.iterations, currSkim.emissions, currSkim.iterations),
       travelTime =
         (prevSkim.travelTime * prevSkim.iterations + currSkim.travelTime * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       parkingDuration =
@@ -357,7 +351,7 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
       .map(_.asInstanceOf[EmissionsSkimmerInternal])
       .getOrElse(EmissionsSkimmerInternal(init(), 0, 0, 0, iterations = matsimServices.getIterationNumber + 1))
     val currSkim = currObservation.asInstanceOf[EmissionsSkimmerInternal]
-    if (prevSkim.emissions == null || prevSkim.emissions.values == null || currSkim.emissions == null || currSkim.emissions.values == null) {
+    if (prevSkim.emissions == null || currSkim.emissions == null) {
       val message =
         s"Null emissions passed into EmissionsSkimmer.aggregateWithinIteration: prevEmissions=${prevSkim.emissions}, " +
         s"prevObservations=${prevSkim.observations}, prevIterations=${prevSkim.iterations}, " +
@@ -368,7 +362,7 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
     }
     EmissionsSkimmerInternal(
       emissions =
-        (prevSkim.emissions * prevSkim.observations + currSkim.emissions * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+        Emissions.weightedAverage(prevSkim.emissions, prevSkim.observations, currSkim.emissions, currSkim.observations),
       travelTime =
         (prevSkim.travelTime * prevSkim.observations + currSkim.travelTime * currSkim.observations) / (prevSkim.observations + currSkim.observations),
       parkingDuration =
@@ -397,17 +391,7 @@ object EmissionsSkimmer extends LazyLogging {
     observations: Int = 0,
     iterations: Int = 0
   ) extends AbstractSkimmerInternal {
-    // Replace this line:
-    // private val pollutants: String = Emissions.values.toList.map(emissions.get(_).getOrElse(0.0).toString).mkString(",")
-
-    // With this implementation:
-    private val pollutants: String = Emissions.values.toList
-      .flatMap(emType => {
-        val value = emissions.get(emType).getOrElse(0.0)
-        if (value > 0) Some(s"${emType.toString}:$value")
-        else None
-      })
-      .mkString(";")
+    private lazy val pollutants: String = emissions.toPollutantsString
 
     override def toCsv: String = s"$pollutants,$travelTime,$parkingDuration,$observations,$iterations"
   }

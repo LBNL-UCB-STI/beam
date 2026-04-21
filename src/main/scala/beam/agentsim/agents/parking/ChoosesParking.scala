@@ -522,7 +522,13 @@ trait ChoosesParking extends {
             EmbodiedBeamLeg.splitLegForParking(beamLeg, beamServices, transportNetwork)
           }
           .getOrElse {
-            log.error("EnRoute: car leg not found in routing response.")
+            log.error(
+              s"EnRoute: car leg not found in routing response. person=${this.id}, " +
+              s"legs=${legs
+                .map(leg => s"${leg.beamLeg.mode}:${leg.beamLeg.travelPath.linkIds.size}:${leg.beamLeg.duration}")}, " +
+              s"currentTrip=${data.currentTrip.map(_.tripClassifier)}, " +
+              s"enrouteData=${data.enrouteData}, currentVehicle=${data.currentVehicle}, currentVehiclePassengerSchedule=${data.passengerSchedule}"
+            )
             Vector()
           }
       }

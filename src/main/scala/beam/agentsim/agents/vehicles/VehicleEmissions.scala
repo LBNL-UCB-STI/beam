@@ -37,6 +37,7 @@ import org.matsim.core.utils.geometry.geotools.MGC
 import org.opengis.referencing.operation.MathTransform
 
 import java.io.File
+import java.util.{Arrays, HashMap => JHashMap, HashSet => JHashSet}
 import java.nio.file.Paths
 import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
 import scala.collection.JavaConverters._
@@ -77,7 +78,7 @@ class VehicleEmissions(
     vehicleActivity: Class[_ <: org.matsim.api.core.v01.events.Event],
     beamServices: BeamServices
   ): Option[EmissionsProfile] = {
-    val emissionsProfiles = mutable.Map.empty[EmissionsProcess, Emissions]
+    val emissionsProfiles = new Array[Emissions](EmissionsProfile.orderedValues.length)
     val emissionsConfig = beamServices.beamConfig.beam.agentsim.agents.vehicles.emissions
 
     vehicleActivityData.foreach { data =>
@@ -87,9 +88,9 @@ class VehicleEmissions(
         emissionsRatesFilterStore,
         parsedFuelFilter
       ).foreach { case EmissionsProcessAndRatesStore(process, ratesStore, emissionsRatesFile) =>
-        val activityContext = describeVehicleActivityData(data, vehicleActivity)
+        lazy val activityContext = describeVehicleActivityData(data, vehicleActivity)
         getRatesUsing(data, process, ratesStore, emissionsRatesFile, beamServices.networkHelper).foreach { rates =>
-          if (rates.values == null) {
+          if (rates == null) {
             val message =
               s"Null rate map returned from getRatesUsing: process=$process, rates=$rates, $activityContext"
             logger.error(message)
@@ -101,7 +102,7 @@ class VehicleEmissions(
             vehicleOperationTimeTrieMap,
             emissionsConfig
           )
-          if (emissions == null || emissions.values == null) {
+          if (emissions == null) {
             val message =
               s"Null emissions calculated: process=$process, rates=$rates, $activityContext"
             logger.error(message)
@@ -122,15 +123,16 @@ class VehicleEmissions(
                 )
               )
             }
-            emissionsProfiles.update(process, emissions)
+            emissionsProfiles(process.id) = emissions
           }
         }
       }
     }
 
-    if (emissionsProfiles.isEmpty) {
+    val hasEmissions = emissionsProfiles.exists(_ != null)
+    if (!hasEmissions) {
       None
-    } else Some(EmissionsProfile(emissionsProfiles.toMap))
+    } else Some(EmissionsProfile.fromProcessArray(emissionsProfiles))
   }
 
   private def getRatesUsing(
@@ -153,8 +155,8 @@ class VehicleEmissions(
     val vehicleTypeId = data.vehicleType.id.toString
 
     val countyMatch =
-      findString(ratesStore.countyToProcessRates, county, !parsedRatesFilter.county.contains(processStr))
-    if (countyMatch.isEmpty) {
+      findStringResult(ratesStore.countyToProcessRates, county, !parsedRatesFilter.county.contains(processStr))
+    if (countyMatch == null) {
       recordLookupMiss(
         kind = "county",
         details = Seq(
@@ -166,10 +168,11 @@ class VehicleEmissions(
       )
       return None
     }
-    val (matchedCounty, countyFilter) = countyMatch.get
+    val matchedCounty = countyMatch.matchedKey
+    val countyFilter = countyMatch.value
 
-    val processMatch = VehicleEmissions.findString(countyFilter, process.toString, preferEmptyKey = false)
-    if (processMatch.isEmpty) {
+    val processMatch = VehicleEmissions.findStringResult(countyFilter, process.toString, preferEmptyKey = false)
+    if (processMatch == null) {
       recordLookupMiss(
         kind = "process",
         details = Seq(
@@ -181,7 +184,8 @@ class VehicleEmissions(
       )
       return None
     }
-    val (matchedProcess, processIndex) = processMatch.get
+    val matchedProcess = processMatch.matchedKey
+    val processIndex = processMatch.value
 
     val rates = processIndex.find(
       roadCategory = roadCategory,
@@ -220,10 +224,12 @@ class VehicleEmissions(
       return None
     }
 
-    logger.debug(
-      s"Emissions rates lookup success: ${describeRateLookupContext(data, process, emissionsRatesFile, county, roadCategory, activityValue, speedMph, soakTimeMin)}, " +
-      s"matchedCounty=$matchedCounty, matchedProcess=$matchedProcess, rates=$rates"
-    )
+    if (logger.isDebugEnabled) {
+      logger.debug(
+        s"Emissions rates lookup success: ${describeRateLookupContext(data, process, emissionsRatesFile, county, roadCategory, activityValue, speedMph, soakTimeMin)}, " +
+        s"matchedCounty=$matchedCounty, matchedProcess=$matchedProcess, rates=$rates"
+      )
+    }
 
     Some(rates)
   }
@@ -344,6 +350,38 @@ object VehicleEmissions extends LazyLogging {
     }
   }
 
+  final class StringLookupResult[T](val matchedKey: String, val value: T)
+
+  private def findStringResult[T](
+    map: Map[String, T],
+    value: String,
+    preferEmptyKey: Boolean = true
+  ): StringLookupResult[T] = {
+    if (preferEmptyKey) {
+      map.get("").map(new StringLookupResult("", _)).orElse(map.get(value).map(new StringLookupResult(value, _))).orNull
+    } else {
+      map.get(value).map(new StringLookupResult(value, _)).orElse(map.get("").map(new StringLookupResult("", _))).orNull
+    }
+  }
+
+  private def findStringResult[T](
+    map: JHashMap[String, T],
+    value: String,
+    preferEmptyKey: Boolean
+  ): StringLookupResult[T] = {
+    if (preferEmptyKey) {
+      if (map.containsKey("")) new StringLookupResult("", map.get(""))
+      else {
+        if (map.containsKey(value)) new StringLookupResult(value, map.get(value)) else null
+      }
+    } else {
+      if (map.containsKey(value)) new StringLookupResult(value, map.get(value))
+      else {
+        if (map.containsKey("")) new StringLookupResult("", map.get("")) else null
+      }
+    }
+  }
+
   final class ActivityRangeEntry[T](
     val range: DoubleTypedRange,
     val value: T,
@@ -351,7 +389,7 @@ object VehicleEmissions extends LazyLogging {
     val center: Double
   )
 
-  private def toSortedActivityRangeEntries[T](map: Map[DoubleTypedRange, T]): IndexedSeq[ActivityRangeEntry[T]] =
+  private def toSortedActivityRangeEntries[T](map: Map[DoubleTypedRange, T]): Array[ActivityRangeEntry[T]] =
     map.iterator
       .map { case (range, value) =>
         new ActivityRangeEntry(
@@ -361,11 +399,11 @@ object VehicleEmissions extends LazyLogging {
           center = (range.lowerBound + range.upperBound) / 2.0
         )
       }
-      .toIndexedSeq
+      .toArray
       .sortBy(entry => (entry.range.lowerBound, entry.range.upperBound))
 
   private def findInterval[T](
-    entries: IndexedSeq[ActivityRangeEntry[T]],
+    entries: Array[ActivityRangeEntry[T]],
     value: Double,
     preferWiderRanges: Boolean = true
   ): ActivityRangeEntry[T] = {
@@ -375,6 +413,9 @@ object VehicleEmissions extends LazyLogging {
       var index = 0
       while (index < entries.length) {
         val candidate = entries(index)
+        if (matched != null && candidate.range.lowerBound > value) {
+          return matched
+        }
         if (candidate.range.has(value)) {
           if (
             matched == null ||
@@ -675,7 +716,7 @@ object VehicleEmissions extends LazyLogging {
     (process != null) && timeLikeActivityProcesses.contains(process)
 
   private def multiplyIfPositive(rates: Emissions, factor: Double): Emissions =
-    if (rates == null || rates.values == null) {
+    if (rates == null) {
       val message = s"Null emissions rates passed to multiplyIfPositive: factor=$factor, rates=$rates"
       logger.error(message)
       throw new IllegalStateException(message)
@@ -709,10 +750,12 @@ object VehicleEmissions extends LazyLogging {
     case object ActivityBinLookup extends ActivityLookupMode
 
     final class ProcessRateIndex(
-      val roadCategoryToActivityRates: Map[String, IndexedSeq[ActivityRangeEntry[Emissions]]],
-      val usesRoadCategory: Boolean,
+      val emptyRoadCategoryRates: Array[ActivityRangeEntry[Emissions]],
+      val specificRoadCategoryToActivityRates: java.util.HashMap[String, Array[ActivityRangeEntry[Emissions]]],
+      val firstSpecificRoadCategoryRates: Array[ActivityRangeEntry[Emissions]],
       val activityLookupMode: ActivityLookupMode
     ) {
+      val usesRoadCategory: Boolean = !specificRoadCategoryToActivityRates.isEmpty
 
       def usesActivityBin: Boolean = activityLookupMode == ActivityBinLookup
 
@@ -722,22 +765,29 @@ object VehicleEmissions extends LazyLogging {
         activityValue: Double,
         preferWiderActivityRanges: Boolean
       ): Emissions = {
-        val roadMatch =
+        val ratesByActivity =
           if (usesRoadCategory) {
-            VehicleEmissions.findString(roadCategoryToActivityRates, roadCategory, preferEmptyRoadCategory)
-          } else {
-            roadCategoryToActivityRates.get("").map("" -> _).orElse(roadCategoryToActivityRates.headOption)
-          }
+            val specific = specificRoadCategoryToActivityRates.get(roadCategory)
+            if (preferEmptyRoadCategory) {
+              if (emptyRoadCategoryRates ne null) emptyRoadCategoryRates
+              else if (specific ne null) specific
+              else null
+            } else {
+              if (specific ne null) specific
+              else if (emptyRoadCategoryRates ne null) emptyRoadCategoryRates
+              else null
+            }
+          } else if (emptyRoadCategoryRates ne null) emptyRoadCategoryRates
+          else firstSpecificRoadCategoryRates
 
-        if (roadMatch.isEmpty) null
+        if (ratesByActivity == null || ratesByActivity.isEmpty) null
         else {
-          val (_, ratesByActivity) = roadMatch.get
           activityLookupMode match {
             case ActivityBinLookup =>
               val matched = VehicleEmissions.findInterval(ratesByActivity, activityValue, preferWiderActivityRanges)
               if (matched == null) null else matched.value
             case NoActivityLookup =>
-              if (ratesByActivity.isEmpty) null else ratesByActivity.head.value
+              ratesByActivity(0).value
           }
         }
       }
@@ -750,52 +800,97 @@ object VehicleEmissions extends LazyLogging {
         roadCategoryToActivityRates: Map[String, Map[DoubleTypedRange, Emissions]]
       ): ProcessRateIndex = {
         val normalizedProcess = process.trim.toUpperCase
-        val usesRoadCategory = roadCategoryToActivityRates.keys.exists(_.nonEmpty)
         val activityLookupMode =
-          if (
-            Set(
-              EmissionsProfile.RUNEX.toString,
-              EmissionsProfile.PTOEX.toString,
-              EmissionsProfile.PMBW.toString,
-              EmissionsProfile.PMTW.toString,
-              EmissionsProfile.PRDUST.toString,
-              EmissionsProfile.STREX.toString,
-              EmissionsProfile.DIURN.toString,
-              EmissionsProfile.HOTSOAK.toString,
-              EmissionsProfile.RUNLOSS.toString
-            ).contains(normalizedProcess)
-          ) ActivityBinLookup
+          if (combinedActivityLookupProcesses.contains(normalizedProcess)) ActivityBinLookup
           else NoActivityLookup
 
+        val emptyRoadCategoryRates =
+          roadCategoryToActivityRates.get("").map(toSortedActivityRangeEntries).orNull
+        val specificRoadCategoryToActivityRates =
+          new java.util.HashMap[String, Array[ActivityRangeEntry[Emissions]]]()
+        var firstSpecificRoadCategoryRates: Array[ActivityRangeEntry[Emissions]] = null
+        roadCategoryToActivityRates.iterator.foreach { case (roadCategory, activityRates) =>
+          if (roadCategory.nonEmpty) {
+            val sortedRates = toSortedActivityRangeEntries(activityRates)
+            specificRoadCategoryToActivityRates.put(roadCategory, sortedRates)
+            if (firstSpecificRoadCategoryRates == null) {
+              firstSpecificRoadCategoryRates = sortedRates
+            }
+          }
+        }
+
         new ProcessRateIndex(
-          roadCategoryToActivityRates = roadCategoryToActivityRates.iterator.map { case (roadCategory, activityRates) =>
-            roadCategory -> toSortedActivityRangeEntries(activityRates)
-          }.toMap,
-          usesRoadCategory = usesRoadCategory,
+          emptyRoadCategoryRates = emptyRoadCategoryRates,
+          specificRoadCategoryToActivityRates = specificRoadCategoryToActivityRates,
+          firstSpecificRoadCategoryRates = firstSpecificRoadCategoryRates,
           activityLookupMode = activityLookupMode
         )
       }
     }
 
+    private val combinedActivityLookupProcesses: Set[String] =
+      Set(
+        EmissionsProfile.RUNEX.toString,
+        EmissionsProfile.PTOEX.toString,
+        EmissionsProfile.PMBW.toString,
+        EmissionsProfile.PMTW.toString,
+        EmissionsProfile.PRDUST.toString,
+        EmissionsProfile.STREX.toString,
+        EmissionsProfile.DIURN.toString,
+        EmissionsProfile.HOTSOAK.toString,
+        EmissionsProfile.RUNLOSS.toString
+      )
+
     case class EmissionsRateFilter(
-      countyToProcessRates: Map[
+      countyToProcessRates: JHashMap[
         String, // county
-        Map[
+        JHashMap[
           String, // emissionProcess
           ProcessRateIndex
         ]
       ],
-      supportedProcesses: Set[String]
+      supportedProcesses: JHashSet[String]
     ) {
       def supportsProcess(process: String): Boolean = supportedProcesses.contains(process.trim.toUpperCase)
     }
   }
 
-  case class Emissions(values: Map[EmissionType, Double] = Map.empty) {
-    def notValid: Boolean = values.values.sum <= 0
+  final class Emissions private[vehicles] (private[vehicles] val data: Array[Double]) {
+
+    lazy val values: Map[EmissionType, Double] = {
+      val builder = Map.newBuilder[EmissionType, Double]
+      var index = 0
+      while (index < data.length) {
+        val value = data(index)
+        if (value != 0.0) {
+          builder += Emissions.orderedValues(index) -> value
+        }
+        index += 1
+      }
+      builder.result()
+    }
+
+    def notValid: Boolean = {
+      var index = 0
+      while (index < data.length) {
+        if (data(index) > 0.0) return false
+        index += 1
+      }
+      true
+    }
 
     def *(factor: Double): Emissions =
-      Emissions(values.map { case (k, v) => k -> (v * factor) })
+      if (isEmpty || factor == 1.0) this
+      else if (factor == 0.0) Emissions.empty
+      else {
+        val scaled = new Array[Double](data.length)
+        var index = 0
+        while (index < data.length) {
+          scaled(index) = data(index) * factor
+          index += 1
+        }
+        new Emissions(scaled)
+      }
 
     def /(factor: Double): Emissions = {
       if (factor == 0) {
@@ -805,27 +900,86 @@ object VehicleEmissions extends LazyLogging {
     }
 
     def +(other: Emissions): Emissions =
-      Emissions((values.keySet ++ other.values.keySet).map { key =>
-        key -> (values.getOrElse(key, 0.0) + other.values.getOrElse(key, 0.0))
-      }.toMap)
+      if (this.isEmpty) other
+      else if (other.isEmpty) this
+      else {
+        val merged = new Array[Double](data.length)
+        var index = 0
+        while (index < data.length) {
+          merged(index) = data(index) + other.data(index)
+          index += 1
+        }
+        new Emissions(merged)
+      }
 
-    def +=(other: Emissions): Emissions = {
-      Emissions(
-        (values.keySet ++ other.values.keySet).map { key =>
-          key -> (values.getOrElse(key, 0.0) + other.values.getOrElse(key, 0.0))
-        }.toMap
-      )
+    def +=(other: Emissions): Emissions = this + other
+
+    def get(emissionType: EmissionType): Option[Double] = {
+      val value = data(emissionType.id)
+      if (value == 0.0) None else Some(value)
     }
 
-    def get(emissionType: EmissionType): Option[Double] = values.get(emissionType)
+    def getOrZero(emissionType: EmissionType): Double = data(emissionType.id)
 
-    override def toString: String =
-      values.map { case (key, value) => s"${formatName(key)}=$value" }.mkString("Emissions(", ", ", ")")
+    def isEmpty: Boolean = {
+      var index = 0
+      while (index < data.length) {
+        if (data(index) != 0.0) return false
+        index += 1
+      }
+      true
+    }
+
+    def toPollutantsString: String =
+      if (isEmpty) ""
+      else {
+        val builder = new java.lang.StringBuilder()
+        var first = true
+        var index = 0
+        while (index < data.length) {
+          val value = data(index)
+          if (value > 0.0) {
+            if (!first) builder.append(';')
+            builder.append(Emissions.orderedValues(index).toString)
+            builder.append(':')
+            builder.append(value)
+            first = false
+          }
+          index += 1
+        }
+        builder.toString
+      }
+
+    override def toString: String = {
+      val builder = new java.lang.StringBuilder("Emissions(")
+      var first = true
+      var index = 0
+      while (index < data.length) {
+        val value = data(index)
+        if (value != 0.0) {
+          if (!first) builder.append(", ")
+          builder.append(formatName(Emissions.orderedValues(index)))
+          builder.append('=')
+          builder.append(value)
+          first = false
+        }
+        index += 1
+      }
+      builder.append(')').toString
+    }
+
+    override def equals(other: Any): Boolean = other match {
+      case that: Emissions => Arrays.equals(data, that.data)
+      case _               => false
+    }
+
+    override def hashCode(): Int = Arrays.hashCode(data)
   }
 
   object Emissions extends Enumeration {
     type EmissionType = Value
     val CH4, CO, CO2, HC, NH3, N2O, NOx, PM, PM10, PM25, ROG, SOx, TOG, BC = Value
+    val orderedValues: Array[EmissionType] = values.toArray.sortBy(_.id)
 
     var filter: Option[List[EmissionType]] = None
 
@@ -855,23 +1009,83 @@ object VehicleEmissions extends LazyLogging {
       values.find(v => formatName(v).equalsIgnoreCase(s.trim))
     }
 
-    def init(): Emissions = Emissions()
+    def init(): Emissions = empty
+
+    val empty: Emissions = new Emissions(new Array[Double](orderedValues.length))
+
+    def apply(values: Map[EmissionType, Double]): Emissions =
+      if (values.isEmpty) empty
+      else {
+        val excluded = filter.map(_.toSet).getOrElse(Set.empty)
+        val data = new Array[Double](orderedValues.length)
+        values.foreach { case (emissionType, value) =>
+          if (!excluded.contains(emissionType) && value != 0.0) {
+            data(emissionType.id) = value
+          }
+        }
+        new Emissions(data)
+      }
 
     def apply(values: (EmissionType, Double)*): Emissions = {
-      new Emissions(values.filter(v => !this.filter.contains(v._1)).toMap)
+      if (values.isEmpty) empty
+      else {
+        val excluded = filter.map(_.toSet).getOrElse(Set.empty)
+        val data = new Array[Double](orderedValues.length)
+        values.iterator.foreach { case (emissionType, value) =>
+          if (!excluded.contains(emissionType) && value != 0.0) {
+            data(emissionType.id) = value
+          }
+        }
+        new Emissions(data)
+      }
     }
 
     def formatEmissions(emissions: Emissions): String =
       emissions.values.map { case (key, value) => formatEmission(formatName(key), value) }.mkString(", ")
 
+    def weightedAverage(left: Emissions, leftWeight: Double, right: Emissions, rightWeight: Double): Emissions = {
+      val totalWeight = leftWeight + rightWeight
+      if (totalWeight == 0.0) empty
+      else if (left == null || left.isEmpty || leftWeight == 0.0) {
+        if (right == null) empty else right
+      } else if (right == null || right.isEmpty || rightWeight == 0.0) {
+        left
+      } else {
+        val data = new Array[Double](orderedValues.length)
+        var index = 0
+        while (index < orderedValues.length) {
+          data(index) = (left.data(index) * leftWeight + right.data(index) * rightWeight) / totalWeight
+          index += 1
+        }
+        new Emissions(data)
+      }
+    }
+
     private def formatEmission(name: String, value: Double): String = f"$name: $value%.2f"
   }
 
-  case class EmissionsProfile(values: Map[EmissionsProcess, Emissions] = Map.empty) {}
+  final class EmissionsProfile private[vehicles] (private[vehicles] val data: Array[Emissions]) {
+
+    lazy val values: Map[EmissionsProcess, Emissions] = {
+      val builder = Map.newBuilder[EmissionsProcess, Emissions]
+      var index = 0
+      while (index < data.length) {
+        val emissions = data(index)
+        if (emissions != null && !emissions.isEmpty) {
+          builder += EmissionsProfile.orderedValues(index) -> emissions
+        }
+        index += 1
+      }
+      builder.result()
+    }
+
+    def get(process: EmissionsProcess): Option[Emissions] = Option(data(process.id))
+  }
 
   object EmissionsProfile extends Enumeration {
     type EmissionsProcess = Value
     val RUNEX, IDLEX, STREX, HOTSOAK, DIURN, RUNLOSS, PMTW, PMBW, PRDUST, PTOEX = Value
+    val orderedValues: Array[EmissionsProcess] = values.toArray.sortBy(_.id)
 
     sealed trait EmissionsFuelGroup
 
@@ -888,19 +1102,52 @@ object VehicleEmissions extends LazyLogging {
       case object ElectricPowered extends EmissionsFuelGroup
     }
 
-    def init(): EmissionsProfile = EmissionsProfile()
+    val empty: EmissionsProfile = new EmissionsProfile(new Array[Emissions](orderedValues.length))
 
-    def apply(values: (EmissionsProcess, Emissions)*): EmissionsProfile = new EmissionsProfile(values.toMap)
+    def init(): EmissionsProfile = empty
+
+    def apply(values: (EmissionsProcess, Emissions)*): EmissionsProfile = {
+      if (values.isEmpty) empty
+      else {
+        val data = new Array[Emissions](orderedValues.length)
+        values.iterator.foreach { case (process, emissions) =>
+          data(process.id) = emissions
+        }
+        new EmissionsProfile(data)
+      }
+    }
+
+    def apply(values: Map[EmissionsProcess, Emissions]): EmissionsProfile = {
+      if (values.isEmpty) empty
+      else {
+        val data = new Array[Emissions](orderedValues.length)
+        values.foreach { case (process, emissions) =>
+          data(process.id) = emissions
+        }
+        new EmissionsProfile(data)
+      }
+    }
+
+    def fromProcessArray(values: Array[Emissions]): EmissionsProfile = new EmissionsProfile(values)
 
     def join(
       emissionsProfile1: Option[EmissionsProfile],
       emissionsProfile2: Option[EmissionsProfile]
     ): Option[EmissionsProfile] = {
       (emissionsProfile1, emissionsProfile2) match {
-        case (Some(ep1), Some(ep2)) => Some(EmissionsProfile(ep1.values ++ ep2.values))
-        case (Some(ep1), _)         => Some(ep1)
-        case (_, Some(ep2))         => Some(ep2)
-        case _                      => None
+        case (Some(ep1), Some(ep2)) =>
+          val merged = new Array[Emissions](orderedValues.length)
+          var index = 0
+          while (index < orderedValues.length) {
+            merged(index) =
+              if (ep2.data(index) != null) ep2.data(index)
+              else ep1.data(index)
+            index += 1
+          }
+          Some(new EmissionsProfile(merged))
+        case (Some(ep1), _) => Some(ep1)
+        case (_, Some(ep2)) => Some(ep2)
+        case _              => None
       }
     }
 
@@ -919,6 +1166,12 @@ object VehicleEmissions extends LazyLogging {
     ): Boolean = {
       vehicleActivity == classOf[LeavingParkingEvent] && data.vehicleType.vehicleUse == VehicleUse.Freight
     }
+
+    private val pathTraversalProcesses: IndexedSeq[EmissionsProcess] =
+      IndexedSeq(RUNEX, PMBW, PMTW, RUNLOSS, PRDUST)
+
+    private val leavingParkingProcesses: IndexedSeq[EmissionsProcess] =
+      IndexedSeq(STREX, DIURN, HOTSOAK, RUNLOSS)
 
     private def fuelGroupFor(vehicleType: BeamVehicleType): Option[EmissionsFuelGroup] = {
       import EmissionsFuelGroup._
@@ -944,44 +1197,35 @@ object VehicleEmissions extends LazyLogging {
           val allowedProcessesByFuel = fuelGroupFor(data.vehicleType)
             .map(parsedFuelFilter.configuredProcesses)
             .getOrElse(Set.empty[String])
-          val selectedProcesses = EmissionsProfile.values
-            .flatMap {
-              /**
-                * IDLE activity should be the first element of VehicleActivity data sequence
-                * the type is PathTraversalEvent because there is no difference, IDLE activity happens between other events
-                *
-                * Idle Exhaust (IDLEX) emissions refer to the emissions during extended idling events (i.e., a continuous
-                * segment of vehicle activity that meets three criteria: all instantaneous vehicle speeds being lower
-                * than 5 mph, the total distance of less than 1 mile, and the total duration of more than 5 minutes)
-                * by heavy duty trucks. Extended idle may occur during loading or unloading goods, or to power accessories.
-                * Idle exhaust is calculated only for heavy-duty trucks. For light duty vehicles, the idle events during
-                * normal vehicle operation are already accounted for, i.e. RUNEX emission rates are based on driving
-                * cycles that include normal idling events. IDLEX emission rates do not vary by temperature and humidity
-                * and are not related to speed bins.
-                * https://ww2.arb.ca.gov/sites/default/files/2021-03/emfac2021_volume_2_pl_handbook.pdf
-                */
-              case process @ IDLEX if isIdlingDriving(data, event) || isIdlingParking(data, event) =>
-                Some(EmissionsProcessAndRatesStore(process, rateFilter, data.vehicleType.emissionsRatesFile))
+          if (allowedProcessesByFuel.isEmpty) IndexedSeq.empty
+          else {
+            val emissionsRatesFile = data.vehicleType.emissionsRatesFile
+            val selectedProcesses = mutable.ArrayBuffer.empty[EmissionsProcessAndRatesStore]
 
-              case process
-                  if event == classOf[PathTraversalEvent] && pathTraversalActivityProcesses.contains(process) =>
-                Some(EmissionsProcessAndRatesStore(process, rateFilter, data.vehicleType.emissionsRatesFile))
-
-              case process @ PTOEX
-                  if event == classOf[PathTraversalEvent] &&
-                    data.vehicleType.vehicleUse == VehicleUse.Freight &&
-                    rateFilter.supportsProcess(process.toString) =>
-                Some(EmissionsProcessAndRatesStore(process, rateFilter, data.vehicleType.emissionsRatesFile))
-
-              case process @ (STREX | DIURN | HOTSOAK | RUNLOSS) if event == classOf[LeavingParkingEvent] =>
-                Some(EmissionsProcessAndRatesStore(process, rateFilter, data.vehicleType.emissionsRatesFile))
-
-              case _ => None
+            def maybeAdd(process: EmissionsProcess): Unit = {
+              val processName = process.toString
+              if (allowedProcessesByFuel.contains(processName) && rateFilter.supportsProcess(processName)) {
+                selectedProcesses += EmissionsProcessAndRatesStore(process, rateFilter, emissionsRatesFile)
+              }
             }
-            .filter(selected => allowedProcessesByFuel.contains(selected.process.toString))
-            .toIndexedSeq
 
-          selectedProcesses
+            if (event == classOf[PathTraversalEvent]) {
+              pathTraversalProcesses.foreach(maybeAdd)
+              if (isIdlingDriving(data, event) || isIdlingParking(data, event)) {
+                maybeAdd(IDLEX)
+              }
+              if (data.vehicleType.vehicleUse == VehicleUse.Freight) {
+                maybeAdd(PTOEX)
+              }
+            } else if (event == classOf[LeavingParkingEvent]) {
+              leavingParkingProcesses.foreach(maybeAdd)
+              if (isIdlingParking(data, event)) {
+                maybeAdd(IDLEX)
+              }
+            }
+
+            selectedProcesses.toIndexedSeq
+          }
         case _ =>
           IndexedSeq.empty
       }
@@ -1448,10 +1692,12 @@ object VehicleEmissions extends LazyLogging {
 
           activityFilter.get(activityBin) match {
             case Some(existingRates) =>
-              val overlappingPollutants =
-                existingRates.values.keySet.intersect(ratesInGramsPerMile.values.keySet)
-              val conflictingPollutants = overlappingPollutants.filter { pollutant =>
-                existingRates.values.getOrElse(pollutant, 0.0) != ratesInGramsPerMile.values.getOrElse(pollutant, 0.0)
+              val conflictingPollutants = Emissions.orderedValues.collect {
+                case pollutant
+                    if existingRates.getOrZero(pollutant) != 0.0 &&
+                      ratesInGramsPerMile.getOrZero(pollutant) != 0.0 &&
+                      existingRates.getOrZero(pollutant) != ratesInGramsPerMile.getOrZero(pollutant) =>
+                  pollutant
               }
               if (conflictingPollutants.nonEmpty) {
                 logger.warn(
@@ -1478,18 +1724,25 @@ object VehicleEmissions extends LazyLogging {
         s"invalidRowsByProcess=${invalidRowsByProcess.toSeq.sortBy(_._1).mkString("[", ", ", "]")}"
       )
 
-      val countyToProcessRates = currentRateFilter.toMap.map { case (county, processMap) =>
-        county -> processMap.toMap.map { case (emissionProcess, roadCategoryMap) =>
-          emissionProcess.trim.toUpperCase -> EmissionsRateFilterStore.ProcessRateIndex.fromRaw(
-            emissionProcess,
-            roadCategoryMap.toMap.map { case (roadCategory, activityBinMap) =>
-              roadCategory -> activityBinMap.toMap
-            }
+      val countyToProcessRates = new JHashMap[String, JHashMap[String, EmissionsRateFilterStore.ProcessRateIndex]]()
+      currentRateFilter.foreach { case (county, processMap) =>
+        val processRates = new JHashMap[String, EmissionsRateFilterStore.ProcessRateIndex]()
+        processMap.foreach { case (emissionProcess, roadCategoryMap) =>
+          val normalizedProcess = emissionProcess.trim.toUpperCase
+          val immutableRoadCategoryMap = roadCategoryMap.iterator.map { case (roadCategory, activityBinMap) =>
+            roadCategory -> activityBinMap.toMap
+          }.toMap
+          processRates.put(
+            normalizedProcess,
+            EmissionsRateFilterStore.ProcessRateIndex.fromRaw(emissionProcess, immutableRoadCategoryMap)
           )
         }
+        countyToProcessRates.put(county, processRates)
       }
-      val supportedProcesses =
-        validRowsByProcess.collect { case (process, count) if count > 0 => process.trim.toUpperCase }.toSet
+      val supportedProcesses = new JHashSet[String]()
+      validRowsByProcess.foreach { case (process, count) =>
+        if (count > 0) supportedProcesses.add(process.trim.toUpperCase)
+      }
       EmissionsRateFilterStore.EmissionsRateFilter(
         countyToProcessRates = countyToProcessRates,
         supportedProcesses = supportedProcesses

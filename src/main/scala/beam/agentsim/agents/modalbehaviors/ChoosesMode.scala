@@ -101,6 +101,28 @@ trait ChoosesMode {
     }
     .toIndexedSeq
 
+  private def describeActivity(activity: Activity): String =
+    s"Activity(type=${activity.getType}, coord=${activity.getCoord}, endTime=${activity.getEndTime})"
+
+  private def describeVehicleIds(vehicleIds: Iterable[Id[BeamVehicle]], limit: Int = 10): String = {
+    val ids = vehicleIds.take(limit).mkString("[", ", ", "]")
+    val suffix = if (vehicleIds.size > limit) s"... total=${vehicleIds.size}" else s" total=${vehicleIds.size}"
+    s"$ids$suffix"
+  }
+
+  private def describeTourModeState(
+    nextAct: Activity,
+    currentTripMode: Option[BeamMode],
+    currentTourMode: Option[BeamTourMode],
+    parentTourStrategy: Option[TourModeChoiceStrategy],
+    currentTourStrategy: TourModeChoiceStrategy,
+    personData: BasePersonData
+  ): String =
+    s"person=${this.id}, nextAct=${describeActivity(nextAct)}, currentTripMode=$currentTripMode, " +
+    s"currentTourMode=$currentTourMode, currentTourVehicle=${personData.currentTourPersonalVehicle}, " +
+    s"currentTourStrategy=$currentTourStrategy, parentTourStrategy=$parentTourStrategy, " +
+    s"availableBeamVehicles=${describeVehicleIds(beamVehicles.keys)}"
+
   private val rideHailModeToFleets: Map[ActivitySimPathType, List[String]] =
     this.beamServices.beamConfig.beam.agentsim.agents.rideHail.managers
       .flatMap(manager =>
@@ -177,7 +199,8 @@ trait ChoosesMode {
             logger.error(
               f"Something is broken in the current plan for agent ${this.id}. " +
               f"Tour vehicle ${data.personData.currentTourPersonalVehicle.get} doesn't exist. " +
-              f"Problematic activity sequence ${_experiencedBeamPlan.activities.map(_.getType).toString()}. Re-requesting vehicles."
+              f"Problematic activity sequence ${_experiencedBeamPlan.activities.map(_.getType).toString()}. Re-requesting vehicles. " +
+              s"${describeTourModeState(nextAct, currentTripMode, currentTourMode, parentTourStrategy, currentTourStrategy, data.personData)}"
             )
             implicit val executionContext: ExecutionContext = context.system.dispatcher
             requestAvailableVehicles(
@@ -229,7 +252,8 @@ trait ChoosesMode {
         } else {
           logger.error(
             s"Person ${this.id} could not find vehicle $currentTourPersonalVehicleId. " +
-            s"The cause is unknown. We will request an available vehicle from the vehicle manager."
+            s"The cause is unknown. We will request an available vehicle from the vehicle manager. " +
+            s"${describeTourModeState(nextAct, currentTripMode, currentTourMode, parentTourStrategy, currentTourStrategy, data.personData)}"
           )
           implicit val executionContext: ExecutionContext = context.system.dispatcher
           requestAvailableVehicles(
@@ -287,7 +311,10 @@ trait ChoosesMode {
             )
           case _ =>
             if (parentTourStrategy.exists(_.tourMode.contains(BIKE_BASED))) {
-              logError(s"Agent ${this.id} is on a bike based tour without a bike vehicle. Generating an emergency one")
+              logError(
+                s"Agent ${this.id} is on a bike based tour without a bike vehicle. Generating an emergency one. " +
+                s"${describeTourModeState(nextAct, currentTripMode, currentTourMode, parentTourStrategy, currentTourStrategy, data.personData)}"
+              )
             }
             implicit val executionContext: ExecutionContext = context.system.dispatcher
             requestAvailableVehicles(
@@ -484,7 +511,11 @@ trait ChoosesMode {
               beamVehicles.get(vehId) match {
                 case Some(vehicle) => Some(vehicle)
                 case None =>
-                  logger.error(s"Vehicle with ID $vehId from currentTourPersonalVehicle not found in beamVehicles map")
+                  logger.error(
+                    s"Vehicle with ID $vehId from currentTourPersonalVehicle not found in beamVehicles map. " +
+                    s"person=${this.id}, nextAct=${describeActivity(nextAct)}, currentTourStrategy=$currentTourStrategy, " +
+                    s"parentTourStrategy=$parentTourStrategy, availableBeamVehicles=${describeVehicleIds(beamVehicles.keys)}"
+                  )
                   //throw new NoSuchElementException(s"Vehicle ID $vehId not found")
                   None
               }
@@ -2019,7 +2050,10 @@ trait ChoosesMode {
                     val vehicleId = personData.currentTourPersonalVehicle.get
                     logger.warn(
                       s"Agent ${this.id} is abandoning vehicle $vehicleId after ${personData.numberOfReplanningAttempts + 1} " +
-                      s"failed attempts to find a route to take it home on a ${mode.toString} trip."
+                      s"failed attempts to find a route to take it home on a ${mode.toString} trip. " +
+                      s"nextAct=${describeActivity(nextAct)}, currentTourStrategy=$currentTourStrategy, " +
+                      s"parentTourStrategy=$parentTourStrategy, availableVehicles=${availableVehicles.map(_.id)}, " +
+                      s"allAvailableStreetVehicles=${allAvailableStreetVehicles.map(_.id)}, personData=$personData"
                     )
 
                     val remainingVehicles = availableVehicles.filterNot(v => v.id == vehicleId)
@@ -3017,7 +3051,10 @@ trait ChoosesMode {
             val intermodalUse: IntermodalUse = if (vehiclesForRouting.isEmpty) {
               logger.error(
                 s"Agent ${this.id} has tour vehicle ${currentTourPersonalVehicle.toString} in PersonData but " +
-                s"has no available vehicles for routing on egress leg of drive transit trip"
+                s"has no available vehicles for routing on egress leg of drive transit trip. " +
+                s"nextAct=${describeActivity(nextAct)}, currentTripMode=$currentTripMode, availableVehicles=${availableVehicles
+                  .map(_.streetVehicle.id)}, " +
+                s"availableStreetVehicles=${availableVehicles.map(_.streetVehicle)}"
               )
               AccessAndOrEgress
             } else {

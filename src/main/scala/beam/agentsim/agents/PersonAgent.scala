@@ -785,6 +785,7 @@ class PersonAgent(
     val availableVehicleIds = availableVehicles.map(_.id).toSet
     // Check current tour strategy
     val currentTourStrategy = getCurrentTourStrategy(newPersonData)
+    val parentTourStrategy = getParentTourStrategy(newPersonData)
     currentTourStrategy.tourVehicle match {
       case Some(currentTourVehicle) =>
         if (!availableVehicleIds.contains(currentTourVehicle)) {
@@ -797,14 +798,15 @@ class PersonAgent(
         if (newPersonData.currentTourPersonalVehicle.isEmpty) {
           logger.warn(
             s"Person ${this.id}: currentTourPersonalVehicle reset to None in $context, " +
-            s"but current tour strategy still references vehicle $currentTourVehicle"
+            s"but current tour strategy still references vehicle $currentTourVehicle. " +
+            s"currentTourStrategy=$currentTourStrategy, parentTourStrategy=$parentTourStrategy, " +
+            s"availableVehicles=${availableVehicleIds.mkString(", ")}, personData=$newPersonData"
           )
         }
       case None => // No current tour vehicle, that's fine
     }
 
     // Check parent tour strategy
-    val parentTourStrategy = getParentTourStrategy(newPersonData)
     parentTourStrategy.flatMap(_.tourVehicle) match {
       case Some(parentTourVehicle) if currentTourStrategy.tourMode.exists(_.isVehicleBased) =>
         if (!availableVehicleIds.contains(parentTourVehicle)) {
@@ -817,7 +819,9 @@ class PersonAgent(
         if (newPersonData.currentTourPersonalVehicle.isEmpty) {
           logger.warn(
             s"Person ${this.id}: currentTourPersonalVehicle reset to None in $context, " +
-            s"but parent tour strategy still references vehicle $parentTourVehicle"
+            s"but parent tour strategy still references vehicle $parentTourVehicle. " +
+            s"currentTourStrategy=$currentTourStrategy, parentTourStrategy=$parentTourStrategy, " +
+            s"availableVehicles=${availableVehicleIds.mkString(", ")}, personData=$newPersonData"
           )
         }
       case Some(parentTourVehicle) =>
@@ -1222,6 +1226,10 @@ class PersonAgent(
       val nextCoord = nextAct.getCoord
       // Change -- just switch back to walk_transit
       // Have to give up my mode as well, perhaps there's no option left for driving.
+      logger.warn(
+        s"Setting TripModeChoiceStrategy(None) during replanning on activity element instead of trip: person=${this.id}, " +
+        s"activityType=${nextAct.getType}, coord=${nextCoord}, trip=${_experiencedBeamPlan.getTripContaining(nextAct)}"
+      )
       _experiencedBeamPlan.putStrategy(nextAct, TripModeChoiceStrategy(mode = None))
       val (updatedTourMode, updatedTourPersonalVehicle): (Option[BeamTourMode], Option[Id[BeamVehicle]]) =
         if (nextAct.getType.equalsIgnoreCase("Home")) { (None, None) }
@@ -1709,7 +1717,14 @@ class PersonAgent(
                   data.currentTourPersonalVehicle
                 }
               case Some(personalVehId) =>
-                logger.error(s"Vehicle ${personalVehId.toString} seems to have disappeared")
+                logger.error(
+                  s"Vehicle ${personalVehId.toString} seems to have disappeared. " +
+                  s"person=${this.id}, activity=${activity.getType}, currentActivityIndex=${data.currentActivityIndex}, " +
+                  s"currentTourStrategy=${_experiencedBeamPlan.getStrategy[TourModeChoiceStrategy](currentTour(data))}, " +
+                  s"parentTourStrategy=${getParentTourStrategy(data)}, availableBeamVehicles=${beamVehicles.keys
+                    .mkString(", ")}, " +
+                  s"currentTrip=${data.currentTrip}, restOfCurrentTrip=${data.restOfCurrentTrip}"
+                )
                 logger.warn("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
                 None
               case None =>
