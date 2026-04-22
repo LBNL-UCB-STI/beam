@@ -157,7 +157,8 @@ class TransitInitializer(
     val transitData = transportNetwork.transitLayer.tripPatterns.asScala.par.flatMap { tripPattern =>
       val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
       val routeKey = s"${route.agency_id}:${route.route_id}"
-      val hasActiveSchedules = tripPattern.tripSchedules.asScala.exists(tripSchedule => activeServicesToday.get(tripSchedule.serviceCode))
+      val hasActiveSchedules =
+        tripPattern.tripSchedules.asScala.exists(tripSchedule => activeServicesToday.get(tripSchedule.serviceCode))
       if (hasActiveSchedules) {
         activeRouteIds.put(routeKey, ())
         if (tripPattern.stops.exists(stop => transportNetwork.transitLayer.streetVertexForStop.get(stop) == -1)) {

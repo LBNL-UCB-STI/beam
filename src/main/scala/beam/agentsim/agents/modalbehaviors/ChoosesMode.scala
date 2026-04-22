@@ -110,11 +110,16 @@ trait ChoosesMode {
     s"$ids$suffix"
   }
 
-  private def describeVehicleLocation(vehicleId: Id[BeamVehicle], vehicles: Iterable[VehicleOrToken] = Iterable.empty): String =
+  private def describeVehicleLocation(
+    vehicleId: Id[BeamVehicle],
+    vehicles: Iterable[VehicleOrToken] = Iterable.empty
+  ): String =
     beamVehicles
       .get(vehicleId)
       .map(_.vehicle.spaceTime)
-      .orElse(vehicles.collectFirst { case vehicleOrToken if vehicleOrToken.id == vehicleId => vehicleOrToken.streetVehicle.locationUTM })
+      .orElse(vehicles.collectFirst {
+        case vehicleOrToken if vehicleOrToken.id == vehicleId => vehicleOrToken.streetVehicle.locationUTM
+      })
       .map(st => s"SpaceTime(loc=${st.loc}, time=${st.time})")
       .getOrElse("<unknown>")
 
@@ -130,11 +135,14 @@ trait ChoosesMode {
     mode: BeamMode,
     availableVehicles: Iterable[VehicleOrToken]
   ): String = {
-    val availableModes = availableVehicles.map(_.streetVehicle.mode.toString).toSeq.distinct.sorted.mkString("[", ", ", "]")
+    val availableModes =
+      availableVehicles.map(_.streetVehicle.mode.toString).toSeq.distinct.sorted.mkString("[", ", ", "]")
     val excludedModes = choosesModeData.excludeModes.toSeq.map(_.toString).distinct.sorted.mkString("[", ", ", "]")
     val currentTripMode = choosesModeData.personData.currentTripMode.map(_.toString).getOrElse("<none>")
     val reusedTransitResponses =
-      choosesModeData.routingResponse.exists(_.request.exists(_.withTransit)) && choosesModeData.rideHail2TransitRoutingRequestId.nonEmpty
+      choosesModeData.routingResponse.exists(
+        _.request.exists(_.withTransit)
+      ) && choosesModeData.rideHail2TransitRoutingRequestId.nonEmpty
     s"failedMode=$mode, replanningAttempts=${choosesModeData.personData.numberOfReplanningAttempts + 1}, " +
     s"currentTripMode=$currentTripMode, excludedModes=$excludedModes, availableVehicleModes=$availableModes, " +
     s"reusedTransitResponses=$reusedTransitResponses"

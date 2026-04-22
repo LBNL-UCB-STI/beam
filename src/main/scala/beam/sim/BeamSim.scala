@@ -482,8 +482,9 @@ class BeamSim @Inject() (
         }
 
         val fileNames = iterationSummaryStats.flatMap(_.keySet).distinct.sorted
-        val groupedDirectories = graphFileNameDirectory.collect { case (key, value) if value >= numberOfSummaryGraphsPerDirectory =>
-          key
+        val groupedDirectories = graphFileNameDirectory.collect {
+          case (key, value) if value >= numberOfSummaryGraphsPerDirectory =>
+            key
         }.toSet
         MethodWatcher.withLoggingInvocationTime(
           "Creating summary stats graphs",
