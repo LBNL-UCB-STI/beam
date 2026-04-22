@@ -34,6 +34,7 @@ case class BeamVehicleType(
   payloadCapacityInKg: Option[Double] = None,
   wheelchairAccessible: Option[Boolean] = None,
   restrictRoadsByFreeSpeedInMeterPerSecond: Option[Double] = None,
+  idleTimeFraction: Option[Double] = None,
   emissionsRatesFile: Option[String] = None,
   emissionsRatesInGramsPerMile: Option[VehicleEmissions.EmissionsProfile] = None,
   vehicleUse: VehicleUse = VehicleUse.Passenger

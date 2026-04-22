@@ -1887,8 +1887,7 @@ object BeamConfig {
             fuelFilter: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.FuelFilter,
             pollutantsFilter: java.lang.String,
             ratesFilter: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.RatesFilter,
-            skims: scala.Boolean,
-            workdayIdleTimeFraction: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.WorkdayIdleTimeFraction
+            skims: scala.Boolean
           )
 
           object Emissions {
@@ -1962,27 +1961,6 @@ object BeamConfig {
               }
             }
 
-            case class WorkdayIdleTimeFraction(
-              bus: scala.Double,
-              class456: scala.Double,
-              class78t: scala.Double,
-              class78v: scala.Double
-            )
-
-            object WorkdayIdleTimeFraction {
-
-              def apply(
-                c: com.typesafe.config.Config
-              ): BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.WorkdayIdleTimeFraction = {
-                BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.WorkdayIdleTimeFraction(
-                  bus = if (c.hasPathOrNull("bus")) c.getDouble("bus") else 0.3554,
-                  class456 = if (c.hasPathOrNull("class456")) c.getDouble("class456") else 0.3327,
-                  class78t = if (c.hasPathOrNull("class78t")) c.getDouble("class78t") else 0.1281,
-                  class78v = if (c.hasPathOrNull("class78v")) c.getDouble("class78v") else 0.3129
-                )
-              }
-            }
-
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions = {
               BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions(
                 countyLookup = BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.CountyLookup(
@@ -2001,11 +1979,7 @@ object BeamConfig {
                   if (c.hasPathOrNull("ratesFilter")) c.getConfig("ratesFilter")
                   else com.typesafe.config.ConfigFactory.parseString("ratesFilter{}")
                 ),
-                skims = !c.hasPathOrNull("skims") || c.getBoolean("skims"),
-                workdayIdleTimeFraction = BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.WorkdayIdleTimeFraction(
-                  if (c.hasPathOrNull("workdayIdleTimeFraction")) c.getConfig("workdayIdleTimeFraction")
-                  else com.typesafe.config.ConfigFactory.parseString("workdayIdleTimeFraction{}")
-                )
+                skims = !c.hasPathOrNull("skims") || c.getBoolean("skims")
               )
             }
           }
@@ -3515,11 +3489,9 @@ object BeamConfig {
           baseOutputDirectory =
             if (c.hasPathOrNull("baseOutputDirectory")) c.getString("baseOutputDirectory") else "output",
           collectAndCreateBeamAnalysisAndGraphs =
-            if (c.hasPathOrNull("collectAndCreateBeamAnalysisAndGraphs"))
-              c.getBoolean(
-                "collectAndCreateBeamAnalysisAndGraphs"
-              )
-            else true,
+            !c.hasPathOrNull("collectAndCreateBeamAnalysisAndGraphs") || c.getBoolean(
+              "collectAndCreateBeamAnalysisAndGraphs"
+            ),
           defaultWriteInterval = if (c.hasPathOrNull("defaultWriteInterval")) c.getInt("defaultWriteInterval") else 1,
           displayPerformanceTimings =
             c.hasPathOrNull("displayPerformanceTimings") && c.getBoolean("displayPerformanceTimings"),
@@ -3542,7 +3514,7 @@ object BeamConfig {
             else com.typesafe.config.ConfigFactory.parseString("stats{}")
           ),
           writeEventsInterval = if (c.hasPathOrNull("writeEventsInterval")) c.getInt("writeEventsInterval") else 1,
-          writeGraphs = if (c.hasPathOrNull("writeGraphs")) c.getBoolean("writeGraphs") else true,
+          writeGraphs = !c.hasPathOrNull("writeGraphs") || c.getBoolean("writeGraphs"),
           writePlansInterval = if (c.hasPathOrNull("writePlansInterval")) c.getInt("writePlansInterval") else 0,
           writeR5RoutesInterval = if (c.hasPathOrNull("writeR5RoutesInterval")) c.getInt("writeR5RoutesInterval") else 0
         )
@@ -4645,9 +4617,7 @@ object BeamConfig {
         case class EmissionsSkimmer(
           fileBaseName: java.lang.String,
           fileOutputFormat: java.lang.String,
-          name: java.lang.String,
-          writeAggregatedSkimsInterval: scala.Int,
-          writeSkimsInterval: scala.Int
+          name: java.lang.String
         )
 
         object EmissionsSkimmer {
@@ -4656,10 +4626,7 @@ object BeamConfig {
             BeamConfig.Beam.Router.Skim.EmissionsSkimmer(
               fileBaseName = if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "skimsEmissions",
               fileOutputFormat = if (c.hasPathOrNull("fileOutputFormat")) c.getString("fileOutputFormat") else "csv.gz",
-              name = if (c.hasPathOrNull("name")) c.getString("name") else "emissions-skimmer",
-              writeAggregatedSkimsInterval =
-                if (c.hasPathOrNull("writeAggregatedSkimsInterval")) c.getInt("writeAggregatedSkimsInterval") else -1,
-              writeSkimsInterval = if (c.hasPathOrNull("writeSkimsInterval")) c.getInt("writeSkimsInterval") else -1
+              name = if (c.hasPathOrNull("name")) c.getString("name") else "emissions-skimmer"
             )
           }
         }

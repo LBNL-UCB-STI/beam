@@ -196,6 +196,7 @@ object BeamVehicleUtils extends LazyLogging {
         val wheelchairAccessible = optionalNonEmpty(line, "wheelchairAccessible").map(_.toBoolean)
         val restrictRoadsByFreeSpeed =
           optionalNonEmpty(line, "restrictRoadsByFreeSpeedInMeterPerSecond").map(_.toDouble)
+        val idleTimeFraction = optionalNonEmpty(line, "idleTimeFraction").map(_.toDouble)
         val emissionsRatesInGramsPerMile =
           optionalNonEmpty(line, "emissionsRatesInGramsPerMile").flatMap(
             parseEmissionsString(_, Some(vehicleTypeId.toString))
@@ -234,6 +235,7 @@ object BeamVehicleUtils extends LazyLogging {
           payloadCapacity,
           wheelchairAccessible,
           restrictRoadsByFreeSpeed,
+          idleTimeFraction,
           emissionsRatesFile,
           emissionsRatesInGramsPerMile,
           vehicleUse = vehicleUse

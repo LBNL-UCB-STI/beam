@@ -1,12 +1,6 @@
 package beam.agentsim.agents.vehicles
 
 import beam.agentsim.agents.vehicles.FuelType.{Diesel, Electricity, Gasoline, NaturalGas}
-import beam.agentsim.agents.vehicles.VehicleCategory.{
-  Class456Vocational,
-  Class78Tractor,
-  Class78Vocational,
-  MediumDutyPassenger
-}
 import beam.agentsim.agents.vehicles.VehicleEmissions.Emissions.{formatName, EmissionType}
 import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsProfile.EmissionsProcess
 import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsRateFilterStore.EmissionsRateFilter
@@ -1240,24 +1234,6 @@ object VehicleEmissions extends LazyLogging {
       }
     }
 
-    private val workdayIdleFactor: Map[
-      VehicleCategory.VehicleCategory,
-      (BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions) => Double
-    ] = Map(
-      MediumDutyPassenger -> { (emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions) =>
-        emissionsConfig.workdayIdleTimeFraction.bus
-      },
-      Class456Vocational -> { (emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions) =>
-        emissionsConfig.workdayIdleTimeFraction.class456
-      },
-      Class78Vocational -> { (emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions) =>
-        emissionsConfig.workdayIdleTimeFraction.class78v
-      },
-      Class78Tractor -> { (emissionsConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions) =>
-        emissionsConfig.workdayIdleTimeFraction.class78t
-      }
-    )
-
     val calculationMap: Map[
       EmissionsProcess,
       (
@@ -1323,8 +1299,7 @@ object VehicleEmissions extends LazyLogging {
                     data.activityStartTime
                   )
                 updateOperationTime(operationTimeMap, data.vehicleId, data.linkStartTime + vehicleDurationInSec)
-                val workingIdleFactor =
-                  workdayIdleFactor.get(data.vehicleType.vehicleCategory).map(_(emissionsConfig)).getOrElse(0.0)
+                val workingIdleFactor = data.vehicleType.idleTimeFraction.getOrElse(0.0)
                 val portionOfIdlingHours =
                   ((operationDurationInSec + vehicleDurationInSec) / 3600.0) * workingIdleFactor
                 portionOfIdlingHours
