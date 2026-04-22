@@ -258,6 +258,7 @@ trait ChoosesMode {
             if (parentTourStrategy.exists(_.tourMode.contains(CAR_BASED))) {
               logError(s"Agent ${this.id} is on a car tour without an appropriate car. Generating an emergency one")
               if (parentTourStrategy.exists(_.tourVehicle.nonEmpty)) {
+                clearParentTourVehicleStrategy(data.personData)
                 logError(
                   s"Removing vehicle ${parentTourStrategy.get.tourVehicle.get} " +
                   s"from BeamVehicles for agent ${this.id}"
@@ -1850,6 +1851,12 @@ trait ChoosesMode {
                 s"activity ${_experiencedBeamPlan.getTripContaining(personData.currentActivityIndex)} " +
                 s"of plan ${_experiencedBeamPlan.activities.map(_.getType)}. Available vehicles ${beamVehicles.keys.toString()}"
               )
+              updateTourModeStrategy(
+                currentTourStrategy.tourMode,
+                None,
+                nextAct,
+                choosesModeData.allAvailableStreetVehicles
+              )
               goto(ChoosingMode) using choosesModeData.safeUpdatePersonData(
                 personData.copy(currentTourPersonalVehicle = None),
                 context = "Replanning after giving up tour vehicle"
@@ -2745,7 +2752,11 @@ trait ChoosesMode {
         val vehicles = availableVehicles
           .filter(v => BeamVehicle.isSharedTeleportationVehicle(v.id))
           .map(car_vehicle => car_vehicle.streetVehicle.copy(mode = CAR_HOV2))
-        makeRequestWith(withTransit = shouldAlwaysQueryTransit, vehicles :+ bodyStreetVehicle)
+        makeRequestWith(
+          withTransit = shouldAlwaysQueryTransit,
+          vehicles :+ bodyStreetVehicle,
+          requestedMode = currentTripMode
+        )
         responsePlaceholders = makeResponsePlaceholders(
           withRouting = true,
           withRideHail = alreadyRequestedRideHail,
@@ -2755,7 +2766,11 @@ trait ChoosesMode {
         val vehicles = availableVehicles
           .filter(v => BeamVehicle.isSharedTeleportationVehicle(v.id))
           .map(car_vehicle => car_vehicle.streetVehicle.copy(mode = CAR_HOV3))
-        makeRequestWith(withTransit = shouldAlwaysQueryTransit, vehicles :+ bodyStreetVehicle)
+        makeRequestWith(
+          withTransit = shouldAlwaysQueryTransit,
+          vehicles :+ bodyStreetVehicle,
+          requestedMode = currentTripMode
+        )
         responsePlaceholders = makeResponsePlaceholders(
           withRouting = true,
           withRideHail = alreadyRequestedRideHail,
@@ -3266,6 +3281,14 @@ trait ChoosesMode {
     _experiencedBeamPlan.putStrategy(currentTour, updatedTourStrategy)
     updatedTourStrategy
   }
+
+  private def clearParentTourVehicleStrategy(personData: BasePersonData): Unit = {
+    currentTour(personData).originActivity.foreach { parentTourActivity =>
+      val parentTour = _experiencedBeamPlan.getTourContaining(parentTourActivity)
+      val parentTourStrategy = _experiencedBeamPlan.getStrategy[TourModeChoiceStrategy](parentTour)
+      _experiencedBeamPlan.putStrategy(parentTour, parentTourStrategy.copy(tourVehicle = None))
+    }
+  }
 }
 
 object ChoosesMode {
@@ -3420,7 +3443,10 @@ object ChoosesMode {
         newAllAvailableStreetVehicles,
         s"ChoosesModeData.safeUpdatePersonData: $context"
       )
-      data.copy(personData = newPersonData)
+      data.copy(
+        personData = newPersonData,
+        allAvailableStreetVehicles = newAllAvailableStreetVehicles
+      )
     }
 
     def safeCopy(

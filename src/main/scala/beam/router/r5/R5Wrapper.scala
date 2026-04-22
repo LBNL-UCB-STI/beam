@@ -1890,6 +1890,10 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       case Some(CAR | CAR_HOV2 | CAR_HOV3) if !withTransit =>
         modeVehicle(LegMode.CAR)
 
+      // Teleportation should route using the teleportation car vehicle only.
+      case Some(HOV2_TELEPORTATION | HOV3_TELEPORTATION) =>
+        modeVehicle(LegMode.CAR)
+
       // Bike without transit - only route bike, not walk alternative
       case Some(BIKE) if !withTransit =>
         modeVehicle(LegMode.BICYCLE)
@@ -1997,6 +2001,10 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
 
       // Car only (non-transit) - only route car, not walk
       case Some(CAR | CAR_HOV2 | CAR_HOV3 | FREIGHT) if !withTransit =>
+        modes.filter(_ == LegMode.CAR)
+
+      // Teleportation should only build the car route backed by the teleportation vehicle.
+      case Some(HOV2_TELEPORTATION | HOV3_TELEPORTATION) =>
         modes.filter(_ == LegMode.CAR)
 
       // Bike only (non-transit) - only route bike, not walk
