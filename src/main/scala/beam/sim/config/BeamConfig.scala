@@ -3505,8 +3505,6 @@ object BeamConfig {
       }
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Outputs = {
-        val legacyWriteAnalysis =
-          if (c.hasPathOrNull("writeAnalysis")) scala.Some(c.getBoolean("writeAnalysis")) else scala.None
         BeamConfig.Beam.Outputs(
           addTimestampToOutputDirectory =
             !c.hasPathOrNull("addTimestampToOutputDirectory") || c.getBoolean("addTimestampToOutputDirectory"),
@@ -3521,7 +3519,7 @@ object BeamConfig {
               c.getBoolean(
                 "collectAndCreateBeamAnalysisAndGraphs"
               )
-            else legacyWriteAnalysis.getOrElse(true),
+            else true,
           defaultWriteInterval = if (c.hasPathOrNull("defaultWriteInterval")) c.getInt("defaultWriteInterval") else 1,
           displayPerformanceTimings =
             c.hasPathOrNull("displayPerformanceTimings") && c.getBoolean("displayPerformanceTimings"),
@@ -3544,8 +3542,7 @@ object BeamConfig {
             else com.typesafe.config.ConfigFactory.parseString("stats{}")
           ),
           writeEventsInterval = if (c.hasPathOrNull("writeEventsInterval")) c.getInt("writeEventsInterval") else 1,
-          writeGraphs =
-            if (c.hasPathOrNull("writeGraphs")) c.getBoolean("writeGraphs") else legacyWriteAnalysis.getOrElse(true),
+          writeGraphs = if (c.hasPathOrNull("writeGraphs")) c.getBoolean("writeGraphs") else true,
           writePlansInterval = if (c.hasPathOrNull("writePlansInterval")) c.getInt("writePlansInterval") else 0,
           writeR5RoutesInterval = if (c.hasPathOrNull("writeR5RoutesInterval")) c.getInt("writeR5RoutesInterval") else 0
         )

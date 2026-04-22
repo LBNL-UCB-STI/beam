@@ -20,6 +20,7 @@ import java.util.Set;
  */
 public class BeamEventsWriterCSV extends BeamEventsWriterBase {
     private final Logger log = LoggerFactory.getLogger(BeamEventsWriterCSV.class);
+    private static final int ROW_BUILDER_CAPACITY = 1024;
     private final LinkedHashMap<String, Integer> attributeToColumnIndexMapping = new LinkedHashMap<>();
 
     public BeamEventsWriterCSV(final String outfilename,
@@ -86,24 +87,25 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase {
             }
         }
         try {
+            StringBuilder builder = new StringBuilder(ROW_BUILDER_CAPACITY);
             for (int i = 0; i < row.length; i++) {
                 String str = row[i];
                 if (str != null) {
                     if (str.contains(",")) {
-                        this.outWriter.append('"');
-                        this.outWriter.append(str);
-                        this.outWriter.append('"');
+                        builder.append('"');
+                        builder.append(str);
+                        builder.append('"');
                     } else {
-                        this.outWriter.append(str);
+                        builder.append(str);
                     }
                 }
                 if (i < row.length - 1) {
-                    this.outWriter.append(",");
+                    builder.append(",");
                 } else {
-                    this.outWriter.append("\n");
+                    builder.append("\n");
                 }
             }
-            this.outWriter.flush();
+            this.outWriter.append(builder);
         } catch (IOException e) {
             log.error("exception occurred due to ", e);
         }

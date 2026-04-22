@@ -119,6 +119,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
   protected val skimType: SkimType.Value
   protected val skimOutputFormat: String = "csv.gz"
   protected lazy val eventType: String = skimName + "-event"
+  private val rowBatchChars = 1 << 20
 
   private val awaitSkimLoading = 20.minutes
   private val skimCfg = beamConfig.beam.router.skim
@@ -284,7 +285,20 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
     try {
       writer = org.matsim.core.utils.io.IOUtils.getBufferedWriter(filePath)
       writer.write(skimFileHeader + "\n")
-      skim.foreach(row => writer.write(row._1.toCsv + "," + row._2.toCsv + "\n"))
+      val batch = new java.lang.StringBuilder(math.min(rowBatchChars, skim.size.max(1) * 64))
+      skim.foreach { row =>
+        batch.append(row._1.toCsv)
+        batch.append(",")
+        batch.append(row._2.toCsv)
+        batch.append("\n")
+        if (batch.length() >= rowBatchChars) {
+          writer.write(batch.toString)
+          batch.setLength(0)
+        }
+      }
+      if (batch.length() > 0) {
+        writer.write(batch.toString)
+      }
       writer.close()
     } catch {
       case NonFatal(ex) =>

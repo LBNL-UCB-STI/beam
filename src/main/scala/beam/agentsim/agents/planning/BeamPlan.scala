@@ -279,20 +279,12 @@ class BeamPlan extends Plan {
     planElementMap.put(strategy.getClass, strategy)
 
     (strategy, planElement) match {
-      case (_: TripModeChoiceStrategy, _: Activity) =>
-        logger.warn(
-          s"TripModeChoiceStrategy stored on activity-level element: strategy=$strategy, element=${describePlanElement(planElement)}"
-        )
-      case _ =>
-    }
-
-    (strategy, planElement) match {
       case (tripModeChoiceStrategy: TripModeChoiceStrategy, tour: Tour) =>
         tripModeChoiceStrategy.tripStrategies(tour, this).foreach { case (trip, _) =>
           putStrategy(trip, tripModeChoiceStrategy)
         }
       case (tripModeChoiceStrategy: TripModeChoiceStrategy, trip: Trip) =>
-        putStrategy(trip.activity, tripModeChoiceStrategy) // I don't think this gets used
+        putStrategy(trip.activity, tripModeChoiceStrategy)
         trip.leg.foreach(theLeg => putStrategy(theLeg, tripModeChoiceStrategy))
       case (_: TourModeChoiceStrategy, _: Trip) =>
         throw new RuntimeException("Can only set tour mode strategy from within a tour")
