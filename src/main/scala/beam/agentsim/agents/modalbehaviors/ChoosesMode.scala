@@ -101,82 +101,6 @@ trait ChoosesMode {
     }
     .toIndexedSeq
 
-  private def describeActivity(activity: Activity): String =
-    s"Activity(type=${activity.getType}, coord=${activity.getCoord}, endTime=${activity.getEndTime})"
-
-  private def describeVehicleIds(vehicleIds: Iterable[Id[BeamVehicle]], limit: Int = 10): String = {
-    val ids = vehicleIds.take(limit).mkString("[", ", ", "]")
-    val suffix = if (vehicleIds.size > limit) s"... total=${vehicleIds.size}" else s" total=${vehicleIds.size}"
-    s"$ids$suffix"
-  }
-
-  private def describeVehicleLocation(
-    vehicleId: Id[BeamVehicle],
-    vehicles: Iterable[VehicleOrToken] = Iterable.empty
-  ): String =
-    beamVehicles
-      .get(vehicleId)
-      .map(_.vehicle.spaceTime)
-      .orElse(vehicles.collectFirst {
-        case vehicleOrToken if vehicleOrToken.id == vehicleId => vehicleOrToken.streetVehicle.locationUTM
-      })
-      .map(st => s"SpaceTime(loc=${st.loc}, time=${st.time})")
-      .getOrElse("<unknown>")
-
-  private def describeTourOriginHome(nextAct: Activity): String = {
-    val currentTour = _experiencedBeamPlan.getTourContaining(nextAct)
-    currentTour.originActivity
-      .map(origin => s"type=${origin.getType}, coord=${origin.getCoord}, endTime=${origin.getEndTime}")
-      .getOrElse("<unknown>")
-  }
-
-  private def describeFallbackAttempts(
-    choosesModeData: ChoosesModeData,
-    mode: BeamMode,
-    availableVehicles: Iterable[VehicleOrToken]
-  ): String = {
-    val availableModes =
-      availableVehicles.map(_.streetVehicle.mode.toString).toSeq.distinct.sorted.mkString("[", ", ", "]")
-    val excludedModes = choosesModeData.excludeModes.toSeq.map(_.toString).distinct.sorted.mkString("[", ", ", "]")
-    val currentTripMode = choosesModeData.personData.currentTripMode.map(_.toString).getOrElse("<none>")
-    val reusedTransitResponses =
-      choosesModeData.routingResponse.exists(
-        _.request.exists(_.withTransit)
-      ) && choosesModeData.rideHail2TransitRoutingRequestId.nonEmpty
-    s"failedMode=$mode, replanningAttempts=${choosesModeData.personData.numberOfReplanningAttempts + 1}, " +
-    s"currentTripMode=$currentTripMode, excludedModes=$excludedModes, availableVehicleModes=$availableModes, " +
-    s"reusedTransitResponses=$reusedTransitResponses"
-  }
-
-  private def describeTourVehicleRecoveryDiagnostics(
-    choosesModeData: ChoosesModeData,
-    mode: BeamMode,
-    nextAct: Activity,
-    availableVehicles: Iterable[VehicleOrToken],
-    maybeVehicleId: Option[Id[BeamVehicle]]
-  ): String = {
-    val vehicleText = maybeVehicleId
-      .map(vehicleId =>
-        s", currentTourVehicle=$vehicleId, vehicleLocation=${describeVehicleLocation(vehicleId, availableVehicles)}, " +
-        s"targetTourOrigin=${describeTourOriginHome(nextAct)}"
-      )
-      .getOrElse("")
-    s"${describeFallbackAttempts(choosesModeData, mode, availableVehicles)}$vehicleText"
-  }
-
-  private def describeTourModeState(
-    nextAct: Activity,
-    currentTripMode: Option[BeamMode],
-    currentTourMode: Option[BeamTourMode],
-    parentTourStrategy: Option[TourModeChoiceStrategy],
-    currentTourStrategy: TourModeChoiceStrategy,
-    personData: BasePersonData
-  ): String =
-    s"person=${this.id}, nextAct=${describeActivity(nextAct)}, currentTripMode=$currentTripMode, " +
-    s"currentTourMode=$currentTourMode, currentTourVehicle=${personData.currentTourPersonalVehicle}, " +
-    s"currentTourStrategy=$currentTourStrategy, parentTourStrategy=$parentTourStrategy, " +
-    s"availableBeamVehicles=${describeVehicleIds(beamVehicles.keys)}"
-
   private val rideHailModeToFleets: Map[ActivitySimPathType, List[String]] =
     this.beamServices.beamConfig.beam.agentsim.agents.rideHail.managers
       .flatMap(manager =>
@@ -253,8 +177,7 @@ trait ChoosesMode {
             logger.error(
               f"Something is broken in the current plan for agent ${this.id}. " +
               f"Tour vehicle ${data.personData.currentTourPersonalVehicle.get} doesn't exist. " +
-              f"Problematic activity sequence ${_experiencedBeamPlan.activities.map(_.getType).toString()}. Re-requesting vehicles. " +
-              s"${describeTourModeState(nextAct, currentTripMode, currentTourMode, parentTourStrategy, currentTourStrategy, data.personData)}"
+              f"Problematic activity sequence ${_experiencedBeamPlan.activities.map(_.getType).toString()}. Re-requesting vehicles."
             )
             implicit val executionContext: ExecutionContext = context.system.dispatcher
             requestAvailableVehicles(
@@ -306,8 +229,7 @@ trait ChoosesMode {
         } else {
           logger.error(
             s"Person ${this.id} could not find vehicle $currentTourPersonalVehicleId. " +
-            s"The cause is unknown. We will request an available vehicle from the vehicle manager. " +
-            s"${describeTourModeState(nextAct, currentTripMode, currentTourMode, parentTourStrategy, currentTourStrategy, data.personData)}"
+            s"The cause is unknown. We will request an available vehicle from the vehicle manager."
           )
           implicit val executionContext: ExecutionContext = context.system.dispatcher
           requestAvailableVehicles(
@@ -366,8 +288,7 @@ trait ChoosesMode {
           case _ =>
             if (parentTourStrategy.exists(_.tourMode.contains(BIKE_BASED))) {
               logError(
-                s"Agent ${this.id} is on a bike based tour without a bike vehicle. Generating an emergency one. " +
-                s"${describeTourModeState(nextAct, currentTripMode, currentTourMode, parentTourStrategy, currentTourStrategy, data.personData)}"
+                s"Agent ${this.id} is on a bike based tour without a bike vehicle. Generating an emergency one."
               )
             }
             implicit val executionContext: ExecutionContext = context.system.dispatcher
@@ -566,9 +487,7 @@ trait ChoosesMode {
                 case Some(vehicle) => Some(vehicle)
                 case None =>
                   logger.error(
-                    s"Vehicle with ID $vehId from currentTourPersonalVehicle not found in beamVehicles map. " +
-                    s"person=${this.id}, nextAct=${describeActivity(nextAct)}, currentTourStrategy=$currentTourStrategy, " +
-                    s"parentTourStrategy=$parentTourStrategy, availableBeamVehicles=${describeVehicleIds(beamVehicles.keys)}"
+                    s"Vehicle with ID $vehId from currentTourPersonalVehicle not found in beamVehicles map."
                   )
                   //throw new NoSuchElementException(s"Vehicle ID $vehId not found")
                   None
@@ -2074,8 +1993,7 @@ trait ChoosesMode {
                 ) && choosesModeData.rideHail2TransitRoutingRequestId.nonEmpty && !choosesModeData.isWithinTripReplanning && personData.numberOfReplanningAttempts == 0
               ) {
                 logger.info(
-                  s"Person ${this.id} retrying mode choice after route failure for ${mode.toString}. " +
-                  s"${describeTourVehicleRecoveryDiagnostics(choosesModeData, mode, nextAct, availableVehicles, personData.currentTourPersonalVehicle)}"
+                  s"Person ${this.id} retrying mode choice after route failure for ${mode.toString}."
                 )
                 self ! RetryModeChoice(getCurrentTriggerId.get)
                 val updatedTripStrategy = TripModeChoiceStrategy(None)
@@ -2108,12 +2026,7 @@ trait ChoosesMode {
                     val vehicleId = personData.currentTourPersonalVehicle.get
                     logger.warn(
                       s"Agent ${this.id} is abandoning vehicle $vehicleId after ${personData.numberOfReplanningAttempts + 1} " +
-                      s"failed attempts to find a route to take it home on a ${mode.toString} trip. " +
-                      s"routeFailureReason=chosen mode route not available during tour-vehicle recovery, " +
-                      s"${describeTourVehicleRecoveryDiagnostics(choosesModeData, mode, nextAct, allAvailableStreetVehicles, Some(vehicleId))}, " +
-                      s"nextAct=${describeActivity(nextAct)}, currentTourStrategy=$currentTourStrategy, " +
-                      s"parentTourStrategy=$parentTourStrategy, availableVehicles=${availableVehicles.map(_.id)}, " +
-                      s"allAvailableStreetVehicles=${allAvailableStreetVehicles.map(_.id)}, personData=$personData"
+                      s"failed attempts to find a route to take it home on a ${mode.toString} trip."
                     )
 
                     val remainingVehicles = availableVehicles.filterNot(v => v.id == vehicleId)
@@ -2157,8 +2070,7 @@ trait ChoosesMode {
                 // Need to gather more routing options
                 self ! MobilityStatusResponse(availableVehicles, getCurrentTriggerId.get)
                 logger.info(
-                  s"Person ${body.id} replanning because planned mode ${mode.toString} route was not available. " +
-                  s"${describeTourVehicleRecoveryDiagnostics(choosesModeData, mode, nextAct, updatedVehicles, newCurrentTourVehicle)}"
+                  s"Person ${body.id} replanning because planned mode ${mode.toString} route was not available."
                 )
                 val updatedTripStrategy = TripModeChoiceStrategy(None)
                 _experiencedBeamPlan.putStrategy(
@@ -3110,10 +3022,7 @@ trait ChoosesMode {
             val intermodalUse: IntermodalUse = if (vehiclesForRouting.isEmpty) {
               logger.error(
                 s"Agent ${this.id} has tour vehicle ${currentTourPersonalVehicle.toString} in PersonData but " +
-                s"has no available vehicles for routing on egress leg of drive transit trip. " +
-                s"nextAct=${describeActivity(nextAct)}, currentTripMode=$currentTripMode, availableVehicles=${availableVehicles
-                  .map(_.streetVehicle.id)}, " +
-                s"availableStreetVehicles=${availableVehicles.map(_.streetVehicle)}"
+                s"has no available vehicles for routing on egress leg of drive transit trip."
               )
               AccessAndOrEgress
             } else {
