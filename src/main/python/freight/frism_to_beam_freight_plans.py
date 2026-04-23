@@ -17,14 +17,8 @@ from scipy.spatial import cKDTree
 from shapely.geometry import Point
 import hashlib
 
-# from estimate_stop_duration import update_operation_duration
-
 # Get the absolute path to the directory containing this script
 current_dir = os.path.dirname(os.path.abspath(__file__))
-
-# Go up to the parent directory that contains the 'python' directory
-# If your file is in /path/to/python/freight/frism_to_beam_freight_plans.py
-# This will add /path/to to sys.path
 parent_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, parent_dir)
 
@@ -32,35 +26,58 @@ warnings.filterwarnings('ignore')
 
 fastsim_routee_files = {
     "primary_powertrain": {
+        "ld1-D-Diesel": np.nan,
+        "ld1-G-Gasoline": "Baseline_FASTSimData_Representative_Vehicles_lookup_tables_output/2050_gasoline_Chevrolet_City_Express_Cargo_Van_lookup_table.csv.gz",
+        "ld1-E-BE": "Baseline_FASTSimData_Representative_Vehicles_lookup_tables_output/2047_electric_Ford_Transit_Connect_Van_2WDc2_lookup_table.csv.gz",
+        "ld1-E-H2FC": "Baseline_FASTSimData_Representative_Vehicles_lookup_tables_output/2050_hydrogen_Honda_Odysseyc5_lookup_table.csv.gz",
+        "ld1-E-PHEV": "Baseline_FASTSimData_Representative_Vehicles_lookup_tables_output/2050_electric_Honda_Odysseyc6_Charge_Depleting_lookup_table.csv.gz",
+        "ld3-D-Diesel": np.nan,
+        "ld3-G-Gasoline": "Baseline_FASTSimData_Representative_Vehicles_lookup_tables_output/2015_gasoline_Ford_F150_Pickup_4WD_lookup_table.csv.gz",
+        "ld3-E-BE": "Baseline_FASTSimData_Representative_Vehicles_lookup_tables_output/2050_electric_Ford_F150_Pickup_4WDc3_lookup_table.csv.gz",
+        "ld3-E-H2FC": "Baseline_FASTSimData_Representative_Vehicles_lookup_tables_output/2050_hydrogen_Honda_Odysseyc5_lookup_table.csv.gz",
+        "ld3-E-PHEV": "Baseline_FASTSimData_Representative_Vehicles_lookup_tables_output/2050_electric_Honda_Odysseyc6_Charge_Depleting_lookup_table.csv.gz",
         "md-D-Diesel": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(Diesel,_2020,_no_program).csv",
+        "md-G-Gasoline": np.nan,
         "md-E-BE": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(BEV,_2025,_no_program).csv",
         "md-E-H2FC": np.nan,
         "md-E-PHEV": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(BEV,_2025,_no_program).csv",
         "hdt-D-Diesel": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(Diesel,_2020,_no_program).csv",
+        "hdt-G-Gasoline": np.nan,
         "hdt-E-BE": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(BEV,_2025,_no_program).csv",
         "hdt-E-H2FC": np.nan,
         "hdt-E-PHEV": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(BEV,_2025,_no_program).csv",
         "hdv-D-Diesel": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(Diesel,_2020,_no_program).csv",
+        "hdv-G-Gasoline": np.nan,
         "hdv-E-BE": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(BEV,_2025,_no_program).csv",
         "hdv-E-H2FC": np.nan,
         "hdv-E-PHEV": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(BEV,_2025,_no_program).csv"
     },
     "secondary_powertrain": {
+        "ld1-D-Diesel": np.nan,
+        "ld1-G-Gasoline": np.nan,
+        "ld1-E-BE": np.nan,
+        "ld1-E-H2FC": np.nan,
+        "ld1-E-PHEV": ("Gasoline", "Baseline_FASTSimData_Representative_Vehicles_lookup_tables_output/2050_gasoline_Honda_Odysseyc6_Charge_Sustaining_lookup_table.csv.gz"),
+        "ld3-D-Diesel": np.nan,
+        "ld3-G-Gasoline": np.nan,
+        "ld3-E-BE": np.nan,
+        "ld3-E-H2FC": np.nan,
+        "ld3-E-PHEV": ("Gasoline", "Baseline_FASTSimData_Representative_Vehicles_lookup_tables_output/2050_gasoline_Honda_Odysseyc6_Charge_Sustaining_lookup_table.csv.gz"),
         "md-D-Diesel": np.nan,
+        "md-G-Gasoline": np.nan,
         "md-E-BE": np.nan,
         "md-E-H2FC": np.nan,
-        "md-E-PHEV": ("Diesel", 9595.796035186175, 1.2e16,  # max_fuel_capacity_in_joule
-                      "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(HEV,_2025,_no_program).csv"),
+        "md-E-PHEV": ("Diesel", "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(Diesel,_2020,_no_program).csv"),
         "hdt-D-Diesel": np.nan,
+        "hdt-G-Gasoline": np.nan,
         "hdt-E-BE": np.nan,
         "hdt-E-H2FC": np.nan,
-        "hdt-E-PHEV": ("Diesel", 13817.086117829229, 1.2e16,  # max_fuel_capacity_in_joule
-                       "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(HEV,_2025,_no_program).csv"),
+        "hdt-E-PHEV": ("Diesel", "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(Diesel,_2020,_no_program).csv"),
         "hdv-D-Diesel": np.nan,
+        "hdv-G-Gasoline": np.nan,
         "hdv-E-BE": np.nan,
         "hdv-E-H2FC": np.nan,
-        "hdv-E-PHEV": ("Diesel", 14026.761465378302, 1.2e16,  # max_fuel_capacity_in_joule
-                       "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(HEV,_2025,_no_program).csv")
+        "hdv-E-PHEV": ("Diesel",  "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(Diesel,_2020,_no_program).csv")
     }
 }
 
@@ -94,10 +111,12 @@ area_config = {
 # ************************************************************************************************
 
 DEFAULT_AREA = "seattle"
-DEFAULT_BATCH = "20260309"
+DEFAULT_BATCH = "20260423"
 DEFAULT_SCENARIO = "2018-Baseline"
 DEFAULT_FRISM_VERSION = 1.5
 DEFAULT_SNAP_COORDINATES = False
+DEFAULT_MAP_FASTSIM_ROUTEE_FILES = False
+DEFAULT_OVERRIDE_EV_FUEL_CAPACITY = False
 DEFAULT_TRACE_VEHICLE_TYPES = False
 DEFAULT_OUTPUT_FORMAT = "parquet"
 
@@ -117,6 +136,16 @@ def parse_cli_args():
         "--snap-coordinates",
         action="store_true",
         help="Snap coordinates to the road network."
+    )
+    parser.add_argument(
+        "--map-fastsim-routee-files",
+        action="store_true",
+        help="Populate primary and secondary BEAM energy file columns from fastsim_routee_files."
+    )
+    parser.add_argument(
+        "--override-ev-fuel-capacity",
+        action="store_true",
+        help="Ignore file-based primary capacity for electric-primary vehicles and use 1.2e16 J."
     )
     parser.add_argument(
         "--trace-vehicle-types",
@@ -141,6 +170,8 @@ else:
         scenario=DEFAULT_SCENARIO,
         frism_version=DEFAULT_FRISM_VERSION,
         snap_coordinates=DEFAULT_SNAP_COORDINATES,
+        map_fastsim_routee_files=DEFAULT_MAP_FASTSIM_ROUTEE_FILES,
+        override_ev_fuel_capacity=DEFAULT_OVERRIDE_EV_FUEL_CAPACITY,
         trace_vehicle_types=DEFAULT_TRACE_VEHICLE_TYPES,
         output_format=DEFAULT_OUTPUT_FORMAT
     )
@@ -151,17 +182,19 @@ BATCH = _cli_args.batch
 SCENARIO = _cli_args.scenario
 FRISM_VERSION = _cli_args.frism_version
 SNAP_COORDINATES = _cli_args.snap_coordinates  # Snapping here might relocate points to walk only links
+MAP_FASTSIM_ROUTEE_FILES = _cli_args.map_fastsim_routee_files
+OVERRIDE_EV_FUEL_CAPACITY = _cli_args.override_ev_fuel_capacity
 TRACE_VEHICLE_TYPES = _cli_args.trace_vehicle_types
 OUTPUT_FORMAT = _cli_args.output_format
 BUFFER_DISTANCE_METERS = 100  # 100 meters
 MAX_DISTANCE_METERS = 200000  # 200km
 CHUNK_SIZE = 10000  # this affects speed and parallelization of the script
 JOULE_PER_METER_BASE_RATE = 1.213e8  # Base rate for joules per meter, used in fuel consumption calculations
+DEFAULT_MAX_FUEL_CAPACITY_JOULE = 1.2e16
 CONFIG = dict(area_config[AREA])
 CONFIG["batch"] = BATCH
 CONFIG["scenario"] = SCENARIO
 CONFIG["frism_version"] = FRISM_VERSION
-# SCENARIO_SUFFIX = ""
 
 # ************************************************************************************************
 
@@ -172,12 +205,6 @@ DIRECTORY_INPUT = f'{CONFIG["work_dir"]}/frism/{CONFIG["batch"]}/{CONFIG["scenar
 DIRECTORY_BATCH = f'{CONFIG["work_dir"]}/beam-ft/{CONFIG["batch"]}'
 DIRECTORY_SCENARIO = f'{DIRECTORY_BATCH}/{SCENARIO_LABEL}'
 DIRECTORY_VEHICLE_TECH = f'{DIRECTORY_BATCH}/vehicle-tech'
-
-# if SNAP_COORDINATES:
-#     # Define the snapped directory path
-#     DIRECTORY_SCENARIO = f'{DIRECTORY_SCENARIO}--snapped-to-{CONFIG_NAME}'
-# else:
-#     DIRECTORY_SCENARIO = f'{DIRECTORY_SCENARIO}'
 
 # Create necessary directories if they don't exist
 Path(DIRECTORY_SCENARIO).mkdir(parents=True, exist_ok=True)
@@ -384,11 +411,6 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
     else:
         old_updated = old.lower().replace('_', '-').replace('b2b-', '').replace('b2c-', '')
     second_prefix = ''
-    # if veh_type:
-    #     if old == '1':
-    #         second_prefix = '-MD-'
-    #     else:
-    #         second_prefix = '-HD-'
     first_prefix = prefix
     if 'county' in prefix:
         first_prefix = first_prefix.replace('county', 'cty')
@@ -431,24 +453,10 @@ def format_distance_label(distance_meters):
     return f"{distance_km:g}km"
 
 
-def resolve_phev_secondary_fuel_type(original_veh_type_id, veh_class, vehicle_class_fuel_rates):
-    secondary_config = CONFIG["secondary_powertrain"].get(original_veh_type_id)
+def resolve_phev_secondary_fuel_type(original_veh_type_id):
+    secondary_config = CONFIG["secondary_powertrain"].get(to_routee_mapping_key(original_veh_type_id))
     if isinstance(secondary_config, (list, tuple, np.ndarray)) and len(secondary_config) > 0:
         return normalize_beam_fuel_type(secondary_config[0])
-
-    gasoline_key = f"{veh_class}-gasoline"
-    diesel_key = f"{veh_class}-diesel"
-
-    # Light-duty PHEVs are inferred as gasoline hybrids when config does not specify a fuel.
-    if "Class 1&2A" in veh_class or "Class 2&B3" in veh_class:
-        if gasoline_key in vehicle_class_fuel_rates:
-            return "gasoline"
-
-    if diesel_key in vehicle_class_fuel_rates:
-        return "diesel"
-    if gasoline_key in vehicle_class_fuel_rates:
-        return "gasoline"
-
     return None
 
 
@@ -526,7 +534,6 @@ def format_payload(_payload_plans: pd.DataFrame) -> pd.DataFrame:
             'For-hire Truck': 'for-hire'
         }, na_action='ignore')
     else:
-        # _payload_plans['activityType'] = _payload_plans['activityType'].map({1: 'unloading', 0: 'loading'})
         _payload_plans.loc[_payload_plans['weightInKg'] < 0, 'activityType'] = 'unloading'
         _payload_plans.loc[_payload_plans['weightInKg'] >= 0, 'activityType'] = 'loading'
         _payload_plans['weightInKg'] = np.abs(_payload_plans['weightInKg'])
@@ -942,12 +949,65 @@ def remove_third_segment(s):
         return s  # Return as is if not enough parts
 
 
+def to_routee_mapping_key(original_veh_type_id):
+    class_part, powertrain_part, fuel_part = str(original_veh_type_id).strip().split('_', 2)
+    class_alias = {"mdv": "md"}.get(class_part.lower(), class_part.lower())
+    fuel_alias = {
+        "Battery Electric": "BE",
+        "H2 Fuel Cell": "H2FC",
+        "Diesel": "Diesel",
+        "Gasoline": "Gasoline",
+        "PHEV": "PHEV",
+    }.get(fuel_part, fuel_part.replace(" ", ""))
+    return f"{class_alias}-{powertrain_part}-{fuel_alias}"
+
+
+def convert_range_miles_to_joule_capacity(fuel_capacity_in_miles, fuel_consumption_joule_per_meter):
+    if pd.isna(fuel_capacity_in_miles):
+        return np.nan
+    return float(fuel_capacity_in_miles) * float(fuel_consumption_joule_per_meter) * 1609.34
+
+
+def resolve_primary_fuel_capacity_joule(original_veh_type_id, converted_capacity_joule):
+    if OVERRIDE_EV_FUEL_CAPACITY and str(original_veh_type_id).endswith("_E_Battery Electric"):
+        return DEFAULT_MAX_FUEL_CAPACITY_JOULE
+    if pd.isna(converted_capacity_joule):
+        return DEFAULT_MAX_FUEL_CAPACITY_JOULE
+    return converted_capacity_joule
+
+
+def resolve_secondary_fuel_capacity_joule(converted_capacity_joule):
+    if pd.isna(converted_capacity_joule):
+        return DEFAULT_MAX_FUEL_CAPACITY_JOULE
+    return converted_capacity_joule
+
+
+def resolve_secondary_vehicle_energy_file(original_veh_type_id):
+    secondary_config = CONFIG["secondary_powertrain"].get(to_routee_mapping_key(original_veh_type_id))
+    if isinstance(secondary_config, (list, tuple, np.ndarray)) and len(secondary_config) > 1:
+        return secondary_config[1]
+    return np.nan
+
+
+def normalize_vehicle_energy_file_path(relative_path):
+    if pd.isna(relative_path):
+        return np.nan
+    relative_path = str(relative_path).strip()
+    if relative_path.startswith("fuel/"):
+        return relative_path
+    return f"fuel/{relative_path}"
+
+
+def compute_fuel_consumption_joule_per_meter(fuel_rate):
+    if pd.isna(fuel_rate):
+        return np.nan
+    return JOULE_PER_METER_BASE_RATE / (float(fuel_rate) * 1609.34)
+
+
 #############################
 ## MAIN
 
 if __name__ == '__main__':
-    # Add these at the beginning of your main code, after the variables section
-    # Dictionary to store vehicle class and fuel rate mappings
     vehicle_class_fuel_rates = {}
     seen_veh_ids = set()
     seen_veh_hashes = set()
@@ -967,8 +1027,6 @@ if __name__ == '__main__':
 
         if "carrier" in filetype:
             df = pd.read_csv(filepath)
-            # df['carrierId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'carrierId', row), axis=1)
-            # df['vehicleId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'vehicleId', row), axis=1)
             df['carrierId'] = df.apply(lambda row: add_prefix(f'', 'carrierId', row, False), axis=1).tolist()
             df['vehicleTypeIdOrig'] = df['vehicleTypeId']
             df['vehicleTypeId'] = df.apply(
@@ -995,7 +1053,6 @@ if __name__ == '__main__':
                 lambda row: add_prefix(f'ft-', 'vehicleId', row),
                 axis=1).tolist()
 
-            # df['tourId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'tourId', row), axis=1)
             df['tourId'] = df.apply(
                 lambda row: add_prefix(f'{business_type}-', 'tourId', row, True, _tourId_with_prefix),
                 axis=1).tolist()
@@ -1005,7 +1062,6 @@ if __name__ == '__main__':
                 _carriers = pd.concat([_carriers, df])
         elif "freight_tours" in filetype:
             df = pd.read_csv(filepath)
-            # df['tour_id'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'tour_id', row), axis=1)
             df['tour_id'] = df.apply(lambda row: _tourId_with_prefix[str(int(row['tour_id']))], axis=1).tolist()
             if _tours is None:
                 _tours = df
@@ -1021,14 +1077,13 @@ if __name__ == '__main__':
                     _ondemand_plans = pd.concat([_ondemand_plans, df])
             else:
                 df['tourId'] = df.apply(lambda row: _tourId_with_prefix[str(int(row['tourId']))], axis=1).tolist()
-                # df['payloadId'] = df.apply(lambda row: add_prefix('', 'payloadId', row, False), axis=1).tolist()
                 df['payloadId'] = df['tourId'].astype(str) + '-' + df['sequenceRank'].astype(str)
                 _tourId_with_prefix = {}
                 if _payload_plans is None:
                     _payload_plans = df
                 else:
                     _payload_plans = pd.concat([_payload_plans, df])
-        elif "vehicle_types" in filename:  # Modify the "vehicle_types" section in the main loop
+        elif "vehicle_types" in filename:
             df = pd.read_csv(filepath)
 
             # First pass: collect vehicle class and fuel rate information for non-PHEV vehicles
@@ -1062,55 +1117,89 @@ if __name__ == '__main__':
                 original_vehicle_types_ids.append(original_veh_type_id)
 
                 veh_class = row['veh_class']
-                fuel_type = row['primary_fuel_type']
-                secondary_fuel_type = resolve_phev_secondary_fuel_type(
-                    original_veh_type_id,
-                    veh_class,
-                    vehicle_class_fuel_rates
-                )
+                secondary_fuel_type = resolve_phev_secondary_fuel_type(original_veh_type_id)
                 is_phev = 'PHEV' in str(row['veh_type_id'])
 
                 if TRACE_VEHICLE_TYPES and is_phev:
                     print(
                         f"[trace] PHEV row veh_type_id={original_veh_type_id} "
-                        f"veh_class={veh_class} primary_fuel_type={fuel_type} "
+                        f"veh_class={veh_class} primary_fuel_rate={row['primary_fuel_rate']} "
                         f"resolved_secondary_fuel_type={secondary_fuel_type}"
                     )
 
-                # Check if this is a PHEV vehicle
-                if (is_phev and
-                        f"{veh_class}-electricity" in vehicle_class_fuel_rates and
-                        secondary_fuel_type is not None and
-                        f"{veh_class}-{secondary_fuel_type}" in vehicle_class_fuel_rates):
+                if is_phev:
+                    primary_fuel_type = normalize_beam_fuel_type(row["primary_fuel_type"])
+                    primary_fuel_consumption_value = compute_fuel_consumption_joule_per_meter(row["primary_fuel_rate"])
+                    primary_range_capacity_joule = convert_range_miles_to_joule_capacity(
+                        row.get("fuel_capacity_in_miles"),
+                        primary_fuel_consumption_value
+                    )
+                    primary_fuel_capacity_value = resolve_primary_fuel_capacity_joule(
+                        original_veh_type_id,
+                        primary_range_capacity_joule
+                    )
+                    primary_fuel_types.append(primary_fuel_type)
+                    primary_fuel_consumption.append(primary_fuel_consumption_value)
+                    primary_fuel_capacities.append(primary_fuel_capacity_value)
 
-                    # Primary
-                    primary_fuel_types.append(normalize_beam_fuel_type('Electricity'))
-                    fuel_rate_1 = vehicle_class_fuel_rates[f"{veh_class}-electricity"]
-                    primary_fuel_consumption.append(JOULE_PER_METER_BASE_RATE / (float(fuel_rate_1) * 1609.34))
-                    primary_fuel_capacities.append(12000000000000000 * 0.25)  # 25% of standard capacity
+                    secondary_fuel_rate = np.nan
+                    if secondary_fuel_type is not None:
+                        secondary_fuel_rate = vehicle_class_fuel_rates.get(f"{veh_class}-{secondary_fuel_type}", np.nan)
 
-                    # Secondary
-                    secondary_fuel_types.append(normalize_beam_fuel_type(secondary_fuel_type))
-                    fuel_rate_2 = vehicle_class_fuel_rates[f"{veh_class}-{secondary_fuel_type}"]
-                    secondary_fuel_consumption.append(JOULE_PER_METER_BASE_RATE / (float(fuel_rate_2) * 1609.34))
-                    secondary_fuel_capacities.append(12000000000000000 * 0.75)  # 75% of standard capacity
+                    if secondary_fuel_type is not None and pd.notna(secondary_fuel_rate):
+                        secondary_fuel_types.append(secondary_fuel_type)
+                        secondary_fuel_consumption_value = compute_fuel_consumption_joule_per_meter(secondary_fuel_rate)
+                        secondary_range_capacity_joule = convert_range_miles_to_joule_capacity(
+                            row.get("fuel_capacity_in_miles"),
+                            secondary_fuel_consumption_value
+                        )
+                        secondary_fuel_consumption.append(secondary_fuel_consumption_value)
+                        secondary_fuel_capacities.append(
+                            resolve_secondary_fuel_capacity_joule(secondary_range_capacity_joule)
+                        )
+                    else:
+                        secondary_fuel_types.append(np.nan)
+                        secondary_fuel_consumption.append(np.nan)
+                        secondary_fuel_capacities.append(np.nan)
+                        if TRACE_VEHICLE_TYPES:
+                            print(
+                                f"[trace] PHEV secondary path unavailable veh_type_id={original_veh_type_id} "
+                                f"resolved_secondary_fuel_type={secondary_fuel_type} "
+                                f"secondary_fuel_rate={secondary_fuel_rate}"
+                            )
                 else:
-                    # For non-PHEV vehicles, use standard processing
-                    primary_fuel_types.append(normalize_beam_fuel_type('Electricity' if is_phev else row["primary_fuel_type"]))
-                    primary_fuel_consumption.append(JOULE_PER_METER_BASE_RATE /
-                                                    (np.float64(row["primary_fuel_rate"]) * 1609.34))
-                    primary_fuel_capacities.append(12000000000000000 * 0.25 if is_phev else 12000000000000000)
+                    primary_fuel_type = normalize_beam_fuel_type(row["primary_fuel_type"])
+                    primary_fuel_consumption_value = compute_fuel_consumption_joule_per_meter(row["primary_fuel_rate"])
+                    primary_range_capacity_joule = convert_range_miles_to_joule_capacity(
+                        row.get("fuel_capacity_in_miles"),
+                        primary_fuel_consumption_value
+                    )
+                    primary_fuel_capacity_value = resolve_primary_fuel_capacity_joule(
+                        original_veh_type_id,
+                        primary_range_capacity_joule
+                    )
+                    primary_fuel_types.append(primary_fuel_type)
+                    primary_fuel_consumption.append(primary_fuel_consumption_value)
+                    primary_fuel_capacities.append(primary_fuel_capacity_value)
                     secondary_fuel_types.append(np.nan)
                     secondary_fuel_consumption.append(np.nan)
                     secondary_fuel_capacities.append(np.nan)
-                    if TRACE_VEHICLE_TYPES and is_phev:
-                        print(
-                            f"[trace] PHEV fallback veh_type_id={original_veh_type_id} "
-                            f"electricity_key_present={f'{veh_class}-electricity' in vehicle_class_fuel_rates} "
-                            f"secondary_key_present={secondary_fuel_type is not None and f'{veh_class}-{secondary_fuel_type}' in vehicle_class_fuel_rates}"
-                        )
 
-            # Create the vehicles techs dictionary with our processed values
+            if MAP_FASTSIM_ROUTEE_FILES:
+                primary_vehicle_energy_files = [
+                    normalize_vehicle_energy_file_path(
+                        CONFIG["primary_powertrain"].get(to_routee_mapping_key(index), np.nan)
+                    )
+                    for index in original_vehicle_types_ids
+                ]
+                secondary_vehicle_energy_files = [
+                    normalize_vehicle_energy_file_path(resolve_secondary_vehicle_energy_file(index))
+                    for index in original_vehicle_types_ids
+                ]
+            else:
+                primary_vehicle_energy_files = nan_vectors
+                secondary_vehicle_energy_files = nan_vectors
+
             vehicles_techs = {
                 "vehicleTypeId": vehicle_types_ids,
                 "seatingCapacity": list(np.repeat(1, len(df.index))),
@@ -1119,16 +1208,11 @@ if __name__ == '__main__':
                 "primaryFuelType": primary_fuel_types,
                 "primaryFuelConsumptionInJoulePerMeter": primary_fuel_consumption,
                 "primaryFuelCapacityInJoule": primary_fuel_capacities,
-                "primaryVehicleEnergyFile": [
-                    CONFIG["primary_powertrain"][index] if index in CONFIG["primary_powertrain"] else np.nan
-                    for index in original_vehicle_types_ids],
+                "primaryVehicleEnergyFile": primary_vehicle_energy_files,
                 "secondaryFuelType": secondary_fuel_types,
                 "secondaryFuelConsumptionInJoulePerMeter": secondary_fuel_consumption,
                 "secondaryFuelCapacityInJoule": secondary_fuel_capacities,
-                "secondaryVehicleEnergyFile": [
-                    CONFIG["secondary_powertrain"][index][3] if index in CONFIG["secondary_powertrain"] and isinstance(
-                        CONFIG["secondary_powertrain"][index], (list, tuple, np.ndarray)) else np.nan for
-                    index in original_vehicle_types_ids],
+                "secondaryVehicleEnergyFile": secondary_vehicle_energy_files,
                 "automationLevel": list(np.repeat(1, len(df.index))),
                 "maxVelocity": df["max_speed(mph)"].astype(float) * 0.44704,
                 "passengerCarUnit": list(np.repeat(1.0, len(df.index))),
