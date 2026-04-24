@@ -29,7 +29,7 @@ import beam.sim.metrics.{BeamStaticMetricsWriter, InfluxDbSimulationMetricCollec
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.PopulationScaling
 import beam.sim.termination.TerminationCriterionProvider
-import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
+import beam.utils.BeamVehicleUtils.{fuelTypePricesFromConfig, readBeamVehicleTypeFile, readVehiclesFile}
 import beam.utils._
 import beam.utils.csv.readers
 import beam.utils.plan.sampling.AvailableModeUtils
@@ -355,7 +355,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     }
 
     BeamScenario(
-      readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap,
+      fuelTypePricesFromConfig(beamConfig.beam.agentsim.agents.vehicles.fuelTypePrices).toMap,
       vehicleTypes,
       privateVehicleMap,
       privateVehicleSoc,

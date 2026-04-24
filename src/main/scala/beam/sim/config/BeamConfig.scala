@@ -1747,7 +1747,7 @@ object BeamConfig {
           enroute: BeamConfig.Beam.Agentsim.Agents.Vehicles.Enroute,
           fractionOfInitialVehicleFleet: scala.Double,
           fractionOfPeopleWithBicycle: scala.Double,
-          fuelTypesFilePath: java.lang.String,
+          fuelTypePrices: BeamConfig.Beam.Agentsim.Agents.Vehicles.FuelTypePrices,
           generateEmergencyHouseholdVehicleWhenPlansRequireIt: scala.Boolean,
           linkSocAcrossIterations: scala.Boolean,
           linkToGradePercentFilePath: java.lang.String,
@@ -2014,6 +2014,33 @@ object BeamConfig {
             }
           }
 
+          case class FuelTypePrices(
+            biodiesel: scala.Double,
+            diesel: scala.Double,
+            electricity: scala.Double,
+            food: scala.Double,
+            gasoline: scala.Double,
+            hydrogen: scala.Double,
+            naturalGas: scala.Double,
+            undefined: scala.Double
+          )
+
+          object FuelTypePrices {
+
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.FuelTypePrices = {
+              BeamConfig.Beam.Agentsim.Agents.Vehicles.FuelTypePrices(
+                biodiesel = if (c.hasPathOrNull("biodiesel")) c.getDouble("biodiesel") else 0.035,
+                diesel = if (c.hasPathOrNull("diesel")) c.getDouble("diesel") else 0.050,
+                electricity = if (c.hasPathOrNull("electricity")) c.getDouble("electricity") else 0.094,
+                food = if (c.hasPathOrNull("food")) c.getDouble("food") else 1.43,
+                gasoline = if (c.hasPathOrNull("gasoline")) c.getDouble("gasoline") else 0.047,
+                hydrogen = if (c.hasPathOrNull("hydrogen")) c.getDouble("hydrogen") else 0.277,
+                naturalGas = if (c.hasPathOrNull("naturalGas")) c.getDouble("naturalGas") else 0.029,
+                undefined = if (c.hasPathOrNull("undefined")) c.getDouble("undefined") else 0.0
+              )
+            }
+          }
+
           case class SharedFleets$Elm(
             fixed_non_reserving: scala.Option[
               BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReserving
@@ -2203,9 +2230,10 @@ object BeamConfig {
                 else 1.0,
               fractionOfPeopleWithBicycle =
                 if (c.hasPathOrNull("fractionOfPeopleWithBicycle")) c.getDouble("fractionOfPeopleWithBicycle") else 1.0,
-              fuelTypesFilePath =
-                if (c.hasPathOrNull("fuelTypesFilePath")) c.getString("fuelTypesFilePath")
-                else "/test/input/beamville/beamFuelTypes.csv",
+              fuelTypePrices = BeamConfig.Beam.Agentsim.Agents.Vehicles.FuelTypePrices(
+                if (c.hasPathOrNull("fuelTypePrices")) c.getConfig("fuelTypePrices")
+                else com.typesafe.config.ConfigFactory.parseString("fuelTypePrices{}")
+              ),
               generateEmergencyHouseholdVehicleWhenPlansRequireIt = c.hasPathOrNull(
                 "generateEmergencyHouseholdVehicleWhenPlansRequireIt"
               ) && c.getBoolean("generateEmergencyHouseholdVehicleWhenPlansRequireIt"),

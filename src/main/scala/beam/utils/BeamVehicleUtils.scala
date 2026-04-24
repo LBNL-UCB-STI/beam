@@ -1,7 +1,17 @@
 package beam.utils
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.FuelType.{Electricity, FuelType}
+import beam.agentsim.agents.vehicles.FuelType.{
+  Biodiesel,
+  Diesel,
+  Electricity,
+  Food,
+  FuelType,
+  Gasoline,
+  Hydrogen,
+  NaturalGas,
+  Undefined
+}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.sim.common.{DoubleTypedRange, Range}
@@ -128,13 +138,19 @@ object BeamVehicleUtils extends LazyLogging {
     }
   }
 
-  def readFuelTypeFile(filePath: String): scala.collection.Map[FuelType, Double] = {
-    readCsvFileByLine(filePath, scala.collection.mutable.HashMap[FuelType, Double]()) { case (line, z) =>
-      val fuelType = FuelType.fromString(line.get("fuelTypeId"))
-      val priceInDollarsPerMJoule = line.get("priceInDollarsPerMJoule").toDouble
-      z += ((fuelType, priceInDollarsPerMJoule))
-    }
-  }
+  def fuelTypePricesFromConfig(
+    fuelTypePricesConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.FuelTypePrices
+  ): scala.collection.Map[FuelType, Double] =
+    Map(
+      Food        -> fuelTypePricesConfig.food,
+      Gasoline    -> fuelTypePricesConfig.gasoline,
+      Diesel      -> fuelTypePricesConfig.diesel,
+      Electricity -> fuelTypePricesConfig.electricity,
+      Biodiesel   -> fuelTypePricesConfig.biodiesel,
+      Hydrogen    -> fuelTypePricesConfig.hydrogen,
+      NaturalGas  -> fuelTypePricesConfig.naturalGas,
+      Undefined   -> fuelTypePricesConfig.undefined
+    )
 
   /**
     * These are fallback values. One should define the vehicle weight in the vehicleTypes.csv.
