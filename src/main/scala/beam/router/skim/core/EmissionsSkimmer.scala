@@ -16,8 +16,11 @@ import org.apache.parquet.hadoop.ParquetFileWriter
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.HadoopOutputFile
 import org.apache.spark.sql.Row
+import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.MatsimServices
-
+import org.matsim.core.utils.io.IOUtils
+import java.io.BufferedWriter
+import java.util.concurrent.ConcurrentHashMap
 import scala.util.{Failure, Success, Try}
 
 class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: BeamConfig)
@@ -32,17 +35,146 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
   override protected val skimFileBaseName: String = config.emissions_skimmer.fileBaseName
   override protected val skimOutputFormat: String = config.emissions_skimmer.fileOutputFormat
 
-  override protected def writeSkimsInterval: Int =
-    if (config.emissions_skimmer.writeSkimsInterval >= 0) config.emissions_skimmer.writeSkimsInterval
-    else config.writeSkimsInterval
-
-  override protected def writeAggregatedSkimsInterval: Int =
-    if (config.emissions_skimmer.writeAggregatedSkimsInterval >= 0)
-      config.emissions_skimmer.writeAggregatedSkimsInterval
-    else config.writeAggregatedSkimsInterval
-
   override protected val skimFileHeader: String = {
     s"hour,linkId,vehicleTypeId,process,emissions,travelTimeInSecond,parkingDurationInSecond,observations,iterations"
+  }
+
+  private val currentPackedSkimInternal = new ConcurrentHashMap[java.lang.Long, EmissionsSkimmerInternal]()
+
+  override def handleEvent(event: Event): Unit = {
+    event match {
+      case e: beam.router.skim.event.EmissionsSkimmerEvent if e.getEventType == eventType =>
+        val packedKey = packKey(e.linkId, e.vehicleType, (e.time / 3600).toInt % 24, e.emissionsProcess)
+        val currentValue =
+          EmissionsSkimmerInternal(
+            e.emissions,
+            e.travelTime,
+            e.parkingDuration,
+            1,
+            matsimServices.getIterationNumber + 1
+          )
+        currentPackedSkimInternal.compute(
+          java.lang.Long.valueOf(packedKey),
+          (_, previousValue) =>
+            aggregateWithinIteration(Option(previousValue), currentValue).asInstanceOf[EmissionsSkimmerInternal]
+        )
+      case _ =>
+    }
+  }
+
+  override def notifyIterationEnds(event: org.matsim.core.controler.events.IterationEndsEvent): Unit = {
+    if (config.writeSkimsInterval > 0 && readOnlySkim.currentIterationInternal % config.writeSkimsInterval == 0) {
+      val filePath = matsimServices.getControlerIO
+        .getIterationFilename(readOnlySkim.currentIterationInternal, s"$skimFileBaseName.$skimOutputFormat")
+      writePackedSkim(filePath)
+    }
+
+    currentSkimInternal.clear()
+    currentPackedSkimInternal.clear()
+  }
+
+  private def writePackedSkim(filePath: String): Unit = {
+    filePath.toLowerCase match {
+      case path if path.endsWith(".parquet") =>
+        writePackedSkimsAsParquet(filePath)
+
+      case path if path.endsWith(".csv.gz") || path.endsWith(".csv.gzip") || path.endsWith(".csv") =>
+        writePackedSkimsAsCsv(filePath)
+
+      case _ =>
+        val error = s"Unsupported file format for writing skims: $filePath"
+        println(error)
+        throw new IllegalArgumentException(error)
+    }
+  }
+
+  private def writePackedSkimsAsCsv(filePath: String): Unit = {
+    var writer: BufferedWriter = null
+    try {
+      writer = IOUtils.getBufferedWriter(filePath)
+      writer.write(skimFileHeader + "\n")
+      val batch = new java.lang.StringBuilder(math.min(1 << 20, currentPackedSkimInternal.size.max(1) * 64))
+      currentPackedSkimInternal.forEach { (packedKey, value) =>
+        val key = packedKey.longValue()
+        batch.append(unpackHour(key))
+        batch.append(",")
+        batch.append(unpackLinkId(key))
+        batch.append(",")
+        batch.append(unpackVehicleTypeId(key))
+        batch.append(",")
+        batch.append(unpackProcessName(key))
+        batch.append(",")
+        batch.append(value.toCsv)
+        batch.append("\n")
+        if (batch.length() >= (1 << 20)) {
+          writer.write(batch.toString)
+          batch.setLength(0)
+        }
+      }
+      if (batch.length() > 0) {
+        writer.write(batch.toString)
+      }
+    } finally {
+      if (writer != null) writer.close()
+    }
+  }
+
+  private def writePackedSkimsAsParquet(filePath: String): Unit = {
+    logger.info(s"Writing ${currentPackedSkimInternal.size} emissions skim records to Parquet file: $filePath")
+
+    if (currentPackedSkimInternal.isEmpty) {
+      logger.warn("Attempting to write empty emissions skim map to Parquet file")
+      return
+    }
+
+    Try {
+      val schema = createEmissionsAvroSchema()
+      val conf = new Configuration()
+
+      val hadoopPath = new Path(filePath)
+      val fs = hadoopPath.getFileSystem(conf)
+      val hadoopFile = HadoopOutputFile.fromPath(hadoopPath, conf)
+
+      val parentDir = hadoopPath.getParent
+      if (!fs.exists(parentDir)) {
+        fs.mkdirs(parentDir)
+      }
+
+      val writer = AvroParquetWriter
+        .builder[GenericRecord](hadoopFile)
+        .withSchema(schema)
+        .withConf(conf)
+        .withCompressionCodec(CompressionCodecName.SNAPPY)
+        .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)
+        .build()
+
+      try {
+        var recordCount = 0
+        val record = new GenericData.Record(schema)
+        currentPackedSkimInternal.forEach { (packedKey, value) =>
+          populatePackedEmissionsAvroRecord(record, packedKey.longValue(), value)
+          writer.write(record)
+          recordCount += 1
+
+          if (recordCount % 10000 == 0) {
+            logger.debug(s"Written $recordCount emissions records to Parquet file")
+          }
+        }
+        logger.info(s"Successfully wrote $recordCount emissions records to $filePath")
+      } finally {
+        writer.close()
+      }
+
+    } match {
+      case Success(_) =>
+        logger.info(s"Emissions Parquet file written successfully: $filePath")
+        println(s"Emissions Parquet file written successfully: $filePath")
+
+      case Failure(ex) =>
+        logger.error(s"Failed to write emissions Parquet file: $filePath", ex)
+        println(s"Failed to write emissions Parquet file: $filePath", ex)
+        throw new RuntimeException(s"Failed to write emissions Parquet file: $filePath", ex)
+    }
   }
 
   private def writeSkimsAsParquet(
@@ -53,21 +185,6 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
 
     if (skim.isEmpty) {
       logger.warn("Attempting to write empty emissions skim map to Parquet file")
-      return
-    }
-
-    // Filter and cast to concrete types
-    val emissionsSkim = skim.flatMap { case (key, value) =>
-      (key, value) match {
-        case (k: EmissionsSkimmerKey, v: EmissionsSkimmerInternal) => Some((k, v))
-        case (k, v) =>
-          logger.warn(s"Skipping incompatible key-value types: ${k.getClass} -> ${v.getClass}")
-          None
-      }
-    }
-
-    if (emissionsSkim.isEmpty) {
-      logger.error("No valid EmissionsSkimmerKey -> EmissionsSkimmerInternal pairs found")
       return
     }
 
@@ -95,16 +212,23 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
 
       try {
         var recordCount = 0
-        emissionsSkim.foreach { case (key, value) =>
-          val record = createEmissionsAvroRecord(schema, key, value)
-          writer.write(record)
-          recordCount += 1
+        val record = new GenericData.Record(schema)
+        skim.foreach {
+          case (key: EmissionsSkimmerKey, value: EmissionsSkimmerInternal) =>
+            populateEmissionsAvroRecord(record, key, value)
+            writer.write(record)
+            recordCount += 1
 
-          if (recordCount % 10000 == 0) {
-            logger.debug(s"Written $recordCount emissions records to Parquet file")
-          }
+            if (recordCount % 10000 == 0) {
+              logger.debug(s"Written $recordCount emissions records to Parquet file")
+            }
+          case (key, value) =>
+            logger.warn(s"Skipping incompatible key-value types: ${key.getClass} -> ${value.getClass}")
         }
 
+        if (recordCount == 0) {
+          logger.error("No valid EmissionsSkimmerKey -> EmissionsSkimmerInternal pairs found")
+        }
         logger.info(s"Successfully wrote $recordCount emissions records to $filePath")
 
       } finally {
@@ -147,37 +271,40 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
   }
 
   // The createEmissionsAvroRecord method now takes concrete types
-  private def createEmissionsAvroRecord(
-    schema: Schema,
+  private def populateEmissionsAvroRecord(
+    record: GenericRecord,
     key: EmissionsSkimmerKey,
     value: EmissionsSkimmerInternal
-  ): GenericRecord = {
-    val record = new GenericData.Record(schema)
-
+  ): Unit = {
     // Set key fields
     record.put("hour", key.hour)
     record.put("linkId", key.linkId)
     record.put("vehicleTypeId", key.vehicleTypeId)
-    record.put("process", key.emissionsProcess.toString)
+    record.put("process", key.processName)
 
-    // Convert emissions to pollutants string
-    val pollutantsString = convertEmissionsToPollutantsString(value.emissions)
-    record.put("emissions", pollutantsString)
+    record.put("emissions", value.pollutantsString)
 
     // Set value fields
     record.put("travelTimeInSecond", value.travelTime)
     record.put("parkingDurationInSecond", value.parkingDuration)
     record.put("observations", value.observations)
     record.put("iterations", value.iterations)
-
-    record
   }
 
-  /**
-    * Converts Emissions object to pollutants string format
-    */
-  private def convertEmissionsToPollutantsString(emissions: Emissions): String = {
-    emissions.toPollutantsString
+  private def populatePackedEmissionsAvroRecord(
+    record: GenericRecord,
+    packedKey: Long,
+    value: EmissionsSkimmerInternal
+  ): Unit = {
+    record.put("hour", unpackHour(packedKey))
+    record.put("linkId", unpackLinkId(packedKey))
+    record.put("vehicleTypeId", unpackVehicleTypeId(packedKey))
+    record.put("process", unpackProcessName(packedKey))
+    record.put("emissions", value.pollutantsString)
+    record.put("travelTimeInSecond", value.travelTime)
+    record.put("parkingDurationInSecond", value.parkingDuration)
+    record.put("observations", value.observations)
+    record.put("iterations", value.iterations)
   }
 
   override def writeSkim(skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal], filePath: String): Unit = {
@@ -252,7 +379,7 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
       }
 
       // Create the key
-      val key = EmissionsSkimmerKey(linkId, vehicleTypeId, hour, emissionsProfile)
+      val key = EmissionsSkimmerKey(linkId, canonicalVehicleTypeId(vehicleTypeId), hour, emissionsProfile)
 
       // Extract value fields with safe access
       val travelTime = getSafeDouble("travelTimeInSecond")
@@ -313,7 +440,7 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
     (
       EmissionsSkimmerKey(
         line("linkId").toInt,
-        line("vehicleTypeId"),
+        canonicalVehicleTypeId(line("vehicleTypeId")),
         line("hour").toInt,
         EmissionsProfile.withName(line("process"))
       ),
@@ -383,6 +510,72 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
 }
 
 object EmissionsSkimmer extends LazyLogging {
+  private val vehicleTypeIdPool = new ConcurrentHashMap[String, String]()
+  private val vehicleTypeIdToCode = new ConcurrentHashMap[String, Integer]()
+  private val codeToVehicleTypeId = new ConcurrentHashMap[Integer, String]()
+  private val nextVehicleTypeCode = new java.util.concurrent.atomic.AtomicInteger(0)
+
+  private val processesById: Array[EmissionsProfile.EmissionsProcess] =
+    EmissionsProfile.values.sortBy(_.id).toArray
+  private val processNamesById: Array[String] = processesById.map(_.toString)
+  private val linkIdMask = 0xffffffffL
+  private val vehicleTypeCodeMask = 0xfffffL
+  private val hourMask = 0x1fL
+  private val processMask = 0x7fL
+
+  def canonicalVehicleTypeId(vehicleTypeId: String): String =
+    vehicleTypeIdPool.computeIfAbsent(
+      vehicleTypeId,
+      new java.util.function.Function[String, String] {
+        override def apply(value: String): String = value
+      }
+    )
+
+  private def vehicleTypeCode(vehicleTypeId: String): Int = {
+    val canonical = canonicalVehicleTypeId(vehicleTypeId)
+    vehicleTypeIdToCode.computeIfAbsent(
+      canonical,
+      new java.util.function.Function[String, Integer] {
+        override def apply(value: String): Integer = {
+          val code = nextVehicleTypeCode.getAndIncrement()
+          codeToVehicleTypeId.put(code, value)
+          code
+        }
+      }
+    )
+  }
+
+  def packKey(
+    linkId: Int,
+    vehicleTypeId: String,
+    hour: Int,
+    emissionsProcess: EmissionsProfile.EmissionsProcess
+  ): Long = {
+    val code = vehicleTypeCode(vehicleTypeId)
+    (linkId.toLong & linkIdMask) |
+    ((code.toLong & vehicleTypeCodeMask) << 32) |
+    ((hour.toLong & hourMask) << 52) |
+    ((emissionsProcess.id.toLong & processMask) << 57)
+  }
+
+  def unpackLinkId(packedKey: Long): Int = (packedKey & linkIdMask).toInt
+
+  def unpackVehicleTypeId(packedKey: Long): String = {
+    val code = ((packedKey >>> 32) & vehicleTypeCodeMask).toInt
+    codeToVehicleTypeId.get(code)
+  }
+
+  def unpackHour(packedKey: Long): Int = ((packedKey >>> 52) & hourMask).toInt
+
+  def unpackProcess(packedKey: Long): EmissionsProfile.EmissionsProcess = {
+    val processId = ((packedKey >>> 57) & processMask).toInt
+    processesById(processId)
+  }
+
+  def unpackProcessName(packedKey: Long): String = {
+    val processId = ((packedKey >>> 57) & processMask).toInt
+    processNamesById(processId)
+  }
 
   case class EmissionsSkimmerKey(
     linkId: Int,
@@ -390,7 +583,10 @@ object EmissionsSkimmer extends LazyLogging {
     hour: Int,
     emissionsProcess: EmissionsProfile.EmissionsProcess
   ) extends AbstractSkimmerKey {
-    override def toCsv: String = s"$hour,$linkId,$vehicleTypeId,${emissionsProcess.toString}"
+    private lazy val cachedProcessName: String = emissionsProcess.toString
+    def processName: String = cachedProcessName
+
+    override def toCsv: String = s"$hour,$linkId,$vehicleTypeId,$cachedProcessName"
   }
 
   case class EmissionsSkimmerInternal(
@@ -401,6 +597,7 @@ object EmissionsSkimmer extends LazyLogging {
     iterations: Int = 0
   ) extends AbstractSkimmerInternal {
     private lazy val pollutants: String = emissions.toPollutantsString
+    def pollutantsString: String = pollutants
 
     override def toCsv: String = s"$pollutants,$travelTime,$parkingDuration,$observations,$iterations"
   }
@@ -417,21 +614,6 @@ object EmissionsSkimmer extends LazyLogging {
       parkingDuration | Parking duration in seconds
       observations  | Number of events
       iterations    | The current iteration number
-      """
-    )
-
-  def aggregatedEmissionsSkimOutputDataDescriptor: OutputDataDescriptor =
-    OutputDataDescriptorObject("EmissionsSkimmer", "skimsEmissions_Aggregated.csv.gz", iterationLevel = true)(
-      """
-      hour          | Hour of the day
-      linkId        | Link ID
-      vehicleType   | Type of vehicle
-      emissionsProcess | Emissions process (RUNEX, IDLEX, STREX, DIURN, HOTSOAK, RUNLOSS, PMTW, PMBW, PRDUST)
-      emissions     | Average (over last n iterations) non-zero emissions in format 'pollutant1:value1;pollutant2:value2'
-      travelTimeInSecond  | Average (over last n iterations) travel time
-      parkingDuration | Parking (over last n iterations) duration
-      observations  | Average (over last n iterations) number of events
-      iterations    | Number of iterations
       """
     )
 }
