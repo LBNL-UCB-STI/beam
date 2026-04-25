@@ -106,11 +106,13 @@ class TransitInitializer(
       streetSeg: StreetPath
     ): (Int, Int, Id[Vehicle]) => BeamPath = {
       val edges = streetSeg.getEdges.asScala
+      val edgeIds = edges.map(_.intValue()).toArray
+      val edgeIdsIndexedSeq = edgeIds.toIndexedSeq
       val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
       val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.last)
       (departureTime: Int, _: Int, vehicleId: Id[Vehicle]) =>
         val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
-          edges.map(_.toInt).toIndexedSeq,
+          edgeIdsIndexedSeq,
           departureTime,
           travelTimeByLinkCalculator,
           StreetMode.CAR,
@@ -123,14 +125,8 @@ class TransitInitializer(
         )
         val distance = linksTimesAndDistances.distances.tail.sum
         BeamPath(
-          linkIds = edges.map(_.intValue()).toArray,
-          linkTravelTime = TravelTimeUtils
-            .scaleTravelTime(
-              streetSeg.getDuration,
-              math.round(linksTimesAndDistances.travelTimes.tail.sum).toInt,
-              linksTimesAndDistances.travelTimes
-            )
-            .toArray,
+          linkIds = edgeIds,
+          linkTravelTime = scaledLinkTimes.toArray,
           transitStops = Some(
             TransitStopsInfo(
               agencyId = "",

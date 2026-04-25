@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -22,6 +23,8 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase {
     private final Logger log = LoggerFactory.getLogger(BeamEventsWriterCSV.class);
     private static final int ROW_BUILDER_CAPACITY = 1024;
     private final LinkedHashMap<String, Integer> attributeToColumnIndexMapping = new LinkedHashMap<>();
+    private final ThreadLocal<StringBuilder> rowBuilder = ThreadLocal.withInitial(() -> new StringBuilder(ROW_BUILDER_CAPACITY));
+    private final ThreadLocal<String[]> rowBuffer = ThreadLocal.withInitial(() -> new String[attributeToColumnIndexMapping.size()]);
 
     public BeamEventsWriterCSV(final String outfilename,
                                final BeamEventsLoggingSettings settings,
@@ -73,21 +76,29 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase {
     @Override
     public void writeEvent(Event event) {
 //        if (beamEventLogger.getLoggingLevel(event) == OFF) return;
-        String[] row = new String[attributeToColumnIndexMapping.keySet().size()];
+        String[] row = rowBuffer.get();
+        if (row.length != attributeToColumnIndexMapping.size()) {
+            row = new String[attributeToColumnIndexMapping.size()];
+            rowBuffer.set(row);
+        } else {
+            Arrays.fill(row, null);
+        }
         Map<String, String> eventAttributes = event.getAttributes();
         Set<String> attributeKeys = this.settings.getKeysToWrite(event, eventAttributes);
         for (String attribute : attributeKeys) {
-            if (!attributeToColumnIndexMapping.containsKey(attribute)) {
+            Integer columnIndex = attributeToColumnIndexMapping.get(attribute);
+            if (columnIndex == null) {
                 if (this.eventTypeToLog == null || !attribute.equals(Event.ATTRIBUTE_TYPE)) {
                     DebugLib.stopSystemAndReportInconsistency("unknown attribute:" + attribute + ";class:" + event.getClass());
                 }
             }
             if (this.eventTypeToLog == null || !attribute.equals(Event.ATTRIBUTE_TYPE)) {
-                row[attributeToColumnIndexMapping.get(attribute)] = eventAttributes.get(attribute);
+                row[columnIndex] = eventAttributes.get(attribute);
             }
         }
         try {
-            StringBuilder builder = new StringBuilder(ROW_BUILDER_CAPACITY);
+            StringBuilder builder = rowBuilder.get();
+            builder.setLength(0);
             for (int i = 0; i < row.length; i++) {
                 String str = row[i];
                 if (str != null) {
