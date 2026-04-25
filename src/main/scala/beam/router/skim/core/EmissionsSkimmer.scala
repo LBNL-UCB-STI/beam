@@ -178,76 +178,6 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
     }
   }
 
-  private def writeSkimsAsParquet(
-    skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal],
-    filePath: String
-  ): Unit = {
-    logger.info(s"Writing ${skim.size} emissions skim records to Parquet file: $filePath")
-
-    if (skim.isEmpty) {
-      logger.warn("Attempting to write empty emissions skim map to Parquet file")
-      return
-    }
-
-    Try {
-      val schema = createEmissionsAvroSchema()
-      val conf = new Configuration()
-
-      val hadoopPath = new Path(filePath)
-      val fs = hadoopPath.getFileSystem(conf)
-      val hadoopFile = HadoopOutputFile.fromPath(hadoopPath, conf)
-
-      // Create parent directories
-      val parentDir = hadoopPath.getParent
-      if (!fs.exists(parentDir)) {
-        fs.mkdirs(parentDir)
-      }
-
-      val writer = AvroParquetWriter
-        .builder[GenericRecord](hadoopFile)
-        .withSchema(schema)
-        .withConf(conf)
-        .withCompressionCodec(CompressionCodecName.SNAPPY)
-        .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)
-        .build()
-
-      try {
-        var recordCount = 0
-        val record = new GenericData.Record(schema)
-        skim.foreach {
-          case (key: EmissionsSkimmerKey, value: EmissionsSkimmerInternal) =>
-            populateEmissionsAvroRecord(record, key, value)
-            writer.write(record)
-            recordCount += 1
-
-            if (recordCount % 10000 == 0) {
-              logger.debug(s"Written $recordCount emissions records to Parquet file")
-            }
-          case (key, value) =>
-            logger.warn(s"Skipping incompatible key-value types: ${key.getClass} -> ${value.getClass}")
-        }
-
-        if (recordCount == 0) {
-          logger.error("No valid EmissionsSkimmerKey -> EmissionsSkimmerInternal pairs found")
-        }
-        logger.info(s"Successfully wrote $recordCount emissions records to $filePath")
-
-      } finally {
-        writer.close()
-      }
-
-    } match {
-      case Success(_) =>
-        logger.info(s"Emissions Parquet file written successfully: $filePath")
-        println(s"Emissions Parquet file written successfully: $filePath")
-
-      case Failure(ex) =>
-        logger.error(s"Failed to write emissions Parquet file: $filePath", ex)
-        println(s"Failed to write emissions Parquet file: $filePath", ex)
-        throw new RuntimeException(s"Failed to write emissions Parquet file: $filePath", ex)
-    }
-  }
-
   private def createEmissionsAvroSchema(): Schema = {
     val schemaString =
       """
@@ -271,27 +201,6 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
     new Schema.Parser().parse(schemaString)
   }
 
-  // The createEmissionsAvroRecord method now takes concrete types
-  private def populateEmissionsAvroRecord(
-    record: GenericRecord,
-    key: EmissionsSkimmerKey,
-    value: EmissionsSkimmerInternal
-  ): Unit = {
-    // Set key fields
-    record.put("hour", key.hour)
-    record.put("linkId", key.linkId)
-    record.put("vehicleTypeId", key.vehicleTypeId)
-    record.put("process", key.processName)
-
-    record.put("emissions", value.pollutantsString)
-
-    // Set value fields
-    record.put("travelTimeInSecond", value.travelTime)
-    record.put("parkingDurationInSecond", value.parkingDuration)
-    record.put("observations", value.observations)
-    record.put("iterations", value.iterations)
-  }
-
   private def populatePackedEmissionsAvroRecord(
     record: GenericRecord,
     packedKey: Long,
@@ -306,21 +215,6 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
     record.put("parkingDurationInSecond", value.parkingDuration)
     record.put("observations", value.observations)
     record.put("iterations", value.iterations)
-  }
-
-  override def writeSkim(skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal], filePath: String): Unit = {
-    filePath.toLowerCase match {
-      case path if path.endsWith(".parquet") =>
-        writeSkimsAsParquet(skim, filePath)
-
-      case path if path.endsWith(".csv.gz") || path.endsWith(".csv.gzip") || path.endsWith(".csv") =>
-        super.writeSkim(skim, filePath)
-
-      case _ =>
-        val error = s"Unsupported file format for writing skims: $filePath"
-        println(error)
-        throw new IllegalArgumentException(error)
-    }
   }
 
   private def parsePollutantsString(pollutantsString: String): Emissions = {
