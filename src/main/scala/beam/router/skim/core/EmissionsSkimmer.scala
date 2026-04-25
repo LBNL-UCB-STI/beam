@@ -18,6 +18,7 @@ import org.apache.parquet.hadoop.util.HadoopOutputFile
 import org.apache.spark.sql.Row
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.MatsimServices
+import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.utils.io.IOUtils
 import java.io.BufferedWriter
 import java.util.concurrent.ConcurrentHashMap
@@ -62,7 +63,7 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
     }
   }
 
-  override def notifyIterationEnds(event: org.matsim.core.controler.events.IterationEndsEvent): Unit = {
+  override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     if (config.writeSkimsInterval > 0 && readOnlySkim.currentIterationInternal % config.writeSkimsInterval == 0) {
       val filePath = matsimServices.getControlerIO
         .getIterationFilename(readOnlySkim.currentIterationInternal, s"$skimFileBaseName.$skimOutputFormat")
@@ -516,7 +517,7 @@ object EmissionsSkimmer extends LazyLogging {
   private val nextVehicleTypeCode = new java.util.concurrent.atomic.AtomicInteger(0)
 
   private val processesById: Array[EmissionsProfile.EmissionsProcess] =
-    EmissionsProfile.values.sortBy(_.id).toArray
+    EmissionsProfile.values.toSeq.sortBy(_.id).toArray
   private val processNamesById: Array[String] = processesById.map(_.toString)
   private val linkIdMask = 0xffffffffL
   private val vehicleTypeCodeMask = 0xfffffL
