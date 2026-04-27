@@ -29,6 +29,8 @@ plugins {
     id 'com.bmuschko.docker-remote-api' version '9.4.0'  // Changed from docker-java-application
     id "cz.alenkacz.gradle.scalafmt" version "1.16.2"
     id "java-library"
+    // gradlew buildHealth => to check dependency, but quite dependency-heavy itself
+    // id "com.autonomousapps.dependency-analysis" version "1.28.0"
 }
 
 apply plugin: 'java'
@@ -503,12 +505,8 @@ build.dependsOn spec
 * ./gradlew taggedTest -Ptags="beam.tags.Performance beam.tags.Integration"
 * /////////////////////////////////////////////////// */
 
-processResources {
-    duplicatesStrategy = 'include'
-}
-
-processTestResources {
-    duplicatesStrategy = 'include'
+tasks.withType(ProcessResources).configureEach {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 task taggedTest(dependsOn: ['testClasses'], type: JavaExec) {

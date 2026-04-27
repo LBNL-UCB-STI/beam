@@ -2,27 +2,23 @@ package beam.router.skim.core
 
 import beam.agentsim.agents.vehicles.VehicleEmissions.Emissions._
 import beam.agentsim.agents.vehicles.VehicleEmissions.{Emissions, EmissionsProfile}
-import beam.router.skim.{readonly, Skims}
+import beam.router.skim.{readonly, ParquetSkimWriter, Skims}
 import beam.sim.config.BeamConfig
 import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject}
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.Path
-import org.apache.parquet.avro.AvroParquetWriter
-import org.apache.parquet.hadoop.ParquetFileWriter
-import org.apache.parquet.hadoop.metadata.CompressionCodecName
-import org.apache.parquet.hadoop.util.HadoopOutputFile
 import org.apache.spark.sql.Row
 import org.matsim.core.controler.MatsimServices
 
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: BeamConfig)
     extends AbstractSkimmer(beamConfig, matsimServices.getControlerIO) {
+
   import EmissionsSkimmer._
+
   private val config: BeamConfig.Beam.Router.Skim = beamConfig.beam.router.skim
 
   override lazy val readOnlySkim: AbstractSkimmerReadOnly = new readonly.EmissionsSkims()
@@ -32,6 +28,9 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
   override protected val skimFileBaseName: String = config.emissions_skimmer.fileBaseName
   override protected val skimOutputFormat: String = config.emissions_skimmer.fileOutputFormat
 
+  private val parquetChunkSize: Int = config.emissions_skimmer.parquetWritingChunkSize
+  private val parquetParallelism: Int = config.emissions_skimmer.parquetWritingMaxParallelism
+
   override protected val skimFileHeader: String = {
     s"hour,linkId,vehicleTypeId,process,emissions,travelTimeInSecond,parkingDurationInSecond,observations,iterations"
   }
@@ -40,81 +39,25 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
     skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal],
     filePath: String
   ): Unit = {
-    logger.info(s"Writing ${skim.size} emissions skim records to Parquet file: $filePath")
-
     if (skim.isEmpty) {
-      logger.warn("Attempting to write empty emissions skim map to Parquet file")
-      return
-    }
-
-    // Filter and cast to concrete types
-    val emissionsSkim = skim.flatMap { case (key, value) =>
-      (key, value) match {
-        case (k: EmissionsSkimmerKey, v: EmissionsSkimmerInternal) => Some((k, v))
-        case (k, v) =>
-          logger.warn(s"Skipping incompatible key-value types: ${k.getClass} -> ${v.getClass}")
-          None
-      }
-    }
-
-    if (emissionsSkim.isEmpty) {
-      logger.error("No valid EmissionsSkimmerKey -> EmissionsSkimmerInternal pairs found")
-      return
-    }
-
-    Try {
-      val schema = createEmissionsAvroSchema()
-      val conf = new Configuration()
-
-      val hadoopPath = new Path(filePath)
-      val fs = hadoopPath.getFileSystem(conf)
-      val hadoopFile = HadoopOutputFile.fromPath(hadoopPath, conf)
-
-      // Create parent directories
-      val parentDir = hadoopPath.getParent
-      if (!fs.exists(parentDir)) {
-        fs.mkdirs(parentDir)
-      }
-
-      val writer = AvroParquetWriter
-        .builder[GenericRecord](hadoopFile)
-        .withSchema(schema)
-        .withConf(conf)
-        .withCompressionCodec(CompressionCodecName.SNAPPY)
-        .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)
-        .build()
-
-      try {
-        var recordCount = 0
-        emissionsSkim.foreach { case (key, value) =>
-          val record = createEmissionsAvroRecord(schema, key, value)
-          writer.write(record)
-          recordCount += 1
-
-          if (recordCount % 10000 == 0) {
-            logger.debug(s"Written $recordCount emissions records to Parquet file")
-          }
-        }
-
-        logger.info(s"Successfully wrote $recordCount emissions records to $filePath")
-
-      } finally {
-        writer.close()
-      }
-
-    } match {
-      case Success(_) =>
-        logger.info(s"Emissions Parquet file written successfully: $filePath")
-        println(s"Emissions Parquet file written successfully: $filePath")
-
-      case Failure(ex) =>
-        logger.error(s"Failed to write emissions Parquet file: $filePath", ex)
-        println(s"Failed to write emissions Parquet file: $filePath", ex)
-        throw new RuntimeException(s"Failed to write emissions Parquet file: $filePath", ex)
+      logger.warn("There are no emissions skim to write to Parquet file, step skipped.")
+    } else {
+      val parallelism = Math.min(Runtime.getRuntime.availableProcessors(), parquetParallelism)
+      logger.info(
+        s"Writing ${skim.size} emissions skim records (chunkSize $parquetChunkSize, parallelism $parallelism) to Parquet file: $filePath"
+      )
+      val parquetSkimWriter = new ParquetSkimWriter[EmissionsSkimmerKey, EmissionsSkimmerInternal](
+        emissionsAvroSchema,
+        logger,
+        createEmissionsAvroRecord,
+        chunkSize = parquetChunkSize,
+        parallelism = parallelism
+      )
+      parquetSkimWriter.writeSkims(skim, filePath)
     }
   }
 
-  private def createEmissionsAvroSchema(): Schema = {
+  private lazy val emissionsAvroSchema: Schema = {
     val schemaString =
       """
   {

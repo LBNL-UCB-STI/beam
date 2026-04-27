@@ -10,8 +10,7 @@ import scala.util.Try
 class ParquetSkimReader[Key <: AbstractSkimmerKey, Value <: AbstractSkimmerInternal](
   val aggregatedSkimsFilePath: String,
   fromParquetRow: org.apache.spark.sql.Row => (Key, Value),
-  val logger: Logger,
-  sparkSession: Option[SparkSession] = None
+  val logger: Logger
 ) extends SkimReader[Key, Value] {
 
   // Validate file extension
@@ -20,16 +19,13 @@ class ParquetSkimReader[Key <: AbstractSkimmerKey, Value <: AbstractSkimmerInter
     s"Invalid file extension for ParquetSkimsReader: $aggregatedSkimsFilePath. Only .parquet files are supported."
   )
 
-  private lazy val spark: SparkSession = sparkSession.getOrElse(
-    SparkSession
-      .builder()
-      .appName("ParquetSkimsReader")
-      .config("spark.sql.parquet.binaryAsString", "true")
-      .getOrCreate()
-  )
-
-  // Track whether we created the Spark session internally
-  private val internallyCreatedSpark: Boolean = sparkSession.isEmpty
+  private def createSparkSession(): SparkSession = SparkSession
+    .builder()
+    .appName("SkimReader")
+    .master("local[*]")
+    .config("spark.driver.maxResultSize", "0")
+    .config("spark.sql.parquet.binaryAsString", "true")
+    .getOrCreate()
 
   def readAggregatedSkims: Map[Key, Value] = {
     if (!new File(aggregatedSkimsFilePath).isFile) {
@@ -58,23 +54,34 @@ class ParquetSkimReader[Key <: AbstractSkimmerKey, Value <: AbstractSkimmerInter
   }
 
   private def readParquetFile(filePath: String): Try[Map[Key, Value]] = Try {
-    val df = spark.read.parquet(filePath)
-    val fileContent = df.collect().map(fromParquetRow).toMap
-    logger.info(s"Read ${fileContent.size} records from $filePath")
-    fileContent
-  }
+    val sparkSession = createSparkSession()
+    try {
+      val df = sparkSession.read.parquet(filePath)
 
-  def close(): Unit = {
-    if (internallyCreatedSpark && !spark.sparkContext.isStopped) {
-      try {
-        spark.close()
-        logger.debug("ParquetSkimsReader closed successfully (Spark session terminated)")
-      } catch {
-        case ex: Exception =>
-          logger.warn("Error closing Spark session in ParquetSkimsReader", ex)
+      if (df.isEmpty) {
+        logger.warn(s"Empty Parquet file: $filePath")
+        return Try(Map.empty)
       }
-    } else {
-      logger.debug("ParquetSkimsReader closed (using external Spark session)")
+
+      // Ensure reasonable partition sizes (200 partitions is default; adjust if needed)
+      val targetPartitions = 200
+      val repartitioned = if (df.rdd.getNumPartitions < targetPartitions) df.repartition(targetPartitions) else df
+
+      val iter = repartitioned.toLocalIterator()
+      val mapBuilder = Map.newBuilder[Key, Value]
+      var records = 0
+      while (iter.hasNext) {
+        val (k, v) = fromParquetRow(iter.next())
+        mapBuilder += (k -> v)
+        records += 1
+      }
+      val result = mapBuilder.result()
+      logger.info(s"Successfully read ${result.size} entries from $records records from $filePath")
+      result
+    } finally {
+      sparkSession.close()
     }
   }
+
+  def close(): Unit = {}
 }
