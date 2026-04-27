@@ -1,51 +1,73 @@
-package scripts
+package beam.router.skim
 
 import beam.router.skim.core.{AbstractSkimmerInternal, AbstractSkimmerKey}
-import beam.router.skim.{ParquetSkimReader, ParquetSkimWriter}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.wordspec.AnyWordSpec
 
-import java.lang.management.ManagementFactory
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.atomic.AtomicLong
-import java.util.concurrent.{Executors, TimeUnit}
-import scala.concurrent.duration._
 
-object SkimsParquetLoadTest extends LazyLogging {
+class ParquetSkimsReadWriteSpec extends AnyWordSpec with BeforeAndAfterAll with LazyLogging {
 
-  def main(argv: Array[String]): Unit = {
-    val amount = 10 * 1e6.toInt // 1M records is ~ 200M of RAM, ~55M on disk
-    val parallelism = 1
-    val filePath = "parquetLoadTestOutputFile.parquet"
+  val testFile = "target/parquet-test-output.parquet"
 
-    Files.deleteIfExists(Paths.get(filePath))
-
-    val skims: Array[(DummySkimKey, DummySkimVal)] = generateRandomEmissionsArray(amount)
-
-    timedWithPeakMemory(s"Generation of $amount, (using ${argv.mkString.strip()})") {
-      val writer = new ParquetSkimWriter(schema, logger, createRecord, amount / parallelism, parallelism)
-      writer.writeSkims(skims, filePath)
-      skims.length
-    }
-
-    logger.info("Skims writing complete, starting to read them back.")
-
-    val reader = new ParquetSkimReader(filePath, fromParquetRow, logger)
-    val readSkims: Map[DummySkimKey, DummySkimVal] = reader.readAggregatedSkims
-
-    logger.info("Skims reading complete, starting to compare generated vs read from file.")
-    assertSkimsEqual(skims, readSkims)
-    logger.info("NO errors - everything is fine.")
+  override def beforeAll(): Unit = {
+    Files.deleteIfExists(Paths.get(testFile))
+    super.beforeAll()
   }
 
-  private def assertSkimsEqual(
-    array: Array[(DummySkimKey, DummySkimVal)],
-    map: Map[DummySkimKey, DummySkimVal]
-  ): Unit = {
-    require(array.length == map.size, s"Size mismatch: array ${array.length} vs map ${map.size}")
-    array.foreach { case (k, v) =>
-      require(map.get(k).contains(v), s"Mismatch for key $k: array had $v, map had ${map.get(k)}")
+  override def afterAll(): Unit = {
+    Files.deleteIfExists(Paths.get(testFile))
+    super.afterAll()
+  }
+
+  "Emissions Parquet round‑trip" should {
+    "preserve all records when writing and reading back" in {
+      val amount = 123456
+      val parallelism = 5
+
+      Files.deleteIfExists(Paths.get(testFile))
+
+      val skims = generateRandomEmissionsArray(amount)
+      println(s"Generated $amount random skims")
+
+      val writer = new ParquetSkimWriter(
+        schema,
+        logger,
+        createRecord,
+        chunkSize = amount / parallelism,
+        parallelism = parallelism
+      )
+      writer.writeSkims(skims, testFile)
+
+      println("Write complete, reading back")
+
+      val reader = new ParquetSkimReader(testFile, fromParquetRow, logger)
+      val skimsOut = reader.readAggregatedSkims
+
+      require(
+        skims.length == skimsOut.size,
+        s"Size mismatch: generated skims ${skims.length} vs read skims ${skimsOut.size}"
+      )
+      skims.foreach { case (k, v) =>
+        require(
+          skimsOut.get(k).contains(v),
+          s"Mismatch for key $k: generated skims had $v, read skims had ${skimsOut.get(k)}"
+        )
+      }
+    }
+
+    "handle an empty dataset correctly" in {
+      Files.deleteIfExists(Paths.get(testFile))
+
+      val writer = new ParquetSkimWriter(schema, logger, createRecord, 100000, 1)
+      writer.writeSkims(Array.empty[(DummySkimKey, DummySkimVal)], testFile)
+
+      val reader = new ParquetSkimReader(testFile, fromParquetRow, logger)
+      assert(reader.readAggregatedSkims.isEmpty)
     }
   }
 
@@ -64,46 +86,6 @@ object SkimsParquetLoadTest extends LazyLogging {
     val value = DummySkimVal(emissions, travelTime, parkingDuration, observations, iterations)
 
     (key, value)
-  }
-
-  private def timedWithPeakMemory[T](label: String)(block: => T): T = {
-    val memBean = ManagementFactory.getMemoryMXBean
-
-    // Force a GC to get a clean baseline (best effort)
-    System.gc()
-    val baseline = memBean.getHeapMemoryUsage.getUsed
-    val peak = new AtomicLong(baseline)
-
-    val scheduler = Executors.newSingleThreadScheduledExecutor()
-    val sampler = scheduler.scheduleAtFixedRate(
-      () => {
-        val used = memBean.getHeapMemoryUsage.getUsed
-        peak.accumulateAndGet(used, math.max)
-      },
-      0,
-      200,
-      TimeUnit.MILLISECONDS
-    )
-
-    val start = System.nanoTime()
-    val result =
-      try {
-        block
-      } finally {
-        // Stop the sampler gracefully
-        sampler.cancel(false)
-        scheduler.shutdown()
-        scheduler.awaitTermination(1, TimeUnit.SECONDS)
-      }
-    val elapsed = (System.nanoTime() - start).nanos
-
-    val peakUsed = peak.get()
-    val delta = peakUsed - baseline
-    println(
-      f"[$label] ${elapsed.toSeconds} s,  peak heap = ${peakUsed / (1024 * 1024)}%d MB,  Δ = ${delta / (1024 * 1024)}%d MB  (baseline: ${baseline / (1024 * 1024)} MB)"
-    )
-
-    result
   }
 
   private val rng = new scala.util.Random
