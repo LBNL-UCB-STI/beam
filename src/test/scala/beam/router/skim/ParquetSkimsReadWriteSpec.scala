@@ -14,50 +14,58 @@ class ParquetSkimsReadWriteSpec extends AnyWordSpec with BeforeAndAfterAll with 
 
   val testFile = "target/parquet-test-output.parquet"
 
-  override def beforeAll(): Unit = {
+  private def cleanUp(): Unit = {
     Files.deleteIfExists(Paths.get(testFile))
+  }
+
+  override def beforeAll(): Unit = {
+    cleanUp()
     super.beforeAll()
   }
 
   override def afterAll(): Unit = {
-    Files.deleteIfExists(Paths.get(testFile))
+    cleanUp()
     super.afterAll()
   }
 
-  "Emissions Parquet round‑trip" should {
-    "preserve all records when writing and reading back" in {
-      val amount = 123456
-      val parallelism = 5
+  def executeTestWithParams(amount: Int, parallelism: Int): Unit = {
+    cleanUp()
 
-      Files.deleteIfExists(Paths.get(testFile))
+    val skims = generateRandomEmissionsArray(amount)
+    println(s"Generated $amount random skims")
 
-      val skims = generateRandomEmissionsArray(amount)
-      println(s"Generated $amount random skims")
+    val writer = new ParquetSkimWriter(
+      schema,
+      logger,
+      createRecord,
+      chunkSize = amount / parallelism,
+      parallelism = parallelism
+    )
+    writer.writeSkims(skims, testFile)
 
-      val writer = new ParquetSkimWriter(
-        schema,
-        logger,
-        createRecord,
-        chunkSize = amount / parallelism,
-        parallelism = parallelism
-      )
-      writer.writeSkims(skims, testFile)
+    println("Write complete, reading back")
 
-      println("Write complete, reading back")
+    val reader = new ParquetSkimReader(testFile, fromParquetRow, logger)
+    val skimsOut = reader.readAggregatedSkims
 
-      val reader = new ParquetSkimReader(testFile, fromParquetRow, logger)
-      val skimsOut = reader.readAggregatedSkims
-
+    require(
+      skims.length == skimsOut.size,
+      s"Size mismatch: generated skims ${skims.length} vs read skims ${skimsOut.size}"
+    )
+    skims.foreach { case (k, v) =>
       require(
-        skims.length == skimsOut.size,
-        s"Size mismatch: generated skims ${skims.length} vs read skims ${skimsOut.size}"
+        skimsOut.get(k).contains(v),
+        s"Mismatch for key $k: generated skims had $v, read skims had ${skimsOut.get(k)}"
       )
-      skims.foreach { case (k, v) =>
-        require(
-          skimsOut.get(k).contains(v),
-          s"Mismatch for key $k: generated skims had $v, read skims had ${skimsOut.get(k)}"
-        )
-      }
+    }
+  }
+
+  "Emissions Parquet round‑trip" should {
+    "preserve all records when writing and reading back (123456 records : parallelism 1)" in {
+      executeTestWithParams(123456, 1)
+    }
+    "preserve all records when writing and reading back (123456 records : parallelism 5)" in {
+      executeTestWithParams(123456, 5)
     }
 
     "handle an empty dataset correctly" in {
