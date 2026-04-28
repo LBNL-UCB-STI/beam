@@ -47,7 +47,7 @@ class ParquetSkimWriter[Key <: AbstractSkimmerKey: ClassTag, Value <: AbstractSk
     val path = new Path(outputFilePath)
     val recordCount = writeSkimsToParquetInternal(path, validSkims, skim.size / 7)
 
-    logger.info(s"Successfully wrote $recordCount records to $outputFilePath (single file)")
+    logger.info(s"Successfully wrote $recordCount records to $outputFilePath")
   }
 
   private def writeSkimsParallelAndMergeIntoSingleFile(
@@ -108,9 +108,10 @@ class ParquetSkimWriter[Key <: AbstractSkimmerKey: ClassTag, Value <: AbstractSk
       skimsSeq.foreach { case (key, value) =>
         val record = recordConstructor(schema, key, value)
         writer.write(record)
+
         recordCount += 1
         if (recordCount % logEachChunks == 0) {
-          logger.info(s"Written $recordCount records")
+          logger.info(s"Written $recordCount records to $filePath")
         }
       }
     } finally {
@@ -151,6 +152,7 @@ class ParquetSkimWriter[Key <: AbstractSkimmerKey: ClassTag, Value <: AbstractSk
 
     try {
       writer.start()
+      logger.info(s"Merge of ${inputFiles.length} chunks to $outputFile started.")
 
       // 3. Append row groups from each chunk as raw bytes
       inputFiles.foreach { file =>
@@ -177,7 +179,7 @@ class ParquetSkimWriter[Key <: AbstractSkimmerKey: ClassTag, Value <: AbstractSk
 
     val dir = new Directory(new File(inputDir))
     if (dir.exists) dir.deleteRecursively()
-    logger.info(s"Merged ${inputFiles.length} files into $outputFile")
+    logger.info(s"Merged ${inputFiles.length} chunks into $outputFile")
   }
 
 }
