@@ -13,10 +13,10 @@ import org.apache.parquet.hadoop.{ParquetFileReader, ParquetFileWriter}
 
 import java.io.File
 import java.nio.file.{Files, Paths}
-import java.util.concurrent.Executors
+import java.util.UUID
+import java.util.concurrent.{ConcurrentLinkedQueue, Executors, Semaphore}
 import scala.collection.JavaConverters._
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.ClassTag
 import scala.reflect.io.Directory
 
@@ -24,8 +24,8 @@ class ParquetSkimWriter[Key <: AbstractSkimmerKey: ClassTag, Value <: AbstractSk
   val schema: Schema,
   val logger: Logger,
   val recordConstructor: (Schema, Key, Value) => GenericRecord,
-  val chunkSize: Int = 1000000,
-  val parallelism: Int = 4
+  val chunkSize: Int,
+  val parallelism: Int
 ) {
 
   def writeSkims(
@@ -50,41 +50,55 @@ class ParquetSkimWriter[Key <: AbstractSkimmerKey: ClassTag, Value <: AbstractSk
     logger.info(s"Successfully wrote $recordCount records to $outputFilePath")
   }
 
+  private def writeSkimsStreaming(
+    skim: collection.Iterable[(AbstractSkimmerKey, AbstractSkimmerInternal)],
+    chunksPath: String
+  ): Array[Int] = {
+    val sem = new Semaphore(parallelism)
+    val results = new ConcurrentLinkedQueue[Int]()
+    val executor = Executors.newFixedThreadPool(parallelism)
+    implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(executor)
+
+    // lazy iterator over the original map – no extra collection
+    val chunks = skim.iterator
+      .collect { case (k: Key, v: Value) => (k, v) }
+      .grouped(chunkSize)
+      .zipWithIndex
+
+    try {
+
+      chunks.foreach { case (chunk, idx) =>
+        sem.acquire() // block until a writer slot is free
+        Future {
+          try {
+            val filePath = new Path(chunksPath, s"chunk_$idx.parquet")
+            val recordsWritten = writeSkimsToParquetInternal(filePath, chunk, chunkSize / 3)
+            results.add(recordsWritten)
+          } finally {
+            sem.release() // free the slot when done
+          }
+        }
+      }
+      sem.acquire(parallelism)
+      results.toArray.map(_.asInstanceOf[Int])
+    } finally {
+      executor.shutdown()
+    }
+  }
+
   private def writeSkimsParallelAndMergeIntoSingleFile(
     skim: collection.Iterable[(AbstractSkimmerKey, AbstractSkimmerInternal)],
     outputFilePath: String
   ): Unit = {
-    val chunksPath = outputFilePath.replace(".parquet", "_chunks")
+    val runId = UUID.randomUUID().toString.take(8)
+    val chunksPath = outputFilePath.replace(".parquet", s"_chunks_$runId")
     val path = Paths.get(chunksPath)
     if (!Files.exists(path)) { Files.createDirectories(path) }
 
-    val executor = Executors.newFixedThreadPool(parallelism)
-    implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(executor)
+    val results = writeSkimsStreaming(skim, chunksPath)
 
-    try {
-      val futures: List[Future[Int]] = skim.iterator
-        .map { case (k: Key, v: Value) => (k, v) }
-        .grouped(chunkSize)
-        .zipWithIndex
-        .map { case (skimsChunk, chunkIdx) =>
-          val filePath = new Path(chunksPath, s"chunk_$chunkIdx.parquet")
-          Future(writeSkimsToParquetInternal(filePath, skimsChunk, chunkSize / 3))
-        }
-        .toList
-
-      logger.info(s"Started writers: ${futures.length}")
-      val combinedFuture = Future.sequence(futures)
-
-      val results = Await.result(combinedFuture, Duration.Inf).toArray
-      logger.info(s"Successfully wrote ${results.sum} records to $chunksPath as ${results.length} chunks.")
-
-      mergeParquetFiles(chunksPath, outputFilePath)
-    } catch {
-      case e: Exception =>
-        throw new RuntimeException(s"Failed to write skims to $chunksPath parquet files chunks.", e)
-    } finally {
-      executor.shutdown()
-    }
+    logger.info(s"Successfully wrote ${results.sum} records to $chunksPath as ${results.length} chunks.")
+    mergeParquetFiles(chunksPath, outputFilePath)
   }
 
   private def writeSkimsToParquetInternal(
@@ -179,7 +193,7 @@ class ParquetSkimWriter[Key <: AbstractSkimmerKey: ClassTag, Value <: AbstractSk
 
     val dir = new Directory(new File(inputDir))
     if (dir.exists) dir.deleteRecursively()
-    logger.info(s"Merged ${inputFiles.length} chunks into $outputFile")
+    logger.info(s"Merged ${inputFiles.length} chunks into $outputFile, chunks were deleted.")
   }
 
 }

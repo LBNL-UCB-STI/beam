@@ -5,12 +5,15 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.must.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 import java.nio.file.{Files, Paths}
+import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicLong
 
-class ParquetSkimsReadWriteSpec extends AnyWordSpec with BeforeAndAfterAll with LazyLogging {
+class ParquetSkimsReadWriteSpec extends AnyWordSpec with BeforeAndAfterAll with LazyLogging with Matchers {
+  import ParquetSkimsReadWriteSpec._
 
   val testFile = "target/parquet-test-output.parquet"
 
@@ -18,59 +21,82 @@ class ParquetSkimsReadWriteSpec extends AnyWordSpec with BeforeAndAfterAll with 
     Files.deleteIfExists(Paths.get(testFile))
   }
 
-  override def beforeAll(): Unit = {
-    cleanUp()
-    super.beforeAll()
-  }
-
   override def afterAll(): Unit = {
     cleanUp()
     super.afterAll()
   }
 
-  def executeTestWithParams(amount: Int, parallelism: Int): Unit = {
+  def executeTestWithParams(
+    skims: Array[(DummySkimKey, DummySkimVal)],
+    parallelism: Int,
+    readAfter: Boolean,
+    chunkSize: Option[Int] = None
+  ): Unit = {
     cleanUp()
 
-    val skims = generateRandomEmissionsArray(amount)
-    println(s"Generated $amount random skims")
-
-    val writer = new ParquetSkimWriter(
-      schema,
-      logger,
-      createRecord,
-      chunkSize = amount / parallelism,
-      parallelism = parallelism
-    )
-    writer.writeSkims(skims, testFile)
-
-    println("Write complete, reading back")
-
-    val reader = new ParquetSkimReader(testFile, fromParquetRow, logger)
-    val skimsOut = reader.readAggregatedSkims
-
-    require(
-      skims.length == skimsOut.size,
-      s"Size mismatch: generated skims ${skims.length} vs read skims ${skimsOut.size}"
-    )
-    skims.foreach { case (k, v) =>
-      require(
-        skimsOut.get(k).contains(v),
-        s"Mismatch for key $k: generated skims had $v, read skims had ${skimsOut.get(k)}"
+    def writeSkims(parallelism: Int, filePath: String): Unit = {
+      val writer = new ParquetSkimWriter(
+        schema,
+        logger,
+        createRecord,
+        chunkSize = chunkSize.getOrElse(skims.length / parallelism),
+        parallelism = parallelism
       )
+      val start = System.nanoTime()
+      writer.writeSkims(skims, filePath)
+      val seconds = (System.nanoTime() - start) / 1e9
+      println(s"Write complete [$seconds sec, ${skims.length} size, $parallelism parallelism]")
     }
+
+    def readAndCheckIfEqual(outFilePath: String): Unit = {
+      val reader = new ParquetSkimReader(outFilePath, fromParquetRow, logger)
+      val skimsOut = reader.readAggregatedSkims
+
+      require(
+        skims.length == skimsOut.size,
+        s"Size mismatch: generated skims ${skims.length} vs read skims ${skimsOut.size}"
+      )
+      skims.foreach { case (k, v) =>
+        require(
+          skimsOut.get(k).contains(v),
+          s"Mismatch for key $k: generated skims had $v, read skims had ${skimsOut.get(k)}"
+        )
+      }
+    }
+
+    writeSkims(parallelism, testFile)
+
+    if (readAfter) {
+      println(s"Reading back from $testFile ..")
+      readAndCheckIfEqual(testFile)
+    }
+
+    cleanUp()
   }
 
-  "Emissions Parquet round‑trip" should {
-    "preserve all records when writing and reading back (123456 records : parallelism 1)" in {
-      executeTestWithParams(123456, 1)
+  "Parquet Skims write and read" should {
+    val size = 100 * 1000
+    lazy val skims: Array[(DummySkimKey, DummySkimVal)] = generateRandomEmissionsArray(size)
+
+    "generate skims of correct length" in {
+      skims.length mustBe size
     }
-    "preserve all records when writing and reading back (123456 records : parallelism 5)" in {
-      executeTestWithParams(123456, 5)
+
+    def readAndWriteWithParallelism(parallelism: Int, chunkSize: Option[Int] = None): Unit = {
+      val chunksStr = chunkSize match {
+        case Some(value) => s", with chunks of $value records"
+        case None        => ""
+      }
+      s"preserve all records when writing and reading back ($size records, parallelism $parallelism$chunksStr)" in {
+        executeTestWithParams(skims, parallelism, readAfter = true, chunkSize = chunkSize)
+      }
     }
+
+    readAndWriteWithParallelism(1)
+    readAndWriteWithParallelism(10)
+    readAndWriteWithParallelism(10, Some(size / 21))
 
     "handle an empty dataset correctly" in {
-      Files.deleteIfExists(Paths.get(testFile))
-
       val writer = new ParquetSkimWriter(schema, logger, createRecord, 100000, 1)
       writer.writeSkims(Array.empty[(DummySkimKey, DummySkimVal)], testFile)
 
@@ -78,6 +104,9 @@ class ParquetSkimsReadWriteSpec extends AnyWordSpec with BeforeAndAfterAll with 
       assert(reader.readAggregatedSkims.isEmpty)
     }
   }
+}
+
+object ParquetSkimsReadWriteSpec {
 
   private def fromParquetRow(row: org.apache.spark.sql.Row): (DummySkimKey, DummySkimVal) = {
     val hour = row.getAs[Int]("hour")
@@ -96,18 +125,16 @@ class ParquetSkimsReadWriteSpec extends AnyWordSpec with BeforeAndAfterAll with 
     (key, value)
   }
 
-  private val rng = new scala.util.Random
-
   private val linkIdCounter = new AtomicLong(0)
   private def getNextLinkId: Long = linkIdCounter.getAndIncrement()
-  private def getRandomHour: Int = rng.nextInt(24)
+  private def getRandomHour(rng: ThreadLocalRandom): Int = rng.nextInt(24)
 
-  private def getRandomVehicleTypeId: String = {
+  private def getRandomVehicleTypeId(rng: ThreadLocalRandom): String = {
     val vehicles = Array("Car", "Bus", "Truck", "Motorcycle", "Bike", "RH", "Train", "Ship", "Plane", "Helicopter")
     vehicles(rng.nextInt(vehicles.length))
   }
 
-  private def getRandomEmissions: String = {
+  private def getRandomEmissions(rng: ThreadLocalRandom): String = {
     val words = Consts.emissionRelatedWords
     val n = words.length
     val picked = (1 until rng.nextInt(7) + 2).map(_ => rng.nextInt(n)).toSet
@@ -121,32 +148,35 @@ class ParquetSkimsReadWriteSpec extends AnyWordSpec with BeforeAndAfterAll with 
     sb.toString()
   }
 
-  private def getRandomTravelTime: Double = Math.abs(rng.nextGaussian()) * 10 + 1 // positive, around 1-20
-  private def getRandomParkingDuration: Double = if (rng.nextDouble() < 0.7) 0.0 else rng.nextDouble() * 30
-  private def getRandomObservations: Int = rng.nextInt(100) + 1
-  private def getRandomIterations: Int = rng.nextInt(5) + 1
+  private def getRandomTravelTime(rng: ThreadLocalRandom): Double =
+    Math.abs(rng.nextGaussian()) * 10 + 1 // positive, around 1-20
+  private def getRandomParkingDuration(rng: ThreadLocalRandom): Double =
+    if (rng.nextDouble() < 0.7) 0.0 else rng.nextDouble() * 30
+  private def getRandomObservations(rng: ThreadLocalRandom): Int = rng.nextInt(100) + 1
+  private def getRandomIterations(rng: ThreadLocalRandom): Int = rng.nextInt(5) + 1
 
-  private def getRandomEmissionsTuple: (DummySkimKey, DummySkimVal) = {
-    val key = DummySkimKey(
-      linkId = getNextLinkId,
-      vehicle1TypeId = getRandomVehicleTypeId,
-      vehicle2TypeId = getRandomVehicleTypeId,
-      hour = getRandomHour
-    )
-
-    val value = DummySkimVal(
-      emissions = getRandomEmissions,
-      travelTime = getRandomTravelTime,
-      parkingDuration = getRandomParkingDuration,
-      observations = getRandomObservations,
-      iterations = getRandomIterations
-    )
-    (key, value)
-  }
-
-  // Build an array of desired size (fixed-length, in memory)
   private def generateRandomEmissionsArray(size: Int): Array[(DummySkimKey, DummySkimVal)] = {
-    Array.fill(size)(getRandomEmissionsTuple)
+    // .par uses the default ForkJoinPool, which will detect all 72 cores
+    (0 until size).par.map { _ =>
+      val rnd: ThreadLocalRandom = ThreadLocalRandom.current()
+
+      // Pass 'rnd' into every helper to avoid the synchronized java.util.Random lock
+      val key = DummySkimKey(
+        linkId = getNextLinkId,
+        vehicle1TypeId = getRandomVehicleTypeId(rnd),
+        vehicle2TypeId = getRandomVehicleTypeId(rnd),
+        hour = getRandomHour(rnd)
+      )
+
+      val value = DummySkimVal(
+        emissions = getRandomEmissions(rnd),
+        travelTime = getRandomTravelTime(rnd),
+        parkingDuration = getRandomParkingDuration(rnd),
+        observations = getRandomObservations(rnd),
+        iterations = getRandomIterations(rnd)
+      )
+      (key, value)
+    }.toArray
   }
 
   private lazy val schema: Schema = {
