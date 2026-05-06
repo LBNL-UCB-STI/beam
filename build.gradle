@@ -146,7 +146,7 @@ dependencies {
 }
 
 
-configurations.all {
+configurations.configureEach {
     resolutionStrategy {
         // we need this in order to get Elki library working fine.
         force 'net.jafama:jafama:2.3.2'
@@ -336,9 +336,7 @@ dependencies {
     ///Performance Monitoring (Kamon)///
     ////////////////////////////////////
 
-    // compile("io.kamon:kamon-bundle_${scalaBinaryVersion}:${kamonVersion}")
     implementation("io.kamon:kamon-core_${scalaBinaryVersion}:2.0.1")
-    // compile("io.kamon:kamon-influxdb_2.12:2.0.0")
 
     implementation("org.influxdb:influxdb-java:2.16")
 
@@ -366,26 +364,6 @@ dependencies {
 
     implementation group: 'com.zaxxer', name: 'nuprocess', version: '1.2.4'
 
-    def sparkVersion = "3.4.2" // Use your desired Spark version
-
-    implementation("org.apache.spark:spark-core_${scalaBinaryVersion}:${sparkVersion}") {
-        exclude group: 'org.apache.hadoop'
-        exclude group: 'org.slf4j'
-    }
-    implementation("org.apache.spark:spark-sql_${scalaBinaryVersion}:${sparkVersion}") {
-        exclude group: 'org.apache.hadoop'
-        exclude group: 'org.slf4j'
-    }
-    testImplementation("org.apache.spark:spark-core_${scalaBinaryVersion}:${sparkVersion}") {
-        exclude group: 'org.apache.hadoop'
-        exclude group: 'org.slf4j'
-    }
-    testImplementation("org.apache.spark:spark-sql_${scalaBinaryVersion}:${sparkVersion}") {
-        exclude group: 'org.apache.hadoop'
-        exclude group: 'org.slf4j'
-    }
-
-    def parquet = "1.12.3"
     // Parquet dependencies with shading
     implementation 'org.apache.parquet:parquet-avro:1.12.3'
     implementation 'org.apache.parquet:parquet-hadoop:1.12.3'

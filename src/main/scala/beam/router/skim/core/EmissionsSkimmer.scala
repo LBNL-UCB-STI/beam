@@ -9,10 +9,7 @@ import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
-import org.apache.spark.sql.Row
 import org.matsim.core.controler.MatsimServices
-
-import scala.util.Try
 
 class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: BeamConfig)
     extends AbstractSkimmer(beamConfig, matsimServices.getControlerIO) {
@@ -94,30 +91,14 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
     record.put("vehicleTypeId", key.vehicleTypeId)
     record.put("process", key.emissionsProcess.toString)
 
-    // Convert emissions to pollutants string
-    val pollutantsString = convertEmissionsToPollutantsString(value.emissions)
-    record.put("emissions", pollutantsString)
-
     // Set value fields
+    record.put("emissions", EmissionsSkimmerInternal.emissionsToString(value.emissions))
     record.put("travelTimeInSecond", value.travelTime)
     record.put("parkingDurationInSecond", value.parkingDuration)
     record.put("observations", value.observations)
     record.put("iterations", value.iterations)
 
     record
-  }
-
-  /**
-    * Converts Emissions object to pollutants string format
-    */
-  private def convertEmissionsToPollutantsString(emissions: Emissions): String = {
-    Emissions.values.toList
-      .flatMap { emType =>
-        val value = emissions.get(emType).getOrElse(0.0)
-        if (value > 0) Some(s"${emType.toString}:$value")
-        else None
-      }
-      .mkString(";")
   }
 
   override def writeSkim(skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal], filePath: String): Unit = {
@@ -135,123 +116,50 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
     }
   }
 
-  private def parsePollutantsString(pollutantsString: String): Emissions = {
-    val emissionsMap = if (pollutantsString != null && pollutantsString.nonEmpty) {
-      pollutantsString
-        .split(";")
-        .filter(_.nonEmpty)
-        .map { entry =>
-          val parts = entry.split(":")
-          if (parts.length == 2) {
-            try {
-              Some(Emissions.withName(parts(0)) -> parts(1).toDouble)
-            } catch {
-              case _: Exception => None
-            }
-          } else None
-        }
-        .collect { case Some(kv) => kv }
-        .toMap
-    } else Map.empty[EmissionType, Double]
-
-    new Emissions(emissionsMap)
-  }
-
-  override protected def fromParquetRow(row: Row): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
-    // Helper function to safely get row values with defaults
-    def getSafeInt(field: String, default: Int = 0): Int = {
-      Try(row.getAs[Int](field)).getOrElse {
-        logger.warn(s"Missing or invalid field '$field', using default: $default")
-        default
-      }
-    }
-
-    def getSafeDouble(field: String, default: Double = 0.0): Double = {
-      Try(row.getAs[Double](field)).getOrElse {
-        logger.warn(s"Missing or invalid field '$field', using default: $default")
-        default
-      }
-    }
-
-    def getSafeString(field: String, default: String = ""): String = {
-      Try(row.getAs[String](field)).getOrElse {
-        logger.warn(s"Missing or invalid field '$field', using default: '$default'")
-        default
-      }
-    }
-
+  override def fromParquetRow(rawRecord: Array[Any]): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
     try {
-      // Extract key fields with safe access
-      val hour = getSafeInt("hour")
-      val linkId = getSafeInt("linkId")
-      val vehicleTypeId = getSafeString("vehicleTypeId")
-      val emissionsProcessStr = getSafeString("process")
-
-      // Convert string back to EmissionsProfile enum with fallback
-      val emissionsProfile = EmissionsProfile.fromString(emissionsProcessStr).getOrElse {
-        logger.warn(s"Unknown emissions process: '$emissionsProcessStr', using RUNEX as default")
-        EmissionsProfile.RUNEX
-      }
-
       // Create the key
-      val key = EmissionsSkimmerKey(linkId, vehicleTypeId, hour, emissionsProfile)
+      // using the order and types of fields in schema!
+      //    {"name": "hour", "type": "int"},
+      //    {"name": "linkId", "type": "int"},
+      //    {"name": "vehicleTypeId", "type": "string"},
+      //    {"name": "process", "type": "string"},
 
-      // Extract value fields with safe access
-      val travelTime = getSafeDouble("travelTimeInSecond")
-      val parkingDuration = getSafeDouble("parkingDurationInSecond")
-      val observations = getSafeInt("observations")
-      val iterations = getSafeInt("iterations")
-
-      val pollutantsString = getSafeString("emissions")
-
-      // Convert pollutants string back to Emissions object
-      val emissions = parsePollutantsString(pollutantsString)
+      val key = EmissionsSkimmerKey(
+        hour = rawRecord(0).asInstanceOf[Int],
+        linkId = rawRecord(1).asInstanceOf[Int],
+        vehicleTypeId = rawRecord(2).asInstanceOf[String],
+        emissionsProcess = EmissionsProfile.withName(rawRecord(3).asInstanceOf[String])
+      )
 
       // Create the value
-      val value = EmissionsSkimmerInternal(emissions, travelTime, parkingDuration, observations, iterations)
+      // using the order and types of fields in schema!
+      //    {"name": "emissions", "type": "string"},
+      //    {"name": "travelTimeInSecond", "type": "double"},
+      //    {"name": "parkingDurationInSecond", "type": "double"},
+      //    {"name": "observations", "type": "int"},
+      //    {"name": "iterations", "type": "int"}
+
+      val value = EmissionsSkimmerInternal(
+        emissions = EmissionsSkimmerInternal.emissionsFromString(rawRecord(4).asInstanceOf[String]),
+        travelTime = rawRecord(5).asInstanceOf[Double],
+        parkingDuration = rawRecord(6).asInstanceOf[Double],
+        observations = rawRecord(7).asInstanceOf[Int],
+        iterations = rawRecord(8).asInstanceOf[Int]
+      )
 
       (key, value)
 
     } catch {
       case ex: Exception =>
-        logger.error(s"Failed to parse Parquet row: ${rowToString(row)}", ex)
+        logger.error(s"Failed to parse Parquet row: ${rawRecord.mkString(",")}", ex)
         throw new RuntimeException(s"Failed to parse Parquet row for EmissionsSkimmer", ex)
     }
-  }
-
-  /**
-    * Convert a Row to string for logging purposes
-    */
-  private def rowToString(row: Row): String = {
-    Try {
-      val fields = row.schema.fieldNames.map { fieldName =>
-        s"$fieldName: ${try { row.getAs[Any](fieldName) }
-        catch { case _: Exception => "ERROR" }}"
-      }
-      fields.mkString("Row(", ", ", ")")
-    }.getOrElse("Row(could not convert to string)")
   }
 
   override def fromCsv(
     line: scala.collection.Map[String, String]
   ): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
-    val emissionsMap = line
-      .getOrElse("emissions", "")
-      .split(";")
-      .filter(_.nonEmpty)
-      .map { entry =>
-        val parts = entry.split(":")
-        if (parts.length == 2) {
-          try {
-            Some(Emissions.withName(parts(0)) -> parts(1).toDouble)
-          } catch {
-            case _: Exception => None
-          }
-        } else None
-      }
-      .collect { case Some(kv) => kv }
-      .toMap
-
     (
       EmissionsSkimmerKey(
         line("linkId").toInt,
@@ -260,7 +168,7 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
         EmissionsProfile.withName(line("process"))
       ),
       EmissionsSkimmerInternal(
-        Emissions(emissionsMap),
+        EmissionsSkimmerInternal.emissionsFromString(line.getOrElse("emissions", "")),
         line("travelTimeInSecond").toDouble,
         line("parkingDurationInSecond").toDouble,
         line("observations").toInt,
@@ -333,19 +241,45 @@ object EmissionsSkimmer extends LazyLogging {
     observations: Int = 0,
     iterations: Int = 0
   ) extends AbstractSkimmerInternal {
-    // Replace this line:
-    // private val pollutants: String = Emissions.values.toList.map(emissions.get(_).getOrElse(0.0).toString).mkString(",")
-
-    // With this implementation:
-    private val pollutants: String = Emissions.values.toList
-      .flatMap(emType => {
-        val value = emissions.get(emType).getOrElse(0.0)
-        if (value > 0) Some(s"${emType.toString}:$value")
-        else None
-      })
-      .mkString(";")
-
+    private lazy val pollutants: String = EmissionsSkimmerInternal.emissionsToString(emissions)
     override def toCsv: String = s"$pollutants,$travelTime,$parkingDuration,$observations,$iterations"
+  }
+
+  object EmissionsSkimmerInternal {
+
+    def emissionsToString(emissions: Emissions): String = {
+      val sb = new StringBuilder()
+
+      Emissions.values.foreach { emType =>
+        val value = emissions.values.getOrElse(emType, 0.0)
+        if (value > 0) {
+          if (sb.nonEmpty) sb.append(";")
+          sb.append(emType.toString).append(":").append(value)
+        }
+      }
+
+      sb.toString()
+    }
+
+    def emissionsFromString(pollutantsString: String): Emissions = {
+      if (pollutantsString == null || pollutantsString.isEmpty) Emissions()
+      else
+        Emissions(
+          pollutantsString
+            .split(";")
+            .iterator
+            .filter(_.contains(":"))
+            .flatMap { entry =>
+              try {
+                val Array(k, v) = entry.split(":", 2)
+                Some(Emissions.withName(k) -> v.toDouble)
+              } catch {
+                case _: Exception => None
+              }
+            }
+            .toMap
+        )
+    }
   }
 
   def emissionsSkimOutputDataDescriptor: OutputDataDescriptor =
