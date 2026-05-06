@@ -98,7 +98,7 @@ class ParquetSkimsReadWriteSpec extends AnyWordSpec with BeforeAndAfterAll with 
     cleanUp()
   }
 
-  "Parquet Skims write and read" in {
+  "Parquet Skims write and read" should {
     val size = 100 * 1000
     lazy val skims: Array[(DummySkimKey, DummySkimVal)] = generateRandomEmissionsArray(size)
 
@@ -131,7 +131,10 @@ class ParquetSkimsReadWriteSpec extends AnyWordSpec with BeforeAndAfterAll with 
   }
 
   "Parquet Skims write and read STRESS TEST" ignore {
-    val size = 20 * 1000 * 1000 // 20M records will result in ~1 Gb parquet output file
+    // whole test with 300M records, parallelism 10, with chunks of 500k took on node4 44 minutes
+    // 300M records will result in ~15 Gb parquet output file
+    // 20M records will result in ~1 Gb parquet output file
+    val size = 20 * 1000 * 1000
     lazy val skims: Array[(DummySkimKey, DummySkimVal)] = generateRandomEmissionsArray(size)
 
     s"generate skims array with length ${size / 1000000}M" in {
@@ -152,7 +155,9 @@ class ParquetSkimsReadWriteSpec extends AnyWordSpec with BeforeAndAfterAll with 
   }
 
   "Parquet Skims write-only STRESS TEST" ignore {
-    val size = 20 * 1000 * 1000 // 20M records will result in ~1 Gb parquet output file
+    // 300M records writing took ~7 minutes with parallelism 10
+    // 20M records will result in ~1 Gb parquet output file
+    val size = 20 * 1000 * 1000
     lazy val skims: Array[(DummySkimKey, DummySkimVal)] = generateRandomEmissionsArray(size)
 
     s"generate skims array with length ${size / 1000000}M" in {
