@@ -1,6 +1,7 @@
 package beam.router.skim
 
 import beam.router.skim.core.{AbstractSkimmerInternal, AbstractSkimmerKey}
+import beam.utils.ProducerConsumer
 import com.typesafe.scalalogging.Logger
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
@@ -11,11 +12,14 @@ import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile, HadoopStreams}
 import org.apache.parquet.hadoop.{ParquetFileReader, ParquetFileWriter}
 
+import scala.concurrent.ExecutionContext.Implicits.global
+
 import java.io.File
 import java.nio.file.{Files, Paths}
 import java.util.UUID
 import java.util.concurrent.{ConcurrentLinkedQueue, Executors, Semaphore}
 import scala.collection.JavaConverters._
+import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.ClassTag
 import scala.reflect.io.Directory
@@ -54,36 +58,36 @@ class ParquetSkimWriter[Key <: AbstractSkimmerKey: ClassTag, Value <: AbstractSk
     skim: collection.Iterable[(AbstractSkimmerKey, AbstractSkimmerInternal)],
     chunksPath: String
   ): Array[Int] = {
-    val sem = new Semaphore(parallelism)
     val results = new ConcurrentLinkedQueue[Int]()
-    val executor = Executors.newFixedThreadPool(parallelism)
-    implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(executor)
 
     // lazy iterator over the original map – no extra collection
-    val chunks = skim.iterator
+    val chunks: Iterator[(Seq[(Key, Value)], Int)] = skim.iterator
       .collect { case (k: Key, v: Value) => (k, v) }
       .grouped(chunkSize)
       .zipWithIndex
 
-    try {
-
-      chunks.foreach { case (chunk, idx) =>
-        sem.acquire() // block until a writer slot is free
-        Future {
-          try {
-            val filePath = new Path(chunksPath, s"chunk_$idx.parquet")
-            val recordsWritten = writeSkimsToParquetInternal(filePath, chunk, chunkSize / 3)
-            results.add(recordsWritten)
-          } finally {
-            sem.release() // free the slot when done
-          }
-        }
-      }
-      sem.acquire(parallelism)
-      results.toArray.map(_.asInstanceOf[Int])
-    } finally {
-      executor.shutdown()
+    def produceChunk(): Option[(Seq[(Key, Value)], Int)] = {
+      if (chunks.hasNext) Some(chunks.next())
+      else None
     }
+
+    def writeChunk(chunkWithIndex: (Seq[(Key, Value)], Int)): Unit = {
+      val (chunk, idx) = chunkWithIndex
+      val filePath = new Path(chunksPath, s"chunk_$idx.parquet")
+      val recordsWritten = writeSkimsToParquetInternal(filePath, chunk, chunkSize / 3)
+      results.add(recordsWritten)
+    }
+
+    val pcWriter = new ProducerConsumer[(Seq[(Key, Value)], Int)](
+      produce = produceChunk,
+      consume = writeChunk,
+      log = s => logger.info(s),
+      numberOfParallelTransformers = parallelism,
+      desiredInternalWorkQueueSize = parallelism
+    )
+    pcWriter.waitForTransformationToComplete(Duration.Inf)
+
+    results.toArray.map(_.asInstanceOf[Int])
   }
 
   private def writeSkimsParallelAndMergeIntoSingleFile(
@@ -104,10 +108,11 @@ class ParquetSkimWriter[Key <: AbstractSkimmerKey: ClassTag, Value <: AbstractSk
   private def writeSkimsToParquetInternal(
     filePath: Path,
     skimsSeq: Iterable[(Key, Value)],
-    logEachChunks: Int
+    logEachChunksMightBe0: Int
   ): Int = {
     val conf = new Configuration()
     val hadoopFile = HadoopOutputFile.fromPath(filePath, conf)
+    val logEachChunks = Math.max(logEachChunksMightBe0, 3)
 
     val writer = AvroParquetWriter
       .builder[GenericRecord](hadoopFile)

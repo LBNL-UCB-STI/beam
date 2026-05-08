@@ -15,7 +15,7 @@ class ProducerConsumer[Raw](
   transformerProgressReportInterval: Int = 12345
 )(implicit executionContext: ExecutionContext) {
 
-  private val workQueueSize = Math.max(numberOfParallelTransformers * 10, desiredInternalWorkQueueSize)
+  private val workQueueSize = Math.max(numberOfParallelTransformers, desiredInternalWorkQueueSize)
   private val workQueue = new ArrayBlockingQueue[Option[Raw]](workQueueSize)
   private val readingFailed = new AtomicBoolean(false)
 

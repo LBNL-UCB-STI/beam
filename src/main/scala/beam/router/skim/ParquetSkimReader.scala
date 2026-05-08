@@ -6,17 +6,10 @@ import com.typesafe.scalalogging.Logger
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.parquet.column.page.PageReadStore
-import org.apache.parquet.example.data.simple.SimpleGroup
-import org.apache.parquet.example.data.simple.convert.GroupRecordConverter
 import org.apache.parquet.hadoop.ParquetFileReader
 import org.apache.parquet.hadoop.util.HadoopInputFile
+import org.apache.parquet.io.api.{Binary, GroupConverter, PrimitiveConverter, RecordMaterializer}
 import org.apache.parquet.io.{ColumnIOFactory, MessageColumnIO}
-import org.apache.parquet.io.api.{GroupConverter, PrimitiveConverter}
-import org.apache.parquet.schema.MessageType
-import org.apache.parquet.io.api.{Binary, GroupConverter, PrimitiveConverter}
-import org.apache.parquet.schema.MessageType
-import org.apache.parquet.io.api.RecordMaterializer
-import org.apache.parquet.io.api.GroupConverter
 import org.apache.parquet.schema.MessageType
 
 import java.io.{BufferedReader, File}
@@ -58,130 +51,98 @@ class ParquetSkimReader[Key <: AbstractSkimmerKey, Value <: AbstractSkimmerInter
     Map.empty[Key, Value]
   }
 
-//  private def createSparkSession(): SparkSession = SparkSession
-//    .builder()
-//    .appName("SkimReader")
-//    .master("local[*]")
-//    .config("spark.driver.maxResultSize", "0")
-//    .config("spark.sql.parquet.binaryAsString", "true")
-//    .config("spark.driver.memory", "8g")
-//    .config("spark.sql.parquet.enableVectorizedReader", "false") // <-- DISABLE vectorized reader
-//    .config("spark.sql.files.maxPartitionBytes", "16777216") // 16 MB per partition (split large files)
-//    .config("spark.sql.files.openCostInBytes", "4194304") // 4 MB
-//    .config("spark.default.parallelism", "4") // limit concurrent tasks
-//    .config(
-//      "spark.driver.extraJavaOptions",
-//      "-XX:+UseG1GC -XX:MaxGCPauseMillis=500"
-//    ) // Optional: force G1GC to reduce GC pressure
-//    .getOrCreate()
-//
-//  private def readParquetFile(filePath: String): Map[Key, Value] = {
-//    val sparkSession = createSparkSession()
-//    try {
-//      val df = sparkSession.read.parquet(filePath)
-//      val iter = df.toLocalIterator()
-//      val mapBuilder = Map.newBuilder[Key, Value]
-//      while (iter.hasNext) {
-//        val (k, v) = fromParquetRow(iter.next())
-//        mapBuilder += (k -> v)
-//      }
-//      val result = mapBuilder.result()
-//      logger.info(s"Read ${result.size} entries from $filePath")
-//      result
-//    } finally {
-//      sparkSession.close()
-//    }
-//  }
-
   private def readParquetFileParallel(filePath: String): Map[Key, Value] = {
-
     val conf = new Configuration()
     val path = new Path(filePath)
     val inputFile = HadoopInputFile.fromPath(path, conf)
-    val reader = ParquetFileReader.open(inputFile)
-    val schema = reader.getFooter.getFileMetaData.getSchema
-    val totalRowGroups = reader.getRowGroups.size() // blocks to read total
-    val columnIOFactory = new ColumnIOFactory()
 
-    val totalRecords = reader.getRecordCount
-    logger.info(s"Going to read $filePath, est $totalRecords records, $totalRowGroups row groups.")
+    val tryResult = Using(ParquetFileReader.open(inputFile)) { reader =>
+      val schema = reader.getFooter.getFileMetaData.getSchema
+      val totalRowGroups = reader.getRowGroups.size() // blocks to read total
+      val columnIOFactory = new ColumnIOFactory()
 
-    val readerBlockIterator = (0 until totalRowGroups).toIterator
-    def readNextRaw(): Option[Int] = {
-      if (readerBlockIterator.hasNext) Some(readerBlockIterator.next())
-      else None
-    }
+      val totalRecords = reader.getRecordCount
+      logger.info(s"Going to read $filePath, est $totalRecords records, $totalRowGroups row groups.")
 
-    val trieMap = new scala.collection.concurrent.TrieMap[Key, Value]()
+      val readerBlockIterator = (0 until totalRowGroups).toIterator
+      def readNextRaw(): Option[Int] = {
+        if (readerBlockIterator.hasNext) Some(readerBlockIterator.next())
+        else None
+      }
 
-    class GenericArrayConverter(schema: MessageType) extends GroupConverter {
-      // The internal "row" state
-      val currentRow = new Array[Any](schema.getFieldCount)
+      val trieMap = new scala.collection.concurrent.TrieMap[Key, Value]()
 
-      private val converters = Array.tabulate(schema.getFieldCount) { i =>
-        new PrimitiveConverter {
-          override def addLong(value: Long): Unit = currentRow(i) = value
-          override def addInt(value: Int): Unit = currentRow(i) = value
-          override def addDouble(value: Double): Unit = currentRow(i) = value
-          override def addBoolean(value: Boolean): Unit = currentRow(i) = value
-          override def addBinary(value: Binary): Unit = currentRow(i) = value.toStringUsingUTF8
+      class GenericArrayConverter(schema: MessageType) extends GroupConverter {
+        // The internal "row" state
+        val currentRow = new Array[Any](schema.getFieldCount)
+
+        private val converters = Array.tabulate(schema.getFieldCount) { i =>
+          new PrimitiveConverter {
+            override def addLong(value: Long): Unit = currentRow(i) = value
+            override def addInt(value: Int): Unit = currentRow(i) = value
+            override def addDouble(value: Double): Unit = currentRow(i) = value
+            override def addBoolean(value: Boolean): Unit = currentRow(i) = value
+            override def addBinary(value: Binary): Unit = currentRow(i) = value.toStringUsingUTF8
+          }
+        }
+
+        override def getConverter(fieldIndex: Int): PrimitiveConverter = converters(fieldIndex)
+        // Optional: Reset array to nulls if columns might be missing/optional
+        override def start(): Unit = java.util.Arrays.fill(currentRow.asInstanceOf[Array[Object]], null)
+        override def end(): Unit = {}
+      }
+
+      class GenericArrayMaterializer(schema: MessageType) extends RecordMaterializer[Array[Any]] {
+        private val converter = new GenericArrayConverter(schema)
+        override def getRootConverter: GroupConverter = converter
+        override def getCurrentRecord: Array[Any] = converter.currentRow
+      }
+
+      def rowGroupToRecords(pages: PageReadStore): Long = {
+        if (pages == null) 0L
+        else {
+          val columnIO: MessageColumnIO = columnIOFactory.getColumnIO(schema)
+          val materializer = new GenericArrayMaterializer(schema)
+          val recordReader = columnIO.getRecordReader(pages, materializer)
+          val rowsInGroup = pages.getRowCount
+
+          for (_ <- 0L until rowsInGroup) {
+            recordReader.read() // Fills materializer.currentRow
+
+            val arr: Array[Any] = materializer.getCurrentRecord
+            val (k, v) = fromParquetRow(arr)
+            trieMap.put(k, v)
+          }
+          rowsInGroup
         }
       }
 
-      override def getConverter(fieldIndex: Int): PrimitiveConverter = converters(fieldIndex)
-      // Optional: Reset array to nulls if columns might be missing/optional
-      override def start(): Unit = java.util.Arrays.fill(currentRow.asInstanceOf[Array[Object]], null)
-      override def end(): Unit = {}
-    }
-
-    class GenericArrayMaterializer(schema: MessageType) extends RecordMaterializer[Array[Any]] {
-      private val converter = new GenericArrayConverter(schema)
-      override def getRootConverter: GroupConverter = converter
-      override def getCurrentRecord: Array[Any] = converter.currentRow
-    }
-
-    def rowGroupToRecords(pages: PageReadStore): Long = {
-      if (pages == null) 0L
-      else {
-        val columnIO: MessageColumnIO = columnIOFactory.getColumnIO(schema)
-        val materializer = new GenericArrayMaterializer(schema)
-        val recordReader = columnIO.getRecordReader(pages, materializer)
-        val rowsInGroup = pages.getRowCount
-
-        for (_ <- 0L until rowsInGroup) {
-          recordReader.read() // Fills materializer.currentRow
-
-          val arr: Array[Any] = materializer.getCurrentRecord
-          val (k, v) = fromParquetRow(arr)
-          trieMap.put(k, v)
+      def transformRawToResult(rowGroupIdx: Int): Unit = {
+        val inputFile = HadoopInputFile.fromPath(path, conf)
+        val localReader = ParquetFileReader.open(inputFile)
+        try {
+          // Skip to the assigned row group
+          for (_ <- 0 until rowGroupIdx) localReader.skipNextRowGroup()
+          val prs: PageReadStore = localReader.readNextRowGroup()
+          val rowsCompleted = rowGroupToRecords(prs)
+          logger.info(s"Read $rowsCompleted from single row group.")
+        } finally {
+          localReader.close()
         }
-        rowsInGroup
       }
+
+      val parallelMapReader = new ProducerConsumer[Int](
+        produce = readNextRaw,
+        consume = transformRawToResult,
+        log = st => logger.info(st),
+        numberOfParallelTransformers = 4
+      )
+
+      parallelMapReader.waitForTransformationToComplete()
+      trieMap.toMap
     }
 
-    def transformRawToResult(rowGroupIdx: Int): Unit = {
-      val inputFile = HadoopInputFile.fromPath(path, conf)
-      val localReader = ParquetFileReader.open(inputFile)
-      try {
-        // Skip to the assigned row group
-        for (_ <- 0 until rowGroupIdx) localReader.skipNextRowGroup()
-        val prs: PageReadStore = localReader.readNextRowGroup()
-        val rowsCompleted = rowGroupToRecords(prs)
-        logger.info(s"Read $rowsCompleted from single row group.")
-      } finally {
-        localReader.close()
-      }
-    }
-
-    val parallelMapReader = new ProducerConsumer[Int](
-      produce = readNextRaw,
-      consume = transformRawToResult,
-      log = st => logger.info(st),
-      numberOfParallelTransformers = 4
-    )
-
-    parallelMapReader.waitForTransformationToComplete()
-    trieMap.toMap
+    tryResult.getOrElse(Map.empty[Key, Value])
   }
 
   def close(): Unit = {}
