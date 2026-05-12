@@ -9,7 +9,12 @@ import scala.concurrent.duration._
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.logit.TourModeChoiceModel
 import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
-import beam.agentsim.agents.household.HouseholdActor.{HouseholdActor, MobilityStatusInquiry, MobilityStatusResponse}
+import beam.agentsim.agents.household.HouseholdActor.{
+  HouseholdActor,
+  MobilityStatusInquiry,
+  MobilityStatusResponse,
+  ReleaseVehicle
+}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
@@ -87,6 +92,7 @@ class PersonWithTourModeSpec
   override def outputDirPath: String = TestConfigUtils.testOutputDir
 
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
+  private val hoseHoldDummyId = Id.create("dummy", classOf[Household])
 
   private lazy val modeChoiceCalculator = new ModeChoiceUniformRandom(beamConfig)
   private lazy val tourModeChoiceCalculator = new TourModeChoiceModel(beamConfig)
@@ -96,8 +102,6 @@ class PersonWithTourModeSpec
   val otherLocation = new Coord(168346.4, 1276.7536)
 
   describe("A PersonAgent") {
-
-    val hoseHoldDummyId = Id.create("dummy", classOf[Household])
 
     it("should know how to take a car trip on a car_based tour when the mode is already in its plan") {
       val eventsManager = new EventsManagerImpl()
@@ -1682,6 +1686,311 @@ class PersonWithTourModeSpec
         case x: HasTriggerId     => println(x.toString)
       }
     }
+
+    it("should keep a personal vehicle available for a later tour after a home boundary") {
+      assertVehicleSurvivesHomeBoundary()
+    }
+  }
+
+  private def assertVehicleSurvivesHomeBoundary(): Unit = {
+    val eventsManager = new EventsManagerImpl()
+    eventsManager.addHandler(
+      new BasicEventHandler {
+        override def handleEvent(event: Event): Unit = {
+          event match {
+            case _: ModeChoiceEvent | _: TourModeChoiceEvent | _: ActivityEndEvent | _: ActivityStartEvent |
+                _: ReplanningEvent =>
+              self ! event
+            case _ =>
+          }
+        }
+      }
+    )
+
+    val vehicleId = Id.createVehicleId("car-dummyAgent-sequential")
+    val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+    val beamVehicle = new BeamVehicle(vehicleId, new Powertrain(0.0), vehicleType)
+    val vehicleManager = TestProbe()
+    beamVehicle.setManager(Some(vehicleManager.ref))
+
+    val household = householdsFactory.createHousehold(hoseHoldDummyId)
+    val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
+    val person: Person =
+      createTestPersonWithSequentialTours(
+        Id.createPersonId("dummyAgent"),
+        Some(CAR_BASED),
+        Some(CAR),
+        Some(vehicleId),
+        Some(CAR_BASED),
+        Some(CAR),
+        Some(vehicleId)
+      )
+    population.addPerson(person)
+    household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
+
+    val scheduler = TestActorRef[BeamAgentScheduler](
+      SchedulerProps(
+        beamConfig,
+        stopTick = 24 * 60 * 60,
+        maxWindow = 10,
+        new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
+      )
+    )
+    val parkingLocation = new Coord(167138.4, 1117.0)
+    val parkingManager = system.actorOf(Props(new AnotherTrivialParkingManager(parkingLocation)))
+
+    val householdActor = TestActorRef[HouseholdActor](
+      Props(
+        new HouseholdActor(
+          services,
+          beamScenario,
+          _ => modeChoiceCalculator,
+          scheduler,
+          beamScenario.transportNetwork,
+          services.tollCalculator,
+          self,
+          self,
+          parkingManager,
+          self,
+          eventsManager,
+          population,
+          household,
+          Map(beamVehicle.id -> beamVehicle),
+          new Coord(0.0, 0.0),
+          Vector(),
+          Set.empty,
+          new RouteHistory(beamConfig),
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario),
+          configHolder
+        )
+      )
+    )
+    scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
+    scheduler ! StartSchedule(0)
+
+    val linkIds = Array[Int](228, 206, 180, 178, 184, 102)
+
+    def respondToTourRequest(routingRequest: RoutingRequest): Unit = {
+      val personVehicle = routingRequest.streetVehicles.find(_.mode == WALK).get
+      lastSender ! RoutingResponse(
+        Vector(
+          EmbodiedBeamTrip(
+            legs = Vector(
+              EmbodiedBeamLeg.dummyLegAt(
+                routingRequest.departureTime,
+                personVehicle.id,
+                false,
+                services.geo.utm2Wgs(routingRequest.originUTM),
+                WALK,
+                personVehicle.vehicleTypeId
+              ),
+              createEmbodiedBeamLeg(routingRequest, beamVehicle.toStreetVehicle, linkIds, 50d),
+              EmbodiedBeamLeg.dummyLegAt(
+                routingRequest.departureTime + 250,
+                personVehicle.id,
+                true,
+                services.geo.utm2Wgs(routingRequest.destinationUTM),
+                WALK,
+                personVehicle.vehicleTypeId
+              )
+            )
+          ),
+          EmbodiedBeamTrip(legs = Vector(createEmbodiedBeamLeg(routingRequest, personVehicle, linkIds, 150d)))
+        ),
+        requestId = routingRequest.requestId,
+        request = Some(routingRequest),
+        isEmbodyWithCurrentTravelTime = false,
+        triggerId = routingRequest.triggerId
+      )
+    }
+
+    val firstRoutingRequest = expectMsgType[RoutingRequest]
+    assert(firstRoutingRequest.withTransit === false)
+    respondToTourRequest(firstRoutingRequest)
+
+    val firstTourModeChoice = expectMsgType[TourModeChoiceEvent]
+    assert(firstTourModeChoice.availablePersonalStreetVehiclesString.contains("beamVilleCar"))
+    expectMsgType[ModeChoiceEvent]
+    expectMsgType[ActivityEndEvent]
+
+    val parkingRoutingRequest = expectMsgType[RoutingRequest]
+    assert(parkingRoutingRequest.destinationUTM == parkingLocation)
+    lastSender ! RoutingResponse(
+      itineraries = Vector(
+        EmbodiedBeamTrip(
+          legs = Vector(
+            EmbodiedBeamLeg(
+              beamLeg = BeamLeg(
+                startTime = parkingRoutingRequest.departureTime,
+                mode = BeamMode.CAR,
+                duration = 50,
+                travelPath = BeamPath(
+                  linkIds = Array(142, 60, 58, 62, 80),
+                  linkTravelTime = Array(50, 50, 50, 50, 50),
+                  transitStops = None,
+                  startPoint = SpaceTime(
+                    services.geo.utm2Wgs(parkingRoutingRequest.originUTM),
+                    parkingRoutingRequest.departureTime
+                  ),
+                  endPoint =
+                    SpaceTime(services.geo.utm2Wgs(parkingLocation), parkingRoutingRequest.departureTime + 200),
+                  distanceInM = 1000d
+                )
+              ),
+              beamVehicleId = Id.createVehicleId("car-1"),
+              Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
+              asDriver = true,
+              cost = 0.0,
+              unbecomeDriverOnCompletion = true
+            )
+          )
+        )
+      ),
+      requestId = parkingRoutingRequest.requestId,
+      request = None,
+      isEmbodyWithCurrentTravelTime = false,
+      triggerId = parkingRoutingRequest.triggerId
+    )
+
+    val walkFromParkingRoutingRequest = expectMsgType[RoutingRequest]
+    lastSender ! RoutingResponse(
+      itineraries = Vector(
+        EmbodiedBeamTrip(
+          legs = Vector(
+            EmbodiedBeamLeg(
+              beamLeg = BeamLeg(
+                startTime = walkFromParkingRoutingRequest.departureTime,
+                mode = BeamMode.WALK,
+                duration = 50,
+                travelPath = BeamPath(
+                  linkIds = Array(80, 101),
+                  linkTravelTime = Array(50, 50),
+                  transitStops = None,
+                  startPoint =
+                    SpaceTime(services.geo.utm2Wgs(parkingLocation), walkFromParkingRoutingRequest.departureTime),
+                  endPoint = SpaceTime(
+                    services.geo.utm2Wgs(walkFromParkingRoutingRequest.destinationUTM),
+                    walkFromParkingRoutingRequest.departureTime + 50
+                  ),
+                  distanceInM = 100d
+                )
+              ),
+              beamVehicleId = walkFromParkingRoutingRequest.streetVehicles.find(_.mode == WALK).get.id,
+              walkFromParkingRoutingRequest.streetVehicles.find(_.mode == WALK).get.vehicleTypeId,
+              asDriver = true,
+              cost = 0.0,
+              unbecomeDriverOnCompletion = true
+            )
+          )
+        )
+      ),
+      requestId = parkingRoutingRequest.requestId,
+      request = None,
+      isEmbodyWithCurrentTravelTime = false,
+      triggerId = walkFromParkingRoutingRequest.triggerId
+    )
+
+    expectMsgType[ActivityStartEvent]
+    vehicleManager.expectNoMessage(200.millis)
+
+    val secondRoutingRequest = expectMsgType[RoutingRequest]
+    assert(secondRoutingRequest.streetVehicles.exists(_.id == beamVehicle.id))
+    respondToTourRequest(secondRoutingRequest)
+
+    val secondTourModeChoice = expectMsgType[TourModeChoiceEvent]
+    assert(secondTourModeChoice.availablePersonalStreetVehiclesString.contains("beamVilleCar"))
+    expectMsgType[ModeChoiceEvent]
+    expectMsgType[ActivityEndEvent]
+    expectMsgType[ActivityStartEvent]
+
+    val release = vehicleManager.expectMsgType[ReleaseVehicle]
+    assert(release.vehicle.id == beamVehicle.id)
+
+    receiveWhile(500 millis) {
+      case _: SchedulerMessage =>
+      case x: Event            => println(x.toString)
+      case x: HasTriggerId     => println(x.toString)
+    }
+  }
+
+  private def createTestPersonWithSequentialTours(
+    personId: Id[Person],
+    primaryTourMode: Option[BeamTourMode] = None,
+    primaryTourTripMode: Option[BeamMode] = None,
+    primaryTourVehicle: Option[Id[BeamVehicle]] = None,
+    secondaryTourMode: Option[BeamTourMode] = None,
+    secondaryTourTripMode: Option[BeamMode] = None,
+    secondaryTourVehicle: Option[Id[BeamVehicle]] = None
+  ) = {
+    val person = PopulationUtils.getFactory.createPerson(personId)
+    val attributesOfIndividual = AttributesOfIndividual(
+      HouseholdAttributes("1", 200, 300, 400, 500),
+      None,
+      true,
+      Vector(BeamMode.CAR, BeamMode.WALK, BeamMode.BIKE, BeamMode.WALK_TRANSIT),
+      Seq.empty,
+      valueOfTime = 10000000.0,
+      Some(42),
+      Some(1234)
+    )
+    person.getCustomAttributes.put("beam-attributes", attributesOfIndividual)
+
+    val plan = PopulationUtils.getFactory.createPlan()
+    val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
+    homeActivity.setEndTime(28800)
+    homeActivity.setCoord(homeLocation)
+    plan.addActivity(homeActivity)
+
+    def addTourLeg(
+      tourId: String,
+      tourMode: Option[BeamTourMode],
+      tripMode: Option[BeamMode],
+      vehicle: Option[Id[BeamVehicle]]
+    ) = {
+      val leg = PopulationUtils.createLeg(tripMode.map(_.matsimMode).getOrElse(""))
+      leg.getAttributes.putAttribute("tour_id", tourId)
+      tourMode.foreach(mode => leg.getAttributes.putAttribute("tour_mode", mode.value))
+      vehicle.foreach(veh => leg.getAttributes.putAttribute("tour_vehicle", veh.toString))
+      val route = RouteUtils.createLinkNetworkRouteImpl(
+        Id.createLinkId(228),
+        Array(206, 180, 178, 184, 102).map(Id.createLinkId(_)),
+        Id.createLinkId(108)
+      )
+      route.setVehicleId(vehicle.map(_.asInstanceOf[Id[Vehicle]]).getOrElse(Id.createVehicleId("missing-vehicle")))
+      leg.setRoute(route)
+      plan.addLeg(leg)
+    }
+
+    addTourLeg("100", primaryTourMode, primaryTourTripMode, primaryTourVehicle)
+
+    val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
+    workActivity.setEndTime(43200)
+    workActivity.setCoord(workLocation)
+    plan.addActivity(workActivity)
+
+    addTourLeg("100", primaryTourMode, primaryTourTripMode, primaryTourVehicle)
+
+    val homeActivity2 = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
+    homeActivity2.setEndTime(48600)
+    homeActivity2.setCoord(homeLocation)
+    plan.addActivity(homeActivity2)
+
+    addTourLeg("101", secondaryTourMode, secondaryTourTripMode, secondaryTourVehicle)
+
+    val otherActivity = PopulationUtils.createActivityFromLinkId("other", Id.createLinkId(3))
+    otherActivity.setEndTime(61200)
+    otherActivity.setCoord(workLocation)
+    plan.addActivity(otherActivity)
+
+    addTourLeg("101", secondaryTourMode, secondaryTourTripMode, secondaryTourVehicle)
+
+    val homeActivity3 = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
+    homeActivity3.setCoord(homeLocation)
+    homeActivity3.setEndTime(65200)
+    plan.addActivity(homeActivity3)
+
+    person.addPlan(plan)
+    person
   }
 
   private def createEmbodiedBeamLeg(
