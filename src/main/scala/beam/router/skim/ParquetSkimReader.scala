@@ -134,7 +134,8 @@ class ParquetSkimReader[Key <: AbstractSkimmerKey, Value <: AbstractSkimmerInter
       val parallelMapReader = new ProducerConsumer[Int](
         produce = readNextRaw,
         consume = transformRawToResult,
-        log = st => logger.info(st),
+        log = st => logger.debug(st),
+        err = st => logger.error(st),
         numberOfParallelTransformers = 4
       )
 
@@ -142,7 +143,7 @@ class ParquetSkimReader[Key <: AbstractSkimmerKey, Value <: AbstractSkimmerInter
       trieMap.toMap
     }
 
-    tryResult.getOrElse(Map.empty[Key, Value])
+    tryResult.get
   }
 
   def close(): Unit = {}

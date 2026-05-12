@@ -24,6 +24,7 @@ class ProducerConsumerTest extends AnyWordSpec with Matchers with ScalaFutures {
         produce = () => if (iterator.hasNext) Some(iterator.next()) else None,
         consume = raw => trieMap.put(raw._1, raw._2),
         log = println,
+        err = println,
         numberOfParallelTransformers = 2
       )
 
@@ -37,31 +38,31 @@ class ProducerConsumerTest extends AnyWordSpec with Matchers with ScalaFutures {
         produce = () => Some(scala.util.Random.nextInt()),
         consume = _ => throw new RuntimeException("Consumer Boom!"),
         log = println,
+        err = println,
         numberOfParallelTransformers = 2
       )
 
-      val result = reader.readAndTransformInParallel()
-
-      whenReady(result.failed) { ex =>
-        ex shouldBe a[RuntimeException]
-        ex.getMessage shouldBe "Consumer Boom!"
+      val ex = intercept[RuntimeException] {
+        reader.waitForTransformationToComplete()
       }
+
+      ex.getMessage shouldBe "Consumer Boom!"
     }
 
     "terminate and fail the future if the producer throws an exception" in {
       val reader = new ProducerConsumer[Int](
-        produce = () => throw new RuntimeException("Producer Boom!"),
+        produce = () => throw new ArithmeticException("Arithmetic Boom!"),
         consume = i => (i, i),
         log = println,
+        err = println,
         numberOfParallelTransformers = 2
       )
 
-      val result = reader.readAndTransformInParallel()
-
-      whenReady(result.failed) { ex =>
-        ex shouldBe a[RuntimeException]
-        ex.getMessage shouldBe "Producer Boom!"
+      val ex = intercept[ArithmeticException] {
+        reader.waitForTransformationToComplete()
       }
+
+      ex.getMessage shouldBe "Arithmetic Boom!"
     }
 
     "handle an empty data source gracefully" in {
@@ -70,7 +71,8 @@ class ProducerConsumerTest extends AnyWordSpec with Matchers with ScalaFutures {
       val reader = new ProducerConsumer[Int](
         produce = () => None,
         consume = i => trieMap.put(i, i),
-        log = println
+        log = println,
+        err = println
       )
 
       reader.waitForTransformationToComplete()
@@ -89,6 +91,8 @@ class ProducerConsumerTest extends AnyWordSpec with Matchers with ScalaFutures {
         },
         consume = i => trieMap.put(i, i),
         log = _ => (),
+        err = _ => (),
+        numberOfParallelTransformers = 2,
         desiredInternalWorkQueueSize = 2 // Smaller than limit to force blocking
       )
 

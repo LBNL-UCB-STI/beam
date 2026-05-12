@@ -12,15 +12,13 @@ import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile, HadoopStreams}
 import org.apache.parquet.hadoop.{ParquetFileReader, ParquetFileWriter}
 
-import scala.concurrent.ExecutionContext.Implicits.global
-
 import java.io.File
 import java.nio.file.{Files, Paths}
 import java.util.UUID
-import java.util.concurrent.{ConcurrentLinkedQueue, Executors, Semaphore}
+import java.util.concurrent.ConcurrentLinkedQueue
 import scala.collection.JavaConverters._
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
-import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.ClassTag
 import scala.reflect.io.Directory
 
@@ -81,7 +79,8 @@ class ParquetSkimWriter[Key <: AbstractSkimmerKey: ClassTag, Value <: AbstractSk
     val pcWriter = new ProducerConsumer[(Seq[(Key, Value)], Int)](
       produce = produceChunk,
       consume = writeChunk,
-      log = s => logger.info(s),
+      log = s => logger.debug(s),
+      err = st => logger.error(st),
       numberOfParallelTransformers = parallelism,
       desiredInternalWorkQueueSize = parallelism
     )

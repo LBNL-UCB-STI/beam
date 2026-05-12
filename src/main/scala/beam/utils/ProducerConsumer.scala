@@ -10,6 +10,7 @@ class ProducerConsumer[Raw](
   produce: () => Option[Raw],
   consume: Raw => Unit,
   log: String => Unit,
+  err: String => Unit,
   numberOfParallelTransformers: Int = 4,
   desiredInternalWorkQueueSize: Int = 1000,
   transformerProgressReportInterval: Int = 12345
@@ -55,7 +56,7 @@ class ProducerConsumer[Raw](
   private def cleanQueueStopWorkers: PartialFunction[Throwable, Unit] = { case exception: Exception =>
     val sw = new StringWriter()
     exception.printStackTrace(new PrintWriter(sw))
-    log(s"Exception during reading. Exception: ${exception.toString}, ${sw.toString}")
+    err(s"Exception during reading. Exception: ${exception.toString}, ${sw.toString}")
 
     readingFailed.set(true)
     workQueue.clear()
@@ -64,12 +65,11 @@ class ProducerConsumer[Raw](
     throw exception
   }
 
-  def waitForTransformationToComplete(atMost: Duration = Duration.Inf): Future[Seq[Unit]] = {
-    Await.ready(readAndTransformInParallel(), atMost)
+  def waitForTransformationToComplete(atMost: Duration = Duration.Inf): Seq[Unit] = {
+    Await.result(readAndTransformInParallel(), atMost)
   }
 
-  def readAndTransformInParallel(): Future[Seq[Unit]] = {
-
+  private def readAndTransformInParallel(): Future[Seq[Unit]] = {
     val dataReader: Future[Unit] = Future {
       log(s"Map Reader started, number of workers: $numberOfParallelTransformers, internal queue size $workQueueSize")
       val numberOfWorkDid = produceLoop()
