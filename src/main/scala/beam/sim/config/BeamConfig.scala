@@ -4591,7 +4591,9 @@ object BeamConfig {
         case class EmissionsSkimmer(
           fileBaseName: java.lang.String,
           fileOutputFormat: java.lang.String,
-          name: java.lang.String
+          name: java.lang.String,
+          parquetWritingChunkSize: scala.Int,
+          parquetWritingMaxParallelism: scala.Int
         )
 
         object EmissionsSkimmer {
@@ -4600,7 +4602,11 @@ object BeamConfig {
             BeamConfig.Beam.Router.Skim.EmissionsSkimmer(
               fileBaseName = if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "skimsEmissions",
               fileOutputFormat = if (c.hasPathOrNull("fileOutputFormat")) c.getString("fileOutputFormat") else "csv.gz",
-              name = if (c.hasPathOrNull("name")) c.getString("name") else "emissions-skimmer"
+              name = if (c.hasPathOrNull("name")) c.getString("name") else "emissions-skimmer",
+              parquetWritingChunkSize =
+                if (c.hasPathOrNull("parquetWritingChunkSize")) c.getInt("parquetWritingChunkSize") else 1000000,
+              parquetWritingMaxParallelism =
+                if (c.hasPathOrNull("parquetWritingMaxParallelism")) c.getInt("parquetWritingMaxParallelism") else 5
             )
           }
         }

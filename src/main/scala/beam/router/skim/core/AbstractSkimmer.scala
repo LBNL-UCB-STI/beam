@@ -10,6 +10,7 @@ import beam.sim.config.BeamConfig
 import beam.utils.{FileUtils, ProfilingUtils}
 import com.google.common.math.IntMath
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.parquet.example.data.simple.SimpleGroup
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent}
@@ -118,7 +119,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
 
   import readOnlySkim._
 
-  protected def fromParquetRow(row: org.apache.spark.sql.Row): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
+  protected def fromParquetRow(rawRow: Array[Any]): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
     throw new NotImplementedError("Need to implement in order to read from parquet.")
   }
 
