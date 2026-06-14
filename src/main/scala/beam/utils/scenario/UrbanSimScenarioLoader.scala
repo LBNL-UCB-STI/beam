@@ -172,7 +172,7 @@ class UrbanSimScenarioLoader(
     beamScenario.privateVehicleInitialSoc.clear()
   }
 
-  private def loadVehicles(): Iterable[VehicleInfo] = {
+  private[scenario] def loadVehicles(): Iterable[VehicleInfo] = {
     val configVehiclesFilePath = beamScenario.beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath.trim
     val scenarioSourceType = beamScenario.beamConfig.beam.exchange.scenario.source.toLowerCase
     val shouldPreferConfiguredVehicles =

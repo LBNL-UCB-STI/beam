@@ -57,6 +57,7 @@ object BeamVehicleUtils extends LazyLogging {
       case ((vehicleAcc, socAcc), vehicleInfo) =>
         val vehicleId = Id.create(vehicleInfo.vehicleId, classOf[BeamVehicle])
         val vehicleType = vehiclesTypeMap(Id.create(vehicleInfo.vehicleTypeId, classOf[BeamVehicleType]))
+
         val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
 
         val beamVehicle =
@@ -97,18 +98,10 @@ object BeamVehicleUtils extends LazyLogging {
   private[utils] def toVehicleInfo(record: GenericRecord): VehicleInfo = {
     VehicleInfo(
       vehicleId = getFirstIfNotNull(record, Seq("vehicleId", "vehicle_id")).toString,
-      vehicleTypeId = getIfNotNull(record, "vehicleTypeId").toString,
-      initialSoc = Option(record.getSchema.getField("stateOfCharge"))
-        .flatMap(_ => Option(record.get("stateOfCharge")))
-        .map(asDouble),
-      householdId = getFirstIfNotNull(record, Seq("householdId", "household_id")).toString
+      vehicleTypeId = getFirstIfNotNull(record, Seq("vehicleTypeId", "vehicle_type_id")).toString,
+      initialSoc = getOptional(record, Seq("stateOfCharge", "state_of_charge")).map(asDouble),
+      householdId = normalizeHouseholdId(getFirstIfNotNull(record, Seq("householdId", "household_id")))
     )
-  }
-
-  private def getIfNotNull(record: GenericRecord, column: String): AnyRef = {
-    val value = record.get(column)
-    assert(value != null, s"Value in column '$column' is null")
-    value
   }
 
   private def getFirstIfNotNull(record: GenericRecord, columns: Seq[String]): AnyRef = {
@@ -116,7 +109,7 @@ object BeamVehicleUtils extends LazyLogging {
       .flatMap { column =>
         Option(record.getSchema.getField(column)).map(_ => column -> record.get(column))
       }
-      .collectFirst { case (column, value) if value != null => value }
+      .collectFirst { case (_, value) if value != null => value }
 
     value.getOrElse {
       val availableColumns = record.getSchema.getFields.asScala.map(_.name()).mkString(", ")
@@ -124,6 +117,25 @@ object BeamVehicleUtils extends LazyLogging {
         s"None of the expected columns [${columns.mkString(", ")}] were found with non-null values. Available columns: $availableColumns"
       )
     }
+  }
+
+  private def getOptional(record: GenericRecord, columns: Seq[String]): Option[AnyRef] =
+    columns.iterator
+      .flatMap(column => Option(record.getSchema.getField(column)).flatMap(_ => Option(record.get(column))))
+      .toSeq
+      .headOption
+
+  private def normalizeHouseholdId(value: AnyRef): String = value match {
+    case n: java.lang.Double if n.doubleValue.isWhole => n.longValue.toString
+    case n: java.lang.Float if n.floatValue.isWhole   => n.longValue.toString
+    case n: java.lang.Long                            => n.toString
+    case n: java.lang.Integer                         => n.toString
+    case n: java.lang.Short                           => n.toString
+    case n: java.lang.Byte                            => n.toString
+    case other =>
+      val asString = other.toString
+      if (asString.matches("^-?\\d+\\.0+$")) asString.takeWhile(_ != '.')
+      else asString
   }
 
   private def asDouble(value: AnyRef): Double = {
@@ -135,6 +147,17 @@ object BeamVehicleUtils extends LazyLogging {
       case n: java.lang.Short   => n.doubleValue()
       case n: java.lang.Byte    => n.doubleValue()
       case other                => other.toString.toDouble
+    }
+  }
+
+  private def optionalNonEmpty(line: util.Map[String, String], key: String): Option[String] =
+    Option(line.get(key)).map(_.trim).filter(_.nonEmpty)
+
+  def readFuelTypeFile(filePath: String): scala.collection.Map[FuelType, Double] = {
+    readCsvFileByLine(filePath, scala.collection.mutable.HashMap[FuelType, Double]()) { case (line, z) =>
+      val fuelType = FuelType.fromString(line.get("fuelTypeId"))
+      val priceInDollarsPerMJoule = line.get("priceInDollarsPerMJoule").toDouble
+      z += ((fuelType, priceInDollarsPerMJoule))
     }
   }
 
@@ -165,15 +188,12 @@ object BeamVehicleUtils extends LazyLogging {
       case VehicleCategory.Car                 => 2000 // Class 1&2a (GVWR <= 8500 lbs.)
       case VehicleCategory.MediumDutyPassenger => 2500
       case VehicleCategory.Class12aVocational  => 2500 // Class 1-2a vocational
-      case VehicleCategory.Class2b3Vocational  => 5000 // Class 2b-3 vocational
+      case VehicleCategory.Class2b3Vocational   => 5000 // Class 2b-3 vocational
       case VehicleCategory.Class456Vocational =>
         9000 // Class 4-6 (GVWR 14001-26000 lbs. => 6000-15000, and average of 8000-9000 lbs curb weight)
       case VehicleCategory.Class78Vocational => 13000 // CLass 7&8 (GVWR 26001 to >33,001 lbs.)
       case VehicleCategory.Class78Tractor    => 20000 // CLass 7&8 (GVWR 26001 to >33,001 lbs.)
     }
-
-  private def optionalNonEmpty(line: util.Map[String, String], key: String): Option[String] =
-    Option(line.get(key)).map(_.trim).filter(_.nonEmpty)
 
   def readBeamVehicleTypeFile(filePath: String): Map[Id[BeamVehicleType], BeamVehicleType] = {
     readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicleType], BeamVehicleType]()) {
@@ -186,40 +206,39 @@ object BeamVehicleUtils extends LazyLogging {
         val primaryFuelType = FuelType.fromString(primaryFuelTypeId)
         val primaryFuelConsumptionInJoulePerMeter = line.get("primaryFuelConsumptionInJoulePerMeter").trim.toDouble
         val primaryFuelCapacityInJoule = line.get("primaryFuelCapacityInJoule").trim.toDouble
-        val primaryVehicleEnergyFile = optionalNonEmpty(line, "primaryVehicleEnergyFile")
-        val monetaryCostPerMeter: Double = optionalNonEmpty(line, "monetaryCostPerMeter").map(_.toDouble).getOrElse(0d)
-        val monetaryCostPerSecond: Double =
-          optionalNonEmpty(line, "monetaryCostPerSecond").map(_.toDouble).getOrElse(0d)
-        val secondaryFuelType = optionalNonEmpty(line, "secondaryFuelType").map(FuelType.fromString)
+        val primaryVehicleEnergyFile = Option(line.get("primaryVehicleEnergyFile"))
+        val monetaryCostPerMeter: Double = Option(line.get("monetaryCostPerMeter")).map(_.toDouble).getOrElse(0d)
+        val monetaryCostPerSecond: Double = Option(line.get("monetaryCostPerSecond")).map(_.toDouble).getOrElse(0d)
+        val secondaryFuelTypeId = Option(line.get("secondaryFuelType"))
+        val secondaryFuelType = secondaryFuelTypeId.map(FuelType.fromString)
         val secondaryFuelConsumptionInJoule =
-          optionalNonEmpty(line, "secondaryFuelConsumptionInJoulePerMeter").map(_.toDouble)
-        val secondaryFuelCapacityInJoule = optionalNonEmpty(line, "secondaryFuelCapacityInJoule").map(_.toDouble)
-        val secondaryVehicleEnergyFile = optionalNonEmpty(line, "secondaryVehicleEnergyFile")
-        val automationLevel: Int = optionalNonEmpty(line, "automationLevel").map(_.toDouble.toInt).getOrElse(1)
-        val maxVelocity = optionalNonEmpty(line, "maxVelocity").map(_.toDouble)
-        val passengerCarUnit = optionalNonEmpty(line, "passengerCarUnit").map(_.toDouble).getOrElse(1d)
-        val rechargeLevel2RateLimitInWatts = optionalNonEmpty(line, "rechargeLevel2RateLimitInWatts").map(_.toDouble)
-        val rechargeLevel3RateLimitInWatts = optionalNonEmpty(line, "rechargeLevel3RateLimitInWatts").map(_.toDouble)
+          Option(line.get("secondaryFuelConsumptionInJoulePerMeter")).map(_.toDouble)
+        val secondaryFuelCapacityInJoule = Option(line.get("secondaryFuelCapacityInJoule")).map(_.toDouble)
+        val secondaryVehicleEnergyFile = Option(line.get("secondaryVehicleEnergyFile"))
+        val automationLevel: Int = Option(line.get("automationLevel")).map(_.toDouble.toInt).getOrElse(1)
+        val maxVelocity = Option(line.get("maxVelocity")).map(_.toDouble)
+        val passengerCarUnit = Option(line.get("passengerCarUnit")).map(_.toDouble).getOrElse(1d)
+        val rechargeLevel2RateLimitInWatts = Option(line.get("rechargeLevel2RateLimitInWatts")).map(_.toDouble)
+        val rechargeLevel3RateLimitInWatts = Option(line.get("rechargeLevel3RateLimitInWatts")).map(_.toDouble)
         val vehicleCategory = VehicleCategory.fromString(line.get("vehicleCategory"))
-        val curbWeight: Double = optionalNonEmpty(line, "curbWeightInKg")
+        val curbWeight: Double = Option(line.get("curbWeightInKg"))
           .map(_.toDouble)
           .getOrElse(vehicleCategoryToWeightInKg(vehicleCategory))
         val sampleProbabilityWithinCategory =
-          optionalNonEmpty(line, "sampleProbabilityWithinCategory").map(_.toDouble).getOrElse(1.0)
-        val sampleProbabilityString = optionalNonEmpty(line, "sampleProbabilityString")
-        val chargingCapability = optionalNonEmpty(line, "chargingCapability").flatMap(ChargingPointType(_))
-        val payloadCapacity = optionalNonEmpty(line, "payloadCapacityInKg").map(_.toDouble)
-        val wheelchairAccessible = optionalNonEmpty(line, "wheelchairAccessible").map(_.toBoolean)
-        val restrictRoadsByFreeSpeed =
-          optionalNonEmpty(line, "restrictRoadsByFreeSpeedInMeterPerSecond").map(_.toDouble)
+          Option(line.get("sampleProbabilityWithinCategory")).map(_.toDouble).getOrElse(1.0)
+        val sampleProbabilityString = Option(line.get("sampleProbabilityString"))
+        val chargingCapability = Option(line.get("chargingCapability")).flatMap(ChargingPointType(_))
+        val payloadCapacity = Option(line.get("payloadCapacityInKg")).map(_.toDouble)
+        val wheelchairAccessible = Option(line.get("wheelchairAccessible")).map(_.toBoolean)
+        val restrictRoadsByFreeSpeed = Option(line.get("restrictRoadsByFreeSpeedInMeterPerSecond")).map(_.toDouble)
         val idleTimeFraction = optionalNonEmpty(line, "idleTimeFraction").map(_.toDouble)
         val emissionsRatesInGramsPerMile =
-          optionalNonEmpty(line, "emissionsRatesInGramsPerMile").flatMap(
+          Option(line.get("emissionsRatesInGramsPerMile")).flatMap(
             parseEmissionsString(_, Some(vehicleTypeId.toString))
           )
-        val emissionsRatesFile = optionalNonEmpty(line, "emissionsRatesFile")
+        val emissionsRatesFile = Option(line.get("emissionsRatesFile"))
         val vehicleUse =
-          optionalNonEmpty(line, "vehicleUse").flatMap(VehicleUse.fromStringOptional).getOrElse {
+          Option(line.get("vehicleUse")).flatMap(VehicleUse.fromStringOptional).getOrElse {
             if (payloadCapacity.exists(_ > 0)) VehicleUse.Freight else VehicleUse.Passenger
           }
 

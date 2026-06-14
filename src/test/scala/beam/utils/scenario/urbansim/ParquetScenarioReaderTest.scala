@@ -13,7 +13,13 @@ class GenericRecordMock(val map: java.util.Map[String, AnyRef]) extends GenericR
   override def get(key: String): AnyRef = map.get(key)
   override def put(i: Int, v: Any): Unit = ???
   override def get(i: Int): AnyRef = ???
-  override def getSchema: Schema = ???
+
+  override def getSchema: Schema = {
+    val nullableStringSchema =
+      Schema.createUnion(List(Schema.create(Schema.Type.NULL), Schema.create(Schema.Type.STRING)).asJava)
+    val fields = map.keySet().asScala.toSeq.map(key => new Schema.Field(key, nullableStringSchema, "", null))
+    Schema.createRecord("GenericRecordMock", "", "beam.utils.scenario.urbansim", false, fields.asJava)
+  }
 }
 
 class ParquetScenarioReaderTest extends AnyWordSpec with Matchers {
