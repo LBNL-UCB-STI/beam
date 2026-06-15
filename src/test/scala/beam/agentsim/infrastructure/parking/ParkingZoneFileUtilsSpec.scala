@@ -19,10 +19,17 @@ class ParkingZoneFileUtilsSpec extends AnyWordSpec with Matchers {
       "positive tests" when {
         "a row contains all valid entries" should {
           "construct a ParkingZone collection and random lookup tree" in new ParkingZoneFileUtilsSpec.PositiveTestData {
-            val ParkingZoneFileUtils.ParkingLoadingAccumulator(collection, lookupTree, totalRows, failedRows) =
+            val ParkingZoneFileUtils.ParkingLoadingAccumulator(
+              collection,
+              lookupTree,
+              totalRows,
+              failedRows,
+              zeroStallRows
+            ) =
               ParkingZoneFileUtils.fromIterator(validRow, None, None)
             totalRows should equal(1)
             failedRows should equal(0)
+            zeroStallRows should equal(0)
             lookupTree.get(Id.create("1", classOf[TAZ])) match {
               case None => fail("should contain TAZ with id = 1 in the lookup tree")
               case Some(lookupSubtree) =>

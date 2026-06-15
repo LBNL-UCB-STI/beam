@@ -17,23 +17,23 @@ import beam.utils.{BeamVehicleUtils, NetworkHelper, ParquetReader}
 import com.typesafe.scalalogging.LazyLogging
 import com.univocity.parsers.common.record.Record
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
+import org.apache.avro.AvroRuntimeException
+import org.apache.avro.generic.GenericRecord
 import org.geotools.data.shapefile.ShapefileDataStore
 import org.geotools.geometry.jts.JTS
 import org.geotools.referencing.CRS
-import org.locationtech.jts.geom.{Envelope, Geometry}
 import org.locationtech.jts.geom.prep.{PreparedGeometry, PreparedGeometryFactory}
-import org.apache.avro.AvroRuntimeException
-import org.apache.avro.generic.GenericRecord
+import org.locationtech.jts.geom.{Envelope, Geometry}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Network
-import org.matsim.core.utils.io.IOUtils
 import org.matsim.core.utils.geometry.geotools.MGC
+import org.matsim.core.utils.io.IOUtils
 import org.opengis.referencing.operation.MathTransform
 
-import java.io.File
-import java.util.{Arrays, HashMap => JHashMap, HashSet => JHashSet}
+import java.io.{File, PrintWriter, StringWriter}
 import java.nio.file.Paths
 import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
+import java.util.{Arrays, HashMap => JHashMap, HashSet => JHashSet}
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
@@ -458,6 +458,18 @@ object VehicleEmissions extends LazyLogging {
       override def resolve(linkId: Int): Option[String] = None
     }
 
+    // Because tests started to fail fast and the 'require' exception processed without stacktrace.
+    // The message sent by-name, no stacktrace calculation overhead here.
+    @inline
+    private def getCurrentStackTrace: String = {
+      val stringWriter = new StringWriter()
+      val printWriter = new PrintWriter(stringWriter)
+
+      // Creates an anonymous exception to capture the current execution path
+      new Throwable().printStackTrace(printWriter)
+      stringWriter.toString
+    }
+
     def build(
       network: Network,
       localCrs: String,
@@ -469,24 +481,24 @@ object VehicleEmissions extends LazyLogging {
       } else {
         require(
           countyLookup.filePath.trim.nonEmpty,
-          "Emissions countyLookup.filePath must be configured when emissions are enabled."
+          f"Emissions countyLookup.filePath must be configured when emissions are enabled. At: $getCurrentStackTrace"
         )
         require(
           countyLookup.countyFieldName.trim.nonEmpty,
-          "Emissions countyLookup.countyFieldName must be configured when emissions are enabled."
+          f"Emissions countyLookup.countyFieldName must be configured when emissions are enabled.. At: $getCurrentStackTrace"
         )
 
         val countyFile = new File(countyLookup.filePath)
         require(
           countyFile.exists(),
-          s"Emissions county lookup file does not exist: ${countyFile.getPath}"
+          s"Emissions county lookup file does not exist: ${countyFile.getPath}. At: $getCurrentStackTrace"
         )
 
         validateCountyLookupSchema(countyFile, countyLookup.countyFieldName)
         val countyGeometries = loadCountyGeometries(localCrs, countyFile.getPath, countyLookup.countyFieldName)
         require(
           countyGeometries.nonEmpty,
-          s"Emissions county lookup file ${countyFile.getPath} did not contain any usable polygons."
+          s"Emissions county lookup file ${countyFile.getPath} did not contain any usable polygons. At: $getCurrentStackTrace"
         )
 
         logger.info(
@@ -540,20 +552,23 @@ object VehicleEmissions extends LazyLogging {
 
     private def validateCountyLookupSchema(countyFile: File, countyFieldName: String): Unit = {
       val features = GeoReader.readFeatures(countyFile.getPath).asScala.toSeq
-      require(features.nonEmpty, s"Emissions county lookup file ${countyFile.getPath} does not contain any features.")
+      require(
+        features.nonEmpty,
+        s"Emissions county lookup file ${countyFile.getPath} does not contain any features.. At: $getCurrentStackTrace"
+      )
 
       val firstFeature = features.head
       val geometryDescriptor = firstFeature.getFeatureType.getGeometryDescriptor
       require(
         geometryDescriptor != null,
-        s"Emissions county lookup file ${countyFile.getPath} does not contain a geometry column."
+        s"Emissions county lookup file ${countyFile.getPath} does not contain a geometry column.. At: $getCurrentStackTrace"
       )
 
       val attributeNames = firstFeature.getFeatureType.getAttributeDescriptors.asScala.map(_.getLocalName).toSeq
       require(
         attributeNames.exists(_.equalsIgnoreCase(countyFieldName)),
         s"Emissions county lookup file ${countyFile.getPath} does not contain required county field '$countyFieldName'. Available fields: ${attributeNames.sorted
-          .mkString(", ")}"
+          .mkString(", ")}. At: $getCurrentStackTrace"
       )
     }
 

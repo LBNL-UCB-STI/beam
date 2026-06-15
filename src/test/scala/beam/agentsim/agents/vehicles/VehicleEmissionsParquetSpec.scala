@@ -1,6 +1,8 @@
 package beam.agentsim.agents.vehicles
 
-import beam.agentsim.agents.vehicles.VehicleEmissions.{Emissions, EmissionsProfile}
+import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsProfile.EmissionsProcess
+import beam.agentsim.agents.vehicles.VehicleEmissions.{Emissions, EmissionsProfile, EmissionsRateFilterStore}
+import beam.sim.common.DoubleTypedRange
 import beam.utils.BeamVehicleUtils.convertRecordStringToDoubleTypedRange
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
 import org.apache.avro.Schema
@@ -21,7 +23,7 @@ import scala.jdk.CollectionConverters._
 class VehicleEmissionsParquetSpec extends AnyFunSpecLike with Matchers with BeforeAndAfterAll with BeforeAndAfterEach {
 
   private var tempDir: NioPath = _
-  private val county = "alameda"
+  private val county: String = "alameda"
   private val roadCategory = "motorway"
 
   private val allPollutants: Map[String, Double] = Map(
@@ -148,16 +150,20 @@ class VehicleEmissionsParquetSpec extends AnyFunSpecLike with Matchers with Befo
   }
 
   private def assertStore(store: VehicleEmissions.EmissionsRateFilterStore.EmissionsRateFilter): Unit = {
-    store.keySet should contain(county)
-    store(county).keySet shouldBe EmissionsProfile.values.map(_.toString).toSet
+    store.countyToProcessRates should contain(county)
+    store.countyToProcessRates.get(county).keySet shouldBe EmissionsProfile.values.map(_.toString).toSet
 
     processActivityValues.foreach { case (process, activityValue) =>
-      val processStore = store(county)(process.toString)
+      val processStore: EmissionsRateFilterStore.ProcessRateIndex =
+        store.countyToProcessRates.get(county).get(process.toString)
       processStore.usesRoadCategory shouldBe true
-      processStore.roadCategoryToActivityRates.keySet should contain(roadCategory)
-      processStore.roadCategoryToActivityRates(roadCategory)(
-        expectedBin(process, activityValue)
-      ) shouldBe expectedEmissions
+      processStore.specificRoadCategoryToActivityRates.keySet should contain(roadCategory)
+      val rc: Array[VehicleEmissions.ActivityRangeEntry[Emissions]] =
+        processStore.specificRoadCategoryToActivityRates.get(roadCategory)
+      val range: DoubleTypedRange = expectedBin(process, activityValue)
+      val emissionsInRange: Option[VehicleEmissions.ActivityRangeEntry[Emissions]] = rc.find(are => are.range == range)
+      emissionsInRange.isDefined shouldBe true
+      emissionsInRange.get shouldBe expectedEmissions
     }
   }
 
