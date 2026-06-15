@@ -49,26 +49,21 @@ class BeamIncentiveSpec extends AnyWordSpecLike with BeamHelper with BeforeAndAf
   ): Double = {
     val beamVilleFolder = "test/input/beamville/"
     val config = ConfigFactory
-      .parseString(
-        s"""
-            |beam.actorSystemName = "BeamIncentiveSpec"
-            |beam.outputs.collectAndCreateBeamAnalysisAndGraphs=true
-            |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_transit_intercept = 2.0
-            |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_intercept = 2.0
-            |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_pooled_intercept = 2.0
-                      |beam.agentsim.lastIteration = $iterationNumber
-            |beam.agentsim.agents.modeIncentive.filePath = "$beamVilleFolder$incentivesFile"
-         """.stripMargin
-      )
+      .parseString(s"""
+        |beam.actorSystemName = "BeamIncentiveSpec"
+        |beam.outputs.collectAndCreateBeamAnalysisAndGraphs=true
+        |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_transit_intercept = 2.0
+        |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_intercept = 2.0
+        |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_pooled_intercept = 2.0
+        |beam.agentsim.lastIteration = $iterationNumber
+        |beam.agentsim.agents.modeIncentive.filePath = "$beamVilleFolder$incentivesFile"
+        |""".stripMargin)
       .withFallback(testConfig(s"${beamVilleFolder}beam.conf"))
       .resolve()
 
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
-
     val beamConfig = BeamConfig(config)
-
     val outputDir: String = FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
-
     val beamScenario = loadScenario(beamConfig)
 
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]

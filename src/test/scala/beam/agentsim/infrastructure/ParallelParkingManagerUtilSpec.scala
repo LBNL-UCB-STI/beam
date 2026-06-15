@@ -40,7 +40,7 @@ class ParallelParkingManagerUtilSpec extends AnyWordSpecLike with Matchers {
       val numZones = List(1, 1, 1, 1, 1, 1, 1, 1, 1, 10, 11, 12, 13, 14, 15, 16)
 
       val treeMap: TAZTreeMap =
-        ZonalParkingManagerSpec.mockTazTreeMap(tazList, startAtId = 1, 0, 0, 200, 200, scenarioCRS = "").get
+        ZonalParkingManagerSpec.mockTazTreeMap(tazList, startAtId = 1, 0, 0, 200, 200, scenarioCRS = "EPSG:3031").get
       val parkingZones = ZonalParkingManagerSpec.makeParkingZones(treeMap, numZones, VehicleManager.AnyManager)
       val clusters: Vector[ParallelParkingManager.ParkingCluster] =
         ParallelParkingManager.createClusters(treeMap, parkingZones, 4, 42)
@@ -58,7 +58,7 @@ class ParallelParkingManagerUtilSpec extends AnyWordSpecLike with Matchers {
       val numZones = List(1, 2, 3, 4)
 
       val treeMap: TAZTreeMap =
-        ZonalParkingManagerSpec.mockTazTreeMap(tazList, startAtId = 1, 0, 0, 200, 200, scenarioCRS = "").get
+        ZonalParkingManagerSpec.mockTazTreeMap(tazList, startAtId = 1, 0, 0, 200, 200, scenarioCRS = "EPSG:3031").get
       val parkingZones = ZonalParkingManagerSpec
         .makeParkingZones(treeMap, numZones, VehicleManager.AnyManager)
         .drop(1)
@@ -71,7 +71,7 @@ class ParallelParkingManagerUtilSpec extends AnyWordSpecLike with Matchers {
     }
 
     "Handle empty tazTreeMap" in {
-      val treeMap = new TAZTreeMap(new QuadTree[TAZ](0, 0, 0, 0), scenarioCRS = "")
+      val treeMap = new TAZTreeMap(new QuadTree[TAZ](0, 0, 0, 0), scenarioCRS = "EPSG:3031")
       treeMap.searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(treeMap, Map.empty))
 
       val parkingZones = Map.empty[Id[ParkingZoneId], ParkingZone]

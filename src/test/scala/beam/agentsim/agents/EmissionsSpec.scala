@@ -18,6 +18,7 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
+import com.typesafe.config
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.core.controler
 import org.matsim.core.controler.AbstractModule
@@ -27,17 +28,19 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.core.utils.io.IOUtils
 import org.matsim.api.core.v01.events.Event
-import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.utils.objectattributes.attributable.Attributes
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.{doAnswer, mock, when}
+import org.mockito.stubbing.OngoingStubbing
 import org.scalatest.AppendedClues.convertToClueful
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funspec.AnyFunSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import java.nio.file.{Files, Path, Paths}
+import java.util
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 
@@ -172,7 +175,6 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
 
         val beamConfig = BeamConfig(
           testConfig("test/input/beamville/beam-urbansimv2-emissions.conf")
-            .withValue("beam.agentsim.agents.vehicles.emissions.skims", ConfigValueFactory.fromAnyRef(true))
             .resolve()
         )
 
@@ -185,14 +187,23 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
         val linkAttributes = new Attributes()
         linkAttributes.putAttribute("type", "motorway")
         when(link.getAttributes).thenReturn(linkAttributes)
+        when(link.getId).thenReturn(Id.createLinkId("0"))
+        when(link.getCoord).thenReturn(new Coord(42, 42))
 
         val networkHelper = mock(classOf[beam.utils.NetworkHelper])
         when(networkHelper.getLink(101)).thenReturn(Some(link))
+        when(networkHelper.allLinks).thenReturn(Array(link))
 
         val beamServices = mock(classOf[BeamServices])
         when(beamServices.beamConfig).thenReturn(beamConfig)
         when(beamServices.matsimServices).thenReturn(matsimServices)
         when(beamServices.networkHelper).thenReturn(networkHelper)
+
+        val linksJavaMap: util.Map[Id[Link], Any with Link] = Map(link.getId -> link).asJava
+        val network = mock(classOf[Network])
+        when(network.getLinks)
+          .asInstanceOf[OngoingStubbing[util.Map[Id[Link], Link]]]
+          .thenReturn(linksJavaMap)
 
         val emittedEvents = mutable.ListBuffer.empty[EmissionsSkimmerEvent]
         doAnswer(invocation => {
@@ -215,11 +226,21 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
           vehicleUse = Freight
         )
 
+        val emissionsConfig = beamConfig.beam.agentsim.agents.vehicles.emissions
+        val emissionsEnabled = emissionsConfig.events || emissionsConfig.skims
+        val countyResolver = VehicleEmissions.CountyResolver.build(
+          network,
+          beamConfig.beam.spatial.localCRS,
+          emissionsConfig.countyLookup,
+          emissionsEnabled
+        )
         val vehicleEmissions = new VehicleEmissions(
           vehicleTypesBasePaths = IndexedSeq(tempDir.toString),
           vehicleTypes = Map(vehicleTypeId -> vehicleType),
-          pollutantsFilter = Emissions.values.map(formatName).mkString(","),
-          ratesFilter = beamConfig.beam.agentsim.agents.vehicles.emissions.ratesFilter
+          countyResolver,
+          emissionsConfig.pollutantsFilter,
+          emissionsConfig.fuelFilter,
+          emissionsConfig.ratesFilter
         )
 
         val vehicleId = Id.create("freightVehicle-1", classOf[beam.agentsim.agents.vehicles.BeamVehicle])
