@@ -303,6 +303,8 @@ object SearchQuadTree {
       linkQuadTree.put(linkMidpoint.getX, linkMidpoint.getY, link)
     }
 
+    private val linkSearchMarkerQuadTree: QuadTree[Link] = new QuadTree[Link](-1, -1, 1, 1)
+
     private def buildSearchResult(
       tazToLinks: mutable.HashMap[TAZ, mutable.ArrayBuffer[Link]]
     ): SearchQuadTreeResults = {
@@ -320,16 +322,11 @@ object SearchQuadTree {
         }
         linkSetBuilder.sizeHint(totalLinks)
 
-        // Build quad trees for each TAZ
-        val tazToLinksQuadTree = tazToLinks.par
-          .map { case (tazId, links) =>
-            tazId -> buildQuadTreeLink(links)
-          }
-          .seq
-          .toMap
-
         val finalLinkSet = linkSetBuilder.result()
-        SearchQuadTreeResults(tazSet, Some(finalLinkSet), Some(tazToLinksQuadTree))
+        // Parking stall sampling only uses the presence of this map to keep link-based sampling enabled.
+        // The actual per-TAZ links come from TAZTreeMap.tazToLinkIdMapping, so avoid rebuilding quad trees per search.
+        val linkSearchMarkers = tazSet.iterator.map(_ -> linkSearchMarkerQuadTree).toMap
+        SearchQuadTreeResults(tazSet, Some(finalLinkSet), Some(linkSearchMarkers))
       }
     }
 
@@ -394,62 +391,6 @@ object SearchQuadTree {
       }
 
       buildSearchResult(tazToLinks)
-    }
-
-    def buildQuadTreeLink(links: Seq[Link]): QuadTree[Link] = {
-      if (links.isEmpty) {
-        return new QuadTree[Link](-1, -1, 1, 1)
-      }
-
-      // Calculate bounds
-      var minX = Double.MaxValue
-      var maxX = Double.MinValue
-      var minY = Double.MaxValue
-      var maxY = Double.MinValue
-
-      links.foreach { link =>
-        val fromX = link.getFromNode.getCoord.getX
-        val fromY = link.getFromNode.getCoord.getY
-        val toX = link.getToNode.getCoord.getX
-        val toY = link.getToNode.getCoord.getY
-
-        // Check both endpoints for bounds
-        if (fromX < minX) minX = fromX
-        if (fromX > maxX) maxX = fromX
-        if (fromY < minY) minY = fromY
-        if (fromY > maxY) maxY = fromY
-
-        if (toX < minX) minX = toX
-        if (toX > maxX) maxX = toX
-        if (toY < minY) minY = toY
-        if (toY > maxY) maxY = toY
-      }
-
-      val linkMidpoints = links.map { link =>
-        val fromX = link.getFromNode.getCoord.getX
-        val fromY = link.getFromNode.getCoord.getY
-        val toX = link.getToNode.getCoord.getX
-        val toY = link.getToNode.getCoord.getY
-
-        val midX = 0.5 * (fromX + toX)
-        val midY = 0.5 * (fromY + toY)
-
-        (link, midX, midY)
-      }
-
-      val buffer = 100.0
-      val quadTree = new QuadTree[Link](
-        minX - buffer,
-        minY - buffer,
-        maxX + buffer,
-        maxY + buffer
-      )
-
-      linkMidpoints.foreach { case (link, midX, midY) =>
-        quadTree.put(midX, midY, link)
-      }
-
-      quadTree
     }
   }
 
