@@ -29,6 +29,8 @@ plugins {
     id 'com.bmuschko.docker-remote-api' version '9.4.0'  // Changed from docker-java-application
     id "cz.alenkacz.gradle.scalafmt" version "1.16.2"
     id "java-library"
+    // gradlew buildHealth => to check dependency, but quite dependency-heavy itself
+    // id "com.autonomousapps.dependency-analysis" version "1.28.0"
 }
 
 apply plugin: 'java'
@@ -144,7 +146,7 @@ dependencies {
 }
 
 
-configurations.all {
+configurations.configureEach {
     resolutionStrategy {
         // we need this in order to get Elki library working fine.
         force 'net.jafama:jafama:2.3.2'
@@ -334,9 +336,7 @@ dependencies {
     ///Performance Monitoring (Kamon)///
     ////////////////////////////////////
 
-    // compile("io.kamon:kamon-bundle_${scalaBinaryVersion}:${kamonVersion}")
     implementation("io.kamon:kamon-core_${scalaBinaryVersion}:2.0.1")
-    // compile("io.kamon:kamon-influxdb_2.12:2.0.0")
 
     implementation("org.influxdb:influxdb-java:2.16")
 
@@ -364,26 +364,6 @@ dependencies {
 
     implementation group: 'com.zaxxer', name: 'nuprocess', version: '1.2.4'
 
-    def sparkVersion = "3.4.2" // Use your desired Spark version
-
-    implementation("org.apache.spark:spark-core_${scalaBinaryVersion}:${sparkVersion}") {
-        exclude group: 'org.apache.hadoop'
-        exclude group: 'org.slf4j'
-    }
-    implementation("org.apache.spark:spark-sql_${scalaBinaryVersion}:${sparkVersion}") {
-        exclude group: 'org.apache.hadoop'
-        exclude group: 'org.slf4j'
-    }
-    testImplementation("org.apache.spark:spark-core_${scalaBinaryVersion}:${sparkVersion}") {
-        exclude group: 'org.apache.hadoop'
-        exclude group: 'org.slf4j'
-    }
-    testImplementation("org.apache.spark:spark-sql_${scalaBinaryVersion}:${sparkVersion}") {
-        exclude group: 'org.apache.hadoop'
-        exclude group: 'org.slf4j'
-    }
-
-    def parquet = "1.12.3"
     // Parquet dependencies with shading
     implementation 'org.apache.parquet:parquet-avro:1.12.3'
     implementation 'org.apache.parquet:parquet-hadoop:1.12.3'
@@ -471,12 +451,6 @@ tasks.withType(ScalaCompile) {
     }
 }
 
-tasks.withType(JavaExec).configureEach { task ->
-    if (!task.name.equals("run")) {
-        jvmArgs = project.hasProperty('logbackCfg') ? ["-Dlogback.configurationFile=${project.property('logbackCfg')}"] : []
-    }
-}
-
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
     def n = project.hasProperty('numThreads') ? numThreads : 4
     mainClass = 'org.scalatest.tools.Runner'
@@ -495,7 +469,19 @@ task spec(dependsOn: ['testClasses'], type: JavaExec) {
             '-W', '300', '60']
     classpath = sourceSets.test.runtimeClasspath
 }
-build.dependsOn spec
+spec.mustRunAfter test
+// finalizedBy must be set at configuration time; whenReady is too late in Gradle 7.5.
+// onlyIf gates spec: run after test when check is in the graph (build/check), or when invoked directly.
+tasks.named('test') {
+    finalizedBy spec
+}
+spec.onlyIf {
+    def names = gradle.startParameter.taskNames
+    if (names.any { it == 'spec' || it.endsWith(':spec') }) {
+        return true
+    }
+    gradle.taskGraph.allTasks.any { it.path == ':check' }
+}
 
 /* //////////////////////////////////////////////////
 *  Task to run tagged tests.
@@ -503,12 +489,8 @@ build.dependsOn spec
 * ./gradlew taggedTest -Ptags="beam.tags.Performance beam.tags.Integration"
 * /////////////////////////////////////////////////// */
 
-processResources {
-    duplicatesStrategy = 'include'
-}
-
-processTestResources {
-    duplicatesStrategy = 'include'
+tasks.withType(ProcessResources).configureEach {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 task taggedTest(dependsOn: ['testClasses'], type: JavaExec) {
@@ -519,7 +501,7 @@ task taggedTest(dependsOn: ['testClasses'], type: JavaExec) {
 
 task specificTest(dependsOn: ['testClasses'], type: JavaExec) {
     mainClass = 'org.scalatest.tools.Runner'
-    args = (['-R', 'build/classes/scala/test', '-o', '-s'] << (project.findProperty('suite') ?: 'org.scalatest.Ignore')) +
+    args = (['-R', 'build/classes/scala/test', '-oD', '-s'] << (project.findProperty('suite') ?: 'org.scalatest.Ignore')) +
             (project.hasProperty('matches') ? ["-z", project.findProperty('matches')] : [])
     classpath = sourceSets.test.runtimeClasspath
 }
@@ -783,24 +765,46 @@ def g1GCSettings = [
 applicationDefaultJvmArgs = [
         // Heap settings (match Xms and Xmx for consistency)
         "-Xms${heapSize}g",
-        "-Xmx${heapSize}g"
-] + g1GCSettings + [
-        // Logging
-        "-Dlogback.configurationFile=${logbackConfig}"
-] + profilerOption + jmx + extraJvmArgs
+        "-Xmx${heapSize}g",
 
-// Print configuration summary
-logger.lifecycle("")
-logger.lifecycle("========================================")
-logger.lifecycle("BEAM Local Development GC Configuration")
-logger.lifecycle("========================================")
-logger.lifecycle("Heap Size: ${heapSize}GB")
-logger.lifecycle("Parallel GC Threads: ${gcThreads.parallel}")
-logger.lifecycle("Concurrent GC Threads: ${gcThreads.concurrent}")
-logger.lifecycle("GC: G1 (optimized for 50k-100k agents)")
-logger.lifecycle("========================================")
-logger.lifecycle("")
-println(applicationDefaultJvmArgs)
+        g1GCSettings,
+
+        // Logging
+        "-Dlogback.configurationFile=${logbackConfig}",
+
+        profilerOption,
+        jmx,
+        extraJvmArgs,
+
+].flatten().findAll { it != null }.collect { it.toString() }
+
+afterEvaluate {
+    // Print configuration summary
+    logger.lifecycle("")
+    logger.lifecycle("========================================")
+    logger.lifecycle("BEAM Local Development GC Configuration")
+    logger.lifecycle("========================================")
+    logger.lifecycle("Heap Size: ${heapSize}GB")
+    logger.lifecycle("Parallel GC Threads: ${gcThreads.parallel}")
+    logger.lifecycle("Concurrent GC Threads: ${gcThreads.concurrent}")
+    logger.lifecycle("GC: G1 (optimized for 50k-100k agents)")
+    logger.lifecycle("========================================")
+    logger.lifecycle("")
+
+    println(applicationDefaultJvmArgs)
+
+    tasks.withType(JavaExec).configureEach { task ->
+        if (task.name != "run") {
+            task.jvmArgs(applicationDefaultJvmArgs)
+
+            if (project.hasProperty('logbackCfg')) {
+                task.jvmArgs("-Dlogback.configurationFile=${project.property('logbackCfg')}")
+            }
+
+            task.jvmArgs = task.jvmArgs.unique().sort()
+        }
+    }
+}
 
 run {
     if (project.hasProperty("appArgs")) {
