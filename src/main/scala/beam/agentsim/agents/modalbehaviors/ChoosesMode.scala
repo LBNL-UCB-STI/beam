@@ -1704,68 +1704,6 @@ trait ChoosesMode {
         )
       }
 
-      // Debug logging for transit replanning loops
-      if (
-        personData.numberOfReplanningAttempts % 5 == 0 &&
-        personData.numberOfReplanningAttempts > 0 &&
-        personData.currentTripMode.exists(_.isTransit)
-      ) {
-
-        val deniedLegsDetails = personData.deniedBoardingLegs
-          .map { leg =>
-            val gtfsTripId = leg.beamVehicleId // Assuming beamVehicleId is the GTFS trip ID for transit legs
-            val startTime = leg.beamLeg.startTime
-            val routeLinks = leg.beamLeg.travelPath.linkIds.mkString("-")
-            s"    - Vehicle ID: ${leg.beamVehicleId}, GTFS Trip ID: ${gtfsTripId}, Start Time: ${startTime}, Route Links: ${routeLinks}"
-          }
-          .mkString("\n")
-
-        val routingResponseItineraries = choosesModeData.routingResponse
-          .map { response =>
-            response.itineraries
-              .map { itin =>
-                val transitLegs = itin.legs.filter(_.beamLeg.mode.isTransit)
-                val gtfsTripIds = transitLegs.map(_.beamVehicleId).mkString(",")
-                val transitLegStartTimes = transitLegs.map(_.beamLeg.startTime).mkString(",")
-                val transitLegRouteLinks = transitLegs.map(_.beamLeg.travelPath.linkIds.mkString("-")).mkString(";")
-                s"${itin.tripClassifier}@${itin.legs.headOption.map(_.beamLeg.startTime).getOrElse("?")} vehicles=[${itin.vehiclesInTrip
-                  .filterNot(_.toString.startsWith("body"))
-                  .mkString(",")}] GTFS Trip IDs=[${gtfsTripIds}] Transit Leg Start Times=[${transitLegStartTimes}] Transit Leg Route Links=[${transitLegRouteLinks}]"
-              }
-              .mkString(";\n    ")
-          }
-          .getOrElse("None")
-
-        val availableItinerariesAfterFiltering = itinerariesOfCorrectMode
-          .map { itin =>
-            val transitLegs = itin.legs.filter(_.beamLeg.mode.isTransit)
-            val gtfsTripIds = transitLegs.map(_.beamVehicleId).mkString(",")
-            val transitLegStartTimes = transitLegs.map(_.beamLeg.startTime).mkString(",")
-            val transitLegRouteLinks = transitLegs.map(_.beamLeg.travelPath.linkIds.mkString("-")).mkString(";")
-            s"${itin.tripClassifier}@${itin.legs.headOption.map(_.beamLeg.startTime).getOrElse("?")} vehicles=[${itin.vehiclesInTrip
-              .filterNot(_.toString.startsWith("body"))
-              .mkString(",")}] GTFS Trip IDs=[${gtfsTripIds}] Transit Leg Start Times=[${transitLegStartTimes}] Transit Leg Route Links=[${transitLegRouteLinks}]"
-          }
-          .mkString(";\n    ")
-
-        logger.warn(
-          s"[TRANSIT_LOOP_DEBUG] Agent ${this.id} replanning attempt ${personData.numberOfReplanningAttempts}:\n" +
-          s"  Current trip mode: ${personData.currentTripMode}\n" +
-          s"  Denied boarding legs count: ${personData.deniedBoardingLegs.size}\n" +
-          s"  Denied legs details:\n${deniedLegsDetails}\n" +
-          s"  Failed trips count: ${personData.failedTrips.size}\n" +
-          s"  Failed trips: ${personData.failedTrips
-            .map(trip => s"${trip.tripClassifier}@${trip.legs.headOption.map(_.beamLeg.startTime).getOrElse("?")}")
-            .mkString("; ")}\n" +
-          s"  Last routing request: ${choosesModeData.routingResponse
-            .flatMap(_.request)
-            .map(req => s"from=${req.originUTM} to=${req.destinationUTM} time=${req.departureTime} withTransit=${req.withTransit}")
-            .getOrElse("None")}\n" +
-          s"  Routing response itineraries:\n    ${routingResponseItineraries}\n" +
-          s"  Available itineraries after filtering:\n    ${availableItinerariesAfterFiltering}"
-        )
-      }
-
       if (personData.numberOfReplanningAttempts > 20) {
         logger.warn(
           s"Agent ${this.id} exceeded 20 replanning attempts at ${choosesModeData.currentLocation}. " +

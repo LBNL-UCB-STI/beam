@@ -139,22 +139,25 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
   private def dumpR5WorkerStacks(maxFramesPerThread: Int = 40): String = {
     Thread.getAllStackTraces.asScala.toVector
       .collect {
-        case (thread, stack) if thread.getName.startsWith("r5-routing-worker-") =>
+        case (thread, stack)
+            if thread.getName.startsWith("r5-street-routing-worker-") || thread.getName.startsWith("r5-transit-routing-worker-") =>
           val header =
             s"""thread=${thread.getName}, id=${thread.getId}, state=${thread.getState}"""
           val frames = stack.take(maxFramesPerThread).map(s => s"    at $s").mkString("\n")
           s"$header\n$frames"
       }
       .sortBy { dump =>
-        val prefix = "thread=r5-routing-worker-"
-        val start = dump.indexOf(prefix)
-        if (start < 0) Int.MaxValue
-        else {
-          val idx = start + prefix.length
-          val end = dump.indexOf(",", idx)
-          Try(dump.substring(idx, if (end > idx) end else dump.length).toInt).getOrElse(Int.MaxValue)
+        val prefixes = Seq("thread=r5-street-routing-worker-", "thread=r5-transit-routing-worker-")
+        prefixes
+          .find(dump.contains)
+          .map { prefix =>
+            val start = dump.indexOf(prefix)
+            val idx = start + prefix.length
+            val end = dump.indexOf(",", idx)
+            Try(dump.substring(idx, if (end > idx) end else dump.length).toInt).getOrElse(Int.MaxValue)
+          }
+          .getOrElse(Int.MaxValue)
         }
-      }
       .mkString("\n\n")
   }
 
