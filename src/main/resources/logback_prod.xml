@@ -39,4 +39,3 @@
     <logger name="org.sparkproject" level="ERROR"/>
     <Logger name="org.reflections" level="ERROR" />
 </configuration>
-

@@ -516,4 +516,3 @@ object EmissionsSkimmer extends LazyLogging {
       """
     )
 }
-
