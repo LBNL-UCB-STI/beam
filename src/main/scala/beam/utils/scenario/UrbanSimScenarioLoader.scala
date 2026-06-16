@@ -1,12 +1,14 @@
 package beam.utils.scenario
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.sim.population.PopulationAdjustment.RIDEHAIL_SERVICE_SUBSCRIPTION
 import beam.sim.vehicles.VehiclesAdjustment
+import beam.sim.vehicles.VehiclesAdjustment.DETERMINISTIC
+import beam.utils.BeamVehicleUtils
 import beam.utils.plan.sampling.AvailableModeUtils
 import beam.utils.scenario.urbansim.HOVModeTransformer
 import beam.utils.{SequenceUtils, UniformRealDistributionEnhanced}
@@ -27,6 +29,7 @@ import scala.collection.{mutable, Iterable}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.math.{max, min, round}
+import scala.util.control.NonFatal
 import scala.util.Random
 
 class UrbanSimScenarioLoader(
@@ -106,7 +109,7 @@ class UrbanSimScenarioLoader(
     }
 
     val vehiclesF = Future {
-      val vehicles = scenarioSource.getVehicles
+      val vehicles = loadVehicles()
       logger.info(s"Read ${vehicles.size} vehicles")
       vehicles
     }
@@ -169,6 +172,43 @@ class UrbanSimScenarioLoader(
     beamScenario.privateVehicleInitialSoc.clear()
   }
 
+  private def loadVehicles(): Iterable[VehicleInfo] = {
+    val configVehiclesFilePath = beamScenario.beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath.trim
+    val scenarioSourceType = beamScenario.beamConfig.beam.exchange.scenario.source.toLowerCase
+    val shouldPreferConfiguredVehicles =
+      (scenarioSourceType == "urbansim" || scenarioSourceType == "urbansim_v2") && configVehiclesFilePath.nonEmpty
+
+    def loadFromScenarioSource(): Iterable[VehicleInfo] = scenarioSource.getVehicles
+
+    def loadFromConfiguredFile(): Iterable[VehicleInfo] = {
+      logger.info(s"Loading household vehicles directly from vehiclesFilePath=$configVehiclesFilePath")
+      BeamVehicleUtils.readVehicleInfosFile(configVehiclesFilePath)
+    }
+
+    if (shouldPreferConfiguredVehicles) {
+      try {
+        val configuredVehicles = loadFromConfiguredFile()
+        if (configuredVehicles.nonEmpty) {
+          configuredVehicles
+        } else {
+          logger.warn(
+            s"Configured vehiclesFilePath=$configVehiclesFilePath returned no household vehicles. Falling back to scenario source."
+          )
+          loadFromScenarioSource()
+        }
+      } catch {
+        case NonFatal(error) =>
+          logger.warn(
+            s"Could not load household vehicles from vehiclesFilePath=$configVehiclesFilePath. Falling back to scenario source.",
+            error
+          )
+          loadFromScenarioSource()
+      }
+    } else {
+      loadFromScenarioSource()
+    }
+  }
+
   private[utils] def getPersonsWithPlan(
     persons: Iterable[PersonInfo],
     plans: Iterable[PlanElement]
@@ -200,10 +240,19 @@ class UrbanSimScenarioLoader(
 
     val scaleFactor = beamScenario.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
 
+    val shouldUseDeterministicVehicleAdjustment = householdIdToVehicles.nonEmpty
     val vehiclesAdjustment = VehiclesAdjustment.getVehicleAdjustment(
       beamScenario,
+      adjustmentType = if (shouldUseDeterministicVehicleAdjustment) DETERMINISTIC else "",
       householdIdToVehicleIdsOption = Option(householdIdToVehicles)
     )
+    val fallbackVehiclesAdjustment =
+      if (shouldUseDeterministicVehicleAdjustment) Some(VehiclesAdjustment.getVehicleAdjustment(beamScenario)) else None
+    if (shouldUseDeterministicVehicleAdjustment) {
+      logger.info(
+        s"Using DETERMINISTIC household vehicle assignment based on loaded vehicles file for ${householdIdToVehicles.size} households"
+      )
+    }
     val realDistribution: UniformRealDistributionEnhanced = new UniformRealDistributionEnhanced()
     realDistribution.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
@@ -216,6 +265,7 @@ class UrbanSimScenarioLoader(
       val id = Id.create(householdInfo.householdId.id, classOf[Household])
       val household = new HouseholdsFactoryImpl().createHousehold(id)
       val coord = utmCoord(householdInfo.locationX, householdInfo.locationY, fromExistingPlans = true)
+      val vehiclesFromFile = householdIdToVehicles.getOrElse(householdInfo.householdId, Iterable.empty).toVector
 
       household.setIncome(new IncomeImpl(householdInfo.income, Income.IncomePeriod.year))
 
@@ -227,41 +277,124 @@ class UrbanSimScenarioLoader(
           logger.warn(s"Could not find persons for the `household_id` '${householdInfo.householdId}'")
       }
 
-      val vehicleTypes = vehiclesAdjustment
-        .sampleVehicleTypesForHousehold(
-          numVehicles = nVehicles,
-          vehicleCategory = VehicleCategory.Car,
-          householdIncome = household.getIncome.getIncome,
-          householdSize = household.getMemberIds.size,
-          householdPopulation = null,
-          householdLocation = coord,
-          realDistribution,
-          Option(householdInfo.householdId)
-        )
-        .toBuffer
-
-      if (rand.nextDouble() <= beamScenario.beamConfig.beam.agentsim.agents.vehicles.fractionOfPeopleWithBicycle) {
-        vehicleTypes.append(bikeVehicleType)
-      }
-
-      initialVehicleCounter += householdInfo.cars
-      totalCarCount += vehicleTypes.count(_.vehicleCategory.toString == "Car")
-
       val vehicleIds = new java.util.ArrayList[Id[Vehicle]]
-      vehicleTypes.foreach { beamVehicleType =>
-        val vt = VehicleUtils.getFactory.createVehicleType(Id.create(beamVehicleType.id, classOf[VehicleType]))
-        val vehicle = VehicleUtils.getFactory.createVehicle(Id.createVehicleId(vehicleCounter), vt)
-        vehicleIds.add(vehicle.getId)
-        val bvId = Id.create(vehicle.getId, classOf[BeamVehicle])
-        val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
-        val beamVehicle = new BeamVehicle(
-          bvId,
-          powerTrain,
-          beamVehicleType,
-          randomSeed = rand.nextInt
-        )
-        beamScenario.privateVehicles.put(beamVehicle.id, beamVehicle)
-        vehicleCounter = vehicleCounter + 1
+      if (shouldUseDeterministicVehicleAdjustment) {
+        val vehicleTypesFromFile: Vector[(VehicleInfo, BeamVehicleType)] = vehiclesFromFile.flatMap { vehicleInfo =>
+          beamScenario.vehicleTypes.get(Id.create(vehicleInfo.vehicleTypeId, classOf[BeamVehicleType])) match {
+            case Some(vehicleType) =>
+              Some(vehicleInfo -> vehicleType)
+            case None =>
+              logger.warn(
+                s"Could not find vehicleTypeId=${vehicleInfo.vehicleTypeId} from vehicles file for householdId=${householdInfo.householdId}"
+              )
+              None
+          }
+        }
+
+        val loadedCarCount = vehicleTypesFromFile.count { case (_, vehicleType) =>
+          vehicleType.vehicleCategory == VehicleCategory.Car
+        }
+        val missingCarCount = math.max(householdInfo.cars - loadedCarCount, 0)
+
+        initialVehicleCounter += loadedCarCount
+        totalCarCount += loadedCarCount
+
+        vehicleTypesFromFile.foreach { case (vehicleInfo, beamVehicleType) =>
+          val matsimVehicleId = Id.createVehicleId(vehicleInfo.vehicleId)
+          val vt = VehicleUtils.getFactory.createVehicleType(Id.create(beamVehicleType.id, classOf[VehicleType]))
+          val vehicle = VehicleUtils.getFactory.createVehicle(matsimVehicleId, vt)
+          vehicleIds.add(vehicle.getId)
+          val bvId = Id.create(vehicle.getId, classOf[BeamVehicle])
+          val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
+          val beamVehicle = new BeamVehicle(
+            bvId,
+            powerTrain,
+            beamVehicleType,
+            randomSeed = rand.nextInt
+          )
+          beamScenario.privateVehicles.put(beamVehicle.id, beamVehicle)
+          vehicleInfo.initialSoc.foreach(soc => beamScenario.privateVehicleInitialSoc.put(beamVehicle.id, soc))
+        }
+
+        fallbackVehiclesAdjustment.foreach { fallbackAdjustment =>
+          val sampledVehicleTypes = fallbackAdjustment.sampleVehicleTypesForHousehold(
+            numVehicles = missingCarCount,
+            vehicleCategory = VehicleCategory.Car,
+            householdIncome = household.getIncome.getIncome,
+            householdSize = household.getMemberIds.size,
+            householdPopulation = null,
+            householdLocation = coord,
+            realDistribution,
+            Option(householdInfo.householdId)
+          )
+
+          sampledVehicleTypes.foreach { beamVehicleType =>
+            val vt = VehicleUtils.getFactory.createVehicleType(Id.create(beamVehicleType.id, classOf[VehicleType]))
+            val vehicle = VehicleUtils.getFactory.createVehicle(Id.createVehicleId(vehicleCounter), vt)
+            vehicleIds.add(vehicle.getId)
+            val bvId = Id.create(vehicle.getId, classOf[BeamVehicle])
+            val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
+            val beamVehicle = new BeamVehicle(
+              bvId,
+              powerTrain,
+              beamVehicleType,
+              randomSeed = rand.nextInt
+            )
+            beamScenario.privateVehicles.put(beamVehicle.id, beamVehicle)
+            vehicleCounter = vehicleCounter + 1
+          }
+        }
+        if (rand.nextDouble() <= beamScenario.beamConfig.beam.agentsim.agents.vehicles.fractionOfPeopleWithBicycle) {
+          val vt = VehicleUtils.getFactory.createVehicleType(Id.create(bikeVehicleType.id, classOf[VehicleType]))
+          val vehicle = VehicleUtils.getFactory.createVehicle(Id.createVehicleId(vehicleCounter), vt)
+          vehicleIds.add(vehicle.getId)
+          val bvId = Id.create(vehicle.getId, classOf[BeamVehicle])
+          val powerTrain = new Powertrain(bikeVehicleType.primaryFuelConsumptionInJoulePerMeter)
+          val beamVehicle = new BeamVehicle(
+            bvId,
+            powerTrain,
+            bikeVehicleType,
+            randomSeed = rand.nextInt
+          )
+          beamScenario.privateVehicles.put(beamVehicle.id, beamVehicle)
+          vehicleCounter = vehicleCounter + 1
+        }
+      } else {
+        val vehicleTypes = vehiclesAdjustment
+          .sampleVehicleTypesForHousehold(
+            numVehicles = nVehicles,
+            vehicleCategory = VehicleCategory.Car,
+            householdIncome = household.getIncome.getIncome,
+            householdSize = household.getMemberIds.size,
+            householdPopulation = null,
+            householdLocation = coord,
+            realDistribution,
+            Option(householdInfo.householdId)
+          )
+          .toBuffer
+
+        if (rand.nextDouble() <= beamScenario.beamConfig.beam.agentsim.agents.vehicles.fractionOfPeopleWithBicycle) {
+          vehicleTypes.append(bikeVehicleType)
+        }
+
+        initialVehicleCounter += householdInfo.cars
+        totalCarCount += vehicleTypes.count(_.vehicleCategory.toString == "Car")
+
+        vehicleTypes.foreach { beamVehicleType =>
+          val vt = VehicleUtils.getFactory.createVehicleType(Id.create(beamVehicleType.id, classOf[VehicleType]))
+          val vehicle = VehicleUtils.getFactory.createVehicle(Id.createVehicleId(vehicleCounter), vt)
+          vehicleIds.add(vehicle.getId)
+          val bvId = Id.create(vehicle.getId, classOf[BeamVehicle])
+          val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
+          val beamVehicle = new BeamVehicle(
+            bvId,
+            powerTrain,
+            beamVehicleType,
+            randomSeed = rand.nextInt
+          )
+          beamScenario.privateVehicles.put(beamVehicle.id, beamVehicle)
+          vehicleCounter = vehicleCounter + 1
+        }
       }
       household.setVehicleIds(vehicleIds)
       scenarioHouseholds.put(household.getId, household)

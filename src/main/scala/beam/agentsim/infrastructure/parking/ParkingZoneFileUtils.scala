@@ -94,7 +94,8 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     tree: mutable.Map[Id[TAZ], Map[ParkingType, Vector[Id[ParkingZoneId]]]] =
       mutable.Map.empty[Id[TAZ], Map[ParkingType, Vector[Id[ParkingZoneId]]]],
     totalRows: Int = 0,
-    failedRows: Int = 0
+    failedRows: Int = 0,
+    zeroStallRows: Int = 0
   ) {
 
     def countFailedRow: ParkingLoadingAccumulator =
@@ -103,7 +104,14 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
         failedRows = failedRows + 1
       )
 
+    def countZeroStallRow: ParkingLoadingAccumulator =
+      this.copy(
+        totalRows = totalRows + 1,
+        zeroStallRows = zeroStallRows + 1
+      )
+
     def someRowsFailed: Boolean = failedRows > 0
+    def someRowsScaledToZero: Boolean = zeroStallRows > 0
 
     def totalParkingStalls: Long = zones.map { _._2.maxStalls.toLong }.sum
 
@@ -277,6 +285,11 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
           if (parkingLoadingAccumulator.someRowsFailed) {
             logger.warn(s"${parkingLoadingAccumulator.failedRows} rows of parking data failed to load")
           }
+          if (parkingLoadingAccumulator.someRowsScaledToZero) {
+            logger.info(
+              s"${parkingLoadingAccumulator.zeroStallRows} rows of parking data were skipped because stall scaling reduced them to zero"
+            )
+          }
           parkingLoadingAccumulator
         case Failure(e) =>
           logger.error("Failure", e)
@@ -321,6 +334,8 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
           case Some(row: ParkingLoadingDataRow) if row.parkingZone.stallsAvailable > 0 =>
             // After sampling down parking certain parking zone became unavailable. We keep only available ones.
             addStallToSearch(row, accumulator)
+          case Some(_: ParkingLoadingDataRow) =>
+            accumulator.countZeroStallRow
           case _ =>
             accumulator.countFailedRow
         }
@@ -374,6 +389,8 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
             case Some(row: ParkingLoadingDataRow) if row.parkingZone.stallsAvailable > 0 =>
               // After sampling down parking certain parking zone became unavailable. We keep only available ones.
               addStallToSearch(row, accumulator)
+            case Some(_: ParkingLoadingDataRow) =>
+              accumulator.countZeroStallRow
             case _ =>
               accumulator.countFailedRow
           }
@@ -644,10 +661,10 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
   ): Int = {
     reservedFor.managerType match {
       case VehicleManager.TypeEnum.Household =>
-        initialNumStalls.toInt
+        Math.max(initialNumStalls.toInt, 0)
       case _ =>
-        val expectedNumberOfStalls = initialNumStalls * scalingFactor
-        MathUtils.roundUniformly(expectedNumberOfStalls, rand).toInt
+        val expectedNumberOfStalls = Math.max(initialNumStalls * scalingFactor, 0.0)
+        Math.max(MathUtils.roundUniformly(expectedNumberOfStalls, rand).toInt, 0)
     }
   }
 
@@ -729,7 +746,13 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       )
     )
 
-    ParkingLoadingAccumulator(accumulator.zones, accumulator.tree, accumulator.totalRows + 1, accumulator.failedRows)
+    ParkingLoadingAccumulator(
+      accumulator.zones,
+      accumulator.tree,
+      accumulator.totalRows + 1,
+      accumulator.failedRows,
+      accumulator.zeroStallRows
+    )
   }
 
   /**
@@ -774,6 +797,11 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     )
     if (result.someRowsFailed) {
       logger.warn(s"${result.failedRows} rows of parking data failed to load")
+    }
+    if (result.someRowsScaledToZero) {
+      logger.info(
+        s"${result.zeroStallRows} rows of parking data were skipped because stall scaling reduced them to zero"
+      )
     }
     result
   }

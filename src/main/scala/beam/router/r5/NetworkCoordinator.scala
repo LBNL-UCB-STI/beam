@@ -71,9 +71,16 @@ trait NetworkCoordinator extends LazyLogging {
 
   protected def postProcessing(): Unit
 
+  private def secondaryR5Directory: Option[String] =
+    beamConfig.beam.routing.r5.directory2 match {
+      case Some(path) if path.trim.nonEmpty => Some(path)
+      case _                                => None
+    }
+
   def loadNetwork(): Unit = {
     val GRAPH_FILE = "/network.dat"
     val graphPath = Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE)
+    val directory2 = secondaryR5Directory
     try {
       FileUtils
         .readOrCreateFile(graphPath) { path =>
@@ -86,7 +93,7 @@ trait NetworkCoordinator extends LazyLogging {
           network = readOrCreateNetwork(networkPath)
 
           networks2 = for {
-            dir2 <- beamConfig.beam.routing.r5.directory2
+            dir2 <- directory2
           } yield {
             val path2 = Paths.get(dir2).resolve(path.getFileName)
             logger.info(
@@ -120,11 +127,6 @@ trait NetworkCoordinator extends LazyLogging {
 
           try {
 
-            val directory2: Option[String] = beamConfig.beam.routing.r5.directory2 match {
-              case Some(path) if path.trim.nonEmpty => Some(path)
-              case _                                => None
-            }
-
             val maybeTN = for {
               dir2str <- directory2
             } yield {
@@ -156,7 +158,7 @@ trait NetworkCoordinator extends LazyLogging {
             }
           } catch {
             case e: Exception =>
-              logger.error(s"Error in router2 initialization (verify beam.routing.r5.director2) ${e.getMessage}")
+              logger.error(s"Error in second router initialization (verify beam.routing.r5.directory2) ${e.getMessage}")
           }
         }
         .get

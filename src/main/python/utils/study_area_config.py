@@ -271,24 +271,23 @@ fastsim_routee_files = {
 
 emissions_config = {
     "pollutants": {
-        'CH4': 'rate_ch4_gram_float',
-        'CO': 'rate_co_gram_float',
-        'CO2': 'rate_co2_gram_float',
-        'HC': 'rate_hc_gram_float',
-        'NH3': 'rate_nh3_gram_float',
-        'NOx': 'rate_nox_gram_float',
-        'PM': 'rate_pm_gram_float',
-        'PM10': 'rate_pm10_gram_float',
-        'PM2_5': 'rate_pm2_5_gram_float',
-        'ROG': 'rate_rog_gram_float',
-        'SOx': 'rate_sox_gram_float',
-        'TOG': 'rate_tog_gram_float',
-        'BC': 'rate_bc_gram_float',
-        'BCm': 'rate_bcm_gram_float',
-        'BCh': 'rate_bch_gram_float'
+        'CH4': 'ch4_gram',
+        'CO': 'co_gram',
+        'CO2': 'co2_gram',
+        'HC': 'hc_gram',
+        'NH3': 'nh3_gram',
+        'N2O': 'n2o_gram',
+        'NOx': 'nox_gram',
+        'PM': 'pm_gram',
+        'PM10': 'pm10_gram',
+        'PM25': 'pm25_gram',
+        'ROG': 'rog_gram',
+        'SOx': 'sox_gram',
+        'TOG': 'tog_gram',
+        'BC': 'bc_gram'
     },
     "processes" : [
-        "RUNEX", "IDLEX", "STREX", "DIURN", "HOTSOAK", "RUNLOSS", "PMTW", "PMBW", "PRDUST"
+        "RUNEX", "IDLEX", "STREX", "DIURN", "HOTSOAK", "RUNLOSS", "PMTW", "PMBW", "PRDUST", "PTOEX"
     ]
 }
 

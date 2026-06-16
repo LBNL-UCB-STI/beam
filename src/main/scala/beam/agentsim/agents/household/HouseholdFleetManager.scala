@@ -195,11 +195,14 @@ class HouseholdFleetManager(
     case GetVehicleTypes(triggerId) =>
       sender() ! VehicleTypesResponse(vehicleTypes, triggerId)
 
-    case inquiry @ MobilityStatusInquiry(personId, _, _, vehicleUse, requireVehicleCategoryAvailable, triggerId) =>
+    case inquiry @ MobilityStatusInquiry(personId, _, _, vehicleUse, requireVehicleCategoryAvailable, triggerId, _) =>
+      val assignedFreightVehicleId =
+        if (vehicleUse == Freight) {
+          whoDrivesThisFreightVehicle.collectFirst { case (vehicleId, `personId`) => vehicleId }
+        } else None
       val availableVehicleMaybe: Option[BeamVehicle] = requireVehicleCategoryAvailable match {
         case _ if vehicleUse == Freight =>
-          val assignedVehicleId = whoDrivesThisFreightVehicle.collectFirst { case (vehicleId, `personId`) => vehicleId }
-          availableVehicles.find(v => assignedVehicleId.contains(v.id))
+          availableVehicles.find(v => assignedFreightVehicleId.contains(v.id))
         case Some(requireVehicleCategory) =>
           availableVehicles.find(_.beamVehicleType.vehicleCategory == requireVehicleCategory)
         case _ => availableVehicles.headOption
@@ -217,7 +220,9 @@ class HouseholdFleetManager(
               s"An emergency vehicle has been created for freight personId: $personId. " +
               s"This is either because of bad freight plans or a bug within BEAM"
             )
-          } else logger.debug(s"An emergency vehicle has been created!")
+          } else {
+            logger.debug(s"An emergency vehicle has been created!")
+          }
         case _ =>
           if (availableVehicles.isEmpty) {
             requireVehicleCategoryAvailable match {
@@ -254,48 +259,51 @@ class HouseholdFleetManager(
     * @return
     */
   private def createAnEmergencyVehicle(inquiry: MobilityStatusInquiry): Option[BeamVehicle] = {
-    for {
-      category    <- inquiry.requireVehicleCategoryAvailable
-      emergency   <- maybeEmergencyHouseholdVehicleGenerator
-      vehicleType <- emergency.sampleVehicleTypeForEmergencyUse(inquiry.personId, category, inquiry.whereWhen)
-    } yield {
-      val vehicle = emergency.createAndAddVehicle(
-        vehicleType,
-        inquiry.personId,
-        nextVehicleIndex,
-        inquiry.whereWhen,
-        self
-      )
-      logger.debug(
-        s"No vehicles available for category $category available for " +
-        s"person ${inquiry.personId.toString} in available vehicles $availableVehicles" +
-        s", creating a new vehicle with id ${vehicle.id.toString}"
-      )
+    if (!inquiry.allowEmergencyVehicle) {
+      None
+    } else {
+      for {
+        category    <- inquiry.requireVehicleCategoryAvailable
+        emergency   <- maybeEmergencyHouseholdVehicleGenerator
+        vehicleType <- emergency.sampleVehicleTypeForEmergencyUse(inquiry.personId, category, inquiry.whereWhen)
+      } yield {
+        val vehicle = emergency.createAndAddVehicle(
+          vehicleType,
+          inquiry.personId,
+          nextVehicleIndex,
+          inquiry.whereWhen,
+          self
+        )
+        logger.debug(
+          s"No vehicles available for category $category available for " +
+          s"person ${inquiry.personId.toString} in available vehicles $availableVehicles" +
+          s", creating a new vehicle with id ${vehicle.id.toString}"
+        )
+        // Create a vehicle out of thin air
+        nextVehicleIndex += 1
+        val mobilityRequester = sender()
+        vehiclesInternal(vehicle.id) = vehicle
 
-      // Create a vehicle out of thin air
-      nextVehicleIndex += 1
-      val mobilityRequester = sender()
-      vehiclesInternal(vehicle.id) = vehicle
+        // Pipe my car through the parking manager
+        // and complete initialization only when I got them all.
+        val responseFuture = parkingManager ? ParkingInquiry.init(
+          inquiry.whereWhen,
+          inquiry.originActivity.getType,
+          VehicleManager.getReservedFor(vehicle.vehicleManagerId.get()).get,
+          Some(vehicle),
+          triggerId = inquiry.triggerId,
+          parkingDuration = beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds
+        )
 
-      // Pipe my car through the parking manager
-      // and complete initialization only when I got them all.
-      val responseFuture = parkingManager ? ParkingInquiry.init(
-        inquiry.whereWhen,
-        inquiry.originActivity.getType,
-        VehicleManager.getReservedFor(vehicle.vehicleManagerId.get()).get,
-        Some(vehicle),
-        triggerId = inquiry.triggerId,
-        parkingDuration = beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds
-      )
-
-      responseFuture.collect { case ParkingInquiryResponse(stall, _, otherTriggerId) =>
-        vehicle.setMustBeDrivenHome(false)
-        vehicle.useParkingStall(stall)
-        logger.debug("Vehicle {} is now taken, which was just created", vehicle.id)
-        vehicle.becomeDriver(mobilityRequester)
-        MobilityStatusResponse(Vector(ActualVehicle(vehicle)), otherTriggerId)
-      } pipeTo mobilityRequester
-      vehicle
+        responseFuture.collect { case ParkingInquiryResponse(stall, _, otherTriggerId) =>
+          vehicle.setMustBeDrivenHome(false)
+          vehicle.useParkingStall(stall)
+          logger.debug("Vehicle {} is now taken, which was just created", vehicle.id)
+          vehicle.becomeDriver(mobilityRequester)
+          MobilityStatusResponse(Vector(ActualVehicle(vehicle)), otherTriggerId)
+        } pipeTo mobilityRequester
+        vehicle
+      }
     }
   }
 }

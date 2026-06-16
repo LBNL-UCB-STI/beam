@@ -288,13 +288,8 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
     orig: Id[TAZ],
     dest: Id[TAZ]
   ): Option[ODSkimmerInternal] = {
-    val getSkimValue = pastSkims
-      .get(currentIteration - 1)
-      .flatMap(_.get(ODSkimmerKey(timeToBin(time), mode, rideHailName, orig.toString, dest.toString)))
-      .orElse(
-        aggregatedFromPastSkims.get(ODSkimmerKey(timeToBin(time), mode, rideHailName, orig.toString, dest.toString))
-      )
-      .asInstanceOf[Option[ODSkimmerInternal]]
+    val key = ODSkimmerKey(timeToBin(time), mode, rideHailName, orig.toString, dest.toString)
+    val getSkimValue = latestPastSkimValue[ODSkimmerInternal](key).orElse(aggregatedSkimValue[ODSkimmerInternal](key))
 
     if (getSkimValue.nonEmpty) {
       numberOfSkimValueFound = numberOfSkimValueFound + 1

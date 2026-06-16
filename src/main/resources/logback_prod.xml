@@ -31,10 +31,7 @@
     <Logger name="beam.agentsim.agents.TransitDriverAgent" level="ERROR" />
     <Logger name="beam.router.r5.RoutingWorker" level="INFO" />
 
-    <!-- Silence all Spark/Hadoop internals -->
-    <logger name="org.apache.spark" level="ERROR"/>
-    <logger name="org.apache.hadoop" level="ERROR"/>
     <Logger name="org.apache.parquet" level="WARN" />
-    <logger name="org.sparkproject" level="ERROR"/>
+    <Logger name="org.apache.hadoop.io.compress.CodecPool" level="WARN" />
     <Logger name="org.reflections" level="ERROR" />
 </configuration>

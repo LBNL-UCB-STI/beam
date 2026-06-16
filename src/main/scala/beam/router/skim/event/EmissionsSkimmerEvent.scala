@@ -1,6 +1,7 @@
 package beam.router.skim.event
 
 import beam.agentsim.agents.vehicles.VehicleEmissions.{Emissions, EmissionsProfile}
+import beam.router.skim.core.EmissionsSkimmer
 import beam.router.skim.core.EmissionsSkimmer.{EmissionsSkimmerInternal, EmissionsSkimmerKey}
 import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerInternal, AbstractSkimmerKey}
 import beam.sim.BeamServices
@@ -18,7 +19,12 @@ case class EmissionsSkimmerEvent(
   override protected val skimName: String = beamServices.beamConfig.beam.router.skim.emissions_skimmer.name
 
   override def getKey: AbstractSkimmerKey =
-    EmissionsSkimmerKey(linkId, vehicleType, (time / 3600).toInt % 24, emissionsProcess)
+    EmissionsSkimmerKey(
+      linkId,
+      EmissionsSkimmer.canonicalVehicleTypeId(vehicleType),
+      (time / 3600).toInt % 24,
+      emissionsProcess
+    )
 
   override def getSkimmerInternal: AbstractSkimmerInternal =
     EmissionsSkimmerInternal(

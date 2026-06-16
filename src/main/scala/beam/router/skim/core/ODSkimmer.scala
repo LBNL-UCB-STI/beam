@@ -52,8 +52,11 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
     }
   }
 
-  override def writeToDisk(event: IterationEndsEvent): Unit = {
-    super.writeToDisk(event)
+  override protected def writeToDisk(
+    event: IterationEndsEvent,
+    skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
+  ): Unit = {
+    super.writeToDisk(event, skim)
     if (
       config.origin_destination_skimmer.writeAllModeSkimsForPeakNonPeakPeriodsInterval > 0 && event.getIteration % config.origin_destination_skimmer.writeAllModeSkimsForPeakNonPeakPeriodsInterval == 0
     ) {
@@ -61,7 +64,7 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
         s"writeAllModeSkimsForPeakNonPeakPeriods on iteration ${event.getIteration}",
         v => logger.info(v)
       ) {
-        writeAllModeSkimsForPeakNonPeakPeriods(event)
+        writeAllModeSkimsForPeakNonPeakPeriods(event, skim)
       }
     }
     if (
@@ -78,7 +81,7 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
           .toSeq
         val rideHailNames = getODSkimmerRideHailNames(beamConfig)
         // Yes, we pass origin also as destinations because we want skims between all possible taz pairs
-        writeFullSkims(origins, origins, uniqueTimeBins, rideHailNames, filePath)
+        writeFullSkims(origins, origins, uniqueTimeBins, rideHailNames, filePath, skim)
       }
     }
   }
@@ -170,7 +173,10 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
 
   // *****
   // Helpers
-  private def writeAllModeSkimsForPeakNonPeakPeriods(event: IterationEndsEvent): Unit = {
+  private def writeAllModeSkimsForPeakNonPeakPeriods(
+    event: IterationEndsEvent,
+    skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
+  ): Unit = {
     val morningPeakHours = (7 to 8).toList
     val afternoonPeakHours = (15 to 16).toList
     val nonPeakHours = (0 to 6).toList ++ (9 to 14).toList ++ (17 to 23).toList
@@ -197,7 +203,8 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
                 origin,
                 destination,
                 mode,
-                dummyId
+                dummyId,
+                skim
               )
               val pm = getExcerptData(
                 "PM",
@@ -205,7 +212,8 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
                 origin,
                 destination,
                 mode,
-                dummyId
+                dummyId,
+                skim
               )
               val offPeak = getExcerptData(
                 "OffPeak",
@@ -213,7 +221,8 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
                 origin,
                 destination,
                 mode,
-                dummyId
+                dummyId,
+                skim
               )
               List(am, pm, offPeak)
             }
@@ -242,14 +251,15 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
     origin: GeoUnit,
     destination: GeoUnit,
     mode: BeamMode,
-    rideHailName: String
+    rideHailName: String,
+    skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
   ): Unit = {
     val vehicleType: BeamVehicleType = beamScenario.vehicleTypes(dummyId)
     val fuelPrice = beamScenario.fuelTypePrices(vehicleType.primaryFuelType)
     uniqueTimeBins
       .foreach { timeBin =>
         val theSkim: ODSkimmer.Skim =
-          getCurrentSkimValue(ODSkimmerKey(timeBin, mode, rideHailName, origin.id, destination.id))
+          getSkimValue(skim, ODSkimmerKey(timeBin, mode, rideHailName, origin.id, destination.id))
             .map(_.asInstanceOf[ODSkimmerInternal].toSkimExternal)
             .getOrElse {
               val destCoord =
@@ -285,9 +295,10 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
     destinations: Seq[GeoUnit],
     uniqueTimeBins: Seq[Int],
     rideHailNames: Seq[String],
-    filePath: String
+    filePath: String,
+    skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
   ): Unit = {
-    val uniqueModes = currentSkim.keys.collect { case e: ODSkimmerKey => e.mode }.toList.distinct
+    val uniqueModes = skim.keys.collect { case e: ODSkimmerKey => e.mode }.toList.distinct
     require(uniqueModes.nonEmpty, s"Expected to get ODSkimmerKey which contains modes")
 
     var writer: BufferedWriter = null
@@ -300,10 +311,10 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
           uniqueModes.foreach { mode =>
             if (mode.isRideHail)
               rideHailNames.foreach { name =>
-                writeSkimRow(writer, uniqueTimeBins, origin, destination, mode, name)
+                writeSkimRow(writer, uniqueTimeBins, origin, destination, mode, name, skim)
               }
             else
-              writeSkimRow(writer, uniqueTimeBins, origin, destination, mode, "")
+              writeSkimRow(writer, uniqueTimeBins, origin, destination, mode, "", skim)
           }
         }
       }
@@ -316,17 +327,27 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
     }
   }
 
+  protected def writeFullSkims(
+    origins: Seq[GeoUnit],
+    destinations: Seq[GeoUnit],
+    uniqueTimeBins: Seq[Int],
+    rideHailNames: Seq[String],
+    filePath: String
+  ): Unit =
+    writeFullSkims(origins, destinations, uniqueTimeBins, rideHailNames, filePath, currentSkimSnapshot)
+
   def getExcerptData(
     timePeriodString: String,
     hoursIncluded: List[Int],
     origin: TAZ,
     destination: TAZ,
     mode: BeamMode,
-    dummyId: Id[BeamVehicleType]
+    dummyId: Id[BeamVehicleType],
+    skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
   ): ExcerptData = {
     import scala.language.implicitConversions
     val individualSkims = hoursIncluded.map { timeBin =>
-      getCurrentSkimValue(ODSkimmerKey(timeBin, mode, "", origin.tazId.toString, destination.tazId.toString))
+      getSkimValue(skim, ODSkimmerKey(timeBin, mode, "", origin.tazId.toString, destination.tazId.toString))
         .map(_.asInstanceOf[ODSkimmerInternal].toSkimExternal)
         .getOrElse {
           val adjustedDestCoord = if (origin.equals(destination)) {
@@ -392,6 +413,16 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
       weightedLevel4TravelTimeScaleFactor = weightedLevel4TravelTimeScale
     )
   }
+
+  def getExcerptData(
+    timePeriodString: String,
+    hoursIncluded: List[Int],
+    origin: TAZ,
+    destination: TAZ,
+    mode: BeamMode,
+    dummyId: Id[BeamVehicleType]
+  ): ExcerptData =
+    getExcerptData(timePeriodString, hoursIncluded, origin, destination, mode, dummyId, currentSkimSnapshot)
 }
 
 object ODSkimmer extends LazyLogging {

@@ -8,7 +8,7 @@ import org.matsim.api.core.v01.network.Link
 
 class EmissionsSkims() extends AbstractSkimmerReadOnly {
 
-  def isLatestSkimEmpty: Boolean = pastSkims.isEmpty
+  def isLatestSkimEmpty: Boolean = isLatestPastSkimEmpty
 
   def getLatestSkim(
     linkId: Id[Link],
@@ -16,10 +16,9 @@ class EmissionsSkims() extends AbstractSkimmerReadOnly {
     hour: Int,
     emissionsProcess: EmissionsProfile.EmissionsProcess
   ): Option[EmissionsSkimmerInternal] = {
-    val getSkimValue = pastSkims
-      .get(currentIteration - 1)
-      .flatMap(_.get(EmissionsSkimmerKey(linkId.toString.toInt, vehicleType, hour, emissionsProcess)))
-      .asInstanceOf[Option[EmissionsSkimmerInternal]]
+    val getSkimValue = latestPastSkimValue[EmissionsSkimmerInternal](
+      EmissionsSkimmerKey(linkId.toString.toInt, vehicleType, hour, emissionsProcess)
+    )
     if (getSkimValue.nonEmpty) {
       numberOfSkimValueFound = numberOfSkimValueFound + 1
     }
@@ -34,7 +33,7 @@ class EmissionsSkims() extends AbstractSkimmerReadOnly {
     hour: Int,
     emissionsProcess: EmissionsProfile.EmissionsProcess
   ): Option[EmissionsSkimmerInternal] =
-    aggregatedFromPastSkims
-      .get(EmissionsSkimmerKey(linkId.toString.toInt, vehicleType, hour, emissionsProcess))
-      .asInstanceOf[Option[EmissionsSkimmerInternal]]
+    aggregatedSkimValue[EmissionsSkimmerInternal](
+      EmissionsSkimmerKey(linkId.toString.toInt, vehicleType, hour, emissionsProcess)
+    )
 }

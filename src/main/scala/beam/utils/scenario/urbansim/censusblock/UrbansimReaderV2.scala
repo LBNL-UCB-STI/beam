@@ -6,6 +6,7 @@ import beam.utils.scenario.urbansim.censusblock.entities.{Block, InputHousehold,
 import beam.utils.scenario.urbansim.censusblock.merger.{HouseholdMerger, PersonMerger, PlanMerger}
 import beam.utils.scenario.urbansim.censusblock.reader._
 import beam.utils.scenario.{HouseholdInfo, PersonInfo, PlanElement, ScenarioSource, VehicleInfo}
+import beam.utils.BeamVehicleUtils
 import org.matsim.api.core.v01.Coord
 import com.typesafe.scalalogging.LazyLogging
 import beam.utils.scenario.urbansim.censusblock.reader.ReaderFactories._
@@ -126,7 +127,7 @@ class UrbansimReaderV2(
 
   override lazy val getVehicles: Iterable[VehicleInfo] = {
     if (Files.exists(Paths.get(inputVehiclePath))) {
-      rdr.readVehiclesFile(inputVehiclePath)
+      BeamVehicleUtils.readVehicleInfosFile(inputVehiclePath)
     } else {
       Iterable.empty[VehicleInfo]
     }

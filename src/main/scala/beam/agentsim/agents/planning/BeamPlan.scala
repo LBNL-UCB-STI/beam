@@ -107,6 +107,7 @@ object BeamPlan {
 }
 
 class BeamPlan extends Plan {
+  private val logger = org.slf4j.LoggerFactory.getLogger(getClass)
 
   //////////////////////////////////////////////////////////////////////
   // Beam-Specific methods
@@ -252,6 +253,27 @@ class BeamPlan extends Plan {
     tours.foreach(tour => tour.trips.foreach(indexTrip))
   }
 
+  private def describePlanElement(planElement: PlanElement): String = {
+    val base = planElement match {
+      case activity: Activity =>
+        s"Activity(type=${activity.getType}, coord=${activity.getCoord}, endTime=${activity.getEndTime})"
+      case leg: Leg =>
+        s"Leg(mode=${leg.getMode}, route=${Option(leg.getRoute).map(_.getRouteType).getOrElse("<none>")})"
+      case trip: Trip =>
+        s"Trip(activity=${trip.activity.getType}, legMode=${trip.leg.map(_.getMode).getOrElse("<none>")})"
+      case tour: Tour =>
+        s"Tour(origin=${tour.originActivity.map(_.getType).getOrElse("<none>")}, trips=${tour.trips.size})"
+      case other =>
+        s"${other.getClass.getSimpleName}($other)"
+    }
+    val availableStrategies =
+      strategies
+        .get(planElement)
+        .map(_.keys.map(_.getSimpleName).toSeq.sorted.mkString("[", ", ", "]"))
+        .getOrElse("[]")
+    s"$base, availableStrategies=$availableStrategies"
+  }
+
   def putStrategy(planElement: PlanElement, strategy: Strategy): Unit = {
     val planElementMap = strategies.getOrElseUpdate(planElement, mutable.Map.empty[Class[_ <: Strategy], Strategy])
     planElementMap.put(strategy.getClass, strategy)
@@ -262,7 +284,7 @@ class BeamPlan extends Plan {
           putStrategy(trip, tripModeChoiceStrategy)
         }
       case (tripModeChoiceStrategy: TripModeChoiceStrategy, trip: Trip) =>
-        putStrategy(trip.activity, tripModeChoiceStrategy) // I don't think this gets used
+        putStrategy(trip.activity, tripModeChoiceStrategy)
         trip.leg.foreach(theLeg => putStrategy(theLeg, tripModeChoiceStrategy))
       case (_: TourModeChoiceStrategy, _: Trip) =>
         throw new RuntimeException("Can only set tour mode strategy from within a tour")
@@ -272,10 +294,34 @@ class BeamPlan extends Plan {
 
   def getStrategy[T <: Strategy: ClassTag](planElement: PlanElement): T = {
     val forClass: Class[T] = implicitly[ClassTag[T]].runtimeClass.asInstanceOf[Class[T]]
-    strategies
-      .getOrElse(planElement, Map.empty[Class[_ <: Strategy], Strategy])
-      .getOrElse(forClass, forClass.getConstructor().newInstance())
-      .asInstanceOf[T]
+    val strategyMap = strategies.getOrElse(planElement, Map.empty[Class[_ <: Strategy], Strategy])
+    strategyMap.get(forClass) match {
+      case Some(strategy) =>
+        strategy.asInstanceOf[T]
+      case None =>
+        if (forClass.getName == classOf[TripModeChoiceStrategy].getName) {
+          val tripContext =
+            try {
+              Option(getTripContaining(planElement))
+                .map(trip => s", containingTrip=${describePlanElement(trip)}")
+                .getOrElse("")
+            } catch {
+              case _: Throwable => ""
+            }
+          val tourContext =
+            try {
+              Option(getTourContaining(planElement))
+                .map(tour => s", containingTour=${describePlanElement(tour)}")
+                .getOrElse("")
+            } catch {
+              case _: Throwable => ""
+            }
+          logger.error(
+            s"Missing TripModeChoiceStrategy for plan element ${describePlanElement(planElement)}$tripContext$tourContext"
+          )
+        }
+        forClass.getConstructor().newInstance()
+    }
   }
 
   def getTripStrategy[T <: Strategy: ClassTag](activity: Activity): T = {
@@ -309,6 +355,18 @@ class BeamPlan extends Plan {
         tour.trips.last.leg.contains(leg)
       case _ =>
         throw new RuntimeException(s"Unexpected PlanElementIndex $idx.")
+    }
+  }
+
+  def lastTripOfCurrentTour(idx: Int): Boolean = {
+    if (idx <= 1) {
+      false
+    } else if (idx + 2 < activities.size) {
+      val nextTrip = getTourContaining(idx + 2)
+      val currentTrip = getTourContaining(idx + 1)
+      (nextTrip.tourId != currentTrip.tourId)
+    } else {
+      true
     }
   }
 

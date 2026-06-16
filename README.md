@@ -5,7 +5,7 @@
 [![Documentation Status](https://readthedocs.org/projects/beam-lbnl/badge/?version=latest)](http://beam-lbnl.readthedocs.io/en/latest/?badge=latest)
 
 BEAM stands for Behavior, Energy, Autonomy, and Mobility. The model is being developed as a framework for a series of
-research studies and demonstration projects in transportation at Lawrence Berkeley National Laboratory with
+research studies and demonstration projects in sustainable transportation at Lawrence Berkeley National Laboratory with
 collaborators from other Department of Energy national labs, the private sector, and the public sector.
 
 BEAM is built around the [Multi-Agent Transportation Simulation Framework](https://github.com/matsim-org/matsim) (
