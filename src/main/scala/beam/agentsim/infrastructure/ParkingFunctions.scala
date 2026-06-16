@@ -207,23 +207,19 @@ class ParkingFunctions(
   ): Boolean = {
     val validParkingType: Boolean = allowedParkingTypes.contains(zone.parkingType)
 
-    val isValidTime = {
+    val isValidTime = validParkingType && {
       val vehicleCategory = inquiry.beamVehicle.map(_.beamVehicleType.vehicleCategory)
       val vehicleUse = inquiry.vehicleUse
       val currentTime = inquiry.destinationUtm.time % (24 * 3600)
 
-      // Find all restrictions that are active at the current time
-      val activeRestrictions = zone.timeRestrictions.filter { case (_, range) =>
-        range.contains(currentTime)
-      }
-
-      if (activeRestrictions.isEmpty) {
-        // No restrictions active at this time - anyone can park
-        true
-      } else {
-        // There are active restrictions - check if this vehicle matches any of them
-        activeRestrictions.exists { case (key, _) =>
-          key match {
+      var hasActiveRestriction = false
+      var matchesActiveRestriction = false
+      val restrictions = zone.timeRestrictions.iterator
+      while (restrictions.hasNext && !matchesActiveRestriction) {
+        val (key, range) = restrictions.next()
+        if (range.contains(currentTime)) {
+          hasActiveRestriction = true
+          matchesActiveRestriction = key match {
             case VehicleRestrictionKey.CategoryAndUse(cat, use) =>
               vehicleCategory.contains(cat) && use == vehicleUse
             case VehicleRestrictionKey.CategoryOnly(cat) =>
@@ -233,6 +229,8 @@ class ParkingFunctions(
           }
         }
       }
+
+      !hasActiveRestriction || matchesActiveRestriction
     }
 
     val isValidManager =
@@ -240,8 +238,7 @@ class ParkingFunctions(
         zone.reservedFor == VehicleManager.AnyManager || vehicle.vehicleManagerId.get() == zone.reservedFor.managerId
       }
 
-    val canParkHere = validParkingType && isValidTime && isValidManager
-    canParkHere
+    isValidTime && isValidManager
   }
 
   /**

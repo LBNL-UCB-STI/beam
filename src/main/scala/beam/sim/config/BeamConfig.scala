@@ -856,8 +856,10 @@ object BeamConfig {
             case class Params(
               enableLinkBasedSearch: scala.Boolean,
               freight: BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params.Freight,
+              linkSearchMaxCandidateScan: scala.Int,
               passenger: BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params.Passenger,
               searchDoubleParkingRadius: scala.Double,
+              searchExpansionFactor: scala.Double,
               searchMaxDistanceRelativeToEllipseFoci: scala.Double,
               searchSampleSize: scala.Int
             )
@@ -908,12 +910,16 @@ object BeamConfig {
                     if (c.hasPathOrNull("freight")) c.getConfig("freight")
                     else com.typesafe.config.ConfigFactory.parseString("freight{}")
                   ),
+                  linkSearchMaxCandidateScan =
+                    if (c.hasPathOrNull("linkSearchMaxCandidateScan")) c.getInt("linkSearchMaxCandidateScan") else 0,
                   passenger = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params.Passenger(
                     if (c.hasPathOrNull("passenger")) c.getConfig("passenger")
                     else com.typesafe.config.ConfigFactory.parseString("passenger{}")
                   ),
                   searchDoubleParkingRadius =
                     if (c.hasPathOrNull("searchDoubleParkingRadius")) c.getDouble("searchDoubleParkingRadius") else 0.0,
+                  searchExpansionFactor =
+                    if (c.hasPathOrNull("searchExpansionFactor")) c.getDouble("searchExpansionFactor") else 1.5,
                   searchMaxDistanceRelativeToEllipseFoci =
                     if (c.hasPathOrNull("searchMaxDistanceRelativeToEllipseFoci"))
                       c.getDouble("searchMaxDistanceRelativeToEllipseFoci")

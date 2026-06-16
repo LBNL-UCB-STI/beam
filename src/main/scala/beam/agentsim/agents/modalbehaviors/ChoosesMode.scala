@@ -2014,7 +2014,7 @@ trait ChoosesMode {
 
                 // Need to gather more routing options
                 self ! MobilityStatusResponse(availableVehicles, getCurrentTriggerId.get)
-                logger.info(
+                logger.debug(
                   s"Person ${body.id} replanning because planned mode ${mode.toString} route was not available."
                 )
                 val updatedTripStrategy = TripModeChoiceStrategy(None)

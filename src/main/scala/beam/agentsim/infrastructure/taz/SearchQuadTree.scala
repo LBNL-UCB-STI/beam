@@ -120,7 +120,8 @@ abstract class SearchQuadTree(val tazTreeMap: TAZTreeMap, val links: Map[Id[Link
     y: Double,
     innerRadius: Double,
     outerRadius: Double,
-    sampleSize: Int
+    sampleSize: Int,
+    maxCandidateScan: Int = 0
   ): SearchQuadTreeResults = {
     // Check distortion on first use
     checkDistortionOnce(x, y)
@@ -130,7 +131,7 @@ abstract class SearchQuadTree(val tazTreeMap: TAZTreeMap, val links: Map[Id[Link
     val outerRadiusProjected = metersToProjectedDistance(outerRadius)
 
     // Direct search in projected coordinates - no transformation needed!
-    getRingInternal(x, y, innerRadiusProjected, outerRadiusProjected, sampleSize)
+    getRingInternal(x, y, innerRadiusProjected, outerRadiusProjected, sampleSize, maxCandidateScan)
   }
 
   /**
@@ -150,7 +151,8 @@ abstract class SearchQuadTree(val tazTreeMap: TAZTreeMap, val links: Map[Id[Link
     x2: Double,
     y2: Double,
     radius: Double,
-    sampleSize: Int
+    sampleSize: Int,
+    maxCandidateScan: Int = 0
   ): SearchQuadTreeResults = {
     // Check distortion on first use (use midpoint)
     checkDistortionOnce((x1 + x2) / 2, (y1 + y2) / 2)
@@ -159,7 +161,7 @@ abstract class SearchQuadTree(val tazTreeMap: TAZTreeMap, val links: Map[Id[Link
     val radiusProjected = metersToProjectedDistance(radius)
 
     // Direct search in projected coordinates - no transformation needed!
-    getEllipticalInternal(x1, y1, x2, y2, radiusProjected, sampleSize)
+    getEllipticalInternal(x1, y1, x2, y2, radiusProjected, sampleSize, maxCandidateScan)
   }
 
   /**
@@ -171,7 +173,8 @@ abstract class SearchQuadTree(val tazTreeMap: TAZTreeMap, val links: Map[Id[Link
     y: Double,
     innerRadius: Double,
     outerRadius: Double,
-    sampleSize: Int
+    sampleSize: Int,
+    maxCandidateScan: Int
   ): SearchQuadTreeResults
 
   protected def getEllipticalInternal(
@@ -180,7 +183,8 @@ abstract class SearchQuadTree(val tazTreeMap: TAZTreeMap, val links: Map[Id[Link
     x2: Double,
     y2: Double,
     radius: Double,
-    sampleSize: Int
+    sampleSize: Int,
+    maxCandidateScan: Int
   ): SearchQuadTreeResults
 }
 
@@ -240,7 +244,8 @@ object SearchQuadTree {
       y: Double,
       innerRadius: Double,
       outerRadius: Double,
-      sampleSize: Int = 100
+      sampleSize: Int = 100,
+      maxCandidateScan: Int = 0
     ): SearchQuadTreeResults = {
       // Direct search in projected coordinates
       val result = Set.newBuilder[TAZ]
@@ -258,7 +263,8 @@ object SearchQuadTree {
       x2: Double,
       y2: Double,
       radius: Double,
-      sampleSize: Int = 100
+      sampleSize: Int = 100,
+      maxCandidateScan: Int = 0
     ): SearchQuadTreeResults = {
       // Direct search in projected coordinates
       val result = Set.newBuilder[TAZ]
@@ -280,21 +286,59 @@ object SearchQuadTree {
     override val links: Map[Id[Link], Link]
   ) extends SearchQuadTree(tazTreeMap, links) {
 
-    // Get all link coordinates
-    val linkCoords: Iterable[Coord] = links.values.flatMap { link =>
-      Seq(link.getFromNode.getCoord, link.getToNode.getCoord)
+    private def isParkableLink(link: Link): Boolean = {
+      val allowedModes = link.getAllowedModes.asScala
+      var hasCar = false
+      var hasWalk = false
+
+      val iter = allowedModes.iterator
+      while (iter.hasNext && !(hasCar && hasWalk)) {
+        val mode = iter.next()
+        if (mode.equalsIgnoreCase("car")) hasCar = true
+        else if (mode.equalsIgnoreCase("walk")) hasWalk = true
+      }
+
+      hasCar && hasWalk
     }
 
+    private val searchLinks: Map[Id[Link], Link] = links.filter { case (_, link) =>
+      isParkableLink(link)
+    }
+
+    private def linkSearchBounds: (Double, Double, Double, Double) = {
+      if (searchLinks.isEmpty) {
+        (
+          tazTreeMap.tazQuadTree.getMinEasting,
+          tazTreeMap.tazQuadTree.getMinNorthing,
+          tazTreeMap.tazQuadTree.getMaxEasting,
+          tazTreeMap.tazQuadTree.getMaxNorthing
+        )
+      } else {
+        var minX = Double.PositiveInfinity
+        var minY = Double.PositiveInfinity
+        var maxX = Double.NegativeInfinity
+        var maxY = Double.NegativeInfinity
+
+        searchLinks.values.foreach { link =>
+          val startPoint = link.getFromNode.getCoord
+          val endPoint = link.getToNode.getCoord
+          minX = math.min(minX, math.min(startPoint.getX, endPoint.getX))
+          minY = math.min(minY, math.min(startPoint.getY, endPoint.getY))
+          maxX = math.max(maxX, math.max(startPoint.getX, endPoint.getX))
+          maxY = math.max(maxY, math.max(startPoint.getY, endPoint.getY))
+        }
+
+        (minX, minY, maxX, maxY)
+      }
+    }
+
+    private val (linkMinX, linkMinY, linkMaxX, linkMaxY) = linkSearchBounds
+
     // Create QuadTree using link bounding box
-    val linkQuadTree: QuadTree[Link] = new QuadTree[Link](
-      linkCoords.map(_.getX).min,
-      linkCoords.map(_.getY).min,
-      linkCoords.map(_.getX).max,
-      linkCoords.map(_.getY).max
-    )
+    val linkQuadTree: QuadTree[Link] = new QuadTree[Link](linkMinX, linkMinY, linkMaxX, linkMaxY)
 
     // Populate QuadTree with links
-    links.foreach { case (_, link) =>
+    searchLinks.foreach { case (_, link) =>
       val startPoint = link.getFromNode.getCoord
       val endPoint = link.getToNode.getCoord
       val linkMidpoint = new Coord(0.5 * (endPoint.getX + startPoint.getX), 0.5 * (endPoint.getY + startPoint.getY))
@@ -304,6 +348,40 @@ object SearchQuadTree {
     }
 
     private val linkSearchMarkerQuadTree: QuadTree[Link] = new QuadTree[Link](-1, -1, 1, 1)
+
+    private def sampleUniqueLinks(
+      candidates: Iterable[Link],
+      sampleSize: Int,
+      maxCandidateScan: Int
+    ): Iterable[Link] = {
+      if (sampleSize <= 0) {
+        Iterable.empty
+      } else {
+        val seenLinkIds = mutable.HashSet.empty[Id[Link]]
+        val sample = mutable.ArrayBuffer.empty[Link]
+        var uniqueLinksSeen = 0
+        var candidatesScanned = 0
+        val iterator = candidates.iterator
+
+        while (iterator.hasNext && (maxCandidateScan <= 0 || candidatesScanned < maxCandidateScan)) {
+          val link = iterator.next()
+          candidatesScanned += 1
+          if (seenLinkIds.add(link.getId)) {
+            uniqueLinksSeen += 1
+            if (sample.size < sampleSize) {
+              sample += link
+            } else {
+              val replacementIndex = scala.util.Random.nextInt(uniqueLinksSeen)
+              if (replacementIndex < sampleSize) {
+                sample(replacementIndex) = link
+              }
+            }
+          }
+        }
+
+        sample
+      }
+    }
 
     private def buildSearchResult(
       tazToLinks: mutable.HashMap[TAZ, mutable.ArrayBuffer[Link]]
@@ -335,25 +413,20 @@ object SearchQuadTree {
       y: Double,
       innerRadius: Double,
       outerRadius: Double,
-      sampleSize: Int = 100
+      sampleSize: Int = 100,
+      maxCandidateScan: Int = 0
     ): SearchQuadTreeResults = {
       val tazToLinks = mutable.HashMap.empty[TAZ, mutable.ArrayBuffer[Link]]
 
-      // Direct search in projected coordinates - deduplicate with Set, then sample
-      val uniqueLinks = linkQuadTree
-        .getRing(x, y, innerRadius, outerRadius)
-        .asScala
-        .filter { link =>
-          val allowed = link.getAllowedModes.asScala.map(_.toLowerCase)
-          allowed.contains("car") && allowed.contains("walk")
-        }
-        .toSet
-
-      val sampledLinks = if (uniqueLinks.size <= sampleSize) {
-        uniqueLinks
-      } else {
-        scala.util.Random.shuffle(uniqueLinks.toSeq).take(sampleSize)
-      }
+      // Direct search in projected coordinates - deduplicate with Set, then sample.
+      // linkQuadTree only contains parkable links, so avoid repeated mode checks on each inquiry.
+      val sampledLinks = sampleUniqueLinks(
+        linkQuadTree
+          .getRing(x, y, innerRadius, outerRadius)
+          .asScala,
+        sampleSize,
+        maxCandidateScan
+      )
 
       sampledLinks.foreach { link =>
         val taz = tazTreeMap.idToTAZMapping(tazTreeMap.linkIdToTAZMapping(link.getId))
@@ -369,21 +442,19 @@ object SearchQuadTree {
       x2: Double,
       y2: Double,
       radius: Double,
-      sampleSize: Int = 100
+      sampleSize: Int = 100,
+      maxCandidateScan: Int = 0
     ): SearchQuadTreeResults = {
       val tazToLinks = mutable.HashMap.empty[TAZ, mutable.ArrayBuffer[Link]]
 
       // Direct search in projected coordinates - deduplicate with Set, then sample
-      val uniqueLinks = linkQuadTree
-        .getElliptical(x1, y1, x2, y2, radius)
-        .asScala
-        .toSet
-
-      val sampledLinks = if (uniqueLinks.size <= sampleSize) {
-        uniqueLinks
-      } else {
-        scala.util.Random.shuffle(uniqueLinks.toSeq).take(sampleSize)
-      }
+      val sampledLinks = sampleUniqueLinks(
+        linkQuadTree
+          .getElliptical(x1, y1, x2, y2, radius)
+          .asScala,
+        sampleSize,
+        maxCandidateScan
+      )
 
       sampledLinks.foreach { link =>
         val taz = tazTreeMap.idToTAZMapping(tazTreeMap.linkIdToTAZMapping(link.getId))

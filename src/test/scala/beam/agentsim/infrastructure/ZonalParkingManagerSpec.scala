@@ -638,6 +638,8 @@ object ZonalParkingManagerSpec {
     passenger = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params
       .Passenger(minSearchRadius = 1000.0, maxSearchRadius = 16093.4), // meters, aka 10 miles
     searchDoubleParkingRadius = 100.0,
+    linkSearchMaxCandidateScan = 0,
+    searchExpansionFactor = 1.5,
     searchMaxDistanceRelativeToEllipseFoci = 4.0,
     enableLinkBasedSearch = false,
     searchSampleSize = 500

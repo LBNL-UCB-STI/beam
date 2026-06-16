@@ -29,7 +29,9 @@ object RideHailDepotNetwork {
     passenger = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params
       .Passenger(minSearchRadius = SearchStartRadius, maxSearchRadius = SearchMaxRadius),
     searchDoubleParkingRadius = 0,
+    searchExpansionFactor = 1.5,
     searchMaxDistanceRelativeToEllipseFoci = 4.0,
+    linkSearchMaxCandidateScan = 0,
     enableLinkBasedSearch = false,
     searchSampleSize = 100
   )
