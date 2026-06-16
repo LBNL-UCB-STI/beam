@@ -469,7 +469,19 @@ task spec(dependsOn: ['testClasses'], type: JavaExec) {
             '-W', '300', '60']
     classpath = sourceSets.test.runtimeClasspath
 }
-build.dependsOn spec
+spec.mustRunAfter test
+// finalizedBy must be set at configuration time; whenReady is too late in Gradle 7.5.
+// onlyIf gates spec: run after test when check is in the graph (build/check), or when invoked directly.
+tasks.named('test') {
+    finalizedBy spec
+}
+spec.onlyIf {
+    def names = gradle.startParameter.taskNames
+    if (names.any { it == 'spec' || it.endsWith(':spec') }) {
+        return true
+    }
+    gradle.taskGraph.allTasks.any { it.path == ':check' }
+}
 
 /* //////////////////////////////////////////////////
 *  Task to run tagged tests.
