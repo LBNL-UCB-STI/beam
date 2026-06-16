@@ -38,7 +38,7 @@ class BeamWarmStartRunSpec
              beam.physsim.duplicatePTE.departureTimeShiftMin = 0
              beam.physsim.duplicatePTE.departureTimeShiftMax = 600
             """)
-        .withFallback(testConfig("test/input/beamville/beam.conf"))
+        .withFallback(testConfig("test/input/beamville/beam-emissions.conf"))
         .resolve()
       val (_, output, _) = runBeamWithConfig(baseConf)
       val warmStartData = new File(output, "warmstart_data.zip")
@@ -131,7 +131,7 @@ class BeamWarmStartRunSpec
          beam.warmStart.type = "linkStatsOnly"
          beam.warmStart.path = "test/input/beamville/warmstart/warmstart_data_fake_linkstats_high.zip"
          """)
-        .withFallback(testConfig("test/input/beamville/beam.conf"))
+        .withFallback(testConfig("test/input/beamville/beam-emissions.conf"))
         .resolve()
 
       val (_, output, _) = runBeamWithConfig(baseConf)

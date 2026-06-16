@@ -112,7 +112,6 @@ class BeamSim @Inject() (
   val iterationSummaryStats: ListBuffer[Map[java.lang.String, java.lang.Double]] = ListBuffer()
   val graphFileNameDirectory: mutable.Map[String, Int] = mutable.Map[String, Int]()
   // var metricsPrinter: ActorRef = actorSystem.actorOf(MetricsPrinter.props())
-  val summaryData = new mutable.HashMap[String, mutable.Map[Int, Double]]()
   val runningPythonScripts: ListBuffer[PythonProcess] = mutable.ListBuffer.empty[PythonProcess]
 
   val rideHailUtilizationCollector: RideHailUtilizationCollector = new RideHailUtilizationCollector(beamServices)
@@ -483,9 +482,13 @@ class BeamSim @Inject() (
         }
 
         val fileNames = iterationSummaryStats.flatMap(_.keySet).distinct.sorted
+        val groupedDirectories = graphFileNameDirectory.collect {
+          case (key, value) if value >= numberOfSummaryGraphsPerDirectory =>
+            key
+        }.toSet
         MethodWatcher.withLoggingInvocationTime(
           "Creating summary stats graphs",
-          fileNames.foreach(file => createSummaryStatsGraph(file, event.getIteration)),
+          fileNames.par.foreach(file => createSummaryStatsGraph(file, groupedDirectories)),
           logger.underlying
         )
 
@@ -798,50 +801,39 @@ class BeamSim @Inject() (
     out.close()
   }
 
-  def createSummaryStatsGraph(fileName: String, iteration: Int): Unit = {
+  private val numberOfSummaryGraphsPerDirectory: Int = 10
+
+  def createSummaryStatsGraph(fileName: String, groupedDirectories: Set[String]): Unit = {
     val fileNamePath =
       beamServices.matsimServices.getControlerIO.getOutputFilename(fileName.replaceAll("[/: ]", "_") + ".png")
     val index = fileNamePath.lastIndexOf("/")
     val outDir = new File(fileNamePath.substring(0, index) + "/summaryStats")
     val directoryName = fileName.split("_")(0)
-    val numberOfGraphs: Int = 10
-    val directoryKeySet = graphFileNameDirectory.filter(_._2 >= numberOfGraphs).keySet
 
     if (!outDir.exists()) {
       Files.createDirectories(outDir.toPath)
     }
 
-    if (directoryKeySet.contains(directoryName)) {
-      directoryKeySet foreach { file =>
-        if (file.equals(directoryName)) {
-          val dir = new File(outDir.getPath + "/" + file)
-          if (!dir.exists()) {
-            Files.createDirectories(dir.toPath)
-          }
-          val path = dir.getPath + fileNamePath.substring(index)
-          createGraph(iteration, fileName, path)
-        }
+    if (groupedDirectories.contains(directoryName)) {
+      val dir = new File(outDir.getPath + "/" + directoryName)
+      if (!dir.exists()) {
+        Files.createDirectories(dir.toPath)
       }
+      val path = dir.getPath + fileNamePath.substring(index)
+      createGraph(fileName, path)
     } else {
       val path = outDir.getPath + fileNamePath.substring(index)
-      createGraph(iteration, fileName, path)
+      createGraph(fileName, path)
     }
 
   }
 
-  def createGraph(iteration: Int, fileName: String, path: String): Unit = {
-    val doubleOpt = iterationSummaryStats(iteration).get(fileName)
-    val value: Double = doubleOpt.getOrElse(0.0).asInstanceOf[Double]
-
+  def createGraph(fileName: String, path: String): Unit = {
     val dataset = new DefaultCategoryDataset
-
-    val data = summaryData.getOrElse(fileName, new mutable.TreeMap[Int, Double])
-    data += (iteration      -> value)
-    summaryData += fileName -> data
-
-    val updateData = summaryData.getOrElse(fileName, new mutable.TreeMap[Int, Double])
-
-    updateData.foreach(x => dataset.addValue(x._2, 0, x._1))
+    iterationSummaryStats.zipWithIndex.foreach { case (stats, it) =>
+      val value = stats.get(fileName).map(Double2double).getOrElse(0.0)
+      dataset.addValue(value, 0, it)
+    }
 
     val fileNameTokens = fileName.replaceAll("[:/ ]", "_").split("_")
     var header = StringUtils.splitByCharacterTypeCamelCase(fileNameTokens(0)).map(_.capitalize).mkString(" ")

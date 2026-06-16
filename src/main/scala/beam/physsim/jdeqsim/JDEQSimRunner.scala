@@ -18,13 +18,23 @@ import beam.utils.metrics.TemporalEventCounter
 import beam.utils.{DebugLib, ProfilingUtils, Statistics}
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.analysis.LegHistogram
+import org.matsim.api.core.v01.events.{
+  Event,
+  LinkEnterEvent,
+  LinkLeaveEvent,
+  VehicleAbortsEvent,
+  VehicleEntersTrafficEvent,
+  VehicleLeavesTrafficEvent
+}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Population
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.api.experimental.events.VehicleArrivesAtFacilityEvent
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.events.{EventsManagerImpl, ParallelEventsManagerImpl}
+import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
@@ -92,7 +102,32 @@ class JDEQSimRunner(
         Some(carTravelTimeHandler)
       } else None
 
-    jdeqsimEvents.addHandler(travelTimeCalculator)
+    val tracedTravelTimeCalculator = new BasicEventHandler {
+      override def handleEvent(event: Event): Unit =
+        try {
+          event match {
+            case e: LinkEnterEvent                => travelTimeCalculator.handleEvent(e)
+            case e: LinkLeaveEvent                => travelTimeCalculator.handleEvent(e)
+            case e: VehicleEntersTrafficEvent     => travelTimeCalculator.handleEvent(e)
+            case e: VehicleLeavesTrafficEvent     => travelTimeCalculator.handleEvent(e)
+            case e: VehicleArrivesAtFacilityEvent => travelTimeCalculator.handleEvent(e)
+            case e: VehicleAbortsEvent            => travelTimeCalculator.handleEvent(e)
+            case _                                =>
+          }
+        } catch {
+          case ex: Throwable =>
+            logger.error(
+              s"TravelTimeCalculator failed while handling event: iteration=$currentPhysSimIter/$totalPhysSimIters, " +
+              s"eventType=${event.getEventType}, time=${event.getTime}, attributes=${event.getAttributes}, " +
+              s"event=$event",
+              ex
+            )
+            throw ex
+        }
+
+      override def reset(iteration: Int): Unit = travelTimeCalculator.reset(iteration)
+    }
+    jdeqsimEvents.addHandler(tracedTravelTimeCalculator)
     if (nonEssentialHandlersEnabled) {
       jdeqsimEvents.addHandler(new JDEQSimMemoryFootprint(beamConfig.beam.debug.debugEnabled))
     }

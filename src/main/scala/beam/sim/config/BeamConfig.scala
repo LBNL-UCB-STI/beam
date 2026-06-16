@@ -1747,7 +1747,7 @@ object BeamConfig {
           enroute: BeamConfig.Beam.Agentsim.Agents.Vehicles.Enroute,
           fractionOfInitialVehicleFleet: scala.Double,
           fractionOfPeopleWithBicycle: scala.Double,
-          fuelTypesFilePath: java.lang.String,
+          fuelTypePrices: BeamConfig.Beam.Agentsim.Agents.Vehicles.FuelTypePrices,
           generateEmergencyHouseholdVehicleWhenPlansRequireIt: scala.Boolean,
           linkSocAcrossIterations: scala.Boolean,
           linkToGradePercentFilePath: java.lang.String,
@@ -1882,22 +1882,67 @@ object BeamConfig {
           }
 
           case class Emissions(
+            countyLookup: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.CountyLookup,
             events: scala.Boolean,
+            fuelFilter: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.FuelFilter,
             pollutantsFilter: java.lang.String,
             ratesFilter: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.RatesFilter,
-            skims: scala.Boolean,
-            workdayIdleTimeFraction: BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.WorkdayIdleTimeFraction
+            skims: scala.Boolean
           )
 
           object Emissions {
 
+            case class CountyLookup(
+              countyFieldName: java.lang.String,
+              filePath: java.lang.String
+            )
+
+            object CountyLookup {
+
+              def apply(
+                c: com.typesafe.config.Config
+              ): BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.CountyLookup = {
+                BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.CountyLookup(
+                  countyFieldName = if (c.hasPathOrNull("countyFieldName")) c.getString("countyFieldName") else "",
+                  filePath = if (c.hasPathOrNull("filePath")) c.getString("filePath") else ""
+                )
+              }
+            }
+
+            case class FuelFilter(
+              diesel: java.lang.String,
+              electric: java.lang.String,
+              gasoline: java.lang.String,
+              naturalgas: java.lang.String,
+              phev: java.lang.String
+            )
+
+            object FuelFilter {
+
+              def apply(
+                c: com.typesafe.config.Config
+              ): BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.FuelFilter = {
+                BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.FuelFilter(
+                  diesel =
+                    if (c.hasPathOrNull("diesel")) c.getString("diesel")
+                    else "PRDUST,RUNEX,STREX,IDLEX,PMBW,PMTW,PTOEX",
+                  electric = if (c.hasPathOrNull("electric")) c.getString("electric") else "PRDUST,PMBW,PMTW",
+                  gasoline =
+                    if (c.hasPathOrNull("gasoline")) c.getString("gasoline")
+                    else "PRDUST,RUNEX,STREX,IDLEX,HOTSOAK,RUNLOSS,DIURN,PMBW,PMTW",
+                  naturalgas = if (c.hasPathOrNull("naturalgas")) c.getString("naturalgas") else "",
+                  phev =
+                    if (c.hasPathOrNull("phev")) c.getString("phev")
+                    else "PRDUST,RUNEX,STREX,HOTSOAK,RUNLOSS,DIURN,PMBW,PMTW"
+                )
+              }
+            }
+
             case class RatesFilter(
               county: java.lang.String,
-              grade: java.lang.String,
               roadCategory: java.lang.String,
               soakTime: java.lang.String,
-              speed: java.lang.String,
-              weight: java.lang.String
+              speed: java.lang.String
             )
 
             object RatesFilter {
@@ -1908,52 +1953,33 @@ object BeamConfig {
                 BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.RatesFilter(
                   county =
                     if (c.hasPathOrNull("county")) c.getString("county")
-                    else "RUNEX,IDLEX,STREX,HOTSOAK,DIURN,RUNLOSS,PMTW,PMBW,PRDUST",
-                  grade = if (c.hasPathOrNull("grade")) c.getString("grade") else "",
+                    else "RUNEX,IDLEX,STREX,HOTSOAK,DIURN,RUNLOSS,PMTW,PMBW,PRDUST,PTOEX",
                   roadCategory = if (c.hasPathOrNull("roadCategory")) c.getString("roadCategory") else "PRDUST",
                   soakTime = if (c.hasPathOrNull("soakTime")) c.getString("soakTime") else "STREX",
-                  speed = if (c.hasPathOrNull("speed")) c.getString("speed") else "RUNEX,PMBW",
-                  weight = if (c.hasPathOrNull("weight")) c.getString("weight") else ""
-                )
-              }
-            }
-
-            case class WorkdayIdleTimeFraction(
-              bus: scala.Double,
-              class456: scala.Double,
-              class78t: scala.Double,
-              class78v: scala.Double
-            )
-
-            object WorkdayIdleTimeFraction {
-
-              def apply(
-                c: com.typesafe.config.Config
-              ): BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.WorkdayIdleTimeFraction = {
-                BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.WorkdayIdleTimeFraction(
-                  bus = if (c.hasPathOrNull("bus")) c.getDouble("bus") else 0.3554,
-                  class456 = if (c.hasPathOrNull("class456")) c.getDouble("class456") else 0.3327,
-                  class78t = if (c.hasPathOrNull("class78t")) c.getDouble("class78t") else 0.1281,
-                  class78v = if (c.hasPathOrNull("class78v")) c.getDouble("class78v") else 0.3129
+                  speed = if (c.hasPathOrNull("speed")) c.getString("speed") else "RUNEX,PTOEX,PMBW"
                 )
               }
             }
 
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions = {
               BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions(
+                countyLookup = BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.CountyLookup(
+                  if (c.hasPathOrNull("countyLookup")) c.getConfig("countyLookup")
+                  else com.typesafe.config.ConfigFactory.parseString("countyLookup{}")
+                ),
                 events = c.hasPathOrNull("events") && c.getBoolean("events"),
+                fuelFilter = BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.FuelFilter(
+                  if (c.hasPathOrNull("fuelFilter")) c.getConfig("fuelFilter")
+                  else com.typesafe.config.ConfigFactory.parseString("fuelFilter{}")
+                ),
                 pollutantsFilter =
                   if (c.hasPathOrNull("pollutantsFilter")) c.getString("pollutantsFilter")
-                  else "CH4,CO,CO2,HC,NH3,NOx,PM,PM10,PM2_5,ROG,SOx,TOG,BC,BCm,BCh",
+                  else "CH4,CO,CO2,HC,NH3,N2O,NOx,PM,PM10,PM25,ROG,SOx,TOG,BC",
                 ratesFilter = BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.RatesFilter(
                   if (c.hasPathOrNull("ratesFilter")) c.getConfig("ratesFilter")
                   else com.typesafe.config.ConfigFactory.parseString("ratesFilter{}")
                 ),
-                skims = !c.hasPathOrNull("skims") || c.getBoolean("skims"),
-                workdayIdleTimeFraction = BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.WorkdayIdleTimeFraction(
-                  if (c.hasPathOrNull("workdayIdleTimeFraction")) c.getConfig("workdayIdleTimeFraction")
-                  else com.typesafe.config.ConfigFactory.parseString("workdayIdleTimeFraction{}")
-                )
+                skims = !c.hasPathOrNull("skims") || c.getBoolean("skims")
               )
             }
           }
@@ -1984,6 +2010,33 @@ object BeamConfig {
                   if (c.hasPathOrNull("remainingDistanceWrtBatteryCapacityThreshold"))
                     c.getInt("remainingDistanceWrtBatteryCapacityThreshold")
                   else 2
+              )
+            }
+          }
+
+          case class FuelTypePrices(
+            biodiesel: scala.Double,
+            diesel: scala.Double,
+            electricity: scala.Double,
+            food: scala.Double,
+            gasoline: scala.Double,
+            hydrogen: scala.Double,
+            naturalGas: scala.Double,
+            undefined: scala.Double
+          )
+
+          object FuelTypePrices {
+
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.FuelTypePrices = {
+              BeamConfig.Beam.Agentsim.Agents.Vehicles.FuelTypePrices(
+                biodiesel = if (c.hasPathOrNull("biodiesel")) c.getDouble("biodiesel") else 0.035,
+                diesel = if (c.hasPathOrNull("diesel")) c.getDouble("diesel") else 0.050,
+                electricity = if (c.hasPathOrNull("electricity")) c.getDouble("electricity") else 0.094,
+                food = if (c.hasPathOrNull("food")) c.getDouble("food") else 1.43,
+                gasoline = if (c.hasPathOrNull("gasoline")) c.getDouble("gasoline") else 0.047,
+                hydrogen = if (c.hasPathOrNull("hydrogen")) c.getDouble("hydrogen") else 0.277,
+                naturalGas = if (c.hasPathOrNull("naturalGas")) c.getDouble("naturalGas") else 0.029,
+                undefined = if (c.hasPathOrNull("undefined")) c.getDouble("undefined") else 0.0
               )
             }
           }
@@ -2177,9 +2230,10 @@ object BeamConfig {
                 else 1.0,
               fractionOfPeopleWithBicycle =
                 if (c.hasPathOrNull("fractionOfPeopleWithBicycle")) c.getDouble("fractionOfPeopleWithBicycle") else 1.0,
-              fuelTypesFilePath =
-                if (c.hasPathOrNull("fuelTypesFilePath")) c.getString("fuelTypesFilePath")
-                else "/test/input/beamville/beamFuelTypes.csv",
+              fuelTypePrices = BeamConfig.Beam.Agentsim.Agents.Vehicles.FuelTypePrices(
+                if (c.hasPathOrNull("fuelTypePrices")) c.getConfig("fuelTypePrices")
+                else com.typesafe.config.ConfigFactory.parseString("fuelTypePrices{}")
+              ),
               generateEmergencyHouseholdVehicleWhenPlansRequireIt = c.hasPathOrNull(
                 "generateEmergencyHouseholdVehicleWhenPlansRequireIt"
               ) && c.getBoolean("generateEmergencyHouseholdVehicleWhenPlansRequireIt"),

@@ -428,10 +428,10 @@ class BeamVehicle(
 
   def toStreetVehicle: StreetVehicle = {
     val mode = beamVehicleType.vehicleCategory match {
-      case Bike                                                                   => BIKE
-      case Car | Class456Vocational | Class78Vocational | Class78Tractor if isCAV => CAV
-      case Car | Class456Vocational | Class78Vocational | Class78Tractor          => CAR
-      case Body                                                                   => WALK
+      case Bike                                                                                           => BIKE
+      case category if (category == Car || VehicleCategory.freightCategories.contains(category)) && isCAV => CAV
+      case category if category == Car || VehicleCategory.freightCategories.contains(category)            => CAR
+      case Body                                                                                           => WALK
     }
     val needsToCalculateCost = beamVehicleType.vehicleCategory == Car || beamVehicleType.isSharedVehicle
     StreetVehicle(id, beamVehicleType.id, spaceTime, mode, asDriver = true, needsToCalculateCost = needsToCalculateCost)

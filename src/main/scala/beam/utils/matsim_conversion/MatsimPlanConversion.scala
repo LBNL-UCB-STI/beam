@@ -23,7 +23,6 @@ object MatsimPlanConversion {
     val persons = transformedPopulationDoc \\ "person"
 
     //Generate vehicles data
-    VehiclesDataConversion.generateFuelTypesDefaults(conversionConfig.scenarioDirectory)
     val vehiclesWithTypeId = if (conversionConfig.generateVehicles) {
       VehiclesDataConversion.generateVehicleTypesDefaults(
         conversionConfig.scenarioDirectory,

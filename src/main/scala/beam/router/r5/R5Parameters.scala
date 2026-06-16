@@ -8,7 +8,7 @@ import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile}
+import beam.utils.BeamVehicleUtils.{fuelTypePricesFromConfig, readBeamVehicleTypeFile}
 import beam.utils._
 import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.config.Config
@@ -52,7 +52,7 @@ object R5Parameters {
     )
     val geo = new GeoUtilsImpl(beamConfig)
     val vehicleTypes = readBeamVehicleTypeFile(beamConfig)
-    val fuelTypePrices = readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
+    val fuelTypePrices = fuelTypePricesFromConfig(beamConfig.beam.agentsim.agents.vehicles.fuelTypePrices).toMap
     val ptFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath)
     val fareCalculator = new FareCalculator(beamConfig)
     val tollCalculator = new TollCalculator(beamConfig)

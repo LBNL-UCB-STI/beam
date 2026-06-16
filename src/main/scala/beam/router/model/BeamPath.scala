@@ -2,6 +2,7 @@ package beam.router.model
 
 import beam.agentsim.events.SpaceTime
 import beam.router.model.RoutingModel.TransitStopsInfo
+import beam.utils.TravelTimeUtils
 
 /**
   * @param linkIds      either matsim linkId or R5 edgeIds that describes whole path
@@ -55,7 +56,8 @@ case class BeamPath(
     )
 
   def scaleTravelTimes(scaleBy: Double): BeamPath = {
-    val newLinkTimes = this.linkTravelTime.map(travelTime => travelTime * scaleBy)
+    val newLinkTimes =
+      this.linkTravelTime.map(travelTime => TravelTimeUtils.clampTravelTimeSeconds(travelTime * scaleBy))
     val newDuration = if (newLinkTimes.length > 1) { math.round(newLinkTimes.tail.sum).toInt }
     else { 0 }
     this.copy(

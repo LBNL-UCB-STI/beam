@@ -223,6 +223,9 @@ public class R5MnetBuilder {
         link.setCapacity(300);
         link.setNumberOfLanes(1);
         link.setAllowedModes(flagStrings);
+        if (flagStrings.contains("car")) {
+            link.getAttributes().putAttribute("type", "unclassified");
+        }
         return link;
     }
 

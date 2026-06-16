@@ -34,6 +34,7 @@ case class BeamVehicleType(
   payloadCapacityInKg: Option[Double] = None,
   wheelchairAccessible: Option[Boolean] = None,
   restrictRoadsByFreeSpeedInMeterPerSecond: Option[Double] = None,
+  idleTimeFraction: Option[Double] = None,
   emissionsRatesFile: Option[String] = None,
   emissionsRatesInGramsPerMile: Option[VehicleEmissions.EmissionsProfile] = None,
   vehicleUse: VehicleUse = VehicleUse.Passenger
@@ -94,9 +95,33 @@ object VehicleCategory {
   case object Car extends VehicleCategory // Class 1&2a (GVWR <= 8500 lbs.)
   case object MediumDutyPassenger extends VehicleCategory
 
+  case object Class12aVocational extends VehicleCategory // Class 1-2a vocational (GVWR <= 8500 lbs.)
+  case object Class2b3Vocational extends VehicleCategory // Class 2b-3 vocational (GVWR 8501-14000 lbs.)
   case object Class456Vocational extends VehicleCategory // Class 4-6 (GVWR 14001-26000 lbs.)
   case object Class78Vocational extends VehicleCategory // CLass 7&8 (GVWR 26001-33,000 lbs.)
   case object Class78Tractor extends VehicleCategory // Class 7&8 Tractor (GVWR >33,000 lbs.)
+
+  val freightCategories: Set[VehicleCategory] = Set(
+    Class12aVocational,
+    Class2b3Vocational,
+    Class456Vocational,
+    Class78Vocational,
+    Class78Tractor
+  )
+
+  val lightDutyFreightCategories: Set[VehicleCategory] = Set(
+    Class12aVocational,
+    Class2b3Vocational
+  )
+
+  val mediumDutyFreightCategories: Set[VehicleCategory] = Set(
+    Class456Vocational
+  )
+
+  val heavyDutyFreightCategories: Set[VehicleCategory] = Set(
+    Class78Vocational,
+    Class78Tractor
+  )
 
   def fromString(value: String): VehicleCategory =
     try { fromStringOptional(value).get }
@@ -110,6 +135,8 @@ object VehicleCategory {
     Bike,
     Car,
     MediumDutyPassenger,
+    Class12aVocational,
+    Class2b3Vocational,
     Class456Vocational,
     Class78Vocational,
     Class78Tractor

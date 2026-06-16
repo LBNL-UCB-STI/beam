@@ -43,7 +43,7 @@ apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
 
 group = 'beam'
-version = '1.1-beta-v260421'
+version = '1.1-beta-v260424'
 
 description = """"""
 
@@ -503,7 +503,11 @@ build.dependsOn spec
 * ./gradlew taggedTest -Ptags="beam.tags.Performance beam.tags.Integration"
 * /////////////////////////////////////////////////// */
 
-tasks.matching { it.name in ['processResources', 'processTestResources', 'processScoverageResources'] }.configureEach {
+processResources {
+    duplicatesStrategy = 'include'
+}
+
+processTestResources {
     duplicatesStrategy = 'include'
 }
 
@@ -651,6 +655,7 @@ def jmx = ["-Dcom.sun.management.jmxremote", "-Dcom.sun.management.jmxremote.por
 def logbackConfig = project.findProperty('logbackCfg') ?: "logback_prod.xml"
 
 def profilerTypeConfig = project.findProperty('profiler_type') ?: ""
+def extraJvmArgs = project.findProperty('extraJvmArgs') ? Eval.me(project.property('extraJvmArgs')) : []
 
 def profilerOption = []
 if (profilerTypeConfig.toString().equalsIgnoreCase('cpu')) {
@@ -782,7 +787,7 @@ applicationDefaultJvmArgs = [
 ] + g1GCSettings + [
         // Logging
         "-Dlogback.configurationFile=${logbackConfig}"
-] + profilerOption + jmx
+] + profilerOption + jmx + extraJvmArgs
 
 // Print configuration summary
 logger.lifecycle("")

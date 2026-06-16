@@ -4,7 +4,6 @@ import beam.agentsim.agents.TransitVehicleInitializer
 
 import java.util
 import java.util.Collections
-import java.util.concurrent.atomic.AtomicInteger
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.isOnStreetTransit
@@ -32,7 +31,13 @@ class TransitInitializer(
   transportNetwork: TransportNetwork,
   travelTimeByLinkCalculator: TravelTimeByLinkCalculator
 ) extends ExponentialLazyLogging {
-  private val numStopsNotFound = new AtomicInteger()
+  private val unlinkedStopIndices = TrieMap.empty[Int, Unit]
+  private val unlinkedStopWarnThresholdAbsolute = 10
+  private val unlinkedStopWarnThresholdFraction = 0.001
+  private val unlinkedRouteWarnThresholdAbsolute = 2
+  private val unlinkedRouteWarnThresholdFraction = 0.01
+  private val unlinkedStopExampleLimit = 10
+  private val unlinkedRouteExampleLimit = 5
 
   /*
    * Plan of action:
@@ -49,6 +54,8 @@ class TransitInitializer(
     val start = System.currentTimeMillis()
     val activeServicesToday = transportNetwork.transitLayer.getActiveServicesForDate(dates.localBaseDate)
     val stopToStopStreetSegmentCache = TrieMap[(Int, Int), Option[StreetPath]]()
+    val activeRouteIds = TrieMap.empty[String, Unit]
+    val impactedRouteIds = TrieMap.empty[String, Unit]
 
     def pathWithoutStreetRoute(
       fromStop: Int,
@@ -64,13 +71,13 @@ class TransitInitializer(
       val fromCoord =
         if (from != -1) new Coord(fromVertex.getLon, fromVertex.getLat)
         else {
-          limitedWarn(fromStop)
+          recordUnlinkedStop(fromStop)
           new Coord(-122, 38)
         }
       val toCoord =
         if (to != -1) new Coord(toVertex.getLon, toVertex.getLat)
         else {
-          limitedWarn(toStop)
+          recordUnlinkedStop(toStop)
           new Coord(-122.001, 38.001)
         }
 
@@ -99,11 +106,13 @@ class TransitInitializer(
       streetSeg: StreetPath
     ): (Int, Int, Id[Vehicle]) => BeamPath = {
       val edges = streetSeg.getEdges.asScala
+      val edgeIds = edges.map(_.intValue()).toArray
+      val edgeIdsIndexedSeq = edgeIds.toIndexedSeq
       val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
       val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.last)
       (departureTime: Int, _: Int, vehicleId: Id[Vehicle]) =>
         val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
-          edges.map(_.toInt).toIndexedSeq,
+          edgeIdsIndexedSeq,
           departureTime,
           travelTimeByLinkCalculator,
           StreetMode.CAR,
@@ -116,14 +125,8 @@ class TransitInitializer(
         )
         val distance = linksTimesAndDistances.distances.tail.sum
         BeamPath(
-          linkIds = edges.map(_.intValue()).toArray,
-          linkTravelTime = TravelTimeUtils
-            .scaleTravelTime(
-              streetSeg.getDuration,
-              math.round(linksTimesAndDistances.travelTimes.tail.sum).toInt,
-              linksTimesAndDistances.travelTimes
-            )
-            .toArray,
+          linkIds = edgeIds,
+          linkTravelTime = scaledLinkTimes.toArray,
           transitStops = Some(
             TransitStopsInfo(
               agencyId = "",
@@ -149,6 +152,15 @@ class TransitInitializer(
 
     val transitData = transportNetwork.transitLayer.tripPatterns.asScala.par.flatMap { tripPattern =>
       val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
+      val routeKey = s"${route.agency_id}:${route.route_id}"
+      val hasActiveSchedules =
+        tripPattern.tripSchedules.asScala.exists(tripSchedule => activeServicesToday.get(tripSchedule.serviceCode))
+      if (hasActiveSchedules) {
+        activeRouteIds.put(routeKey, ())
+        if (tripPattern.stops.exists(stop => transportNetwork.transitLayer.streetVertexForStop.get(stop) == -1)) {
+          impactedRouteIds.put(routeKey, ())
+        }
+      }
       val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
       val transitPaths: Seq[(Int, Int, Id[Vehicle]) => BeamPath] = tripPattern.stops.indices
         .sliding(2)
@@ -200,6 +212,7 @@ class TransitInitializer(
       transitScheduleToCreate.keySet.size,
       transitScheduleToCreate.values.size
     )
+    logUnlinkedStopSummary(activeRouteIds.keySet.size, impactedRouteIds.keys.toVector.sorted)
     transitScheduleToCreate
   }.seq
 
@@ -211,8 +224,8 @@ class TransitInitializer(
     val toStopIndex = transportNetwork.transitLayer.streetVertexForStop.get(toStopIdx)
     val linkRadiusMeters = beamConfig.beam.routing.r5.linkRadiusMeters
     if (fromStopIndex == -1 || toStopIndex == -1) {
-      if (fromStopIndex == -1) limitedWarn(fromStopIdx)
-      if (toStopIndex == -1) limitedWarn(toStopIdx)
+      if (fromStopIndex == -1) recordUnlinkedStop(fromStopIdx)
+      if (toStopIndex == -1) recordUnlinkedStop(toStopIdx)
       None
     } else {
       val profileRequest = new ProfileRequest()
@@ -253,16 +266,51 @@ class TransitInitializer(
     }
   }
 
-  def limitedWarn(stopIdx: Int): Unit = {
-    if (numStopsNotFound.get() < 5) {
-      logger.warn("Stop {} not linked to street network.", stopIdx)
-      numStopsNotFound.incrementAndGet()
-    } else if (numStopsNotFound.get() == 5) {
-      logger.warn(
-        "Stop {} not linked to street network. Further warnings messages will be suppressed",
-        stopIdx
+  private def recordUnlinkedStop(stopIdx: Int): Unit = {
+    unlinkedStopIndices.put(stopIdx, ())
+  }
+
+  private def logUnlinkedStopSummary(activeRouteCount: Int, impactedRouteIds: Vector[String]): Unit = {
+    val stopCount = unlinkedStopIndices.size
+    if (stopCount > 0) {
+      val totalStops = Option(transportNetwork.transitLayer.stopIdForIndex).map(_.size()).getOrElse(0)
+      val stopWarnThreshold = math.max(
+        unlinkedStopWarnThresholdAbsolute,
+        math.ceil(totalStops * unlinkedStopWarnThresholdFraction).toInt
       )
-      numStopsNotFound.incrementAndGet()
+      val impactedRouteCount = impactedRouteIds.size
+      val routeWarnThreshold = math.max(
+        unlinkedRouteWarnThresholdAbsolute,
+        math.ceil(activeRouteCount * unlinkedRouteWarnThresholdFraction).toInt
+      )
+      val sampleStops = unlinkedStopIndices.keys.toVector.sorted.take(unlinkedStopExampleLimit).mkString(", ")
+      val sampleRoutes = impactedRouteIds.take(unlinkedRouteExampleLimit).mkString(", ")
+      val sampleText =
+        if (sampleStops.nonEmpty) s" Sample internal stop indexes: [$sampleStops]."
+        else ""
+      val routeText =
+        s" Affected active routes: $impactedRouteCount out of $activeRouteCount." +
+        (if (sampleRoutes.nonEmpty) s" Sample routes: [$sampleRoutes]." else "")
+      val explanation =
+        s"$stopCount transit stops were not linked to the street network out of $totalStops total stops." +
+        " This is often expected in clipped networks when GTFS stops remain but nearby walkable street links" +
+        " were clipped away or removed as disconnected islands." +
+        routeText +
+        sampleText
+
+      if (stopCount > stopWarnThreshold || impactedRouteCount > routeWarnThreshold) {
+        logger.warn(
+          explanation +
+          s" Impact exceeds warning thresholds (stops=$stopWarnThreshold, activeRoutes=$routeWarnThreshold);" +
+          " review the clipped network and GTFS/street alignment."
+        )
+      } else {
+        logger.info(
+          explanation +
+          s" Impact is within the expected thresholds for clipped-network artifacts" +
+          s" (stops=$stopWarnThreshold, activeRoutes=$routeWarnThreshold)."
+        )
+      }
     }
   }
 }

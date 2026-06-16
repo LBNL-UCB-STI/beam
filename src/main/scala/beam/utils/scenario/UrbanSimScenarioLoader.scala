@@ -8,9 +8,10 @@ import beam.sim.common.GeoUtils
 import beam.sim.population.PopulationAdjustment.RIDEHAIL_SERVICE_SUBSCRIPTION
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.sim.vehicles.VehiclesAdjustment.DETERMINISTIC
+import beam.utils.BeamVehicleUtils
 import beam.utils.plan.sampling.AvailableModeUtils
 import beam.utils.scenario.urbansim.HOVModeTransformer
-import beam.utils.{BeamVehicleUtils, SequenceUtils, UniformRealDistributionEnhanced}
+import beam.utils.{SequenceUtils, UniformRealDistributionEnhanced}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.{Leg, Person, Plan, Population}
@@ -28,6 +29,7 @@ import scala.collection.{mutable, Iterable}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.math.{max, min, round}
+import scala.util.control.NonFatal
 import scala.util.Random
 
 class UrbanSimScenarioLoader(
@@ -170,23 +172,40 @@ class UrbanSimScenarioLoader(
     beamScenario.privateVehicleInitialSoc.clear()
   }
 
-  private[utils] def loadVehicles(): Iterable[VehicleInfo] = {
-    val vehicles = scenarioSource.getVehicles
-    if (vehicles.nonEmpty) {
-      vehicles
-    } else {
-      val configVehiclesFilePath = beamScenario.beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath.trim
-      val scenarioSourceType = beamScenario.beamConfig.beam.exchange.scenario.source.toLowerCase
-      if (
-        (scenarioSourceType == "urbansim" || scenarioSourceType == "urbansim_v2") && configVehiclesFilePath.nonEmpty
-      ) {
-        logger.info(
-          s"Scenario source '$scenarioSourceType' returned no household vehicles. Loading them directly from vehiclesFilePath=$configVehiclesFilePath"
-        )
-        BeamVehicleUtils.readVehicleInfosFile(configVehiclesFilePath)
-      } else {
-        Iterable.empty
+  private[scenario] def loadVehicles(): Iterable[VehicleInfo] = {
+    val configVehiclesFilePath = beamScenario.beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath.trim
+    val scenarioSourceType = beamScenario.beamConfig.beam.exchange.scenario.source.toLowerCase
+    val shouldPreferConfiguredVehicles =
+      (scenarioSourceType == "urbansim" || scenarioSourceType == "urbansim_v2") && configVehiclesFilePath.nonEmpty
+
+    def loadFromScenarioSource(): Iterable[VehicleInfo] = scenarioSource.getVehicles
+
+    def loadFromConfiguredFile(): Iterable[VehicleInfo] = {
+      logger.info(s"Loading household vehicles directly from vehiclesFilePath=$configVehiclesFilePath")
+      BeamVehicleUtils.readVehicleInfosFile(configVehiclesFilePath)
+    }
+
+    if (shouldPreferConfiguredVehicles) {
+      try {
+        val configuredVehicles = loadFromConfiguredFile()
+        if (configuredVehicles.nonEmpty) {
+          configuredVehicles
+        } else {
+          logger.warn(
+            s"Configured vehiclesFilePath=$configVehiclesFilePath returned no household vehicles. Falling back to scenario source."
+          )
+          loadFromScenarioSource()
+        }
+      } catch {
+        case NonFatal(error) =>
+          logger.warn(
+            s"Could not load household vehicles from vehiclesFilePath=$configVehiclesFilePath. Falling back to scenario source.",
+            error
+          )
+          loadFromScenarioSource()
       }
+    } else {
+      loadFromScenarioSource()
     }
   }
 
