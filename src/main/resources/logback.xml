@@ -74,9 +74,14 @@
     <!--</Logger>-->
 
 
-
-    <Logger name="org.apache.parquet" level="WARN" />
+    <!-- Silence all Spark/Hadoop internals -->
+    <logger name="org.apache.spark" level="ERROR"/>
+    <logger name="org.apache.hadoop" level="ERROR"/>
     <Logger name="org.apache.hadoop.io.compress.CodecPool" level="WARN" />
+    <Logger name="org.apache.parquet" level="WARN" />
+    <logger name="org.sparkproject" level="ERROR"/>
+
     <Logger name="org.reflections" level="ERROR" />
 
 </configuration>
+
