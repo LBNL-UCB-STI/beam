@@ -9,11 +9,23 @@ import org.scalatest.matchers.should.Matchers
 import scala.collection.JavaConverters._
 
 class GenericRecordMock(val map: java.util.Map[String, AnyRef]) extends GenericRecord {
+
+  private lazy val schema: Schema = {
+    val fields = map.asScala.toIndexedSeq.map { case (name, value) =>
+      val fieldSchema = value match {
+        case _: java.lang.Number => Schema.create(Schema.Type.DOUBLE)
+        case _                   => Schema.create(Schema.Type.STRING)
+      }
+      new Schema.Field(name, fieldSchema, "", null)
+    }
+    Schema.createRecord("GenericRecordMock", "", "beam.utils.scenario.urbansim", false, fields.asJava)
+  }
+
   override def put(key: String, v: Any): Unit = ???
   override def get(key: String): AnyRef = map.get(key)
   override def put(i: Int, v: Any): Unit = ???
   override def get(i: Int): AnyRef = ???
-  override def getSchema: Schema = ???
+  override def getSchema: Schema = schema
 }
 
 class ParquetScenarioReaderTest extends AnyWordSpec with Matchers {
