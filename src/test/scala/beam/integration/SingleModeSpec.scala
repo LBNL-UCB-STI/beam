@@ -49,8 +49,11 @@ class SingleModeSpec
           |beam.agentsim.randomSeedForPopulationSampling = 12345
           |beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt = true
           |beam.debug.stuckAgentDetection.enabled=true
+          |# we must provide bikes for the bike scenarios
+          |beam.agentsim.agents.vehicles.vehiclesFilePath = ${beam.inputDirectory}"/sample/1k/vehicles_with_bikes.csv.gz"
           |""".stripMargin)
-      .withFallback(testConfig("test/input/sf-light/sf-light-1k.conf").resolve())
+      .withFallback(testConfig("test/input/sf-light/sf-light-1k.conf"))
+      .resolve()
 
   def outputDirPath: String = basePath + "/" + testOutputDir + "single-mode-test"
 
