@@ -140,6 +140,9 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
             lastVehiclePTEvent.remove(sh.vehicle.id.toString)
             lastVehicleShiftEvent(sh.vehicle.id.toString) = sh
 
+          // BEV does not emit at shift end (leaving parking)
+          case sh: ShiftEvent if sh.shiftEventType == EndShift && sh.vehicle.isBEV =>
+
           case sh: ShiftEvent if sh.shiftEventType == EndShift =>
             shiftEventsWithoutEmissions.incrementAndGet()
 
