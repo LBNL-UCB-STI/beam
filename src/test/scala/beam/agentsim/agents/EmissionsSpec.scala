@@ -1,35 +1,32 @@
 package beam.agentsim.agents
 
 import beam.agentsim.agents.vehicles.BeamVehicle.VehicleActivityData
-import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.FuelType.Diesel
 import beam.agentsim.agents.vehicles.VehicleCategory.Class78Tractor
-import beam.agentsim.agents.vehicles.VehicleUse.Freight
-import beam.agentsim.agents.vehicles.VehicleEmissions
 import beam.agentsim.agents.vehicles.VehicleEmissions.Emissions.formatName
 import beam.agentsim.agents.vehicles.VehicleEmissions.{Emissions, EmissionsProfile}
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType.Idling
+import beam.agentsim.agents.vehicles.VehicleUse.Freight
+import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleEmissions}
 import beam.agentsim.events.ShiftEvent.{EndShift, StartShift}
 import beam.agentsim.events.{LeavingParkingEvent, PathTraversalEvent, ShiftEvent}
-import beam.router.skim.event.EmissionsSkimmerEvent
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType.Idling
 import beam.router.skim.CsvSkimReader
 import beam.router.skim.core.EmissionsSkimmer.{EmissionsSkimmerInternal, EmissionsSkimmerKey}
+import beam.router.skim.event.EmissionsSkimmerEvent
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Vehicles.Emissions.FuelFilter
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
-import com.typesafe.config
-import com.typesafe.config.ConfigValueFactory
-import org.matsim.core.controler
-import org.matsim.core.controler.AbstractModule
-import org.matsim.core.controler.MatsimServices
+import org.matsim.api.core.v01.events.Event
+import org.matsim.api.core.v01.network.{Link, Network}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.controler
+import org.matsim.core.controler.{AbstractModule, MatsimServices}
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.core.utils.io.IOUtils
-import org.matsim.api.core.v01.events.Event
-import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.utils.objectattributes.attributable.Attributes
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.{doAnswer, mock, when}
@@ -41,6 +38,7 @@ import org.scalatest.matchers.should.Matchers
 
 import java.nio.file.{Files, Path, Paths}
 import java.util
+import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 
@@ -100,8 +98,7 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
     )
   }
 
-  def readSkims(simOutputPath: String, iteration: Int): Map[EmissionsSkimmerKey, EmissionsSkimmerInternal] = {
-    val skimsPath = Paths.get(simOutputPath, f"/ITERS/it.$iteration/$iteration.skimsEmissions.csv.gz").toString
+  def readSkims(skimsPath: String): Map[EmissionsSkimmerKey, EmissionsSkimmerInternal] = {
     val reader = IOUtils.getBufferedReader(skimsPath)
     val skims: Map[EmissionsSkimmerKey, EmissionsSkimmerInternal] =
       new CsvSkimReader(skimsPath, fromCsv, logger).readSkims(reader)
@@ -110,7 +107,7 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
   }
 
   private def skimsPath(simOutputPath: String, iteration: Int): Path =
-    Paths.get(simOutputPath, "ITERS", s"it.$iteration", s"$iteration.skimsEmissions.csv.gz")
+    Paths.get(simOutputPath, "ITERS", s"it.$iteration", s"$iteration.skimsEmissions_Aggregated.csv.gz")
 
   describe("When BEAM run with emissions generation only for RH") {
     it(
@@ -121,6 +118,9 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
       val lastVehicleShiftEvent = mutable.HashMap.empty[String, ShiftEvent]
       val lastVehiclePTEvent = mutable.HashMap.empty[String, PathTraversalEvent]
       val rideHailEndShiftWithEmissions = mutable.ListBuffer.empty[ShiftEvent]
+
+      val pathTraversalEventsWithoutEmissions = new AtomicInteger(0)
+      val shiftEventsWithoutEmissions = new AtomicInteger(0)
 
       val outPath = runWithConfig(
         "test/input/beamville/beam-urbansimv2-emissions.conf",
@@ -134,20 +134,26 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
             lastVehiclePTEvent.remove(e.vehicleId.toString)
             lastVehiclePTEvent(e.vehicleId.toString) = e
 
+          case e: PathTraversalEvent if e.vehicleId.toString.startsWith("rideHail") =>
+            pathTraversalEventsWithoutEmissions.incrementAndGet()
+
           case sh: ShiftEvent if sh.shiftEventType == EndShift && sh.emissionsProfile.isDefined =>
             rideHailEndShiftWithEmissions += sh
             lastVehiclePTEvent.remove(sh.vehicle.id.toString)
             lastVehicleShiftEvent(sh.vehicle.id.toString) = sh
 
-          case e: LeavingParkingEvent if e.vehicleId.toString.startsWith("rideHail") =>
-            throw new RuntimeException("There should NOT be any RH PT events without emissions.")
-
           case sh: ShiftEvent if sh.shiftEventType == EndShift =>
-            throw new RuntimeException("There should NOT be any ShiftEnd events without emissions.")
+            shiftEventsWithoutEmissions.incrementAndGet()
 
           case _ =>
         }
       )
+
+      pathTraversalEventsWithoutEmissions
+        .get() shouldBe 0 withClue "There should NOT be any PathTraversal events without emissions."
+
+      shiftEventsWithoutEmissions
+        .get() shouldBe 0 withClue "There should NOT be any ShiftEvent events without emissions."
 
       rhPTWithEmissions.count(p =>
         p.numberOfPassengers > 0
@@ -158,7 +164,7 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
       Files.exists(emissionsSkimsPath) shouldBe true
       Files.size(emissionsSkimsPath) should be > 0L
 
-      noException should be thrownBy readSkims(outPath, 0)
+      noException should be thrownBy readSkims(emissionsSkimsPath.toString)
     }
   }
 
@@ -183,15 +189,16 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
         when(matsimServices.getEvents).thenReturn(eventsManager)
         when(matsimServices.getIterationNumber).thenReturn(0)
 
+        val mockLinkId = 0
         val link = mock(classOf[Link])
         val linkAttributes = new Attributes()
         linkAttributes.putAttribute("type", "motorway")
         when(link.getAttributes).thenReturn(linkAttributes)
-        when(link.getId).thenReturn(Id.createLinkId("0"))
+        when(link.getId).thenReturn(Id.createLinkId(mockLinkId.toString))
         when(link.getCoord).thenReturn(new Coord(42, 42))
 
         val networkHelper = mock(classOf[beam.utils.NetworkHelper])
-        when(networkHelper.getLink(101)).thenReturn(Some(link))
+        when(networkHelper.getLink(mockLinkId)).thenReturn(Some(link))
         when(networkHelper.allLinks).thenReturn(Array(link))
 
         val beamServices = mock(classOf[BeamServices])
@@ -234,12 +241,37 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
           emissionsConfig.countyLookup,
           emissionsEnabled
         )
+
+        val expectedTraversalEmissions = Set(
+          EmissionsProfile.RUNEX,
+          EmissionsProfile.RUNLOSS,
+          EmissionsProfile.PMTW,
+          EmissionsProfile.PMBW,
+          EmissionsProfile.PRDUST,
+          EmissionsProfile.PTOEX
+        )
+        val expectedParkingEmissions = Set(
+          EmissionsProfile.IDLEX,
+          EmissionsProfile.STREX,
+          EmissionsProfile.HOTSOAK,
+          EmissionsProfile.DIURN,
+          EmissionsProfile.RUNLOSS
+        )
+
+        val fuelFilter: FuelFilter = new FuelFilter(
+          diesel = (expectedTraversalEmissions ++ expectedParkingEmissions).mkString(","),
+          electric = "",
+          gasoline = "",
+          naturalgas = "",
+          phev = ""
+        )
+
         val vehicleEmissions = new VehicleEmissions(
           vehicleTypesBasePaths = IndexedSeq(tempDir.toString),
           vehicleTypes = Map(vehicleTypeId -> vehicleType),
           countyResolver,
           emissionsConfig.pollutantsFilter,
-          emissionsConfig.fuelFilter,
+          fuelFilter,
           emissionsConfig.ratesFilter
         )
 
@@ -247,7 +279,7 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
         val traversalData = VehicleActivityData(
           activityStartTime = 0.0,
           linkStartTime = 600.0,
-          linkId = 101,
+          linkId = mockLinkId,
           vehicleId = vehicleId,
           vehicleType = vehicleType,
           payloadInKg = Some(1000.0),
@@ -259,7 +291,7 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
         val parkingData = VehicleActivityData(
           activityStartTime = 0.0,
           linkStartTime = 3600.0,
-          linkId = 101,
+          linkId = mockLinkId,
           vehicleId = vehicleId,
           vehicleType = vehicleType,
           payloadInKg = None,
@@ -284,21 +316,9 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
             beamServices
           )
 
-        traversalProfile.map(_.values.keySet).getOrElse(Set.empty) shouldBe Set(
-          EmissionsProfile.RUNEX,
-          EmissionsProfile.RUNLOSS,
-          EmissionsProfile.PMTW,
-          EmissionsProfile.PMBW,
-          EmissionsProfile.PRDUST,
-          EmissionsProfile.PTOEX
-        )
-        parkingProfile.map(_.values.keySet).getOrElse(Set.empty) shouldBe Set(
-          EmissionsProfile.IDLEX,
-          EmissionsProfile.STREX,
-          EmissionsProfile.HOTSOAK,
-          EmissionsProfile.DIURN,
-          EmissionsProfile.RUNLOSS
-        )
+        traversalProfile.map(_.values.keySet).getOrElse(Set.empty) shouldBe expectedTraversalEmissions
+        parkingProfile.map(_.values.keySet).getOrElse(Set.empty) shouldBe expectedParkingEmissions
+
         traversalProfile.toSeq.flatMap(_.values.values).foreach { emissions =>
           emissions.values.keySet shouldBe Emissions.values.toSet
           all(emissions.values.values) should be > 0.0
@@ -340,7 +360,7 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
     "bc_gram"   -> 14.0
   )
 
-  private val allProcessRows: IndexedSeq[Map[String, Any]] = IndexedSeq(
+  private def allProcessRows: IndexedSeq[Map[String, Any]] = IndexedSeq(
     EmissionsProfile.RUNEX   -> 25.0,
     EmissionsProfile.IDLEX   -> 0.0,
     EmissionsProfile.STREX   -> 30.0,
