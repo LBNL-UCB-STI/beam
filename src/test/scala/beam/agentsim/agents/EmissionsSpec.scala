@@ -110,9 +110,7 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
     Paths.get(simOutputPath, "ITERS", s"it.$iteration", s"$iteration.skimsEmissions_Aggregated.csv.gz")
 
   describe("When BEAM run with emissions generation only for RH") {
-    it(
-      "should complete a BEAM run with ridehail emissions and produce a skims emissions artifact"
-    ) {
+    it("should complete a BEAM run with ridehail emissions and produce a skims emissions artifact") {
       val rhPTWithEmissions = mutable.ListBuffer[PathTraversalEvent]()
 
       val lastVehicleShiftEvent = mutable.HashMap.empty[String, ShiftEvent]

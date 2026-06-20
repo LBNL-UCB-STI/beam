@@ -3,7 +3,7 @@ package beam.router.skim.core
 import beam.agentsim.agents.vehicles.VehicleEmissions.Emissions._
 import beam.agentsim.agents.vehicles.VehicleEmissions.{Emissions, EmissionsProfile}
 import beam.router.skim.core.AbstractSkimmer.AGG_SUFFIX
-import beam.router.skim.{ParquetSkimWriter, Skims, readonly}
+import beam.router.skim.{readonly, ParquetSkimWriter, Skims}
 import beam.sim.config.BeamConfig
 import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject}
 import com.google.inject.Inject
