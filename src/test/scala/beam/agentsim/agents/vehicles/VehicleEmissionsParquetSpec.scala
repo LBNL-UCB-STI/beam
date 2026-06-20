@@ -1,6 +1,5 @@
 package beam.agentsim.agents.vehicles
 
-import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsProfile.EmissionsProcess
 import beam.agentsim.agents.vehicles.VehicleEmissions.{Emissions, EmissionsProfile, EmissionsRateFilterStore}
 import beam.sim.common.DoubleTypedRange
 import beam.utils.BeamVehicleUtils.convertRecordStringToDoubleTypedRange
@@ -12,9 +11,9 @@ import org.apache.hadoop.fs.Path
 import org.apache.parquet.avro.AvroParquetWriter
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.HadoopOutputFile
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funspec.AnyFunSpecLike
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path => NioPath}
@@ -23,6 +22,8 @@ import scala.jdk.CollectionConverters._
 class VehicleEmissionsParquetSpec extends AnyFunSpecLike with Matchers with BeforeAndAfterAll with BeforeAndAfterEach {
 
   private var tempDir: NioPath = _
+
+  //noinspection SpellCheckingInspection
   private val county: String = "alameda"
   private val roadCategory = "motorway"
 
@@ -150,8 +151,8 @@ class VehicleEmissionsParquetSpec extends AnyFunSpecLike with Matchers with Befo
   }
 
   private def assertStore(store: VehicleEmissions.EmissionsRateFilterStore.EmissionsRateFilter): Unit = {
-    store.countyToProcessRates should contain(county)
-    store.countyToProcessRates.get(county).keySet shouldBe EmissionsProfile.values.map(_.toString).toSet
+    store.countyToProcessRates.keySet() should contain(county)
+    store.countyToProcessRates.get(county).keySet.asScala.toSet shouldBe EmissionsProfile.values.map(_.toString)
 
     processActivityValues.foreach { case (process, activityValue) =>
       val processStore: EmissionsRateFilterStore.ProcessRateIndex =
@@ -163,7 +164,7 @@ class VehicleEmissionsParquetSpec extends AnyFunSpecLike with Matchers with Befo
       val range: DoubleTypedRange = expectedBin(process, activityValue)
       val emissionsInRange: Option[VehicleEmissions.ActivityRangeEntry[Emissions]] = rc.find(are => are.range == range)
       emissionsInRange.isDefined shouldBe true
-      emissionsInRange.get shouldBe expectedEmissions
+      emissionsInRange.get.value shouldBe expectedEmissions
     }
   }
 
