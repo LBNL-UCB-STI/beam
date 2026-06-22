@@ -48,7 +48,7 @@ class NetworkRelaxationSpec extends AnyWordSpecLike with BeamHelper {
         scenario,
         beamScenario,
         outputDir,
-        true
+        plansMerged = true
       )
 
       val linkStats = new File(outputDir, s"ITERS/it.$lastIteration/$lastIteration.linkstats.csv.gz")
