@@ -640,8 +640,10 @@ class ProceduralRideHailFleetInitializer(
 
   private def computeNumRideHailAgents: Long = {
     val fleet: Double = beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
-    if (fleet < 0.000001){
-      logger.error(f"The configuration value of beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet is too low: $fleet")
+    if (fleet < 0.000001) {
+      logger.error(
+        f"The configuration value of beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet is too low: $fleet"
+      )
       logger.error(f"Very low values might create too many household vehicles.")
     }
 
