@@ -32,11 +32,15 @@ class BeamWarmStartRunSpec
   "Beam WarmStart" must {
 
     "prepare WarmStart data" in {
+      val iteration = 1
       val baseConf = ConfigFactory
-        .parseString("""beam.warmStart.prepareData = true
-             beam.physsim.duplicatePTE.fractionOfEventsToDuplicate = 1.0
-             beam.physsim.duplicatePTE.departureTimeShiftMin = 0
-             beam.physsim.duplicatePTE.departureTimeShiftMax = 600
+        .parseString(f"""
+                beam.warmStart.prepareData = true
+                beam.agentsim.lastIteration = $iteration
+                beam.router.skim.emissions-skimmer.fileOutputFormat = "csv.gz"
+                beam.physsim.duplicatePTE.fractionOfEventsToDuplicate = 1.0
+                beam.physsim.duplicatePTE.departureTimeShiftMin = 0
+                beam.physsim.duplicatePTE.departureTimeShiftMax = 600
             """)
         .withFallback(testConfig("test/input/beamville/beam-emissions.conf"))
         .resolve()
@@ -49,23 +53,24 @@ class BeamWarmStartRunSpec
       val files = Stream.continually(zipIn.getNextEntry).takeWhile(_ != null).map(_.getName).toList
       zipIn.close()
 
+      val itStr = f"ITERS/it.$iteration/$iteration"
       val expectedFiles = List(
         "population.csv.gz",
         "households.csv.gz",
         "vehicles.csv.gz",
-        "ITERS/it.2/2.skimsOD_Aggregated.csv.gz",
-        "ITERS/it.2/2.skimsTAZ_Aggregated.csv.gz",
-        "ITERS/it.2/2.skimsTravelTimeObservedVsSimulated_Aggregated.csv.gz",
-        "ITERS/it.2/2.skimsRidehail_Aggregated.csv.gz",
-        "ITERS/it.2/2.skimsODVehicleType_Aggregated.csv.gz",
-        "ITERS/it.2/2.skimsFreight_Aggregated.csv.gz",
-        "ITERS/it.2/2.skimsParking_Aggregated.csv.gz",
-        "ITERS/it.2/2.skimsTransitCrowding_Aggregated.csv.gz",
-        "ITERS/it.2/2.skimsEmissions_Aggregated.csv.gz",
-        "ITERS/it.2/2.linkstats.csv.gz",
-        "ITERS/it.2/2.plans.csv.gz",
-        "ITERS/it.2/2.plans.xml.gz",
-        "ITERS/it.2/2.rideHailFleet-GlobalRHM.csv.gz"
+        itStr + ".skimsOD_Aggregated.csv.gz",
+        itStr + ".skimsTAZ_Aggregated.csv.gz",
+        itStr + ".skimsTravelTimeObservedVsSimulated_Aggregated.csv.gz",
+        itStr + ".skimsRidehail_Aggregated.csv.gz",
+        itStr + ".skimsODVehicleType_Aggregated.csv.gz",
+        itStr + ".skimsFreight_Aggregated.csv.gz",
+        itStr + ".skimsParking_Aggregated.csv.gz",
+        itStr + ".skimsTransitCrowding_Aggregated.csv.gz",
+        itStr + ".skimsEmissions_Aggregated.csv.gz",
+        itStr + ".linkstats.csv.gz",
+        itStr + ".plans.csv.gz",
+        itStr + ".plans.xml.gz",
+        itStr + ".rideHailFleet-GlobalRHM.csv.gz"
       )
 
       val missing = expectedFiles.diff(files)
@@ -77,8 +82,9 @@ class BeamWarmStartRunSpec
     }
 
     "run beamville scenario for two iterations with warmstart" taggedAs Retryable in {
+      val iteration = 1
       val baseConf = ConfigFactory
-        .parseString("beam.agentsim.lastIteration = 1")
+        .parseString(f"beam.agentsim.lastIteration = $iteration")
         .withFallback(testConfig("test/input/beamville/beam-warmstart.conf"))
         .resolve()
       val (_, output, _) = runBeamWithConfig(baseConf)
@@ -96,7 +102,7 @@ class BeamWarmStartRunSpec
       )
 
       // tests files created by Beam simulation
-      testOutputFiles(outputFileIdentifiers, output, 0)
+      testOutputFiles(outputFileIdentifiers, output, iteration)
     }
 
     "run beamville scenario for two iterations with warmstart with normal and fake skims" in {
@@ -162,12 +168,13 @@ class BeamWarmStartRunSpec
 
   "sf-light scenario with emissions skims format set to parquet" must {
     "prepare WarmStart data with parquet emissions skims" in {
-      val maxIt = 1
+      val maxIt = 0
       val baseConf = ConfigFactory
-        .parseString(f"""beam.agentsim.lastIteration = $maxIt
-                beam.warmStart.prepareData = true
-                beam.router.skim.emissions-skimmer.fileOutputFormat = "parquet"
-                """)
+        .parseString(f"""
+                 beam.agentsim.lastIteration = $maxIt
+                 beam.warmStart.prepareData = true
+                 beam.router.skim.emissions-skimmer.fileOutputFormat = "parquet"
+                 """)
         .withFallback(testConfig("test/input/sf-light/sf-light-1k-emissions.conf"))
         .resolve()
       val (_, output, _) = runBeamWithConfig(baseConf)

@@ -26,8 +26,8 @@ class NetworkRelaxationSpec extends AnyWordSpecLike with BeamHelper {
   val lastIteration = 15
   System.setProperty(ContextInitializer.CONFIG_FILE_PROPERTY, "logback-test.xml")
 
-  "Network relaxation" should {
-    "pass" in {
+  "Network relaxation scenario" should {
+    "after 15 iterations reach equilibrium with link volume above 500 on each of four parallel routes" in {
       val config = ConfigFactory
         .parseFile(new File("test/input/network-relaxation-scenario/beam.conf"))
         .resolve()
@@ -39,7 +39,6 @@ class NetworkRelaxationSpec extends AnyWordSpecLike with BeamHelper {
       val scenario: MutableScenario = scenarioBuilt
       val outputDir = FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
       val injector: Injector = buildInjector(config, beamConfig, scenario, beamScenario)
-      implicit val actorSystem: ActorSystem = injector.getInstance(classOf[ActorSystem])
       val beamServices: BeamServices = buildBeamServices(injector)
 
       LoggingUtil.initLogger(outputDir, beamConfig.beam.logger.keepConsoleAppenderOn)
@@ -49,7 +48,7 @@ class NetworkRelaxationSpec extends AnyWordSpecLike with BeamHelper {
         scenario,
         beamScenario,
         outputDir,
-        true
+        plansMerged = true
       )
 
       val linkStats = new File(outputDir, s"ITERS/it.$lastIteration/$lastIteration.linkstats.csv.gz")

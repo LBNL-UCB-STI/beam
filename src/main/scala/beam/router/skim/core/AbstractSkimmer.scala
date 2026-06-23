@@ -147,9 +147,6 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
     currObservation: AbstractSkimmerInternal
   ): AbstractSkimmerInternal
 
-  protected[skim] def currentSkim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal] =
-    currentSkimInternal.asScala
-
   protected[skim] def currentSkimSnapshot: Map[AbstractSkimmerKey, AbstractSkimmerInternal] =
     currentSkimInternal.asScala.toMap
 

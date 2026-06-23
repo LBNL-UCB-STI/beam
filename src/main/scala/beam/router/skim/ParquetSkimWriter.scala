@@ -1,6 +1,5 @@
 package beam.router.skim
 
-import beam.router.skim.core.{AbstractSkimmerInternal, AbstractSkimmerKey}
 import beam.utils.ProducerConsumer
 import com.typesafe.scalalogging.Logger
 import org.apache.avro.Schema
@@ -22,7 +21,7 @@ import scala.concurrent.duration.Duration
 import scala.reflect.ClassTag
 import scala.reflect.io.Directory
 
-class ParquetSkimWriter[Key <: AbstractSkimmerKey: ClassTag, Value <: AbstractSkimmerInternal: ClassTag](
+class ParquetSkimWriter[Key: ClassTag, Value: ClassTag](
   val schema: Schema,
   val logger: Logger,
   val recordConstructor: (Schema, Key, Value) => GenericRecord,
@@ -31,35 +30,37 @@ class ParquetSkimWriter[Key <: AbstractSkimmerKey: ClassTag, Value <: AbstractSk
 ) {
 
   def writeSkims(
-    skims: collection.Iterable[(AbstractSkimmerKey, AbstractSkimmerInternal)],
+    skimsIterator: collection.Iterator[(Key, Value)],
+    skimsSize: Int,
     outputFilePath: String
   ): Unit = {
-    if (skims.size > chunkSize)
-      writeSkimsParallelAndMergeIntoSingleFile(skims, outputFilePath)
+    if (skimsSize > chunkSize)
+      writeSkimsParallelAndMergeIntoSingleFile(skimsIterator, outputFilePath)
     else
-      writeSkimsSingleThread(skims, outputFilePath)
+      writeSkimsSingleThread(skimsIterator, skimsSize, outputFilePath)
   }
 
   private def writeSkimsSingleThread(
-    skim: collection.Iterable[(AbstractSkimmerKey, AbstractSkimmerInternal)],
+    skimIterator: collection.Iterator[(Key, Value)],
+    skimsSize: Int,
     outputFilePath: String
   ): Unit = {
-    val validSkims: Iterable[(Key, Value)] = skim.iterator.collect { case (k: Key, v: Value) => (k, v) }.toIterable
+    val validSkims: Iterable[(Key, Value)] = skimIterator.collect { case (k: Key, v: Value) => (k, v) }.toIterable
 
     val path = new Path(outputFilePath)
-    val recordCount = writeSkimsToParquetInternal(path, validSkims, skim.size / 7)
+    val recordCount = writeSkimsToParquetInternal(path, validSkims, skimsSize / 7)
 
     logger.info(s"Successfully wrote $recordCount records to $outputFilePath")
   }
 
   private def writeSkimsStreaming(
-    skim: collection.Iterable[(AbstractSkimmerKey, AbstractSkimmerInternal)],
+    skimIterator: collection.Iterator[(Key, Value)],
     chunksPath: String
   ): Array[Int] = {
     val results = new ConcurrentLinkedQueue[Int]()
 
     // lazy iterator over the original map – no extra collection
-    val chunks: Iterator[(Seq[(Key, Value)], Int)] = skim.iterator
+    val chunks: Iterator[(Seq[(Key, Value)], Int)] = skimIterator
       .collect { case (k: Key, v: Value) => (k, v) }
       .grouped(chunkSize)
       .zipWithIndex
@@ -90,7 +91,7 @@ class ParquetSkimWriter[Key <: AbstractSkimmerKey: ClassTag, Value <: AbstractSk
   }
 
   private def writeSkimsParallelAndMergeIntoSingleFile(
-    skim: collection.Iterable[(AbstractSkimmerKey, AbstractSkimmerInternal)],
+    skimIterator: collection.Iterator[(Key, Value)],
     outputFilePath: String
   ): Unit = {
     val runId = UUID.randomUUID().toString.take(8)
@@ -98,7 +99,7 @@ class ParquetSkimWriter[Key <: AbstractSkimmerKey: ClassTag, Value <: AbstractSk
     val path = Paths.get(chunksPath)
     if (!Files.exists(path)) { Files.createDirectories(path) }
 
-    val results = writeSkimsStreaming(skim, chunksPath)
+    val results = writeSkimsStreaming(skimIterator, chunksPath)
 
     logger.info(s"Successfully wrote ${results.sum} records to $chunksPath as ${results.length} chunks.")
     mergeParquetFiles(chunksPath, outputFilePath)
