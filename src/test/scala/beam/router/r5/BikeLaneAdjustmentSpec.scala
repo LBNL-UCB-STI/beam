@@ -6,6 +6,8 @@ import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
 import beam.agentsim.agents.vehicles.VehicleCategory.{
   Body,
   Car,
+  Class12aVocational,
+  Class2b3Vocational,
   Class456Vocational,
   Class78Tractor,
   Class78Vocational,
@@ -126,6 +128,8 @@ private object BikeLaneAdjustmentSpec {
     Body,
     Car,
     MediumDutyPassenger,
+    Class12aVocational,
+    Class2b3Vocational,
     Class456Vocational,
     Class78Vocational,
     Class78Tractor

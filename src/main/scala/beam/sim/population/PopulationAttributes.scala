@@ -14,6 +14,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population._
 import org.matsim.households.Income.IncomePeriod
 import org.matsim.households.{Household, IncomeImpl}
+import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 
@@ -30,6 +31,7 @@ case class AttributesOfIndividual(
   income: Option[Double],
   wheelchairUser: Boolean = false
 ) extends PopulationAttributes {
+  private val logger = LoggerFactory.getLogger(getClass)
   lazy val hasModalityStyle: Boolean = modalityStyle.nonEmpty
   private val hourConversion = 1.0 / 3600
   private val modeMultiplierCache = collection.concurrent.TrieMap[BeamMode, Double]()
@@ -271,7 +273,30 @@ case class AttributesOfIndividual(
       lowSensitivity
     }
     val (congestion, roadway) = getLinkCharacteristics(linkID, travelTime, beamServices)
-    situationMultipliers.getOrElse(Set(sensitivity, congestion, roadway, vehicleAutomationLevel), 1.0)
+    val lookupKey = Set[SituationMultiplier](sensitivity, congestion, roadway, vehicleAutomationLevel)
+    try {
+      situationMultipliers.getOrElse(lookupKey, 1.0)
+    } catch {
+      case ex: Throwable =>
+        val currentLink = beamServices.networkHelper.getLink(linkID)
+        val sampleKeys = situationMultipliers.keys.take(10).map(_.mkString("{", ", ", "}")).mkString("[", ", ", "]")
+        val sampleValues = situationMultipliers
+          .take(10)
+          .map { case (key, value) =>
+            s"${key.mkString("{", ", ", "}")}->$value"
+          }
+          .mkString("[", ", ", "]")
+        logger.error(
+          s"Failed situation multiplier lookup: linkID=$linkID, travelTime=$travelTime, isWorkTrip=$isWorkTrip, " +
+          s"vehicleAutomationLevel=$vehicleAutomationLevel, sensitivity=$sensitivity, congestion=$congestion, roadway=$roadway, " +
+          s"lookupKey=${lookupKey.mkString("{", ", ", "}")}, situationMultiplierKeyCount=${situationMultipliers.size}, " +
+          s"sampleKeys=$sampleKeys, sampleValues=$sampleValues, " +
+          s"linkExists=${currentLink.isDefined}, freeSpeed=${currentLink.map(_.getFreespeed())}, " +
+          s"linkLength=${currentLink.map(_.getLength())}, roadType=${currentLink.map(_.getAttributes.toString)}",
+          ex
+        )
+        throw ex
+    }
   }
 
 }

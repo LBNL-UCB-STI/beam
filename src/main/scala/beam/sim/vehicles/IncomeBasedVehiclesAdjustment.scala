@@ -23,6 +23,11 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
     vehicleTypesAndProbabilityByCategoryAndGroup ++= submap
   }
 
+  private val vehicleTypesAndProbabilityByRequestedCategory =
+    vehicleTypesAndProbabilityByCategoryAndGroup.groupBy { case (categoryAndGroup, _) =>
+      categoryAndGroup.vehicleCategory
+    }
+
   override def sampleVehicleTypesForHousehold(
     numVehicles: Int,
     vehicleCategory: VehicleCategory,
@@ -33,30 +38,33 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
     realDistribution: UniformRealDistributionEnhanced,
     householdId: Option[HouseholdId]
   ): List[BeamVehicleType] = {
+    val categoryScopedGroups =
+      vehicleTypesAndProbabilityByRequestedCategory.getOrElse(vehicleCategory, scala.collection.mutable.Map.empty)
     val matchedGroups =
-      vehicleTypesAndProbabilityByCategoryAndGroup.keys.filter(x => isThisHouseholdInThisGroup(householdIncome, x))
+      categoryScopedGroups.keys.filter(x => isThisHouseholdInThisGroup(householdIncome, x))
     @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val categoryAndGroup = if (matchedGroups.size > 1) {
       logger.warn(
-        s"Multiple categories defined for household with income $householdIncome, choosing a default one"
+        s"Multiple groups defined for household with income $householdIncome in requested category $vehicleCategory, choosing a default one"
       )
       matchedGroups.head
     } else if (matchedGroups.isEmpty) {
       logger.warn(
-        s"No categories defined for household with income $householdIncome, choosing a default one"
+        s"No groups defined for household with income $householdIncome in requested category $vehicleCategory, choosing a default one"
       )
-      vehicleTypesAndProbabilityByCategoryAndGroup.keys.head
+      categoryScopedGroups.keys.headOption.getOrElse(vehicleTypesAndProbabilityByCategoryAndGroup.keys.head)
     } else {
       matchedGroups.head
     }
-    val vehTypeWithProbabilityOption = vehicleTypesAndProbabilityByCategoryAndGroup.get(categoryAndGroup)
+    val vehTypeWithProbabilityOption = categoryScopedGroups.get(categoryAndGroup)
     val vehTypeWithProbability: Array[(BeamVehicleType, Double)] = vehTypeWithProbabilityOption match {
       case Some(vtWithProb) => vtWithProb
       case _ =>
         logger.warn(
-          s"There is no vehicle defined for group ${categoryAndGroup.group}, defaulting to ${vehicleTypesAndProbabilityByCategoryAndGroup.head._1.group}"
+          s"There is no vehicle defined for group ${categoryAndGroup.group} in requested category $vehicleCategory, " +
+          s"defaulting to ${categoryScopedGroups.headOption.map(_._1.group).getOrElse(vehicleTypesAndProbabilityByCategoryAndGroup.head._1.group)}"
         )
-        vehicleTypesAndProbabilityByCategoryAndGroup.head._2
+        categoryScopedGroups.headOption.map(_._2).getOrElse(vehicleTypesAndProbabilityByCategoryAndGroup.head._2)
     }
     (1 to numVehicles).map { _ =>
       val newRand = realDistribution.sample()

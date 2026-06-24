@@ -13,16 +13,6 @@ import scala.xml.{Elem, NodeSeq, XML}
 
 object VehiclesDataConversion extends App {
 
-  lazy val beamFuelTypesTitles = Seq("fuelTypeId", "priceInDollarsPerMJoule")
-
-  //TODO
-  lazy val beamFuelTypes = Seq(
-    Seq("gasoline", "0.03"),
-    Seq("diesel", "0.02"),
-    Seq("electricity", "0.01"),
-    Seq("biodiesel", "0.01")
-  )
-
   lazy val beamVehicleTypeTitles = Seq(
     "vehicleTypeId",
     "seatingCapacity",
@@ -187,8 +177,6 @@ object VehiclesDataConversion extends App {
   }
 
   def generateVehiclesData(vehiclesFile: String, transitFile: String, outputDir: String) = {
-    generateFuelTypesDefaults(outputDir)
-
     val vehiclesDoc = XML.loadFile(vehiclesFile)
     val transitDoc = XML.loadFile(transitFile)
 
@@ -197,12 +185,6 @@ object VehiclesDataConversion extends App {
 
     generateVehicleTypesDefaults(outputDir, vehicleTypes ++ transitVehicleTypes)
     generateVehiclesDataFromSource(outputDir, vehiclesDoc)
-  }
-
-  def generateFuelTypesDefaults(scenarioDirectory: String): Unit = {
-    val beamFuelTypesPath = scenarioDirectory + "/beamFuelTypes.csv"
-
-    writeCsvFile(beamFuelTypesPath, beamFuelTypes, beamFuelTypesTitles)
   }
 
   def generateVehicleTypesDefaults(scenarioDirectory: String, vehicleTypes: Seq[Seq[String]]): Unit = {

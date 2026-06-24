@@ -268,13 +268,10 @@ object TourModes {
 
     private def getModeFromVehicle(beamVehicle: BeamVehicle): BeamMode = {
       beamVehicle.beamVehicleType.vehicleCategory match {
-        case VehicleCategory.Car if beamVehicle.isFreight => FREIGHT
-        case VehicleCategory.Car                          => CAR
-        case VehicleCategory.Bike                         => BIKE
-        case VehicleCategory.Class78Tractor               => FREIGHT
-        case VehicleCategory.Class78Vocational            => FREIGHT
-        case VehicleCategory.Class456Vocational           => FREIGHT
-        case _                                            => WALK
+        case VehicleCategory.Car                                              => CAR
+        case VehicleCategory.Bike                                             => BIKE
+        case category if VehicleCategory.freightCategories.contains(category) => FREIGHT
+        case _                                                                => WALK
       }
     }
 
@@ -379,10 +376,9 @@ object TourModes {
                 )
               )
           case _ =>
-//            val retainedVehicle = availableVehicles
-//              .find(v => currentTourPersonalVehicle.find(availableVehicles.map(_.id).contains).contains(v.id))
-//              .map(_.vehicle)
-            val retainedVehicle = None // TEMP: Trying out not retaining parent tour vehicles on subtours
+            val retainedVehicle = availableVehicles
+              .find(v => currentTourPersonalVehicle.find(availableVehicles.map(_.id).contains).contains(v.id))
+              .map(_.vehicle)
 
             outcome
               .getOrElseUpdate(Some(WALK_BASED), mutable.Map.empty[EmbodiedBeamTrip, Option[BeamVehicle]])
@@ -452,9 +448,9 @@ object TourModes {
     case object FREIGHT_TOUR
         extends BeamTourMode(
           "freight_tour",
-          Seq(Car, Class456Vocational, Class78Vocational, Class78Tractor),
-          Seq[BeamMode](CAR, FREIGHT),
-          Seq[BeamMode](CAR, FREIGHT)
+          VehicleCategory.freightCategories.toSeq.sortBy(_.toString),
+          Seq[BeamMode](FREIGHT),
+          Seq[BeamMode](FREIGHT)
         ) {
 
       override def allowedBeamModesGivenAvailableVehicles(

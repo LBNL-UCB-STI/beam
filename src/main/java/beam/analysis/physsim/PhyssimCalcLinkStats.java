@@ -11,6 +11,7 @@ import org.jfree.chart.*;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.category.CategoryDataset;
+import org.jfree.data.category.DefaultCategoryDataset;
 import org.matsim.analysis.VolumesAnalyzer;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
@@ -29,6 +30,8 @@ import java.util.*;
 import java.util.List;
 
 public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
+    private static final double RELATIVE_SPEED_BUCKET_MULTIPLIER = 50.0;
+    private static final double RELATIVE_SPEED_BUCKET_DIVISOR = 10.0;
 
     private final Logger log = LoggerFactory.getLogger(PhyssimCalcLinkStats.class);
 
@@ -60,6 +63,7 @@ public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
     private VolumesAnalyzer volumes;
     private TravelTimeCalculatorConfigGroup ttcConfigGroup;
     private Map<Id<BeamVehicle>, BeamVehicle> vehicleMap;
+    private int invalidRelativeSpeedObservationCount;
 
     public PhyssimCalcLinkStats(Network network, OutputDirectoryHierarchy controlerIO, BeamConfig beamConfig,
                                 TravelTimeCalculatorConfigGroup ttcConfigGroup, BeamConfigChangesObservable beamConfigChangesObservable,
@@ -149,20 +153,15 @@ public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
         for (int idx = 0; idx < noOfBins; idx++) {
             for (Link link : this.network.getLinks().values()) {
                 double freeSpeed = link.getFreespeed(idx * binSize);
-
-                double linkLength = link.getLength();
-
                 double averageTime = travelTime.getLinkTravelTime(link, idx * binSize, null, null);
+                OptionalDouble relativeSpeed = computeRelativeSpeedBucket(link.getLength(), averageTime, freeSpeed);
+                if (!relativeSpeed.isPresent()) {
+                    invalidRelativeSpeedObservationCount++;
+                    continue;
+                }
 
-                double minSpeed = this.beamConfig.beam().physsim().minCarSpeedInMetersPerSecond();
-
-                double averageSpeed = linkLength / averageTime;
-
-                double averageSpeedToFreeSpeedRatio = averageSpeed / freeSpeed;
-
-                double relativeSpeed = Math.max((Math.round(averageSpeedToFreeSpeedRatio * 50.0) / 10), minSpeed);
-
-                Map<Integer, Integer> hoursDataMap = relativeSpeedFrequenciesPerBin.get(relativeSpeed);
+                double relativeSpeedBucket = relativeSpeed.getAsDouble();
+                Map<Integer, Integer> hoursDataMap = relativeSpeedFrequenciesPerBin.get(relativeSpeedBucket);
 
                 if (hoursDataMap != null) {
                     hoursDataMap.merge(idx, 1, (a, b) -> a + b);
@@ -171,9 +170,38 @@ public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
                     hoursDataMap.put(idx, 1);
                 }
 
-                relativeSpeedFrequenciesPerBin.put(relativeSpeed, hoursDataMap);
+                relativeSpeedFrequenciesPerBin.put(relativeSpeedBucket, hoursDataMap);
             }
         }
+        if (invalidRelativeSpeedObservationCount > 0) {
+            log.warn(
+                "Skipped {} invalid relative speed observations while building physsim link stats.",
+                invalidRelativeSpeedObservationCount
+            );
+        }
+    }
+
+    private OptionalDouble computeRelativeSpeedBucket(double linkLength, double averageTime, double freeSpeed) {
+        if (averageTime <= 0 || freeSpeed <= 0 || !Double.isFinite(averageTime) || !Double.isFinite(freeSpeed)) {
+            return OptionalDouble.empty();
+        }
+
+        double averageSpeed = linkLength / averageTime;
+        double averageSpeedToFreeSpeedRatio = averageSpeed / freeSpeed;
+        if (!Double.isFinite(averageSpeedToFreeSpeedRatio)) {
+            return OptionalDouble.empty();
+        }
+
+        double minSpeed = this.beamConfig.beam().physsim().minCarSpeedInMetersPerSecond();
+        double relativeSpeed = Math.max(
+            Math.round(averageSpeedToFreeSpeedRatio * RELATIVE_SPEED_BUCKET_MULTIPLIER) / RELATIVE_SPEED_BUCKET_DIVISOR,
+            minSpeed
+        );
+        if (!Double.isFinite(relativeSpeed)) {
+            return OptionalDouble.empty();
+        }
+
+        return OptionalDouble.of(relativeSpeed);
     }
 
     double getRelativeSpeedOfSpecificHour(int relativeSpeedCategoryIndex, int hour) {
@@ -193,15 +221,31 @@ public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
     }
 
 
-    private CategoryDataset buildAndGetGraphCategoryDataset() {
-        double[][] dataset = buildModesFrequencyDataset();
-        return GraphUtils.createCategoryDataset("Relative Speed", "", dataset);
-    }
-
     List<Double> getSortedListRelativeSpeedCategoryList() {
         List<Double> relativeSpeedsCategoriesList = new ArrayList<>(relativeSpeedFrequenciesPerBin.keySet());
         Collections.sort(relativeSpeedsCategoriesList);
         return relativeSpeedsCategoriesList;
+    }
+
+    CategoryDataset buildAndGetGraphCategoryDataset() {
+        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+        List<Double> relativeSpeedsCategoriesList = getSortedListRelativeSpeedCategoryList();
+        for (Double category : relativeSpeedsCategoriesList) {
+            Map<Integer, Integer> relativeSpeedBins = relativeSpeedFrequenciesPerBin.getOrDefault(category, Collections.emptyMap());
+            String rowKey = "Relative Speed" + formatRelativeSpeedCategory(category);
+            for (int binIndex = 0; binIndex < noOfBins; binIndex++) {
+                dataset.addValue(relativeSpeedBins.getOrDefault(binIndex, 0), rowKey, String.valueOf(binIndex));
+            }
+        }
+        return dataset;
+    }
+
+    private String formatRelativeSpeedCategory(Double category) {
+        if (category == null) {
+            return "";
+        }
+        long integerValue = category.longValue();
+        return category == integerValue ? String.valueOf(integerValue) : category.toString();
     }
 
     private double[][] buildModesFrequencyDataset() {
@@ -249,12 +293,11 @@ public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
         CategoryPlot plot = chart.getCategoryPlot();
 
         LegendItemCollection legendItems = new LegendItemCollection();
-        List<Double> relativeSpeedsCategoriesList = new ArrayList<>(relativeSpeedFrequenciesPerBin.keySet());
+        List<Double> relativeSpeedsCategoriesList = getSortedListRelativeSpeedCategoryList();
 
-        int max = Collections.max(relativeSpeedsCategoriesList).intValue();
-
-        for (int i = 0; i <= max; i++) {
-            legendItems.add(new LegendItem(String.valueOf(i), getColor(i)));
+        for (int i = 0; i < relativeSpeedsCategoriesList.size(); i++) {
+            Double category = relativeSpeedsCategoriesList.get(i);
+            legendItems.add(new LegendItem(formatRelativeSpeedCategory(category), getColor(i)));
             plot.getRenderer().setSeriesPaint(i, getColor(i));
         }
         plot.setFixedLegendItems(legendItems);
@@ -288,6 +331,7 @@ public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
         volumes = new VolumesAnalyzerFixed(3600, travelTimeCalculatorConfigGroup.getMaxTime() - 1, network, vehicleMap);
         eventsManager.addHandler(volumes);
         this.relativeSpeedFrequenciesPerBin.clear();
+        this.invalidRelativeSpeedObservationCount = 0;
     }
 
     @Override

@@ -460,7 +460,7 @@ if __name__ == "__main__":
     grams_to_us_tons = 1 / 907185
     days_per_year = 320
     multiplier_factor = (1 / sample_size) * grams_to_us_tons * days_per_year
-    pollutants = ["CH4", "CO", "CO2", "HC", "NH3", "NOx", "PM", "PM10", "PM2_5", "ROG", "SOx", "TOG", "BC", "BCm", "BCh"]
+    pollutants = ["CH4", "CO", "CO2", "HC", "NH3", "N2O", "NOx", "PM", "PM10", "PM25", "ROG", "SOx", "TOG", "BC"]
 
     # Files
     work_dir = os.path.expanduser("~/Workspace/Simulation/sfbay")
@@ -483,7 +483,7 @@ if __name__ == "__main__":
     plot_pollutants_by_process_and_demand_flag = False
     plot_pollutant_total_by_demand = True
 
-    # pollutants = ["PM2_5", "NOx", "CO2"]
+    # pollutants = ["PM25", "NOx", "CO2"]
     # group_by = ["linkId", "vehicleTypeId", "process"]
     # process_by_link_type_process(
     #     skims_db = skims_db,
@@ -492,7 +492,7 @@ if __name__ == "__main__":
     #     output_file = f"{run_dir}/emissions_by_{'_'.join(group_by)}_for_{'_'.join(pollutants)}.csv.gz"
     # )
 
-    # pollutants = ["PM2_5", "NOx", "CO2"]
+    # pollutants = ["PM25", "NOx", "CO2"]
     # group_by = ["process"]
     # result = process_by_link_type_process(
     #     skims_db = skims_db,
@@ -600,7 +600,7 @@ if __name__ == "__main__":
         grouped_df = melted_df.groupby(["process", "pollutant", "mode"])["tons_year"].sum().reset_index()
         plot_emissions_by_mode_and_pollutant(
             grouped_df,
-            pollutant="PM2_5",
+            pollutant="PM25",
             scenario="2018 Baseline Passenger and Freight",
             plot_dir=output_dir,
             width_size=16,

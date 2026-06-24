@@ -8,7 +8,13 @@ import beam.router.Modes.BeamMode
 import beam.router.Router
 import beam.router.r5.{R5Parameters, R5Wrapper}
 import beam.router.skim._
-import beam.router.skim.core.{AbstractSkimmer, AbstractSkimmerEventFactory, ODSkimmer}
+import beam.router.skim.core.{
+  AbstractSkimmer,
+  AbstractSkimmerEventFactory,
+  AbstractSkimmerInternal,
+  AbstractSkimmerKey,
+  ODSkimmer
+}
 import beam.router.skim.urbansim.MasterActor.Response
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.ProfilingUtils
@@ -215,7 +221,10 @@ object BackgroundFullSkimsCreator {
   ): ActivitySimSkimmer =
     new ActivitySimSkimmer(beamServices.matsimServices, beamServices.beamScenario, beamServices.beamConfig) {
 
-      override def writeToDisk(event: IterationEndsEvent): Unit = {
+      override protected def writeToDisk(
+        event: IterationEndsEvent,
+        skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
+      ): Unit = {
         ProfilingUtils.timed(s"writeFullSkims on iteration ${event.getIteration}", v => logger.info(v)) {
           val filePath = event.getServices.getControlerIO.getIterationFilename(
             event.getServices.getIterationNumber,
@@ -225,7 +234,7 @@ object BackgroundFullSkimsCreator {
             .map(taz => GeoUnit.TAZ(taz.tazId.toString, taz.coord, taz.areaInSquareMeters))
             .toSeq
 
-          writeSkimsForTimePeriods(origins, origins, filePath)
+          writeSkimsForTimePeriods(origins, origins, filePath, skim)
           logger.info(s"Written UrbanSim peak skims to $filePath")
         }
       }
@@ -234,7 +243,10 @@ object BackgroundFullSkimsCreator {
   def createH3ActivitySimSkimmer(beamServices: BeamServices, h3Clustering: H3Clustering): ActivitySimSkimmer =
     new ActivitySimSkimmer(beamServices.matsimServices, beamServices.beamScenario, beamServices.beamConfig) {
 
-      override def writeToDisk(event: IterationEndsEvent): Unit = {
+      override protected def writeToDisk(
+        event: IterationEndsEvent,
+        skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
+      ): Unit = {
         ProfilingUtils.timed(s"writeFullSkims on iteration ${event.getIteration}", v => logger.info(v)) {
           val filePath = event.getServices.getControlerIO.getIterationFilename(
             event.getServices.getIterationNumber,
@@ -248,7 +260,7 @@ object BackgroundFullSkimsCreator {
             GeoUnit.H3(h3Index.index.value, utmCenter, areaInSquareMeters)
           }
 
-          writeSkimsForTimePeriods(origins, origins, filePath)
+          writeSkimsForTimePeriods(origins, origins, filePath, skim)
           logger.info(s"Written UrbanSim peak skims to $filePath")
         }
       }
@@ -257,7 +269,10 @@ object BackgroundFullSkimsCreator {
   def createTAZOdSkimmer(beamServices: BeamServices, tazClustering: TAZClustering): ODSkimmer =
     new ODSkimmer(beamServices.matsimServices, beamServices.beamScenario, beamServices.beamConfig) {
 
-      override def writeToDisk(event: IterationEndsEvent): Unit = {
+      override protected def writeToDisk(
+        event: IterationEndsEvent,
+        skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
+      ): Unit = {
         ProfilingUtils.timed(s"writeFullSkims on iteration ${event.getIteration}", v => logger.info(v)) {
           val filePath = event.getServices.getControlerIO.getIterationFilename(
             event.getServices.getIterationNumber,
@@ -269,7 +284,7 @@ object BackgroundFullSkimsCreator {
             .map(taz => GeoUnit.TAZ(taz.tazId.toString, taz.coord, taz.areaInSquareMeters))
             .toSeq
 
-          writeFullSkims(origins, origins, uniqueTimeBins, Seq(""), filePath)
+          writeFullSkims(origins, origins, uniqueTimeBins, Seq(""), filePath, skim)
           logger.info(s"Written UrbanSim peak skims for hours $hours to $filePath")
         }
       }
@@ -278,7 +293,10 @@ object BackgroundFullSkimsCreator {
   def createH3ODSkimmer(beamServices: BeamServices, h3Clustering: H3Clustering): ODSkimmer =
     new ODSkimmer(beamServices.matsimServices, beamServices.beamScenario, beamServices.beamConfig) {
 
-      override def writeToDisk(event: IterationEndsEvent): Unit = {
+      override protected def writeToDisk(
+        event: IterationEndsEvent,
+        skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
+      ): Unit = {
         ProfilingUtils.timed(s"writeFullSkims on iteration ${event.getIteration}", v => logger.info(v)) {
           val filePath = event.getServices.getControlerIO.getIterationFilename(
             event.getServices.getIterationNumber,
@@ -294,7 +312,7 @@ object BackgroundFullSkimsCreator {
             GeoUnit.H3(h3Index.index.value, utmCenter, areaInSquareMeters)
           }
 
-          writeFullSkims(origins, origins, uniqueTimeBins, Seq(""), filePath)
+          writeFullSkims(origins, origins, uniqueTimeBins, Seq(""), filePath, skim)
           logger.info(s"Written UrbanSim peak skims for hours $hours to $filePath")
         }
       }

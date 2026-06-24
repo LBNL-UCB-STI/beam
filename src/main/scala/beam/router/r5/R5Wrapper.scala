@@ -383,6 +383,113 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     (exhaustions, maxInUse, poolSize)
   }
 
+  private def invalidateMcRaptorRouterPool(
+    r5mode: StreetMode,
+    isDriveTransitRequest: Boolean
+  ): Unit = {
+    val listSupplierType = mcRaptorListSupplierType(isDriveTransitRequest)
+    val cacheKey = McRaptorRouterCacheKey(r5mode, listSupplierType)
+    mcRaptorRouterCaches.get().remove(cacheKey)
+    mcRaptorStatePools.get().remove(cacheKey)
+  }
+
+  private def createFreshMcRaptorRouter(
+    profileRequest: ProfileRequest,
+    accessTimesJava: java.util.HashMap[LegMode, TIntIntMap],
+    egressTimesJava: java.util.HashMap[LegMode, TIntIntMap],
+    departureTimeToDominatingList: IntFunction[DominatingList]
+  ): McRaptorSuboptimalPathProfileRouter = {
+    new McRaptorSuboptimalPathProfileRouter(
+      transportNetwork,
+      profileRequest,
+      accessTimesJava,
+      egressTimesJava,
+      departureTimeToDominatingList,
+      null
+    )
+  }
+
+  private def formatStreetVehicles(streetVehicles: IndexedSeq[StreetVehicle]): String =
+    streetVehicles
+      .map { vehicle =>
+        s"${vehicle.id}:${vehicle.mode}:${vehicle.vehicleTypeId}"
+      }
+      .mkString("[", ", ", "]")
+
+  private def formatStopAccessMap(timesByMode: java.util.HashMap[LegMode, TIntIntMap]): String =
+    timesByMode.asScala
+      .map { case (mode, stops) =>
+        s"$mode:${Option(stops).map(_.size()).getOrElse(0)}"
+      }
+      .mkString("[", ", ", "]")
+
+  private def logMcRaptorFailureContext(
+    marker: String,
+    request: RoutingRequest,
+    mode: LegMode,
+    r5StreetMode: StreetMode,
+    profileRequest: ProfileRequest,
+    accessTimesJava: java.util.HashMap[LegMode, TIntIntMap],
+    egressTimesJava: java.util.HashMap[LegMode, TIntIntMap],
+    error: Throwable
+  ): Unit = {
+    val accessModes =
+      Option(profileRequest.accessModes).map(_.asScala.mkString("[", ", ", "]")).getOrElse("[]")
+    val egressModes =
+      Option(profileRequest.egressModes).map(_.asScala.mkString("[", ", ", "]")).getOrElse("[]")
+    logger.error(
+      s"[$marker] requestId=${request.requestId}, triggerId=${request.triggerId}, personId=${request.personId.getOrElse("<none>")}, " +
+      s"requestedMode=${request.requestedMode.getOrElse("<none>")}, withTransit=${request.withTransit}, mode=$mode, " +
+      s"streetMode=$r5StreetMode, departureTime=${request.departureTime}, fromTime=${profileRequest.fromTime}, toTime=${profileRequest.toTime}, " +
+      s"originUTM=${request.originUTM}, destinationUTM=${request.destinationUTM}, " +
+      s"originWGS=(${profileRequest.fromLat},${profileRequest.fromLon}), destinationWGS=(${profileRequest.toLat},${profileRequest.toLon}), " +
+      s"streetVehicles=${formatStreetVehicles(request.streetVehicles)}, " +
+      s"possibleEgressVehicles=${formatStreetVehicles(request.possibleEgressVehicles)}, " +
+      s"accessModes=$accessModes, " +
+      s"egressModes=$egressModes, " +
+      s"accessStops=${formatStopAccessMap(accessTimesJava)}, egressStops=${formatStopAccessMap(egressTimesJava)}, " +
+      s"initiatedFrom=${request.initiatedFrom}",
+      error
+    )
+  }
+
+  private def getFreshMcRaptorPaths(
+    request: RoutingRequest,
+    mode: LegMode,
+    requestId: Int,
+    r5StreetMode: StreetMode,
+    profileRequest: ProfileRequest,
+    accessTimesJava: java.util.HashMap[LegMode, TIntIntMap],
+    egressTimesJava: java.util.HashMap[LegMode, TIntIntMap],
+    departureTimeToDominatingList: IntFunction[DominatingList]
+  ): Iterable[PathWithTimes] = {
+    val freshRouter = createFreshMcRaptorRouter(
+      profileRequest,
+      accessTimesJava,
+      egressTimesJava,
+      departureTimeToDominatingList
+    )
+    Try(freshRouter.getPaths.asScala) match {
+      case Success(paths) => paths
+      case Failure(retryError) =>
+        logMcRaptorFailureContext(
+          marker = "MCRAPTOR-FRESH-RETRY-FAILED-CONTEXT",
+          request = request,
+          mode = mode,
+          r5StreetMode = r5StreetMode,
+          profileRequest = profileRequest,
+          accessTimesJava = accessTimesJava,
+          egressTimesJava = egressTimesJava,
+          error = retryError
+        )
+        logger.error(
+          s"[MCRAPTOR-FRESH-RETRY-FAILED] requestId=$requestId mode=$mode fromTime=${profileRequest.fromTime} toTime=${profileRequest.toTime}",
+          retryError
+        )
+        Nil
+    }
+  }
+
   private def borrowRouterWithStatePool(
     travelTimeCalculator: TravelTimeCalculator,
     travelCostCalculator: TravelCostCalculator,
@@ -1375,9 +1482,39 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
                   isDriveTransitRequest
                 )
                 val mcRaptorCallStarted = System.currentTimeMillis()
+                var shouldReturnRouterToPool = true
                 try {
                   Try(router.getPaths.asScala) match {
                     case Success(p) => p
+                    case Failure(e: ArrayIndexOutOfBoundsException) =>
+                      shouldReturnRouterToPool = false
+                      driveTransitDiagnostics.incrementMcRaptorExceptions()
+                      logMcRaptorFailureContext(
+                        marker = "MCRAPTOR-POOL-INVALIDATED-CONTEXT",
+                        request = request,
+                        mode = mode,
+                        r5StreetMode = r5StreetMode,
+                        profileRequest = profileRequest,
+                        accessTimesJava = accessTimesJava,
+                        egressTimesJava = egressTimesJava,
+                        error = e
+                      )
+                      logger.warn(
+                        s"[MCRAPTOR-POOL-INVALIDATED] requestId=${request.requestId} mode=$mode streetMode=$r5StreetMode " +
+                        s"fromTime=${profileRequest.fromTime} toTime=${profileRequest.toTime}. Retrying with a fresh router.",
+                        e
+                      )
+                      invalidateMcRaptorRouterPool(r5StreetMode, isDriveTransitRequest)
+                      getFreshMcRaptorPaths(
+                        request,
+                        mode,
+                        request.requestId,
+                        r5StreetMode,
+                        profileRequest,
+                        accessTimesJava,
+                        egressTimesJava,
+                        departureTimeToDominatingList
+                      )
                     case Failure(e) =>
                       driveTransitDiagnostics.incrementMcRaptorExceptions()
                       handleMcRaptorGetPathsFailure(
@@ -1387,30 +1524,30 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
                       Nil
                   }
                 } finally {
-                  val (statePoolExhaustions, statePoolMaxInUse, statePoolSize) =
-                    returnMcRaptorRouter(router, r5StreetMode, isDriveTransitRequest)
-                  val mcRaptorElapsedMs = System.currentTimeMillis() - mcRaptorCallStarted
-                  val statePoolUtilization =
-                    if (statePoolSize > 0) statePoolMaxInUse.toDouble / statePoolSize.toDouble else 0.0
-                  if (logPoolPressureWarnings && (statePoolExhaustions > 0 || statePoolUtilization >= 0.9)) {
-                    logger.warn(
-                      s"[MCRAPTOR-POOL-PRESSURE] requestId=${request.requestId}, " +
-                      s"mode=$mode, streetMode=$r5StreetMode, fromTime=${profileRequest.fromTime}, toTime=${profileRequest.toTime}, " +
-                      s"elapsedMs=$mcRaptorElapsedMs, statePoolExhaustions=$statePoolExhaustions, " +
-                      s"statePoolMaxInUse=$statePoolMaxInUse, statePoolSize=$statePoolSize, " +
-                      f"statePoolUtilization=${statePoolUtilization * 100.0}%.1f%%, routerId=${System.identityHashCode(router)}"
-                    )
+                  if (shouldReturnRouterToPool) {
+                    val (statePoolExhaustions, statePoolMaxInUse, statePoolSize) =
+                      returnMcRaptorRouter(router, r5StreetMode, isDriveTransitRequest)
+                    val mcRaptorElapsedMs = System.currentTimeMillis() - mcRaptorCallStarted
+                    val statePoolUtilization =
+                      if (statePoolSize > 0) statePoolMaxInUse.toDouble / statePoolSize.toDouble else 0.0
+                    if (logPoolPressureWarnings && (statePoolExhaustions > 0 || statePoolUtilization >= 0.9)) {
+                      logger.warn(
+                        s"[MCRAPTOR-POOL-PRESSURE] requestId=${request.requestId}, " +
+                        s"mode=$mode, streetMode=$r5StreetMode, fromTime=${profileRequest.fromTime}, toTime=${profileRequest.toTime}, " +
+                        s"elapsedMs=$mcRaptorElapsedMs, statePoolExhaustions=$statePoolExhaustions, " +
+                        s"statePoolMaxInUse=$statePoolMaxInUse, statePoolSize=$statePoolSize, " +
+                        f"statePoolUtilization=${statePoolUtilization * 100.0}%.1f%%, routerId=${System.identityHashCode(router)}"
+                      )
+                    }
                   }
                 }
               } else {
                 // Safety fallback: allocate fresh router per request mode.
-                val router = new McRaptorSuboptimalPathProfileRouter(
-                  transportNetwork,
+                val router = createFreshMcRaptorRouter(
                   profileRequest,
                   accessTimesJava,
                   egressTimesJava,
-                  departureTimeToDominatingList,
-                  null
+                  departureTimeToDominatingList
                 )
                 val paths = Try(router.getPaths.asScala) match {
                   case Success(p) => p
@@ -1855,10 +1992,9 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       * the router was failing to return routes for.
       */
     vehicleCategory match {
-      case VehicleCategory.Class456Vocational => beamConfig.beam.routing.r5.maxTimeLimitForFreightInMinutes
-      case VehicleCategory.Class78Vocational  => beamConfig.beam.routing.r5.maxTimeLimitForFreightInMinutes
-      case VehicleCategory.Class78Tractor     => beamConfig.beam.routing.r5.maxTimeLimitForFreightInMinutes
-      case _                                  => default
+      case freightCategory if VehicleCategory.freightCategories.contains(freightCategory) =>
+        beamConfig.beam.routing.r5.maxTimeLimitForFreightInMinutes
+      case _ => default
     }
   }
 
@@ -2655,9 +2791,11 @@ object R5Wrapper extends StrictLogging {
     val values: Set[RoutingVehicleCategory] = Set(HeavyDuty, MediumDuty, Other)
 
     def fromCategory(category: VehicleCategory.VehicleCategory): RoutingVehicleCategory = category match {
-      case VehicleCategory.Class78Tractor | VehicleCategory.Class78Vocational => HeavyDuty
-      case VehicleCategory.Class456Vocational                                 => MediumDuty
-      case _                                                                  => Other
+      case freightCategory if VehicleCategory.heavyDutyFreightCategories.contains(freightCategory) => HeavyDuty
+      case freightCategory if VehicleCategory.mediumDutyFreightCategories.contains(freightCategory) =>
+        MediumDuty
+      case freightCategory if VehicleCategory.lightDutyFreightCategories.contains(freightCategory) => Other
+      case _                                                                                       => Other
     }
   }
 

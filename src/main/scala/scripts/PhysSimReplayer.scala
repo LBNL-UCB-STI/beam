@@ -106,8 +106,36 @@ object PhysSimReplayer extends StrictLogging {
             ConfigValueFactory.fromAnyRef(s"""$pwd/vehicletypes-baseline.csv""")
           )
           .withValue(
-            "beam.agentsim.agents.vehicles.fuelTypesFilePath",
-            ConfigValueFactory.fromAnyRef(s"""$pwd/fuelTypes.csv""")
+            "beam.agentsim.agents.vehicles.fuelTypePrices.gasoline",
+            ConfigValueFactory.fromAnyRef(0.03)
+          )
+          .withValue(
+            "beam.agentsim.agents.vehicles.fuelTypePrices.diesel",
+            ConfigValueFactory.fromAnyRef(0.02)
+          )
+          .withValue(
+            "beam.agentsim.agents.vehicles.fuelTypePrices.electricity",
+            ConfigValueFactory.fromAnyRef(0.01)
+          )
+          .withValue(
+            "beam.agentsim.agents.vehicles.fuelTypePrices.biodiesel",
+            ConfigValueFactory.fromAnyRef(0.01)
+          )
+          .withValue(
+            "beam.agentsim.agents.vehicles.fuelTypePrices.hydrogen",
+            ConfigValueFactory.fromAnyRef(0.02)
+          )
+          .withValue(
+            "beam.agentsim.agents.vehicles.fuelTypePrices.naturalGas",
+            ConfigValueFactory.fromAnyRef(0.02)
+          )
+          .withValue(
+            "beam.agentsim.agents.vehicles.fuelTypePrices.food",
+            ConfigValueFactory.fromAnyRef(0.0)
+          )
+          .withValue(
+            "beam.agentsim.agents.vehicles.fuelTypePrices.undefined",
+            ConfigValueFactory.fromAnyRef(0.0)
           )
           .withValue(
             "beam.physsim.inputNetworkFilePath",

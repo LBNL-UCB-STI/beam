@@ -12,6 +12,7 @@ import org.apache.parquet.hadoop.util.HadoopInputFile
 import org.apache.parquet.hadoop.{ParquetFileReader, ParquetReader => HadoopParquetReader}
 
 object ParquetReader {
+  private val hadoopConfiguration = new Configuration
 
   def main(args: Array[String]): Unit = {
     assert(args.nonEmpty, "Expected path to the file, but got nothig")
@@ -33,7 +34,7 @@ object ParquetReader {
   }
 
   def showMetadata(parquetPath: Path): Unit = {
-    val inputFile = HadoopInputFile.fromPath(parquetPath, new Configuration)
+    val inputFile = HadoopInputFile.fromPath(parquetPath, hadoopConfiguration)
     FileUtils.using(ParquetFileReader.open(inputFile)) { rdr =>
       println(s"Number of rows: ${rdr.getRecordCount}")
       val metaData = rdr.getFooter.getFileMetaData
@@ -61,7 +62,7 @@ object ParquetReader {
   }
 
   def read(filePath: String): (Iterator[GenericRecord], Closeable) = {
-    val inputFile = HadoopInputFile.fromPath(new Path(filePath), new Configuration)
+    val inputFile = HadoopInputFile.fromPath(new Path(filePath), hadoopConfiguration)
     val reader: HadoopParquetReader[GenericRecord] = AvroParquetReader.builder[GenericRecord](inputFile).build()
     val iter = Iterator.continually(reader.read).takeWhile(_ != null)
     (iter, reader)

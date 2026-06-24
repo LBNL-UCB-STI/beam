@@ -64,20 +64,29 @@ abstract class AbstractSkimmerEvent(eventTime: Double) extends Event(eventTime) 
 
 abstract class AbstractSkimmerReadOnly extends LazyLogging {
   private[core] var currentIterationInternal: Int = -1
-  private[core] var aggregatedFromPastSkimsInternal = Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
+  private[core] val aggregatedFromPastSkimsInternal = mutable.HashMap.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
   private[core] val pastSkimsInternal = mutable.HashMap.empty[Int, Map[AbstractSkimmerKey, AbstractSkimmerInternal]]
   var numberOfRequests: Long = 0
   var numberOfSkimValueFound: Long = 0
   def currentIteration: Int = currentIterationInternal
-  def aggregatedFromPastSkims: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = aggregatedFromPastSkimsInternal
-  def pastSkims: Map[Int, collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]] = pastSkimsInternal.toMap
 
-  def getSkimValueByKey[T <: AbstractSkimmerKey, InternalKey](key: T): Option[InternalKey] = {
-    val skimValue = pastSkims
+  def aggregatedFromPastSkims: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal] =
+    aggregatedFromPastSkimsInternal
+  def pastSkims: collection.Map[Int, collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]] = pastSkimsInternal
+
+  protected def isLatestPastSkimEmpty: Boolean = pastSkimsInternal.isEmpty
+
+  protected def latestPastSkimValue[T](key: AbstractSkimmerKey): Option[T] =
+    pastSkimsInternal
       .get(currentIteration - 1)
       .flatMap(_.get(key))
-      .orElse(aggregatedFromPastSkims.get(key))
-      .asInstanceOf[Option[InternalKey]]
+      .asInstanceOf[Option[T]]
+
+  protected def aggregatedSkimValue[T](key: AbstractSkimmerKey): Option[T] =
+    aggregatedFromPastSkimsInternal.get(key).asInstanceOf[Option[T]]
+
+  def getSkimValueByKey[T <: AbstractSkimmerKey, InternalKey](key: T): Option[InternalKey] = {
+    val skimValue = latestPastSkimValue[InternalKey](key).orElse(aggregatedSkimValue[InternalKey](key))
 
     if (skimValue.nonEmpty) {
       numberOfSkimValueFound = numberOfSkimValueFound + 1
@@ -111,9 +120,12 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
   protected val skimType: SkimType.Value
   protected val skimOutputFormat: String = "csv.gz"
   protected lazy val eventType: String = skimName + "-event"
+  private val rowBatchChars = 1 << 20
 
   private val awaitSkimLoading = 20.minutes
   private val skimCfg = beamConfig.beam.router.skim
+  protected def writeSkimsInterval: Int = skimCfg.writeSkimsInterval
+  protected def writeAggregatedSkimsInterval: Int = skimCfg.writeAggregatedSkimsInterval
 
   protected[core] val currentSkimInternal = new ConcurrentHashMap[AbstractSkimmerKey, AbstractSkimmerInternal]()
 
@@ -135,10 +147,17 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
     currObservation: AbstractSkimmerInternal
   ): AbstractSkimmerInternal
 
-  protected[skim] def currentSkim: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = currentSkimInternal.asScala.toMap
+  protected[skim] def currentSkimSnapshot: Map[AbstractSkimmerKey, AbstractSkimmerInternal] =
+    currentSkimInternal.asScala.toMap
 
   protected[skim] def getCurrentSkimValue(key: AbstractSkimmerKey): Option[AbstractSkimmerInternal] =
     Option(currentSkimInternal.get(key))
+
+  protected[skim] def getSkimValue(
+    skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal],
+    key: AbstractSkimmerKey
+  ): Option[AbstractSkimmerInternal] =
+    skim.get(key)
 
   private def readSkimsFromFile(filePath: String): SkimReader[AbstractSkimmerKey, AbstractSkimmerInternal] = {
     filePath.toLowerCase match {
@@ -167,7 +186,8 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
     ) {
       val filePath = skimFilePath.get.skimsFilePath
       val file = File(filePath)
-      aggregatedFromPastSkimsInternal = if (file.isFile) {
+      aggregatedFromPastSkimsInternal.clear()
+      val warmStartSkims = if (file.isFile) {
         readSkimsFromFile(filePath).readAggregatedSkims
       } else {
         val filePattern = s"*${BeamWarmStart.fileNameSubstringToDetectIfReadSkimsInParallelMode}*"
@@ -177,27 +197,31 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
           }
           .toMap
       }
+      aggregatedFromPastSkimsInternal ++= warmStartSkims
     }
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
+    val skimSnapshot = currentSkimSnapshot
     // keep in memory
     if (skimCfg.keepKLatestSkims > 0) {
       if (pastSkimsInternal.size >= skimCfg.keepKLatestSkims)
         pastSkimsInternal.remove(currentIterationInternal - skimCfg.keepKLatestSkims)
-      pastSkimsInternal.put(currentIterationInternal, currentSkim)
+      pastSkimsInternal.put(currentIterationInternal, skimSnapshot)
     } else logger.warn("keepKLatestSkims is negative!")
     // aggregate
     if (beamConfig.beam.routing.overrideNetworkTravelTimesUsingSkims) {
       logger.warn("skim aggregation is skipped as 'overrideNetworkTravelTimesUsingSkims' enabled")
     } else {
-      aggregatedFromPastSkimsInternal =
-        (aggregatedFromPastSkimsInternal.keySet ++ currentSkimInternal.asScala.keySet).map { key =>
-          key -> aggregateOverIterations(aggregatedFromPastSkimsInternal.get(key), Option(currentSkimInternal.get(key)))
-        }.toMap
+      skimSnapshot.foreach { case (key, currentValue) =>
+        aggregatedFromPastSkimsInternal.update(
+          key,
+          aggregateOverIterations(aggregatedFromPastSkimsInternal.get(key), Option(currentValue))
+        )
+      }
     }
     // write
-    writeToDisk(event)
+    writeToDisk(event, skimSnapshot)
     // clear
     currentSkimInternal.clear()
   }
@@ -218,24 +242,27 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
       "beam.router.skim.writeSkims",
       v => logger.info(v)
     ) {
-      writeSkim(currentSkim, filePath)
+      writeSkim(currentSkimSnapshot, filePath)
     }
   }
 
-  def writeToDisk(event: IterationEndsEvent): Unit = {
-    if (skimCfg.writeSkimsInterval > 0 && currentIterationInternal % skimCfg.writeSkimsInterval == 0)
+  def writeToDisk(event: IterationEndsEvent): Unit = writeToDisk(event, currentSkimSnapshot)
+
+  protected def writeToDisk(
+    event: IterationEndsEvent,
+    skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
+  ): Unit = {
+    if (writeSkimsInterval > 0 && currentIterationInternal % writeSkimsInterval == 0)
       ProfilingUtils.timed(
         s"beam.router.skim.writeSkimsInterval on iteration $currentIterationInternal",
         v => logger.info(v)
       ) {
         val filePath =
           ioController.getIterationFilename(currentIterationInternal, s"$skimFileBaseName.$skimOutputFormat")
-        writeSkim(currentSkim, filePath)
+        writeSkim(skim, filePath)
       }
 
-    if (
-      skimCfg.writeAggregatedSkimsInterval > 0 && currentIterationInternal % skimCfg.writeAggregatedSkimsInterval == 0
-    ) {
+    if (writeAggregatedSkimsInterval > 0 && currentIterationInternal % writeAggregatedSkimsInterval == 0) {
       ProfilingUtils.timed(
         s"beam.router.skim.writeAggregatedSkimsInterval on iteration $currentIterationInternal",
         v => logger.info(v)
@@ -256,7 +283,20 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
     try {
       writer = org.matsim.core.utils.io.IOUtils.getBufferedWriter(filePath)
       writer.write(skimFileHeader + "\n")
-      skim.foreach(row => writer.write(row._1.toCsv + "," + row._2.toCsv + "\n"))
+      val batch = new java.lang.StringBuilder(math.min(rowBatchChars, skim.size.max(1) * 64))
+      skim.foreach { row =>
+        batch.append(row._1.toCsv)
+        batch.append(",")
+        batch.append(row._2.toCsv)
+        batch.append("\n")
+        if (batch.length() >= rowBatchChars) {
+          writer.write(batch.toString)
+          batch.setLength(0)
+        }
+      }
+      if (batch.length() > 0) {
+        writer.write(batch.toString)
+      }
       writer.close()
     } catch {
       case NonFatal(ex) =>

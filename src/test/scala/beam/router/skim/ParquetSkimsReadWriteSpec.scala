@@ -44,7 +44,7 @@ class ParquetSkimsReadWriteSpec extends AnyWordSpec with BeforeAndAfterAll with 
       )
       val start = System.nanoTime()
       println(s"Write started [${skims.length / 1000}k size, $parallelism par]")
-      writer.writeSkims(skims, filePath)
+      writer.writeSkims(skims.iterator, skims.length, filePath)
       val path = Paths.get(filePath)
       val fileSizeStr = "%.4f Gb".format(Files.size(path) / (1024.0 * 1024.0 * 1024.0))
 
@@ -123,7 +123,7 @@ class ParquetSkimsReadWriteSpec extends AnyWordSpec with BeforeAndAfterAll with 
 
     "handle an empty dataset correctly" in {
       val writer = new ParquetSkimWriter(schema, logger, createRecord, 100000, 1)
-      writer.writeSkims(Array.empty[(DummySkimKey, DummySkimVal)], testFile)
+      writer.writeSkims(Array.empty[(DummySkimKey, DummySkimVal)].iterator, 0, testFile)
 
       val reader = new ParquetSkimReader(testFile, fromParquetRow, logger)
       assert(reader.readAggregatedSkims.isEmpty)

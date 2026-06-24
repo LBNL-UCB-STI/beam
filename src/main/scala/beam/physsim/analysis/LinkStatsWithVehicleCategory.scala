@@ -162,6 +162,9 @@ class LinkStatsWithVehicleCategory(
   ): Try[(Map[Id[Link], LinkData], Map[String, Map[Id[Link], LinkData]], Int)] = {
 
     val categoryMapping = IndexedSeq(
+      Seq(VehicleCategory.Class12aVocational.toString) -> f"volume_${VehicleCategory.Class12aVocational.toString}",
+      Seq(VehicleCategory.Class2b3Vocational.toString) ->
+      f"volume_${VehicleCategory.Class2b3Vocational.toString}",
       Seq(VehicleCategory.Class456Vocational.toString) -> f"volume_${VehicleCategory.Class456Vocational.toString}",
       Seq(VehicleCategory.Class78Vocational.toString)  -> f"volume_${VehicleCategory.Class78Vocational.toString}",
       Seq(VehicleCategory.Class78Tractor.toString)     -> f"volume_${VehicleCategory.Class78Tractor.toString}"

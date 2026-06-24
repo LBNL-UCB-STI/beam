@@ -1,15 +1,27 @@
 package beam.utils
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.FuelType.{Electricity, FuelType}
+import beam.agentsim.agents.vehicles.FuelType.{
+  Biodiesel,
+  Diesel,
+  Electricity,
+  Food,
+  FuelType,
+  Gasoline,
+  Hydrogen,
+  NaturalGas,
+  Undefined
+}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.sim.common.{DoubleTypedRange, Range}
 import beam.sim.config.BeamConfig
+import beam.utils.scenario.VehicleInfo
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import com.typesafe.scalalogging.LazyLogging
 import com.univocity.parsers.common.record.Record
 import com.univocity.parsers.csv.CsvParser
+import org.apache.avro.generic.GenericRecord
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.io.IOUtils
 import org.supercsv.io.CsvMapReader
@@ -17,9 +29,20 @@ import org.supercsv.prefs.CsvPreference
 
 import java.util
 import java.util.concurrent.atomic.AtomicReference
+import scala.collection.JavaConverters._
 import scala.util.Random
 
 object BeamVehicleUtils extends LazyLogging {
+
+  def readVehicleInfosFile(filePath: String): Iterable[VehicleInfo] = {
+    if (filePath.toLowerCase.endsWith(".parquet")) {
+      readParquetVehiclesFile(filePath)
+    } else {
+      readCsvFileByLine(filePath, Vector.empty[VehicleInfo]) { case (line, acc) =>
+        acc :+ toVehicleInfo(line: java.util.Map[String, String])
+      }
+    }
+  }
 
   def readVehiclesFile(
     filePath: String,
@@ -28,15 +51,12 @@ object BeamVehicleUtils extends LazyLogging {
     vehicleManagerId: Id[VehicleManager]
   ): (Map[Id[BeamVehicle], BeamVehicle], Map[Id[BeamVehicle], Double]) = {
     val rand: Random = new Random(randomSeed)
+    val vehicles = readVehicleInfosFile(filePath)
 
-    readCsvFileByLine(filePath, (Map.empty[Id[BeamVehicle], BeamVehicle], Map.empty[Id[BeamVehicle], Double])) {
-      case (line, (vehicleAcc, socAcc)) =>
-        val vehicleIdString = line.get("vehicleId")
-        val vehicleId = Id.create(vehicleIdString, classOf[BeamVehicle])
-
-        val vehicleTypeIdString = line.get("vehicleTypeId")
-        val vehicleType = vehiclesTypeMap(Id.create(vehicleTypeIdString, classOf[BeamVehicleType]))
-
+    vehicles.foldLeft((Map.empty[Id[BeamVehicle], BeamVehicle], Map.empty[Id[BeamVehicle], Double])) {
+      case ((vehicleAcc, socAcc), vehicleInfo) =>
+        val vehicleId = Id.create(vehicleInfo.vehicleId, classOf[BeamVehicle])
+        val vehicleType = vehiclesTypeMap(Id.create(vehicleInfo.vehicleTypeId, classOf[BeamVehicleType]))
         val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
 
         val beamVehicle =
@@ -48,21 +68,89 @@ object BeamVehicleUtils extends LazyLogging {
             randomSeed = rand.nextInt
           )
 
-        val initialSocStr = Option(line.get("stateOfCharge")).map(_.trim).getOrElse("")
         (
           vehicleAcc + (vehicleId -> beamVehicle),
-          if (initialSocStr.isEmpty) socAcc else socAcc + (vehicleId -> initialSocStr.toDouble)
+          vehicleInfo.initialSoc.fold(socAcc)(soc => socAcc + (vehicleId -> soc))
         )
     }
   }
 
-  def readFuelTypeFile(filePath: String): scala.collection.Map[FuelType, Double] = {
-    readCsvFileByLine(filePath, scala.collection.mutable.HashMap[FuelType, Double]()) { case (line, z) =>
-      val fuelType = FuelType.fromString(line.get("fuelTypeId"))
-      val priceInDollarsPerMJoule = line.get("priceInDollarsPerMJoule").toDouble
-      z += ((fuelType, priceInDollarsPerMJoule))
+  private[utils] def readParquetVehiclesFile(filePath: String): Iterable[VehicleInfo] = {
+    val (iter, toClose) = ParquetReader.read(filePath)
+    try {
+      iter.map(record => toVehicleInfo(record)).toVector
+    } finally {
+      toClose.close()
     }
   }
+
+  private[utils] def toVehicleInfo(line: java.util.Map[String, String]): VehicleInfo = {
+    val initialSocStr = Option(line.get("stateOfCharge")).map(_.trim).filter(_.nonEmpty)
+    VehicleInfo(
+      vehicleId = line.get("vehicleId"),
+      vehicleTypeId = line.get("vehicleTypeId"),
+      initialSoc = initialSocStr.map(_.toDouble),
+      householdId = line.get("householdId")
+    )
+  }
+
+  private[utils] def toVehicleInfo(record: GenericRecord): VehicleInfo = {
+    VehicleInfo(
+      vehicleId = getFirstIfNotNull(record, Seq("vehicleId", "vehicle_id")).toString,
+      vehicleTypeId = getIfNotNull(record, "vehicleTypeId").toString,
+      initialSoc = Option(record.getSchema.getField("stateOfCharge"))
+        .flatMap(_ => Option(record.get("stateOfCharge")))
+        .map(asDouble),
+      householdId = getFirstIfNotNull(record, Seq("householdId", "household_id")).toString
+    )
+  }
+
+  private def getIfNotNull(record: GenericRecord, column: String): AnyRef = {
+    val value = record.get(column)
+    assert(value != null, s"Value in column '$column' is null")
+    value
+  }
+
+  private def getFirstIfNotNull(record: GenericRecord, columns: Seq[String]): AnyRef = {
+    val value = columns.iterator
+      .flatMap { column =>
+        Option(record.getSchema.getField(column)).map(_ => column -> record.get(column))
+      }
+      .collectFirst { case (column, value) if value != null => value }
+
+    value.getOrElse {
+      val availableColumns = record.getSchema.getFields.asScala.map(_.name()).mkString(", ")
+      throw new IllegalArgumentException(
+        s"None of the expected columns [${columns.mkString(", ")}] were found with non-null values. Available columns: $availableColumns"
+      )
+    }
+  }
+
+  private def asDouble(value: AnyRef): Double = {
+    value match {
+      case n: java.lang.Double  => n.doubleValue()
+      case n: java.lang.Float   => n.doubleValue()
+      case n: java.lang.Long    => n.doubleValue()
+      case n: java.lang.Integer => n.doubleValue()
+      case n: java.lang.Short   => n.doubleValue()
+      case n: java.lang.Byte    => n.doubleValue()
+      case other                => other.toString.toDouble
+    }
+  }
+
+  def fuelTypePricesFromConfig(
+    fuelTypePricesConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles.FuelTypePrices
+  ): scala.collection.Map[FuelType, Double] =
+    Map(
+      Food        -> fuelTypePricesConfig.food,
+      Gasoline    -> fuelTypePricesConfig.gasoline,
+      Diesel      -> fuelTypePricesConfig.diesel,
+      Electricity -> fuelTypePricesConfig.electricity,
+      Biodiesel   -> fuelTypePricesConfig.biodiesel,
+      Hydrogen    -> fuelTypePricesConfig.hydrogen,
+      NaturalGas  -> fuelTypePricesConfig.naturalGas,
+      Undefined   -> fuelTypePricesConfig.undefined
+    )
 
   /**
     * These are fallback values. One should define the vehicle weight in the vehicleTypes.csv.
@@ -76,11 +164,16 @@ object BeamVehicleUtils extends LazyLogging {
       case VehicleCategory.Bike                => 80
       case VehicleCategory.Car                 => 2000 // Class 1&2a (GVWR <= 8500 lbs.)
       case VehicleCategory.MediumDutyPassenger => 2500
+      case VehicleCategory.Class12aVocational  => 2500 // Class 1-2a vocational
+      case VehicleCategory.Class2b3Vocational  => 5000 // Class 2b-3 vocational
       case VehicleCategory.Class456Vocational =>
         9000 // Class 4-6 (GVWR 14001-26000 lbs. => 6000-15000, and average of 8000-9000 lbs curb weight)
       case VehicleCategory.Class78Vocational => 13000 // CLass 7&8 (GVWR 26001 to >33,001 lbs.)
       case VehicleCategory.Class78Tractor    => 20000 // CLass 7&8 (GVWR 26001 to >33,001 lbs.)
     }
+
+  private def optionalNonEmpty(line: util.Map[String, String], key: String): Option[String] =
+    Option(line.get(key)).map(_.trim).filter(_.nonEmpty)
 
   def readBeamVehicleTypeFile(filePath: String): Map[Id[BeamVehicleType], BeamVehicleType] = {
     readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicleType], BeamVehicleType]()) {
@@ -93,38 +186,40 @@ object BeamVehicleUtils extends LazyLogging {
         val primaryFuelType = FuelType.fromString(primaryFuelTypeId)
         val primaryFuelConsumptionInJoulePerMeter = line.get("primaryFuelConsumptionInJoulePerMeter").trim.toDouble
         val primaryFuelCapacityInJoule = line.get("primaryFuelCapacityInJoule").trim.toDouble
-        val primaryVehicleEnergyFile = Option(line.get("primaryVehicleEnergyFile"))
-        val monetaryCostPerMeter: Double = Option(line.get("monetaryCostPerMeter")).map(_.toDouble).getOrElse(0d)
-        val monetaryCostPerSecond: Double = Option(line.get("monetaryCostPerSecond")).map(_.toDouble).getOrElse(0d)
-        val secondaryFuelTypeId = Option(line.get("secondaryFuelType"))
-        val secondaryFuelType = secondaryFuelTypeId.map(FuelType.fromString)
+        val primaryVehicleEnergyFile = optionalNonEmpty(line, "primaryVehicleEnergyFile")
+        val monetaryCostPerMeter: Double = optionalNonEmpty(line, "monetaryCostPerMeter").map(_.toDouble).getOrElse(0d)
+        val monetaryCostPerSecond: Double =
+          optionalNonEmpty(line, "monetaryCostPerSecond").map(_.toDouble).getOrElse(0d)
+        val secondaryFuelType = optionalNonEmpty(line, "secondaryFuelType").map(FuelType.fromString)
         val secondaryFuelConsumptionInJoule =
-          Option(line.get("secondaryFuelConsumptionInJoulePerMeter")).map(_.toDouble)
-        val secondaryFuelCapacityInJoule = Option(line.get("secondaryFuelCapacityInJoule")).map(_.toDouble)
-        val secondaryVehicleEnergyFile = Option(line.get("secondaryVehicleEnergyFile"))
-        val automationLevel: Int = Option(line.get("automationLevel")).map(_.toDouble.toInt).getOrElse(1)
-        val maxVelocity = Option(line.get("maxVelocity")).map(_.toDouble)
-        val passengerCarUnit = Option(line.get("passengerCarUnit")).map(_.toDouble).getOrElse(1d)
-        val rechargeLevel2RateLimitInWatts = Option(line.get("rechargeLevel2RateLimitInWatts")).map(_.toDouble)
-        val rechargeLevel3RateLimitInWatts = Option(line.get("rechargeLevel3RateLimitInWatts")).map(_.toDouble)
+          optionalNonEmpty(line, "secondaryFuelConsumptionInJoulePerMeter").map(_.toDouble)
+        val secondaryFuelCapacityInJoule = optionalNonEmpty(line, "secondaryFuelCapacityInJoule").map(_.toDouble)
+        val secondaryVehicleEnergyFile = optionalNonEmpty(line, "secondaryVehicleEnergyFile")
+        val automationLevel: Int = optionalNonEmpty(line, "automationLevel").map(_.toDouble.toInt).getOrElse(1)
+        val maxVelocity = optionalNonEmpty(line, "maxVelocity").map(_.toDouble)
+        val passengerCarUnit = optionalNonEmpty(line, "passengerCarUnit").map(_.toDouble).getOrElse(1d)
+        val rechargeLevel2RateLimitInWatts = optionalNonEmpty(line, "rechargeLevel2RateLimitInWatts").map(_.toDouble)
+        val rechargeLevel3RateLimitInWatts = optionalNonEmpty(line, "rechargeLevel3RateLimitInWatts").map(_.toDouble)
         val vehicleCategory = VehicleCategory.fromString(line.get("vehicleCategory"))
-        val curbWeight: Double = Option(line.get("curbWeightInKg"))
+        val curbWeight: Double = optionalNonEmpty(line, "curbWeightInKg")
           .map(_.toDouble)
           .getOrElse(vehicleCategoryToWeightInKg(vehicleCategory))
         val sampleProbabilityWithinCategory =
-          Option(line.get("sampleProbabilityWithinCategory")).map(_.toDouble).getOrElse(1.0)
-        val sampleProbabilityString = Option(line.get("sampleProbabilityString"))
-        val chargingCapability = Option(line.get("chargingCapability")).flatMap(ChargingPointType(_))
-        val payloadCapacity = Option(line.get("payloadCapacityInKg")).map(_.toDouble)
-        val wheelchairAccessible = Option(line.get("wheelchairAccessible")).map(_.toBoolean)
-        val restrictRoadsByFreeSpeed = Option(line.get("restrictRoadsByFreeSpeedInMeterPerSecond")).map(_.toDouble)
+          optionalNonEmpty(line, "sampleProbabilityWithinCategory").map(_.toDouble).getOrElse(1.0)
+        val sampleProbabilityString = optionalNonEmpty(line, "sampleProbabilityString")
+        val chargingCapability = optionalNonEmpty(line, "chargingCapability").flatMap(ChargingPointType(_))
+        val payloadCapacity = optionalNonEmpty(line, "payloadCapacityInKg").map(_.toDouble)
+        val wheelchairAccessible = optionalNonEmpty(line, "wheelchairAccessible").map(_.toBoolean)
+        val restrictRoadsByFreeSpeed =
+          optionalNonEmpty(line, "restrictRoadsByFreeSpeedInMeterPerSecond").map(_.toDouble)
+        val idleTimeFraction = optionalNonEmpty(line, "idleTimeFraction").map(_.toDouble)
         val emissionsRatesInGramsPerMile =
-          Option(line.get("emissionsRatesInGramsPerMile")).flatMap(
+          optionalNonEmpty(line, "emissionsRatesInGramsPerMile").flatMap(
             parseEmissionsString(_, Some(vehicleTypeId.toString))
           )
-        val emissionsRatesFile = Option(line.get("emissionsRatesFile"))
+        val emissionsRatesFile = optionalNonEmpty(line, "emissionsRatesFile")
         val vehicleUse =
-          Option(line.get("vehicleUse")).flatMap(VehicleUse.fromStringOptional).getOrElse {
+          optionalNonEmpty(line, "vehicleUse").flatMap(VehicleUse.fromStringOptional).getOrElse {
             if (payloadCapacity.exists(_ > 0)) VehicleUse.Freight else VehicleUse.Passenger
           }
 
@@ -156,6 +251,7 @@ object BeamVehicleUtils extends LazyLogging {
           payloadCapacity,
           wheelchairAccessible,
           restrictRoadsByFreeSpeed,
+          idleTimeFraction,
           emissionsRatesFile,
           emissionsRatesInGramsPerMile,
           vehicleUse = vehicleUse
