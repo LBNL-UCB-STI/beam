@@ -158,6 +158,16 @@ def parse_cli_args():
         default=DEFAULT_OUTPUT_FORMAT,
         help=f"Output format for carriers, tours, and payloads. Defaults to {DEFAULT_OUTPUT_FORMAT}."
     )
+    parser.add_argument(
+        "--work-dir",
+        default=None,
+        help="Override the working directory from area config (e.g. ~/Workspace/Simulation/seattle)."
+    )
+    parser.add_argument(
+        "--network-osm-pbf",
+        default=None,
+        help="Override the OSM PBF network file path from area config."
+    )
     return parser.parse_args()
 
 
@@ -173,7 +183,9 @@ else:
         map_fastsim_routee_files=DEFAULT_MAP_FASTSIM_ROUTEE_FILES,
         override_ev_fuel_capacity=DEFAULT_OVERRIDE_EV_FUEL_CAPACITY,
         trace_vehicle_types=DEFAULT_TRACE_VEHICLE_TYPES,
-        output_format=DEFAULT_OUTPUT_FORMAT
+        output_format=DEFAULT_OUTPUT_FORMAT,
+        work_dir=None,
+        network_osm_pbf=None
     )
 
 
@@ -195,6 +207,10 @@ CONFIG = dict(area_config[AREA])
 CONFIG["batch"] = BATCH
 CONFIG["scenario"] = SCENARIO
 CONFIG["frism_version"] = FRISM_VERSION
+if _cli_args.work_dir is not None:
+    CONFIG["work_dir"] = os.path.expanduser(_cli_args.work_dir)
+if _cli_args.network_osm_pbf is not None:
+    CONFIG["network_osm_pbf"] = os.path.expanduser(_cli_args.network_osm_pbf)
 
 # ************************************************************************************************
 
@@ -519,12 +535,12 @@ def format_payload(_payload_plans: pd.DataFrame) -> pd.DataFrame:
     _payload_plans['weightInKg'] = _payload_plans['weightInlb'].astype(float) * 0.45359237
 
     # Handle different FRISM versions
+    _payload_plans['activityType'] = ""
     if FRISM_VERSION > 1.0:
         _payload_plans['deliveryType'] = _payload_plans['requestType'].map({
             1: 'delivery-only',
             3: 'pickup-delivery'
         })
-        _payload_plans['activityType'] = ""
         _payload_plans.loc[_payload_plans['weightInKg'] < 0, 'activityType'] = 'unloading'
         _payload_plans.loc[_payload_plans['weightInKg'] >= 0, 'activityType'] = 'loading'
         _payload_plans['weightInKg'] = np.abs(_payload_plans['weightInKg'])
