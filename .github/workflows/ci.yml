@@ -48,7 +48,7 @@ jobs:
           ./gradlew --stacktrace testClasses -Dorg.gradle.jvmargs="-Xmx4g"
 
   # Parallel Spec Test Execution across 4 concurrent runner jobs
-  test-matrix:
+  spec-matrix:
     name: Test Suite (${{ matrix.suite-name }})
     needs: compile-and-lint
     runs-on: ubuntu-latest
@@ -59,13 +59,13 @@ jobs:
       matrix:
         include:
           - suite-name: agentsim
-            packages: "-Ppackages=beam.agentsim"
+            packages: "beam.agentsim"
           - suite-name: physsim-router
-            packages: "-Ppackages=beam.physsim,beam.router"
-          - suite-name: integration-replanning
-            packages: "-Ppackages=beam.integration,beam.replanning,beam.cosim"
-          - suite-name: scripts-analysis-sim
-            packages: "-Ppackages=scripts,beam.analysis,beam.sim"
+            packages: "beam.physsim,beam.router"
+          - suite-name: analysis-sim
+            packages: "beam.analysis,beam.sim"
+          - suite-name: scripts-replanning-cosim
+            packages: "scripts,beam.replanning,beam.cosim"
 
     steps:
       - name: Checkout Code
@@ -88,6 +88,11 @@ jobs:
           distribution: 'temurin'
           java-version: '11'
 
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libblosc-dev
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -95,7 +100,7 @@ jobs:
 
       - name: Run Sharded ScalaTest Suite
         run: |
-          ./gradlew spec ${{ matrix.packages }} -PnumThreads=4 -Dorg.gradle.jvmargs="-Xmx4g"
+          ./gradlew spec -Ppackages="${{ matrix.packages }}" -PnumThreads=4 -Dorg.gradle.jvmargs="-Xmx4g"
 
       - name: Upload Test Report Artifact
         uses: actions/upload-artifact@v4
