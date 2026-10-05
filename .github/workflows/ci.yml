@@ -60,12 +60,16 @@ jobs:
         include:
           - suite-name: agentsim
             packages: "beam.agentsim"
+            suites: ""
           - suite-name: physsim-router
             packages: "beam.physsim,beam.router"
+            suites: ""
           - suite-name: analysis-sim
             packages: "beam.analysis,beam.sim"
+            suites: ""
           - suite-name: scripts-replanning-cosim
             packages: "scripts,beam.replanning,beam.cosim"
+            suites: "beam.integration.EventsFileSpec"
 
     steps:
       - name: Checkout Code
@@ -100,7 +104,7 @@ jobs:
 
       - name: Run Sharded ScalaTest Suite
         run: |
-          ./gradlew spec -Ppackages="${{ matrix.packages }}" -PnumThreads=4 -Dorg.gradle.jvmargs="-Xmx4g"
+          ./gradlew spec -Ppackages="${{ matrix.packages }}" -Psuites="${{ matrix.suites }}" -PnumThreads=4 -Dorg.gradle.jvmargs="-Xmx4g"
 
       - name: Upload Test Report Artifact
         uses: actions/upload-artifact@v4

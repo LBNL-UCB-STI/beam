@@ -469,7 +469,16 @@ task spec(dependsOn: ['testClasses'], type: JavaExec) {
             '-W', '300', '60']
     if (project.hasProperty('packages')) {
         for (pkg in project.property('packages').split(',')) {
-            args += ['-w', pkg.trim()]
+            if (pkg.trim()) {
+                args += ['-w', pkg.trim()]
+            }
+        }
+    }
+    if (project.hasProperty('suites')) {
+        for (suite in project.property('suites').split(',')) {
+            if (suite.trim()) {
+                args += ['-s', suite.trim()]
+            }
         }
     }
     classpath = sourceSets.test.runtimeClasspath
