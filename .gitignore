@@ -64,6 +64,7 @@ osm.mapdb
 osm.mapdb.p
 network.dat
 physsim-network.xml
+!test/input/beamville/r5/physsim-network.xml
 src/main/scala/beam/sandbox
 test/scala/beam/sandbox
 log-path_IS_UNDEFINED/
