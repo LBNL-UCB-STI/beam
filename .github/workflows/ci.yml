@@ -126,7 +126,7 @@ jobs:
 
       - name: Run Sharded ScalaTest Suite
         run: |
-          ./gradlew spec -Ppackages="${{ matrix.packages }}" -Psuites="${{ matrix.suites }}" -PnumThreads=4 -Dorg.gradle.jvmargs="-Xmx2g"
+          ./gradlew spec -Ppackages="${{ matrix.packages }}" -Psuites="${{ matrix.suites }}" -PnumThreads=4 -Dorg.gradle.jvmargs="-Xmx4g"
 
       - name: Upload Test Report Artifact
         uses: actions/upload-artifact@v4

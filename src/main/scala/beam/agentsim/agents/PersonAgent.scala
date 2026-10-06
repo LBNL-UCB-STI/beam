@@ -704,64 +704,70 @@ class PersonAgent(
 
         val parentTourStrategy: Option[TourModeChoiceStrategy] = getParentTourStrategy(currentTour)
         val onSubtour: Boolean = parentTourStrategy.isDefined
-        val parentTourVehicleId: Option[Id[BeamVehicle]] = parentTourStrategy.flatMap(_.tourVehicle)
+        val effectiveParentTourVehicleId: Option[Id[BeamVehicle]] = ChoosesMode.effectiveParentTourVehicle(parentTourStrategy)
 
-        val (effectiveParentTourVehicleId: Option[Id[BeamVehicle]], effectiveTourStrategy: TourModeChoiceStrategy) =
+        val (resolvedSubtourVehicle: Option[Id[BeamVehicle]], effectiveTourStrategy: TourModeChoiceStrategy) =
           if (onSubtour) {
             // A subtour only inherits a vehicle if the enclosing parent tour is explicitly CAR_BASED or BIKE_BASED.
             // Walk-based parent tours (e.g. WALK_TRANSIT with egress car at station) must NOT pass that vehicle to a workplace subtour.
-            val parentVehicleMissing = parentTourVehicleId.forall(v => !beamVehicles.contains(v))
             val parentTourHasVehicle = parentTourStrategy.exists(s =>
               s.tourMode.contains(BeamTourMode.CAR_BASED) || s.tourMode.contains(BeamTourMode.BIKE_BASED)
             )
-            val adoptedParentVehicle: Option[Id[BeamVehicle]] =
+            val parentVehicleMissing = effectiveParentTourVehicleId.forall(v => !beamVehicles.contains(v))
+            val subtourVehicle: Option[Id[BeamVehicle]] =
               if (parentTourHasVehicle) {
-                if (parentVehicleMissing) {
-                  // If the parent vehicle was lost or replaced (e.g. by an emergency vehicle), adopt the matching vehicle
-                  // currently held in personData or active in beamVehicles so parent and subtour remain synchronized.
-                  data.currentTourPersonalVehicle
-                    .filter(vId =>
-                      beamVehicles.get(vId).exists { v =>
-                        ChoosesMode.vehicleMatchesTourMode(
-                          parentTourStrategy.get.tourMode,
-                          v.vehicle.beamVehicleType.vehicleCategory
-                        )
+                val adoptedParentVehicle =
+                  if (parentVehicleMissing) {
+                    // If the parent vehicle was lost or replaced (e.g. by an emergency vehicle), adopt the matching vehicle
+                    // currently held in personData or active in beamVehicles so parent and subtour remain synchronized.
+                    data.currentTourPersonalVehicle
+                      .filter(vId =>
+                        beamVehicles.get(vId).exists { v =>
+                          ChoosesMode.vehicleMatchesTourMode(
+                            parentTourStrategy.get.tourMode,
+                            v.vehicle.beamVehicleType.vehicleCategory
+                          )
+                        }
+                      )
+                      .orElse {
+                        beamVehicles.values.collectFirst {
+                          case ActualVehicle(v)
+                              if ChoosesMode.vehicleMatchesTourMode(
+                                parentTourStrategy.get.tourMode,
+                                v.beamVehicleType.vehicleCategory
+                              ) =>
+                            v.id
+                        }
                       }
-                    )
-                    .orElse {
-                      beamVehicles.values.collectFirst {
-                        case ActualVehicle(v)
-                            if ChoosesMode.vehicleMatchesTourMode(
-                              parentTourStrategy.get.tourMode,
-                              v.beamVehicleType.vehicleCategory
-                            ) =>
-                          v.id
-                      }
-                    }
-                } else {
-                  parentTourVehicleId
+                  } else {
+                    effectiveParentTourVehicleId
+                  }
+
+                if (parentVehicleMissing && adoptedParentVehicle.isDefined) {
+                  parentTourStrategy.foreach { pStrat =>
+                    updateParentTourStrategy(currentTour, pStrat.copy(tourVehicle = adoptedParentVehicle))
+                  }
                 }
+                adoptedParentVehicle
               } else {
-                None
+                // When parent tour is walk-based, keep the subtour's own vehicle if it is allowed (e.g. an emergency car)
+                ChoosesMode.sanitizeTourVehicleId(
+                  sanitizedCurrentTourModeChoiceStrategy.tourVehicle,
+                  parentTourVehicleId = None,
+                  onSubTour = true
+                )
               }
 
-            if (parentVehicleMissing && adoptedParentVehicle.isDefined) {
-              parentTourStrategy.foreach { pStrat =>
-                updateParentTourStrategy(currentTour, pStrat.copy(tourVehicle = adoptedParentVehicle))
-              }
-            }
-
-            // Subtour strategy vehicle must be strictly constrained to match adoptedParentVehicle or None
             val cleanedSubtourStrategy =
-              TourModeChoiceStrategy(sanitizedCurrentTourModeChoiceStrategy.tourMode, adoptedParentVehicle)
+              TourModeChoiceStrategy(sanitizedCurrentTourModeChoiceStrategy.tourMode, subtourVehicle)
             _experiencedBeamPlan.putStrategy(currentTour, cleanedSubtourStrategy)
-            (adoptedParentVehicle, cleanedSubtourStrategy)
+            (subtourVehicle, cleanedSubtourStrategy)
           } else {
-            (parentTourVehicleId, sanitizedCurrentTourModeChoiceStrategy)
+            (effectiveParentTourVehicleId, sanitizedCurrentTourModeChoiceStrategy)
           }
 
         val resolvedTourPersonalVehicle = if (onSubtour) {
-          effectiveParentTourVehicleId
+          resolvedSubtourVehicle
         } else {
           data.currentTourPersonalVehicle.orElse(effectiveTourStrategy.tourVehicle)
         }
@@ -899,8 +905,12 @@ class PersonAgent(
       case None => // No current tour vehicle, that's fine
     }
 
-    // Check parent tour strategy
-    parentTourStrategy.flatMap(_.tourVehicle) match {
+    // Check parent tour strategy (only relevant when parent tour is vehicle-based; walk-based parents do not pass vehicles to subtours)
+    val parentTourHasVehicle = parentTourStrategy.exists(s =>
+      s.tourMode.contains(BeamTourMode.CAR_BASED) || s.tourMode.contains(BeamTourMode.BIKE_BASED)
+    )
+    val effectiveParentTourVehicle = if (parentTourHasVehicle) parentTourStrategy.flatMap(_.tourVehicle) else None
+    effectiveParentTourVehicle match {
       case Some(parentTourVehicle) if currentTourStrategy.tourMode.exists(_.isVehicleBased) =>
         if (!availableVehicleIds.contains(parentTourVehicle)) {
           logger.warn(
@@ -1410,6 +1420,7 @@ class PersonAgent(
       )
       _experiencedBeamPlan.putStrategy(nextAct, TripModeChoiceStrategy(mode = None))
       val parentStrategy = getParentTourStrategy(basePersonData)
+      val effectiveParentVehicle = ChoosesMode.effectiveParentTourVehicle(parentStrategy)
       val (updatedTourMode, updatedTourPersonalVehicle): (Option[BeamTourMode], Option[Id[BeamVehicle]]) =
         if (nextAct.getType.equalsIgnoreCase("Home")) { (None, None) }
         else {
@@ -1417,7 +1428,7 @@ class PersonAgent(
             basePersonData.currentTourMode,
             sanitizeTourVehicleId(
               basePersonData.currentTourPersonalVehicle,
-              parentStrategy.flatMap(_.tourVehicle),
+              effectiveParentVehicle,
               parentStrategy.isDefined
             )
           )
@@ -1429,7 +1440,7 @@ class PersonAgent(
           currentTripMode = Some(WALK_TRANSIT),
           currentTourPersonalVehicle = sanitizeTourVehicleId(
             updatedTourPersonalVehicle,
-            parentStrategy.flatMap(_.tourVehicle),
+            effectiveParentVehicle,
             parentStrategy.isDefined
           ),
           passengerSchedule = PassengerSchedule(),
@@ -1776,7 +1787,7 @@ class PersonAgent(
             val parentStrategy = getParentTourStrategy(data)
             sanitizeTourVehicleId(
               data.currentTourPersonalVehicle,
-              parentStrategy.flatMap(_.tourVehicle),
+              ChoosesMode.effectiveParentTourVehicle(parentStrategy),
               parentStrategy.isDefined
             )
           }
@@ -1890,7 +1901,7 @@ class PersonAgent(
             currentTourPersonalVehicle = {
               val parentStrategyOpt = getParentTourStrategy(data)
               val onSubtour = parentStrategyOpt.isDefined
-              val parentTourVehicleId = parentStrategyOpt.flatMap(_.tourVehicle)
+              val parentTourVehicleId = ChoosesMode.effectiveParentTourVehicle(parentStrategyOpt)
               sanitizeTourVehicleId(data.currentTourPersonalVehicle, parentTourVehicleId, onSubtour) match {
                 case Some(personalVehId) if beamVehicles.contains(personalVehId) =>
                   val personalVeh = beamVehicles(personalVehId).asInstanceOf[ActualVehicle].vehicle
@@ -1952,15 +1963,30 @@ class PersonAgent(
                       }
                       None
                     }
-                  } else if (_experiencedBeamPlan.isLastElementInTour(data.currentActivityIndex + 1)) {
+                  } else if (_experiencedBeamPlan.isLastElementInTour(activity)) {
                     parentStrategyOpt match {
                       case Some(parentStrategy) =>
                         // Here we're coming out of a nested tour and need to get the tour of our parent vehicle
-                        sanitizeTourVehicleId(
-                          parentStrategy.tourVehicle.orElse(currentTourStrategy.tourVehicle),
-                          parentStrategy.tourVehicle,
-                          onSubTour = true
-                        )
+                        val effectiveParentVehicle = ChoosesMode.effectiveParentTourVehicle(Some(parentStrategy))
+                        if (effectiveParentVehicle.isEmpty && BeamVehicle.isEmergencyVehicle(personalVehId)) {
+                          // Subtour emergency vehicle under walk-based parent should be released when subtour ends
+                          val personalVehState = beamVehicles(personalVeh.id)
+                          beamVehicles -= personalVeh.id
+                          potentiallyChargingBeamVehicles.put(personalVeh.id, personalVehState)
+                          personalVeh.getManager match {
+                            case Some(manager) =>
+                              manager ! ReleaseVehicle(personalVeh, triggerId)
+                            case _ =>
+                              logger.warn(s"Giving up vehicle ${personalVeh.id}, which doesn't have a manager set")
+                          }
+                          None
+                        } else {
+                          sanitizeTourVehicleId(
+                            effectiveParentVehicle.orElse(currentTourStrategy.tourVehicle),
+                            effectiveParentVehicle,
+                            onSubTour = true
+                          )
+                        }
                       case _ =>
                         logger.warn(
                           s"Starting a ${activity.getType} activity, and the" +

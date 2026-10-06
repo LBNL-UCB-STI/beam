@@ -953,7 +953,6 @@ class PersonWithPersonalVehiclePlanSpec
     val vehicleType = beamScenario.vehicleTypes(Id.create(vehicleTypeId, classOf[BeamVehicleType]))
     val vehicleId = Id.createVehicleId(s"$vehicleIdPrefix-${tripMode.value}")
     val beamVehicle = new BeamVehicle(vehicleId, new Powertrain(0.0), vehicleType)
-    beamVehicle.setManager(Some(vehicleManager.ref))
 
     val householdId = Id.create(
       s"hh-$vehicleIdPrefix-${tripMode.value}-${if (isLastTripOfTour) "last" else "nonlast"}",
@@ -1008,7 +1007,6 @@ class PersonWithPersonalVehiclePlanSpec
     try {
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
       scheduler ! StartSchedule(0)
-      beamVehicle.setManager(Some(vehicleManager.ref))
 
       def emptyResponse(triggerId: Long, requestId: Int) =
         RoutingResponse(Vector.empty, requestId, None, isEmbodyWithCurrentTravelTime = false, triggerId = triggerId)
