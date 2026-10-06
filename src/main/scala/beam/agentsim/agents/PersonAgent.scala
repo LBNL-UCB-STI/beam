@@ -704,7 +704,8 @@ class PersonAgent(
 
         val parentTourStrategy: Option[TourModeChoiceStrategy] = getParentTourStrategy(currentTour)
         val onSubtour: Boolean = parentTourStrategy.isDefined
-        val effectiveParentTourVehicleId: Option[Id[BeamVehicle]] = ChoosesMode.effectiveParentTourVehicle(parentTourStrategy)
+        val effectiveParentTourVehicleId: Option[Id[BeamVehicle]] =
+          ChoosesMode.effectiveParentTourVehicle(parentTourStrategy)
 
         val (resolvedSubtourVehicle: Option[Id[BeamVehicle]], effectiveTourStrategy: TourModeChoiceStrategy) =
           if (onSubtour) {
@@ -1985,6 +1986,11 @@ class PersonAgent(
                             onSubTour = true
                           )
                         }
+                      case _ if this.id.toString.startsWith(FREIGHT_ID_PREFIX) =>
+                        logger.debug(
+                          s"Person ${this.id}: Completed freight tour at ${activity.getType}, keeping vehicle $personalVehId"
+                        )
+                        sanitizeTourVehicleId(data.currentTourPersonalVehicle)
                       case _ =>
                         logger.warn(
                           s"Starting a ${activity.getType} activity, and the" +

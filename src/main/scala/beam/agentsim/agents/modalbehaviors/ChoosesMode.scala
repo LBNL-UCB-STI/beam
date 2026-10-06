@@ -2033,9 +2033,8 @@ trait ChoosesMode {
             case _ =>
           }
           val chosenTourVehicle = resolvedCurrentTourPersonalVehicle(chosenTrip)
-          val strategyVehicleMissing = currentTourStrategy.tourVehicle.exists(vehicleId =>
-            !vehiclesForTourChoice.exists(_.id == vehicleId)
-          )
+          val strategyVehicleMissing =
+            currentTourStrategy.tourVehicle.exists(vehicleId => !vehiclesForTourChoice.exists(_.id == vehicleId))
           val shouldRefreshTourStrategy =
             currentTourStrategy.tourMode.isEmpty ||
             currentTourStrategy.tourMode != chosenCurrentTourMode ||
@@ -3813,7 +3812,11 @@ trait ChoosesMode {
       }
     }
     val sanitizedTourVehicle =
-      sanitizeTourVehicleId(newTourVehicle, effectiveParentTourVehicle(parentTourStrategy), parentTourStrategy.isDefined)
+      sanitizeTourVehicleId(
+        newTourVehicle,
+        effectiveParentTourVehicle(parentTourStrategy),
+        parentTourStrategy.isDefined
+      )
     (newTourMode, sanitizedTourVehicle) match {
       case (Some(tourMode), None) if tourMode.isVehicleBased && allowVehicleBasedTourWithoutVehicle =>
         logger.debug(

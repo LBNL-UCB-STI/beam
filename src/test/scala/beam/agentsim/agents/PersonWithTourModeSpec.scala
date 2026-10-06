@@ -2329,7 +2329,8 @@ class PersonWithTourModeSpec
     otherActivity.setCoord(workLocation)
     plan.addActivity(otherActivity)
 
-    val leg3 = PopulationUtils.createLeg(secondaryTourTripMode.orElse(primaryTourTripMode).map(_.matsimMode).getOrElse(""))
+    val leg3 =
+      PopulationUtils.createLeg(secondaryTourTripMode.orElse(primaryTourTripMode).map(_.matsimMode).getOrElse(""))
     leg3.getAttributes.putAttribute("tour_id", "101")
 
     secondaryTourMode.orElse(primaryTourMode).map { mode =>
@@ -2393,7 +2394,9 @@ class PersonWithTourModeSpec
     val beamVehicle1 = new BeamVehicle(car1Id, new Powertrain(0.0), vehicleType)
 
     val allVehicles =
-      ((if (householdHasAvailableCar) Seq(beamVehicle1) else Seq.empty) ++ extraHouseholdVehicles).map(v => v.id -> v).toMap
+      ((if (householdHasAvailableCar) Seq(beamVehicle1) else Seq.empty) ++ extraHouseholdVehicles)
+        .map(v => v.id -> v)
+        .toMap
 
     val household = householdsFactory.createHousehold(Id.create(s"hh-$personIdStr", classOf[Household]))
     household.setIncome(new IncomeImpl(50000, Income.IncomePeriod.year))
@@ -2883,10 +2886,14 @@ class PersonWithTourModeSpec
       val bikeId = Id.createVehicleId("parent-bike")
 
       assert(
-        ChoosesMode.effectiveParentTourVehicle(Some(TourModeChoiceStrategy(Some(CAR_BASED), Some(carId)))) === Some(carId)
+        ChoosesMode.effectiveParentTourVehicle(Some(TourModeChoiceStrategy(Some(CAR_BASED), Some(carId)))) === Some(
+          carId
+        )
       )
       assert(
-        ChoosesMode.effectiveParentTourVehicle(Some(TourModeChoiceStrategy(Some(BIKE_BASED), Some(bikeId)))) === Some(bikeId)
+        ChoosesMode.effectiveParentTourVehicle(Some(TourModeChoiceStrategy(Some(BIKE_BASED), Some(bikeId)))) === Some(
+          bikeId
+        )
       )
       assert(
         ChoosesMode.effectiveParentTourVehicle(Some(TourModeChoiceStrategy(Some(WALK_BASED), Some(carId)))).isEmpty,
@@ -2911,7 +2918,9 @@ class PersonWithTourModeSpec
       )
     }
 
-    it("should allow emergency vehicle across entire subtour under walk-based parent, create only one, release it when subtour ends, and retain parent egress car") {
+    it(
+      "should allow emergency vehicle across entire subtour under walk-based parent, create only one, release it when subtour ends, and retain parent egress car"
+    ) {
       val pIdStr = "subtour-emg-cycle"
       val pId = Id.createPersonId(pIdStr)
       val egressCarId = Id.createVehicleId(s"car1-$pIdStr")
@@ -2938,7 +2947,10 @@ class PersonWithTourModeSpec
         // 1. First subtour trip (work -> other):
         // Fleet manager should have generated an emergency car
         val emergencyVehOpt = subtourReq1.streetVehicles.find(v => BeamVehicle.isEmergencyVehicle(v.id))
-        assert(emergencyVehOpt.isDefined, s"Emergency vehicle must be present in subtour routing request: ${subtourReq1.streetVehicles}")
+        assert(
+          emergencyVehOpt.isDefined,
+          s"Emergency vehicle must be present in subtour routing request: ${subtourReq1.streetVehicles}"
+        )
         val emergencyVeh = emergencyVehOpt.get
         assert(emergencyVeh.id.toString.contains("-emergency-"))
         assert(!subtourReq1.streetVehicles.exists(_.id == egressCarId), "Egress car must not be offered at work")
@@ -3009,7 +3021,8 @@ class PersonWithTourModeSpec
                       linkTravelTime = Array(50, 50, 50, 50, 50),
                       transitStops = None,
                       startPoint = SpaceTime(services.geo.utm2Wgs(parkingReq1.originUTM), parkingReq1.departureTime),
-                      endPoint = SpaceTime(services.geo.utm2Wgs(parkingReq1.destinationUTM), parkingReq1.departureTime + 200),
+                      endPoint =
+                        SpaceTime(services.geo.utm2Wgs(parkingReq1.destinationUTM), parkingReq1.departureTime + 200),
                       distanceInM = 1000d
                     )
                   ),
@@ -3046,8 +3059,14 @@ class PersonWithTourModeSpec
                       linkIds = Array(80, 101),
                       linkTravelTime = Array(50, 50),
                       transitStops = None,
-                      startPoint = SpaceTime(services.geo.utm2Wgs(walkFromParkingReq1.originUTM), walkFromParkingReq1.departureTime),
-                      endPoint = SpaceTime(services.geo.utm2Wgs(walkFromParkingReq1.destinationUTM), walkFromParkingReq1.departureTime + 50),
+                      startPoint = SpaceTime(
+                        services.geo.utm2Wgs(walkFromParkingReq1.originUTM),
+                        walkFromParkingReq1.departureTime
+                      ),
+                      endPoint = SpaceTime(
+                        services.geo.utm2Wgs(walkFromParkingReq1.destinationUTM),
+                        walkFromParkingReq1.departureTime + 50
+                      ),
                       distanceInM = 100d
                     )
                   ),
@@ -3073,7 +3092,10 @@ class PersonWithTourModeSpec
 
         // At intermediate activity (other/atwork), verify currentTourPersonalVehicle is still emergency-1
         assert(
-          personAgent.stateData.asInstanceOf[PersonAgent.BasePersonData].currentTourPersonalVehicle.contains(emergencyVeh.id),
+          personAgent.stateData
+            .asInstanceOf[PersonAgent.BasePersonData]
+            .currentTourPersonalVehicle
+            .contains(emergencyVeh.id),
           "Emergency car must be retained in currentTourPersonalVehicle at intermediate subtour activity"
         )
 
@@ -3157,7 +3179,8 @@ class PersonWithTourModeSpec
                       linkTravelTime = Array(50, 50, 50, 50, 50),
                       transitStops = None,
                       startPoint = SpaceTime(services.geo.utm2Wgs(parkingReq2.originUTM), parkingReq2.departureTime),
-                      endPoint = SpaceTime(services.geo.utm2Wgs(parkingReq2.destinationUTM), parkingReq2.departureTime + 200),
+                      endPoint =
+                        SpaceTime(services.geo.utm2Wgs(parkingReq2.destinationUTM), parkingReq2.departureTime + 200),
                       distanceInM = 1000d
                     )
                   ),
@@ -3194,8 +3217,14 @@ class PersonWithTourModeSpec
                       linkIds = Array(80, 101),
                       linkTravelTime = Array(50, 50),
                       transitStops = None,
-                      startPoint = SpaceTime(services.geo.utm2Wgs(walkFromParkingReq2.originUTM), walkFromParkingReq2.departureTime),
-                      endPoint = SpaceTime(services.geo.utm2Wgs(walkFromParkingReq2.destinationUTM), walkFromParkingReq2.departureTime + 50),
+                      startPoint = SpaceTime(
+                        services.geo.utm2Wgs(walkFromParkingReq2.originUTM),
+                        walkFromParkingReq2.departureTime
+                      ),
+                      endPoint = SpaceTime(
+                        services.geo.utm2Wgs(walkFromParkingReq2.destinationUTM),
+                        walkFromParkingReq2.departureTime + 50
+                      ),
                       distanceInM = 100d
                     )
                   ),
@@ -3242,7 +3271,9 @@ class PersonWithTourModeSpec
       }
     }
 
-    it("should create and use emergency car on subtour under walk-based parent even when household has another free car at home") {
+    it(
+      "should create and use emergency car on subtour under walk-based parent even when household has another free car at home"
+    ) {
       val pIdStr = "subtour-hhcar-free"
       val pId = Id.createPersonId(pIdStr)
       val vehicleProbe = TestProbe()
@@ -3346,7 +3377,8 @@ class PersonWithTourModeSpec
                       linkTravelTime = Array(50, 50, 50, 50, 50),
                       transitStops = None,
                       startPoint = SpaceTime(services.geo.utm2Wgs(parkingReq1.originUTM), parkingReq1.departureTime),
-                      endPoint = SpaceTime(services.geo.utm2Wgs(parkingReq1.destinationUTM), parkingReq1.departureTime + 200),
+                      endPoint =
+                        SpaceTime(services.geo.utm2Wgs(parkingReq1.destinationUTM), parkingReq1.departureTime + 200),
                       distanceInM = 1000d
                     )
                   ),
@@ -3383,8 +3415,14 @@ class PersonWithTourModeSpec
                       linkIds = Array(80, 101),
                       linkTravelTime = Array(50, 50),
                       transitStops = None,
-                      startPoint = SpaceTime(services.geo.utm2Wgs(walkFromParkingReq1.originUTM), walkFromParkingReq1.departureTime),
-                      endPoint = SpaceTime(services.geo.utm2Wgs(walkFromParkingReq1.destinationUTM), walkFromParkingReq1.departureTime + 50),
+                      startPoint = SpaceTime(
+                        services.geo.utm2Wgs(walkFromParkingReq1.originUTM),
+                        walkFromParkingReq1.departureTime
+                      ),
+                      endPoint = SpaceTime(
+                        services.geo.utm2Wgs(walkFromParkingReq1.destinationUTM),
+                        walkFromParkingReq1.departureTime + 50
+                      ),
                       distanceInM = 100d
                     )
                   ),
@@ -3410,7 +3448,10 @@ class PersonWithTourModeSpec
 
         // Verify currentTourPersonalVehicle is emergency car at intermediate subtour activity
         assert(
-          personAgent.stateData.asInstanceOf[PersonAgent.BasePersonData].currentTourPersonalVehicle.contains(emergencyVeh.id),
+          personAgent.stateData
+            .asInstanceOf[PersonAgent.BasePersonData]
+            .currentTourPersonalVehicle
+            .contains(emergencyVeh.id),
           "Emergency car must be retained in currentTourPersonalVehicle at intermediate subtour activity"
         )
 
@@ -3491,7 +3532,8 @@ class PersonWithTourModeSpec
                       linkTravelTime = Array(50, 50, 50, 50, 50),
                       transitStops = None,
                       startPoint = SpaceTime(services.geo.utm2Wgs(parkingReq2.originUTM), parkingReq2.departureTime),
-                      endPoint = SpaceTime(services.geo.utm2Wgs(parkingReq2.destinationUTM), parkingReq2.departureTime + 200),
+                      endPoint =
+                        SpaceTime(services.geo.utm2Wgs(parkingReq2.destinationUTM), parkingReq2.departureTime + 200),
                       distanceInM = 1000d
                     )
                   ),
@@ -3528,8 +3570,14 @@ class PersonWithTourModeSpec
                       linkIds = Array(80, 101),
                       linkTravelTime = Array(50, 50),
                       transitStops = None,
-                      startPoint = SpaceTime(services.geo.utm2Wgs(walkFromParkingReq2.originUTM), walkFromParkingReq2.departureTime),
-                      endPoint = SpaceTime(services.geo.utm2Wgs(walkFromParkingReq2.destinationUTM), walkFromParkingReq2.departureTime + 50),
+                      startPoint = SpaceTime(
+                        services.geo.utm2Wgs(walkFromParkingReq2.originUTM),
+                        walkFromParkingReq2.departureTime
+                      ),
+                      endPoint = SpaceTime(
+                        services.geo.utm2Wgs(walkFromParkingReq2.destinationUTM),
+                        walkFromParkingReq2.departureTime + 50
+                      ),
                       distanceInM = 100d
                     )
                   ),
