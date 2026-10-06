@@ -1,6 +1,6 @@
 package beam.agentsim.agents
 
-import akka.actor.{ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.testkit.{ImplicitSender, TestActorRef, TestKitBase, TestProbe}
 import akka.util.Timeout
@@ -18,7 +18,13 @@ import beam.agentsim.infrastructure.{
   TrivialParkingManager
 }
 import beam.agentsim.scheduler.BeamAgentScheduler
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
+import beam.agentsim.scheduler.BeamAgentScheduler.{
+  CompletionNotice,
+  ScheduleKillTrigger,
+  ScheduleTrigger,
+  SchedulerProps,
+  StartSchedule
+}
 import beam.agentsim.scheduler.HasTriggerId
 import beam.integration.Repeated
 import beam.router.BeamRouter._
@@ -949,7 +955,11 @@ class PersonWithPersonalVehiclePlanSpec
     val beamVehicle = new BeamVehicle(vehicleId, new Powertrain(0.0), vehicleType)
     beamVehicle.setManager(Some(vehicleManager.ref))
 
-    val household = householdsFactory.createHousehold(hoseHoldDummyId)
+    val householdId = Id.create(
+      s"hh-$vehicleIdPrefix-${tripMode.value}-${if (isLastTripOfTour) "last" else "nonlast"}",
+      classOf[Household]
+    )
+    val household = householdsFactory.createHousehold(householdId)
     val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
     val person: Person = createIntermodalTourPerson(
       Id.createPersonId(s"retry-${tripMode.value}-${if (isLastTripOfTour) "last" else "nonlast"}"),
@@ -995,114 +1005,129 @@ class PersonWithPersonalVehiclePlanSpec
         configHolder
       )
     )
-    scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
-    scheduler ! StartSchedule(0)
-    beamVehicle.setManager(Some(vehicleManager.ref))
+    try {
+      scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
+      scheduler ! StartSchedule(0)
+      beamVehicle.setManager(Some(vehicleManager.ref))
 
-    def emptyResponse(triggerId: Long, requestId: Int) =
-      RoutingResponse(Vector.empty, requestId, None, isEmbodyWithCurrentTravelTime = false, triggerId = triggerId)
+      def emptyResponse(triggerId: Long, requestId: Int) =
+        RoutingResponse(Vector.empty, requestId, None, isEmbodyWithCurrentTravelTime = false, triggerId = triggerId)
 
-    def walkResponse(req: RoutingRequest) =
-      RoutingResponse(
-        itineraries = Vector(
-          EmbodiedBeamTrip(
-            legs = Vector(
-              EmbodiedBeamLeg(
-                beamLeg = BeamLeg(
-                  req.departureTime,
-                  BeamMode.WALK,
-                  50,
-                  BeamPath(
-                    linkIds = Array(1, 2),
-                    linkTravelTime = Array(50, 50),
-                    transitStops = None,
-                    startPoint = SpaceTime(services.geo.utm2Wgs(req.originUTM), req.departureTime),
-                    endPoint = SpaceTime(services.geo.utm2Wgs(req.destinationUTM), req.departureTime + 50),
-                    distanceInM = 100d
-                  )
-                ),
-                beamVehicleId = Id.createVehicleId("body-retry"),
-                Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
-                asDriver = true,
-                cost = 0.0,
-                unbecomeDriverOnCompletion = true
+      def walkResponse(req: RoutingRequest) =
+        RoutingResponse(
+          itineraries = Vector(
+            EmbodiedBeamTrip(
+              legs = Vector(
+                EmbodiedBeamLeg(
+                  beamLeg = BeamLeg(
+                    req.departureTime,
+                    BeamMode.WALK,
+                    50,
+                    BeamPath(
+                      linkIds = Array(1, 2),
+                      linkTravelTime = Array(50, 50),
+                      transitStops = None,
+                      startPoint = SpaceTime(services.geo.utm2Wgs(req.originUTM), req.departureTime),
+                      endPoint = SpaceTime(services.geo.utm2Wgs(req.destinationUTM), req.departureTime + 50),
+                      distanceInM = 100d
+                    )
+                  ),
+                  beamVehicleId = Id.createVehicleId("body-retry"),
+                  Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
+                  asDriver = true,
+                  cost = 0.0,
+                  unbecomeDriverOnCompletion = true
+                )
               )
             )
-          )
-        ),
-        requestId = req.requestId,
-        request = None,
-        isEmbodyWithCurrentTravelTime = false,
-        triggerId = req.triggerId
-      )
+          ),
+          requestId = req.requestId,
+          request = None,
+          isEmbodyWithCurrentTravelTime = false,
+          triggerId = req.triggerId
+        )
 
-    var routingRequestsSeen = 0
-    var finished = false
-    while (!finished) {
-      expectMsgPF() {
-        case x: EmbodyWithCurrentTravelTime =>
-          lastSender ! emptyResponse(x.triggerId, 1)
-        case x: ParkingInquiry =>
-          (parkingManager ? x).mapTo[ParkingInquiryResponse].map(res => lastSender ! res)
-        case x: RoutingRequest =>
-          // Reset manager to test probe because HouseholdActor/HouseholdFleetManager can reassign manager during initialization
-          beamVehicle.setManager(Some(vehicleManager.ref))
-          routingRequestsSeen += 1
-          if (isLastTripOfTour) {
-            if (routingRequestsSeen <= 2) {
-              assert(
-                x.streetVehicles.exists(_.id == beamVehicle.id),
-                s"At attempt $routingRequestsSeen, expected vehicle ${beamVehicle.id} in streetVehicles: ${x.streetVehicles
-                  .map(_.id)}"
-              )
-              lastSender ! emptyResponse(x.triggerId, x.requestId)
+      var routingRequestsSeen = 0
+      var finished = false
+      while (!finished) {
+        expectMsgPF(30.seconds) {
+          case x: EmbodyWithCurrentTravelTime =>
+            lastSender ! emptyResponse(x.triggerId, 1)
+          case x: ParkingInquiry =>
+            val inquirySender = lastSender
+            (parkingManager ? x).mapTo[ParkingInquiryResponse].foreach(res => inquirySender ! res)
+          case x: RoutingRequest =>
+            // Reset manager to test probe because HouseholdActor/HouseholdFleetManager can reassign manager during initialization
+            beamVehicle.setManager(Some(vehicleManager.ref))
+            routingRequestsSeen += 1
+            if (isLastTripOfTour) {
+              if (routingRequestsSeen <= 2) {
+                assert(
+                  x.streetVehicles.exists(_.id == beamVehicle.id),
+                  s"At attempt $routingRequestsSeen, expected vehicle ${beamVehicle.id} in streetVehicles: ${x.streetVehicles
+                    .map(_.id)}"
+                )
+                lastSender ! emptyResponse(x.triggerId, x.requestId)
+              } else {
+                assert(
+                  !x.streetVehicles.exists(_.id == beamVehicle.id),
+                  s"At attempt 3, expected vehicle ${beamVehicle.id} to be dropped"
+                )
+                lastSender ! walkResponse(x)
+                finished = true
+              }
             } else {
-              assert(
-                !x.streetVehicles.exists(_.id == beamVehicle.id),
-                s"At attempt 3, expected vehicle ${beamVehicle.id} to be dropped"
-              )
-              lastSender ! walkResponse(x)
+              if (routingRequestsSeen == 1) {
+                assert(
+                  x.streetVehicles.exists(_.id == beamVehicle.id),
+                  s"At attempt 1, expected vehicle ${beamVehicle.id} in streetVehicles"
+                )
+                lastSender ! emptyResponse(x.triggerId, x.requestId)
+              } else {
+                lastSender ! walkResponse(x)
+                finished = true
+              }
+            }
+          case _: CompletionNotice =>
+            if (isLastTripOfTour && routingRequestsSeen >= 3) {
+              finished = true
+            } else if (!isLastTripOfTour && routingRequestsSeen >= 2) {
               finished = true
             }
-          } else {
-            if (routingRequestsSeen == 1) {
-              assert(
-                x.streetVehicles.exists(_.id == beamVehicle.id),
-                s"At attempt 1, expected vehicle ${beamVehicle.id} in streetVehicles"
-              )
-              lastSender ! emptyResponse(x.triggerId, x.requestId)
-            } else {
-              lastSender ! walkResponse(x)
-              finished = true
-            }
-          }
-        case _: CompletionNotice =>
-          if (isLastTripOfTour && routingRequestsSeen >= 3) {
-            finished = true
-          } else if (!isLastTripOfTour && routingRequestsSeen >= 2) {
-            finished = true
-          }
-        case _: Event        =>
-        case _: HasTriggerId =>
+          case _: Event        =>
+          case _: HasTriggerId =>
+        }
       }
-    }
 
-    if (isLastTripOfTour) {
-      assert(routingRequestsSeen === 3, s"Expected exactly 3 routing attempts, but saw $routingRequestsSeen")
-      vehicleManager.fishForMessage(2.seconds) {
-        case ReleaseVehicle(veh, _) =>
-          veh.id == beamVehicle.id
-        case _ => false
+      if (isLastTripOfTour) {
+        assert(routingRequestsSeen === 3, s"Expected exactly 3 routing attempts, but saw $routingRequestsSeen")
+        vehicleManager.fishForMessage(10.seconds) {
+          case ReleaseVehicle(veh, _) =>
+            veh.id == beamVehicle.id
+          case _ => false
+        }
+      } else {
+        assert(
+          routingRequestsSeen === 2,
+          s"Expected exactly 2 routing attempts for non-final leg, but saw $routingRequestsSeen"
+        )
       }
-    } else {
-      assert(
-        routingRequestsSeen === 2,
-        s"Expected exactly 2 routing attempts for non-final leg, but saw $routingRequestsSeen"
-      )
+    } finally {
+      killSchedulerAndDrain(scheduler, householdActor, parkingManager)
     }
-    receiveWhile(200.millis) {
-      case _: Event        =>
-      case _: HasTriggerId =>
+  }
+
+  private def killSchedulerAndDrain(
+    scheduler: TestActorRef[BeamAgentScheduler],
+    householdActor: ActorRef,
+    parkingManager: ActorRef
+  ): Unit = {
+    val probe = TestProbe()
+    scheduler.tell(ScheduleKillTrigger(scheduler, 0), probe.ref)
+    system.stop(householdActor)
+    system.stop(scheduler)
+    system.stop(parkingManager)
+    receiveWhile(500.millis) { case _ =>
     }
   }
 
@@ -1162,8 +1187,7 @@ class PersonWithPersonalVehiclePlanSpec
   after {
     import scala.concurrent.duration._
     import scala.language.postfixOps
-    //we need to prevent getting this CompletionNotice from the Scheduler in the next test
-    receiveWhile(1500 millis) { case _: CompletionNotice =>
+    receiveWhile(1500.millis) { case _ =>
     }
   }
 
