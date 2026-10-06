@@ -13,6 +13,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
 import beam.sim.{BeamHelper, BeamScenario, BeamServices}
+import beam.tags.ExcludeRegular
 import beam.utils.TestConfigUtils.testConfig
 import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.config.{Config, ConfigFactory}
@@ -43,11 +44,11 @@ class GHRouterSpec extends AnyWordSpecLike with Matchers with BeamHelper with Sc
     .resolve()
 
   "Static GH" must {
-    "run successfully" in {
+    "run successfully" taggedAs ExcludeRegular in {
       runBeamWithConfig(config)
     }
 
-    "add alternative route for GraphHopper if enabled" in {
+    "add alternative route for GraphHopper if enabled" taggedAs ExcludeRegular in {
       lazy implicit val system: ActorSystem = ActorSystem("GHRouterSpec", configAltRoutes)
       val (_, _, beamScenario: BeamScenario, services: BeamServices, _) = prepareBeamService(configAltRoutes, None)
       val transportNetwork = services.injector.getInstance(classOf[TransportNetwork])
