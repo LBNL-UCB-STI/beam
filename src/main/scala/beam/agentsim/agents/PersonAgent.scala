@@ -710,25 +710,36 @@ class PersonAgent(
           if (onSubtour) {
             // If parent tour is vehicle-based and its vehicle is missing, check if person holds a matching vehicle
             val parentVehicleMissing = parentTourVehicleId.forall(v => !beamVehicles.contains(v))
+            val parentTourHasVehicle = parentTourStrategy.exists(s =>
+              s.tourMode.contains(BeamTourMode.CAR_BASED) || s.tourMode.contains(BeamTourMode.BIKE_BASED)
+            )
             val adoptedParentVehicle: Option[Id[BeamVehicle]] =
-              if (
-                parentVehicleMissing && parentTourStrategy
-                  .exists(s =>
-                    s.tourMode.contains(BeamTourMode.CAR_BASED) || s.tourMode.contains(BeamTourMode.BIKE_BASED)
-                  )
-              ) {
-                data.currentTourPersonalVehicle.filter(vId =>
-                  beamVehicles.get(vId).exists { v =>
-                    (parentTourStrategy.get.tourMode.contains(
-                      BeamTourMode.CAR_BASED
-                    ) && v.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car) ||
-                    (parentTourStrategy.get.tourMode.contains(
-                      BeamTourMode.BIKE_BASED
-                    ) && v.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike)
-                  }
-                )
+              if (parentTourHasVehicle) {
+                if (parentVehicleMissing) {
+                  data.currentTourPersonalVehicle
+                    .filter(vId =>
+                      beamVehicles.get(vId).exists { v =>
+                        ChoosesMode.vehicleMatchesTourMode(
+                          parentTourStrategy.get.tourMode,
+                          v.vehicle.beamVehicleType.vehicleCategory
+                        )
+                      }
+                    )
+                    .orElse {
+                      beamVehicles.values.collectFirst {
+                        case ActualVehicle(v)
+                            if ChoosesMode.vehicleMatchesTourMode(
+                              parentTourStrategy.get.tourMode,
+                              v.beamVehicleType.vehicleCategory
+                            ) =>
+                          v.id
+                      }
+                    }
+                } else {
+                  parentTourVehicleId
+                }
               } else {
-                parentTourVehicleId
+                None
               }
 
             if (parentVehicleMissing && adoptedParentVehicle.isDefined) {
@@ -2255,16 +2266,15 @@ class PersonAgent(
   }
 
   protected def getParentTourStrategy(
-    data: BasePersonData
+    tour: Tour
   ): Option[TourModeChoiceStrategy] = {
     if (this.id.toString.startsWith(FREIGHT_ID_PREFIX)) {
       None
     } else {
-      val thisTour = currentTour(data)
-      thisTour.originActivity match {
+      tour.originActivity match {
         case Some(act) if !act.getType.equalsIgnoreCase("home") =>
           val parentTour = _experiencedBeamPlan.getTourContaining(act)
-          if (parentTour != thisTour) {
+          if (parentTour != tour) {
             Some(_experiencedBeamPlan.getStrategy[TourModeChoiceStrategy](parentTour))
           } else {
             None
@@ -2275,21 +2285,35 @@ class PersonAgent(
     }
   }
 
+  protected def getParentTourStrategy(
+    data: BasePersonData
+  ): Option[TourModeChoiceStrategy] = {
+    val tour = nextActivity(data).map(_experiencedBeamPlan.getTourContaining).getOrElse(currentTour(data))
+    getParentTourStrategy(tour)
+  }
+
   protected def updateParentTourStrategy(
-    data: BasePersonData,
+    tour: Tour,
     strategy: TourModeChoiceStrategy
   ): Unit = {
     if (!this.id.toString.startsWith(FREIGHT_ID_PREFIX)) {
-      val thisTour = currentTour(data)
-      thisTour.originActivity match {
+      tour.originActivity match {
         case Some(act) if !act.getType.equalsIgnoreCase("home") =>
           val parentTour = _experiencedBeamPlan.getTourContaining(act)
-          if (parentTour != thisTour) {
+          if (parentTour != tour) {
             _experiencedBeamPlan.putStrategy(parentTour, strategy)
           }
         case _ =>
       }
     }
+  }
+
+  protected def updateParentTourStrategy(
+    data: BasePersonData,
+    strategy: TourModeChoiceStrategy
+  ): Unit = {
+    val tour = nextActivity(data).map(_experiencedBeamPlan.getTourContaining).getOrElse(currentTour(data))
+    updateParentTourStrategy(tour, strategy)
   }
 
   protected def getCurrentTourStrategy(

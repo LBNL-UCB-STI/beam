@@ -566,14 +566,8 @@ trait ChoosesMode {
         if (parentVehicleMissing) {
           val matchingCandidate = (newlyAvailableBeamVehicles ++ availableEmergencyVehicles).collectFirst {
             case ActualVehicle(veh)
-                if (parentTourStrategy.get.tourMode
-                  .contains(
-                    CAR_BASED
-                  ) && veh.beamVehicleType.vehicleCategory == beam.agentsim.agents.vehicles.VehicleCategory.Car) ||
-                  (parentTourStrategy.get.tourMode
-                    .contains(
-                      BIKE_BASED
-                    ) && veh.beamVehicleType.vehicleCategory == beam.agentsim.agents.vehicles.VehicleCategory.Bike) =>
+                if ChoosesMode
+                  .vehicleMatchesTourMode(parentTourStrategy.get.tourMode, veh.beamVehicleType.vehicleCategory) =>
               veh
           }
           matchingCandidate.foreach { replacementVehicle =>
@@ -1662,6 +1656,7 @@ trait ChoosesMode {
             _,
             _,
             true,
+            _,
             _
           ),
           _,
@@ -2053,17 +2048,28 @@ trait ChoosesMode {
               )
             }
           }
-          val effectiveModeOpt: Option[BeamMode] = choosesModeData.personData.currentTripMode match {
-            case None
-                if personData.currentTourPersonalVehicle.isDefined &&
-                  personData.numberOfReplanningAttempts < 3 =>
-              personData.currentTourPersonalVehicle
-                .flatMap(beamVehicles.get)
-                .map(_.vehicle.beamVehicleType.vehicleCategory) match {
-                case Some(beam.agentsim.agents.vehicles.VehicleCategory.Bike) => Some(BIKE_TRANSIT)
-                case _                                                        => Some(DRIVE_TRANSIT)
-              }
-            case other => other
+          // If this was the open-choice retry of a failed final intermodal egress, keep handling it as that mode so
+          // the retry -> abandon -> replan sequence completes. Otherwise use the planned trip mode as-is.
+          val effectiveModeOpt: Option[BeamMode] =
+            choosesModeData.personData.currentTripMode.orElse(choosesModeData.retryingIntermodalMode)
+          val ownVehicleFallback = heldOwnTourVehicleForFallback(choosesModeData)
+
+          def gotoExpensiveTripWithHeldVehicle(heldVehicle: VehicleOrToken, vehicleMode: BeamMode) = {
+            logger.warn(
+              s"Person ${this.id} found no ${effectiveModeOpt.map(_.value).getOrElse("")} route on their " +
+              s"${personData.currentTourMode.map(_.value).getOrElse("")} tour. Creating an expensive " +
+              s"${vehicleMode.value} trip with held vehicle ${heldVehicle.id} so it stays with them."
+            )
+            gotoFinishingModeChoice(
+              createExpensiveVehicleTrip(
+                currentPersonLocation,
+                nextAct,
+                Vector(heldVehicle),
+                routingResponse,
+                vehicleMode,
+                allowedVehicleModes = Seq(vehicleMode)
+              )
+            )
           }
 
           effectiveModeOpt match {
@@ -2146,6 +2152,12 @@ trait ChoosesMode {
                 context = "Replanning after giving up tour vehicle"
               )(agent = this)
 
+            case Some(mode) if ownVehicleFallback.exists(_._2 == mode) && !isFirstTripWithinTour(nextAct) =>
+              // Our own car/bike is away from home mid-tour. Excluding the mode and replanning would strand it, so we
+              // keep it with the person via an expensive trip instead.
+              val (heldVehicle, vehicleMode) = ownVehicleFallback.get
+              eventsManager.processEvent(createFailedODSkimmerEvent(currentAct, nextAct, mode))
+              gotoExpensiveTripWithHeldVehicle(heldVehicle, vehicleMode)
             case Some(mode) =>
               val odFailedSkimmerEvent = createFailedODSkimmerEvent(currentAct, nextAct, mode)
               eventsManager.processEvent(odFailedSkimmerEvent)
@@ -2209,6 +2221,7 @@ trait ChoosesMode {
               // MAX_FINAL_INTERMODAL_EGRESS_ROUTE_ATTEMPTS = 2 means exactly one retry, with the mode not excluded
               val shouldRetryFinalIntermodalEgress =
                 isFinalIntermodalEgressWithHeldVehicle &&
+                !this.id.toString.startsWith(FREIGHT_ID_PREFIX) &&
                 (personData.numberOfReplanningAttempts + 1) < MAX_FINAL_INTERMODAL_EGRESS_ROUTE_ATTEMPTS
 
               // If we've done a comprehensive routing query, we can reuse results without more routing
@@ -2335,16 +2348,21 @@ trait ChoosesMode {
                   allAvailableStreetVehicles = updatedVehicles,
                   currentLocation = choosesModeData.currentLocation,
                   excludeModes = excludeModesForRetry,
-                  parkingRequestIds = Map.empty // Clear any pending parking requests
+                  parkingRequestIds = Map.empty, // Clear any pending parking requests
+                  retryingIntermodalMode = if (shouldRetryFinalIntermodalEgress) Some(mode) else None
                 )(agent = this, context = f"Replanning after failed mode choice, with planned mode $mode")
               }
             case _ =>
-              if (this.id.toString.contains("retry")) {
-                println(s"DEBUG retry Agent ${this.id}: entering case _ (createExpensiveWalkTrip)")
+              // Bad things happen but we want them to continue their day, so we signal to downstream that trip should
+              // be made to be expensive. If we're on a car or bike based tour and still hold our own tour vehicle, we
+              // bring it along so it doesn't get stranded away from where the person ends up.
+              ownVehicleFallback match {
+                case Some((heldVehicle, vehicleMode)) =>
+                  gotoExpensiveTripWithHeldVehicle(heldVehicle, vehicleMode)
+                case None =>
+                  val expensiveWalkTrip = createExpensiveWalkTrip(currentPersonLocation, nextAct, routingResponse)
+                  gotoFinishingModeChoice(expensiveWalkTrip)
               }
-              // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
-              val expensiveWalkTrip = createExpensiveWalkTrip(currentPersonLocation, nextAct, routingResponse)
-              gotoFinishingModeChoice(expensiveWalkTrip)
           }
       }
   }
@@ -2354,9 +2372,10 @@ trait ChoosesMode {
     nextAct: Activity,
     availableStreetVehicles: Vector[VehicleOrToken],
     routingResponse: RoutingResponse,
-    mode: BeamMode
+    mode: BeamMode,
+    allowedVehicleModes: Seq[BeamMode] = Seq(CAR, FREIGHT)
   ) = {
-    availableStreetVehicles.find(v => Seq(CAR, FREIGHT).contains(v.streetVehicle.mode)) match {
+    availableStreetVehicles.find(v => allowedVehicleModes.contains(v.streetVehicle.mode)) match {
       case Some(availableVehicle) =>
         val agentToVehicleLeg = RoutingWorker
           .createBushwackingTrip(
@@ -2407,6 +2426,23 @@ trait ChoosesMode {
         )
         createExpensiveWalkTrip(currentPersonLocation, nextAct, routingResponse)
     }
+  }
+
+  /**
+    * When mode choice fails on a car or bike based tour, returns the person's own held tour vehicle (and the mode to
+    * drive it in) so the fallback trip can bring it along. Freight agents are excluded and handled by their own branch.
+    */
+  private def heldOwnTourVehicleForFallback(
+    choosesModeData: ChoosesModeData
+  ): Option[(VehicleOrToken, BeamMode)] = {
+    val personData = choosesModeData.personData
+    for {
+      mode      <- ChoosesMode.ownVehicleFallbackMode(this.id.toString, personData.currentTourMode)
+      vehicleId <- personData.currentTourPersonalVehicle
+      if beamVehicles.contains(vehicleId)
+      heldVehicle <- choosesModeData.availablePersonalStreetVehicles
+        .find(v => v.id == vehicleId && v.streetVehicle.mode == mode)
+    } yield (heldVehicle, mode)
   }
 
   private def createExpensiveWalkTrip(
@@ -3690,13 +3726,15 @@ trait ChoosesMode {
     }
 
     clearMissingVehicleReference(currentTour, "current")
-    currentTour.originActivity match {
-      case Some(originActivity) if !originActivity.getType.equalsIgnoreCase("home") =>
-        val parentTour = _experiencedBeamPlan.getTourContaining(originActivity)
-        if (parentTour != currentTour) {
-          clearMissingVehicleReference(parentTour, "parent")
-        }
-      case _ =>
+    if (!this.id.toString.startsWith(FREIGHT_ID_PREFIX)) {
+      currentTour.originActivity match {
+        case Some(originActivity) if !originActivity.getType.equalsIgnoreCase("home") =>
+          val parentTour = _experiencedBeamPlan.getTourContaining(originActivity)
+          if (parentTour != currentTour) {
+            clearMissingVehicleReference(parentTour, "parent")
+          }
+        case _ =>
+      }
     }
   }
 
@@ -3821,13 +3859,24 @@ object ChoosesMode {
       .filter(id => !onSubTour || parentTourVehicleId.contains(id))
   }
 
+  def vehicleMatchesTourMode(
+    tourMode: Option[BeamTourMode],
+    category: beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
+  ): Boolean = {
+    tourMode match {
+      case Some(BeamTourMode.CAR_BASED)  => category == beam.agentsim.agents.vehicles.VehicleCategory.Car
+      case Some(BeamTourMode.BIKE_BASED) => category == beam.agentsim.agents.vehicles.VehicleCategory.Bike
+      case _                             => false
+    }
+  }
+
   def isVehicleAllowed(
     beamVehicle: BeamVehicle,
     parentTourVehicleId: Option[Id[BeamVehicle]],
     onSubTour: Boolean
   ): Boolean = {
     val isShared = beamVehicle.isSharedVehicle || BeamVehicle.isSharedTeleportationVehicle(beamVehicle.id)
-    val isFreight = BeamVehicle.isFreightVehicle(beamVehicle.id)
+    val isFreight = beamVehicle.isFreight || BeamVehicle.isFreightVehicle(beamVehicle.id)
     if (isFreight || isShared) {
       true
     } else if (onSubTour) {
@@ -3867,6 +3916,20 @@ object ChoosesMode {
       }
 
     (recoveredVehicleFromItineraries, recoveredVehicleFromAvailableVehicles)
+  }
+
+  /**
+    * The mode a person should drive their own held tour vehicle in when mode choice fails and we fall back to an
+    * expensive trip. Only car and bike based tours qualify; freight agents always use their dedicated freight branch.
+    */
+  def ownVehicleFallbackMode(personId: String, tourMode: Option[BeamTourMode]): Option[BeamMode] = {
+    if (personId.startsWith(FREIGHT_ID_PREFIX)) None
+    else
+      tourMode match {
+        case Some(BeamTourMode.CAR_BASED)  => Some(BeamMode.CAR)
+        case Some(BeamTourMode.BIKE_BASED) => Some(BeamMode.BIKE)
+        case _                             => None
+      }
   }
 
   def updateMatsimPlanLegRoute(
@@ -3959,7 +4022,10 @@ object ChoosesMode {
     excludeModes: Set[BeamMode] = Set.empty[BeamMode],
     availableAlternatives: Option[String] = None,
     routingFinished: Boolean = false,
-    routingRequestToLegMap: Map[Int, TripIdentifier] = Map.empty
+    routingRequestToLegMap: Map[Int, TripIdentifier] = Map.empty,
+    // Set while retrying a failed final DRIVE_TRANSIT/BIKE_TRANSIT egress with open mode choice, so a second failure
+    // is still handled as an intermodal failure even though currentTripMode has been cleared
+    retryingIntermodalMode: Option[BeamMode] = None
   ) extends PersonData {
     override def currentVehicle: VehicleStack = personData.currentVehicle
 
@@ -4010,7 +4076,8 @@ object ChoosesMode {
       excludeModes: Set[BeamMode] = Set.empty[BeamMode],
       availableAlternatives: Option[String] = None,
       routingFinished: Boolean = false,
-      routingRequestToLegMap: Map[Int, TripIdentifier] = Map.empty
+      routingRequestToLegMap: Map[Int, TripIdentifier] = Map.empty,
+      retryingIntermodalMode: Option[BeamMode] = None
     )(implicit agent: PersonAgent, context: String): ChoosesModeData = {
       agent.validateTourVehicleConsistency(
         personData,
@@ -4039,7 +4106,8 @@ object ChoosesMode {
         excludeModes,
         availableAlternatives,
         routingFinished,
-        routingRequestToLegMap
+        routingRequestToLegMap,
+        retryingIntermodalMode
       )
     }
   }
