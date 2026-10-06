@@ -125,22 +125,27 @@ object FileUtils extends LazyLogging {
     * @tparam T type of the entity that is read from the file
     * @return the read entity
     */
-  def readOrCreateFile[T](path: Path, atMost: Duration = 5.minutes)(
+  def readOrCreateFile[T](path: Path, atMost: Duration = 10.minutes)(
     reader: Path => T
   )(writer: Path => T): Try[T] = {
     val locFile = path.getParent.resolve(path.getFileName.toString + ".lock")
 
     def readFile: Try[T] = {
-      if (Files.exists(locFile)) {
+      val lockCleared = if (Files.exists(locFile)) {
         logger.info(s"Waiting for lock file $locFile to be released...")
-        val lockCleared = busyWaiting(atMost.toMillis, 1000) { () =>
+        busyWaiting(atMost.toMillis, 1000) { () =>
           !Files.exists(locFile)
         }
-        if (!lockCleared) {
-          return Failure(new java.util.concurrent.TimeoutException(s"Timed out after $atMost waiting for lock file $locFile to be removed"))
-        }
+      } else {
+        true
       }
-      if (!Files.exists(path)) {
+      if (!lockCleared) {
+        Failure(
+          new java.util.concurrent.TimeoutException(
+            s"Timed out after $atMost waiting for lock file $locFile to be removed"
+          )
+        )
+      } else if (!Files.exists(path)) {
         Failure(new FileNotFoundException(s"File $path does not exist after lock release"))
       } else {
         Try { reader(path) }

@@ -2124,6 +2124,7 @@ class PersonWithTourModeSpec
       Some(1234)
     )
     person.getCustomAttributes.put("beam-attributes", attributesOfIndividual)
+    PopulationUtils.putPersonAttribute(person, "vehicle", truckId.toString)
 
     val plan = PopulationUtils.getFactory.createPlan()
 
@@ -3077,14 +3078,24 @@ class PersonWithTourModeSpec
         }
       })
 
-      val pId = Id.createPersonId("ft-carrier-1")
-      val truckId = Id.createVehicleId("freightVehicle-truck-1")
-      val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
-      val truck = new BeamVehicle(truckId, new Powertrain(0.0), vehicleType)
+      val carrierId = "ft-carrier-1"
+      val pId = Id.createPersonId(carrierId)
+      val truckId = Id.createVehicleId("ft-truck-1")
+      val vehicleType = beamScenario
+        .vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+        .copy(vehicleUse = beam.agentsim.agents.vehicles.VehicleUse.Freight)
+      val freightManagerId =
+        VehicleManager.createOrGetReservedFor(carrierId, Some(VehicleManager.TypeEnum.Freight)).managerId
+      val truck = new BeamVehicle(
+        truckId,
+        new Powertrain(0.0),
+        vehicleType,
+        vehicleManagerId = new java.util.concurrent.atomic.AtomicReference(freightManagerId)
+      )
       val vehicleProbe = TestProbe()
       truck.setManager(Some(vehicleProbe.ref))
 
-      val household = householdsFactory.createHousehold(Id.create("hh-ft-carrier-1", classOf[Household]))
+      val household = householdsFactory.createHousehold(Id.create(s"$carrierId-hh", classOf[Household]))
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
       val person: Person = createFreightPersonWithDepotTours(pId, truckId)
       population.addPerson(person)

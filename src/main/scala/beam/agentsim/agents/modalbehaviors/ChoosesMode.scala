@@ -3876,7 +3876,7 @@ object ChoosesMode {
     onSubTour: Boolean
   ): Boolean = {
     val isShared = beamVehicle.isSharedVehicle || BeamVehicle.isSharedTeleportationVehicle(beamVehicle.id)
-    val isFreight = beamVehicle.isFreight || BeamVehicle.isFreightVehicle(beamVehicle.id)
+    val isFreight = beamVehicle.isFreight
     if (isFreight || isShared) {
       true
     } else if (onSubTour) {

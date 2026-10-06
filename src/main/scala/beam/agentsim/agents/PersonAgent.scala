@@ -702,7 +702,7 @@ class PersonAgent(
         val currentCoord = currentActivity(data).getCoord
         val nextCoord = nextActivity(data).get.getCoord
 
-        val parentTourStrategy: Option[TourModeChoiceStrategy] = getParentTourStrategy(data)
+        val parentTourStrategy: Option[TourModeChoiceStrategy] = getParentTourStrategy(currentTour)
         val onSubtour: Boolean = parentTourStrategy.isDefined
         val parentTourVehicleId: Option[Id[BeamVehicle]] = parentTourStrategy.flatMap(_.tourVehicle)
 
@@ -744,7 +744,7 @@ class PersonAgent(
 
             if (parentVehicleMissing && adoptedParentVehicle.isDefined) {
               parentTourStrategy.foreach { pStrat =>
-                updateParentTourStrategy(data, pStrat.copy(tourVehicle = adoptedParentVehicle))
+                updateParentTourStrategy(currentTour, pStrat.copy(tourVehicle = adoptedParentVehicle))
               }
             }
 
@@ -2288,8 +2288,7 @@ class PersonAgent(
   protected def getParentTourStrategy(
     data: BasePersonData
   ): Option[TourModeChoiceStrategy] = {
-    val tour = nextActivity(data).map(_experiencedBeamPlan.getTourContaining).getOrElse(currentTour(data))
-    getParentTourStrategy(tour)
+    getParentTourStrategy(currentTour(data))
   }
 
   protected def updateParentTourStrategy(
@@ -2312,8 +2311,7 @@ class PersonAgent(
     data: BasePersonData,
     strategy: TourModeChoiceStrategy
   ): Unit = {
-    val tour = nextActivity(data).map(_experiencedBeamPlan.getTourContaining).getOrElse(currentTour(data))
-    updateParentTourStrategy(tour, strategy)
+    updateParentTourStrategy(currentTour(data), strategy)
   }
 
   protected def getCurrentTourStrategy(

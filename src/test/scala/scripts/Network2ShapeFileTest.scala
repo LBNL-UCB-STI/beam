@@ -26,28 +26,31 @@ class Network2ShapeFileTest extends AnyWordSpecLike with Matchers {
         // write out shapefile
         networkToShapeFile(beamvilleNetwork, outputShapeFile, crs, _ => true)
 
-      // read network agaim
-      val network = NetworkUtils.createNetwork()
-      val reader = new MatsimNetworkReader(network)
-      reader.readFile(beamvilleNetwork)
+        // read network agaim
+        val network = NetworkUtils.createNetwork()
+        val reader = new MatsimNetworkReader(network)
+        reader.readFile(beamvilleNetwork)
 
-      @SuppressWarnings(Array("UnusedMethodParameter"))
-      def mapToID2AllProperties(mathTransform: MathTransform, feature: SimpleFeature): (String, Map[String, AnyRef]) = {
-        val featureId = feature.getAttribute("ID").toString
-        val allProps =
-          feature.getProperties.asScala.map(property => property.getName.toString -> property.getValue).toMap
+        @SuppressWarnings(Array("UnusedMethodParameter"))
+        def mapToID2AllProperties(
+          mathTransform: MathTransform,
+          feature: SimpleFeature
+        ): (String, Map[String, AnyRef]) = {
+          val featureId = feature.getAttribute("ID").toString
+          val allProps =
+            feature.getProperties.asScala.map(property => property.getName.toString -> property.getValue).toMap
 
-        featureId -> allProps
-      }
+          featureId -> allProps
+        }
 
-      // read all features from shp file
-      val shpFeatures = ShapefileReader.read(crsString, outputShapeFile, _ => true, mapToID2AllProperties).toMap
+        // read all features from shp file
+        val shpFeatures = ShapefileReader.read(crsString, outputShapeFile, _ => true, mapToID2AllProperties).toMap
 
-      // compare the lengths
-      val originalNumberOfLinks = network.getLinks.size()
-      val resultCount = shpFeatures.size
+        // compare the lengths
+        val originalNumberOfLinks = network.getLinks.size()
+        val resultCount = shpFeatures.size
 
-      resultCount shouldBe originalNumberOfLinks
+        resultCount shouldBe originalNumberOfLinks
       }
     }
   }
