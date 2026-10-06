@@ -1,5 +1,6 @@
 package scripts
 
+import beam.utils.FileUtils
 import beam.utils.map.ShapefileReader
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
@@ -15,14 +16,15 @@ import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
 class Network2ShapeFileTest extends AnyWordSpecLike with Matchers {
   "Network2ShapeFile transformation" should {
     "generate the same number of features" in {
-      val beamvilleNetwork = "test/test-resources/beam/beamville-physsim-network.xml"
-      val outputShapeFile = "output/beamville-network.shp"
+      FileUtils.usingTemporaryDirectory { tempDir =>
+        val beamvilleNetwork = "test/test-resources/beam/beamville-physsim-network.xml"
+        val outputShapeFile = tempDir.resolve("beamville-network.shp").toString
 
-      val crsString = "epsg:32631"
-      val crs = MGC.getCRS(crsString)
+        val crsString = "epsg:32631"
+        val crs = MGC.getCRS(crsString)
 
-      // write out shapefile
-      networkToShapeFile(beamvilleNetwork, outputShapeFile, crs, _ => true)
+        // write out shapefile
+        networkToShapeFile(beamvilleNetwork, outputShapeFile, crs, _ => true)
 
       // read network agaim
       val network = NetworkUtils.createNetwork()
@@ -46,6 +48,7 @@ class Network2ShapeFileTest extends AnyWordSpecLike with Matchers {
       val resultCount = shpFeatures.size
 
       resultCount shouldBe originalNumberOfLinks
+      }
     }
   }
 }

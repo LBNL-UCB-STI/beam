@@ -125,34 +125,48 @@ object FileUtils extends LazyLogging {
     * @tparam T type of the entity that is read from the file
     * @return the read entity
     */
-  def readOrCreateFile[T](path: Path, atMost: Duration = 10.minutes)(
+  def readOrCreateFile[T](path: Path, atMost: Duration = 5.minutes)(
     reader: Path => T
   )(writer: Path => T): Try[T] = {
     val locFile = path.getParent.resolve(path.getFileName.toString + ".lock")
 
     def readFile: Try[T] = {
-      busyWaiting(atMost.toMillis, 1000) { () =>
-        !Files.exists(locFile)
+      if (Files.exists(locFile)) {
+        logger.info(s"Waiting for lock file $locFile to be released...")
+        val lockCleared = busyWaiting(atMost.toMillis, 1000) { () =>
+          !Files.exists(locFile)
+        }
+        if (!lockCleared) {
+          return Failure(new java.util.concurrent.TimeoutException(s"Timed out after $atMost waiting for lock file $locFile to be removed"))
+        }
       }
-      Try { reader(path) }
+      if (!Files.exists(path)) {
+        Failure(new FileNotFoundException(s"File $path does not exist after lock release"))
+      } else {
+        Try { reader(path) }
+      }
     }
 
-    if (Files.exists(path))
+    if (Files.exists(path) && !Files.exists(locFile)) {
+      Try { reader(path) }
+    } else if (Files.exists(path)) {
       readFile
-    else {
+    } else {
       val locking = Try { Files.createFile(locFile) }
       locking match {
-        case Failure(exception) =>
-          exception match {
-            case _: FileAlreadyExistsException => readFile
-            case throwable                     => Failure(throwable)
-          }
+        case Failure(_: FileAlreadyExistsException) =>
+          readFile
+        case Failure(throwable) =>
+          Failure(throwable)
         case Success(_) =>
-          val tryWrite = Try(writer(path))
-          Try(Files.delete(locFile)).failed.foreach { throwable =>
-            logger.error(s"Cannot delete lock file $locFile", throwable)
+          try {
+            val tryWrite = Try(writer(path))
+            tryWrite
+          } finally {
+            Try(Files.deleteIfExists(locFile)).failed.foreach { throwable =>
+              logger.error(s"Cannot delete lock file $locFile", throwable)
+            }
           }
-          tryWrite
       }
     }
   }
