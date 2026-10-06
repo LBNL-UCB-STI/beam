@@ -204,8 +204,27 @@ class HouseholdFleetManager(
         case _ if vehicleUse == Freight =>
           availableVehicles.find(v => assignedFreightVehicleId.contains(v.id))
         case Some(requireVehicleCategory) =>
-          availableVehicles.find(_.beamVehicleType.vehicleCategory == requireVehicleCategory)
-        case _ => availableVehicles.headOption
+          availableVehicles
+            .filterNot(v => BeamVehicle.isEmergencyVehicle(v.id))
+            .toSeq
+            .sortBy(_.id.toString)
+            .find(_.beamVehicleType.vehicleCategory == requireVehicleCategory)
+            .orElse(
+              availableVehicles.toSeq
+                .sortBy(_.id.toString)
+                .find(_.beamVehicleType.vehicleCategory == requireVehicleCategory)
+            )
+        case _ =>
+          availableVehicles
+            .filterNot(v => BeamVehicle.isEmergencyVehicle(v.id))
+            .toSeq
+            .sortBy(_.id.toString)
+            .headOption
+            .orElse(
+              availableVehicles.toSeq
+                .sortBy(_.id.toString)
+                .headOption
+            )
       }
 
       availableVehicleMaybe match {

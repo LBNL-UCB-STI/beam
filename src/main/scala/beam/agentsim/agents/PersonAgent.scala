@@ -2257,11 +2257,21 @@ class PersonAgent(
   protected def getParentTourStrategy(
     data: BasePersonData
   ): Option[TourModeChoiceStrategy] = {
-    currentTour(data).originActivity match {
-      case Some(act) if !act.getType.equalsIgnoreCase("home") =>
-        Some(_experiencedBeamPlan.getTourStrategy[TourModeChoiceStrategy](act))
-      case _ =>
-        None
+    if (this.id.toString.startsWith(FREIGHT_ID_PREFIX)) {
+      None
+    } else {
+      val thisTour = currentTour(data)
+      thisTour.originActivity match {
+        case Some(act) if !act.getType.equalsIgnoreCase("home") =>
+          val parentTour = _experiencedBeamPlan.getTourContaining(act)
+          if (parentTour != thisTour) {
+            Some(_experiencedBeamPlan.getStrategy[TourModeChoiceStrategy](parentTour))
+          } else {
+            None
+          }
+        case _ =>
+          None
+      }
     }
   }
 
@@ -2269,11 +2279,16 @@ class PersonAgent(
     data: BasePersonData,
     strategy: TourModeChoiceStrategy
   ): Unit = {
-    currentTour(data).originActivity match {
-      case Some(act) if !act.getType.equalsIgnoreCase("home") =>
-        val parentTour = _experiencedBeamPlan.getTourContaining(act)
-        _experiencedBeamPlan.putStrategy(parentTour, strategy)
-      case _ =>
+    if (!this.id.toString.startsWith(FREIGHT_ID_PREFIX)) {
+      val thisTour = currentTour(data)
+      thisTour.originActivity match {
+        case Some(act) if !act.getType.equalsIgnoreCase("home") =>
+          val parentTour = _experiencedBeamPlan.getTourContaining(act)
+          if (parentTour != thisTour) {
+            _experiencedBeamPlan.putStrategy(parentTour, strategy)
+          }
+        case _ =>
+      }
     }
   }
 

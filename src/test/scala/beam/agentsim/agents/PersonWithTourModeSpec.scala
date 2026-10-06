@@ -2284,7 +2284,7 @@ class PersonWithTourModeSpec
       pId,
       primaryTourMode = primaryTourMode,
       primaryTourTripMode = if (isParentCar) None else Some(BeamMode.WALK),
-      primaryTourVehicle = primaryTourVehicle,
+      primaryTourVehicle = primaryTourVehicle.orElse(if (isParentCar) Some(car1Id) else None),
       secondaryTourMode = secondaryTourMode,
       secondaryTourTripMode = None,
       secondaryTourVehicle = secondaryTourVehicle
@@ -2342,15 +2342,19 @@ class PersonWithTourModeSpec
         case _                                                 => false
       }.asInstanceOf[RoutingRequest]
       val personAgentRef = lastSender
-      // Re-set manager to test probe so vehicle idle notifications and release messages go to probe,
-      // not self, avoiding pollution of self's mailbox while allowing release verification.
-      // This is necessary because during actor startup, HouseholdFleetManager assigns itself as vehicle manager.
-      beamVehicle1.setManager(Some(vehProbe.ref))
-      extraHouseholdVehicles.foreach(_.setManager(Some(vehProbe.ref)))
+      var activeParentCar = beamVehicle1
       val personVehicle = routingRequest.streetVehicles.find(_.mode == WALK).get
       val linkIds = Array[Int](228, 206, 180, 178, 184, 102)
 
       if (isParentCar) {
+        val carStreetVeh = routingRequest.streetVehicles.find(_.mode == CAR).get
+        val carBeamVeh = allVehicles(carStreetVeh.id)
+        activeParentCar = carBeamVeh
+        // Re-set manager to test probe so vehicle idle notifications and release messages go to probe,
+        // not self, avoiding pollution of self's mailbox while allowing release verification.
+        // This is done after actor startup because HouseholdFleetManager assigns itself as vehicle manager during initialization.
+        carBeamVeh.setManager(Some(vehProbe.ref))
+        extraHouseholdVehicles.foreach(_.setManager(Some(vehProbe.ref)))
         personAgentRef ! RoutingResponse(
           Vector(
             EmbodiedBeamTrip(
@@ -2363,7 +2367,7 @@ class PersonWithTourModeSpec
                   WALK,
                   personVehicle.vehicleTypeId
                 ),
-                createEmbodiedBeamLeg(routingRequest, beamVehicle1.toStreetVehicle, linkIds, 50d),
+                createEmbodiedBeamLeg(routingRequest, carBeamVeh.toStreetVehicle, linkIds, 50d),
                 EmbodiedBeamLeg.dummyLegAt(
                   routingRequest.departureTime + 250,
                   personVehicle.id,
@@ -2418,7 +2422,7 @@ class PersonWithTourModeSpec
                       distanceInM = 1000d
                     )
                   ),
-                  beamVehicleId = beamVehicle1.id,
+                  beamVehicleId = activeParentCar.id,
                   Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
                   asDriver = true,
                   cost = 0.0,
@@ -2533,7 +2537,7 @@ class PersonWithTourModeSpec
         case req: RoutingRequest if req.personId.contains(pId) => true
         case _                                                 => false
       }.asInstanceOf[RoutingRequest]
-      (subtourRoutingRequest, beamVehicle1, scheduler, householdActor, parkingManager)
+      (subtourRoutingRequest, activeParentCar, scheduler, householdActor, parkingManager)
     } catch {
       case NonFatal(e) =>
         killSchedulerAndDrain(scheduler, householdActor, parkingManager)

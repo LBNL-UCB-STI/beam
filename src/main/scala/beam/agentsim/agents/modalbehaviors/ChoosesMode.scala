@@ -3707,10 +3707,19 @@ trait ChoosesMode {
     vehicles: Vector[VehicleOrToken],
     allowVehicleBasedTourWithoutVehicle: Boolean = false
   ): TourModeChoiceStrategy = {
-    val parentTourStrategy = tour.originActivity match {
-      case Some(act) if !act.getType.equalsIgnoreCase("home") =>
-        Some(_experiencedBeamPlan.getTourStrategy[TourModeChoiceStrategy](act))
-      case _ => None
+    val parentTourStrategy = if (this.id.toString.startsWith(FREIGHT_ID_PREFIX)) {
+      None
+    } else {
+      tour.originActivity match {
+        case Some(act) if !act.getType.equalsIgnoreCase("home") =>
+          val parentTour = _experiencedBeamPlan.getTourContaining(act)
+          if (parentTour != tour) {
+            Some(_experiencedBeamPlan.getStrategy[TourModeChoiceStrategy](parentTour))
+          } else {
+            None
+          }
+        case _ => None
+      }
     }
     val sanitizedTourVehicle =
       sanitizeTourVehicleId(newTourVehicle, parentTourStrategy.flatMap(_.tourVehicle), parentTourStrategy.isDefined)
@@ -3769,11 +3778,14 @@ trait ChoosesMode {
     }
 
     currentTour.originActivity match {
-      case Some(parentOrigin) if !parentOrigin.getType.equalsIgnoreCase("home") =>
+      case Some(parentOrigin)
+          if !parentOrigin.getType.equalsIgnoreCase("home") && !this.id.toString.startsWith(FREIGHT_ID_PREFIX) =>
         val parentTour = _experiencedBeamPlan.getTourContaining(parentOrigin)
-        val parentTourStrategy = _experiencedBeamPlan.getTourStrategy[TourModeChoiceStrategy](parentOrigin)
-        if (parentTourStrategy.tourVehicle.contains(vehicleId)) {
-          _experiencedBeamPlan.putStrategy(parentTour, parentTourStrategy.copy(tourVehicle = None))
+        if (parentTour != currentTour) {
+          val parentTourStrategy = _experiencedBeamPlan.getTourStrategy[TourModeChoiceStrategy](parentOrigin)
+          if (parentTourStrategy.tourVehicle.contains(vehicleId)) {
+            _experiencedBeamPlan.putStrategy(parentTour, parentTourStrategy.copy(tourVehicle = None))
+          }
         }
       case _ =>
     }
@@ -3815,7 +3827,10 @@ object ChoosesMode {
     onSubTour: Boolean
   ): Boolean = {
     val isShared = beamVehicle.isSharedVehicle || BeamVehicle.isSharedTeleportationVehicle(beamVehicle.id)
-    if (onSubTour && !isShared) {
+    val isFreight = BeamVehicle.isFreightVehicle(beamVehicle.id)
+    if (isFreight || isShared) {
+      true
+    } else if (onSubTour) {
       parentTourVehicleId.contains(beamVehicle.id)
     } else {
       true
