@@ -116,14 +116,22 @@ object FileUtils extends LazyLogging {
   }
 
   /**
-    * Read file with a given path or creates one if file is missing. It also creates a lock file at the same dir
-    * that indicates that file is being created.
+    * Reads the file if it exists, or creates it using the writer function if it does not.
+    * Uses an adjacent `.lock` file for inter-process synchronization (e.g. between parallel
+    * test runners or simulation processes building shared network graphs).
+    *
+    * Concurrency semantics:
+    * - If the target file already exists and no lock file is present, reads immediately (fast path).
+    * - If a lock file is present, busy-waits up to `atMost` for it to clear before reading.
+    * - When creating the file, writes under the lock and guarantees lock removal in a `finally` block
+    *   to prevent deadlocking other processes if writer throws.
+    *
     * @param path the file path
-    * @param atMost wait at most this time before starting reading the file
+    * @param atMost wait at most this time for a lock to clear before failing with TimeoutException
     * @param reader the file reader
     * @param writer the file writer
     * @tparam T type of the entity that is read from the file
-    * @return the read entity
+    * @return the read entity wrapped in Success, or Failure on error/timeout
     */
   def readOrCreateFile[T](path: Path, atMost: Duration = 10.minutes)(
     reader: Path => T

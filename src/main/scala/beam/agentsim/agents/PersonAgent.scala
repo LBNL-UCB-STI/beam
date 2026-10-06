@@ -708,7 +708,8 @@ class PersonAgent(
 
         val (effectiveParentTourVehicleId: Option[Id[BeamVehicle]], effectiveTourStrategy: TourModeChoiceStrategy) =
           if (onSubtour) {
-            // If parent tour is vehicle-based and its vehicle is missing, check if person holds a matching vehicle
+            // A subtour only inherits a vehicle if the enclosing parent tour is explicitly CAR_BASED or BIKE_BASED.
+            // Walk-based parent tours (e.g. WALK_TRANSIT with egress car at station) must NOT pass that vehicle to a workplace subtour.
             val parentVehicleMissing = parentTourVehicleId.forall(v => !beamVehicles.contains(v))
             val parentTourHasVehicle = parentTourStrategy.exists(s =>
               s.tourMode.contains(BeamTourMode.CAR_BASED) || s.tourMode.contains(BeamTourMode.BIKE_BASED)
@@ -716,6 +717,8 @@ class PersonAgent(
             val adoptedParentVehicle: Option[Id[BeamVehicle]] =
               if (parentTourHasVehicle) {
                 if (parentVehicleMissing) {
+                  // If the parent vehicle was lost or replaced (e.g. by an emergency vehicle), adopt the matching vehicle
+                  // currently held in personData or active in beamVehicles so parent and subtour remain synchronized.
                   data.currentTourPersonalVehicle
                     .filter(vId =>
                       beamVehicles.get(vId).exists { v =>
@@ -748,7 +751,7 @@ class PersonAgent(
               }
             }
 
-            // Clean subtour strategy: on a subtour, the strategy's tour vehicle must be the parent's vehicle or None
+            // Subtour strategy vehicle must be strictly constrained to match adoptedParentVehicle or None
             val cleanedSubtourStrategy =
               TourModeChoiceStrategy(sanitizedCurrentTourModeChoiceStrategy.tourMode, adoptedParentVehicle)
             _experiencedBeamPlan.putStrategy(currentTour, cleanedSubtourStrategy)
@@ -2265,6 +2268,11 @@ class PersonAgent(
     }
   }
 
+  /**
+    * Looks up the enclosing parent tour's mode choice strategy if `tour` is a nested subtour.
+    * A tour is considered a subtour if its origin activity is not a "home" activity and originates within an outer tour.
+    * Freight agents are excluded because depot tours are independent and do not participate in subtour inheritance.
+    */
   protected def getParentTourStrategy(
     tour: Tour
   ): Option[TourModeChoiceStrategy] = {
@@ -2285,12 +2293,18 @@ class PersonAgent(
     }
   }
 
+  /**
+    * Looks up the enclosing parent tour strategy using the current tour resolved from `data`.
+    * Note: In `PerformingActivity`, `currentTour(data)` resolves to the tour containing `currentActivity(data)`,
+    * while in `ChoosingMode` and other states it resolves to the tour containing `nextActivity(data)`.
+    */
   protected def getParentTourStrategy(
     data: BasePersonData
   ): Option[TourModeChoiceStrategy] = {
     getParentTourStrategy(currentTour(data))
   }
 
+  /** Updates the enclosing parent tour's mode choice strategy if `tour` is a nested subtour. */
   protected def updateParentTourStrategy(
     tour: Tour,
     strategy: TourModeChoiceStrategy
@@ -2307,6 +2321,7 @@ class PersonAgent(
     }
   }
 
+  /** Updates the enclosing parent tour strategy using the current tour resolved from `data`. */
   protected def updateParentTourStrategy(
     data: BasePersonData,
     strategy: TourModeChoiceStrategy

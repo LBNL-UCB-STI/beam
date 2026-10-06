@@ -202,8 +202,11 @@ class HouseholdFleetManager(
         } else None
       val availableVehicleMaybe: Option[BeamVehicle] = requireVehicleCategoryAvailable match {
         case _ if vehicleUse == Freight =>
+          // Freight drivers are bound 1:1 to their pre-assigned carrier truck
           availableVehicles.find(v => assignedFreightVehicleId.contains(v.id))
         case Some(requireVehicleCategory) =>
+          // For passenger households, vehicle selection is deterministic (sorted by vehicle ID)
+          // and prioritizes permanent household vehicles over temporary emergency vehicles.
           availableVehicles
             .filterNot(v => BeamVehicle.isEmergencyVehicle(v.id))
             .toSeq

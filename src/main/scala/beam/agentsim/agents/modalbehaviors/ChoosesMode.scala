@@ -1408,11 +1408,20 @@ trait ChoosesMode {
   }
 
   /**
-    * Filters the available vehicles based on the current tour strategy.
-    * Only includes vehicles that align with the conditions defined by the method logic.
+    * Filters the available vehicles based on the current tour strategy and tour hierarchy.
+    *
+    * Key constraints and cleanup behaviors:
+    * - On a subtour (`onSubTour = true`), personal vehicles are restricted strictly to the parent
+    *   tour vehicle (`isVehicleAllowed`). Any unallowed emergency vehicles held on a subtour are
+    *   released to their manager and removed from `beamVehicles`.
+    * - If the current tour already holds its designated vehicle, any extraneous emergency vehicles
+    *   that are not referenced by either the current or parent tour strategy are released to their manager.
+    * - Teleportation shared vehicles and freight vehicles bypass personal vehicle restrictions.
     *
     * @param allAvailableStreetVehicles A vector containing all street vehicles currently available.
     * @param currentTourStrategy        The strategy object representing the current tour mode and vehicle preferences.
+    * @param personData                 The current person state.
+    * @param onSubTour                  Whether the agent is currently planning a subtour within an enclosing parent tour.
     * @return A vector of filtered vehicles or tokens meeting the specified conditions.
     */
   private[agentsim] def filterAvailableVehicles(
@@ -2214,6 +2223,9 @@ trait ChoosesMode {
                   )
                 else choosesModeData.allAvailableStreetVehicles
 
+              // For DRIVE_TRANSIT or BIKE_TRANSIT on the final trip home, an agent holding an access/egress vehicle
+              // is given one targeted retry to find an egress route rather than immediately abandoning the vehicle
+              // at the transit station. The mode is kept un-excluded, and retryingIntermodalMode tracks the attempt.
               val isFinalIntermodalEgressWithHeldVehicle =
                 (mode == DRIVE_TRANSIT || mode == BIKE_TRANSIT) &&
                 isLastTripWithinTour(nextAct) &&
@@ -3702,6 +3714,11 @@ trait ChoosesMode {
     )
   }
 
+  /**
+    * Ensures that neither the current tour nor (for passenger subtours) the enclosing parent tour strategy
+    * retains a reference to a tour vehicle that is no longer present in available vehicles.
+    * Freight agents are excluded from parent tour inspection because depot tours are independent.
+    */
   private def clearMissingTourVehicleReferences(nextActivity: Activity, vehicles: Vector[VehicleOrToken]): Unit = {
     val availableVehicleIds = vehicles.map(_.id).toSet
     val currentTour = _experiencedBeamPlan.getTourContaining(nextActivity)
@@ -3804,6 +3821,10 @@ trait ChoosesMode {
     updatedTourStrategy
   }
 
+  /**
+    * Removes references to a dropped vehicle from the current tour strategy and, if on a subtour,
+    * from the enclosing parent tour strategy. Freight tours are excluded since they do not have parent tours.
+    */
   private def clearDroppedVehicleFromTourStrategies(
     personData: BasePersonData,
     nextActivity: Activity,
@@ -3829,6 +3850,12 @@ trait ChoosesMode {
     }
   }
 
+  /**
+    * Determines whether an agent should abandon their currently held tour vehicle after routing failures.
+    * For normal personal vehicles on the final trip home, the vehicle is abandoned if final egress retry
+    * is not active, or if replanning attempts exceed the retry threshold (> 2).
+    * Emergency vehicles require both being on the last trip and exceeding the retry threshold.
+    */
   private def shouldAbandonCurrentTourVehicle(
     vehicleId: Id[BeamVehicle],
     nextActivity: Activity,
@@ -3847,6 +3874,11 @@ trait ChoosesMode {
 
 object ChoosesMode {
 
+  /**
+    * Sanitizes a candidate vehicle ID to ensure it is suitable to be recorded as a tour's personal vehicle.
+    * Shared vehicles and shared teleportation vehicles are excluded because they belong to shared fleets
+    * and must not be retained as a personal tour vehicle. On a subtour, only the parent tour's vehicle is allowed.
+    */
   def sanitizeTourVehicleId(
     candidateVehicleId: Option[Id[BeamVehicle]],
     parentTourVehicleId: Option[Id[BeamVehicle]] = None,
@@ -3859,6 +3891,7 @@ object ChoosesMode {
       .filter(id => !onSubTour || parentTourVehicleId.contains(id))
   }
 
+  /** Checks if a vehicle's category (Car or Bike) is compatible with a vehicle-based tour mode (CAR_BASED or BIKE_BASED). */
   def vehicleMatchesTourMode(
     tourMode: Option[BeamTourMode],
     category: beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
@@ -3870,6 +3903,11 @@ object ChoosesMode {
     }
   }
 
+  /**
+    * Determines whether a vehicle is eligible for consideration during mode choice on the current tour.
+    * Shared vehicles (teleportation or shared fleet) and freight vehicles are always allowed.
+    * On a subtour, personal vehicles are restricted strictly to the parent tour's vehicle.
+    */
   def isVehicleAllowed(
     beamVehicle: BeamVehicle,
     parentTourVehicleId: Option[Id[BeamVehicle]],
@@ -3886,6 +3924,11 @@ object ChoosesMode {
     }
   }
 
+  /**
+    * Attempts to recover a missing tour vehicle reference either from the non-walk driver legs of chosen itineraries
+    * or from the single distinct available vehicle eligible for the tour mode. Prevents ambiguous recovery when multiple
+    * vehicles are present.
+    */
   def recoverTourVehicle(
     tourMode: BeamTourMode,
     distinctAvailableVehicles: Vector[VehicleOrToken],
@@ -3932,6 +3975,12 @@ object ChoosesMode {
       }
   }
 
+  /**
+    * Updates the MATSim plan Leg with the actual route, mode, travel time, and distance chosen by BEAM.
+    * For network-routable modes (CAR, BIKE, HOV), stitches driving legs together, deduplicates consecutive
+    * duplicate link IDs (which occur during parking searches or multi-leg driving), and constructs a NetworkRoute.
+    * For non-network or intermodal modes (WALK, TRANSIT), creates a GenericRoute to preserve distance and travel time.
+    */
   def updateMatsimPlanLegRoute(
     leg: Leg,
     chosenTrip: EmbodiedBeamTrip,
