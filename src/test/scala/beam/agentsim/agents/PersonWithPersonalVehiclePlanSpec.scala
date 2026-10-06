@@ -1045,6 +1045,7 @@ class PersonWithPersonalVehiclePlanSpec
         case x: ParkingInquiry =>
           (parkingManager ? x).mapTo[ParkingInquiryResponse].map(res => lastSender ! res)
         case x: RoutingRequest =>
+          // Reset manager to test probe because HouseholdActor/HouseholdFleetManager can reassign manager during initialization
           beamVehicle.setManager(Some(vehicleManager.ref))
           routingRequestsSeen += 1
           if (isLastTripOfTour) {
@@ -1099,7 +1100,7 @@ class PersonWithPersonalVehiclePlanSpec
         s"Expected exactly 2 routing attempts for non-final leg, but saw $routingRequestsSeen"
       )
     }
-    receiveWhile() {
+    receiveWhile(200.millis) {
       case _: Event        =>
       case _: HasTriggerId =>
     }
