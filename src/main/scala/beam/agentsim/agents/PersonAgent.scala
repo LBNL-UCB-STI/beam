@@ -1970,9 +1970,7 @@ class PersonAgent(
                         val effectiveParentVehicle = ChoosesMode.effectiveParentTourVehicle(Some(parentStrategy))
                         if (effectiveParentVehicle.isEmpty && BeamVehicle.isEmergencyVehicle(personalVehId)) {
                           // Subtour emergency vehicle under walk-based parent should be released when subtour ends
-                          val personalVehState = beamVehicles(personalVeh.id)
                           beamVehicles -= personalVeh.id
-                          potentiallyChargingBeamVehicles.put(personalVeh.id, personalVehState)
                           personalVeh.getManager match {
                             case Some(manager) =>
                               manager ! ReleaseVehicle(personalVeh, triggerId)

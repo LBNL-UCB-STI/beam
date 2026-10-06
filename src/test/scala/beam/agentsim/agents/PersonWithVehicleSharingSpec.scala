@@ -666,7 +666,7 @@ class PersonWithVehicleSharingSpec
       person2EntersVehicleEvents.expectNoMessage()
 
       mockSharedVehicleFleet.expectMsgPF() {
-        case MobilityStatusInquiry(_, SpaceTime(_, 28820), _, _, _, triggerId, _) =>
+        case MobilityStatusInquiry(_, SpaceTime(_, 28820), _, _, _, triggerId, _, _) =>
           mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector(), triggerId)
       }
 
