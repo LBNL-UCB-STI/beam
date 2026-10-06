@@ -4,6 +4,7 @@ import akka.actor.{ActorSystem, Props}
 import akka.pattern.ask
 import akka.testkit.{ImplicitSender, TestActorRef, TestKitBase, TestProbe}
 import akka.util.Timeout
+import scala.concurrent.duration._
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
 import beam.agentsim.agents.household.HouseholdActor.{HouseholdActor, ReleaseVehicle}
@@ -727,6 +728,16 @@ class PersonWithPersonalVehiclePlanSpec
       runFinalIntermodalEgressRetryRegression(BIKE_TRANSIT, BIKE_BASED, "BIKE-DEFAULT", "bike")
     }
 
+    it("should not retry intermodal egress when the leg is not the last trip of the tour") {
+      runFinalIntermodalEgressRetryRegression(
+        DRIVE_TRANSIT,
+        CAR_BASED,
+        "beamVilleCar",
+        "drive-non-final",
+        isLastTripOfTour = false
+      )
+    }
+
     it("should walk to a car that is far away (if told so by the router") {
       val eventsManager = new EventsManagerImpl()
       eventsManager.addHandler(
@@ -917,7 +928,8 @@ class PersonWithPersonalVehiclePlanSpec
     tripMode: BeamMode,
     tourMode: BeamTourMode,
     vehicleTypeId: String,
-    vehicleIdPrefix: String
+    vehicleIdPrefix: String,
+    isLastTripOfTour: Boolean = true
   ): Unit = {
     val eventsManager = new EventsManagerImpl()
     eventsManager.addHandler(
@@ -940,10 +952,11 @@ class PersonWithPersonalVehiclePlanSpec
     val household = householdsFactory.createHousehold(hoseHoldDummyId)
     val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
     val person: Person = createIntermodalTourPerson(
-      Id.createPersonId(s"retry-${tripMode.value}"),
+      Id.createPersonId(s"retry-${tripMode.value}-${if (isLastTripOfTour) "last" else "nonlast"}"),
       vehicleId,
       tripMode,
-      tourMode
+      tourMode,
+      isLastTripOfTour
     )
     population.addPerson(person)
     household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
@@ -984,6 +997,7 @@ class PersonWithPersonalVehiclePlanSpec
     )
     scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
     scheduler ! StartSchedule(0)
+    beamVehicle.setManager(Some(vehicleManager.ref))
 
     def emptyResponse(triggerId: Long, requestId: Int) =
       RoutingResponse(Vector.empty, requestId, None, isEmbodyWithCurrentTravelTime = false, triggerId = triggerId)
@@ -1026,31 +1040,65 @@ class PersonWithPersonalVehiclePlanSpec
     var finished = false
     while (!finished) {
       expectMsgPF() {
-        case EmbodyWithCurrentTravelTime(_, _, _, _, triggerId) =>
-          lastSender ! emptyResponse(triggerId, 1)
-        case inq: ParkingInquiry =>
-          (parkingManager ? inq).mapTo[ParkingInquiryResponse].map(x => lastSender ! x)
-        case req: RoutingRequest =>
+        case x: EmbodyWithCurrentTravelTime =>
+          lastSender ! emptyResponse(x.triggerId, 1)
+        case x: ParkingInquiry =>
+          (parkingManager ? x).mapTo[ParkingInquiryResponse].map(res => lastSender ! res)
+        case x: RoutingRequest =>
+          beamVehicle.setManager(Some(vehicleManager.ref))
           routingRequestsSeen += 1
-          if (routingRequestsSeen <= 2) {
-            assert(
-              req.streetVehicles.exists(_.id == beamVehicle.id),
-              s"At attempt $routingRequestsSeen, expected vehicle ${beamVehicle.id} in streetVehicles: ${req.streetVehicles.map(_.id)}"
-            )
-            lastSender ! emptyResponse(req.triggerId, req.requestId)
+          if (isLastTripOfTour) {
+            if (routingRequestsSeen <= 2) {
+              assert(
+                x.streetVehicles.exists(_.id == beamVehicle.id),
+                s"At attempt $routingRequestsSeen, expected vehicle ${beamVehicle.id} in streetVehicles: ${x.streetVehicles
+                  .map(_.id)}"
+              )
+              lastSender ! emptyResponse(x.triggerId, x.requestId)
+            } else {
+              assert(
+                !x.streetVehicles.exists(_.id == beamVehicle.id),
+                s"At attempt 3, expected vehicle ${beamVehicle.id} to be dropped"
+              )
+              lastSender ! walkResponse(x)
+              finished = true
+            }
           } else {
-            assert(!req.streetVehicles.exists(_.id == beamVehicle.id))
-            lastSender ! walkResponse(req)
-            finished = true
+            if (routingRequestsSeen == 1) {
+              assert(
+                x.streetVehicles.exists(_.id == beamVehicle.id),
+                s"At attempt 1, expected vehicle ${beamVehicle.id} in streetVehicles"
+              )
+              lastSender ! emptyResponse(x.triggerId, x.requestId)
+            } else {
+              lastSender ! walkResponse(x)
+              finished = true
+            }
           }
         case _: CompletionNotice =>
-          finished = true
+          if (isLastTripOfTour && routingRequestsSeen >= 3) {
+            finished = true
+          } else if (!isLastTripOfTour && routingRequestsSeen >= 2) {
+            finished = true
+          }
         case _: Event        =>
         case _: HasTriggerId =>
       }
     }
 
-    assert(routingRequestsSeen >= 2, s"Expected at least 2 routing attempts, but saw $routingRequestsSeen")
+    if (isLastTripOfTour) {
+      assert(routingRequestsSeen === 3, s"Expected exactly 3 routing attempts, but saw $routingRequestsSeen")
+      vehicleManager.fishForMessage(2.seconds) {
+        case ReleaseVehicle(veh, _) =>
+          veh.id == beamVehicle.id
+        case _ => false
+      }
+    } else {
+      assert(
+        routingRequestsSeen === 2,
+        s"Expected exactly 2 routing attempts for non-final leg, but saw $routingRequestsSeen"
+      )
+    }
     receiveWhile() {
       case _: Event        =>
       case _: HasTriggerId =>
@@ -1061,7 +1109,8 @@ class PersonWithPersonalVehiclePlanSpec
     personId: Id[Person],
     vehicleId: Id[Vehicle],
     tripMode: BeamMode,
-    tourMode: BeamTourMode
+    tourMode: BeamTourMode,
+    isLastTripOfTour: Boolean = true
   ): Person = {
     val person = PopulationUtils.getFactory.createPerson(personId)
     putDefaultBeamAttributes(person, Vector(tripMode, BeamMode.WALK))
@@ -1088,6 +1137,18 @@ class PersonWithPersonalVehiclePlanSpec
     workActivity.setEndTime(61200)
     workActivity.setCoord(workLocation)
     plan.addActivity(workActivity)
+
+    if (!isLastTripOfTour) {
+      val leg2 = PopulationUtils.createLeg(BeamMode.WALK.value)
+      leg2.getAttributes.putAttribute("tour_id", "100")
+      leg2.getAttributes.putAttribute("tour_mode", tourMode.value)
+      plan.addLeg(leg2)
+
+      val homeActivity2 = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
+      homeActivity2.setEndTime(72000)
+      homeActivity2.setCoord(homeLocation)
+      plan.addActivity(homeActivity2)
+    }
 
     person.addPlan(plan)
     person
