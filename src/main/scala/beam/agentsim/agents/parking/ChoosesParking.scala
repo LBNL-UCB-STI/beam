@@ -514,59 +514,90 @@ trait ChoosesParking extends {
           (vehicle2StallResponse: RoutingResponse, stall2DestinationResponse: RoutingResponse),
           data: BasePersonData
         ) if data.enrouteData.isEnrouting =>
+      def resumeOriginalTripAfterFailedEnrouteRouting(data: BasePersonData): State = {
+        val tick = _currentTick.getOrElse(0)
+        val existingLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
+        val (startLegTriggerTick, nextLeg, updatedData) = if (existingLeg.startTime < tick) {
+          val rescheduledLeg = existingLeg.updateStartTime(tick)
+          val newSchedule = data.passengerSchedule.replaceLegWithSamePath(existingLeg, rescheduledLeg)
+          (tick, rescheduledLeg, data.copy(passengerSchedule = newSchedule, enrouteData = EnrouteData()))
+        } else {
+          (existingLeg.startTime, existingLeg, data.copy(enrouteData = EnrouteData()))
+        }
+
+        currentBeamVehicle.setReservedParkingStall(None)
+        val (_, triggerId) = releaseTickAndTriggerId()
+        scheduler ! CompletionNotice(
+          triggerId,
+          Vector(ScheduleTrigger(StartLegTrigger(startLegTriggerTick, nextLeg), self))
+        )
+        goto(WaitingToDrive) using updatedData
+      }
+
       // find car leg and split it for parking
-      def createCarLegs(legs: IndexedSeq[EmbodiedBeamLeg]): Vector[EmbodiedBeamLeg] = {
-        legs
-          .find(_.beamLeg.mode == CAR)
+      def createCarLegs(response: RoutingResponse, legLabel: String): Vector[EmbodiedBeamLeg] = {
+        response.itineraries.view
+          .flatMap(_.legs)
+          .find(leg => leg.beamVehicleId == currentBeamVehicle.id && leg.asDriver && leg.beamLeg.mode != WALK)
           .map { beamLeg =>
             EmbodiedBeamLeg.splitLegForParking(beamLeg, beamServices, transportNetwork)
           }
           .getOrElse {
+            val returnedItineraries = response.itineraries
+              .map { itin =>
+                s"${itin.tripClassifier}:${itin.legs.map(_.beamLeg.mode).mkString("[", ", ", "]")}"
+              }
+              .mkString("[", ", ", "]")
             log.error(
-              s"EnRoute: car leg not found in routing response. person=${this.id}, " +
-              s"legs=${legs
-                .map(leg => s"${leg.beamLeg.mode}:${leg.beamLeg.travelPath.linkIds.size}:${leg.beamLeg.duration}")}, " +
-              s"currentTrip=${data.currentTrip.map(_.tripClassifier)}, " +
-              s"enrouteData=${data.enrouteData}, currentVehicle=${data.currentVehicle}, currentVehiclePassengerSchedule=${data.passengerSchedule}"
+              s"EnRoute: drivable leg for vehicle ${currentBeamVehicle.id} not found in $legLabel routing response. " +
+              s"Returned itineraries: $returnedItineraries"
             )
             Vector()
           }
       }
 
       // calculate travel and parking leg from vehicle location to charging stall
-      val vehicle2StallCarLegs = createCarLegs(vehicle2StallResponse.itineraries.head.legs)
-      val stall2DestinationCarLegs = createCarLegs(stall2DestinationResponse.itineraries.head.legs)
+      val vehicle2StallCarLegs = createCarLegs(vehicle2StallResponse, "vehicle-to-stall")
+      val stall2DestinationCarLegs = createCarLegs(stall2DestinationResponse, "stall-to-destination")
 
-      // create new legs to travel to the charging stall
-      val (tick, triggerId) = releaseTickAndTriggerId()
-      val walkStart = data.currentTrip.head.legs.head
-      val walkRest = data.currentTrip.head.legs.last
-      val newCurrentTripLegs: Vector[EmbodiedBeamLeg] =
-        EmbodiedBeamLeg.makeLegsConsistent(walkStart +: (vehicle2StallCarLegs :+ walkRest), tick)
-      val newRestOfTrip: Vector[EmbodiedBeamLeg] = newCurrentTripLegs.tail
+      if (vehicle2StallCarLegs.isEmpty || stall2DestinationCarLegs.isEmpty) {
+        log.warning(
+          s"EnRoute: skipping charging diversion for vehicle ${currentBeamVehicle.id} because at least one " +
+          s"reroute response had no drivable leg"
+        )
+        resumeOriginalTripAfterFailedEnrouteRouting(data)
+      } else {
+        // create new legs to travel to the charging stall
+        val (tick, triggerId) = releaseTickAndTriggerId()
+        val walkStart = data.currentTrip.head.legs.head
+        val walkRest = data.currentTrip.head.legs.last
+        val newCurrentTripLegs: Vector[EmbodiedBeamLeg] =
+          EmbodiedBeamLeg.makeLegsConsistent(walkStart +: (vehicle2StallCarLegs :+ walkRest), tick)
+        val newRestOfTrip: Vector[EmbodiedBeamLeg] = newCurrentTripLegs.tail
 
-      // set two car legs in schedule
-      val newPassengerSchedule = PassengerSchedule().addLegs(newRestOfTrip.take(2).map(_.beamLeg))
+        // set two car legs in schedule
+        val newPassengerSchedule = PassengerSchedule().addLegs(newRestOfTrip.take(2).map(_.beamLeg))
 
-      scheduler ! CompletionNotice(
-        triggerId,
-        Vector(
-          ScheduleTrigger(
-            StartLegTrigger(newRestOfTrip.head.beamLeg.startTime, newRestOfTrip.head.beamLeg),
-            self
+        scheduler ! CompletionNotice(
+          triggerId,
+          Vector(
+            ScheduleTrigger(
+              StartLegTrigger(newRestOfTrip.head.beamLeg.startTime, newRestOfTrip.head.beamLeg),
+              self
+            )
           )
         )
-      )
 
-      handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, beamServices)
+        handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, beamServices)
 
-      goto(WaitingToDrive) using data.copy(
-        currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
-        restOfCurrentTrip = newRestOfTrip.toList,
-        passengerSchedule = newPassengerSchedule,
-        currentLegPassengerScheduleIndex = 0, // setting it 0 means we are about to start travelling first car leg.
-        enrouteData = data.enrouteData.copy(stall2DestLegs = stall2DestinationCarLegs)
-      )
+        goto(WaitingToDrive) using data.copy(
+          currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
+          restOfCurrentTrip = newRestOfTrip.toList,
+          passengerSchedule = newPassengerSchedule,
+          currentLegPassengerScheduleIndex = 0, // setting it 0 means we are about to start travelling first car leg.
+          enrouteData = data.enrouteData.copy(stall2DestLegs = stall2DestinationCarLegs)
+        )
+      }
 
     case Event(
           (vehicle2StallResponse: RoutingResponse, stall2DestinationResponse: RoutingResponse),
