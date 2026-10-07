@@ -245,7 +245,24 @@ class HouseholdFleetManager(
       availableVehicleMaybe match {
         case Some(availableVehicle) =>
           logger.debug("Vehicle {} is now taken", availableVehicle.id)
-          availableVehicle.becomeDriver(sender)
+          try {
+            availableVehicle.becomeDriver(sender)
+          } catch {
+            case error: RuntimeException =>
+              // Preserve the fatal invariant violation while recording the state that caused it.
+              logger.error(
+                HouseholdFleetManager.duplicateDriverDiagnostic(
+                  vehicleId = availableVehicle.id.toString,
+                  currentDriver = availableVehicle.getDriver.map(_.path.toString).getOrElse("<none>"),
+                  fleetManager = self.path.toString,
+                  requester = sender().path.toString,
+                  personId = personId.toString,
+                  triggerId = triggerId,
+                  availableVehicleIds = availableVehicles.iterator.map(_.id.toString).toSeq.sorted
+                )
+              )
+              throw error
+          }
           sender() ! MobilityStatusResponse(Vector(ActualVehicle(availableVehicle)), triggerId)
           availableVehicles -= availableVehicle
         case None if createAnEmergencyVehicle(inquiry).nonEmpty =>
@@ -344,6 +361,19 @@ class HouseholdFleetManager(
 
 object HouseholdFleetManager {
   import akka.actor.{ActorRef, Props}
+
+  private[household] def duplicateDriverDiagnostic(
+    vehicleId: String,
+    currentDriver: String,
+    fleetManager: String,
+    requester: String,
+    personId: String,
+    triggerId: Long,
+    availableVehicleIds: Seq[String]
+  ): String =
+    s"Duplicate household vehicle assignment: vehicle=$vehicleId, existingDriver=$currentDriver, " +
+    s"fleetManager=$fleetManager, requester=$requester, person=$personId, triggerId=$triggerId, " +
+    s"availableVehicleIds=[${availableVehicleIds.mkString(", ")}]"
 
   def props(
     parkingManager: ActorRef,
