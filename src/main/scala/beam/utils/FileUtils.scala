@@ -116,14 +116,22 @@ object FileUtils extends LazyLogging {
   }
 
   /**
-    * Read file with a given path or creates one if file is missing. It also creates a lock file at the same dir
-    * that indicates that file is being created.
+    * Reads the file if it exists, or creates it using the writer function if it does not.
+    * Uses an adjacent `.lock` file for inter-process synchronization (e.g. between parallel
+    * test runners or simulation processes building shared network graphs).
+    *
+    * Concurrency semantics:
+    * - If the target file already exists and no lock file is present, reads immediately (fast path).
+    * - If a lock file is present, busy-waits up to `atMost` for it to clear before reading.
+    * - When creating the file, writes under the lock and guarantees lock removal in a `finally` block
+    *   to prevent deadlocking other processes if writer throws.
+    *
     * @param path the file path
-    * @param atMost wait at most this time before starting reading the file
+    * @param atMost wait at most this time for a lock to clear before failing with TimeoutException
     * @param reader the file reader
     * @param writer the file writer
     * @tparam T type of the entity that is read from the file
-    * @return the read entity
+    * @return the read entity wrapped in Success, or Failure on error/timeout
     */
   def readOrCreateFile[T](path: Path, atMost: Duration = 10.minutes)(
     reader: Path => T
@@ -131,28 +139,47 @@ object FileUtils extends LazyLogging {
     val locFile = path.getParent.resolve(path.getFileName.toString + ".lock")
 
     def readFile: Try[T] = {
-      busyWaiting(atMost.toMillis, 1000) { () =>
-        !Files.exists(locFile)
+      val lockCleared = if (Files.exists(locFile)) {
+        logger.info(s"Waiting for lock file $locFile to be released...")
+        busyWaiting(atMost.toMillis, 1000) { () =>
+          !Files.exists(locFile)
+        }
+      } else {
+        true
       }
-      Try { reader(path) }
+      if (!lockCleared) {
+        Failure(
+          new java.util.concurrent.TimeoutException(
+            s"Timed out after $atMost waiting for lock file $locFile to be removed"
+          )
+        )
+      } else if (!Files.exists(path)) {
+        Failure(new FileNotFoundException(s"File $path does not exist after lock release"))
+      } else {
+        Try { reader(path) }
+      }
     }
 
-    if (Files.exists(path))
+    if (Files.exists(path) && !Files.exists(locFile)) {
+      Try { reader(path) }
+    } else if (Files.exists(path)) {
       readFile
-    else {
+    } else {
       val locking = Try { Files.createFile(locFile) }
       locking match {
-        case Failure(exception) =>
-          exception match {
-            case _: FileAlreadyExistsException => readFile
-            case throwable                     => Failure(throwable)
-          }
+        case Failure(_: FileAlreadyExistsException) =>
+          readFile
+        case Failure(throwable) =>
+          Failure(throwable)
         case Success(_) =>
-          val tryWrite = Try(writer(path))
-          Try(Files.delete(locFile)).failed.foreach { throwable =>
-            logger.error(s"Cannot delete lock file $locFile", throwable)
+          try {
+            val tryWrite = Try(writer(path))
+            tryWrite
+          } finally {
+            Try(Files.deleteIfExists(locFile)).failed.foreach { throwable =>
+              logger.error(s"Cannot delete lock file $locFile", throwable)
+            }
           }
-          tryWrite
       }
     }
   }

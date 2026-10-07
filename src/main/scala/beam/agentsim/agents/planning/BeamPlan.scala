@@ -347,14 +347,11 @@ class BeamPlan extends Plan {
   }
 
   def isLastElementInTour(idx: Int): Boolean = {
-    val tour = getTourContaining(idx)
-    actsLegs.lift(idx) match {
+    activities.lift(idx) match {
       case Some(act: Activity) =>
-        tour.trips.last.activity == act
-      case Some(leg: Leg) =>
-        tour.trips.last.leg.contains(leg)
+        isLastElementInTour(act)
       case _ =>
-        throw new RuntimeException(s"Unexpected PlanElementIndex $idx.")
+        throw new RuntimeException(s"Unexpected ActivityIndex $idx.")
     }
   }
 

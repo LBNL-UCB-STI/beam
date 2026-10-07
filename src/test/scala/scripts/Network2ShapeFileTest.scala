@@ -1,5 +1,6 @@
 package scripts
 
+import beam.utils.FileUtils
 import beam.utils.map.ShapefileReader
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
@@ -15,37 +16,42 @@ import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
 class Network2ShapeFileTest extends AnyWordSpecLike with Matchers {
   "Network2ShapeFile transformation" should {
     "generate the same number of features" in {
-      val beamvilleNetwork = "test/test-resources/beam/beamville-physsim-network.xml"
-      val outputShapeFile = "output/beamville-network.shp"
+      FileUtils.usingTemporaryDirectory { tempDir =>
+        val beamvilleNetwork = "test/test-resources/beam/beamville-physsim-network.xml"
+        val outputShapeFile = tempDir.resolve("beamville-network.shp").toString
 
-      val crsString = "epsg:32631"
-      val crs = MGC.getCRS(crsString)
+        val crsString = "epsg:32631"
+        val crs = MGC.getCRS(crsString)
 
-      // write out shapefile
-      networkToShapeFile(beamvilleNetwork, outputShapeFile, crs, _ => true)
+        // write out shapefile
+        networkToShapeFile(beamvilleNetwork, outputShapeFile, crs, _ => true)
 
-      // read network agaim
-      val network = NetworkUtils.createNetwork()
-      val reader = new MatsimNetworkReader(network)
-      reader.readFile(beamvilleNetwork)
+        // read network agaim
+        val network = NetworkUtils.createNetwork()
+        val reader = new MatsimNetworkReader(network)
+        reader.readFile(beamvilleNetwork)
 
-      @SuppressWarnings(Array("UnusedMethodParameter"))
-      def mapToID2AllProperties(mathTransform: MathTransform, feature: SimpleFeature): (String, Map[String, AnyRef]) = {
-        val featureId = feature.getAttribute("ID").toString
-        val allProps =
-          feature.getProperties.asScala.map(property => property.getName.toString -> property.getValue).toMap
+        @SuppressWarnings(Array("UnusedMethodParameter"))
+        def mapToID2AllProperties(
+          mathTransform: MathTransform,
+          feature: SimpleFeature
+        ): (String, Map[String, AnyRef]) = {
+          val featureId = feature.getAttribute("ID").toString
+          val allProps =
+            feature.getProperties.asScala.map(property => property.getName.toString -> property.getValue).toMap
 
-        featureId -> allProps
+          featureId -> allProps
+        }
+
+        // read all features from shp file
+        val shpFeatures = ShapefileReader.read(crsString, outputShapeFile, _ => true, mapToID2AllProperties).toMap
+
+        // compare the lengths
+        val originalNumberOfLinks = network.getLinks.size()
+        val resultCount = shpFeatures.size
+
+        resultCount shouldBe originalNumberOfLinks
       }
-
-      // read all features from shp file
-      val shpFeatures = ShapefileReader.read(crsString, outputShapeFile, _ => true, mapToID2AllProperties).toMap
-
-      // compare the lengths
-      val originalNumberOfLinks = network.getLinks.size()
-      val resultCount = shpFeatures.size
-
-      resultCount shouldBe originalNumberOfLinks
     }
   }
 }

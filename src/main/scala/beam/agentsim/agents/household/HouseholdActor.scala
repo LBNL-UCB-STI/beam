@@ -118,7 +118,8 @@ object HouseholdActor {
     vehicleUse: VehicleUse,
     requireVehicleCategoryAvailable: Option[VehicleCategory],
     triggerId: Long,
-    allowEmergencyVehicle: Boolean = true
+    allowEmergencyVehicle: Boolean = true,
+    onlyEmergencyVehicle: Boolean = false
   ) extends HasTriggerId
 
   // TODO: Extend this to allow you to request a specific vehicle id

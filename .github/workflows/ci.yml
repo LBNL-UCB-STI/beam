@@ -38,6 +38,11 @@ jobs:
           distribution: 'temurin'
           java-version: '11'
 
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libblosc-dev
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -46,6 +51,17 @@ jobs:
       - name: Compile Main & Test Classes
         run: |
           ./gradlew --stacktrace testClasses -Dorg.gradle.jvmargs="-Xmx4g"
+
+      - name: Prebuild R5 Network Fixture
+        run: |
+          ./gradlew specificTest -Psuite="scripts.TravelTimeAndDistanceCalculatorAppSpec" -Dorg.gradle.jvmargs="-Xmx2g"
+
+      - name: Upload R5 Network Fixture
+        uses: actions/upload-artifact@v4
+        with:
+          name: r5-beamville-network
+          path: test/input/beamville/r5/network.dat
+          retention-days: 1
 
   # Parallel Spec Test Execution across 4 concurrent runner jobs
   spec-matrix:
@@ -102,9 +118,15 @@ jobs:
         with:
           cache-read-only: true
 
+      - name: Download R5 Network Fixture
+        uses: actions/download-artifact@v4
+        with:
+          name: r5-beamville-network
+          path: test/input/beamville/r5
+
       - name: Run Sharded ScalaTest Suite
         run: |
-          ./gradlew spec -Ppackages="${{ matrix.packages }}" -Psuites="${{ matrix.suites }}" -PnumThreads=4 -Dorg.gradle.jvmargs="-Xmx4g"
+          ./gradlew spec -Ppackages="${{ matrix.packages }}" -Psuites="${{ matrix.suites }}" -PnumThreads=4 -PmaxHeapSize=4g -Dorg.gradle.jvmargs="-Xmx4g"
 
       - name: Upload Test Report Artifact
         uses: actions/upload-artifact@v4

@@ -195,18 +195,52 @@ class HouseholdFleetManager(
     case GetVehicleTypes(triggerId) =>
       sender() ! VehicleTypesResponse(vehicleTypes, triggerId)
 
-    case inquiry @ MobilityStatusInquiry(personId, _, _, vehicleUse, requireVehicleCategoryAvailable, triggerId, _) =>
+    case inquiry @ MobilityStatusInquiry(
+          personId,
+          _,
+          _,
+          vehicleUse,
+          requireVehicleCategoryAvailable,
+          triggerId,
+          _,
+          onlyEmergencyVehicle
+        ) =>
       val assignedFreightVehicleId =
         if (vehicleUse == Freight) {
           whoDrivesThisFreightVehicle.collectFirst { case (vehicleId, `personId`) => vehicleId }
         } else None
-      val availableVehicleMaybe: Option[BeamVehicle] = requireVehicleCategoryAvailable match {
-        case _ if vehicleUse == Freight =>
-          availableVehicles.find(v => assignedFreightVehicleId.contains(v.id))
-        case Some(requireVehicleCategory) =>
-          availableVehicles.find(_.beamVehicleType.vehicleCategory == requireVehicleCategory)
-        case _ => availableVehicles.headOption
-      }
+      val availableVehicleMaybe: Option[BeamVehicle] =
+        if (onlyEmergencyVehicle) None
+        else
+          requireVehicleCategoryAvailable match {
+            case _ if vehicleUse == Freight =>
+              // Freight drivers are bound 1:1 to their pre-assigned carrier truck
+              availableVehicles.find(v => assignedFreightVehicleId.contains(v.id))
+            case Some(requireVehicleCategory) =>
+              // For passenger households, vehicle selection is deterministic (sorted by vehicle ID)
+              // and prioritizes permanent household vehicles over temporary emergency vehicles.
+              availableVehicles
+                .filterNot(v => BeamVehicle.isEmergencyVehicle(v.id))
+                .toSeq
+                .sortBy(_.id.toString)
+                .find(_.beamVehicleType.vehicleCategory == requireVehicleCategory)
+                .orElse(
+                  availableVehicles.toSeq
+                    .sortBy(_.id.toString)
+                    .find(_.beamVehicleType.vehicleCategory == requireVehicleCategory)
+                )
+            case _ =>
+              availableVehicles
+                .filterNot(v => BeamVehicle.isEmergencyVehicle(v.id))
+                .toSeq
+                .sortBy(_.id.toString)
+                .headOption
+                .orElse(
+                  availableVehicles.toSeq
+                    .sortBy(_.id.toString)
+                    .headOption
+                )
+          }
 
       availableVehicleMaybe match {
         case Some(availableVehicle) =>
