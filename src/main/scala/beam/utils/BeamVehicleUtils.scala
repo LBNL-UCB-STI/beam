@@ -57,6 +57,7 @@ object BeamVehicleUtils extends LazyLogging {
       case ((vehicleAcc, socAcc), vehicleInfo) =>
         val vehicleId = Id.create(vehicleInfo.vehicleId, classOf[BeamVehicle])
         val vehicleType = vehiclesTypeMap(Id.create(vehicleInfo.vehicleTypeId, classOf[BeamVehicleType]))
+
         val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
 
         val beamVehicle =
@@ -97,18 +98,10 @@ object BeamVehicleUtils extends LazyLogging {
   private[utils] def toVehicleInfo(record: GenericRecord): VehicleInfo = {
     VehicleInfo(
       vehicleId = getFirstIfNotNull(record, Seq("vehicleId", "vehicle_id")).toString,
-      vehicleTypeId = getIfNotNull(record, "vehicleTypeId").toString,
-      initialSoc = Option(record.getSchema.getField("stateOfCharge"))
-        .flatMap(_ => Option(record.get("stateOfCharge")))
-        .map(asDouble),
-      householdId = getFirstIfNotNull(record, Seq("householdId", "household_id")).toString
+      vehicleTypeId = getFirstIfNotNull(record, Seq("vehicleTypeId", "vehicle_type_id")).toString,
+      initialSoc = getOptional(record, Seq("stateOfCharge", "state_of_charge")).map(asDouble),
+      householdId = normalizeHouseholdId(getFirstIfNotNull(record, Seq("householdId", "household_id")))
     )
-  }
-
-  private def getIfNotNull(record: GenericRecord, column: String): AnyRef = {
-    val value = record.get(column)
-    assert(value != null, s"Value in column '$column' is null")
-    value
   }
 
   private def getFirstIfNotNull(record: GenericRecord, columns: Seq[String]): AnyRef = {
@@ -116,7 +109,7 @@ object BeamVehicleUtils extends LazyLogging {
       .flatMap { column =>
         Option(record.getSchema.getField(column)).map(_ => column -> record.get(column))
       }
-      .collectFirst { case (column, value) if value != null => value }
+      .collectFirst { case (_, value) if value != null => value }
 
     value.getOrElse {
       val availableColumns = record.getSchema.getFields.asScala.map(_.name()).mkString(", ")
@@ -124,6 +117,25 @@ object BeamVehicleUtils extends LazyLogging {
         s"None of the expected columns [${columns.mkString(", ")}] were found with non-null values. Available columns: $availableColumns"
       )
     }
+  }
+
+  private def getOptional(record: GenericRecord, columns: Seq[String]): Option[AnyRef] =
+    columns.iterator
+      .flatMap(column => Option(record.getSchema.getField(column)).flatMap(_ => Option(record.get(column))))
+      .toSeq
+      .headOption
+
+  private def normalizeHouseholdId(value: AnyRef): String = value match {
+    case n: java.lang.Double if n.doubleValue.isWhole => n.longValue.toString
+    case n: java.lang.Float if n.floatValue.isWhole   => n.longValue.toString
+    case n: java.lang.Long                            => n.toString
+    case n: java.lang.Integer                         => n.toString
+    case n: java.lang.Short                           => n.toString
+    case n: java.lang.Byte                            => n.toString
+    case other =>
+      val asString = other.toString
+      if (asString.matches("^-?\\d+\\.0+$")) asString.takeWhile(_ != '.')
+      else asString
   }
 
   private def asDouble(value: AnyRef): Double = {
@@ -135,6 +147,17 @@ object BeamVehicleUtils extends LazyLogging {
       case n: java.lang.Short   => n.doubleValue()
       case n: java.lang.Byte    => n.doubleValue()
       case other                => other.toString.toDouble
+    }
+  }
+
+  private def optionalNonEmpty(line: util.Map[String, String], key: String): Option[String] =
+    Option(line.get(key)).map(_.trim).filter(_.nonEmpty)
+
+  def readFuelTypeFile(filePath: String): scala.collection.Map[FuelType, Double] = {
+    readCsvFileByLine(filePath, scala.collection.mutable.HashMap[FuelType, Double]()) { case (line, z) =>
+      val fuelType = FuelType.fromString(line.get("fuelTypeId"))
+      val priceInDollarsPerMJoule = line.get("priceInDollarsPerMJoule").toDouble
+      z += ((fuelType, priceInDollarsPerMJoule))
     }
   }
 
@@ -172,9 +195,6 @@ object BeamVehicleUtils extends LazyLogging {
       case VehicleCategory.Class78Tractor    => 20000 // CLass 7&8 (GVWR 26001 to >33,001 lbs.)
     }
 
-  private def optionalNonEmpty(line: util.Map[String, String], key: String): Option[String] =
-    Option(line.get(key)).map(_.trim).filter(_.nonEmpty)
-
   def readBeamVehicleTypeFile(filePath: String): Map[Id[BeamVehicleType], BeamVehicleType] = {
     readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicleType], BeamVehicleType]()) {
       case (line: util.Map[String, String], z) =>
@@ -190,7 +210,8 @@ object BeamVehicleUtils extends LazyLogging {
         val monetaryCostPerMeter: Double = optionalNonEmpty(line, "monetaryCostPerMeter").map(_.toDouble).getOrElse(0d)
         val monetaryCostPerSecond: Double =
           optionalNonEmpty(line, "monetaryCostPerSecond").map(_.toDouble).getOrElse(0d)
-        val secondaryFuelType = optionalNonEmpty(line, "secondaryFuelType").map(FuelType.fromString)
+        val secondaryFuelTypeId = optionalNonEmpty(line, "secondaryFuelType")
+        val secondaryFuelType = secondaryFuelTypeId.map(FuelType.fromString)
         val secondaryFuelConsumptionInJoule =
           optionalNonEmpty(line, "secondaryFuelConsumptionInJoulePerMeter").map(_.toDouble)
         val secondaryFuelCapacityInJoule = optionalNonEmpty(line, "secondaryFuelCapacityInJoule").map(_.toDouble)

@@ -10,13 +10,13 @@ import scala.collection.JavaConverters._
 class BeamVehicleUtilsSpec extends AnyWordSpecLike with Matchers {
 
   "BeamVehicleUtils" should {
-    "map parquet vehicle rows to VehicleInfo" in {
+    "map parquet vehicle rows with snake case ids and normalize numeric household ids" in {
       val record = new GenericRecordMock(
         Map(
-          "vehicleId"     -> "veh-1".asInstanceOf[AnyRef],
+          "vehicle_id"    -> "veh-1".asInstanceOf[AnyRef],
           "vehicleTypeId" -> "sedan".asInstanceOf[AnyRef],
           "stateOfCharge" -> 0.75.asInstanceOf[AnyRef],
-          "householdId"   -> "hh-1".asInstanceOf[AnyRef]
+          "household_id"  -> 226798.0.asInstanceOf[AnyRef]
         ).asJava
       )
 
@@ -24,7 +24,7 @@ class BeamVehicleUtilsSpec extends AnyWordSpecLike with Matchers {
         vehicleId = "veh-1",
         vehicleTypeId = "sedan",
         initialSoc = Some(0.75),
-        householdId = "hh-1"
+        householdId = "226798"
       )
     }
 

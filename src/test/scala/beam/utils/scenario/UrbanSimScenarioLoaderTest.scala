@@ -92,6 +92,22 @@ class UrbanSimScenarioLoaderTest extends AsyncWordSpec with Matchers with Before
     }
   }
 
+  "UrbanSimScenarioLoader vehicle loading" should {
+    "fall back to vehiclesFilePath for urbansim_v2 when the scenario source returns no vehicles" in {
+      when(beamScenario.beamConfig).thenReturn(
+        getConfigWithVehiclesFile("test/test-resources/urbansim_v2/parquet/vehicles.parquet")
+      )
+      when(scenarioSource.getVehicles).thenReturn(Iterable.empty)
+
+      val urbanSimScenario = new UrbanSimScenarioLoader(mutableScenario, beamScenario, scenarioSource, geoUtils)
+      val vehicles = urbanSimScenario.loadVehicles().toSeq
+
+      vehicles.map(_.vehicleId) shouldBe Seq("veh-parquet-1", "veh-parquet-2")
+      vehicles.map(_.householdId) shouldBe Seq("226798", "580065")
+      vehicles.map(_.initialSoc) shouldBe Seq(Some(0.75), None)
+    }
+  }
+
   override protected def beforeEach(): Unit =
     idIter = Iterator.from(1)
 
@@ -114,6 +130,22 @@ class UrbanSimScenarioLoaderTest extends AsyncWordSpec with Matchers with Before
       )
     )
   )
+
+  private def getConfigWithVehiclesFile(vehiclesFilePath: String) = {
+    val config = getConfig()
+    config.copy(
+      beam = config.beam.copy(
+        exchange = config.beam.exchange.copy(
+          scenario = config.beam.exchange.scenario.copy(source = "urbansim_v2")
+        ),
+        agentsim = config.beam.agentsim.copy(
+          agents = config.beam.agentsim.agents.copy(
+            vehicles = config.beam.agentsim.agents.vehicles.copy(vehiclesFilePath = vehiclesFilePath)
+          )
+        )
+      )
+    )
+  }
 
   private def generateData(householdCarNumbers: Int*) = {
     val houseHolds = householdCarNumbers.map(household)

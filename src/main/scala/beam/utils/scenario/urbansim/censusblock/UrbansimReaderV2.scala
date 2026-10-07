@@ -1,7 +1,6 @@
 package beam.utils.scenario.urbansim.censusblock
 
 import beam.sim.common.GeoUtils
-import beam.utils.csv.readers
 import beam.utils.scenario.urbansim.censusblock.entities.{Block, InputHousehold, InputPersonInfo, InputPlanElement}
 import beam.utils.scenario.urbansim.censusblock.merger.{HouseholdMerger, PersonMerger, PlanMerger}
 import beam.utils.scenario.urbansim.censusblock.reader._
@@ -25,8 +24,6 @@ class UrbansimReaderV2(
   val fileFormat: String = "csv"
 ) extends ScenarioSource
     with LazyLogging {
-
-  private val rdr = readers.BeamCsvScenarioReader
 
   if (fileFormat == "parquet") {
     val requiredFiles = List(
