@@ -2713,6 +2713,13 @@ class PersonWithTourModeSpec
     field.get(personAgent).asInstanceOf[mutable.Map[Id[BeamVehicle], VehicleOrToken]]
   }
 
+  private def getBasePersonData(personAgent: PersonAgent): PersonAgent.BasePersonData = {
+    personAgent.stateData match {
+      case d: ChoosesMode.ChoosesModeData => d.personData
+      case d: PersonAgent.BasePersonData  => d
+    }
+  }
+
   describe("Subtour vehicle enforcement (A1 / B3)") {
     it("should allow only parent car on subtour of car-based tour") {
       val (subtourReq, parentCar, scheduler, householdActor, parkingManager) = setupSubtourScenario(
@@ -3092,10 +3099,7 @@ class PersonWithTourModeSpec
 
         // At intermediate activity (other/atwork), verify currentTourPersonalVehicle is still emergency-1
         assert(
-          personAgent.stateData
-            .asInstanceOf[PersonAgent.BasePersonData]
-            .currentTourPersonalVehicle
-            .contains(emergencyVeh.id),
+          getBasePersonData(personAgent).currentTourPersonalVehicle.contains(emergencyVeh.id),
           "Emergency car must be retained in currentTourPersonalVehicle at intermediate subtour activity"
         )
 
@@ -3448,10 +3452,7 @@ class PersonWithTourModeSpec
 
         // Verify currentTourPersonalVehicle is emergency car at intermediate subtour activity
         assert(
-          personAgent.stateData
-            .asInstanceOf[PersonAgent.BasePersonData]
-            .currentTourPersonalVehicle
-            .contains(emergencyVeh.id),
+          getBasePersonData(personAgent).currentTourPersonalVehicle.contains(emergencyVeh.id),
           "Emergency car must be retained in currentTourPersonalVehicle at intermediate subtour activity"
         )
 
@@ -4062,10 +4063,7 @@ class PersonWithTourModeSpec
         val tour2 = personAgent._experiencedBeamPlan.tours(1)
         val tour2Strat = personAgent._experiencedBeamPlan.getStrategy[TourModeChoiceStrategy](tour2)
         assert(tour2Strat.tourMode.contains(BeamTourMode.FREIGHT_TOUR))
-        val basePersonData = personAgent.stateData match {
-          case d: ChoosesMode.ChoosesModeData => d.personData
-          case d: PersonAgent.BasePersonData  => d
-        }
+        val basePersonData = getBasePersonData(personAgent)
         val getParentMethod =
           classOf[PersonAgent].getDeclaredMethod("getParentTourStrategy", classOf[PersonAgent.BasePersonData])
         getParentMethod.setAccessible(true)
