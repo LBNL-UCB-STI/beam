@@ -60,6 +60,8 @@ class HierarchicalParkingManagerSpec
     passenger = BeamConfig.Beam.Agentsim.Agents.Parking.Search.Params
       .Passenger(minSearchRadius = 250.0, maxSearchRadius = 8000.0),
     searchDoubleParkingRadius = 0,
+    linkSearchMaxCandidateScan = 0,
+    searchExpansionFactor = 1.5,
     searchMaxDistanceRelativeToEllipseFoci = 4.0,
     enableLinkBasedSearch = false,
     searchSampleSize = 500
