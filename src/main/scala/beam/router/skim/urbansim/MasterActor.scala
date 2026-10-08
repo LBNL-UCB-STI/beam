@@ -298,7 +298,7 @@ class MasterActor(
         if (validTrips.nonEmpty) {
           // If WALK was not requested as an active mode (e.g. this is a transit query),
           // filter out direct WALK fallback itineraries so they do not pollute walk skims.
-          val filteredTrips = if (!resp.considerModes.contains(BeamMode.WALK)) {
+          val filteredTrips = if (!odRequester.buildDirectWalkRoute) {
             validTrips.filterNot(_.tripClassifier == BeamMode.WALK)
           } else {
             validTrips

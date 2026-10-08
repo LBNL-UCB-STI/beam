@@ -111,11 +111,11 @@ class TransitDisaggregationAndDualRouterSpec extends AnyWordSpecLike with Matche
       }
     }
 
-    "filter out walk fallback when walk is not in considerModes and select minBy per transit mode" in {
-      val considerModes = Seq(BeamMode.WALK_TRANSIT)
+    "filter out walk fallback when direct walk route is not requested and select minBy per transit mode" in {
+      val buildDirectWalkRoute = false
       val allTrips = Seq(fastBusTrip, slowBusTrip, lightRailTrip, walkFallbackTrip)
 
-      val filteredTrips = if (!considerModes.contains(BeamMode.WALK)) {
+      val filteredTrips = if (!buildDirectWalkRoute) {
         allTrips.filterNot(_.tripClassifier == BeamMode.WALK)
       } else {
         allTrips
@@ -143,11 +143,11 @@ class TransitDisaggregationAndDualRouterSpec extends AnyWordSpecLike with Matche
       pathTypes should contain allOf(ActivitySimPathType.WLK_LOC_WLK, ActivitySimPathType.WLK_LRF_WLK)
     }
 
-    "keep walk trip if WALK was explicitly in considerModes" in {
-      val considerModes = Seq(BeamMode.WALK, BeamMode.WALK_TRANSIT)
+    "keep walk trip if buildDirectWalkRoute is true" in {
+      val buildDirectWalkRoute = true
       val allTrips = Seq(fastBusTrip, walkFallbackTrip)
 
-      val filteredTrips = if (!considerModes.contains(BeamMode.WALK)) {
+      val filteredTrips = if (!buildDirectWalkRoute) {
         allTrips.filterNot(_.tripClassifier == BeamMode.WALK)
       } else {
         allTrips
