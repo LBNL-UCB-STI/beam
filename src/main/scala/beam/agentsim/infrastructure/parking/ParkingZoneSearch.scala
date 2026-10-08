@@ -279,7 +279,50 @@ object ParkingZoneSearch {
     chargingPointType: Option[ChargingPointType],
     pricingModel: Option[PricingModel],
     timeRestrictions: Map[VehicleRestrictionKey, Range]
-  )
+  ) {
+    override val hashCode: Int = {
+      var h = if (parkingType != null) parkingType.hashCode() else 0
+      h = 31 * h + (if (chargingPointType != null) chargingPointType.hashCode() else 0)
+      h = 31 * h + (if (pricingModel != null) pricingModel.hashCode() else 0)
+      var trHash = 0
+      if (timeRestrictions != null) {
+        val it = timeRestrictions.iterator
+        while (it.hasNext) {
+          val (k, r) = it.next()
+          val kHash = if (k != null) k.hashCode() else 0
+          val rHash = if (r != null) r.start * 31 + r.end else 0
+          trHash += (kHash * 31 + rHash)
+        }
+      }
+      31 * h + trHash
+    }
+
+    override def equals(obj: Any): Boolean = obj match {
+      case other: ParkingZoneInfo =>
+        (this eq other) || (
+          parkingType == other.parkingType &&
+          chargingPointType == other.chargingPointType &&
+          pricingModel == other.pricingModel &&
+          timeRestrictionsEquals(other.timeRestrictions)
+        )
+      case _ => false
+    }
+
+    private def timeRestrictionsEquals(otherTr: Map[VehicleRestrictionKey, Range]): Boolean = {
+      if (timeRestrictions eq otherTr) return true
+      if (timeRestrictions == null || otherTr == null || timeRestrictions.size != otherTr.size) return false
+      val it = timeRestrictions.iterator
+      while (it.hasNext) {
+        val (k, r1) = it.next()
+        otherTr.get(k) match {
+          case Some(r2) if r1 != null && r2 != null && r1.start == r2.start && r1.end == r2.end && r1.step == r2.step =>
+          case Some(null) if r1 == null =>
+          case _ => return false
+        }
+      }
+      true
+    }
+  }
 
   object ParkingZoneInfo {
 

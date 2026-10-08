@@ -6,6 +6,7 @@ import beam.sim.common.GeoUtils
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.locationtech.jts.geom.Geometry
+import org.locationtech.jts.geom.prep.{PreparedGeometry, PreparedGeometryFactory}
 
 import scala.collection.JavaConverters._
 
@@ -22,6 +23,8 @@ class TAZ(
   val geometry: Option[Geometry],
   val county: Option[String]
 ) {
+  lazy val preparedGeometry: Option[PreparedGeometry] = geometry.map(PreparedGeometryFactory.prepare)
+
   def this(
     tazIdString: String,
     coord: Coord,

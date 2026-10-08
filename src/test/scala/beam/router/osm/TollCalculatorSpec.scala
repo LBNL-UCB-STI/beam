@@ -34,5 +34,24 @@ class TollCalculatorSpec extends AnyWordSpecLike {
         assert(beamvilleTollCalc.calcTollByOsmIds(Vector(1003, 79)) == 7.0)
       }
     }
+
+    "calculate toll by linkId" should {
+      "return 1.0 for tolled link 1" in {
+        assert(beamvilleTollCalc.calcTollByLinkId(1, 0) == 1.0)
+      }
+
+      "return correct toll based on time range for link 150" in {
+        assert(beamvilleTollCalc.calcTollByLinkId(150, 1000) == 0.0)
+        assert(beamvilleTollCalc.calcTollByLinkId(150, 3500) == 1.0)
+      }
+
+      "return 0.0 for non-tolled link 999" in {
+        assert(beamvilleTollCalc.calcTollByLinkId(999, 1000) == 0.0)
+      }
+
+      "return 0.0 for negative link ID" in {
+        assert(beamvilleTollCalc.calcTollByLinkId(-5, 1000) == 0.0)
+      }
+    }
   }
 }

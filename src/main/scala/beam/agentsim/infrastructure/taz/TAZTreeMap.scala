@@ -218,6 +218,7 @@ class TAZTreeMap(
           // Tier 1: Try to find TAZ whose geometry contains the link endpoint (most semantically correct)
           // ringSearch expands in concentric rings, so first TAZ found whose geometry contains the point
           // is in the closest ring with a geometrically matching TAZ
+          val endPoint = GeometryUtils.createGeotoolsPoint(linkEndCoord)
           val tazOption = TAZTreeMap.ringSearch(
             tazQuadTree,
             linkEndCoord,
@@ -225,7 +226,7 @@ class TAZTreeMap(
             1000000,
             radiusMultiplication = 1.5
           ) { taz =>
-            if (taz.geometry.exists(_.contains(GeometryUtils.createGeotoolsPoint(linkEndCoord)))) {
+            if (taz.preparedGeometry.exists(_.contains(endPoint))) {
               Some(taz) // Found a TAZ whose geometry contains the point
             } else {
               None // Keep searching for a TAZ with containing geometry

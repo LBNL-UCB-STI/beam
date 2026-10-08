@@ -36,6 +36,35 @@ class TollCalculator @Inject() (val config: BeamConfig) extends LazyLogging {
   }
 
   private final val hasAnyTolledLinks: Boolean = !tollsByLinkId.isEmpty
+  private final val tolledLinkIdsBitSet: java.util.BitSet = {
+    val bs = new java.util.BitSet()
+    if (hasAnyTolledLinks) {
+      val keys = tollsByLinkId.keys()
+      var i = 0
+      while (i < keys.length) {
+        val k = keys(i)
+        if (k >= 0) {
+          bs.set(k)
+        }
+        i += 1
+      }
+    }
+    bs
+  }
+  private final val hasNegativeTolledLinks: Boolean = {
+    if (!hasAnyTolledLinks) false
+    else {
+      var hasNeg = false
+      val keys = tollsByLinkId.keys()
+      var i = 0
+      while (i < keys.length && !hasNeg) {
+        if (keys(i) < 0) hasNeg = true
+        i += 1
+      }
+      hasNeg
+    }
+  }
+
   private val tollsByWayId: java.util.Map[Long, Array[Toll]] = readFromCacheFileOrOSM()
   private final val tollPriceMultiplier: Double = config.beam.agentsim.tuning.tollPrice
 
@@ -76,13 +105,16 @@ class TollCalculator @Inject() (val config: BeamConfig) extends LazyLogging {
 
     while (i < linkIds.length) {
       val linkId = linkIds(i)
-      val tolls = tollsByLinkId.get(linkId)
-      if (tolls != null) {
-        val time = currentTime.toInt
-        if (tollPriceMultiplier == 1.0) {
-          total += applyTimeDependentTollAtTime(tolls, time)
-        } else {
-          total += applyTimeDependentTollAtTime(tolls, time) * tollPriceMultiplier
+      val isTolled = if (linkId >= 0) tolledLinkIdsBitSet.get(linkId) else hasNegativeTolledLinks
+      if (isTolled) {
+        val tolls = tollsByLinkId.get(linkId)
+        if (tolls != null) {
+          val time = currentTime.toInt
+          if (tollPriceMultiplier == 1.0) {
+            total += applyTimeDependentTollAtTime(tolls, time)
+          } else {
+            total += applyTimeDependentTollAtTime(tolls, time) * tollPriceMultiplier
+          }
         }
       }
 
@@ -98,6 +130,13 @@ class TollCalculator @Inject() (val config: BeamConfig) extends LazyLogging {
   @inline
   def calcTollByLinkId(linkId: Int, time: Int): Double = {
     if (!hasAnyTolledLinks) {
+      return 0.0
+    }
+    if (linkId >= 0) {
+      if (!tolledLinkIdsBitSet.get(linkId)) {
+        return 0.0
+      }
+    } else if (!hasNegativeTolledLinks) {
       return 0.0
     }
     val tolls = tollsByLinkId.get(linkId)
