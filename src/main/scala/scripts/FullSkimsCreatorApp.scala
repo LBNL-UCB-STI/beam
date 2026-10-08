@@ -61,7 +61,8 @@ object FullSkimsCreatorApp extends App with BeamHelper {
     skimsGeoType: Option[String] = None,
     skimsKind: Option[String] = None,
     peakHours: Option[String] = None,
-    modesToBuild: Option[String] = None
+    modesToBuild: Option[String] = None,
+    directory2: Option[Path] = None
   )
 
   case class ODRow(origin: GeoUnit.TAZ, destination: GeoUnit.TAZ)
@@ -72,6 +73,10 @@ object FullSkimsCreatorApp extends App with BeamHelper {
 
     def fileValidator(file: File): Either[String, Unit] =
       if (file.isFile) success
+      else failure(s"$file does not exist")
+
+    def dirOrFileValidator(file: File): Either[String, Unit] =
+      if (file.exists()) success
       else failure(s"$file does not exist")
 
     OParser.sequence(
@@ -113,6 +118,10 @@ object FullSkimsCreatorApp extends App with BeamHelper {
       opt[String]("modesToBuild")
         .action((x, c) => c.copy(modesToBuild = Some(x)))
         .text("Modes to build: drive, walk, transit, or combinations like drive,walk (default: from config)"),
+      opt[File]("directory2")
+        .validate(dirOrFileValidator)
+        .action((x, c) => c.copy(directory2 = Some(x.toPath)))
+        .text("Secondary R5 directory path for dual routing"),
       checkConfig { c =>
         if (c.configPath == null) failure("Missing required option --configPath (or --config)")
         else success
@@ -244,6 +253,9 @@ object FullSkimsCreatorApp extends App with BeamHelper {
       overrides.append(s"$prefix.modesToBuild.drive = $drive\n")
       overrides.append(s"$prefix.modesToBuild.walk = $walk\n")
       overrides.append(s"$prefix.modesToBuild.transit = $transit\n")
+    }
+    params.directory2.foreach { v =>
+      overrides.append(s"""beam.routing.r5.directory2 = "${v.toString}"\n""")
     }
 
     overrides.toString()

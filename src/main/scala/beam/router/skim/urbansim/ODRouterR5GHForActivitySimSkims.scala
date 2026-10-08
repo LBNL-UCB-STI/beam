@@ -3,10 +3,14 @@ package beam.router.skim.urbansim
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.graphhopper.{CarGraphHopperWrapper, GraphHopperWrapper, WalkGraphHopperWrapper}
+import beam.router.model.EmbodiedBeamTrip
 import beam.router.r5.{R5Parameters, R5Wrapper}
-import beam.router.{FreeFlowTravelTime, Modes, Router}
+import beam.router.{BeamFreeFlowTravelTime, FreeFlowTravelTime, Modes, Router}
+import beam.utils.NetworkHelperImpl
 import com.conveyal.osmlib.OSM
+import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.scalalogging.LazyLogging
+import org.matsim.api.core.v01.network.Network
 import org.matsim.core.router.util.TravelTime
 
 import java.io.File
@@ -17,7 +21,8 @@ import scala.reflect.io.Directory
 case class ODRouterR5GHForActivitySimSkims(
   workerParams: R5Parameters,
   requestTimes: List[Int],
-  travelTimeOpt: Option[TravelTime]
+  travelTimeOpt: Option[TravelTime],
+  networks2: Option[(TransportNetwork, Network)] = None
 ) extends Router
     with LazyLogging {
 
@@ -28,6 +33,17 @@ case class ODRouterR5GHForActivitySimSkims(
     travelTimeOpt.getOrElse(new FreeFlowTravelTime),
     workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
   )
+
+  private val secondR5: Option[R5Wrapper] = for {
+    (transportNetwork, network) <- networks2
+  } yield {
+    val networkHelperImpl = new NetworkHelperImpl(network)
+    new R5Wrapper(
+      workerParams.copy(transportNetwork = transportNetwork, networkHelper = networkHelperImpl),
+      travelTimeOpt.getOrElse(new BeamFreeFlowTravelTime(networkHelperImpl)),
+      workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
+    )
+  }
 
   private val linksBelowMinCarSpeed =
     workerParams.networkHelper.allLinks
@@ -87,13 +103,21 @@ case class ODRouterR5GHForActivitySimSkims(
 
       val r5ExecutionStart = System.nanoTime()
       val maybeR5Response = if (needToRunR5) {
-        Some(
-          r5.calcRoute(
-            request,
-            buildDirectCarRoute = needToBuildCarRoute,
-            buildDirectWalkRoute = needToBuildWalkRoute
-          )
+        val resp1 = r5.calcRoute(
+          request,
+          buildDirectCarRoute = needToBuildCarRoute,
+          buildDirectWalkRoute = needToBuildWalkRoute
         )
+        val combinedResp = (secondR5, request.withTransit) match {
+          case (Some(r52), true) =>
+            val resp2 = r52.calcRoute(request, buildDirectCarRoute = false, buildDirectWalkRoute = false)
+            resp1.copy(
+              itineraries = ODRouterR5GHForActivitySimSkims.unionItineraries(resp1.itineraries, resp2.itineraries),
+              computedInMs = resp1.computedInMs + resp2.computedInMs
+            )
+          case _ => resp1
+        }
+        Some(combinedResp)
       } else {
         None
       }
@@ -119,7 +143,16 @@ case class ODRouterR5GHForActivitySimSkims(
       (response, executionInfo)
     } else {
       val r5ExecutionStart = System.nanoTime()
-      val response = r5.calcRoute(request, buildDirectCarRoute, buildDirectWalkRoute)
+      val resp1 = r5.calcRoute(request, buildDirectCarRoute, buildDirectWalkRoute)
+      val response = (secondR5, request.withTransit) match {
+        case (Some(r52), true) =>
+          val resp2 = r52.calcRoute(request, buildDirectCarRoute = false, buildDirectWalkRoute = false)
+          resp1.copy(
+            itineraries = ODRouterR5GHForActivitySimSkims.unionItineraries(resp1.itineraries, resp2.itineraries),
+            computedInMs = resp1.computedInMs + resp2.computedInMs
+          )
+        case _ => resp1
+      }
       val r5ExecutionTime = System.nanoTime() - r5ExecutionStart
       (response, RouteExecutionInfo(r5ExecutionTime = r5ExecutionTime, r5Responses = 1))
     }
@@ -246,5 +279,19 @@ case class ODRouterR5GHForActivitySimSkims(
     } else {
       None
     }
+  }
+}
+
+object ODRouterR5GHForActivitySimSkims {
+
+  def unionItineraries(it1: Seq[EmbodiedBeamTrip], it2: Seq[EmbodiedBeamTrip]): Seq[EmbodiedBeamTrip] = {
+    val filteredIt2 = it2.filterNot(trip2 => it1.exists(trip1 => areTripsEqual(trip1, trip2)))
+    it1 ++ filteredIt2
+  }
+
+  def areTripsEqual(trip1: EmbodiedBeamTrip, trip2: EmbodiedBeamTrip): Boolean = {
+    trip1.tripClassifier == trip2.tripClassifier &&
+    trip1.legs.size == trip2.legs.size &&
+    trip1.totalTravelTimeInSecs == trip2.totalTravelTimeInSecs
   }
 }

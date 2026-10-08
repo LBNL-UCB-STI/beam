@@ -4,6 +4,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, PoisonPill, Props
 import beam.agentsim.infrastructure.geozone.GeoIndex
 import beam.router.Modes.BeamMode
 import beam.router.model.EmbodiedBeamTrip
+import beam.router.skim.{ActivitySimPathType, ActivitySimSkimmer}
 import beam.router.skim.core.AbstractSkimmer
 import beam.router.skim.urbansim.MasterActor.Request.Monitor
 import beam.router.skim.urbansim.MasterActor.Response.PopulatedSkimmer
@@ -279,6 +280,13 @@ class MasterActor(
     currentIdx < ODs.length && currentTime < requestTimes.length
   }
 
+  private def totalTimeFromRequestToArrival(trip: EmbodiedBeamTrip, requestTime: Int): Int = {
+    trip.legs.lastOption match {
+      case Some(lastLeg) => Math.max(0, lastLeg.beamLeg.endTime - requestTime)
+      case None          => trip.totalTravelTimeInSecs
+    }
+  }
+
   private def processResponse(resp: ODRequester.Response): Unit = {
     resp.maybeRoutingResponse match {
       case Failure(ex) =>
@@ -286,8 +294,38 @@ class MasterActor(
         log.error(ex, s"Can't compute route: ${ex.getMessage}")
       case Success(routingResponse) =>
         nSuccessRoutes += 1
-        routingResponse.itineraries.foreach { trip =>
-          if (!isBikeTransit(trip)) {
+        val validTrips = routingResponse.itineraries.filterNot(isBikeTransit)
+        if (validTrips.nonEmpty) {
+          // If WALK was not requested as an active mode (e.g. this is a transit query),
+          // filter out direct WALK fallback itineraries so they do not pollute walk skims.
+          val filteredTrips = if (!resp.considerModes.contains(BeamMode.WALK)) {
+            validTrips.filterNot(_.tripClassifier == BeamMode.WALK)
+          } else {
+            validTrips
+          }
+
+          val tripsToRecord: Iterable[EmbodiedBeamTrip] = abstractSkimmer match {
+            case _: ActivitySimSkimmer =>
+              // ActivitySim: group itineraries by (ActivitySimPathType, fleet) and pick the fastest trip
+              // from request time to arrival time (secondary sort on total travel time)
+              filteredTrips
+                .filterNot(t => ActivitySimPathType.determineTripPathTypeAndFleet(t)._1 == ActivitySimPathType.OTHER)
+                .groupBy(t => ActivitySimPathType.determineTripPathTypeAndFleet(t))
+                .values
+                .map { modeTrips =>
+                  modeTrips.minBy(t => (totalTimeFromRequestToArrival(t, resp.requestTime), t.totalTravelTimeInSecs))
+                }
+            case _ =>
+              // Default/ODSkimmer: group itineraries by BeamMode and pick the fastest trip
+              filteredTrips
+                .groupBy(_.tripClassifier)
+                .values
+                .map { modeTrips =>
+                  modeTrips.minBy(t => (totalTimeFromRequestToArrival(t, resp.requestTime), t.totalTravelTimeInSecs))
+                }
+          }
+
+          tripsToRecord.foreach { trip =>
             try {
               val event = odRequester.createSkimEvent(
                 resp.srcIndex,
