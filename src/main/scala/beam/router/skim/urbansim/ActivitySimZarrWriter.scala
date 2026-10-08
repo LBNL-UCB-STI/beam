@@ -255,7 +255,7 @@ object ActivitySimZarrWriter extends LazyLogging {
   )
 
   // Configuration for which metrics are expected for which path types for ActivitySim export
-  private val activitySimMatrixData = IndexedSeq(
+  private[skim] val activitySimMatrixData = IndexedSeq(
     MatrixData(
       Set(DRV_COM_WLK, DRV_EXP_WLK, DRV_HVY_WLK, WLK_COM_DRV, WLK_EXP_DRV, WLK_HVY_DRV),
       ActivitySimTimeBin.values.toSet,
@@ -277,7 +277,7 @@ object ActivitySimZarrWriter extends LazyLogging {
       Set(BTOLL, VTOLL, TIME, DIST)
     ),
     MatrixData(
-      Set(BIKE),
+      Set(BIKE, WALK),
       ActivitySimTimeBin.values.toSet,
       Set(TIME, DIST)
     ),

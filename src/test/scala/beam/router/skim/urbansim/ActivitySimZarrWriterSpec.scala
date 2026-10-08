@@ -122,5 +122,17 @@ class ActivitySimZarrWriterSpec extends AnyWordSpecLike with Matchers {
       }
       outcome should be(TOTIVT_test.toFloat +- 1e-6f) // Account for double -> float conversion
     }
+
+    "include WALK with TIME and DIST in ActivitySimZarrWriter matrix data" in {
+      val walkMatrixData = ActivitySimZarrWriter.activitySimMatrixData.find(_.pathTypes.contains(beam.router.skim.ActivitySimPathType.WALK))
+      walkMatrixData should be('defined)
+      walkMatrixData.get.metrics should contain allOf(beam.router.skim.ActivitySimMetric.TIME, beam.router.skim.ActivitySimMetric.DIST)
+    }
+
+    "include WALK with TIME and DIST in ActivitySimOmxWriter matrix data" in {
+      val walkMatrixData = ActivitySimOmxWriter.activitySimMatrixData.find(_.pathTypes.contains(beam.router.skim.ActivitySimPathType.WALK))
+      walkMatrixData should be('defined)
+      walkMatrixData.get.metrics should contain allOf(beam.router.skim.ActivitySimMetric.TIME, beam.router.skim.ActivitySimMetric.DIST)
+    }
   }
 }

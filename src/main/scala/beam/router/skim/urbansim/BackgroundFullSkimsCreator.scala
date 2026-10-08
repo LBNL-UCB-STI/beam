@@ -148,10 +148,20 @@ class BackgroundFullSkimsCreator(
   private val masterActorRef: ActorRef = {
     val actorName = s"Modes-${beamModes.mkString("_")}-with-transit-$withTransit-${UUID.randomUUID()}"
 
+    val effectiveRequestTimes = if (odRequester.isWalkOnly) {
+      // Walk travel times and distances are physically invariant across time of day.
+      // Route a single representative time period (EARLY_AM / hour 5 = 18000s) to cut walk routing by 80%.
+      val allTimes = getPeakSecondsFromConfig(beamServices)
+      val earlyAmTime = allTimes.find(t => ActivitySimTimeBin.toTimeBin(t / 3600) == ActivitySimTimeBin.EARLY_AM)
+      Seq(earlyAmTime.getOrElse(allTimes.headOption.getOrElse(5 * 3600)))
+    } else {
+      getPeakSecondsFromConfig(beamServices)
+    }
+
     val masterProps = MasterActor.props(
       abstractSkimmer,
       odRequester,
-      requestTimes = getPeakSecondsFromConfig(beamServices),
+      requestTimes = effectiveRequestTimes,
       ODs,
       parallelism
     )

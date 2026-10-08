@@ -392,8 +392,26 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     maybeFleetName: Option[String],
     skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
   ): Option[ExcerptData] = {
-    if (pathType == ActivitySimPathType.WALK && timeBin != ActivitySimTimeBin.EARLY_AM) {
-      None
+    if (pathType == ActivitySimPathType.WALK) {
+      val individualSkims = timeBin.hours.flatMap { hour =>
+        getSkimValue(skim, ActivitySimSkimmerKey(hour, pathType, origin.id, destination.id))
+          .map(_.asInstanceOf[ActivitySimSkimmerInternal])
+      }
+      val skimsToUse = if (individualSkims.nonEmpty) {
+        individualSkims
+      } else {
+        // Walk is time-invariant: fallback to representative hours where walk was observed (hour 5 first)
+        val fallbackHours = List(5, 3, 4, 8, 12, 17, 22, 0)
+        fallbackHours.iterator.flatMap { hour =>
+          getSkimValue(skim, ActivitySimSkimmerKey(hour, pathType, origin.id, destination.id))
+            .map(_.asInstanceOf[ActivitySimSkimmerInternal])
+        }.take(1).toList
+      }
+      if (skimsToUse.isEmpty) {
+        None
+      } else {
+        Some(weightedData(timeBin.toString, origin.id, destination.id, pathType, maybeFleetName, skimsToUse))
+      }
     } else {
       val individualSkims = timeBin.hours.flatMap { hour =>
         getSkimValue(skim, ActivitySimSkimmerKey(hour, pathType, origin.id, destination.id))

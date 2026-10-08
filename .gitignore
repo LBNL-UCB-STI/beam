@@ -74,3 +74,5 @@ test/input/fares/fares.dat
 test/input/sf-light/warmstart/warmstart_*
 *.log
 __pycache__/
+*.jfr
+**/*.mapdb*

@@ -66,9 +66,13 @@ class ODRequester(
 
   // Pre-allocated mode array for drive-only routing
   private val driveOnlyModes: Array[BeamMode] = Array(BeamMode.CAR)
+  // Pre-allocated mode array for walk-only routing
+  private val walkOnlyModes: Array[BeamMode] = Array(BeamMode.WALK)
 
   // Check if this requester is configured for drive-only mode (optimization flag)
   val isDriveOnly: Boolean = beamModes.size == 1 && beamModes.head == BeamMode.CAR && !withTransit
+  // Check if this requester is configured for walk-only mode (optimization flag)
+  val isWalkOnly: Boolean = beamModes.size == 1 && beamModes.head == BeamMode.WALK && !withTransit
 
   private val thresholdDistanceForBikeMeters: Double =
     beamConfig.beam.urbansim.backgroundODSkimsCreator.maxTravelDistanceInMeters.bike
@@ -275,6 +279,63 @@ class ODRequester(
     }
 
     ODRequester.Response(srcIndex, dstIndex, driveOnlyModes, maybeResponse, requestTime)
+  }
+
+  /**
+    * Optimized route method for walk-only skim generation.
+    * Reuses pre-created dummy body vehicle IDs and avoids unnecessary transit routing.
+    * Short-circuits with an empty response if the OD distance exceeds thresholdDistanceForWalkMeters.
+    */
+  def routeWalkOnly(srcIndex: GeoIndex, dstIndex: GeoIndex, requestTime: Int): ODRequester.Response = {
+    val (rawSrcCoord, rawDstCoord) = (srcIndex, dstIndex) match {
+      case (tazSrc: TAZIndex, tazDst: TAZIndex) =>
+        TAZClustering.getGeoIndexCenters(tazSrc, tazDst)
+      case (h3Src: H3Index, h3Dst: H3Index) =>
+        H3Clustering.getGeoIndexCenters(geoUtils, h3Src, h3Dst)
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Expected matching index types, got ${srcIndex.getClass} and ${dstIndex.getClass}"
+        )
+    }
+
+    val dist = distanceWithMargin(rawSrcCoord, rawDstCoord)
+    if (dist >= thresholdDistanceForWalkMeters) {
+      ODRequester.Response(srcIndex, dstIndex, walkOnlyModes, Try(RoutingResponse.dummyRoutingResponse.get), requestTime)
+    } else {
+      val (srcCoord, dstCoord) = snapCoordinatesToRoad(rawSrcCoord, rawDstCoord)
+      val streetVehicle = StreetVehicle(
+        dummyBodyVehicleId,
+        dummyBodyVehicleType.id,
+        new SpaceTime(srcCoord, requestTime),
+        BeamMode.WALK,
+        asDriver = true,
+        needsToCalculateCost = false
+      )
+
+      val routingReq = RoutingRequest(
+        originUTM = srcCoord,
+        destinationUTM = dstCoord,
+        departureTime = requestTime,
+        withTransit = false,
+        streetVehicles = Array(streetVehicle),
+        attributesOfIndividual = Some(dummyPersonAttributes),
+        triggerId = -1
+      )
+
+      val maybeResponse = Try {
+        val startExecution = System.nanoTime()
+        val response = router.calcRoute(routingReq, buildDirectCarRoute = false, buildDirectWalkRoute = true)
+        _requestsExecutionTime.updateAndGet(current =>
+          RouteExecutionInfo.sum(
+            current,
+            RouteExecutionInfo(r5ExecutionTime = System.nanoTime() - startExecution, r5Responses = 1)
+          )
+        )
+        response
+      }
+
+      ODRequester.Response(srcIndex, dstIndex, walkOnlyModes, maybeResponse, requestTime)
+    }
   }
 
   def createSkimEvent(

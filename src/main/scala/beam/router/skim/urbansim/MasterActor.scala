@@ -124,31 +124,8 @@ class MasterActor(
   def receive: Receive = {
     case resp: ODRequester.Response =>
       checkIfNeedToStop(sender())
-      resp.maybeRoutingResponse match {
-        case Failure(ex) =>
-          nFailedRoutes += 1
-          log.error(ex, s"Can't compute route: ${ex.getMessage}")
-        case Success(routingResponse) =>
-          nSuccessRoutes += 1
-          routingResponse.itineraries.foreach { trip =>
-            if (!isBikeTransit(trip)) {
-              try {
-                val event = odRequester.createSkimEvent(
-                  resp.srcIndex,
-                  resp.dstIndex,
-                  trip.tripClassifier,
-                  trip,
-                  resp.requestTime
-                )
-                abstractSkimmer.handleEvent(event)
-                nSkimEvents += 1
-              } catch {
-                case NonFatal(ex) =>
-                  log.error(ex, s"Can't create skim event: ${ex.getMessage}")
-              }
-            }
-          }
-      }
+      processResponse(resp)
+      checkAndGiveTheResult()
 
     case Terminated(ref) =>
       workers -= ref
@@ -158,6 +135,15 @@ class MasterActor(
 
     case msg: Request =>
       msg match {
+        case Request.BatchResponse(responses) =>
+          checkIfNeedToStop(sender())
+          var i = 0
+          while (i < responses.length) {
+            processResponse(responses(i))
+            i += 1
+          }
+          checkAndGiveTheResult()
+
         case Monitor =>
           logStat()
 
@@ -293,6 +279,34 @@ class MasterActor(
     currentIdx < ODs.length && currentTime < requestTimes.length
   }
 
+  private def processResponse(resp: ODRequester.Response): Unit = {
+    resp.maybeRoutingResponse match {
+      case Failure(ex) =>
+        nFailedRoutes += 1
+        log.error(ex, s"Can't compute route: ${ex.getMessage}")
+      case Success(routingResponse) =>
+        nSuccessRoutes += 1
+        routingResponse.itineraries.foreach { trip =>
+          if (!isBikeTransit(trip)) {
+            try {
+              val event = odRequester.createSkimEvent(
+                resp.srcIndex,
+                resp.dstIndex,
+                trip.tripClassifier,
+                trip,
+                resp.requestTime
+              )
+              abstractSkimmer.handleEvent(event)
+              nSkimEvents += 1
+            } catch {
+              case NonFatal(ex) =>
+                log.error(ex, s"Can't create skim event: ${ex.getMessage}")
+            }
+          }
+        }
+    }
+  }
+
   private def checkAndGiveTheResult(): Unit = {
     if (totalResponses == maxRequestsNumber) {
       replyToWhenFinish.foreach { actorRef =>
@@ -343,6 +357,7 @@ object MasterActor {
     case class ReduceParallelismTo(parallelism: Int) extends Request
     case object WaitToFinish extends Request
     case class GiveMoreWork(sender: ActorRef) extends Request
+    case class BatchResponse(responses: Array[ODRequester.Response]) extends Request
   }
 
   sealed trait Response
