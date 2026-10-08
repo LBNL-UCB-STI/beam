@@ -268,27 +268,33 @@ object ParkingZoneSearch {
 
   /**
     * This class "describes" a parking zone (i.e. extended type of parking zone). This allows to search for similar
-    * parking zones on other links or TAZes
+    * parking zones on other links or TAZes. Time restrictions are stored as (start, end) second intervals rather
+    * than scala.Range to avoid O(N) element hashing and boxed Integer churn during Map lookup.
     * @param parkingType the parking type (Residential, Workplace, Public)
     * @param chargingPointType the charging point type
     * @param pricingModel the pricing model
-    * @param timeRestrictions the time restrictions
+    * @param timeRestrictions the time restrictions as (start, end) second intervals
     */
   case class ParkingZoneInfo(
     parkingType: ParkingType,
     chargingPointType: Option[ChargingPointType],
     pricingModel: Option[PricingModel],
-    timeRestrictions: Map[VehicleRestrictionKey, Range]
+    timeRestrictions: Map[VehicleRestrictionKey, (Int, Int)]
   )
 
   object ParkingZoneInfo {
 
     def describeParkingZone(zone: ParkingZone): ParkingZoneInfo = {
+      val tr = if (zone.timeRestrictions == null || zone.timeRestrictions.isEmpty) {
+        Map.empty[VehicleRestrictionKey, (Int, Int)]
+      } else {
+        zone.timeRestrictions.map { case (k, r) => k -> (r.start, r.end) }
+      }
       new ParkingZoneInfo(
         zone.parkingType,
         zone.chargingPointType,
         zone.pricingModel,
-        zone.timeRestrictions
+        tr
       )
     }
   }
