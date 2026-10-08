@@ -258,6 +258,10 @@ object FullSkimsCreatorApp extends App with BeamHelper {
       overrides.append(s"""beam.routing.r5.directory2 = "${v.toString}"\n""")
     }
 
+    // FullSkimsCreatorApp only creates OD/ActivitySim skims; disable emissions checks
+    overrides.append("beam.agentsim.agents.vehicles.emissions.skims = false\n")
+    overrides.append("beam.agentsim.agents.vehicles.emissions.events = false\n")
+
     overrides.toString()
   }
 
