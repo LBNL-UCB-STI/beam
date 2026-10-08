@@ -110,10 +110,19 @@ class ChargingNetwork(val parkingZones: Map[Id[ParkingZoneId], ParkingZone]) ext
     * @return a tuple of the status of the charging vehicle and the connection status
     */
   def disconnectVehicle(vehicleId: Id[BeamVehicle], tick: Int): Option[ChargingVehicle] = {
-    beamVehicleIdToChargingVehicleMap.get(vehicleId) map { chargingVehicle =>
+    beamVehicleIdToChargingVehicleMap.get(vehicleId).map { chargingVehicle =>
       beamVehicleIdToChargingVehicleMap.remove(vehicleId)
       chargingVehicle.chargingStation.disconnect(chargingVehicle.vehicle.id, tick)
-    } getOrElse {
+
+      //
+      val stall = chargingVehicle.stall
+      if (stall.parkingZoneId != ParkingZone.DefaultParkingZoneId) {
+        searchFunctions.foreach(_.releaseStall(parkingZones(stall.parkingZoneId)))
+      }
+
+      //
+      chargingVehicle
+    } orElse {
       logger.debug(s"Vehicle $vehicleId is already disconnected")
       None
     }
