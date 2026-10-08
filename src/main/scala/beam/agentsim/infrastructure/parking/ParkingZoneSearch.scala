@@ -47,8 +47,7 @@ object ParkingZoneSearch {
     estimatedMinParkingDurationInSeconds: Double,
     estimatedMeanEnRouteChargingDurationInSeconds: Double,
     fractionOfSameTypeZones: Double,
-    minNumberOfSameTypeZones: Int,
-    searchExpansionFactor: Double = 2.0
+    minNumberOfSameTypeZones: Int
   )
 
   /**
@@ -364,7 +363,8 @@ object ParkingZoneSearch {
       searchStartRadius: Double,
       searchMaxRadius: Double,
       expansionFactor: Double,
-      sampleSize: Int
+      sampleSize: Int,
+      maxCandidateScan: Int
     ) extends SearchMode {
       private var thisInnerRadius: Double = 0.0
       private var thisOuterRadius: Double = searchStartRadius
@@ -380,7 +380,8 @@ object ParkingZoneSearch {
             destinationUTM.getY,
             thisInnerRadius,
             thisOuterRadius,
-            sampleSize
+            sampleSize,
+            maxCandidateScan
           )
           thisInnerRadius = thisOuterRadius
           thisOuterRadius = thisOuterRadius * expansionFactor
@@ -395,7 +396,8 @@ object ParkingZoneSearch {
       searchMaxDistanceToFociInPercent: Double,
       expansionFactor: Double,
       distanceFunction: (Coord, Coord) => Double,
-      sampleSize: Int
+      sampleSize: Int,
+      maxCandidateScan: Int
     ) extends SearchMode {
       private val startDistance: Double = distanceFunction(originUTM, destinationUTM) * 1.01
       private val maxDistance: Double = startDistance * searchMaxDistanceToFociInPercent
@@ -413,7 +415,8 @@ object ParkingZoneSearch {
             destinationUTM.getX,
             destinationUTM.getY,
             thisInnerDistance,
-            sampleSize
+            sampleSize,
+            maxCandidateScan
           )
           thisInnerDistance = thisInnerDistance * expansionFactor
           Some(result)
@@ -442,9 +445,10 @@ object ParkingZoneSearch {
             params.originUTM.getOrElse(throw new RuntimeException("Enroute process is expecting an origin location")),
             params.destinationUTM,
             config.searchParams.searchMaxDistanceRelativeToEllipseFoci,
-            config.searchExpansionFactor,
+            config.searchParams.searchExpansionFactor,
             config.distanceFunction,
-            config.searchParams.searchSampleSize
+            config.searchParams.searchSampleSize,
+            config.searchParams.linkSearchMaxCandidateScan
           )
 
         case _ =>
@@ -461,8 +465,9 @@ object ParkingZoneSearch {
             params.destinationUTM,
             startRadius,
             searchMaxRadius,
-            config.searchExpansionFactor,
-            config.searchParams.searchSampleSize
+            config.searchParams.searchExpansionFactor,
+            config.searchParams.searchSampleSize,
+            config.searchParams.linkSearchMaxCandidateScan
           )
       }
     }

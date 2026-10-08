@@ -171,7 +171,7 @@ abstract class InfrastructureFunctions(
     val parkingZoneMNLParamsFunction: ParkingAlternative => Map[ParkingMNL.Parameters, Double] =
       (parkingAlternative: ParkingAlternative) => {
         val params = setupMNLParameters(parkingAlternative, inquiry)
-        if (inquiry.parkingActivityType == ParkingActivityType.Home) {
+        if (inquiry.parkingActivityType == ParkingActivityType.Home && logger.underlying.isDebugEnabled) {
           logger.debug(
             f"tour=${inquiry.remainingTripData
               .map {
@@ -206,7 +206,7 @@ abstract class InfrastructureFunctions(
               parkingZonesSampled,
               iterations
             )
-          ) =>
+          ) if logger.underlying.isDebugEnabled =>
         logger.debug(
           s"sampled over ${parkingZonesSampled.length} (found ${parkingZonesSeen.size}) parking zones over $iterations iterations."
         )

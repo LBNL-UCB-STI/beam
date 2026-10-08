@@ -62,8 +62,11 @@ class UrbansimReaderV2Test extends AnyWordSpec with Matchers {
       households should not be empty
 
       // Test reading vehicles (optional)
-      val vehicles = reader.getVehicles
-      // No assertion on vehicles as they are optional
+      val vehicles = reader.getVehicles.toSeq
+      vehicles should have size 2
+      vehicles.map(_.vehicleId) should contain theSameElementsInOrderAs Seq("veh-csv-1", "veh-csv-2")
+      vehicles.map(_.householdId) should contain theSameElementsInOrderAs Seq("226798", "580065")
+      vehicles.map(_.initialSoc) should contain theSameElementsInOrderAs Seq(Some(0.75), None)
     }
 
     "read Parquet files successfully when all required files exist" in {
@@ -111,8 +114,11 @@ class UrbansimReaderV2Test extends AnyWordSpec with Matchers {
       households should not be empty
 
       // Test reading vehicles (optional)
-      val vehicles = reader.getVehicles
-      // No assertion on vehicles as they are optional
+      val vehicles = reader.getVehicles.toSeq
+      vehicles should have size 2
+      vehicles.map(_.vehicleId) should contain theSameElementsInOrderAs Seq("veh-parquet-1", "veh-parquet-2")
+      vehicles.map(_.householdId) should contain theSameElementsInOrderAs Seq("226798", "580065")
+      vehicles.map(_.initialSoc) should contain theSameElementsInOrderAs Seq(Some(0.75), None)
     }
 
     "throw an exception when Parquet files are missing" in {

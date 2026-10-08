@@ -36,7 +36,7 @@ import java.io.File
 import java.nio.file.Paths
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneOffset, ZonedDateTime}
-import java.util.concurrent.{ExecutorService, Executors}
+import java.util.concurrent.{ExecutorService, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.TimeoutException
 import scala.collection.JavaConverters._
@@ -64,11 +64,39 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
     if (Runtime.getRuntime.availableProcessors() <= 2) 1
     else Runtime.getRuntime.availableProcessors() - 2
 
-  private val execSvc: ExecutorService = Executors.newFixedThreadPool(
-    numOfThreads,
-    new ThreadFactoryBuilder().setDaemon(true).setNameFormat("r5-routing-worker-%d").build()
+  private val configuredTransitRoutingThreads: Option[Int] =
+    sys.props
+      .get("beam.routing.transitRoutingThreads")
+      .orElse(sys.env.get("BEAM_TRANSIT_ROUTING_THREADS"))
+      .flatMap(value => Try(value.toInt).toOption)
+      .filter(_ > 0)
+
+  private val transitRoutingThreads: Int =
+    configuredTransitRoutingThreads.getOrElse(math.max(2, math.min(12, math.max(1, numOfThreads / 4))))
+
+  private val streetRoutingThreads: Int = math.max(1, numOfThreads - transitRoutingThreads)
+
+  private val streetExecSvc: ThreadPoolExecutor = new ThreadPoolExecutor(
+    streetRoutingThreads,
+    streetRoutingThreads,
+    0L,
+    TimeUnit.MILLISECONDS,
+    new LinkedBlockingQueue[Runnable](),
+    new ThreadFactoryBuilder().setDaemon(true).setNameFormat("r5-street-routing-worker-%d").build()
   )
-  private implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(execSvc)
+
+  private val transitExecSvc: ThreadPoolExecutor = new ThreadPoolExecutor(
+    transitRoutingThreads,
+    transitRoutingThreads,
+    0L,
+    TimeUnit.MILLISECONDS,
+    new LinkedBlockingQueue[Runnable](),
+    new ThreadFactoryBuilder().setDaemon(true).setNameFormat("r5-transit-routing-worker-%d").build()
+  )
+
+  private val streetExecutionContext: ExecutionContext = ExecutionContext.fromExecutorService(streetExecSvc)
+  private val transitExecutionContext: ExecutionContext = ExecutionContext.fromExecutorService(transitExecSvc)
+  private implicit val executionContext: ExecutionContext = streetExecutionContext
 
   private val tickTask: Cancellable =
     context.system.scheduler.scheduleWithFixedDelay(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
@@ -86,6 +114,12 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
     "Num of available processors: {}. Will use: {}",
     Runtime.getRuntime.availableProcessors(),
     numOfThreads
+  )
+  log.info(
+    "Routing thread split: total={}, street={}, transit={} (override with -Dbeam.routing.transitRoutingThreads or BEAM_TRANSIT_ROUTING_THREADS)",
+    numOfThreads,
+    streetRoutingThreads,
+    transitRoutingThreads
   )
 
   private def getNameAndHashCode: String = s"RoutingWorker[${hashCode()}], Path: `${self.path}`"
@@ -105,21 +139,25 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
   private def dumpR5WorkerStacks(maxFramesPerThread: Int = 40): String = {
     Thread.getAllStackTraces.asScala.toVector
       .collect {
-        case (thread, stack) if thread.getName.startsWith("r5-routing-worker-") =>
+        case (thread, stack)
+            if thread.getName
+              .startsWith("r5-street-routing-worker-") || thread.getName.startsWith("r5-transit-routing-worker-") =>
           val header =
             s"""thread=${thread.getName}, id=${thread.getId}, state=${thread.getState}"""
           val frames = stack.take(maxFramesPerThread).map(s => s"    at $s").mkString("\n")
           s"$header\n$frames"
       }
       .sortBy { dump =>
-        val prefix = "thread=r5-routing-worker-"
-        val start = dump.indexOf(prefix)
-        if (start < 0) Int.MaxValue
-        else {
-          val idx = start + prefix.length
-          val end = dump.indexOf(",", idx)
-          Try(dump.substring(idx, if (end > idx) end else dump.length).toInt).getOrElse(Int.MaxValue)
-        }
+        val prefixes = Seq("thread=r5-street-routing-worker-", "thread=r5-transit-routing-worker-")
+        prefixes
+          .find(dump.contains)
+          .map { prefix =>
+            val start = dump.indexOf(prefix)
+            val idx = start + prefix.length
+            val end = dump.indexOf(",", idx)
+            Try(dump.substring(idx, if (end > idx) end else dump.length).toInt).getOrElse(Int.MaxValue)
+          }
+          .getOrElse(Int.MaxValue)
       }
       .mkString("\n\n")
   }
@@ -186,7 +224,7 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
             future.onComplete { result =>
               timeoutTask.cancel()
               p.tryComplete(result)
-            }(executionContext)
+            }(context.dispatcher)
 
           case Failure(err) =>
             p.tryFailure(err)
@@ -246,7 +284,8 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
 
   override def postStop(): Unit = {
     tickTask.cancel()
-    execSvc.shutdown()
+    streetExecSvc.shutdown()
+    transitExecSvc.shutdown()
   }
 
   // Let the dispatcher on which the Future in receive will be running
@@ -295,6 +334,7 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
       msgs = msgs + 1
       if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
       val replyTo = sender()
+      val routeExecutionContext = executionContextFor(request)
       val routeStartedAtMs = Promise[Long]()
       val trackDriveTransitDiagnostic =
         RoutingWorker.enableDriveTransitRoutingDiagnostics && request.requestedMode.contains(BeamMode.DRIVE_TRANSIT)
@@ -352,7 +392,7 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
             }
           }
         }
-      }
+      }(routeExecutionContext)
       val eventualResponse = withRoutingTimeout(request, routeFuture, routeStartedAtMs.future)
       def routeStartTimeForLogs: Long =
         routeStartedAtMs.future.value.collect { case Success(ts) => ts }.getOrElse(System.currentTimeMillis())
@@ -376,7 +416,7 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
           maybeLogSlowRouting(request, routeStartTimeForLogs, "success")
         case Failure(err) =>
           maybeLogSlowRouting(request, routeStartTimeForLogs, "failure", Some(err))
-      }(executionContext)
+      }(context.dispatcher)
 
       eventualResponse.recover { case e =>
         log.error(e, "calcRoute failed")
@@ -449,6 +489,22 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
 
   private def askForMoreWork(): Unit =
     if (workAssigner != null) workAssigner ! GimmeWork //Master will retry if it hasn't heard
+
+  private def executionContextFor(request: RoutingRequest): ExecutionContext = {
+    if (request.withTransit) {
+      transitExecutionContext
+    } else if (shouldSpillNonTransitToTransitPool) {
+      transitExecutionContext
+    } else {
+      streetExecutionContext
+    }
+  }
+
+  private def shouldSpillNonTransitToTransitPool: Boolean = {
+    transitExecSvc.getQueue.isEmpty &&
+    transitExecSvc.getActiveCount < transitRoutingThreads &&
+    streetExecSvc.getQueue.size() > 0
+  }
 
   private def createWalkGraphHopper(): Unit = {
     log.info("Init GH Walk")

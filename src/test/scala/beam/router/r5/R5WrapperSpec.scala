@@ -4,10 +4,11 @@ import akka.actor.ActorRef
 import akka.testkit.TestProbe
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{IntermodalUse, Location, RoutingRequest}
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, WALK}
+import beam.router.Modes.BeamMode.{CAR, CAR_HOV2, HOV2_TELEPORTATION, WALK}
 import beam.router.{BeamRouter, RoutingWorker}
 import beam.sflight.AbstractSfLightSpec
 import ch.qos.logback.classic.spi.ILoggingEvent
@@ -206,6 +207,90 @@ class R5WrapperSpec extends AbstractSfLightSpec("R5WrapperSpec") with Matchers {
       response.itineraries.exists(_.tripClassifier == BeamMode.WALK_TRANSIT) should be(true)
       response.itineraries.exists(_.tripClassifier == BeamMode.DRIVE_TRANSIT) should be(false)
       response.itineraries.exists(_.tripClassifier == CAR) should be(false)
+    }
+
+    "return only teleportation routes when requestedMode is HOV2_TELEPORTATION" in {
+      val r5Wrapper = getR5Wrapper
+
+      val origin = new Location(551642.4729978561, 4180839.138663753)
+      val destination = new Location(552065.6882372601, 4180855.582994787)
+      val time = 27840
+
+      val streetVehicles = Vector(
+        StreetVehicle(
+          Id.createVehicleId("body"),
+          Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
+          SpaceTime(origin, time),
+          WALK,
+          asDriver = true,
+          needsToCalculateCost = false
+        ),
+        StreetVehicle(
+          BeamVehicle.createId(Id.createPersonId("test-person"), Some("teleportationSharedVehicle-1")),
+          carVehicleType.id,
+          SpaceTime(origin, time),
+          CAR_HOV2,
+          asDriver = true,
+          needsToCalculateCost = true
+        )
+      )
+      val request = RoutingRequest(
+        origin,
+        destination,
+        time,
+        withTransit = false,
+        streetVehicles = streetVehicles,
+        requestedMode = Some(HOV2_TELEPORTATION),
+        triggerId = 0
+      )
+
+      val response = r5Wrapper.calcRoute(request, buildDirectCarRoute = true, buildDirectWalkRoute = true)
+
+      response.itineraries.foreach { itinerary =>
+        itinerary.tripClassifier should be(HOV2_TELEPORTATION)
+      }
+      response.itineraries.exists(_.tripClassifier == HOV2_TELEPORTATION) should be(true)
+      response.itineraries.exists(_.tripClassifier == WALK) should be(false)
+    }
+
+    "not create walk alternatives for HOV2_TELEPORTATION requests even when transit routing is enabled" in {
+      val r5Wrapper = getR5Wrapper
+
+      val origin = new Location(551642.4729978561, 4180839.138663753)
+      val destination = new Location(552065.6882372601, 4180855.582994787)
+      val time = 27840
+
+      val streetVehicles = Vector(
+        StreetVehicle(
+          Id.createVehicleId("body"),
+          Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
+          SpaceTime(origin, time),
+          WALK,
+          asDriver = true,
+          needsToCalculateCost = false
+        ),
+        StreetVehicle(
+          BeamVehicle.createId(Id.createPersonId("test-person"), Some("teleportationSharedVehicle-2")),
+          carVehicleType.id,
+          SpaceTime(origin, time),
+          CAR_HOV2,
+          asDriver = true,
+          needsToCalculateCost = true
+        )
+      )
+      val request = RoutingRequest(
+        origin,
+        destination,
+        time,
+        withTransit = true,
+        streetVehicles = streetVehicles,
+        requestedMode = Some(HOV2_TELEPORTATION),
+        triggerId = 0
+      )
+
+      val response = r5Wrapper.calcRoute(request, buildDirectCarRoute = true, buildDirectWalkRoute = true)
+
+      response.itineraries.exists(_.tripClassifier == WALK) should be(false)
     }
   }
 }
