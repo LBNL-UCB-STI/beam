@@ -4,15 +4,15 @@ import numpy as np
 import scipy.ndimage
 
 # %%
-trips_all = pd.read_csv('Data/NHTS/trippub.csv',
+trips_all = pd.read_csv('https://beam-outputs.s3.amazonaws.com/new_city/nhts/trippub.csv.gz',
                     usecols=[0, 1, 2, 3, 4, 5, 6, 7, 17, 26, 28, 58, 59, 60, 61, 64, 69, 70, 71, 72, 73, 74, 84, 89, 93,
                              102, 103])
 
-persons_all = pd.read_csv('Data/NHTS/perpub.csv')
+persons_all = pd.read_csv('https://beam-outputs.s3.amazonaws.com/new_city/nhts/perpub.csv.gz')
 
 
 #%%
-for cbsa in ['12420']:#persons_all.HH_CBSA.unique():
+for cbsa in ['12420','35620','41860','19820']:#persons_all.HH_CBSA.unique():
     trips = trips_all.loc[(trips_all['HH_CBSA'] == cbsa) , :]
 
 
