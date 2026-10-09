@@ -63,7 +63,9 @@ object FullSkimsCreatorApp extends App with BeamHelper {
     peakHours: Option[String] = None,
     modesToBuild: Option[String] = None,
     directory2: Option[Path] = None,
-    generateReturnTrips: Option[Boolean] = None
+    generateReturnTrips: Option[Boolean] = None,
+    bifurcateTolls: Option[Boolean] = None,
+    tollFilePath: Option[Path] = None
   )
 
   case class ODRow(origin: GeoUnit.TAZ, destination: GeoUnit.TAZ)
@@ -126,6 +128,13 @@ object FullSkimsCreatorApp extends App with BeamHelper {
       opt[Boolean]("generateReturnTrips")
         .action((x, c) => c.copy(generateReturnTrips = Some(x)))
         .text("Generate return trips for drive-transit (walk-transit-drive): true/false (default: true if drive-transit or drive+transit)"),
+      opt[Boolean]("bifurcateTolls")
+        .action((x, c) => c.copy(bifurcateTolls = Some(x)))
+        .text("Bifurcate auto routing into toll-free (SOV) and toll-permitted (SOVTOLL) passes: true/false (default: true for ActivitySim skims)"),
+      opt[File]("tollFilePath")
+        .validate(fileValidator)
+        .action((x, c) => c.copy(tollFilePath = Some(x.toPath)))
+        .text("Toll prices file path (csv/dat) for toll calculator"),
       checkConfig { c =>
         if (c.configPath == null) failure("Missing required option --configPath (or --config)")
         else success
@@ -261,6 +270,9 @@ object FullSkimsCreatorApp extends App with BeamHelper {
     params.directory2.foreach { v =>
       overrides.append(s"""beam.routing.r5.directory2 = "${v.toString}"\n""")
     }
+    params.tollFilePath.foreach { v =>
+      overrides.append(s"""beam.agentsim.toll.filePath = "${v.toString}"\n""")
+    }
 
     // FullSkimsCreatorApp only creates OD/ActivitySim skims; disable emissions checks
     overrides.append("beam.agentsim.agents.vehicles.emissions.skims = false\n")
@@ -320,6 +332,11 @@ object FullSkimsCreatorApp extends App with BeamHelper {
       hasDriveTransit || (backgroundODSkimsCreatorConfig.modesToBuild.drive && backgroundODSkimsCreatorConfig.modesToBuild.transit)
     }
 
+    val isActivitySim = skimmer.isInstanceOf[ActivitySimSkimmer]
+    val shouldBifurcateTolls = params.bifurcateTolls.getOrElse {
+      isActivitySim && (backgroundODSkimsCreatorConfig.modesToBuild.drive || modesStr.toLowerCase.contains("drive"))
+    }
+
     val activeBeamModes = {
       val modes = scala.collection.mutable.ArrayBuffer.empty[BeamMode]
       if (backgroundODSkimsCreatorConfig.modesToBuild.drive || hasDriveTransit) modes += BeamMode.CAR
@@ -343,7 +360,8 @@ object FullSkimsCreatorApp extends App with BeamHelper {
       buildDirectCarRoute = backgroundODSkimsCreatorConfig.modesToBuild.drive,
       calculationTimeoutHours = backgroundODSkimsCreatorConfig.calculationTimeoutHours,
       parallelism = params.parallelism,
-      generateReturnTrips = shouldGenerateReturnTrips
+      generateReturnTrips = shouldGenerateReturnTrips,
+      bifurcateTolls = shouldBifurcateTolls
     )
 
     skimsCreator.start()

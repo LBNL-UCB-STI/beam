@@ -18,13 +18,18 @@ class TransitDisaggregationAndDualRouterSpec extends AnyWordSpecLike with Matche
     durationInSeconds: Int,
     mode: BeamMode,
     startTime: Int = 0,
-    endTime: Int = 0
+    endTime: Int = 0,
+    beamPath: Option[BeamPath] = None
   ): EmbodiedBeamLeg = {
-    val beamPath = Mockito.mock(classOf[BeamPath])
+    val theBeamPath = beamPath.getOrElse {
+      val p = Mockito.mock(classOf[BeamPath])
+      when(p.distanceInM).thenReturn(durationInSeconds * 10.0)
+      when(p.linkIds).thenReturn(Array.emptyIntArray)
+      p
+    }
     val beamLeg = Mockito.mock(classOf[BeamLeg])
     val leg = Mockito.mock(classOf[EmbodiedBeamLeg])
-    when(beamPath.distanceInM).thenReturn(durationInSeconds * 10.0)
-    when(beamLeg.travelPath).thenReturn(beamPath)
+    when(beamLeg.travelPath).thenReturn(theBeamPath)
     when(beamLeg.mode).thenReturn(mode)
     when(beamLeg.duration).thenReturn(durationInSeconds)
     when(beamLeg.startTime).thenReturn(startTime)
@@ -228,12 +233,148 @@ class TransitDisaggregationAndDualRouterSpec extends AnyWordSpecLike with Matche
 
   "FullSkimsCreatorApp.buildCliOverrides" should {
     "include directory2 in config overrides when passed via CLI" in {
-      // Use reflection or package-private access to test CLI override generation
       val params = scripts.FullSkimsCreatorApp.InputParameters(
         directory2 = Some(Paths.get("/path/to/second/r5"))
       )
-      // FullSkimsCreatorApp has a private buildCliOverrides, but we can verify it via runWithParams or check parser
       params.directory2 shouldBe Some(Paths.get("/path/to/second/r5"))
+    }
+  }
+
+  "Auto toll bifurcation and toll metrics (Milestone 4)" should {
+    import beam.router.skim.ActivitySimMetric
+    import beam.router.skim.ActivitySimSkimmer.ExcerptData
+
+    "correctly identify car path types with ActivitySimPathType.isCar" in {
+      ActivitySimPathType.isCar(ActivitySimPathType.SOV) shouldBe true
+      ActivitySimPathType.isCar(ActivitySimPathType.SOVTOLL) shouldBe true
+      ActivitySimPathType.isCar(ActivitySimPathType.HOV2) shouldBe true
+      ActivitySimPathType.isCar(ActivitySimPathType.HOV2TOLL) shouldBe true
+      ActivitySimPathType.isCar(ActivitySimPathType.HOV3) shouldBe true
+      ActivitySimPathType.isCar(ActivitySimPathType.HOV3TOLL) shouldBe true
+
+      ActivitySimPathType.isCar(ActivitySimPathType.WALK) shouldBe false
+      ActivitySimPathType.isCar(ActivitySimPathType.BIKE) shouldBe false
+      ActivitySimPathType.isCar(ActivitySimPathType.WLK_LOC_WLK) shouldBe false
+      ActivitySimPathType.isCar(ActivitySimPathType.DRV_LOC_WLK) shouldBe false
+    }
+
+    "return weightedBridgeTollInCents for BTOLL and weightedValueTollInCents for VTOLL" in {
+      val excerptWithToll = ExcerptData(
+        timePeriodString = "AM",
+        pathType = ActivitySimPathType.SOVTOLL,
+        fleetName = "",
+        originId = "100",
+        destinationId = "200",
+        weightedDistance = 15000.0,
+        weightedTotalTime = 25.0,
+        weightedTotalFareInCents = 0.0,
+        weightedWalkAccess = 0.0,
+        weightedWaitInitial = 0.0,
+        weightedWaitTransfer = 0.0,
+        weightedWalkAuxiliary = 0.0,
+        weightedWalkEgress = 0.0,
+        weightedTotalInVehicleTime = 25.0,
+        weightedDriveDistanceInMeters = 15000.0,
+        weightedDriveTimeInMinutes = 25.0,
+        weightedKeyInVehicleTimeInMinutes = 0.0,
+        weightedFerryInVehicleTimeInMinutes = 0.0,
+        weightedTransitBoardingsCount = 0.0,
+        weightedCost = 7.0, // $7 toll
+        failedTrips = 0,
+        completedTrips = 1,
+        weightedBridgeTollInCents = 700.0,
+        weightedValueTollInCents = 0.0
+      )
+
+      excerptWithToll.getValue(ActivitySimMetric.BTOLL) shouldBe 700.0
+      excerptWithToll.getValue(ActivitySimMetric.VTOLL) shouldBe 0.0
+
+      val excerptTollFree = excerptWithToll.copy(
+        pathType = ActivitySimPathType.SOV,
+        weightedCost = 0.0,
+        weightedBridgeTollInCents = 0.0,
+        weightedValueTollInCents = 0.0
+      )
+      excerptTollFree.getValue(ActivitySimMetric.BTOLL) shouldBe 0.0
+      excerptTollFree.getValue(ActivitySimMetric.VTOLL) shouldBe 0.0
+    }
+
+    "support bifurcateTolls and tollFilePath options in FullSkimsCreatorApp" in {
+      val params = scripts.FullSkimsCreatorApp.InputParameters(
+        bifurcateTolls = Some(true),
+        tollFilePath = Some(Paths.get("/path/to/toll-prices.csv"))
+      )
+      params.bifurcateTolls shouldBe Some(true)
+      params.tollFilePath shouldBe Some(Paths.get("/path/to/toll-prices.csv"))
+    }
+
+    "calculate tolls for CAR legs and ignore non-car legs" in {
+      val mockTollCalc = Mockito.mock(classOf[beam.router.osm.TollCalculator])
+      val carPath = Mockito.mock(classOf[BeamPath])
+      when(carPath.linkIds).thenReturn(Array(101, 102))
+      when(carPath.distanceInM).thenReturn(5000.0)
+      when(mockTollCalc.calcTollByLinkIds(carPath)).thenReturn(6.50)
+      when(mockTollCalc.hasAnyWayTolls).thenReturn(false)
+
+      val carLeg = mockLeg(600, BeamMode.CAR, beamPath = Some(carPath))
+      val walkLeg = mockLeg(300, BeamMode.WALK)
+
+      val mixedTrip = EmbodiedBeamTrip(IndexedSeq(carLeg, walkLeg))
+      val toll = mixedTrip.beamLegs.collect {
+        case leg if leg.mode == BeamMode.CAR || leg.mode == BeamMode.CAV =>
+          mockTollCalc.calcTollByLinkIds(leg.travelPath)
+      }.sum
+
+      toll shouldBe 6.50
+    }
+
+    "handle toll bifurcation semantics for toll-free vs tolled trips" in {
+      val tolledCarODs = new java.util.concurrent.ConcurrentHashMap[(Int, Int, Int), java.lang.Boolean]()
+      val emittedEvents = collection.mutable.ArrayBuffer[(ActivitySimPathType, Double)]()
+
+      def simulateMasterActorProcess(
+        src: Int,
+        dst: Int,
+        time: Int,
+        toll: Double,
+        avoidTolls: Boolean,
+        bifurcateTolls: Boolean
+      ): Unit = {
+        if (avoidTolls) {
+          emittedEvents += ((ActivitySimPathType.SOV, toll))
+        } else if (bifurcateTolls) {
+          if (toll == 0.0) {
+            emittedEvents += ((ActivitySimPathType.SOV, 0.0))
+            emittedEvents += ((ActivitySimPathType.SOVTOLL, 0.0))
+          } else {
+            emittedEvents += ((ActivitySimPathType.SOVTOLL, toll))
+            tolledCarODs.put((src, dst, time), java.lang.Boolean.TRUE)
+          }
+        }
+      }
+
+      // Case 1: Toll-free OD in Stage 1
+      simulateMasterActorProcess(1, 2, 28800, 0.0, avoidTolls = false, bifurcateTolls = true)
+      emittedEvents should contain theSameElementsInOrderAs Seq(
+        (ActivitySimPathType.SOV, 0.0),
+        (ActivitySimPathType.SOVTOLL, 0.0)
+      )
+      tolledCarODs.containsKey((1, 2, 28800)) shouldBe false
+
+      // Case 2: Tolled OD in Stage 1 (e.g. Bay Bridge $7 toll)
+      emittedEvents.clear()
+      simulateMasterActorProcess(13, 968, 28800, 7.0, avoidTolls = false, bifurcateTolls = true)
+      emittedEvents should contain theSameElementsInOrderAs Seq(
+        (ActivitySimPathType.SOVTOLL, 7.0)
+      )
+      tolledCarODs.containsKey((13, 968, 28800)) shouldBe true
+
+      // Case 3: Stage 2 re-route with avoidTolls = true (diverted to non-toll route)
+      emittedEvents.clear()
+      simulateMasterActorProcess(13, 968, 28800, 0.0, avoidTolls = true, bifurcateTolls = true)
+      emittedEvents should contain theSameElementsInOrderAs Seq(
+        (ActivitySimPathType.SOV, 0.0)
+      )
     }
   }
 }

@@ -71,7 +71,9 @@ class TollCalculator @Inject() (val config: BeamConfig) extends LazyLogging {
   logger.info("tollsByLinkId size: {}", tollsByLinkId.size)
   logger.info("tollsByWayId size: {}", tollsByWayId.size)
 
-  def hasAnyTolls: Boolean = hasAnyTolledLinks
+  def hasAnyWayTolls: Boolean = tollsByWayId != null && !tollsByWayId.isEmpty
+
+  def hasAnyTolls: Boolean = hasAnyTolledLinks || hasAnyWayTolls
 
   def calcTollByOsmIds(osmIds: IndexedSeq[Long]): Double = {
     if (osmIds.isEmpty || tollsByWayId.isEmpty) {

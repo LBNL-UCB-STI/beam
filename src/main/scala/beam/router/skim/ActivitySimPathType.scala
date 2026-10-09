@@ -153,6 +153,8 @@ object ActivitySimPathType {
     }
   }
 
+  def isCar(pathType: ActivitySimPathType): Boolean = toBeamMode(pathType) == BeamMode.CAR
+
   def toKeyMode(pathType: ActivitySimPathType): Set[BeamMode] = {
     pathType match {
       case DRV_COM_WLK => Set(BeamMode.RAIL)
@@ -283,7 +285,7 @@ object ActivitySimPathType {
     //    HOV2TOLL,
     //    HOV3,
     //    HOV3TOLL,
-    //    SOVTOLL,
+    SOVTOLL,
     SOV,
     WLK_COM_DRV,
     WLK_COM_WLK,

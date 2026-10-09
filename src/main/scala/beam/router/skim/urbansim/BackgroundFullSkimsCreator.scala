@@ -39,7 +39,8 @@ class BackgroundFullSkimsCreator(
   val buildDirectCarRoute: Boolean,
   val calculationTimeoutHours: Int,
   val parallelism: Int = 0, // 0 = auto-scale (80% of CPUs), >0 = use exact number
-  val generateReturnTrips: Boolean = false
+  val generateReturnTrips: Boolean = false,
+  val bifurcateTolls: Boolean = false
 )(implicit actorSystem: ActorSystem)
     extends LazyLogging {
   def this(
@@ -84,7 +85,56 @@ class BackgroundFullSkimsCreator(
       buildDirectCarRoute,
       calculationTimeoutHours,
       parallelism,
-      generateReturnTrips
+      generateReturnTrips,
+      false
+    )
+  }
+
+  def this(
+    beamServices: BeamServices,
+    beamScenario: BeamScenario,
+    geoClustering: GeoClustering,
+    abstractSkimmer: AbstractSkimmer,
+    travelTime: TravelTime,
+    beamModes: Seq[BeamMode],
+    withTransit: Boolean,
+    buildDirectWalkRoute: Boolean,
+    buildDirectCarRoute: Boolean,
+    calculationTimeoutHours: Int,
+    parallelism: Int,
+    generateReturnTrips: Boolean,
+    bifurcateTolls: Boolean
+  )(implicit actorSystem: ActorSystem) {
+    this(
+      beamServices,
+      beamScenario,
+      ODs = geoClustering match {
+        case h3Clustering: H3Clustering =>
+          val h3Indexes: Seq[GeoZoneSummaryItem] = h3Clustering.h3Indexes
+          h3Indexes.flatMap { srcGeo =>
+            h3Indexes.map { dstGeo =>
+              (srcGeo.index, dstGeo.index)
+            }
+          }.toArray
+
+        case tazClustering: TAZClustering =>
+          val tazs = tazClustering.tazTreeMap.getTAZs
+          tazs.flatMap { srcTAZ =>
+            tazs.map { destTAZ =>
+              (TAZIndex(srcTAZ), TAZIndex(destTAZ))
+            }
+          }.toArray
+      },
+      abstractSkimmer,
+      travelTime,
+      beamModes,
+      withTransit,
+      buildDirectWalkRoute,
+      buildDirectCarRoute,
+      calculationTimeoutHours,
+      parallelism,
+      generateReturnTrips,
+      bifurcateTolls
     )
   }
 
@@ -214,7 +264,8 @@ class BackgroundFullSkimsCreator(
     buildDirectWalkRoute = buildDirectWalkRoute,
     buildDirectCarRoute = buildDirectCarRoute,
     skimmerEventFactory,
-    transportNetwork = Some(beamScenario.transportNetwork)
+    transportNetwork = Some(beamScenario.transportNetwork),
+    tollCalculator = beamServices.tollCalculator
   )
 
   private val masterActorRef: ActorRef = {
@@ -236,6 +287,7 @@ class BackgroundFullSkimsCreator(
       requestTimes = effectiveRequestTimes,
       ODs,
       generateReturnTrips = generateReturnTrips,
+      bifurcateTolls = bifurcateTolls,
       parallelism = parallelism
     )
     actorSystem.actorOf(masterProps, actorName)

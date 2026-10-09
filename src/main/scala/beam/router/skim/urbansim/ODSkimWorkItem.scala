@@ -84,6 +84,7 @@ case class ODWorkItem(
   time: Int,
   transitCategory: Option[TransitModeCategory] = None,
   tripDirection: TripDirection = TripDirection.Outbound,
-  parkingLocations: Set[Coord] = Set.empty
+  parkingLocations: Set[Coord] = Set.empty,
+  avoidTolls: Boolean = false
 )
 

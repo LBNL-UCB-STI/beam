@@ -498,7 +498,9 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       weightedCost = weightedCostInDollars,
       failedTrips = failedTrips,
       completedTrips = completedTrips,
-      debugText = debugText
+      debugText = debugText,
+      weightedBridgeTollInCents = if (ActivitySimPathType.isCar(pathType)) weightedCostInDollars * 100 else 0.0,
+      weightedValueTollInCents = 0.0
     )
   }
 
@@ -619,7 +621,9 @@ object ActivitySimSkimmer extends LazyLogging {
     weightedCost: Double,
     failedTrips: Int,
     completedTrips: Int,
-    debugText: String = ""
+    debugText: String = "",
+    weightedBridgeTollInCents: Double = 0.0,
+    weightedValueTollInCents: Double = 0.0
   ) {
 
     def getValue(metric: ActivitySimMetric): Double = {
@@ -641,6 +645,8 @@ object ActivitySimSkimmer extends LazyLogging {
         case ActivitySimMetric.XWAIT    => weightedWaitTransfer
         case ActivitySimMetric.TRIPS    => completedTrips
         case ActivitySimMetric.FAILURES => failedTrips
+        case ActivitySimMetric.BTOLL    => if (weightedBridgeTollInCents != 0.0) weightedBridgeTollInCents else weightedTotalFareInCents
+        case ActivitySimMetric.VTOLL    => weightedValueTollInCents
         case _                          => Double.NaN
       }
     }
@@ -669,7 +675,9 @@ object ActivitySimSkimmer extends LazyLogging {
       ActivitySimMetric.IWAIT,
       ActivitySimMetric.XWAIT,
       ActivitySimMetric.TRIPS,
-      ActivitySimMetric.FAILURES
+      ActivitySimMetric.FAILURES,
+      ActivitySimMetric.BTOLL,
+      ActivitySimMetric.VTOLL
     )
 
     val csvHeaderSeq: Seq[String] = Seq(

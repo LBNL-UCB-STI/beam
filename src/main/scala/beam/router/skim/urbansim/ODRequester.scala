@@ -15,6 +15,8 @@ import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerEventFactory}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes, PopulationAdjustment}
+import beam.router.osm.TollCalculator
+import beam.router.skim.{ActivitySimPathType, ActivitySimSkimmerEventFactory}
 import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
@@ -36,8 +38,12 @@ class ODRequester(
   val buildDirectWalkRoute: Boolean,
   val buildDirectCarRoute: Boolean,
   val skimmerEventFactory: AbstractSkimmerEventFactory,
-  val transportNetwork: Option[TransportNetwork] = None
+  val transportNetwork: Option[TransportNetwork] = None,
+  tollCalculator: TollCalculator = null
 ) extends StrictLogging {
+
+  val actualTollCalculator: TollCalculator =
+    if (tollCalculator != null) tollCalculator else new TollCalculator(beamConfig)
 
   // Thread-safe execution time tracking for concurrent batch processing
   private val _requestsExecutionTime: AtomicReference[RouteExecutionInfo] =
@@ -46,6 +52,8 @@ class ODRequester(
   def requestsExecutionTime: RouteExecutionInfo = _requestsExecutionTime.get()
 
   private val dummyPersonAttributes = createDummyPersonAttribute
+  private val dummyPersonAttributesFastest = dummyPersonAttributes.copy(valueOfTime = 10000000.0)
+  private val dummyPersonAttributesTollAvoid = dummyPersonAttributes.copy(valueOfTime = 0.0001)
 
   private val modeChoiceCalculator: ModeChoiceCalculator = modeChoiceCalculatorFactory(dummyPersonAttributes)
 
@@ -121,7 +129,7 @@ class ODRequester(
           departureTime = requestTime,
           withTransit = withTransit,
           streetVehicles = streetVehicles,
-          attributesOfIndividual = Some(dummyPersonAttributes),
+          attributesOfIndividual = Some(dummyPersonAttributesFastest),
           triggerId = -1
         )
         val startExecution = System.nanoTime()
@@ -231,6 +239,8 @@ class ODRequester(
         )
         ODRequester.Response(srcIndex, dstIndex, considerModes, Success(response), requestTime)
       }
+    } else if (workItem.avoidTolls) {
+      routeDriveOnly(workItem.srcIndex, workItem.dstIndex, workItem.time, avoidTolls = true)
     } else {
       val streetVehicles = considerModes.map(createStreetVehicle(_, requestTime, srcCoord))
       val transitModes = workItem.transitCategory.map(_.toR5TransitModes)
@@ -244,7 +254,7 @@ class ODRequester(
             withTransit = withTransit,
             streetVehicles = streetVehicles,
             streetVehiclesUseIntermodalUse = IntermodalUse.Access,
-            attributesOfIndividual = Some(dummyPersonAttributes),
+            attributesOfIndividual = Some(dummyPersonAttributesFastest),
             triggerId = -1,
             transitModes = transitModes
           )
@@ -266,7 +276,7 @@ class ODRequester(
           Try(RoutingResponse.dummyRoutingResponse.get)
         }
 
-      ODRequester.Response(srcIndex, dstIndex, considerModes, maybeResponse, requestTime)
+      ODRequester.Response(srcIndex, dstIndex, considerModes, maybeResponse, requestTime, avoidTolls = false)
     }
   }
 
@@ -275,7 +285,12 @@ class ODRequester(
     * Reduces object allocations by reusing pre-created vehicle IDs and avoiding
     * unnecessary distance checks and mode filtering.
     */
-  def routeDriveOnly(srcIndex: GeoIndex, dstIndex: GeoIndex, requestTime: Int): ODRequester.Response = {
+  def routeDriveOnly(
+    srcIndex: GeoIndex,
+    dstIndex: GeoIndex,
+    requestTime: Int,
+    avoidTolls: Boolean = false
+  ): ODRequester.Response = {
     val (rawSrcCoord, rawDstCoord) = (srcIndex, dstIndex) match {
       case (tazSrc: TAZIndex, tazDst: TAZIndex) =>
         TAZClustering.getGeoIndexCenters(tazSrc, tazDst)
@@ -299,13 +314,15 @@ class ODRequester(
       needsToCalculateCost = false
     )
 
+    val personAttributes = if (avoidTolls) dummyPersonAttributesTollAvoid else dummyPersonAttributesFastest
+
     val routingReq = RoutingRequest(
       originUTM = srcCoord,
       destinationUTM = dstCoord,
       departureTime = requestTime,
       withTransit = false,
       streetVehicles = Array(streetVehicle),
-      attributesOfIndividual = Some(dummyPersonAttributes),
+      attributesOfIndividual = Some(personAttributes),
       triggerId = -1
     )
 
@@ -321,7 +338,7 @@ class ODRequester(
       response
     }
 
-    ODRequester.Response(srcIndex, dstIndex, driveOnlyModes, maybeResponse, requestTime)
+    ODRequester.Response(srcIndex, dstIndex, driveOnlyModes, maybeResponse, requestTime, avoidTolls = avoidTolls)
   }
 
   /**
@@ -431,6 +448,89 @@ class ODRequester(
       generalizedCost = generalizedCost,
       energyConsumption = energyConsumption
     )
+  }
+
+  def calculateToll(trip: EmbodiedBeamTrip): Double = {
+    trip.beamLegs.collect {
+      case leg if leg.mode == BeamMode.CAR || leg.mode == BeamMode.CAV =>
+        val linkToll = actualTollCalculator.calcTollByLinkIds(leg.travelPath)
+        val osmToll = transportNetwork match {
+          case Some(tn) if actualTollCalculator.hasAnyWayTolls =>
+            val osmIds = leg.travelPath.linkIds.map { edgeId =>
+              tn.streetLayer.edgeStore.getCursor(edgeId).getOSMID
+            }.toIndexedSeq
+            actualTollCalculator.calcTollByOsmIds(osmIds)
+          case _ => 0.0
+        }
+        linkToll + osmToll
+    }.sum
+  }
+
+  def createActivitySimSkimEvent(
+    origin: GeoIndex,
+    destination: GeoIndex,
+    pathType: ActivitySimPathType,
+    trip: EmbodiedBeamTrip,
+    requestTime: Int,
+    tollCostInDollars: Double = 0.0
+  ): AbstractSkimmerEvent = {
+    val theTrip = if (ActivitySimPathType.isCar(pathType) && trip.legs.forall(_.beamLeg.mode != WALK)) {
+      val actualLegs = trip.legs
+      EmbodiedBeamTrip(
+        EmbodiedBeamLeg.dummyLegAt(
+          start = actualLegs.head.beamLeg.startTime,
+          vehicleId = Id.createVehicleId("dummy-body"),
+          isLastLeg = false,
+          location = actualLegs.head.beamLeg.travelPath.startPoint.loc,
+          mode = WALK,
+          vehicleTypeId = dummyBodyVehicleType.id
+        ) +:
+        actualLegs :+
+        EmbodiedBeamLeg.dummyLegAt(
+          start = actualLegs.last.beamLeg.endTime,
+          vehicleId = Id.createVehicleId("dummy-body"),
+          isLastLeg = true,
+          location = actualLegs.last.beamLeg.travelPath.endPoint.loc,
+          mode = WALK,
+          vehicleTypeId = dummyBodyVehicleType.id
+        ),
+        trip.router
+      )
+    } else {
+      trip
+    }
+
+    val generalizedTime =
+      modeChoiceCalculator.getGeneralizedTimeOfTrip(theTrip, Some(dummyPersonAttributes), None)
+    val generalizedCost = modeChoiceCalculator.getNonTimeCost(theTrip) + dummyPersonAttributes.getVOT(generalizedTime)
+    val energyConsumption = dummyCarVehicleType.primaryFuelConsumptionInJoulePerMeter * theTrip.legs
+      .map(_.beamLeg.travelPath.distanceInM)
+      .sum
+
+    skimmerEventFactory match {
+      case asimFactory: ActivitySimSkimmerEventFactory =>
+        asimFactory.createEvent(
+          origin = origin.value,
+          destination = destination.value,
+          eventTime = requestTime,
+          trip = theTrip,
+          generalizedTimeInHours = generalizedTime,
+          generalizedCost = generalizedCost,
+          energyConsumption = energyConsumption,
+          pathTypeOverride = Some(pathType),
+          costOverrideInDollars = Some(tollCostInDollars)
+        )
+      case _ =>
+        skimmerEventFactory.createEvent(
+          origin = origin.value,
+          destination = destination.value,
+          eventTime = requestTime,
+          trip = theTrip,
+          generalizedTimeInHours = generalizedTime,
+          generalizedCost = generalizedCost,
+          energyConsumption = energyConsumption
+        )
+    }
   }
 
   private def distanceWithMargin(srcCoord: Coord, dstCoord: Coord): Double = {
@@ -658,6 +758,7 @@ object ODRequester {
     dstIndex: GeoIndex,
     considerModes: Array[BeamMode],
     maybeRoutingResponse: Try[RoutingResponse],
-    requestTime: Int
+    requestTime: Int,
+    avoidTolls: Boolean = false
   )
 }
