@@ -131,7 +131,7 @@ class ODRequester(
           departureTime = requestTime,
           withTransit = withTransit,
           streetVehicles = streetVehicles,
-          attributesOfIndividual = Some(dummyPersonAttributesFastest),
+          attributesOfIndividual = Some(if (bifurcateTolls) dummyPersonAttributesFastest else dummyPersonAttributes),
           triggerId = -1
         )
         val startExecution = System.nanoTime()
@@ -459,6 +459,19 @@ class ODRequester(
     }
   }
 
+  /**
+    * Calculates total tolls for a trip across all CAR/CAV legs.
+    *
+    * Note on In-Run vs Full Skimmer toll consistency:
+    * - Per-link tolls (calcTollByLinkIds) are evaluated identically by both in-run (PersonAgent)
+    *   and the full skimmer.
+    * - OSM way tolls (calcTollByOsmIds, parsed from OSM PBF charge tags) are included here
+    *   when hasAnyWayTolls is true and transportNetwork is provided. In-run agents do not have
+    *   access to R5's internal streetLayer edge store, so they evaluate only link-level tolls.
+    *   In modern production setups (e.g. Seattle, SF Bay), all tolls are link-level in toll-prices.csv.
+    * - R5's Dijkstra edge traversal (generalizedTraversalCost) evaluates tolls strictly via
+    *   calcTollByLinkId, so toll avoidance in Stage 2 operates on link-level tolls.
+    */
   def calculateToll(trip: EmbodiedBeamTrip): Double = {
     trip.beamLegs.collect {
       case leg if leg.mode == BeamMode.CAR || leg.mode == BeamMode.CAV =>
@@ -469,11 +482,18 @@ class ODRequester(
               val osmIds = leg.travelPath.linkIds.flatMap { edgeId =>
                 if (edgeId >= 0 && edgeId < tn.streetLayer.edgeStore.nEdges) {
                   Some(tn.streetLayer.edgeStore.getCursor(edgeId).getOSMID)
-                } else None
+                } else {
+                  logger.warn(
+                    s"Edge ID $edgeId is out of bounds [0, ${tn.streetLayer.edgeStore.nEdges}) on transportNetwork; may indicate itinerary from a secondary network."
+                  )
+                  None
+                }
               }.toIndexedSeq
               actualTollCalculator.calcTollByOsmIds(osmIds)
             } catch {
-              case NonFatal(_) => 0.0
+              case NonFatal(e) =>
+                logger.warn(s"Failed to calculate OSM way tolls for car leg: ${e.getMessage}")
+                0.0
             }
           case _ => 0.0
         }

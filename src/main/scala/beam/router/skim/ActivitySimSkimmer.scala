@@ -660,9 +660,9 @@ object ActivitySimSkimmer extends LazyLogging {
       }
     }
 
-    def toCsvSeq: Seq[Any] = productIterator.take(ExcerptData.csvHeaderSeq.size).toSeq
+    def toCsvSeq: Seq[Any] = productIterator.toSeq
 
-    def toCsvString: String = toCsvSeq.mkString("", ",", "\n")
+    def toCsvString: String = productIterator.mkString("", ",", "\n")
   }
 
   object ExcerptData {
@@ -712,7 +712,9 @@ object ActivitySimSkimmer extends LazyLogging {
       "WeightedCost",
       "failedTrips",
       "completedTrips",
-      "DEBUG_TEXT"
+      "DEBUG_TEXT",
+      "BTOLL_cents",
+      "VTOLL_cents"
     )
 
     val csvHeader: String = csvHeaderSeq.mkString(",")
@@ -739,6 +741,8 @@ object ActivitySimSkimmer extends LazyLogging {
         BOARDS              | Number of transfers
         WeightedCost        | Weighted cost
         DEBUG_TEXT          | For internal use
+        BTOLL_cents         | Bridge toll in cents
+        VTOLL_cents         | Value toll in cents
         """
     )
 }
