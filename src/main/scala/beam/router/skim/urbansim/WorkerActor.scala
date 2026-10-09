@@ -14,8 +14,9 @@ class WorkerActor(val masterActor: ActorRef, val r5Requester: ODRequester)(impli
   var nTotalRequests: Int = 0
   var nSuccess: Int = 0
 
-  // Use optimized drive-only routing when applicable
+  // Use optimized drive-only or walk-only routing when applicable
   private val useDriveOnlyOptimization: Boolean = r5Requester.isDriveOnly
+  private val useWalkOnlyOptimization: Boolean = r5Requester.isWalkOnly
 
   override def preStart(): Unit = {
     requestWork()
@@ -33,6 +34,8 @@ class WorkerActor(val masterActor: ActorRef, val r5Requester: ODRequester)(impli
           try {
             val response = if (useDriveOnlyOptimization) {
               r5Requester.routeDriveOnly(srcIndex, dstIndex, requestTime)
+            } else if (useWalkOnlyOptimization) {
+              r5Requester.routeWalkOnly(srcIndex, dstIndex, requestTime)
             } else {
               r5Requester.route(srcIndex, dstIndex, requestTime)
             }
@@ -60,10 +63,8 @@ class WorkerActor(val masterActor: ActorRef, val r5Requester: ODRequester)(impli
       }.pipeTo(self)
 
     case responses: Array[ODRequester.Response @unchecked] =>
-      responses.foreach { resp =>
-        if (resp.maybeRoutingResponse.isSuccess) nSuccess += 1
-        masterActor ! resp
-      }
+      nSuccess += responses.count(_.maybeRoutingResponse.isSuccess)
+      masterActor ! MasterActor.Request.BatchResponse(responses)
       requestWork()
 
     // Keep backward compatibility with single work items
@@ -79,6 +80,8 @@ class WorkerActor(val masterActor: ActorRef, val r5Requester: ODRequester)(impli
         try {
           if (useDriveOnlyOptimization) {
             r5Requester.routeDriveOnly(work.srcIndex, work.dstIndex, work.requestTime)
+          } else if (useWalkOnlyOptimization) {
+            r5Requester.routeWalkOnly(work.srcIndex, work.dstIndex, work.requestTime)
           } else {
             r5Requester.route(work.srcIndex, work.dstIndex, work.requestTime)
           }

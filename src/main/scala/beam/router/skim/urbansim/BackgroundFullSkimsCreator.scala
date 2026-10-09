@@ -4,6 +4,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim.infrastructure.geozone.{GeoIndex, GeoZoneSummaryItem, H3Wrapper, TAZIndex}
+import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.Router
 import beam.router.r5.{R5Parameters, R5Wrapper}
@@ -17,7 +18,7 @@ import beam.router.skim.core.{
 }
 import beam.router.skim.urbansim.MasterActor.Response
 import beam.sim.{BeamScenario, BeamServices}
-import beam.utils.ProfilingUtils
+import beam.utils.{NetworkHelperImpl, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.router.util.TravelTime
@@ -37,7 +38,9 @@ class BackgroundFullSkimsCreator(
   val buildDirectWalkRoute: Boolean,
   val buildDirectCarRoute: Boolean,
   val calculationTimeoutHours: Int,
-  val parallelism: Int = 0 // 0 = auto-scale (80% of CPUs), >0 = use exact number
+  val parallelism: Int = 0, // 0 = auto-scale (80% of CPUs), >0 = use exact number
+  val generateReturnTrips: Boolean = false,
+  val bifurcateTolls: Boolean = false
 )(implicit actorSystem: ActorSystem)
     extends LazyLogging {
   def this(
@@ -80,7 +83,9 @@ class BackgroundFullSkimsCreator(
       buildDirectWalkRoute,
       buildDirectCarRoute,
       calculationTimeoutHours,
-      parallelism
+      parallelism = parallelism,
+      generateReturnTrips = false,
+      bifurcateTolls = false
     )
   }
 
@@ -103,13 +108,23 @@ class BackgroundFullSkimsCreator(
 
   private val useR5 = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.routerType == "r5"
 
-  val maybeR5Router: Option[R5Wrapper] = if (useR5) {
+  val maybeR5Router: Option[Router] = if (useR5) {
     val r5Wrapper = new R5Wrapper(
       r5Parameters,
       travelTime,
       travelTimeNoiseFraction = 0.0
     )
-    Some(r5Wrapper)
+    val maybeSecondR5: Option[R5Wrapper] = for {
+      (transportNetwork, network) <- beamScenario.networks2
+    } yield {
+      val networkHelperImpl = new NetworkHelperImpl(network)
+      new R5Wrapper(
+        r5Parameters.copy(transportNetwork = transportNetwork, networkHelper = networkHelperImpl),
+        travelTime,
+        travelTimeNoiseFraction = 0.0
+      )
+    }
+    Some(DualR5Router(r5Wrapper, maybeSecondR5))
   } else {
     None
   }
@@ -117,7 +132,14 @@ class BackgroundFullSkimsCreator(
   val maybeODRouter: Option[ODRouterR5GHForActivitySimSkims] =
     if (useR5) { None }
     else {
-      Some(ODRouterR5GHForActivitySimSkims(r5Parameters, getPeakSecondsFromConfig(beamServices), Some(travelTime)))
+      Some(
+        ODRouterR5GHForActivitySimSkims(
+          r5Parameters,
+          getPeakSecondsFromConfig(beamServices),
+          Some(travelTime),
+          beamScenario.networks2
+        )
+      )
     }
 
   val router: Router = if (useR5) { maybeR5Router.get }
@@ -125,9 +147,9 @@ class BackgroundFullSkimsCreator(
 
   val skimmerEventFactory: AbstractSkimmerEventFactory =
     beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.skimsKind match {
-      case "od"                             => new ODSkimmerEventFactory
-      case "activitySim" | "activitySimOmx" => new ActivitySimSkimmerEventFactory(beamServices.beamConfig)
-      case kind @ _                         => throw new IllegalArgumentException(s"Unexpected skims kind: $kind")
+      case "od"                                                           => new ODSkimmerEventFactory
+      case "activitySim" | "activitySimOmx" | "activitySimZarr" | "zarr" => new ActivitySimSkimmerEventFactory(beamServices.beamConfig)
+      case kind @ _                                                       => throw new IllegalArgumentException(s"Unexpected skims kind: $kind")
     }
 
   var odRequester: ODRequester = new ODRequester(
@@ -142,18 +164,32 @@ class BackgroundFullSkimsCreator(
     buildDirectWalkRoute = buildDirectWalkRoute,
     buildDirectCarRoute = buildDirectCarRoute,
     skimmerEventFactory,
-    transportNetwork = Some(beamScenario.transportNetwork)
+    transportNetwork = Some(beamScenario.transportNetwork),
+    tollCalculator = beamServices.tollCalculator,
+    bifurcateTolls = bifurcateTolls
   )
 
   private val masterActorRef: ActorRef = {
     val actorName = s"Modes-${beamModes.mkString("_")}-with-transit-$withTransit-${UUID.randomUUID()}"
 
+    val effectiveRequestTimes = if (odRequester.isWalkOnly) {
+      // Walk travel times and distances are physically invariant across time of day.
+      // Route a single representative time period (EARLY_AM / hour 5 = 18000s) to cut walk routing by 80%.
+      val allTimes = getPeakSecondsFromConfig(beamServices)
+      val earlyAmTime = allTimes.find(t => ActivitySimTimeBin.toTimeBin(t / 3600) == ActivitySimTimeBin.EARLY_AM)
+      Seq(earlyAmTime.getOrElse(allTimes.headOption.getOrElse(5 * 3600)))
+    } else {
+      getPeakSecondsFromConfig(beamServices)
+    }
+
     val masterProps = MasterActor.props(
       abstractSkimmer,
       odRequester,
-      requestTimes = getPeakSecondsFromConfig(beamServices),
+      requestTimes = effectiveRequestTimes,
       ODs,
-      parallelism
+      generateReturnTrips = generateReturnTrips,
+      bifurcateTolls = bifurcateTolls,
+      parallelism = parallelism
     )
     actorSystem.actorOf(masterProps, actorName)
   }

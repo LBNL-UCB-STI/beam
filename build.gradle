@@ -825,8 +825,13 @@ afterEvaluate {
 }
 
 run {
+    if (project.hasProperty("mainClass")) {
+        mainClass = project.property("mainClass")
+    }
     if (project.hasProperty("appArgs")) {
         args Eval.me(appArgs)
+    } else if (project.hasProperty("args")) {
+        args project.property("args").split("\\s+").toList()
     }
 
     doFirst() {
@@ -856,6 +861,8 @@ task execute(type: JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
     if (project.hasProperty("appArgs")) {
         args Eval.me(appArgs)
+    } else if (project.hasProperty("args")) {
+        args project.property("args").split("\\s+").toList()
     }
     doFirst() {
         if (!project.file('build/aspectjweaver-1.8.10.jar').exists()) {

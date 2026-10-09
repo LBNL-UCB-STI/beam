@@ -129,7 +129,9 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
         (prevSkim.failedTrips * prevSkim.iterations + currSkim.failedTrips * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       observations =
         (prevSkim.observations * prevSkim.iterations + currSkim.observations * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
-      iterations = prevSkim.iterations + currSkim.iterations
+      iterations = prevSkim.iterations + currSkim.iterations,
+      bridgeTollInCents = aggregate(_.bridgeTollInCents),
+      valueTollInCents = aggregate(_.valueTollInCents)
     )
   }
 
@@ -169,7 +171,9 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       failedTrips = prevSkim.failedTrips + currSkim.failedTrips,
       observations = prevSkim.observations + currSkim.observations,
       iterations = matsimServices.getIterationNumber + 1,
-      debugText = Seq(prevSkim.debugText, currSkim.debugText).mkString("|")
+      debugText = Seq(prevSkim.debugText, currSkim.debugText).mkString("|"),
+      bridgeTollInCents = aggregatedDoubleSkimValue(_.bridgeTollInCents),
+      valueTollInCents = aggregatedDoubleSkimValue(_.valueTollInCents)
     )
   }
 
@@ -392,8 +396,26 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     maybeFleetName: Option[String],
     skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
   ): Option[ExcerptData] = {
-    if (pathType == ActivitySimPathType.WALK && timeBin != ActivitySimTimeBin.EARLY_AM) {
-      None
+    if (pathType == ActivitySimPathType.WALK) {
+      val individualSkims = timeBin.hours.flatMap { hour =>
+        getSkimValue(skim, ActivitySimSkimmerKey(hour, pathType, origin.id, destination.id))
+          .map(_.asInstanceOf[ActivitySimSkimmerInternal])
+      }
+      val skimsToUse = if (individualSkims.nonEmpty) {
+        individualSkims
+      } else {
+        // Walk is time-invariant: fallback to representative hours where walk was observed (hour 5 first)
+        val fallbackHours = List(5, 3, 4, 8, 12, 17, 22, 0)
+        fallbackHours.iterator.flatMap { hour =>
+          getSkimValue(skim, ActivitySimSkimmerKey(hour, pathType, origin.id, destination.id))
+            .map(_.asInstanceOf[ActivitySimSkimmerInternal])
+        }.take(1).toList
+      }
+      if (skimsToUse.isEmpty) {
+        None
+      } else {
+        Some(weightedData(timeBin.toString, origin.id, destination.id, pathType, maybeFleetName, skimsToUse))
+      }
     } else {
       val individualSkims = timeBin.hours.flatMap { hour =>
         getSkimValue(skim, ActivitySimSkimmerKey(hour, pathType, origin.id, destination.id))
@@ -453,6 +475,8 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     val weightedKeyInVehicleTime = getWeightedSkimsValue(_.keyInVehicleTimeInMinutes)
     val weightedFerryTime = getWeightedSkimsValue(_.ferryInVehicleTimeInMinutes)
     val weightedTransitBoardingsCount = getWeightedSkimsValue(_.transitBoardingsCount)
+    val weightedBridgeTollInCents = getWeightedSkimsValue(_.bridgeTollInCents)
+    val weightedValueTollInCents = getWeightedSkimsValue(_.valueTollInCents)
     val failedTrips = individualSkims.map(_.failedTrips).sum
     val completedTrips = individualSkims.map(_.observations).sum
     val debugText = individualSkims.map(_.debugText).filter(t => t != "").mkString("|")
@@ -480,7 +504,9 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       weightedCost = weightedCostInDollars,
       failedTrips = failedTrips,
       completedTrips = completedTrips,
-      debugText = debugText
+      debugText = debugText,
+      weightedBridgeTollInCents = weightedBridgeTollInCents,
+      weightedValueTollInCents = weightedValueTollInCents
     )
   }
 
@@ -564,12 +590,15 @@ object ActivitySimSkimmer extends LazyLogging {
     failedTrips: Int,
     observations: Int,
     iterations: Int = 0,
-    debugText: String = ""
+    debugText: String = "",
+    bridgeTollInCents: Double = 0.0,
+    valueTollInCents: Double = 0.0
   ) extends AbstractSkimmerInternal {
 
     override def toCsv: String =
       travelTimeInMinutes + "," + generalizedTimeInMinutes + "," + cost + "," + generalizedCost + "," +
-      distanceInMeters + "," + energy + "," + failedTrips + "," + observations + "," + iterations
+      distanceInMeters + "," + energy + "," + failedTrips + "," + observations + "," + iterations + "," +
+      bridgeTollInCents + "," + valueTollInCents
   }
 
   object ActivitySimSkimmerInternal {
@@ -601,7 +630,9 @@ object ActivitySimSkimmer extends LazyLogging {
     weightedCost: Double,
     failedTrips: Int,
     completedTrips: Int,
-    debugText: String = ""
+    debugText: String = "",
+    weightedBridgeTollInCents: Double = 0.0,
+    weightedValueTollInCents: Double = 0.0
   ) {
 
     def getValue(metric: ActivitySimMetric): Double = {
@@ -623,13 +654,15 @@ object ActivitySimSkimmer extends LazyLogging {
         case ActivitySimMetric.XWAIT    => weightedWaitTransfer
         case ActivitySimMetric.TRIPS    => completedTrips
         case ActivitySimMetric.FAILURES => failedTrips
+        case ActivitySimMetric.BTOLL    => weightedBridgeTollInCents
+        case ActivitySimMetric.VTOLL    => weightedValueTollInCents
         case _                          => Double.NaN
       }
     }
 
-    def toCsvString: String = productIterator.mkString("", ",", "\n")
-
     def toCsvSeq: Seq[Any] = productIterator.toSeq
+
+    def toCsvString: String = productIterator.mkString("", ",", "\n")
   }
 
   object ExcerptData {
@@ -651,7 +684,9 @@ object ActivitySimSkimmer extends LazyLogging {
       ActivitySimMetric.IWAIT,
       ActivitySimMetric.XWAIT,
       ActivitySimMetric.TRIPS,
-      ActivitySimMetric.FAILURES
+      ActivitySimMetric.FAILURES,
+      ActivitySimMetric.BTOLL,
+      ActivitySimMetric.VTOLL
     )
 
     val csvHeaderSeq: Seq[String] = Seq(
@@ -677,7 +712,9 @@ object ActivitySimSkimmer extends LazyLogging {
       "WeightedCost",
       "failedTrips",
       "completedTrips",
-      "DEBUG_TEXT"
+      "DEBUG_TEXT",
+      "BTOLL_cents",
+      "VTOLL_cents"
     )
 
     val csvHeader: String = csvHeaderSeq.mkString(",")
@@ -704,6 +741,8 @@ object ActivitySimSkimmer extends LazyLogging {
         BOARDS              | Number of transfers
         WeightedCost        | Weighted cost
         DEBUG_TEXT          | For internal use
+        BTOLL_cents         | Bridge toll in cents
+        VTOLL_cents         | Value toll in cents
         """
     )
 }

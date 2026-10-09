@@ -4,11 +4,13 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, PoisonPill, Props
 import beam.agentsim.infrastructure.geozone.GeoIndex
 import beam.router.Modes.BeamMode
 import beam.router.model.EmbodiedBeamTrip
+import beam.router.skim.{ActivitySimPathType, ActivitySimSkimmer}
 import beam.router.skim.core.AbstractSkimmer
 import beam.router.skim.urbansim.MasterActor.Request.Monitor
 import beam.router.skim.urbansim.MasterActor.Response.PopulatedSkimmer
 import beam.router.skim.urbansim.MasterActor.{Request, Response}
 import com.google.common.util.concurrent.ThreadFactoryBuilder
+import org.matsim.api.core.v01.Coord
 
 import java.util.concurrent.{ExecutorService, Executors, TimeUnit}
 import scala.concurrent.duration._
@@ -23,6 +25,7 @@ class MasterActor(
   rawODs: Array[(GeoIndex, GeoIndex)],
   val transitModeCategories: Seq[TransitModeCategory] = Seq.empty,
   val generateReturnTrips: Boolean = false,
+  val bifurcateTolls: Boolean = false,
   val requestedParallelism: Int = 0 // 0 = auto-scale (80% of CPUs), >0 = use exact number
 ) extends Actor
     with ActorLogging {
@@ -47,47 +50,57 @@ class MasterActor(
     Math.max(1, (availableProcessors * 0.8).toInt)
   }
 
-  // Determine if we're using enhanced mode (with transit categories and/or return trips)
-  private val useEnhancedMode: Boolean = transitModeCategories.nonEmpty || generateReturnTrips
+  // Determine if we're using enhanced mode in stage 1 (with transit mode categories)
+  private val useEnhancedMode: Boolean = transitModeCategories.nonEmpty
 
-  // For enhanced mode, we pre-generate all work items
+  // For enhanced mode, we pre-generate all stage 1 (outbound) work items
   private val workItems: Array[ODWorkItem] = if (useEnhancedMode) {
     generateWorkItems()
   } else {
     Array.empty
   }
 
-  // Calculate max requests based on mode
-  private val maxRequestsNumber: Int = if (useEnhancedMode) {
+  // Two-stage routing state
+  // Stage 1: Outbound trips across all time periods
+  // Stage 2: Return trips across all time periods with candidate parking locations
+  private var stage: Int = 1
+  private val stage1TotalRequests: Int = if (useEnhancedMode) {
     workItems.length
   } else {
     ODs.length * requestTimes.length
   }
+  private var stage2TotalRequests: Int = 0
+  private var maxRequestsNumber: Int = stage1TotalRequests
 
-  // Current position in the work items array (for enhanced mode)
+  // Accumulated parking locations per outbound OD pair: (outboundSrc, outboundDst) -> Set[Coord]
+  private val outboundStationParkingSets: scala.collection.mutable.Map[(GeoIndex, GeoIndex), scala.collection.mutable.Set[Coord]] =
+    scala.collection.mutable.Map.empty
+
+  // Tolled car ODs recorded in Stage 1 for toll-avoidance routing in Stage 2
+  private val tolledCarODs: scala.collection.mutable.Set[(GeoIndex, GeoIndex, Int)] =
+    scala.collection.mutable.Set.empty
+
+  // Stage 2 return work items
+  private var returnWorkItems: Array[ODWorkItem] = Array.empty
+  private var currentReturnWorkItemIdx: Int = 0
+
+  // Current position in the work items array (for enhanced mode stage 1)
   private var currentWorkItemIdx: Int = 0
 
-  // Legacy iteration state (for backward compatibility)
+  // Legacy iteration state (for stage 1 without transit mode categories)
   private var currentIdx: Int = 0
   private var currentTime: Int = 0
 
   log.info(
-    s"Total number of OD pairs: ${ODs.length} (skipped $skippedSameOriginPairs same-origin pairs), " +
-    s"number of request time entries: ${requestTimes.length}, " +
-    s"transit categories: ${transitModeCategories.size}, generateReturnTrips: $generateReturnTrips, " +
-    s"total work items: $maxRequestsNumber, initialWorkers: $initialWorkers"
+    s"Stage 1 initialized | OD pairs: ${ODs.length} (skipped $skippedSameOriginPairs same-origin pairs), " +
+    s"request time entries: ${requestTimes.length}, transit categories: ${transitModeCategories.size}, " +
+    s"generateReturnTrips: $generateReturnTrips, bifurcateTolls: $bifurcateTolls, stage 1 work items: $stage1TotalRequests, initialWorkers: $initialWorkers"
   )
 
   /**
-    * Generate all work items for enhanced mode with transit categories and trip directions.
+    * Generate all outbound work items for enhanced mode stage 1.
     */
   private def generateWorkItems(): Array[ODWorkItem] = {
-    val tripDirections = if (generateReturnTrips) {
-      Seq(TripDirection.Outbound, TripDirection.Return)
-    } else {
-      Seq(TripDirection.Outbound)
-    }
-
     val categories: Seq[Option[TransitModeCategory]] = if (transitModeCategories.nonEmpty) {
       transitModeCategories.map(Some(_))
     } else {
@@ -98,8 +111,7 @@ class MasterActor(
       (src, dst) <- ODs
       time       <- requestTimes
       category   <- categories
-      direction  <- tripDirections
-    } yield ODWorkItem(src, dst, time, category, direction)
+    } yield ODWorkItem(src, dst, time, category, TripDirection.Outbound)
 
     items.toArray
   }
@@ -124,31 +136,8 @@ class MasterActor(
   def receive: Receive = {
     case resp: ODRequester.Response =>
       checkIfNeedToStop(sender())
-      resp.maybeRoutingResponse match {
-        case Failure(ex) =>
-          nFailedRoutes += 1
-          log.error(ex, s"Can't compute route: ${ex.getMessage}")
-        case Success(routingResponse) =>
-          nSuccessRoutes += 1
-          routingResponse.itineraries.foreach { trip =>
-            if (!isBikeTransit(trip)) {
-              try {
-                val event = odRequester.createSkimEvent(
-                  resp.srcIndex,
-                  resp.dstIndex,
-                  trip.tripClassifier,
-                  trip,
-                  resp.requestTime
-                )
-                abstractSkimmer.handleEvent(event)
-                nSkimEvents += 1
-              } catch {
-                case NonFatal(ex) =>
-                  log.error(ex, s"Can't create skim event: ${ex.getMessage}")
-              }
-            }
-          }
-      }
+      processResponse(resp)
+      checkAndGiveTheResult()
 
     case Terminated(ref) =>
       workers -= ref
@@ -158,6 +147,15 @@ class MasterActor(
 
     case msg: Request =>
       msg match {
+        case Request.BatchResponse(responses) =>
+          checkIfNeedToStop(sender())
+          var i = 0
+          while (i < responses.length) {
+            processResponse(responses(i))
+            i += 1
+          }
+          checkAndGiveTheResult()
+
         case Monitor =>
           logStat()
 
@@ -209,7 +207,11 @@ class MasterActor(
           checkIfNeedToStop(worker)
           if (workers.contains(worker)) {
             if (moreWorkExist) {
-              if (useEnhancedMode) {
+              if (stage == 2) {
+                val batch = getNextReturnWorkItemBatch(batchSize)
+                nRouteSent += batch.length
+                worker ! Response.EnhancedWorkBatch(batch)
+              } else if (useEnhancedMode) {
                 val batch = getNextWorkItemBatch(batchSize)
                 nRouteSent += batch.length
                 worker ! Response.EnhancedWorkBatch(batch)
@@ -242,10 +244,14 @@ class MasterActor(
   }
 
   private def moreWorkExist: Boolean = {
-    if (useEnhancedMode) {
-      currentWorkItemIdx < workItems.length
+    if (stage == 1) {
+      if (useEnhancedMode) {
+        currentWorkItemIdx < workItems.length
+      } else {
+        currentIdx < ODs.length && currentTime < requestTimes.length
+      }
     } else {
-      currentIdx < ODs.length && currentTime < requestTimes.length
+      currentReturnWorkItemIdx < returnWorkItems.length
     }
   }
 
@@ -263,12 +269,22 @@ class MasterActor(
   }
 
   /**
-    * Get next batch of work items for enhanced mode.
+    * Get next batch of work items for enhanced mode stage 1.
     */
   private def getNextWorkItemBatch(size: Int): Array[ODWorkItem] = {
     val endIdx = Math.min(currentWorkItemIdx + size, workItems.length)
     val batch = workItems.slice(currentWorkItemIdx, endIdx)
     currentWorkItemIdx = endIdx
+    batch
+  }
+
+  /**
+    * Get next batch of work items for stage 2 (return trips with candidate parking locations).
+    */
+  private def getNextReturnWorkItemBatch(size: Int): Array[ODWorkItem] = {
+    val endIdx = Math.min(currentReturnWorkItemIdx + size, returnWorkItems.length)
+    val batch = returnWorkItems.slice(currentReturnWorkItemIdx, endIdx)
+    currentReturnWorkItemIdx = endIdx
     batch
   }
 
@@ -293,11 +309,273 @@ class MasterActor(
     currentIdx < ODs.length && currentTime < requestTimes.length
   }
 
-  private def checkAndGiveTheResult(): Unit = {
-    if (totalResponses == maxRequestsNumber) {
-      replyToWhenFinish.foreach { actorRef =>
-        actorRef ! PopulatedSkimmer(abstractSkimmer)
+  private def totalTimeFromRequestToArrival(trip: EmbodiedBeamTrip, requestTime: Int): Int = {
+    trip.legs.lastOption match {
+      case Some(lastLeg) => Math.max(0, lastLeg.beamLeg.endTime - requestTime)
+      case None          => trip.totalTravelTimeInSecs
+    }
+  }
+
+  private def extractParkingLocation(trip: EmbodiedBeamTrip): Option[Coord] = {
+    val legs = trip.legs
+    val carLegIdx = legs.indexWhere(leg =>
+      leg.beamLeg.mode == BeamMode.CAR || leg.beamLeg.mode == BeamMode.DRIVE_TRANSIT
+    )
+    if (carLegIdx >= 0) {
+      val hasTransitAfter = legs.drop(carLegIdx + 1).exists(_.beamLeg.mode.isTransit)
+      if (hasTransitAfter) {
+        val carLeg = legs(carLegIdx)
+        val endPoint = carLeg.beamLeg.travelPath.endPoint
+        if (endPoint != null && endPoint.loc != null) {
+          Some(odRequester.geoUtils.wgs2Utm(endPoint.loc))
+        } else {
+          None
+        }
+      } else {
+        None
       }
+    } else {
+      None
+    }
+  }
+
+  private def addParkingLocation(set: scala.collection.mutable.Set[Coord], newCoord: Coord): Unit = {
+    val duplicate = set.exists { existing =>
+      val dx = existing.getX - newCoord.getX
+      val dy = existing.getY - newCoord.getY
+      (dx * dx + dy * dy) < (50.0 * 50.0)
+    }
+    if (!duplicate) {
+      set.add(newCoord)
+    }
+  }
+
+  private def processResponse(resp: ODRequester.Response): Unit = {
+    resp.maybeRoutingResponse match {
+      case Failure(ex) =>
+        nFailedRoutes += 1
+        log.error(ex, s"Can't compute route: ${ex.getMessage}")
+      case Success(routingResponse) =>
+        nSuccessRoutes += 1
+        val validTrips = routingResponse.itineraries.filterNot(isBikeTransit)
+        if (validTrips.nonEmpty) {
+          // If WALK was not requested as an active mode (e.g. this is a transit query),
+          // filter out direct WALK fallback itineraries so they do not pollute walk skims.
+          val filteredTrips = if (!odRequester.buildDirectWalkRoute) {
+            validTrips.filterNot(_.tripClassifier == BeamMode.WALK)
+          } else {
+            validTrips
+          }
+
+          val tripsToRecord: Iterable[EmbodiedBeamTrip] = abstractSkimmer match {
+            case _: ActivitySimSkimmer =>
+              // ActivitySim: group itineraries by (ActivitySimPathType, fleet) and pick the fastest trip
+              // from request time to arrival time (secondary sort on total travel time)
+              filteredTrips
+                .groupBy(ActivitySimPathType.determineTripPathTypeAndFleet)
+                .filterKeys(_._1 != ActivitySimPathType.OTHER)
+                .values
+                .map { modeTrips =>
+                  modeTrips.minBy(t => (totalTimeFromRequestToArrival(t, resp.requestTime), t.totalTravelTimeInSecs))
+                }
+            case _ =>
+              // Default/ODSkimmer: group itineraries by BeamMode and pick the fastest trip
+              filteredTrips
+                .groupBy(_.tripClassifier)
+                .values
+                .map { modeTrips =>
+                  modeTrips.minBy(t => (totalTimeFromRequestToArrival(t, resp.requestTime), t.totalTravelTimeInSecs))
+                }
+          }
+
+          tripsToRecord.foreach { trip =>
+            try {
+              if (resp.avoidTolls) {
+                // Stage 2 toll-avoiding route: record as SOV (unavoidable bridge toll)
+                val unavoidableToll = odRequester.calculateToll(trip)
+                val event = odRequester.createActivitySimSkimEvent(
+                  resp.srcIndex,
+                  resp.dstIndex,
+                  ActivitySimPathType.SOV,
+                  trip,
+                  resp.requestTime,
+                  tollCostInDollars = unavoidableToll,
+                  bridgeTollInCents = unavoidableToll * 100.0,
+                  valueTollInCents = 0.0
+                )
+                abstractSkimmer.handleEvent(event)
+                nSkimEvents += 1
+              } else if (
+                bifurcateTolls && abstractSkimmer.isInstanceOf[ActivitySimSkimmer] && trip.tripClassifier == BeamMode.CAR
+              ) {
+                val toll = odRequester.calculateToll(trip)
+                if (toll == 0.0) {
+                  // Toll-free route: serves as both SOV and SOVTOLL
+                  val sovEvent = odRequester.createActivitySimSkimEvent(
+                    resp.srcIndex,
+                    resp.dstIndex,
+                    ActivitySimPathType.SOV,
+                    trip,
+                    resp.requestTime,
+                    tollCostInDollars = 0.0,
+                    bridgeTollInCents = 0.0,
+                    valueTollInCents = 0.0
+                  )
+                  abstractSkimmer.handleEvent(sovEvent)
+                  nSkimEvents += 1
+
+                  val sovTollEvent = odRequester.createActivitySimSkimEvent(
+                    resp.srcIndex,
+                    resp.dstIndex,
+                    ActivitySimPathType.SOVTOLL,
+                    trip,
+                    resp.requestTime,
+                    tollCostInDollars = 0.0,
+                    bridgeTollInCents = 0.0,
+                    valueTollInCents = 0.0
+                  )
+                  abstractSkimmer.handleEvent(sovTollEvent)
+                  nSkimEvents += 1
+                } else {
+                  // Tolled route: record as SOVTOLL with optional value toll (VTOLL)
+                  // and queue for toll-avoiding pass
+                  val sovTollEvent = odRequester.createActivitySimSkimEvent(
+                    resp.srcIndex,
+                    resp.dstIndex,
+                    ActivitySimPathType.SOVTOLL,
+                    trip,
+                    resp.requestTime,
+                    tollCostInDollars = toll,
+                    bridgeTollInCents = 0.0,
+                    valueTollInCents = toll * 100.0
+                  )
+                  abstractSkimmer.handleEvent(sovTollEvent)
+                  nSkimEvents += 1
+
+                  if (stage == 1) {
+                    tolledCarODs.add((resp.srcIndex, resp.dstIndex, resp.requestTime))
+                  }
+                }
+              } else {
+                val event = odRequester.createSkimEvent(
+                  resp.srcIndex,
+                  resp.dstIndex,
+                  trip.tripClassifier,
+                  trip,
+                  resp.requestTime
+                )
+                abstractSkimmer.handleEvent(event)
+                nSkimEvents += 1
+              }
+            } catch {
+              case NonFatal(ex) =>
+                log.error(ex, s"Can't create skim event: ${ex.getMessage}")
+            }
+          }
+
+          // Accumulate parking locations for outbound drive-transit trips during Stage 1
+          if (generateReturnTrips && stage == 1) {
+            filteredTrips.foreach { trip =>
+              extractParkingLocation(trip).foreach { parkingCoord =>
+                val set = outboundStationParkingSets.getOrElseUpdate(
+                  (resp.srcIndex, resp.dstIndex),
+                  scala.collection.mutable.Set.empty
+                )
+                addParkingLocation(set, parkingCoord)
+              }
+            }
+          }
+        }
+    }
+  }
+
+  private def checkAndGiveTheResult(): Unit = {
+    if (stage == 1 && totalResponses == stage1TotalRequests) {
+      val hasReturnTrips = generateReturnTrips && outboundStationParkingSets.nonEmpty
+      val hasTolledCarTrips = bifurcateTolls && tolledCarODs.nonEmpty
+      if (hasReturnTrips || hasTolledCarTrips) {
+        transitionToStage2()
+      } else {
+        finishAndReply()
+      }
+    } else if (stage == 2 && totalResponses == maxRequestsNumber) {
+      finishAndReply()
+    }
+  }
+
+  private def transitionToStage2(): Unit = {
+    stage = 2
+    log.info(
+      s"Stage 1 complete! Total responses: $totalResponses. " +
+      s"Collected parking locations for ${outboundStationParkingSets.size} OD pairs across ${requestTimes.length} time periods. " +
+      s"Tolled car ODs for second pass: ${tolledCarODs.size}. " +
+      s"Generating Stage 2 work items..."
+    )
+
+    val categories: Seq[Option[TransitModeCategory]] = if (transitModeCategories.nonEmpty) {
+      transitModeCategories.map(Some(_))
+    } else {
+      Seq(None)
+    }
+
+    val returnItems = if (generateReturnTrips && outboundStationParkingSets.nonEmpty) {
+      for {
+        ((outboundSrc, outboundDst), parkingSet) <- outboundStationParkingSets.toArray
+        time <- requestTimes
+        category <- categories
+      } yield ODWorkItem(
+        srcIndex = outboundDst,
+        dstIndex = outboundSrc,
+        time = time,
+        transitCategory = category,
+        tripDirection = TripDirection.Return,
+        parkingLocations = parkingSet.toSet
+      )
+    } else {
+      Array.empty[ODWorkItem]
+    }
+
+    val tollAvoidItems = if (bifurcateTolls && tolledCarODs.nonEmpty) {
+      tolledCarODs.toArray.map { case (src, dst, time) =>
+        ODWorkItem(
+          srcIndex = src,
+          dstIndex = dst,
+          time = time,
+          avoidTolls = true
+        )
+      }
+    } else {
+      Array.empty[ODWorkItem]
+    }
+
+    returnWorkItems = returnItems ++ tollAvoidItems
+    stage2TotalRequests = returnWorkItems.length
+    maxRequestsNumber = stage1TotalRequests + stage2TotalRequests
+    currentReturnWorkItemIdx = 0
+
+    log.info(
+      s"Stage 2 started: $stage2TotalRequests work items to process (${returnItems.length} return transit, ${tollAvoidItems.length} toll-avoid auto). " +
+      s"Total requests across both stages: $maxRequestsNumber"
+    )
+
+    // Proactively dispatch initial return batches to all available workers
+    workers.foreach { worker =>
+      if (moreWorkExist) {
+        val batch = getNextReturnWorkItemBatch(batchSize)
+        nRouteSent += batch.length
+        worker ! Response.EnhancedWorkBatch(batch)
+      } else {
+        worker ! Response.NoWork
+      }
+    }
+  }
+
+  private def finishAndReply(): Unit = {
+    log.info(
+      s"Skimming completed! Total responses: $totalResponses, success: $nSuccessRoutes, failed: $nFailedRoutes, events: $nSkimEvents"
+    )
+    replyToWhenFinish.foreach { actorRef =>
+      actorRef ! PopulatedSkimmer(abstractSkimmer)
     }
   }
 
@@ -325,7 +603,7 @@ class MasterActor(
     lazy val dtInSeconds = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - startedAt)
     lazy val avgRoutePerSecond = (nSuccessRoutes + nFailedRoutes).toDouble / dtInSeconds
     log.info(
-      s"""nRouteSent: $nRouteSent out of $maxRequestsNumber (${(nRouteSent.toFloat / maxRequestsNumber * 100).toInt}%), nSuccessRoutes: $nSuccessRoutes, nFailedRoutes: $nFailedRoutes, nSkimEvents: $nSkimEvents
+      s"""Stage $stage | nRouteSent: $nRouteSent out of $maxRequestsNumber (${(nRouteSent.toFloat / maxRequestsNumber * 100).toInt}%), nSuccessRoutes: $nSuccessRoutes, nFailedRoutes: $nFailedRoutes, nSkimEvents: $nSkimEvents
          |AVG route per second: $avgRoutePerSecond, elapsed time: $dtInSeconds seconds
          |Current number of workers: ${workers.size}""".stripMargin
     )
@@ -343,6 +621,7 @@ object MasterActor {
     case class ReduceParallelismTo(parallelism: Int) extends Request
     case object WaitToFinish extends Request
     case class GiveMoreWork(sender: ActorRef) extends Request
+    case class BatchResponse(responses: Array[ODRequester.Response]) extends Request
   }
 
   sealed trait Response
@@ -361,19 +640,10 @@ object MasterActor {
     odR5Requester: ODRequester,
     requestTimes: Seq[Int],
     ODs: Array[(GeoIndex, GeoIndex)],
+    transitModeCategories: Seq[TransitModeCategory] = Seq.empty,
+    generateReturnTrips: Boolean = false,
+    bifurcateTolls: Boolean = false,
     parallelism: Int = 0
-  ): Props = {
-    Props(new MasterActor(abstractSkimmer, odR5Requester, requestTimes, ODs, Seq.empty, false, parallelism))
-  }
-
-  def props(
-    abstractSkimmer: AbstractSkimmer,
-    odR5Requester: ODRequester,
-    requestTimes: Seq[Int],
-    ODs: Array[(GeoIndex, GeoIndex)],
-    transitModeCategories: Seq[TransitModeCategory],
-    generateReturnTrips: Boolean,
-    parallelism: Int
   ): Props = {
     Props(
       new MasterActor(
@@ -383,6 +653,7 @@ object MasterActor {
         ODs,
         transitModeCategories,
         generateReturnTrips,
+        bifurcateTolls,
         parallelism
       )
     )

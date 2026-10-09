@@ -2126,6 +2126,17 @@ class PersonAgent(
     odSkimmerEvent: ODSkimmerEvent
   ): Unit = {
     val (origin, destination) = getOriginAndDestinationFromGeoMap(currentAct, maybeNextAct)
+    // In-run toll calculation:
+    // - Evaluates per-link tolls via calcTollByLinkIds (agents do not have direct access to R5's
+    //   internal TransportNetwork to look up OSM way IDs; in typical production scenarios tolls
+    //   are defined via link IDs in toll-prices.csv).
+    // - In-run agents do not perform two-pass toll avoidance, so observed tolls are attributed
+    //   to bridgeTollInCents (BTOLL) with valueTollInCents = 0.0. The full skimmer bifurcates
+    //   SOV (unavoidable / BTOLL) from SOVTOLL (optional / VTOLL).
+    val tollInDollars = odSkimmerEvent.trip.beamLegs.collect {
+      case leg if leg.mode == BeamMode.CAR || leg.mode == BeamMode.CAV =>
+        beamServices.tollCalculator.calcTollByLinkIds(leg.travelPath)
+    }.sum
     val asSkimmerEvent = ActivitySimSkimmerEvent(
       origin,
       destination,
@@ -2134,7 +2145,9 @@ class PersonAgent(
       odSkimmerEvent.generalizedTimeInHours,
       odSkimmerEvent.generalizedCost,
       odSkimmerEvent.energyConsumption,
-      beamServices.beamConfig.beam.router.skim.activity_sim_skimmer.name
+      beamServices.beamConfig.beam.router.skim.activity_sim_skimmer.name,
+      bridgeTollInCents = tollInDollars * 100.0,
+      valueTollInCents = 0.0
     )
     eventsManager.processEvent(asSkimmerEvent)
   }

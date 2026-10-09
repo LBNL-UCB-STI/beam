@@ -3,10 +3,14 @@ package beam.router.skim.urbansim
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.graphhopper.{CarGraphHopperWrapper, GraphHopperWrapper, WalkGraphHopperWrapper}
+import beam.router.model.EmbodiedBeamTrip
 import beam.router.r5.{R5Parameters, R5Wrapper}
-import beam.router.{FreeFlowTravelTime, Modes, Router}
+import beam.router.{BeamFreeFlowTravelTime, FreeFlowTravelTime, Modes, Router}
+import beam.utils.NetworkHelperImpl
 import com.conveyal.osmlib.OSM
+import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.scalalogging.LazyLogging
+import org.matsim.api.core.v01.network.Network
 import org.matsim.core.router.util.TravelTime
 
 import java.io.File
@@ -17,17 +21,31 @@ import scala.reflect.io.Directory
 case class ODRouterR5GHForActivitySimSkims(
   workerParams: R5Parameters,
   requestTimes: List[Int],
-  travelTimeOpt: Option[TravelTime]
+  travelTimeOpt: Option[TravelTime],
+  networks2: Option[(TransportNetwork, Network)] = None
 ) extends Router
     with LazyLogging {
 
   var totalRouteExecutionInfo: RouteExecutionInfo = RouteExecutionInfo()
 
-  private val r5: R5Wrapper = new R5Wrapper(
+  private val primaryR5: R5Wrapper = new R5Wrapper(
     workerParams,
     travelTimeOpt.getOrElse(new FreeFlowTravelTime),
     workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
   )
+
+  private val secondR5: Option[R5Wrapper] = for {
+    (transportNetwork, network) <- networks2
+  } yield {
+    val networkHelperImpl = new NetworkHelperImpl(network)
+    new R5Wrapper(
+      workerParams.copy(transportNetwork = transportNetwork, networkHelper = networkHelperImpl),
+      travelTimeOpt.getOrElse(new BeamFreeFlowTravelTime(networkHelperImpl)),
+      workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
+    )
+  }
+
+  private val r5: Router = DualR5Router(primaryR5, secondR5)
 
   private val linksBelowMinCarSpeed =
     workerParams.networkHelper.allLinks
@@ -246,5 +264,31 @@ case class ODRouterR5GHForActivitySimSkims(
     } else {
       None
     }
+  }
+}
+
+case class DualR5Router(primaryRouter: Router, secondRouter: Option[Router]) extends Router {
+  override def calcRoute(
+    request: RoutingRequest,
+    buildDirectCarRoute: Boolean,
+    buildDirectWalkRoute: Boolean
+  ): RoutingResponse = {
+    val resp1 = primaryRouter.calcRoute(request, buildDirectCarRoute, buildDirectWalkRoute)
+    (secondRouter, request.withTransit) match {
+      case (Some(r52), true) =>
+        val resp2 = r52.calcRoute(request, buildDirectCarRoute = false, buildDirectWalkRoute = false)
+        resp1.copy(
+          itineraries = ODRouterR5GHForActivitySimSkims.unionItineraries(resp1.itineraries, resp2.itineraries),
+          computedInMs = resp1.computedInMs + resp2.computedInMs
+        )
+      case _ => resp1
+    }
+  }
+}
+
+object ODRouterR5GHForActivitySimSkims {
+
+  def unionItineraries(it1: Seq[EmbodiedBeamTrip], it2: Seq[EmbodiedBeamTrip]): Seq[EmbodiedBeamTrip] = {
+    it1 ++ it2
   }
 }

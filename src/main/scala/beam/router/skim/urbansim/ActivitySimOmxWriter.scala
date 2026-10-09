@@ -40,7 +40,7 @@ object ActivitySimOmxWriter extends LazyLogging {
 
     logger.info(s"Shape size will be: ${geoUnits.size}x${geoUnits.size}")
 
-    val shape: Array[Int] = Array.fill(geoUnits.size)(geoUnits.size)
+    val shape: Array[Int] = Array(geoUnits.size, geoUnits.size)
     logger.info("Attempting to open new file...")
     try {
       omxFile.openNew(shape)
@@ -141,7 +141,7 @@ object ActivitySimOmxWriter extends LazyLogging {
     metrics: Set[ActivitySimMetric]
   )
 
-  private val activitySimMatrixData = IndexedSeq(
+  private[skim] val activitySimMatrixData = IndexedSeq(
     MatrixData(
       Set(DRV_COM_WLK, DRV_EXP_WLK, DRV_HVY_WLK, WLK_COM_DRV, WLK_EXP_DRV, WLK_HVY_DRV),
       ActivitySimTimeBin.values.toSet,
@@ -163,7 +163,7 @@ object ActivitySimOmxWriter extends LazyLogging {
       Set(BTOLL, VTOLL, TIME, DIST)
     ),
     MatrixData(
-      Set(BIKE),
+      Set(BIKE, WALK),
       ActivitySimTimeBin.values.toSet,
       Set(TIME, DIST)
     ),

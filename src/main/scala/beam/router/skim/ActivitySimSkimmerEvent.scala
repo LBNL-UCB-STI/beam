@@ -15,7 +15,11 @@ case class ActivitySimSkimmerEvent(
   generalizedTimeInHours: Double,
   generalizedCost: Double,
   energyConsumption: Double,
-  override val skimName: String
+  override val skimName: String,
+  pathTypeOverride: Option[ActivitySimPathType] = None,
+  costOverrideInDollars: Option[Double] = None,
+  bridgeTollInCents: Double = 0.0,
+  valueTollInCents: Double = 0.0
 ) extends AbstractSkimmerEvent(eventTime)
     with LazyLogging {
 
@@ -24,7 +28,17 @@ case class ActivitySimSkimmerEvent(
   override def getKey: AbstractSkimmerKey = key
   override def getSkimmerInternal: AbstractSkimmerInternal = skimInternal
 
-  val (key, skimInternal) = observeTrip(trip, generalizedTimeInHours, generalizedCost, energyConsumption)
+  val (key, skimInternal) =
+    observeTrip(
+      trip,
+      generalizedTimeInHours,
+      generalizedCost,
+      energyConsumption,
+      pathTypeOverride,
+      costOverrideInDollars,
+      bridgeTollInCents,
+      valueTollInCents
+    )
 
   private def calcTimes(trip: EmbodiedBeamTrip): (Double, Double, Double, Double, Double, Double, Int) = {
     var walkAccess = 0
@@ -93,9 +107,15 @@ case class ActivitySimSkimmerEvent(
     trip: EmbodiedBeamTrip,
     generalizedTimeInHours: Double,
     generalizedCost: Double,
-    energyConsumption: Double
+    energyConsumption: Double,
+    pathTypeOverride: Option[ActivitySimPathType] = None,
+    costOverrideInDollars: Option[Double] = None,
+    bridgeTollInCents: Double = 0.0,
+    valueTollInCents: Double = 0.0
   ): (ActivitySimSkimmerKey, ActivitySimSkimmerInternal) = {
-    val (pathType, fleet) = ActivitySimPathType.determineTripPathTypeAndFleet(trip)
+    val (derivedPathType, derivedFleet) = ActivitySimPathType.determineTripPathTypeAndFleet(trip)
+    val pathType = pathTypeOverride.getOrElse(derivedPathType)
+    val fleet = if (pathTypeOverride.isDefined) None else derivedFleet
     val beamLegs = trip.beamLegs
     val origLeg = beamLegs.head
     val timeBin = SkimsUtils.timeToBin(origLeg.startTime)
@@ -150,7 +170,9 @@ case class ActivitySimSkimmerEvent(
           0.0,
           0.0,
           failedTrips = 1,
-          observations = 0
+          observations = 0,
+          bridgeTollInCents = 0.0,
+          valueTollInCents = 0.0
         )
       } else {
         ActivitySimSkimmerInternal(
@@ -166,7 +188,7 @@ case class ActivitySimSkimmerEvent(
               case _                                                 => distInMeters
             }
           } max 1.0,
-          cost = trip.costEstimate,
+          cost = costOverrideInDollars.getOrElse(trip.costEstimate),
           energy = energyConsumption,
           walkAccessInMinutes = walkAccess / 60.0,
           walkEgressInMinutes = walkEgress / 60.0,
@@ -180,7 +202,9 @@ case class ActivitySimSkimmerEvent(
           keyInVehicleTimeInMinutes = keyInVehicleTimeInSeconds / 60.0,
           transitBoardingsCount = numberOfTransitTrips,
           failedTrips = 0,
-          observations = 1
+          observations = 1,
+          bridgeTollInCents = bridgeTollInCents,
+          valueTollInCents = valueTollInCents
         )
       }
     }
