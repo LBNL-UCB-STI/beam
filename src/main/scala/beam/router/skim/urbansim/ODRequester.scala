@@ -24,6 +24,7 @@ import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters._
+import scala.util.control.NonFatal
 import scala.util.{Success, Try}
 
 class ODRequester(
@@ -39,7 +40,8 @@ class ODRequester(
   val buildDirectCarRoute: Boolean,
   val skimmerEventFactory: AbstractSkimmerEventFactory,
   val transportNetwork: Option[TransportNetwork] = None,
-  tollCalculator: TollCalculator = null
+  tollCalculator: TollCalculator = null,
+  val bifurcateTolls: Boolean = false
 ) extends StrictLogging {
 
   val actualTollCalculator: TollCalculator =
@@ -211,25 +213,11 @@ class ODRequester(
         )
 
         val startExecution = System.nanoTime()
-        var response = router.calcRoute(
+        val response = router.calcRoute(
           routingReq,
           buildDirectCarRoute = false,
           buildDirectWalkRoute = false
         )
-
-        // If R5 selected a candidate vehicle that had no transit connection at this hour,
-        // and there are other candidate parking locations, try the remaining candidates.
-        if (response.itineraries.isEmpty && parkedVehicles.size > 1) {
-          val remainingVehicles = parkedVehicles.tail
-          var i = 0
-          while (i < remainingVehicles.size && response.itineraries.isEmpty) {
-            val altReq = routingReq.copy(
-              streetVehicles = Vector(remainingVehicles(i), walkVehicle)
-            )
-            response = router.calcRoute(altReq, buildDirectCarRoute = false, buildDirectWalkRoute = false)
-            i += 1
-          }
-        }
 
         _requestsExecutionTime.updateAndGet(current =>
           RouteExecutionInfo.sum(
@@ -254,7 +242,7 @@ class ODRequester(
             withTransit = withTransit,
             streetVehicles = streetVehicles,
             streetVehiclesUseIntermodalUse = IntermodalUse.Access,
-            attributesOfIndividual = Some(dummyPersonAttributesFastest),
+            attributesOfIndividual = Some(if (bifurcateTolls) dummyPersonAttributesFastest else dummyPersonAttributes),
             triggerId = -1,
             transitModes = transitModes
           )
@@ -314,7 +302,10 @@ class ODRequester(
       needsToCalculateCost = false
     )
 
-    val personAttributes = if (avoidTolls) dummyPersonAttributesTollAvoid else dummyPersonAttributesFastest
+    val personAttributes =
+      if (avoidTolls) dummyPersonAttributesTollAvoid
+      else if (bifurcateTolls) dummyPersonAttributesFastest
+      else dummyPersonAttributes
 
     val routingReq = RoutingRequest(
       originUTM = srcCoord,
@@ -439,15 +430,33 @@ class ODRequester(
       .map(_.beamLeg.travelPath.distanceInM)
       .sum
 
-    skimmerEventFactory.createEvent(
-      origin = origin.value,
-      destination = destination.value,
-      eventTime = requestTime,
-      trip = theTrip,
-      generalizedTimeInHours = generalizedTime,
-      generalizedCost = generalizedCost,
-      energyConsumption = energyConsumption
-    )
+    skimmerEventFactory match {
+      case asimFactory: ActivitySimSkimmerEventFactory =>
+        val tollInDollars = calculateToll(theTrip)
+        asimFactory.createEvent(
+          origin = origin.value,
+          destination = destination.value,
+          eventTime = requestTime,
+          trip = theTrip,
+          generalizedTimeInHours = generalizedTime,
+          generalizedCost = generalizedCost,
+          energyConsumption = energyConsumption,
+          pathTypeOverride = None,
+          costOverrideInDollars = None,
+          bridgeTollInCents = tollInDollars * 100.0,
+          valueTollInCents = 0.0
+        )
+      case _ =>
+        skimmerEventFactory.createEvent(
+          origin = origin.value,
+          destination = destination.value,
+          eventTime = requestTime,
+          trip = theTrip,
+          generalizedTimeInHours = generalizedTime,
+          generalizedCost = generalizedCost,
+          energyConsumption = energyConsumption
+        )
+    }
   }
 
   def calculateToll(trip: EmbodiedBeamTrip): Double = {
@@ -456,10 +465,16 @@ class ODRequester(
         val linkToll = actualTollCalculator.calcTollByLinkIds(leg.travelPath)
         val osmToll = transportNetwork match {
           case Some(tn) if actualTollCalculator.hasAnyWayTolls =>
-            val osmIds = leg.travelPath.linkIds.map { edgeId =>
-              tn.streetLayer.edgeStore.getCursor(edgeId).getOSMID
-            }.toIndexedSeq
-            actualTollCalculator.calcTollByOsmIds(osmIds)
+            try {
+              val osmIds = leg.travelPath.linkIds.flatMap { edgeId =>
+                if (edgeId >= 0 && edgeId < tn.streetLayer.edgeStore.nEdges) {
+                  Some(tn.streetLayer.edgeStore.getCursor(edgeId).getOSMID)
+                } else None
+              }.toIndexedSeq
+              actualTollCalculator.calcTollByOsmIds(osmIds)
+            } catch {
+              case NonFatal(_) => 0.0
+            }
           case _ => 0.0
         }
         linkToll + osmToll
@@ -472,7 +487,9 @@ class ODRequester(
     pathType: ActivitySimPathType,
     trip: EmbodiedBeamTrip,
     requestTime: Int,
-    tollCostInDollars: Double = 0.0
+    tollCostInDollars: Double = 0.0,
+    bridgeTollInCents: Double = 0.0,
+    valueTollInCents: Double = 0.0
   ): AbstractSkimmerEvent = {
     val theTrip = if (ActivitySimPathType.isCar(pathType) && trip.legs.forall(_.beamLeg.mode != WALK)) {
       val actualLegs = trip.legs
@@ -518,7 +535,9 @@ class ODRequester(
           generalizedCost = generalizedCost,
           energyConsumption = energyConsumption,
           pathTypeOverride = Some(pathType),
-          costOverrideInDollars = Some(tollCostInDollars)
+          costOverrideInDollars = Some(tollCostInDollars),
+          bridgeTollInCents = bridgeTollInCents,
+          valueTollInCents = valueTollInCents
         )
       case _ =>
         skimmerEventFactory.createEvent(

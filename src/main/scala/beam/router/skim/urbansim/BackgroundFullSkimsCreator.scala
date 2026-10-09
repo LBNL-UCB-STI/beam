@@ -54,107 +54,28 @@ class BackgroundFullSkimsCreator(
     buildDirectWalkRoute: Boolean,
     buildDirectCarRoute: Boolean,
     calculationTimeoutHours: Int,
-    parallelism: Int,
-    generateReturnTrips: Boolean
-  )(implicit actorSystem: ActorSystem) {
-    this(
-      beamServices,
-      beamScenario,
-      ODs = geoClustering match {
-        case h3Clustering: H3Clustering =>
-          val h3Indexes: Seq[GeoZoneSummaryItem] = h3Clustering.h3Indexes
-          h3Indexes.flatMap { srcGeo =>
-            h3Indexes.map { dstGeo =>
-              (srcGeo.index, dstGeo.index)
-            }
-          }.toArray
-
-        case tazClustering: TAZClustering =>
-          val tazs = tazClustering.tazTreeMap.getTAZs
-          tazs.flatMap { srcTAZ =>
-            tazs.map { destTAZ =>
-              (TAZIndex(srcTAZ), TAZIndex(destTAZ))
-            }
-          }.toArray
-      },
-      abstractSkimmer,
-      travelTime,
-      beamModes,
-      withTransit,
-      buildDirectWalkRoute,
-      buildDirectCarRoute,
-      calculationTimeoutHours,
-      parallelism,
-      generateReturnTrips,
-      false
-    )
-  }
-
-  def this(
-    beamServices: BeamServices,
-    beamScenario: BeamScenario,
-    geoClustering: GeoClustering,
-    abstractSkimmer: AbstractSkimmer,
-    travelTime: TravelTime,
-    beamModes: Seq[BeamMode],
-    withTransit: Boolean,
-    buildDirectWalkRoute: Boolean,
-    buildDirectCarRoute: Boolean,
-    calculationTimeoutHours: Int,
-    parallelism: Int,
-    generateReturnTrips: Boolean,
-    bifurcateTolls: Boolean
-  )(implicit actorSystem: ActorSystem) {
-    this(
-      beamServices,
-      beamScenario,
-      ODs = geoClustering match {
-        case h3Clustering: H3Clustering =>
-          val h3Indexes: Seq[GeoZoneSummaryItem] = h3Clustering.h3Indexes
-          h3Indexes.flatMap { srcGeo =>
-            h3Indexes.map { dstGeo =>
-              (srcGeo.index, dstGeo.index)
-            }
-          }.toArray
-
-        case tazClustering: TAZClustering =>
-          val tazs = tazClustering.tazTreeMap.getTAZs
-          tazs.flatMap { srcTAZ =>
-            tazs.map { destTAZ =>
-              (TAZIndex(srcTAZ), TAZIndex(destTAZ))
-            }
-          }.toArray
-      },
-      abstractSkimmer,
-      travelTime,
-      beamModes,
-      withTransit,
-      buildDirectWalkRoute,
-      buildDirectCarRoute,
-      calculationTimeoutHours,
-      parallelism,
-      generateReturnTrips,
-      bifurcateTolls
-    )
-  }
-
-  def this(
-    beamServices: BeamServices,
-    beamScenario: BeamScenario,
-    geoClustering: GeoClustering,
-    abstractSkimmer: AbstractSkimmer,
-    travelTime: TravelTime,
-    beamModes: Seq[BeamMode],
-    withTransit: Boolean,
-    buildDirectWalkRoute: Boolean,
-    buildDirectCarRoute: Boolean,
-    calculationTimeoutHours: Int,
     parallelism: Int
   )(implicit actorSystem: ActorSystem) {
     this(
       beamServices,
       beamScenario,
-      geoClustering,
+      ODs = geoClustering match {
+        case h3Clustering: H3Clustering =>
+          val h3Indexes: Seq[GeoZoneSummaryItem] = h3Clustering.h3Indexes
+          h3Indexes.flatMap { srcGeo =>
+            h3Indexes.map { dstGeo =>
+              (srcGeo.index, dstGeo.index)
+            }
+          }.toArray
+
+        case tazClustering: TAZClustering =>
+          val tazs = tazClustering.tazTreeMap.getTAZs
+          tazs.flatMap { srcTAZ =>
+            tazs.map { destTAZ =>
+              (TAZIndex(srcTAZ), TAZIndex(destTAZ))
+            }
+          }.toArray
+      },
       abstractSkimmer,
       travelTime,
       beamModes,
@@ -162,8 +83,9 @@ class BackgroundFullSkimsCreator(
       buildDirectWalkRoute,
       buildDirectCarRoute,
       calculationTimeoutHours,
-      parallelism,
-      generateReturnTrips = false
+      parallelism = parallelism,
+      generateReturnTrips = false,
+      bifurcateTolls = false
     )
   }
 
@@ -202,29 +124,7 @@ class BackgroundFullSkimsCreator(
         travelTimeNoiseFraction = 0.0
       )
     }
-    maybeSecondR5 match {
-      case Some(secondR5) =>
-        Some(new Router {
-          override def calcRoute(
-            request: RoutingRequest,
-            buildDirectCarRoute: Boolean,
-            buildDirectWalkRoute: Boolean
-          ): RoutingResponse = {
-            val resp1 = r5Wrapper.calcRoute(request, buildDirectCarRoute, buildDirectWalkRoute)
-            if (request.withTransit) {
-              val resp2 = secondR5.calcRoute(request, buildDirectCarRoute = false, buildDirectWalkRoute = false)
-              resp1.copy(
-                itineraries = ODRouterR5GHForActivitySimSkims.unionItineraries(resp1.itineraries, resp2.itineraries),
-                computedInMs = resp1.computedInMs + resp2.computedInMs
-              )
-            } else {
-              resp1
-            }
-          }
-        })
-      case None =>
-        Some(r5Wrapper)
-    }
+    Some(DualR5Router(r5Wrapper, maybeSecondR5))
   } else {
     None
   }
@@ -265,7 +165,8 @@ class BackgroundFullSkimsCreator(
     buildDirectCarRoute = buildDirectCarRoute,
     skimmerEventFactory,
     transportNetwork = Some(beamScenario.transportNetwork),
-    tollCalculator = beamServices.tollCalculator
+    tollCalculator = beamServices.tollCalculator,
+    bifurcateTolls = bifurcateTolls
   )
 
   private val masterActorRef: ActorRef = {

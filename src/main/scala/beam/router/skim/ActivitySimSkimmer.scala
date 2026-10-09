@@ -129,7 +129,9 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
         (prevSkim.failedTrips * prevSkim.iterations + currSkim.failedTrips * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       observations =
         (prevSkim.observations * prevSkim.iterations + currSkim.observations * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
-      iterations = prevSkim.iterations + currSkim.iterations
+      iterations = prevSkim.iterations + currSkim.iterations,
+      bridgeTollInCents = aggregate(_.bridgeTollInCents),
+      valueTollInCents = aggregate(_.valueTollInCents)
     )
   }
 
@@ -169,7 +171,9 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       failedTrips = prevSkim.failedTrips + currSkim.failedTrips,
       observations = prevSkim.observations + currSkim.observations,
       iterations = matsimServices.getIterationNumber + 1,
-      debugText = Seq(prevSkim.debugText, currSkim.debugText).mkString("|")
+      debugText = Seq(prevSkim.debugText, currSkim.debugText).mkString("|"),
+      bridgeTollInCents = aggregatedDoubleSkimValue(_.bridgeTollInCents),
+      valueTollInCents = aggregatedDoubleSkimValue(_.valueTollInCents)
     )
   }
 
@@ -471,6 +475,8 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     val weightedKeyInVehicleTime = getWeightedSkimsValue(_.keyInVehicleTimeInMinutes)
     val weightedFerryTime = getWeightedSkimsValue(_.ferryInVehicleTimeInMinutes)
     val weightedTransitBoardingsCount = getWeightedSkimsValue(_.transitBoardingsCount)
+    val weightedBridgeTollInCents = getWeightedSkimsValue(_.bridgeTollInCents)
+    val weightedValueTollInCents = getWeightedSkimsValue(_.valueTollInCents)
     val failedTrips = individualSkims.map(_.failedTrips).sum
     val completedTrips = individualSkims.map(_.observations).sum
     val debugText = individualSkims.map(_.debugText).filter(t => t != "").mkString("|")
@@ -499,8 +505,8 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       failedTrips = failedTrips,
       completedTrips = completedTrips,
       debugText = debugText,
-      weightedBridgeTollInCents = if (ActivitySimPathType.isCar(pathType)) weightedCostInDollars * 100 else 0.0,
-      weightedValueTollInCents = 0.0
+      weightedBridgeTollInCents = weightedBridgeTollInCents,
+      weightedValueTollInCents = weightedValueTollInCents
     )
   }
 
@@ -584,12 +590,15 @@ object ActivitySimSkimmer extends LazyLogging {
     failedTrips: Int,
     observations: Int,
     iterations: Int = 0,
-    debugText: String = ""
+    debugText: String = "",
+    bridgeTollInCents: Double = 0.0,
+    valueTollInCents: Double = 0.0
   ) extends AbstractSkimmerInternal {
 
     override def toCsv: String =
       travelTimeInMinutes + "," + generalizedTimeInMinutes + "," + cost + "," + generalizedCost + "," +
-      distanceInMeters + "," + energy + "," + failedTrips + "," + observations + "," + iterations
+      distanceInMeters + "," + energy + "," + failedTrips + "," + observations + "," + iterations + "," +
+      bridgeTollInCents + "," + valueTollInCents
   }
 
   object ActivitySimSkimmerInternal {
@@ -645,7 +654,7 @@ object ActivitySimSkimmer extends LazyLogging {
         case ActivitySimMetric.XWAIT    => weightedWaitTransfer
         case ActivitySimMetric.TRIPS    => completedTrips
         case ActivitySimMetric.FAILURES => failedTrips
-        case ActivitySimMetric.BTOLL    => if (weightedBridgeTollInCents != 0.0) weightedBridgeTollInCents else weightedTotalFareInCents
+        case ActivitySimMetric.BTOLL    => weightedBridgeTollInCents
         case ActivitySimMetric.VTOLL    => weightedValueTollInCents
         case _                          => Double.NaN
       }

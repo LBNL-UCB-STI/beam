@@ -28,7 +28,7 @@ case class ODRouterR5GHForActivitySimSkims(
 
   var totalRouteExecutionInfo: RouteExecutionInfo = RouteExecutionInfo()
 
-  private val r5: R5Wrapper = new R5Wrapper(
+  private val primaryR5: R5Wrapper = new R5Wrapper(
     workerParams,
     travelTimeOpt.getOrElse(new FreeFlowTravelTime),
     workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
@@ -44,6 +44,8 @@ case class ODRouterR5GHForActivitySimSkims(
       workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
     )
   }
+
+  private val r5: Router = DualR5Router(primaryR5, secondR5)
 
   private val linksBelowMinCarSpeed =
     workerParams.networkHelper.allLinks
@@ -103,21 +105,13 @@ case class ODRouterR5GHForActivitySimSkims(
 
       val r5ExecutionStart = System.nanoTime()
       val maybeR5Response = if (needToRunR5) {
-        val resp1 = r5.calcRoute(
-          request,
-          buildDirectCarRoute = needToBuildCarRoute,
-          buildDirectWalkRoute = needToBuildWalkRoute
+        Some(
+          r5.calcRoute(
+            request,
+            buildDirectCarRoute = needToBuildCarRoute,
+            buildDirectWalkRoute = needToBuildWalkRoute
+          )
         )
-        val combinedResp = (secondR5, request.withTransit) match {
-          case (Some(r52), true) =>
-            val resp2 = r52.calcRoute(request, buildDirectCarRoute = false, buildDirectWalkRoute = false)
-            resp1.copy(
-              itineraries = ODRouterR5GHForActivitySimSkims.unionItineraries(resp1.itineraries, resp2.itineraries),
-              computedInMs = resp1.computedInMs + resp2.computedInMs
-            )
-          case _ => resp1
-        }
-        Some(combinedResp)
       } else {
         None
       }
@@ -143,16 +137,7 @@ case class ODRouterR5GHForActivitySimSkims(
       (response, executionInfo)
     } else {
       val r5ExecutionStart = System.nanoTime()
-      val resp1 = r5.calcRoute(request, buildDirectCarRoute, buildDirectWalkRoute)
-      val response = (secondR5, request.withTransit) match {
-        case (Some(r52), true) =>
-          val resp2 = r52.calcRoute(request, buildDirectCarRoute = false, buildDirectWalkRoute = false)
-          resp1.copy(
-            itineraries = ODRouterR5GHForActivitySimSkims.unionItineraries(resp1.itineraries, resp2.itineraries),
-            computedInMs = resp1.computedInMs + resp2.computedInMs
-          )
-        case _ => resp1
-      }
+      val response = r5.calcRoute(request, buildDirectCarRoute, buildDirectWalkRoute)
       val r5ExecutionTime = System.nanoTime() - r5ExecutionStart
       (response, RouteExecutionInfo(r5ExecutionTime = r5ExecutionTime, r5Responses = 1))
     }
@@ -282,16 +267,28 @@ case class ODRouterR5GHForActivitySimSkims(
   }
 }
 
+case class DualR5Router(primaryRouter: Router, secondRouter: Option[Router]) extends Router {
+  override def calcRoute(
+    request: RoutingRequest,
+    buildDirectCarRoute: Boolean,
+    buildDirectWalkRoute: Boolean
+  ): RoutingResponse = {
+    val resp1 = primaryRouter.calcRoute(request, buildDirectCarRoute, buildDirectWalkRoute)
+    (secondRouter, request.withTransit) match {
+      case (Some(r52), true) =>
+        val resp2 = r52.calcRoute(request, buildDirectCarRoute = false, buildDirectWalkRoute = false)
+        resp1.copy(
+          itineraries = ODRouterR5GHForActivitySimSkims.unionItineraries(resp1.itineraries, resp2.itineraries),
+          computedInMs = resp1.computedInMs + resp2.computedInMs
+        )
+      case _ => resp1
+    }
+  }
+}
+
 object ODRouterR5GHForActivitySimSkims {
 
   def unionItineraries(it1: Seq[EmbodiedBeamTrip], it2: Seq[EmbodiedBeamTrip]): Seq[EmbodiedBeamTrip] = {
-    val filteredIt2 = it2.filterNot(trip2 => it1.exists(trip1 => areTripsEqual(trip1, trip2)))
-    it1 ++ filteredIt2
-  }
-
-  def areTripsEqual(trip1: EmbodiedBeamTrip, trip2: EmbodiedBeamTrip): Boolean = {
-    trip1.tripClassifier == trip2.tripClassifier &&
-    trip1.legs.size == trip2.legs.size &&
-    trip1.totalTravelTimeInSecs == trip2.totalTravelTimeInSecs
+    it1 ++ it2
   }
 }

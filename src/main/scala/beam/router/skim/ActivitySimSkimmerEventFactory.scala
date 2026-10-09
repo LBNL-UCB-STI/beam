@@ -35,7 +35,9 @@ class ActivitySimSkimmerEventFactory(beamConfig: BeamConfig) extends AbstractSki
     generalizedCost: Double,
     energyConsumption: Double,
     pathTypeOverride: Option[ActivitySimPathType],
-    costOverrideInDollars: Option[Double]
+    costOverrideInDollars: Option[Double],
+    bridgeTollInCents: Double = 0.0,
+    valueTollInCents: Double = 0.0
   ): AbstractSkimmerEvent = ActivitySimSkimmerEvent(
     origin,
     destination,
@@ -46,6 +48,8 @@ class ActivitySimSkimmerEventFactory(beamConfig: BeamConfig) extends AbstractSki
     energyConsumption,
     activitySimSkimmerName,
     pathTypeOverride,
-    costOverrideInDollars
+    costOverrideInDollars,
+    bridgeTollInCents,
+    valueTollInCents
   )
 }

@@ -372,8 +372,8 @@ class MasterActor(
               // ActivitySim: group itineraries by (ActivitySimPathType, fleet) and pick the fastest trip
               // from request time to arrival time (secondary sort on total travel time)
               filteredTrips
-                .filterNot(t => ActivitySimPathType.determineTripPathTypeAndFleet(t)._1 == ActivitySimPathType.OTHER)
-                .groupBy(t => ActivitySimPathType.determineTripPathTypeAndFleet(t))
+                .groupBy(ActivitySimPathType.determineTripPathTypeAndFleet)
+                .filterKeys(_._1 != ActivitySimPathType.OTHER)
                 .values
                 .map { modeTrips =>
                   modeTrips.minBy(t => (totalTimeFromRequestToArrival(t, resp.requestTime), t.totalTravelTimeInSecs))
@@ -391,7 +391,7 @@ class MasterActor(
           tripsToRecord.foreach { trip =>
             try {
               if (resp.avoidTolls) {
-                // Stage 2 toll-avoiding route: record as SOV
+                // Stage 2 toll-avoiding route: record as SOV (unavoidable bridge toll)
                 val unavoidableToll = odRequester.calculateToll(trip)
                 val event = odRequester.createActivitySimSkimEvent(
                   resp.srcIndex,
@@ -399,14 +399,14 @@ class MasterActor(
                   ActivitySimPathType.SOV,
                   trip,
                   resp.requestTime,
-                  tollCostInDollars = unavoidableToll
+                  tollCostInDollars = unavoidableToll,
+                  bridgeTollInCents = unavoidableToll * 100.0,
+                  valueTollInCents = 0.0
                 )
                 abstractSkimmer.handleEvent(event)
                 nSkimEvents += 1
               } else if (
-                bifurcateTolls && abstractSkimmer
-                  .isInstanceOf[ActivitySimSkimmer] && (trip.tripClassifier == BeamMode.CAR || trip.beamLegs
-                  .exists(_.mode == BeamMode.CAR))
+                bifurcateTolls && abstractSkimmer.isInstanceOf[ActivitySimSkimmer] && trip.tripClassifier == BeamMode.CAR
               ) {
                 val toll = odRequester.calculateToll(trip)
                 if (toll == 0.0) {
@@ -417,7 +417,9 @@ class MasterActor(
                     ActivitySimPathType.SOV,
                     trip,
                     resp.requestTime,
-                    tollCostInDollars = 0.0
+                    tollCostInDollars = 0.0,
+                    bridgeTollInCents = 0.0,
+                    valueTollInCents = 0.0
                   )
                   abstractSkimmer.handleEvent(sovEvent)
                   nSkimEvents += 1
@@ -428,19 +430,24 @@ class MasterActor(
                     ActivitySimPathType.SOVTOLL,
                     trip,
                     resp.requestTime,
-                    tollCostInDollars = 0.0
+                    tollCostInDollars = 0.0,
+                    bridgeTollInCents = 0.0,
+                    valueTollInCents = 0.0
                   )
                   abstractSkimmer.handleEvent(sovTollEvent)
                   nSkimEvents += 1
                 } else {
-                  // Tolled route: record as SOVTOLL and queue for toll-avoiding pass
+                  // Tolled route: record as SOVTOLL with optional value toll (VTOLL)
+                  // and queue for toll-avoiding pass
                   val sovTollEvent = odRequester.createActivitySimSkimEvent(
                     resp.srcIndex,
                     resp.dstIndex,
                     ActivitySimPathType.SOVTOLL,
                     trip,
                     resp.requestTime,
-                    tollCostInDollars = toll
+                    tollCostInDollars = toll,
+                    bridgeTollInCents = 0.0,
+                    valueTollInCents = toll * 100.0
                   )
                   abstractSkimmer.handleEvent(sovTollEvent)
                   nSkimEvents += 1
@@ -633,88 +640,10 @@ object MasterActor {
     odR5Requester: ODRequester,
     requestTimes: Seq[Int],
     ODs: Array[(GeoIndex, GeoIndex)],
+    transitModeCategories: Seq[TransitModeCategory] = Seq.empty,
+    generateReturnTrips: Boolean = false,
+    bifurcateTolls: Boolean = false,
     parallelism: Int = 0
-  ): Props = {
-    Props(new MasterActor(abstractSkimmer, odR5Requester, requestTimes, ODs, Seq.empty, false, false, parallelism))
-  }
-
-  def props(
-    abstractSkimmer: AbstractSkimmer,
-    odR5Requester: ODRequester,
-    requestTimes: Seq[Int],
-    ODs: Array[(GeoIndex, GeoIndex)],
-    generateReturnTrips: Boolean,
-    parallelism: Int
-  ): Props = {
-    Props(
-      new MasterActor(
-        abstractSkimmer,
-        odR5Requester,
-        requestTimes,
-        ODs,
-        Seq.empty,
-        generateReturnTrips,
-        false,
-        parallelism
-      )
-    )
-  }
-
-  def props(
-    abstractSkimmer: AbstractSkimmer,
-    odR5Requester: ODRequester,
-    requestTimes: Seq[Int],
-    ODs: Array[(GeoIndex, GeoIndex)],
-    generateReturnTrips: Boolean,
-    bifurcateTolls: Boolean,
-    parallelism: Int
-  ): Props = {
-    Props(
-      new MasterActor(
-        abstractSkimmer,
-        odR5Requester,
-        requestTimes,
-        ODs,
-        Seq.empty,
-        generateReturnTrips,
-        bifurcateTolls,
-        parallelism
-      )
-    )
-  }
-
-  def props(
-    abstractSkimmer: AbstractSkimmer,
-    odR5Requester: ODRequester,
-    requestTimes: Seq[Int],
-    ODs: Array[(GeoIndex, GeoIndex)],
-    transitModeCategories: Seq[TransitModeCategory],
-    generateReturnTrips: Boolean,
-    parallelism: Int
-  ): Props = {
-    Props(
-      new MasterActor(
-        abstractSkimmer,
-        odR5Requester,
-        requestTimes,
-        ODs,
-        transitModeCategories,
-        generateReturnTrips,
-        false,
-        parallelism
-      )
-    )
-  }
-
-  def props(
-    abstractSkimmer: AbstractSkimmer,
-    odR5Requester: ODRequester,
-    requestTimes: Seq[Int],
-    ODs: Array[(GeoIndex, GeoIndex)],
-    transitModeCategories: Seq[TransitModeCategory],
-    generateReturnTrips: Boolean,
-    bifurcateTolls: Boolean,
-    parallelism: Int
   ): Props = {
     Props(
       new MasterActor(

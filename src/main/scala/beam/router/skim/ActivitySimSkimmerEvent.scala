@@ -17,7 +17,9 @@ case class ActivitySimSkimmerEvent(
   energyConsumption: Double,
   override val skimName: String,
   pathTypeOverride: Option[ActivitySimPathType] = None,
-  costOverrideInDollars: Option[Double] = None
+  costOverrideInDollars: Option[Double] = None,
+  bridgeTollInCents: Double = 0.0,
+  valueTollInCents: Double = 0.0
 ) extends AbstractSkimmerEvent(eventTime)
     with LazyLogging {
 
@@ -27,7 +29,16 @@ case class ActivitySimSkimmerEvent(
   override def getSkimmerInternal: AbstractSkimmerInternal = skimInternal
 
   val (key, skimInternal) =
-    observeTrip(trip, generalizedTimeInHours, generalizedCost, energyConsumption, pathTypeOverride, costOverrideInDollars)
+    observeTrip(
+      trip,
+      generalizedTimeInHours,
+      generalizedCost,
+      energyConsumption,
+      pathTypeOverride,
+      costOverrideInDollars,
+      bridgeTollInCents,
+      valueTollInCents
+    )
 
   private def calcTimes(trip: EmbodiedBeamTrip): (Double, Double, Double, Double, Double, Double, Int) = {
     var walkAccess = 0
@@ -98,7 +109,9 @@ case class ActivitySimSkimmerEvent(
     generalizedCost: Double,
     energyConsumption: Double,
     pathTypeOverride: Option[ActivitySimPathType] = None,
-    costOverrideInDollars: Option[Double] = None
+    costOverrideInDollars: Option[Double] = None,
+    bridgeTollInCents: Double = 0.0,
+    valueTollInCents: Double = 0.0
   ): (ActivitySimSkimmerKey, ActivitySimSkimmerInternal) = {
     val (derivedPathType, derivedFleet) = ActivitySimPathType.determineTripPathTypeAndFleet(trip)
     val pathType = pathTypeOverride.getOrElse(derivedPathType)
@@ -157,7 +170,9 @@ case class ActivitySimSkimmerEvent(
           0.0,
           0.0,
           failedTrips = 1,
-          observations = 0
+          observations = 0,
+          bridgeTollInCents = 0.0,
+          valueTollInCents = 0.0
         )
       } else {
         ActivitySimSkimmerInternal(
@@ -187,7 +202,9 @@ case class ActivitySimSkimmerEvent(
           keyInVehicleTimeInMinutes = keyInVehicleTimeInSeconds / 60.0,
           transitBoardingsCount = numberOfTransitTrips,
           failedTrips = 0,
-          observations = 1
+          observations = 1,
+          bridgeTollInCents = bridgeTollInCents,
+          valueTollInCents = valueTollInCents
         )
       }
     }

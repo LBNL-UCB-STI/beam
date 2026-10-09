@@ -43,7 +43,7 @@ class TransitDisaggregationAndDualRouterSpec extends AnyWordSpecLike with Matche
   }
 
   "ODRouterR5GHForActivitySimSkims.unionItineraries" should {
-    "union itineraries from two routers while deduplicating identical trips" in {
+    "combine itineraries from two routers via concatenation" in {
       val busTrip1 = EmbodiedBeamTrip(
         IndexedSeq(
           mockLeg(300, BeamMode.WALK, startTime = 28800, endTime = 29100),
@@ -67,11 +67,10 @@ class TransitDisaggregationAndDualRouterSpec extends AnyWordSpecLike with Matche
       )
 
       val it1 = Seq(busTrip1, busTrip2)
-      // it2 has busTrip1 (duplicate) plus a distinct railTrip
       val it2 = Seq(busTrip1, railTrip)
 
       val combined = ODRouterR5GHForActivitySimSkims.unionItineraries(it1, it2)
-      combined should have size 3
+      combined should have size 4
       combined should contain allOf(busTrip1, busTrip2, railTrip)
     }
   }
@@ -258,8 +257,9 @@ class TransitDisaggregationAndDualRouterSpec extends AnyWordSpecLike with Matche
       ActivitySimPathType.isCar(ActivitySimPathType.DRV_LOC_WLK) shouldBe false
     }
 
-    "return weightedBridgeTollInCents for BTOLL and weightedValueTollInCents for VTOLL" in {
-      val excerptWithToll = ExcerptData(
+    "return weightedBridgeTollInCents for BTOLL and weightedValueTollInCents for VTOLL without fuel cost leakage" in {
+      // SOVTOLL with value toll (e.g. optional HOT/express lane or tolled route in Stage 1)
+      val sovTollExcerpt = ExcerptData(
         timePeriodString = "AM",
         pathType = ActivitySimPathType.SOVTOLL,
         fleetName = "",
@@ -279,24 +279,35 @@ class TransitDisaggregationAndDualRouterSpec extends AnyWordSpecLike with Matche
         weightedKeyInVehicleTimeInMinutes = 0.0,
         weightedFerryInVehicleTimeInMinutes = 0.0,
         weightedTransitBoardingsCount = 0.0,
-        weightedCost = 7.0, // $7 toll
+        weightedCost = 7.0,
         failedTrips = 0,
         completedTrips = 1,
+        weightedBridgeTollInCents = 0.0,
+        weightedValueTollInCents = 700.0
+      )
+
+      sovTollExcerpt.getValue(ActivitySimMetric.VTOLL) shouldBe 700.0
+      sovTollExcerpt.getValue(ActivitySimMetric.BTOLL) shouldBe 0.0
+
+      // SOV with unavoidable bridge toll (e.g. Stage 2 toll-avoiding route where bridge is unavoidable)
+      val sovBridgeTollExcerpt = sovTollExcerpt.copy(
+        pathType = ActivitySimPathType.SOV,
         weightedBridgeTollInCents = 700.0,
         weightedValueTollInCents = 0.0
       )
+      sovBridgeTollExcerpt.getValue(ActivitySimMetric.BTOLL) shouldBe 700.0
+      sovBridgeTollExcerpt.getValue(ActivitySimMetric.VTOLL) shouldBe 0.0
 
-      excerptWithToll.getValue(ActivitySimMetric.BTOLL) shouldBe 700.0
-      excerptWithToll.getValue(ActivitySimMetric.VTOLL) shouldBe 0.0
-
-      val excerptTollFree = excerptWithToll.copy(
+      // In-run trip with fuel cost / fare but no tolls: BTOLL and VTOLL must remain 0.0
+      val fuelOnlyExcerpt = sovTollExcerpt.copy(
         pathType = ActivitySimPathType.SOV,
-        weightedCost = 0.0,
+        weightedCost = 15.0,
+        weightedTotalFareInCents = 1500.0,
         weightedBridgeTollInCents = 0.0,
         weightedValueTollInCents = 0.0
       )
-      excerptTollFree.getValue(ActivitySimMetric.BTOLL) shouldBe 0.0
-      excerptTollFree.getValue(ActivitySimMetric.VTOLL) shouldBe 0.0
+      fuelOnlyExcerpt.getValue(ActivitySimMetric.BTOLL) shouldBe 0.0
+      fuelOnlyExcerpt.getValue(ActivitySimMetric.VTOLL) shouldBe 0.0
     }
 
     "support bifurcateTolls and tollFilePath options in FullSkimsCreatorApp" in {
@@ -328,53 +339,62 @@ class TransitDisaggregationAndDualRouterSpec extends AnyWordSpecLike with Matche
       toll shouldBe 6.50
     }
 
-    "handle toll bifurcation semantics for toll-free vs tolled trips" in {
+    "handle toll bifurcation semantics: BTOLL vs VTOLL and excluding drive-transit" in {
       val tolledCarODs = new java.util.concurrent.ConcurrentHashMap[(Int, Int, Int), java.lang.Boolean]()
-      val emittedEvents = collection.mutable.ArrayBuffer[(ActivitySimPathType, Double)]()
+      case class SkimRecord(pathType: ActivitySimPathType, bridgeTollInCents: Double, valueTollInCents: Double)
+      val emittedEvents = collection.mutable.ArrayBuffer[SkimRecord]()
 
       def simulateMasterActorProcess(
         src: Int,
         dst: Int,
         time: Int,
+        tripClassifier: BeamMode,
         toll: Double,
         avoidTolls: Boolean,
         bifurcateTolls: Boolean
       ): Unit = {
         if (avoidTolls) {
-          emittedEvents += ((ActivitySimPathType.SOV, toll))
-        } else if (bifurcateTolls) {
+          // Stage 2 toll-avoiding route: record as SOV with unavoidable bridge toll
+          emittedEvents += SkimRecord(ActivitySimPathType.SOV, bridgeTollInCents = toll * 100.0, valueTollInCents = 0.0)
+        } else if (bifurcateTolls && tripClassifier == BeamMode.CAR) {
           if (toll == 0.0) {
-            emittedEvents += ((ActivitySimPathType.SOV, 0.0))
-            emittedEvents += ((ActivitySimPathType.SOVTOLL, 0.0))
+            emittedEvents += SkimRecord(ActivitySimPathType.SOV, 0.0, 0.0)
+            emittedEvents += SkimRecord(ActivitySimPathType.SOVTOLL, 0.0, 0.0)
           } else {
-            emittedEvents += ((ActivitySimPathType.SOVTOLL, toll))
+            // Tolled route: recorded as SOVTOLL with value toll in VTOLL
+            emittedEvents += SkimRecord(ActivitySimPathType.SOVTOLL, bridgeTollInCents = 0.0, valueTollInCents = toll * 100.0)
             tolledCarODs.put((src, dst, time), java.lang.Boolean.TRUE)
           }
         }
       }
 
-      // Case 1: Toll-free OD in Stage 1
-      simulateMasterActorProcess(1, 2, 28800, 0.0, avoidTolls = false, bifurcateTolls = true)
+      // Case 1: Toll-free CAR OD in Stage 1
+      simulateMasterActorProcess(1, 2, 28800, BeamMode.CAR, 0.0, avoidTolls = false, bifurcateTolls = true)
       emittedEvents should contain theSameElementsInOrderAs Seq(
-        (ActivitySimPathType.SOV, 0.0),
-        (ActivitySimPathType.SOVTOLL, 0.0)
+        SkimRecord(ActivitySimPathType.SOV, 0.0, 0.0),
+        SkimRecord(ActivitySimPathType.SOVTOLL, 0.0, 0.0)
       )
       tolledCarODs.containsKey((1, 2, 28800)) shouldBe false
 
-      // Case 2: Tolled OD in Stage 1 (e.g. Bay Bridge $7 toll)
+      // Case 2: Tolled CAR OD in Stage 1 (e.g. Bay Bridge $7 toll) -> VTOLL = 700
       emittedEvents.clear()
-      simulateMasterActorProcess(13, 968, 28800, 7.0, avoidTolls = false, bifurcateTolls = true)
+      simulateMasterActorProcess(13, 968, 28800, BeamMode.CAR, 7.0, avoidTolls = false, bifurcateTolls = true)
       emittedEvents should contain theSameElementsInOrderAs Seq(
-        (ActivitySimPathType.SOVTOLL, 7.0)
+        SkimRecord(ActivitySimPathType.SOVTOLL, bridgeTollInCents = 0.0, valueTollInCents = 700.0)
       )
       tolledCarODs.containsKey((13, 968, 28800)) shouldBe true
 
       // Case 3: Stage 2 re-route with avoidTolls = true (diverted to non-toll route)
       emittedEvents.clear()
-      simulateMasterActorProcess(13, 968, 28800, 0.0, avoidTolls = true, bifurcateTolls = true)
+      simulateMasterActorProcess(13, 968, 28800, BeamMode.CAR, 0.0, avoidTolls = true, bifurcateTolls = true)
       emittedEvents should contain theSameElementsInOrderAs Seq(
-        (ActivitySimPathType.SOV, 0.0)
+        SkimRecord(ActivitySimPathType.SOV, bridgeTollInCents = 0.0, valueTollInCents = 0.0)
       )
+
+      // Case 4: Drive-transit trip (DRIVE_TRANSIT classifier) must NOT be bifurcated into car SOV/SOVTOLL
+      emittedEvents.clear()
+      simulateMasterActorProcess(13, 968, 28800, BeamMode.DRIVE_TRANSIT, 7.0, avoidTolls = false, bifurcateTolls = true)
+      emittedEvents shouldBe empty
     }
   }
 }

@@ -2126,6 +2126,10 @@ class PersonAgent(
     odSkimmerEvent: ODSkimmerEvent
   ): Unit = {
     val (origin, destination) = getOriginAndDestinationFromGeoMap(currentAct, maybeNextAct)
+    val tollInDollars = odSkimmerEvent.trip.beamLegs.collect {
+      case leg if leg.mode == BeamMode.CAR || leg.mode == BeamMode.CAV =>
+        beamServices.tollCalculator.calcTollByLinkIds(leg.travelPath)
+    }.sum
     val asSkimmerEvent = ActivitySimSkimmerEvent(
       origin,
       destination,
@@ -2134,7 +2138,9 @@ class PersonAgent(
       odSkimmerEvent.generalizedTimeInHours,
       odSkimmerEvent.generalizedCost,
       odSkimmerEvent.energyConsumption,
-      beamServices.beamConfig.beam.router.skim.activity_sim_skimmer.name
+      beamServices.beamConfig.beam.router.skim.activity_sim_skimmer.name,
+      bridgeTollInCents = tollInDollars * 100.0,
+      valueTollInCents = 0.0
     )
     eventsManager.processEvent(asSkimmerEvent)
   }
