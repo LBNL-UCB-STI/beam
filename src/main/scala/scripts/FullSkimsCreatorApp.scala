@@ -62,7 +62,8 @@ object FullSkimsCreatorApp extends App with BeamHelper {
     skimsKind: Option[String] = None,
     peakHours: Option[String] = None,
     modesToBuild: Option[String] = None,
-    directory2: Option[Path] = None
+    directory2: Option[Path] = None,
+    generateReturnTrips: Option[Boolean] = None
   )
 
   case class ODRow(origin: GeoUnit.TAZ, destination: GeoUnit.TAZ)
@@ -122,6 +123,9 @@ object FullSkimsCreatorApp extends App with BeamHelper {
         .validate(dirOrFileValidator)
         .action((x, c) => c.copy(directory2 = Some(x.toPath)))
         .text("Secondary R5 directory path for dual routing"),
+      opt[Boolean]("generateReturnTrips")
+        .action((x, c) => c.copy(generateReturnTrips = Some(x)))
+        .text("Generate return trips for drive-transit (walk-transit-drive): true/false (default: true if drive-transit or drive+transit)"),
       checkConfig { c =>
         if (c.configPath == null) failure("Missing required option --configPath (or --config)")
         else success
@@ -245,11 +249,11 @@ object FullSkimsCreatorApp extends App with BeamHelper {
       overrides.append(s"$prefix.peakHours = $hours\n")
     }
     params.modesToBuild.foreach { v =>
-      // modesToBuild is comma-separated, e.g., "drive,walk" or just "drive"
+      // modesToBuild is comma-separated, e.g., "drive,walk" or just "drive" or "drive_transit"
       val modes = v.split(",").map(_.trim.toLowerCase)
-      val drive = modes.contains("drive")
+      val drive = modes.contains("drive") || modes.contains("drive_transit")
       val walk = modes.contains("walk")
-      val transit = modes.contains("transit")
+      val transit = modes.contains("transit") || modes.contains("drive_transit")
       overrides.append(s"$prefix.modesToBuild.drive = $drive\n")
       overrides.append(s"$prefix.modesToBuild.walk = $walk\n")
       overrides.append(s"$prefix.modesToBuild.transit = $transit\n")
@@ -309,10 +313,17 @@ object FullSkimsCreatorApp extends App with BeamHelper {
       if (params.parallelism > 0) s"${params.parallelism} (explicit)" else "auto-scale (80% of CPUs)"
     logger.info(s"Parallelism: $parallelismInfo")
 
+    val modesStr = params.modesToBuild.getOrElse("")
+    val hasDriveTransit = modesStr.toLowerCase.contains("drive_transit")
+
+    val shouldGenerateReturnTrips = params.generateReturnTrips.getOrElse {
+      hasDriveTransit || (backgroundODSkimsCreatorConfig.modesToBuild.drive && backgroundODSkimsCreatorConfig.modesToBuild.transit)
+    }
+
     val activeBeamModes = {
       val modes = scala.collection.mutable.ArrayBuffer.empty[BeamMode]
-      if (backgroundODSkimsCreatorConfig.modesToBuild.drive) modes += BeamMode.CAR
-      if (backgroundODSkimsCreatorConfig.modesToBuild.walk) modes += BeamMode.WALK
+      if (backgroundODSkimsCreatorConfig.modesToBuild.drive || hasDriveTransit) modes += BeamMode.CAR
+      if (backgroundODSkimsCreatorConfig.modesToBuild.walk || hasDriveTransit) modes += BeamMode.WALK
       if (modes.isEmpty) {
         if (backgroundODSkimsCreatorConfig.modesToBuild.transit) modes += BeamMode.WALK
         else modes ++= Seq(BeamMode.CAR, BeamMode.WALK)
@@ -327,11 +338,12 @@ object FullSkimsCreatorApp extends App with BeamHelper {
       abstractSkimmer = skimmer,
       travelTime = travelTime,
       beamModes = activeBeamModes,
-      withTransit = backgroundODSkimsCreatorConfig.modesToBuild.transit,
+      withTransit = backgroundODSkimsCreatorConfig.modesToBuild.transit || hasDriveTransit,
       buildDirectWalkRoute = backgroundODSkimsCreatorConfig.modesToBuild.walk,
       buildDirectCarRoute = backgroundODSkimsCreatorConfig.modesToBuild.drive,
       calculationTimeoutHours = backgroundODSkimsCreatorConfig.calculationTimeoutHours,
-      parallelism = params.parallelism
+      parallelism = params.parallelism,
+      generateReturnTrips = shouldGenerateReturnTrips
     )
 
     skimsCreator.start()

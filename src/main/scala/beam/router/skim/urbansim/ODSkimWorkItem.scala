@@ -3,6 +3,8 @@ package beam.router.skim.urbansim
 import beam.agentsim.infrastructure.geozone.GeoIndex
 import com.conveyal.r5.api.util.TransitModes
 
+import org.matsim.api.core.v01.Coord
+
 import java.util
 
 /**
@@ -74,11 +76,14 @@ object TripDirection {
   * @param time           Departure time in seconds from midnight
   * @param transitCategory Transit mode category for mode-filtered routing
   * @param tripDirection  Trip direction for return trip parking handling
+  * @param parkingLocations Set of candidate parking coordinates at transit stations (for Return trips)
   */
 case class ODWorkItem(
   srcIndex: GeoIndex,
   dstIndex: GeoIndex,
   time: Int,
   transitCategory: Option[TransitModeCategory] = None,
-  tripDirection: TripDirection = TripDirection.Outbound
+  tripDirection: TripDirection = TripDirection.Outbound,
+  parkingLocations: Set[Coord] = Set.empty
 )
+

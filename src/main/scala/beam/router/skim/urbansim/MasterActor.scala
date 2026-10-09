@@ -10,6 +10,7 @@ import beam.router.skim.urbansim.MasterActor.Request.Monitor
 import beam.router.skim.urbansim.MasterActor.Response.PopulatedSkimmer
 import beam.router.skim.urbansim.MasterActor.{Request, Response}
 import com.google.common.util.concurrent.ThreadFactoryBuilder
+import org.matsim.api.core.v01.Coord
 
 import java.util.concurrent.{ExecutorService, Executors, TimeUnit}
 import scala.concurrent.duration._
@@ -48,47 +49,53 @@ class MasterActor(
     Math.max(1, (availableProcessors * 0.8).toInt)
   }
 
-  // Determine if we're using enhanced mode (with transit categories and/or return trips)
-  private val useEnhancedMode: Boolean = transitModeCategories.nonEmpty || generateReturnTrips
+  // Determine if we're using enhanced mode in stage 1 (with transit mode categories)
+  private val useEnhancedMode: Boolean = transitModeCategories.nonEmpty
 
-  // For enhanced mode, we pre-generate all work items
+  // For enhanced mode, we pre-generate all stage 1 (outbound) work items
   private val workItems: Array[ODWorkItem] = if (useEnhancedMode) {
     generateWorkItems()
   } else {
     Array.empty
   }
 
-  // Calculate max requests based on mode
-  private val maxRequestsNumber: Int = if (useEnhancedMode) {
+  // Two-stage routing state
+  // Stage 1: Outbound trips across all time periods
+  // Stage 2: Return trips across all time periods with candidate parking locations
+  private var stage: Int = 1
+  private val stage1TotalRequests: Int = if (useEnhancedMode) {
     workItems.length
   } else {
     ODs.length * requestTimes.length
   }
+  private var stage2TotalRequests: Int = 0
+  private var maxRequestsNumber: Int = stage1TotalRequests
 
-  // Current position in the work items array (for enhanced mode)
+  // Accumulated parking locations per outbound OD pair: (outboundSrc, outboundDst) -> Set[Coord]
+  private val outboundStationParkingSets: scala.collection.mutable.Map[(GeoIndex, GeoIndex), scala.collection.mutable.Set[Coord]] =
+    scala.collection.mutable.Map.empty
+
+  // Stage 2 return work items
+  private var returnWorkItems: Array[ODWorkItem] = Array.empty
+  private var currentReturnWorkItemIdx: Int = 0
+
+  // Current position in the work items array (for enhanced mode stage 1)
   private var currentWorkItemIdx: Int = 0
 
-  // Legacy iteration state (for backward compatibility)
+  // Legacy iteration state (for stage 1 without transit mode categories)
   private var currentIdx: Int = 0
   private var currentTime: Int = 0
 
   log.info(
-    s"Total number of OD pairs: ${ODs.length} (skipped $skippedSameOriginPairs same-origin pairs), " +
-    s"number of request time entries: ${requestTimes.length}, " +
-    s"transit categories: ${transitModeCategories.size}, generateReturnTrips: $generateReturnTrips, " +
-    s"total work items: $maxRequestsNumber, initialWorkers: $initialWorkers"
+    s"Stage 1 initialized | OD pairs: ${ODs.length} (skipped $skippedSameOriginPairs same-origin pairs), " +
+    s"request time entries: ${requestTimes.length}, transit categories: ${transitModeCategories.size}, " +
+    s"generateReturnTrips: $generateReturnTrips, stage 1 work items: $stage1TotalRequests, initialWorkers: $initialWorkers"
   )
 
   /**
-    * Generate all work items for enhanced mode with transit categories and trip directions.
+    * Generate all outbound work items for enhanced mode stage 1.
     */
   private def generateWorkItems(): Array[ODWorkItem] = {
-    val tripDirections = if (generateReturnTrips) {
-      Seq(TripDirection.Outbound, TripDirection.Return)
-    } else {
-      Seq(TripDirection.Outbound)
-    }
-
     val categories: Seq[Option[TransitModeCategory]] = if (transitModeCategories.nonEmpty) {
       transitModeCategories.map(Some(_))
     } else {
@@ -99,8 +106,7 @@ class MasterActor(
       (src, dst) <- ODs
       time       <- requestTimes
       category   <- categories
-      direction  <- tripDirections
-    } yield ODWorkItem(src, dst, time, category, direction)
+    } yield ODWorkItem(src, dst, time, category, TripDirection.Outbound)
 
     items.toArray
   }
@@ -196,7 +202,11 @@ class MasterActor(
           checkIfNeedToStop(worker)
           if (workers.contains(worker)) {
             if (moreWorkExist) {
-              if (useEnhancedMode) {
+              if (stage == 2) {
+                val batch = getNextReturnWorkItemBatch(batchSize)
+                nRouteSent += batch.length
+                worker ! Response.EnhancedWorkBatch(batch)
+              } else if (useEnhancedMode) {
                 val batch = getNextWorkItemBatch(batchSize)
                 nRouteSent += batch.length
                 worker ! Response.EnhancedWorkBatch(batch)
@@ -229,10 +239,14 @@ class MasterActor(
   }
 
   private def moreWorkExist: Boolean = {
-    if (useEnhancedMode) {
-      currentWorkItemIdx < workItems.length
+    if (stage == 1) {
+      if (useEnhancedMode) {
+        currentWorkItemIdx < workItems.length
+      } else {
+        currentIdx < ODs.length && currentTime < requestTimes.length
+      }
     } else {
-      currentIdx < ODs.length && currentTime < requestTimes.length
+      currentReturnWorkItemIdx < returnWorkItems.length
     }
   }
 
@@ -250,12 +264,22 @@ class MasterActor(
   }
 
   /**
-    * Get next batch of work items for enhanced mode.
+    * Get next batch of work items for enhanced mode stage 1.
     */
   private def getNextWorkItemBatch(size: Int): Array[ODWorkItem] = {
     val endIdx = Math.min(currentWorkItemIdx + size, workItems.length)
     val batch = workItems.slice(currentWorkItemIdx, endIdx)
     currentWorkItemIdx = endIdx
+    batch
+  }
+
+  /**
+    * Get next batch of work items for stage 2 (return trips with candidate parking locations).
+    */
+  private def getNextReturnWorkItemBatch(size: Int): Array[ODWorkItem] = {
+    val endIdx = Math.min(currentReturnWorkItemIdx + size, returnWorkItems.length)
+    val batch = returnWorkItems.slice(currentReturnWorkItemIdx, endIdx)
+    currentReturnWorkItemIdx = endIdx
     batch
   }
 
@@ -284,6 +308,40 @@ class MasterActor(
     trip.legs.lastOption match {
       case Some(lastLeg) => Math.max(0, lastLeg.beamLeg.endTime - requestTime)
       case None          => trip.totalTravelTimeInSecs
+    }
+  }
+
+  private def extractParkingLocation(trip: EmbodiedBeamTrip): Option[Coord] = {
+    val legs = trip.legs
+    val carLegIdx = legs.indexWhere(leg =>
+      leg.beamLeg.mode == BeamMode.CAR || leg.beamLeg.mode == BeamMode.DRIVE_TRANSIT
+    )
+    if (carLegIdx >= 0) {
+      val hasTransitAfter = legs.drop(carLegIdx + 1).exists(_.beamLeg.mode.isTransit)
+      if (hasTransitAfter) {
+        val carLeg = legs(carLegIdx)
+        val endPoint = carLeg.beamLeg.travelPath.endPoint
+        if (endPoint != null && endPoint.loc != null) {
+          Some(odRequester.geoUtils.wgs2Utm(endPoint.loc))
+        } else {
+          None
+        }
+      } else {
+        None
+      }
+    } else {
+      None
+    }
+  }
+
+  private def addParkingLocation(set: scala.collection.mutable.Set[Coord], newCoord: Coord): Unit = {
+    val duplicate = set.exists { existing =>
+      val dx = existing.getX - newCoord.getX
+      val dy = existing.getY - newCoord.getY
+      (dx * dx + dy * dy) < (50.0 * 50.0)
+    }
+    if (!duplicate) {
+      set.add(newCoord)
     }
   }
 
@@ -341,15 +399,89 @@ class MasterActor(
                 log.error(ex, s"Can't create skim event: ${ex.getMessage}")
             }
           }
+
+          // Accumulate parking locations for outbound drive-transit trips during Stage 1
+          if (generateReturnTrips && stage == 1) {
+            filteredTrips.foreach { trip =>
+              extractParkingLocation(trip).foreach { parkingCoord =>
+                val set = outboundStationParkingSets.getOrElseUpdate(
+                  (resp.srcIndex, resp.dstIndex),
+                  scala.collection.mutable.Set.empty
+                )
+                addParkingLocation(set, parkingCoord)
+              }
+            }
+          }
         }
     }
   }
 
   private def checkAndGiveTheResult(): Unit = {
-    if (totalResponses == maxRequestsNumber) {
-      replyToWhenFinish.foreach { actorRef =>
-        actorRef ! PopulatedSkimmer(abstractSkimmer)
+    if (stage == 1 && totalResponses == stage1TotalRequests) {
+      if (generateReturnTrips && outboundStationParkingSets.nonEmpty) {
+        transitionToStage2()
+      } else {
+        finishAndReply()
       }
+    } else if (stage == 2 && totalResponses == maxRequestsNumber) {
+      finishAndReply()
+    }
+  }
+
+  private def transitionToStage2(): Unit = {
+    stage = 2
+    log.info(
+      s"Stage 1 (Outbound) complete! Total responses: $totalResponses. " +
+      s"Collected parking locations for ${outboundStationParkingSets.size} OD pairs across ${requestTimes.length} time periods. " +
+      s"Generating Stage 2 (Return) work items..."
+    )
+
+    val categories: Seq[Option[TransitModeCategory]] = if (transitModeCategories.nonEmpty) {
+      transitModeCategories.map(Some(_))
+    } else {
+      Seq(None)
+    }
+
+    val items = for {
+      ((outboundSrc, outboundDst), parkingSet) <- outboundStationParkingSets.toArray
+      time <- requestTimes
+      category <- categories
+    } yield ODWorkItem(
+      srcIndex = outboundDst,
+      dstIndex = outboundSrc,
+      time = time,
+      transitCategory = category,
+      tripDirection = TripDirection.Return,
+      parkingLocations = parkingSet.toSet
+    )
+
+    returnWorkItems = items
+    stage2TotalRequests = returnWorkItems.length
+    maxRequestsNumber = stage1TotalRequests + stage2TotalRequests
+    currentReturnWorkItemIdx = 0
+
+    log.info(
+      s"Stage 2 (Return) started: $stage2TotalRequests work items to process. Total requests across both stages: $maxRequestsNumber"
+    )
+
+    // Proactively dispatch initial return batches to all available workers
+    workers.foreach { worker =>
+      if (moreWorkExist) {
+        val batch = getNextReturnWorkItemBatch(batchSize)
+        nRouteSent += batch.length
+        worker ! Response.EnhancedWorkBatch(batch)
+      } else {
+        worker ! Response.NoWork
+      }
+    }
+  }
+
+  private def finishAndReply(): Unit = {
+    log.info(
+      s"Skimming completed! Total responses: $totalResponses, success: $nSuccessRoutes, failed: $nFailedRoutes, events: $nSkimEvents"
+    )
+    replyToWhenFinish.foreach { actorRef =>
+      actorRef ! PopulatedSkimmer(abstractSkimmer)
     }
   }
 
@@ -377,7 +509,7 @@ class MasterActor(
     lazy val dtInSeconds = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - startedAt)
     lazy val avgRoutePerSecond = (nSuccessRoutes + nFailedRoutes).toDouble / dtInSeconds
     log.info(
-      s"""nRouteSent: $nRouteSent out of $maxRequestsNumber (${(nRouteSent.toFloat / maxRequestsNumber * 100).toInt}%), nSuccessRoutes: $nSuccessRoutes, nFailedRoutes: $nFailedRoutes, nSkimEvents: $nSkimEvents
+      s"""Stage $stage | nRouteSent: $nRouteSent out of $maxRequestsNumber (${(nRouteSent.toFloat / maxRequestsNumber * 100).toInt}%), nSuccessRoutes: $nSuccessRoutes, nFailedRoutes: $nFailedRoutes, nSkimEvents: $nSkimEvents
          |AVG route per second: $avgRoutePerSecond, elapsed time: $dtInSeconds seconds
          |Current number of workers: ${workers.size}""".stripMargin
     )
@@ -417,6 +549,27 @@ object MasterActor {
     parallelism: Int = 0
   ): Props = {
     Props(new MasterActor(abstractSkimmer, odR5Requester, requestTimes, ODs, Seq.empty, false, parallelism))
+  }
+
+  def props(
+    abstractSkimmer: AbstractSkimmer,
+    odR5Requester: ODRequester,
+    requestTimes: Seq[Int],
+    ODs: Array[(GeoIndex, GeoIndex)],
+    generateReturnTrips: Boolean,
+    parallelism: Int
+  ): Props = {
+    Props(
+      new MasterActor(
+        abstractSkimmer,
+        odR5Requester,
+        requestTimes,
+        ODs,
+        Seq.empty,
+        generateReturnTrips,
+        parallelism
+      )
+    )
   }
 
   def props(

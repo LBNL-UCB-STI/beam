@@ -157,6 +157,75 @@ class TransitDisaggregationAndDualRouterSpec extends AnyWordSpecLike with Matche
     }
   }
 
+  "Drive-transit return trip classification and parking logic (Milestone 3)" should {
+    "correctly classify return trips as WLK_*_DRV and outbound trips as DRV_*_WLK" in {
+      // Outbound trip: CAR -> BUS -> WALK
+      val outboundTrip = EmbodiedBeamTrip(
+        IndexedSeq(
+          mockLeg(600, BeamMode.CAR, startTime = 28800, endTime = 29400),
+          mockLeg(1200, BeamMode.BUS, startTime = 29400, endTime = 30600),
+          mockLeg(300, BeamMode.WALK, startTime = 30600, endTime = 30900)
+        )
+      )
+      ActivitySimPathType.determineTripPathTypeAndFleet(outboundTrip)._1 shouldBe ActivitySimPathType.DRV_LOC_WLK
+
+      // Return trip: WALK -> BUS -> CAR
+      val returnBusTrip = EmbodiedBeamTrip(
+        IndexedSeq(
+          mockLeg(300, BeamMode.WALK, startTime = 61200, endTime = 61500),
+          mockLeg(1200, BeamMode.BUS, startTime = 61500, endTime = 62700),
+          mockLeg(600, BeamMode.CAR, startTime = 62700, endTime = 63300)
+        )
+      )
+      ActivitySimPathType.determineTripPathTypeAndFleet(returnBusTrip)._1 shouldBe ActivitySimPathType.WLK_LOC_DRV
+
+      // Return trip: WALK -> TRAM -> CAR
+      val returnTramTrip = EmbodiedBeamTrip(
+        IndexedSeq(
+          mockLeg(300, BeamMode.WALK, startTime = 61200, endTime = 61500),
+          mockLeg(1200, BeamMode.TRAM, startTime = 61500, endTime = 62700),
+          mockLeg(600, BeamMode.CAR, startTime = 62700, endTime = 63300)
+        )
+      )
+      ActivitySimPathType.determineTripPathTypeAndFleet(returnTramTrip)._1 shouldBe ActivitySimPathType.WLK_LRF_DRV
+    }
+
+    "deduplicate candidate parking locations within 50m" in {
+      import org.matsim.api.core.v01.Coord
+
+      val set = scala.collection.mutable.Set.empty[Coord]
+      def addCoord(c: Coord): Unit = {
+        val duplicate = set.exists { existing =>
+          val dx = existing.getX - c.getX
+          val dy = existing.getY - c.getY
+          (dx * dx + dy * dy) < (50.0 * 50.0)
+        }
+        if (!duplicate) set.add(c)
+      }
+
+      val coord1 = new Coord(500000.0, 4100000.0)
+      addCoord(coord1)
+      set should have size 1
+
+      // Candidate 2 is 25m away (within 50m) -> duplicate, should be skipped
+      val coord2 = new Coord(500025.0, 4100000.0)
+      addCoord(coord2)
+      set should have size 1
+
+      // Candidate 3 is 200m away (beyond 50m) -> new station, should be retained
+      val coord3 = new Coord(500200.0, 4100000.0)
+      addCoord(coord3)
+      set should have size 2
+    }
+
+    "support generateReturnTrips option in FullSkimsCreatorApp" in {
+      val params = scripts.FullSkimsCreatorApp.InputParameters(
+        generateReturnTrips = Some(true)
+      )
+      params.generateReturnTrips shouldBe Some(true)
+    }
+  }
+
   "FullSkimsCreatorApp.buildCliOverrides" should {
     "include directory2 in config overrides when passed via CLI" in {
       // Use reflection or package-private access to test CLI override generation

@@ -38,7 +38,8 @@ class BackgroundFullSkimsCreator(
   val buildDirectWalkRoute: Boolean,
   val buildDirectCarRoute: Boolean,
   val calculationTimeoutHours: Int,
-  val parallelism: Int = 0 // 0 = auto-scale (80% of CPUs), >0 = use exact number
+  val parallelism: Int = 0, // 0 = auto-scale (80% of CPUs), >0 = use exact number
+  val generateReturnTrips: Boolean = false
 )(implicit actorSystem: ActorSystem)
     extends LazyLogging {
   def this(
@@ -52,7 +53,8 @@ class BackgroundFullSkimsCreator(
     buildDirectWalkRoute: Boolean,
     buildDirectCarRoute: Boolean,
     calculationTimeoutHours: Int,
-    parallelism: Int
+    parallelism: Int,
+    generateReturnTrips: Boolean
   )(implicit actorSystem: ActorSystem) {
     this(
       beamServices,
@@ -81,7 +83,37 @@ class BackgroundFullSkimsCreator(
       buildDirectWalkRoute,
       buildDirectCarRoute,
       calculationTimeoutHours,
-      parallelism
+      parallelism,
+      generateReturnTrips
+    )
+  }
+
+  def this(
+    beamServices: BeamServices,
+    beamScenario: BeamScenario,
+    geoClustering: GeoClustering,
+    abstractSkimmer: AbstractSkimmer,
+    travelTime: TravelTime,
+    beamModes: Seq[BeamMode],
+    withTransit: Boolean,
+    buildDirectWalkRoute: Boolean,
+    buildDirectCarRoute: Boolean,
+    calculationTimeoutHours: Int,
+    parallelism: Int
+  )(implicit actorSystem: ActorSystem) {
+    this(
+      beamServices,
+      beamScenario,
+      geoClustering,
+      abstractSkimmer,
+      travelTime,
+      beamModes,
+      withTransit,
+      buildDirectWalkRoute,
+      buildDirectCarRoute,
+      calculationTimeoutHours,
+      parallelism,
+      generateReturnTrips = false
     )
   }
 
@@ -203,7 +235,8 @@ class BackgroundFullSkimsCreator(
       odRequester,
       requestTimes = effectiveRequestTimes,
       ODs,
-      parallelism
+      generateReturnTrips = generateReturnTrips,
+      parallelism = parallelism
     )
     actorSystem.actorOf(masterProps, actorName)
   }
