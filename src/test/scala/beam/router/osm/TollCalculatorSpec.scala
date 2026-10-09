@@ -52,6 +52,69 @@ class TollCalculatorSpec extends AnyWordSpecLike {
       "return 0.0 for negative link ID" in {
         assert(beamvilleTollCalc.calcTollByLinkId(-5, 1000) == 0.0)
       }
+
+      "calculate multi-interval time-varying link tolls" in {
+        val tempFile = java.io.File.createTempFile("toll-prices", ".csv")
+        tempFile.deleteOnExit()
+        java.nio.file.Files.write(
+          tempFile.toPath,
+          ("linkId,toll,timeRange\n" +
+            "101,3.40,[0:21599]\n" +
+            "101,4.50,[21600:32400]\n" +
+            "101,3.40,[32401:]\n" +
+            "102,5.25,[:]\n").getBytes(java.nio.charset.StandardCharsets.UTF_8)
+        )
+        val config = beam.sim.config.BeamConfig(
+          beam.utils.TestConfigUtils
+            .testConfig("test/input/beamville/beam.conf")
+            .withValue(
+              "beam.agentsim.toll.filePath",
+              com.typesafe.config.ConfigValueFactory.fromAnyRef(tempFile.getAbsolutePath)
+            )
+            .resolve()
+        )
+        val tollCalc = new TollCalculator(config)
+        // Morning peak (25000)
+        assert(tollCalc.calcTollByLinkId(101, 25000) == 4.50)
+        // Off-peak (10000)
+        assert(tollCalc.calcTollByLinkId(101, 10000) == 3.40)
+        // Flat toll (10000)
+        assert(tollCalc.calcTollByLinkId(102, 10000) == 5.25)
+        // Untolled link
+        assert(tollCalc.calcTollByLinkId(999, 25000) == 0.0)
+      }
+
+      "calculate BeamPath tolls properly using calcTollByLinkIds" in {
+        val tempFile = java.io.File.createTempFile("toll-prices", ".csv")
+        tempFile.deleteOnExit()
+        java.nio.file.Files.write(
+          tempFile.toPath,
+          ("linkId,toll,timeRange\n" +
+            "101,3.40,[0:21599]\n" +
+            "101,4.50,[21600:32400]\n" +
+            "101,3.40,[32401:]\n").getBytes(java.nio.charset.StandardCharsets.UTF_8)
+        )
+        val config = beam.sim.config.BeamConfig(
+          beam.utils.TestConfigUtils
+            .testConfig("test/input/beamville/beam.conf")
+            .withValue(
+              "beam.agentsim.toll.filePath",
+              com.typesafe.config.ConfigValueFactory.fromAnyRef(tempFile.getAbsolutePath)
+            )
+            .resolve()
+        )
+        val tollCalc = new TollCalculator(config)
+        val peakPath = beam.router.model.BeamPath(
+          linkIds = Array(100, 101, 200),
+          linkTravelTime = Array(10.0, 60.0, 10.0),
+          transitStops = None,
+          startPoint = beam.agentsim.events.SpaceTime(0.0, 0.0, 25000),
+          endPoint = beam.agentsim.events.SpaceTime(0.0, 0.0, 25070),
+          distanceInM = 3500.0
+        )
+        assert(tollCalc.calcTollByLinkIds(peakPath) == 4.50)
+      }
     }
   }
 }
+

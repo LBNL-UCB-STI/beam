@@ -660,9 +660,9 @@ object ActivitySimSkimmer extends LazyLogging {
       }
     }
 
-    def toCsvString: String = productIterator.mkString("", ",", "\n")
+    def toCsvSeq: Seq[Any] = productIterator.take(ExcerptData.csvHeaderSeq.size).toSeq
 
-    def toCsvSeq: Seq[Any] = productIterator.toSeq
+    def toCsvString: String = toCsvSeq.mkString("", ",", "\n")
   }
 
   object ExcerptData {
