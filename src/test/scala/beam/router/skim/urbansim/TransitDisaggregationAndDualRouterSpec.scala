@@ -396,5 +396,50 @@ class TransitDisaggregationAndDualRouterSpec extends AnyWordSpecLike with Matche
       simulateMasterActorProcess(13, 968, 28800, BeamMode.DRIVE_TRANSIT, 7.0, avoidTolls = false, bifurcateTolls = true)
       emittedEvents shouldBe empty
     }
+
+    "read BTOLL_cents, VTOLL_cents, and trip counts correctly in FullSkimsCreatorApp.toCsvSkimRow" in {
+      val rec = new java.util.HashMap[String, String]()
+      rec.put("timePeriod", "AM")
+      rec.put("pathType", "SOVTOLL")
+      rec.put("fleetName", "")
+      rec.put("origin", "1")
+      rec.put("destination", "2")
+      rec.put("TIME_minutes", "15.0")
+      rec.put("TOTIVT_IVT_minutes", "12.0")
+      rec.put("VTOLL_FAR", "7.0")
+      rec.put("DIST_meters", "5000.0")
+      rec.put("WACC_minutes", "1.0")
+      rec.put("WAUX_minutes", "0.0")
+      rec.put("WEGR_minutes", "1.0")
+      rec.put("IWAIT_minutes", "0.0")
+      rec.put("XWAIT_minutes", "0.0")
+      rec.put("DTIM_minutes", "12.0")
+      rec.put("DDIST_meters", "5000.0")
+      rec.put("KEYIVT_minutes", "0.0")
+      rec.put("FERRYIVT_minutes", "0.0")
+      rec.put("BOARDS", "0.0")
+      rec.put("WeightedCost", "7.0")
+      rec.put("failedTrips", "1")
+      rec.put("completedTrips", "10")
+      rec.put("DEBUG_TEXT", "test")
+      rec.put("BTOLL_cents", "0.0")
+      rec.put("VTOLL_cents", "700.0")
+
+      val parsed = scripts.FullSkimsCreatorApp.toCsvSkimRow(rec)
+      parsed.weightedBridgeTollInCents shouldBe 0.0
+      parsed.weightedValueTollInCents shouldBe 700.0
+      parsed.failedTrips shouldBe 1
+      parsed.completedTrips shouldBe 10
+
+      // Also verify legacy capitalized FailedTrips/CompletedTrips fallback
+      rec.remove("failedTrips")
+      rec.remove("completedTrips")
+      rec.put("FailedTrips", "2")
+      rec.put("CompletedTrips", "20")
+      val parsedLegacy = scripts.FullSkimsCreatorApp.toCsvSkimRow(rec)
+      parsedLegacy.failedTrips shouldBe 2
+      parsedLegacy.completedTrips shouldBe 20
+    }
   }
 }
+

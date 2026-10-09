@@ -167,9 +167,11 @@ object FullSkimsCreatorApp extends App with BeamHelper {
       weightedFerryInVehicleTimeInMinutes = rec.get("FERRYIVT_minutes").toDouble,
       weightedTransitBoardingsCount = rec.get("BOARDS").toDouble,
       weightedCost = Option(rec.get("WeightedCost")).map(_.toDouble).getOrElse(0.0d),
-      failedTrips = Option(rec.get("FailedTrips")).map(_.toInt).getOrElse(0),
-      completedTrips = Option(rec.get("CompletedTrips")).map(_.toInt).getOrElse(0),
-      debugText = rec.get("DEBUG_TEXT")
+      failedTrips = Option(rec.get("failedTrips")).orElse(Option(rec.get("FailedTrips"))).map(_.toInt).getOrElse(0),
+      completedTrips = Option(rec.get("completedTrips")).orElse(Option(rec.get("CompletedTrips"))).map(_.toInt).getOrElse(0),
+      debugText = rec.get("DEBUG_TEXT"),
+      weightedBridgeTollInCents = Option(rec.get("BTOLL_cents")).map(_.toDouble).getOrElse(0.0),
+      weightedValueTollInCents = Option(rec.get("VTOLL_cents")).map(_.toDouble).getOrElse(0.0)
     )
 
   private def readInputCsv(csvPath: String, tazMap: Map[String, GeoUnit.TAZ]): Vector[ODRow] = {

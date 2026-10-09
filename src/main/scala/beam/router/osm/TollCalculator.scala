@@ -35,7 +35,7 @@ class TollCalculator @Inject() (val config: BeamConfig) extends LazyLogging {
     intHashMap
   }
 
-  private final val hasAnyTolledLinks: Boolean = !tollsByLinkId.isEmpty
+  final val hasAnyTolledLinks: Boolean = !tollsByLinkId.isEmpty
   private final val tolledLinkIdsBitSet: java.util.BitSet = {
     val bs = new java.util.BitSet()
     if (hasAnyTolledLinks) {

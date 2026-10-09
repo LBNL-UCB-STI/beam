@@ -2128,8 +2128,8 @@ class PersonAgent(
     val (origin, destination) = getOriginAndDestinationFromGeoMap(currentAct, maybeNextAct)
     // In-run toll calculation:
     // - Evaluates per-link tolls via calcTollByLinkIds (agents do not have direct access to R5's
-    //   internal TransportNetwork to look up OSM way IDs, but production scenarios define tolls
-    //   via link IDs in toll-prices.csv).
+    //   internal TransportNetwork to look up OSM way IDs; in typical production scenarios tolls
+    //   are defined via link IDs in toll-prices.csv).
     // - In-run agents do not perform two-pass toll avoidance, so observed tolls are attributed
     //   to bridgeTollInCents (BTOLL) with valueTollInCents = 0.0. The full skimmer bifurcates
     //   SOV (unavoidable / BTOLL) from SOVTOLL (optional / VTOLL).

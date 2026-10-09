@@ -47,6 +47,18 @@ class ODRequester(
   val actualTollCalculator: TollCalculator =
     if (tollCalculator != null) tollCalculator else new TollCalculator(beamConfig)
 
+  // Warning guards to prevent log spam in hot routing loops
+  private val hasLoggedOutOfBoundsEdgeWarning = new java.util.concurrent.atomic.AtomicBoolean(false)
+  private val hasLoggedOsmTollExceptionWarning = new java.util.concurrent.atomic.AtomicBoolean(false)
+
+  if (actualTollCalculator.hasAnyWayTolls && actualTollCalculator.hasAnyTolledLinks) {
+    logger.warn(
+      "TollCalculator has both OSM way-level tolls and per-link tolls configured. " +
+        "Note: R5 Dijkstra edge traversal evaluates tolls strictly via per-link tolls (toll-prices.csv); " +
+        "way-level tolls are not observed during Dijkstra traversal or Stage 2 toll avoidance."
+    )
+  }
+
   // Thread-safe execution time tracking for concurrent batch processing
   private val _requestsExecutionTime: AtomicReference[RouteExecutionInfo] =
     new AtomicReference(RouteExecutionInfo())
@@ -468,7 +480,9 @@ class ODRequester(
     * - OSM way tolls (calcTollByOsmIds, parsed from OSM PBF charge tags) are included here
     *   when hasAnyWayTolls is true and transportNetwork is provided. In-run agents do not have
     *   access to R5's internal streetLayer edge store, so they evaluate only link-level tolls.
-    *   In modern production setups (e.g. Seattle, SF Bay), all tolls are link-level in toll-prices.csv.
+    *   In typical production setups (e.g. Seattle, SF Bay), tolls are configured at the link level
+    *   in toll-prices.csv; if way-level tolls are configured alongside link tolls, a startup warning
+    *   is logged.
     * - R5's Dijkstra edge traversal (generalizedTraversalCost) evaluates tolls strictly via
     *   calcTollByLinkId, so toll avoidance in Stage 2 operates on link-level tolls.
     */
@@ -483,16 +497,21 @@ class ODRequester(
                 if (edgeId >= 0 && edgeId < tn.streetLayer.edgeStore.nEdges) {
                   Some(tn.streetLayer.edgeStore.getCursor(edgeId).getOSMID)
                 } else {
-                  logger.warn(
-                    s"Edge ID $edgeId is out of bounds [0, ${tn.streetLayer.edgeStore.nEdges}) on transportNetwork; may indicate itinerary from a secondary network."
-                  )
+                  if (hasLoggedOutOfBoundsEdgeWarning.compareAndSet(false, true)) {
+                    logger.warn(
+                      s"Edge ID $edgeId is out of bounds [0, ${tn.streetLayer.edgeStore.nEdges}) on transportNetwork; " +
+                        s"may indicate itinerary from a secondary network (further warnings suppressed)."
+                    )
+                  }
                   None
                 }
               }.toIndexedSeq
               actualTollCalculator.calcTollByOsmIds(osmIds)
             } catch {
               case NonFatal(e) =>
-                logger.warn(s"Failed to calculate OSM way tolls for car leg: ${e.getMessage}")
+                if (hasLoggedOsmTollExceptionWarning.compareAndSet(false, true)) {
+                  logger.warn(s"Failed to calculate OSM way tolls for car leg: ${e.getMessage} (further warnings suppressed)")
+                }
                 0.0
             }
           case _ => 0.0
