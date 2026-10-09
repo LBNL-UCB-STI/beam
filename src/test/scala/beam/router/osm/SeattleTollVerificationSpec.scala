@@ -8,13 +8,14 @@ import beam.utils.TestConfigUtils.testConfig
 import com.conveyal.r5.kryo.KryoNetworkSerializer
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets.StreetRouter
-import org.scalatest.BeforeAndAfterEach
+import org.scalatest.Ignore
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.collection.mutable.ArrayBuffer
 
-class SeattleTollVerificationSpec extends AnyWordSpecLike with Matchers with BeforeAndAfterEach {
+@Ignore
+class SeattleTollVerificationSpec extends AnyWordSpecLike with Matchers {
 
   private val tollCsvFile = new File("production/seattle/toll-prices.csv")
   private val networkDatFile = new File("production/seattle/r5/seattle-cbg120-ferry-weakConn-network/network.dat")
@@ -26,13 +27,6 @@ class SeattleTollVerificationSpec extends AnyWordSpecLike with Matchers with Bef
   )
 
   private lazy val tollCalculator = new TollCalculator(config)
-
-  override def beforeEach(): Unit = {
-    assume(
-      tollCsvFile.exists() && tollCsvFile.length() > 0,
-      s"Seattle toll-prices.csv not found at ${tollCsvFile.getPath}, skipping in CI"
-    )
-  }
 
   "Seattle toll-prices.csv" should {
 

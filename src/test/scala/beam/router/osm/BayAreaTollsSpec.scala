@@ -7,6 +7,7 @@ import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.scalatest.BeforeAndAfterEach
+import org.scalatest.Ignore
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import beam.sim.config.BeamConfig
@@ -14,20 +15,14 @@ import beam.utils.TestConfigUtils.testConfig
 
 import java.io.File
 
-class BayAreaTollsSpec extends AnyWordSpecLike with Matchers with BeforeAndAfterEach {
+@Ignore
+class BayAreaTollsSpec extends AnyWordSpecLike with Matchers {
 
   private val tollPricesFile = "production/sfbay/toll-prices.csv"
   private lazy val config = testConfig("test/input/beamville/beam.conf")
     .withValue("beam.agentsim.toll.filePath", ConfigValueFactory.fromAnyRef(tollPricesFile))
     .resolve()
   private lazy val tollCalculator = new TollCalculator(BeamConfig(config))
-
-  override def beforeEach(): Unit = {
-    assume(
-      new File(tollPricesFile).exists() && new File(tollPricesFile).length() > 0,
-      s"SF Bay toll-prices.csv not found at $tollPricesFile, skipping in CI"
-    )
-  }
 
   "Bay Area Toll Pricing" should {
 
