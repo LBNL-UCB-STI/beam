@@ -2,6 +2,7 @@ include 'beam-gui'
 include 'aws'
 include 'gcp'
 include 'nersc'
+include 'lawrencium'
 include 'metrics2.0'
 include 'jupyter'
 
