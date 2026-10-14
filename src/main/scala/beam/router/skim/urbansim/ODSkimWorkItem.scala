@@ -87,4 +87,3 @@ case class ODWorkItem(
   parkingLocations: Set[Coord] = Set.empty,
   avoidTolls: Boolean = false
 )
-

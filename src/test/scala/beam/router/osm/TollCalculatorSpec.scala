@@ -59,10 +59,10 @@ class TollCalculatorSpec extends AnyWordSpecLike {
         java.nio.file.Files.write(
           tempFile.toPath,
           ("linkId,toll,timeRange\n" +
-            "101,3.40,[0:21599]\n" +
-            "101,4.50,[21600:32400]\n" +
-            "101,3.40,[32401:]\n" +
-            "102,5.25,[:]\n").getBytes(java.nio.charset.StandardCharsets.UTF_8)
+          "101,3.40,[0:21599]\n" +
+          "101,4.50,[21600:32400]\n" +
+          "101,3.40,[32401:]\n" +
+          "102,5.25,[:]\n").getBytes(java.nio.charset.StandardCharsets.UTF_8)
         )
         val config = beam.sim.config.BeamConfig(
           beam.utils.TestConfigUtils
@@ -90,9 +90,9 @@ class TollCalculatorSpec extends AnyWordSpecLike {
         java.nio.file.Files.write(
           tempFile.toPath,
           ("linkId,toll,timeRange\n" +
-            "101,3.40,[0:21599]\n" +
-            "101,4.50,[21600:32400]\n" +
-            "101,3.40,[32401:]\n").getBytes(java.nio.charset.StandardCharsets.UTF_8)
+          "101,3.40,[0:21599]\n" +
+          "101,4.50,[21600:32400]\n" +
+          "101,3.40,[32401:]\n").getBytes(java.nio.charset.StandardCharsets.UTF_8)
         )
         val config = beam.sim.config.BeamConfig(
           beam.utils.TestConfigUtils
@@ -117,4 +117,3 @@ class TollCalculatorSpec extends AnyWordSpecLike {
     }
   }
 }
-

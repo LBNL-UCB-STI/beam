@@ -54,8 +54,8 @@ class ODRequester(
   if (actualTollCalculator.hasAnyWayTolls && actualTollCalculator.hasAnyTolledLinks) {
     logger.warn(
       "TollCalculator has both OSM way-level tolls and per-link tolls configured. " +
-        "Note: R5 Dijkstra edge traversal evaluates tolls strictly via per-link tolls (toll-prices.csv); " +
-        "way-level tolls are not observed during Dijkstra traversal or Stage 2 toll avoidance."
+      "Note: R5 Dijkstra edge traversal evaluates tolls strictly via per-link tolls (toll-prices.csv); " +
+      "way-level tolls are not observed during Dijkstra traversal or Stage 2 toll avoidance."
     )
   }
 
@@ -198,16 +198,17 @@ class ODRequester(
         )
       } else {
         // Return trip: traveler is at srcCoord (e.g. workplace) returning to dstCoord (e.g. home).
-        // Candidate vehicles parked at transit stations from outbound trips:
-        val parkedVehicles = workItem.parkingLocations.toVector.zipWithIndex.map { case (stationCoord, idx) =>
-          StreetVehicle(
-            id = Id.createVehicleId(s"return-car-${srcIndex.value}-${dstIndex.value}-$idx"),
-            vehicleTypeId = dummyCarVehicleType.id,
-            locationUTM = new SpaceTime(stationCoord, requestTime),
-            mode = BeamMode.CAR,
-            asDriver = true,
-            needsToCalculateCost = false
-          )
+        // Candidate vehicles parked at transit stations from outbound trips (sorted for determinism):
+        val parkedVehicles = workItem.parkingLocations.toVector.sortBy(c => (c.getX, c.getY)).zipWithIndex.map {
+          case (stationCoord, idx) =>
+            StreetVehicle(
+              id = Id.createVehicleId(s"return-car-${srcIndex.value}-${dstIndex.value}-$idx"),
+              vehicleTypeId = dummyCarVehicleType.id,
+              locationUTM = new SpaceTime(stationCoord, requestTime),
+              mode = BeamMode.CAR,
+              asDriver = true,
+              needsToCalculateCost = false
+            )
         }
         val walkVehicle = createStreetVehicle(BeamMode.WALK, requestTime, srcCoord)
 
@@ -272,7 +273,8 @@ class ODRequester(
             )
           )
           response
-        } else {
+        }
+        else {
           Try(RoutingResponse.dummyRoutingResponse.get)
         }
 
@@ -363,7 +365,13 @@ class ODRequester(
 
     val dist = distanceWithMargin(rawSrcCoord, rawDstCoord)
     if (dist >= thresholdDistanceForWalkMeters) {
-      ODRequester.Response(srcIndex, dstIndex, walkOnlyModes, Try(RoutingResponse.dummyRoutingResponse.get), requestTime)
+      ODRequester.Response(
+        srcIndex,
+        dstIndex,
+        walkOnlyModes,
+        Try(RoutingResponse.dummyRoutingResponse.get),
+        requestTime
+      )
     } else {
       val (srcCoord, dstCoord) = snapCoordinatesToRoad(rawSrcCoord, rawDstCoord)
       val streetVehicle = StreetVehicle(
@@ -500,7 +508,7 @@ class ODRequester(
                   if (hasLoggedOutOfBoundsEdgeWarning.compareAndSet(false, true)) {
                     logger.warn(
                       s"Edge ID $edgeId is out of bounds [0, ${tn.streetLayer.edgeStore.nEdges}) on transportNetwork; " +
-                        s"may indicate itinerary from a secondary network (further warnings suppressed)."
+                      s"may indicate itinerary from a secondary network (further warnings suppressed)."
                     )
                   }
                   None
@@ -510,7 +518,9 @@ class ODRequester(
             } catch {
               case NonFatal(e) =>
                 if (hasLoggedOsmTollExceptionWarning.compareAndSet(false, true)) {
-                  logger.warn(s"Failed to calculate OSM way tolls for car leg: ${e.getMessage} (further warnings suppressed)")
+                  logger.warn(
+                    s"Failed to calculate OSM way tolls for car leg: ${e.getMessage} (further warnings suppressed)"
+                  )
                 }
                 0.0
             }
@@ -672,8 +682,6 @@ class ODRequester(
         )
     }
   }
-
-
 
   /**
     * Snap a coordinate to the nearest road network vertex.

@@ -64,6 +64,7 @@ class MasterActor(
   // Stage 1: Outbound trips across all time periods
   // Stage 2: Return trips across all time periods with candidate parking locations
   private var stage: Int = 1
+
   private val stage1TotalRequests: Int = if (useEnhancedMode) {
     workItems.length
   } else {
@@ -72,8 +73,10 @@ class MasterActor(
   private var stage2TotalRequests: Int = 0
   private var maxRequestsNumber: Int = stage1TotalRequests
 
-  // Accumulated parking locations per outbound OD pair: (outboundSrc, outboundDst) -> Set[Coord]
-  private val outboundStationParkingSets: scala.collection.mutable.Map[(GeoIndex, GeoIndex), scala.collection.mutable.Set[Coord]] =
+  // Accumulated candidate parking locations per outbound OD pair: (outboundSrc, outboundDst) -> ArrayBuffer[Coord]
+  // Deduplicated deterministically after sorting in transitionToStage2() so worker completion order cannot affect results.
+  private val outboundStationParkingCandidates
+    : scala.collection.mutable.Map[(GeoIndex, GeoIndex), scala.collection.mutable.ArrayBuffer[Coord]] =
     scala.collection.mutable.Map.empty
 
   // Tolled car ODs recorded in Stage 1 for toll-avoidance routing in Stage 2
@@ -318,9 +321,8 @@ class MasterActor(
 
   private def extractParkingLocation(trip: EmbodiedBeamTrip): Option[Coord] = {
     val legs = trip.legs
-    val carLegIdx = legs.indexWhere(leg =>
-      leg.beamLeg.mode == BeamMode.CAR || leg.beamLeg.mode == BeamMode.DRIVE_TRANSIT
-    )
+    val carLegIdx =
+      legs.indexWhere(leg => leg.beamLeg.mode == BeamMode.CAR || leg.beamLeg.mode == BeamMode.DRIVE_TRANSIT)
     if (carLegIdx >= 0) {
       val hasTransitAfter = legs.drop(carLegIdx + 1).exists(_.beamLeg.mode.isTransit)
       if (hasTransitAfter) {
@@ -339,16 +341,30 @@ class MasterActor(
     }
   }
 
-  private def addParkingLocation(set: scala.collection.mutable.Set[Coord], newCoord: Coord): Unit = {
-    val duplicate = set.exists { existing =>
-      val dx = existing.getX - newCoord.getX
-      val dy = existing.getY - newCoord.getY
-      (dx * dx + dy * dy) < (50.0 * 50.0)
+  private def deduplicateParkingLocations(candidates: Seq[Coord]): Set[Coord] = {
+    val sorted = candidates.sortBy(c => (c.getX, c.getY))
+    val accepted = scala.collection.mutable.ArrayBuffer.empty[Coord]
+    sorted.foreach { newCoord =>
+      val duplicate = accepted.exists { existing =>
+        val dx = existing.getX - newCoord.getX
+        val dy = existing.getY - newCoord.getY
+        (dx * dx + dy * dy) < (50.0 * 50.0)
+      }
+      if (!duplicate) {
+        accepted += newCoord
+      }
     }
-    if (!duplicate) {
-      set.add(newCoord)
-    }
+    accepted.toSet
   }
+
+  private def tripTieBreakKey(trip: EmbodiedBeamTrip, requestTime: Int): (Int, Int, Double, Int, Int, Double) = (
+    totalTimeFromRequestToArrival(trip, requestTime),
+    trip.totalTravelTimeInSecs,
+    trip.costEstimate.toDouble,
+    trip.legs.size,
+    trip.beamLegs.headOption.map(_.startTime).getOrElse(0),
+    trip.beamLegs.map(_.travelPath.distanceInM).sum
+  )
 
   private def processResponse(resp: ODRequester.Response): Unit = {
     resp.maybeRoutingResponse match {
@@ -370,21 +386,23 @@ class MasterActor(
           val tripsToRecord: Iterable[EmbodiedBeamTrip] = abstractSkimmer match {
             case _: ActivitySimSkimmer =>
               // ActivitySim: group itineraries by (ActivitySimPathType, fleet) and pick the fastest trip
-              // from request time to arrival time (secondary sort on total travel time)
+              // from request time to arrival time (with deterministic secondary tie-breakers)
               filteredTrips
                 .groupBy(ActivitySimPathType.determineTripPathTypeAndFleet)
                 .filterKeys(_._1 != ActivitySimPathType.OTHER)
-                .values
-                .map { modeTrips =>
-                  modeTrips.minBy(t => (totalTimeFromRequestToArrival(t, resp.requestTime), t.totalTravelTimeInSecs))
+                .toSeq
+                .sortBy { case ((pt, fleet), _) => (pt.toString, fleet) }
+                .map { case (_, modeTrips) =>
+                  modeTrips.minBy(t => tripTieBreakKey(t, resp.requestTime))
                 }
             case _ =>
               // Default/ODSkimmer: group itineraries by BeamMode and pick the fastest trip
               filteredTrips
                 .groupBy(_.tripClassifier)
-                .values
-                .map { modeTrips =>
-                  modeTrips.minBy(t => (totalTimeFromRequestToArrival(t, resp.requestTime), t.totalTravelTimeInSecs))
+                .toSeq
+                .sortBy(_._1.value)
+                .map { case (_, modeTrips) =>
+                  modeTrips.minBy(t => tripTieBreakKey(t, resp.requestTime))
                 }
           }
 
@@ -406,7 +424,8 @@ class MasterActor(
                 abstractSkimmer.handleEvent(event)
                 nSkimEvents += 1
               } else if (
-                bifurcateTolls && abstractSkimmer.isInstanceOf[ActivitySimSkimmer] && trip.tripClassifier == BeamMode.CAR
+                bifurcateTolls && abstractSkimmer
+                  .isInstanceOf[ActivitySimSkimmer] && trip.tripClassifier == BeamMode.CAR
               ) {
                 val toll = odRequester.calculateToll(trip)
                 if (toll == 0.0) {
@@ -477,11 +496,11 @@ class MasterActor(
           if (generateReturnTrips && stage == 1) {
             filteredTrips.foreach { trip =>
               extractParkingLocation(trip).foreach { parkingCoord =>
-                val set = outboundStationParkingSets.getOrElseUpdate(
+                val buf = outboundStationParkingCandidates.getOrElseUpdate(
                   (resp.srcIndex, resp.dstIndex),
-                  scala.collection.mutable.Set.empty
+                  scala.collection.mutable.ArrayBuffer.empty
                 )
-                addParkingLocation(set, parkingCoord)
+                buf += parkingCoord
               }
             }
           }
@@ -491,7 +510,7 @@ class MasterActor(
 
   private def checkAndGiveTheResult(): Unit = {
     if (stage == 1 && totalResponses == stage1TotalRequests) {
-      val hasReturnTrips = generateReturnTrips && outboundStationParkingSets.nonEmpty
+      val hasReturnTrips = generateReturnTrips && outboundStationParkingCandidates.nonEmpty
       val hasTolledCarTrips = bifurcateTolls && tolledCarODs.nonEmpty
       if (hasReturnTrips || hasTolledCarTrips) {
         transitionToStage2()
@@ -507,7 +526,7 @@ class MasterActor(
     stage = 2
     log.info(
       s"Stage 1 complete! Total responses: $totalResponses. " +
-      s"Collected parking locations for ${outboundStationParkingSets.size} OD pairs across ${requestTimes.length} time periods. " +
+      s"Collected parking locations for ${outboundStationParkingCandidates.size} OD pairs across ${requestTimes.length} time periods. " +
       s"Tolled car ODs for second pass: ${tolledCarODs.size}. " +
       s"Generating Stage 2 work items..."
     )
@@ -518,10 +537,14 @@ class MasterActor(
       Seq(None)
     }
 
-    val returnItems = if (generateReturnTrips && outboundStationParkingSets.nonEmpty) {
+    val returnItems = if (generateReturnTrips && outboundStationParkingCandidates.nonEmpty) {
+      val sortedParkingEntries = outboundStationParkingCandidates.toArray.sortBy {
+        case ((outboundSrc, outboundDst), _) => (outboundSrc.value, outboundDst.value)
+      }
       for {
-        ((outboundSrc, outboundDst), parkingSet) <- outboundStationParkingSets.toArray
-        time <- requestTimes
+        ((outboundSrc, outboundDst), candidateCoords) <- sortedParkingEntries
+        dedupedParkingSet = deduplicateParkingLocations(candidateCoords)
+        time     <- requestTimes
         category <- categories
       } yield ODWorkItem(
         srcIndex = outboundDst,
@@ -529,21 +552,23 @@ class MasterActor(
         time = time,
         transitCategory = category,
         tripDirection = TripDirection.Return,
-        parkingLocations = parkingSet.toSet
+        parkingLocations = dedupedParkingSet
       )
     } else {
       Array.empty[ODWorkItem]
     }
 
     val tollAvoidItems = if (bifurcateTolls && tolledCarODs.nonEmpty) {
-      tolledCarODs.toArray.map { case (src, dst, time) =>
-        ODWorkItem(
-          srcIndex = src,
-          dstIndex = dst,
-          time = time,
-          avoidTolls = true
-        )
-      }
+      tolledCarODs.toArray
+        .sortBy { case (src, dst, time) => (src.value, dst.value, time) }
+        .map { case (src, dst, time) =>
+          ODWorkItem(
+            srcIndex = src,
+            dstIndex = dst,
+            time = time,
+            avoidTolls = true
+          )
+        }
     } else {
       Array.empty[ODWorkItem]
     }

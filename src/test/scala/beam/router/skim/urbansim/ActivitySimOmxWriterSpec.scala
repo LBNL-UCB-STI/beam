@@ -222,6 +222,141 @@ class ActivitySimOmxWriterSpec extends AnyWordSpecLike with Matchers {
       val originRow = mapping("100574")
       val destinationColum = mapping("10069A")
       matrix.getData()(originRow)(destinationColum) shouldBe 90.0
+      omxFile.getLookupNames should contain("zone_number")
+      omxFile.close()
+    }
+
+    "produce bit-identical logical matrices, lookup/zone_number, and provenance metadata across shuffled runs" in {
+      val smallGeo = Seq("101", "102", "103")
+      val sampleData = Seq(
+        ExcerptData(
+          "AM",
+          DRV_COM_WLK,
+          "",
+          "101",
+          "102",
+          100,
+          90,
+          80,
+          70,
+          60,
+          50,
+          40,
+          30,
+          20,
+          10,
+          5,
+          4,
+          3,
+          2,
+          1,
+          1,
+          0
+        ),
+        ExcerptData(
+          "PM",
+          WLK_LOC_WLK,
+          "",
+          "102",
+          "103",
+          120,
+          95,
+          85,
+          75,
+          65,
+          55,
+          45,
+          35,
+          25,
+          15,
+          5,
+          4,
+          3,
+          2,
+          1,
+          1,
+          0
+        )
+      )
+      val meta = SkimsProvenanceMetadata(
+        skimsKind = "activitySimOmx",
+        routerType = "r5+gh",
+        skimsGeoType = "taz",
+        peakHours = "8.5,17.5",
+        modesBuilt = "drive,drive_transit,transit,walk",
+        bifurcateTolls = true,
+        generateReturnTrips = true,
+        tazCount = smallGeo.size
+      )
+      val path1 = "output/test/determinism_1.omx"
+      val path2 = "output/test/determinism_2.omx"
+      val zarrPath = "output/test/determinism_omx_cross.zarr"
+      new java.io.File("output/test").mkdirs()
+
+      ActivitySimOmxWriter.writeToOmx(path1, sampleData.iterator, smallGeo, Some(meta))
+      ActivitySimOmxWriter.writeToOmx(path2, sampleData.reverse.iterator, smallGeo, Some(meta))
+      ActivitySimZarrWriter.writeToZarr(
+        zarrPath,
+        sampleData.iterator,
+        smallGeo,
+        Some(meta.copy(skimsKind = "activitySimZarr"))
+      )
+
+      val omx1 = new OmxFile(path1)
+      val omx2 = new OmxFile(path2)
+      omx1.openReadOnly()
+      omx2.openReadOnly()
+      try {
+        // Verify /lookup/zone_number
+        omx1.getLookupNames should contain("zone_number")
+        omx2.getLookupNames should contain("zone_number")
+        val lookup1 = omx1.getLookup("zone_number").getLookup.asInstanceOf[Array[Int]]
+        val lookup2 = omx2.getLookup("zone_number").getLookup.asInstanceOf[Array[Int]]
+        lookup1 shouldEqual Array(101, 102, 103)
+        lookup2 shouldEqual Array(101, 102, 103)
+
+        // Verify root provenance attributes and cross-format logical_matrices_sha256 parity
+        omx1.getAttribute("beam_skims_schema_version") shouldBe "1.0"
+        omx1.getAttribute("skims_kind") shouldBe "activitySimOmx"
+        omx1.getAttribute("router_type") shouldBe "r5+gh"
+        omx1.getAttribute("skims_geo_type") shouldBe "taz"
+        omx1.getAttribute("peak_hours") shouldBe "8.5,17.5"
+        omx1.getAttribute("modes_built") shouldBe "drive,drive_transit,transit,walk"
+        omx1.getAttribute("bifurcate_tolls") shouldBe "true"
+        omx1.getAttribute("generate_return_trips") shouldBe "true"
+        omx1.getAttribute("taz_count") shouldBe 3
+
+        val sha1 = omx1.getAttribute("logical_matrices_sha256").toString
+        val sha2 = omx2.getAttribute("logical_matrices_sha256").toString
+        sha1 should startWith("sha256:")
+        sha1 shouldBe sha2
+
+        val zarrRoot =
+          com.bc.zarr.ZarrGroup.open(new com.bc.zarr.storage.FileSystemStore(java.nio.file.Paths.get(zarrPath)))
+        zarrRoot.getAttributes.get("logical_matrices_sha256") shouldBe sha1
+
+        // Verify every matrix dataset and attribute matches bit-for-bit across the two OMX files
+        val names1 = omx1.getMatrixNames
+        val names2 = omx2.getMatrixNames
+        names1 shouldEqual names2
+        names1.forEach { name =>
+          val m1 = omx1.getMatrix(name).asInstanceOf[OmxFloatMatrix]
+          val m2 = omx2.getMatrix(name).asInstanceOf[OmxFloatMatrix]
+          m1.getAttributeKeys shouldEqual m2.getAttributeKeys
+          m1.getAttributeKeys.forEach { attrKey =>
+            m1.getAttribute(attrKey) shouldEqual m2.getAttribute(attrKey)
+          }
+          val d1 = m1.getData
+          val d2 = m2.getData
+          d1.length shouldBe d2.length
+          for (r <- d1.indices; c <- d1(r).indices) {
+            java.lang.Float.floatToRawIntBits(d1(r)(c)) shouldBe java.lang.Float.floatToRawIntBits(d2(r)(c))
+          }
+        }
+      } finally {
+        omx1.close()
+        omx2.close()
+      }
     }
   }
 }

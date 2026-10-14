@@ -330,6 +330,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       val excerptData: Map[ActivitySimKey, Seq[ActivitySimSkimmerInternal]] = skim.iterator
         .collect { case (k: ActivitySimSkimmerKey, v: ActivitySimSkimmerInternal) => k -> v }
         .toSeq
+        .sortBy { case (k, _) => (k.origin, k.destination, k.pathType.toString, k.hour, k.fleet.getOrElse("")) }
         .flatMap { case (key, value) =>
           val baseEntry = Seq(key -> value)
           if (isWalkTransit(key.pathType)) {
@@ -406,10 +407,13 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       } else {
         // Walk is time-invariant: fallback to representative hours where walk was observed (hour 5 first)
         val fallbackHours = List(5, 3, 4, 8, 12, 17, 22, 0)
-        fallbackHours.iterator.flatMap { hour =>
-          getSkimValue(skim, ActivitySimSkimmerKey(hour, pathType, origin.id, destination.id))
-            .map(_.asInstanceOf[ActivitySimSkimmerInternal])
-        }.take(1).toList
+        fallbackHours.iterator
+          .flatMap { hour =>
+            getSkimValue(skim, ActivitySimSkimmerKey(hour, pathType, origin.id, destination.id))
+              .map(_.asInstanceOf[ActivitySimSkimmerInternal])
+          }
+          .take(1)
+          .toList
       }
       if (skimsToUse.isEmpty) {
         None

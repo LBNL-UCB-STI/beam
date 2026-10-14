@@ -1089,7 +1089,15 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           Some(onlyVehicle -> routeFromVehicleToDestination(onlyVehicle))
         } else {
           val candidateVehicleLegs = destinationVehicles.map(v => v -> routeFromVehicleToDestination(v))
-          val (selectedVehicle, selectedLeg) = candidateVehicleLegs.minBy(_._2.beamLeg.duration)
+          val (selectedVehicle, selectedLeg) = candidateVehicleLegs.minBy { case (vehicle, leg) =>
+            (
+              leg.beamLeg.duration,
+              leg.beamLeg.travelPath.distanceInM,
+              vehicle.locationUTM.loc.getX,
+              vehicle.locationUTM.loc.getY,
+              vehicle.id.toString
+            )
+          }
           val candidatesStr = candidateVehicleLegs
             .map { case (vehicle, leg) => s"${vehicle.id}:${leg.beamLeg.duration}s" }
             .mkString("[", ", ", "]")
