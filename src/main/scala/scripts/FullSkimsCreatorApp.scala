@@ -212,8 +212,13 @@ object FullSkimsCreatorApp extends App with BeamHelper {
     case Some(params) =>
       implicit val ec = ExecutionContext.global
       try {
-        runWithParams(params).andThen { case _ =>
-          System.exit(0)
+        runWithParams(params).onComplete {
+          case scala.util.Success(_) =>
+            logger.info("FullSkimsCreatorApp completed successfully")
+            System.exit(0)
+          case scala.util.Failure(ex) =>
+            logger.error("FullSkimsCreatorApp failed", ex)
+            System.exit(1)
         }
       } catch {
         case e: Throwable =>
@@ -448,6 +453,7 @@ object FullSkimsCreatorApp extends App with BeamHelper {
             writer = org.matsim.core.utils.io.IOUtils.getBufferedWriter(filePath)
             writer.write(ExcerptData.csvHeader)
             writer.write("\n")
+            val skimSnapshot = currentSkimView
 
             ProfilingUtils.timed("Writing skims for time periods for all pathTypes", x => logger.info(x)) {
               rows.foreach { case ODRow(origin, destination) =>
@@ -455,7 +461,7 @@ object FullSkimsCreatorApp extends App with BeamHelper {
                   case Some(skims) =>
                     skims.foreach(s => writer.write(s.toCsvString))
                   case None =>
-                    getExcerptDataForOD(origin, destination).foreach { excerptData =>
+                    getExcerptDataForOD(origin, destination, skimSnapshot).foreach { excerptData =>
                       writer.write(excerptData.toCsvString)
                     }
                 }
@@ -484,10 +490,11 @@ object FullSkimsCreatorApp extends App with BeamHelper {
 
       override def writeToDisk(filePath: String): Unit = {
         val geoUnits: Seq[String] = beamServices.beamScenario.tazTreeMapForASimSkimmer.orderedTazIds
+        val skimSnapshot = currentSkimView
         val skimData = rows.view.flatMap { case ODRow(origin, destination) =>
           existingSkims.get((origin.id, destination.id)) match {
             case Some(skims) => skims
-            case None        => getExcerptDataForOD(origin, destination)
+            case None        => getExcerptDataForOD(origin, destination, skimSnapshot)
           }
         }.iterator
         ProfilingUtils.timed(s"writeFullOmxSkims", v => logger.info(v)) {
@@ -507,10 +514,11 @@ object FullSkimsCreatorApp extends App with BeamHelper {
 
       override def writeToDisk(filePath: String): Unit = {
         val geoUnits: Seq[String] = beamServices.beamScenario.tazTreeMapForASimSkimmer.orderedTazIds
+        val skimSnapshot = currentSkimView
         val skimData = rows.view.flatMap { case ODRow(origin, destination) =>
           existingSkims.get((origin.id, destination.id)) match {
             case Some(skims) => skims
-            case None        => getExcerptDataForOD(origin, destination)
+            case None        => getExcerptDataForOD(origin, destination, skimSnapshot)
           }
         }.iterator
         ProfilingUtils.timed(s"writeFullZarrSkims", v => logger.info(v)) {

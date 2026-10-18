@@ -383,9 +383,16 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
   def getExcerptDataForOD(
     origin: GeoUnit,
     destination: GeoUnit
+  ): Seq[ExcerptData] =
+    getExcerptDataForOD(origin, destination, currentSkimView)
+
+  def getExcerptDataForOD(
+    origin: GeoUnit,
+    destination: GeoUnit,
+    skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
   ): Seq[ExcerptData] = {
     ActivitySimPathType.allPathTypes.flatMap { pathType =>
-      ActivitySimTimeBin.values.flatMap(timeBin => getExcerptDataOption(timeBin, origin, destination, pathType))
+      ActivitySimTimeBin.values.flatMap(timeBin => getExcerptDataOption(timeBin, origin, destination, pathType, None, skim))
     }
   }
 
@@ -440,7 +447,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     pathType: ActivitySimPathType,
     maybeFleetName: Option[String] = None
   ): Option[ExcerptData] =
-    getExcerptDataOption(timeBin, origin, destination, pathType, maybeFleetName, currentSkimSnapshot)
+    getExcerptDataOption(timeBin, origin, destination, pathType, maybeFleetName, currentSkimView)
 
   private def weightedData(
     timePeriodString: String,
@@ -558,7 +565,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     pathType: ActivitySimPathType,
     maybeFleetName: Option[String]
   ): ExcerptData =
-    getExcerptData(timeBin, origin, destination, pathType, maybeFleetName, currentSkimSnapshot)
+    getExcerptData(timeBin, origin, destination, pathType, maybeFleetName, currentSkimView)
 }
 
 object ActivitySimSkimmer extends LazyLogging {

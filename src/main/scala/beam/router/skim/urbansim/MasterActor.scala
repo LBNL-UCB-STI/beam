@@ -596,6 +596,7 @@ class MasterActor(
   }
 
   private def finishAndReply(): Unit = {
+    maybeMonitor.foreach(_.cancel())
     log.info(
       s"Skimming completed! Total responses: $totalResponses, success: $nSuccessRoutes, failed: $nFailedRoutes, events: $nSkimEvents"
     )

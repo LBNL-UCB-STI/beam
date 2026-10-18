@@ -1101,7 +1101,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           val candidatesStr = candidateVehicleLegs
             .map { case (vehicle, leg) => s"${vehicle.id}:${leg.beamLeg.duration}s" }
             .mkString("[", ", ", "]")
-          logger.warn(
+          logger.debug(
             s"[ROUTING-EGRESS-MULTI-VEHICLE] requestId=${request.requestId} " +
             s"streetVehiclesUseIntermodalUse=${request.streetVehiclesUseIntermodalUse} " +
             s"candidates=${destinationVehicles.size} durations=$candidatesStr selectedVehicle=${selectedVehicle.id}"

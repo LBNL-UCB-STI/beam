@@ -644,14 +644,25 @@ class ODRequester(
       .toList
       .sortBy(_.getIncome.getIncome)
       .drop(scenario.getHouseholds.getHouseholds.size() / 2)
-      .head
-    val dummyHouseholdAttributes = new HouseholdAttributes(
-      householdId = medianHouseholdByIncome.getId.toString,
-      householdIncome = medianHouseholdByIncome.getIncome.getIncome,
-      householdSize = 1,
-      numCars = 1,
-      numBikes = 1
-    )
+      .headOption
+    val dummyHouseholdAttributes = medianHouseholdByIncome match {
+      case Some(hh) =>
+        new HouseholdAttributes(
+          householdId = hh.getId.toString,
+          householdIncome = hh.getIncome.getIncome,
+          householdSize = 1,
+          numCars = 1,
+          numBikes = 1
+        )
+      case None =>
+        HouseholdAttributes(
+          householdId = "dummy-household",
+          householdIncome = 50000.0,
+          householdSize = 1,
+          numCars = 1,
+          numBikes = 1
+        )
+    }
     val personVOTT = PopulationAdjustment
       .incomeToValueOfTime(dummyHouseholdAttributes.householdIncome)
       .getOrElse(beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime)

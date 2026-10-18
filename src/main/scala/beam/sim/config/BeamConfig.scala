@@ -5210,7 +5210,7 @@ object BeamConfig {
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator = {
           BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator(
             calculationTimeoutHours =
-              if (c.hasPathOrNull("calculationTimeoutHours")) c.getInt("calculationTimeoutHours") else 6,
+              if (c.hasPathOrNull("calculationTimeoutHours")) c.getInt("calculationTimeoutHours") else 72,
             enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
             maxTravelDistanceInMeters = BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator.MaxTravelDistanceInMeters(
               if (c.hasPathOrNull("maxTravelDistanceInMeters")) c.getConfig("maxTravelDistanceInMeters")

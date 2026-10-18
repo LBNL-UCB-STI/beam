@@ -358,5 +358,97 @@ class ActivitySimOmxWriterSpec extends AnyWordSpecLike with Matchers {
         omx2.close()
       }
     }
+
+    "extract and write skims across thousands of OD pairs in milliseconds without calling currentSkimSnapshot per OD pair" in {
+      import beam.router.skim.{ActivitySimSkimmer, GeoUnit}
+      import beam.router.skim.ActivitySimSkimmer.{ActivitySimSkimmerInternal, ActivitySimSkimmerKey}
+      import beam.router.skim.core.{AbstractSkimmerInternal, AbstractSkimmerKey}
+      import beam.sim.BeamScenario
+      import beam.sim.BeamServices
+      import beam.sim.config.BeamConfig
+      import beam.utils.TestConfigUtils.testConfig
+      import org.matsim.api.core.v01.Coord
+      import org.matsim.core.controler.{MatsimServices, OutputDirectoryHierarchy}
+      import org.mockito.Mockito
+      import org.mockito.Mockito.when
+      import scripts.FullSkimsCreatorApp
+      import scripts.FullSkimsCreatorApp.ODRow
+
+      val beamConfig = BeamConfig(testConfig("test/input/beamville/beam.conf").resolve())
+      val matsimServices = Mockito.mock(classOf[MatsimServices])
+      val controlerIO = Mockito.mock(classOf[OutputDirectoryHierarchy])
+      when(matsimServices.getControlerIO).thenReturn(controlerIO)
+      val beamScenario = Mockito.mock(classOf[BeamScenario])
+      val beamServices = Mockito.mock(classOf[BeamServices])
+      when(beamServices.beamConfig).thenReturn(beamConfig)
+      when(beamServices.beamScenario).thenReturn(beamScenario)
+      when(beamServices.matsimServices).thenReturn(matsimServices)
+
+      val numZones = 50
+      val zoneIds = (1 to numZones).map(_.toString)
+      val tazTreeMap = Mockito.mock(classOf[TAZTreeMap])
+      when(tazTreeMap.orderedTazIds).thenReturn(zoneIds)
+      when(beamScenario.tazTreeMapForASimSkimmer).thenReturn(tazTreeMap)
+
+      val geoUnits = zoneIds.map(id => GeoUnit.TAZ(id, new Coord(550000.0, 4180000.0), 1000.0)).toVector
+      val odRows = for {
+        o <- geoUnits
+        d <- geoUnits
+      } yield ODRow(o, d)
+      odRows.size shouldBe 2500
+
+      var snapshotCalls = 0
+      val skimmer: ActivitySimSkimmer = new ActivitySimSkimmer(matsimServices, beamScenario, beamConfig) {
+        override protected[skim] def currentSkimSnapshot: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = {
+          snapshotCalls += 1
+          super.currentSkimSnapshot
+        }
+
+        private val sampleInternal = ActivitySimSkimmerInternal(
+          travelTimeInMinutes = 15.0,
+          generalizedTimeInMinutes = 15.0,
+          generalizedCost = 5.0,
+          distanceInMeters = 10000.0,
+          cost = 2.5,
+          energy = 0.0,
+          walkAccessInMinutes = 2.0,
+          walkEgressInMinutes = 2.0,
+          walkAuxiliaryInMinutes = 0.0,
+          waitInitialInMinutes = 3.0,
+          waitAuxiliaryInMinutes = 0.0,
+          totalInVehicleTimeInMinutes = 8.0,
+          driveTimeInMinutes = 0.0,
+          driveDistanceInMeters = 0.0,
+          keyInVehicleTimeInMinutes = 8.0,
+          ferryInVehicleTimeInMinutes = 0.0,
+          transitBoardingsCount = 1.0,
+          failedTrips = 0,
+          observations = 1,
+          iterations = 1
+        )
+        for (i <- 1 to 10000) {
+          val o = ((i % numZones) + 1).toString
+          val d = (((i * 7) % numZones) + 1).toString
+          currentSkimInternal.put(ActivitySimSkimmerKey(8, WLK_LOC_WLK, o, d), sampleInternal)
+        }
+      }
+
+      val startNs = System.nanoTime()
+      val extracted = odRows.flatMap(row => skimmer.getExcerptDataForOD(row.origin, row.destination))
+      val elapsedMs = (System.nanoTime() - startNs) / 1000000
+
+      snapshotCalls shouldBe 0
+      extracted should not be empty
+      elapsedMs should be < 5000L
+
+      // Also verify FullSkimsCreatorApp.createActivitySimOmxSkimmer.writeToDisk
+      val omxSkimmer = FullSkimsCreatorApp.createActivitySimOmxSkimmer(beamServices, odRows, Map.empty, None)
+      val omxOutPath = "output/test/perf_omx_skimmer_test.omx"
+      new java.io.File("output/test").mkdirs()
+      val startWriteNs = System.nanoTime()
+      omxSkimmer.writeToDisk(omxOutPath)
+      val elapsedWriteMs = (System.nanoTime() - startWriteNs) / 1000000
+      elapsedWriteMs should be < 5000L
+    }
   }
 }

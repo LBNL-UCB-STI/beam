@@ -150,6 +150,9 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
   protected[skim] def currentSkimSnapshot: Map[AbstractSkimmerKey, AbstractSkimmerInternal] =
     currentSkimInternal.asScala.toMap
 
+  protected[skim] def currentSkimView: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal] =
+    currentSkimInternal.asScala
+
   protected[skim] def getCurrentSkimValue(key: AbstractSkimmerKey): Option[AbstractSkimmerInternal] =
     Option(currentSkimInternal.get(key))
 
