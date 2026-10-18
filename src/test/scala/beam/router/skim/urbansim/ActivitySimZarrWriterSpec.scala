@@ -9,7 +9,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
 import java.nio.file.Paths
-import scala.jdk.CollectionConverters.asScalaBufferConverter
+import scala.jdk.CollectionConverters._
 
 class ActivitySimZarrWriterSpec extends AnyWordSpecLike with Matchers {
   "ActivitySimZarrWriter" should {
@@ -124,15 +124,124 @@ class ActivitySimZarrWriterSpec extends AnyWordSpecLike with Matchers {
     }
 
     "include WALK with TIME and DIST in ActivitySimZarrWriter matrix data" in {
-      val walkMatrixData = ActivitySimZarrWriter.activitySimMatrixData.find(_.pathTypes.contains(beam.router.skim.ActivitySimPathType.WALK))
+      val walkMatrixData = ActivitySimZarrWriter.activitySimMatrixData.find(
+        _.pathTypes.contains(beam.router.skim.ActivitySimPathType.WALK)
+      )
       walkMatrixData should be('defined)
-      walkMatrixData.get.metrics should contain allOf(beam.router.skim.ActivitySimMetric.TIME, beam.router.skim.ActivitySimMetric.DIST)
+      walkMatrixData.get.metrics should contain allOf (beam.router.skim.ActivitySimMetric.TIME, beam.router.skim.ActivitySimMetric.DIST)
     }
 
     "include WALK with TIME and DIST in ActivitySimOmxWriter matrix data" in {
-      val walkMatrixData = ActivitySimOmxWriter.activitySimMatrixData.find(_.pathTypes.contains(beam.router.skim.ActivitySimPathType.WALK))
+      val walkMatrixData =
+        ActivitySimOmxWriter.activitySimMatrixData.find(_.pathTypes.contains(beam.router.skim.ActivitySimPathType.WALK))
       walkMatrixData should be('defined)
-      walkMatrixData.get.metrics should contain allOf(beam.router.skim.ActivitySimMetric.TIME, beam.router.skim.ActivitySimMetric.DIST)
+      walkMatrixData.get.metrics should contain allOf (beam.router.skim.ActivitySimMetric.TIME, beam.router.skim.ActivitySimMetric.DIST)
+    }
+
+    "produce byte-identical Zarr stores with provenance metadata and match OMX logical_matrices_sha256" in {
+      val smallGeo = Seq("101", "102", "103")
+      val excerptData = IndexedSeq(
+        ExcerptData(
+          "AM",
+          DRV_COM_WLK,
+          "",
+          "101",
+          "102",
+          100,
+          90,
+          80,
+          70,
+          60,
+          50,
+          40,
+          30,
+          20,
+          10,
+          5,
+          4,
+          3,
+          2,
+          1,
+          1,
+          0
+        ),
+        ExcerptData(
+          "PM",
+          WLK_LOC_WLK,
+          "",
+          "102",
+          "103",
+          120,
+          95,
+          85,
+          75,
+          65,
+          55,
+          45,
+          35,
+          25,
+          15,
+          5,
+          4,
+          3,
+          2,
+          1,
+          1,
+          0
+        )
+      )
+      val meta = SkimsProvenanceMetadata(
+        skimsKind = "activitySimZarr",
+        routerType = "r5+gh",
+        skimsGeoType = "taz",
+        peakHours = "8.5,17.5",
+        modesBuilt = "drive,drive_transit,transit,walk",
+        bifurcateTolls = true,
+        generateReturnTrips = true,
+        tazCount = smallGeo.size
+      )
+      val zarrPath1 = "output/test/determinism_1.zarr"
+      val zarrPath2 = "output/test/determinism_2.zarr"
+
+      ActivitySimZarrWriter.writeToZarr(zarrPath1, excerptData.iterator, smallGeo, Some(meta))
+      ActivitySimZarrWriter.writeToZarr(zarrPath2, excerptData.reverse.iterator, smallGeo, Some(meta))
+
+      val root1 = ZarrGroup.open(new FileSystemStore(Paths.get(zarrPath1)))
+      val root2 = ZarrGroup.open(new FileSystemStore(Paths.get(zarrPath2)))
+      val attrs1 = root1.getAttributes
+      val attrs2 = root2.getAttributes
+
+      attrs1.get("beam_skims_schema_version") shouldBe "1.0"
+      attrs1.get("router_type") shouldBe "r5+gh"
+      attrs1.get("modes_built") shouldBe "drive,drive_transit,transit,walk"
+      attrs1.get("logical_matrices_sha256").toString should startWith("sha256:")
+      attrs1.get("logical_matrices_sha256") shouldBe attrs2.get("logical_matrices_sha256")
+
+      // Verify 100% byte-for-byte identical files across both Zarr directory trees
+      def listRelativeFiles(rootDir: java.nio.file.Path): Seq[String] = {
+        val stream = java.nio.file.Files.walk(rootDir)
+        try {
+          stream
+            .iterator()
+            .asScala
+            .filter(p => java.nio.file.Files.isRegularFile(p))
+            .map(p => rootDir.relativize(p).toString)
+            .toSeq
+            .sorted
+        } finally {
+          stream.close()
+        }
+      }
+
+      val p1 = Paths.get(zarrPath1)
+      val p2 = Paths.get(zarrPath2)
+      val files1 = listRelativeFiles(p1)
+      val files2 = listRelativeFiles(p2)
+      files1 should not be empty
+      files1 shouldEqual files2
+      files1.foreach { rel =>
+        java.nio.file.Files.readAllBytes(p1.resolve(rel)) shouldEqual java.nio.file.Files.readAllBytes(p2.resolve(rel))
+      }
     }
   }
 }

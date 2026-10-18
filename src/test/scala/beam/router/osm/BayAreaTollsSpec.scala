@@ -19,6 +19,7 @@ import java.io.File
 class BayAreaTollsSpec extends AnyWordSpecLike with Matchers {
 
   private val tollPricesFile = "production/sfbay/toll-prices.csv"
+
   private lazy val config = testConfig("test/input/beamville/beam.conf")
     .withValue("beam.agentsim.toll.filePath", ConfigValueFactory.fromAnyRef(tollPricesFile))
     .resolve()

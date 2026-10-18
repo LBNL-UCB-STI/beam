@@ -8,7 +8,10 @@ import beam.router.skim.{ActivitySimMetric, ActivitySimPathType, ActivitySimTime
 import beam.utils.csv.CsvWriter
 import com.typesafe.scalalogging.LazyLogging
 import omx.hdf5.HDF5Loader
-import omx.{OmxFile, OmxMatrix}
+import omx.{OmxFile, OmxLookup, OmxMatrix}
+
+import java.nio.file.{Files, Paths}
+import scala.collection.mutable.ArrayBuffer
 
 /**
   * @author Dmitry Openkov
@@ -18,7 +21,8 @@ object ActivitySimOmxWriter extends LazyLogging {
   def writeToOmx(
     filePath: String,
     skimData: Iterator[ExcerptData],
-    geoUnits: Seq[String]
+    geoUnits: Seq[String],
+    provenanceMetadata: Option[SkimsProvenanceMetadata] = None
   ): Unit = try {
     logger.info(s"Starting writeToOmx with filePath: $filePath")
     logger.info(s"HDF5 library preparation starting...")
@@ -34,27 +38,22 @@ object ActivitySimOmxWriter extends LazyLogging {
     ).toMap
     logger.info(s"Matrix data map created with ${pathTypeToMatrixData.size} entries")
 
-    logger.info(s"Creating new OmxFile instance for path: $filePath")
-    val omxFile = new OmxFile(filePath)
-    logger.info("OmxFile instance created successfully")
-
-    logger.info(s"Shape size will be: ${geoUnits.size}x${geoUnits.size}")
-
-    val shape: Array[Int] = Array(geoUnits.size, geoUnits.size)
-    logger.info("Attempting to open new file...")
-    try {
-      omxFile.openNew(shape)
-      logger.info("File opened successfully")
-    } catch {
-      case e: Exception =>
-        logger.error(s"Failed to open file: ${e.getMessage}")
-        logger.error(s"Exception class: ${e.getClass.getName}")
-        e.printStackTrace()
+    val targetPath = Paths.get(filePath)
+    Option(targetPath.getParent).foreach(parent => Files.createDirectories(parent))
+    if (Files.exists(targetPath)) {
+      Files.delete(targetPath)
     }
 
-    val geoUnitMapping = geoUnits.zipWithIndex.toMap
+    val n = geoUnits.size
+    val shape: Array[Int] = Array(n, n)
+    logger.info(s"Creating new OmxFile instance for path: $filePath with shape ${n}x${n}")
+    val omxFile = new OmxFile(filePath)
+    omxFile.openNew(shape)
 
-    // Group the data by matrix key to process each matrix once
+    val geoUnitMapping = geoUnits.zipWithIndex.toMap
+    val zoneNumbers: Array[Int] = SkimsProvenanceMetadata.buildZoneNumbers(geoUnits)
+
+    // Group the data by (pathType, timePeriod) in a deterministic manner
     val groupedData = skimData.toSeq.groupBy { excerptData =>
       val pathType = excerptData.pathType match {
         case rideHailMode @ (TNC_SINGLE | TNC_SHARED) =>
@@ -68,36 +67,104 @@ object ActivitySimOmxWriter extends LazyLogging {
       )
     }
 
-    // Process each matrix
+    case class PreparedOmxMatrix(
+      matrixName: String,
+      pathType: String,
+      timePeriod: String,
+      metric: String,
+      values2D: Array[Array[Float]],
+      flatValues: Array[Float]
+    )
+
+    val preparedMatricesBuffer = ArrayBuffer.empty[PreparedOmxMatrix]
+    val canonicalNaN = SkimsProvenanceMetadata.canonicalizeFloat(Float.NaN)
+
     for {
-      ((pathType, timePeriod, metrics), excerpts) <- groupedData
-      metric                                      <- metrics
+      ((pathType, timePeriod, metrics), excerpts) <- groupedData.toSeq.sortBy { case ((pt, tp, _), _) => (pt, tp) }
+      metric                                      <- metrics.toSeq.sortBy(_.toString)
     } {
       val matrixName = s"${pathType}_${metric}__$timePeriod"
-      val valuesFloat = Array.fill[Float](shape(0), shape(1))(Float.NaN)
-      val matrix = new OmxMatrix.OmxFloatMatrix(matrixName, valuesFloat, -1.0f)
+      val valuesFloat = Array.fill[Float](n, n)(canonicalNaN)
+      val flatValues = Array.fill[Float](n * n)(canonicalNaN)
+      val unitConv = getUnitConversion(metric)
 
-      matrix.setAttribute("mode", pathType)
-      matrix.setAttribute("timePeriod", timePeriod)
-      matrix.setAttribute("measure", metric.toString)
+      // Sort excerpts deterministically by (originIdx, destIdx) before populating
+      val sortedExcerpts = excerpts
+        .flatMap { excerptData =>
+          for {
+            row    <- geoUnitMapping.get(excerptData.originId)
+            column <- geoUnitMapping.get(excerptData.destinationId)
+          } yield (row, column, excerptData)
+        }
+        .sortBy { case (r, c, _) => (r, c) }
 
-      // Fill the matrix
-      for {
-        excerptData <- excerpts
-        row         <- geoUnitMapping.get(excerptData.originId)
-        column      <- geoUnitMapping.get(excerptData.destinationId)
-      } {
-        matrix.getData()(row)(column) = excerptData.getValue(metric).toFloat * getUnitConversion(metric)
+      sortedExcerpts.foreach { case (row, column, excerptData) =>
+        val rawVal = excerptData.getValue(metric).toFloat * unitConv
+        val canonicalVal = SkimsProvenanceMetadata.canonicalizeFloat(rawVal)
+        valuesFloat(row)(column) = canonicalVal
+        flatValues(row * n + column) = canonicalVal
       }
 
-      omxFile.addMatrix(matrix)
+      preparedMatricesBuffer += PreparedOmxMatrix(
+        matrixName = matrixName,
+        pathType = pathType,
+        timePeriod = timePeriod,
+        metric = metric.toString,
+        values2D = valuesFloat,
+        flatValues = flatValues
+      )
     }
 
-    logger.info("Saving OMX file...")
-    omxFile.save()
-    logger.info("OMX file saved successfully")
-    omxFile.close()
-    logger.info("OMX file closed")
+    val sortedMatrices = preparedMatricesBuffer.sortBy(_.matrixName).toSeq
+    val logicalSha256 = SkimsProvenanceMetadata.computeLogicalMatricesSha256(
+      zoneNumbers = zoneNumbers,
+      sortedMatrices = sortedMatrices.map(m => (m.matrixName, shape, m.flatValues))
+    )
+
+    try {
+      // Attach root provenance attributes via OmxFile (extends AttributedElement)
+      val rootAttributes = ArrayBuffer[(String, Any)](
+        "beam_skims_schema_version" -> provenanceMetadata
+          .map(_.beamSkimsSchemaVersion)
+          .getOrElse(SkimsProvenanceMetadata.SchemaVersion),
+        "logical_matrices_sha256" -> logicalSha256,
+        "taz_count"               -> Integer.valueOf(n)
+      )
+      provenanceMetadata.foreach { meta =>
+        rootAttributes += ("bifurcate_tolls"       -> meta.bifurcateTolls.toString)
+        rootAttributes += ("generate_return_trips" -> meta.generateReturnTrips.toString)
+        rootAttributes += ("modes_built"           -> meta.modesBuilt)
+        rootAttributes += ("peak_hours"            -> meta.peakHours)
+        rootAttributes += ("router_type"           -> meta.routerType)
+        rootAttributes += ("skims_geo_type"        -> meta.skimsGeoType)
+        rootAttributes += ("skims_kind"            -> meta.skimsKind)
+      }
+      rootAttributes.sortBy(_._1).foreach { case (attrName, attrVal) =>
+        omxFile.setAttribute(attrName, attrVal)
+      }
+
+      // Add /lookup/zone_number
+      if (n > 0) {
+        val zoneNumberLookup = new OmxLookup.OmxIntLookup("zone_number", zoneNumbers, Integer.valueOf(-1))
+        omxFile.addLookup(zoneNumberLookup)
+      }
+
+      // Add /data/<matrixName> matrices in sorted order
+      sortedMatrices.foreach { m =>
+        val matrix = new OmxMatrix.OmxFloatMatrix(m.matrixName, m.values2D, java.lang.Float.valueOf(-1.0f))
+        matrix.setAttribute("measure", m.metric)
+        matrix.setAttribute("mode", m.pathType)
+        matrix.setAttribute("timePeriod", m.timePeriod)
+        omxFile.addMatrix(matrix)
+      }
+
+      logger.info(s"Saving OMX file with ${sortedMatrices.size} matrices and logical hash $logicalSha256...")
+      omxFile.save()
+      logger.info("OMX file saved successfully")
+    } finally {
+      omxFile.close()
+      logger.info("OMX file closed")
+    }
 
     // Write geo unit mapping as before
     CsvWriter(filePath + ".mapping", "zone_id").writeAllAndClose(geoUnits.map(Seq(_)))

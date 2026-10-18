@@ -7,7 +7,12 @@ import beam.router.Modes.BeamMode
 import beam.router.skim.ActivitySimSkimmer.ExcerptData
 import beam.router.skim._
 import beam.router.skim.core.{AbstractSkimmer, ODSkimmer}
-import beam.router.skim.urbansim.{ActivitySimOmxWriter, ActivitySimZarrWriter, BackgroundFullSkimsCreator}
+import beam.router.skim.urbansim.{
+  ActivitySimOmxWriter,
+  ActivitySimZarrWriter,
+  BackgroundFullSkimsCreator,
+  SkimsProvenanceMetadata
+}
 import beam.router.{FreeFlowTravelTime, LinkTravelTimeContainer}
 import beam.sim.config.BeamExecutionConfig
 import beam.sim.{BeamHelper, BeamServices}
@@ -96,7 +101,9 @@ object FullSkimsCreatorApp extends App with BeamHelper {
         .validate(fileValidator)
         .action((x, c) => c.copy(input = Some(x.toPath)))
         .text("input csv file path"),
-      opt[File]("output").action((x, c) => c.copy(output = x.toPath)).text("output csv file path (default: output/full-skims.csv.gz)"),
+      opt[File]("output")
+        .action((x, c) => c.copy(output = x.toPath))
+        .text("output csv file path (default: output/full-skims.csv.gz)"),
       opt[File]("linkstatsPath")
         .validate(fileValidator)
         .action((x, c) => c.copy(linkstatsPath = Some(x.toPath)))
@@ -127,10 +134,14 @@ object FullSkimsCreatorApp extends App with BeamHelper {
         .text("Secondary R5 directory path for dual routing"),
       opt[Boolean]("generateReturnTrips")
         .action((x, c) => c.copy(generateReturnTrips = Some(x)))
-        .text("Generate return trips for drive-transit (walk-transit-drive): true/false (default: true if drive-transit or drive+transit)"),
+        .text(
+          "Generate return trips for drive-transit (walk-transit-drive): true/false (default: true if drive-transit or drive+transit)"
+        ),
       opt[Boolean]("bifurcateTolls")
         .action((x, c) => c.copy(bifurcateTolls = Some(x)))
-        .text("Bifurcate auto routing into toll-free (SOV) and toll-permitted (SOVTOLL) passes: true/false (default: true for ActivitySim skims)"),
+        .text(
+          "Bifurcate auto routing into toll-free (SOV) and toll-permitted (SOVTOLL) passes: true/false (default: true for ActivitySim skims)"
+        ),
       opt[File]("tollFilePath")
         .validate(fileValidator)
         .action((x, c) => c.copy(tollFilePath = Some(x.toPath)))
@@ -168,7 +179,8 @@ object FullSkimsCreatorApp extends App with BeamHelper {
       weightedTransitBoardingsCount = rec.get("BOARDS").toDouble,
       weightedCost = Option(rec.get("WeightedCost")).map(_.toDouble).getOrElse(0.0d),
       failedTrips = Option(rec.get("failedTrips")).orElse(Option(rec.get("FailedTrips"))).map(_.toInt).getOrElse(0),
-      completedTrips = Option(rec.get("completedTrips")).orElse(Option(rec.get("CompletedTrips"))).map(_.toInt).getOrElse(0),
+      completedTrips =
+        Option(rec.get("completedTrips")).orElse(Option(rec.get("CompletedTrips"))).map(_.toInt).getOrElse(0),
       debugText = rec.get("DEBUG_TEXT"),
       weightedBridgeTollInCents = Option(rec.get("BTOLL_cents")).map(_.toDouble).getOrElse(0.0),
       weightedValueTollInCents = Option(rec.get("VTOLL_cents")).map(_.toDouble).getOrElse(0.0)
@@ -318,10 +330,6 @@ object FullSkimsCreatorApp extends App with BeamHelper {
         .getOrElse(Vector.empty)
         .groupBy(data => (data.originId, data.destinationId))
 
-    val skimmer = createSkimmer(beamServices, odRows, existingSkims)
-
-    implicit val ec = actorSystem.dispatcher
-
     val backgroundODSkimsCreatorConfig = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator
     val parallelismInfo =
       if (params.parallelism > 0) s"${params.parallelism} (explicit)" else "auto-scale (80% of CPUs)"
@@ -334,10 +342,41 @@ object FullSkimsCreatorApp extends App with BeamHelper {
       hasDriveTransit || (backgroundODSkimsCreatorConfig.modesToBuild.drive && backgroundODSkimsCreatorConfig.modesToBuild.transit)
     }
 
-    val isActivitySim = skimmer.isInstanceOf[ActivitySimSkimmer]
+    val skimsKind = backgroundODSkimsCreatorConfig.skimsKind
+    val isActivitySim =
+      skimsKind == "activitySim" || skimsKind == "activitySimOmx" || skimsKind == "activitySimZarr" || skimsKind == "zarr"
     val shouldBifurcateTolls = params.bifurcateTolls.getOrElse {
       isActivitySim && (backgroundODSkimsCreatorConfig.modesToBuild.drive || modesStr.toLowerCase.contains("drive"))
     }
+
+    val canonicalModesBuilt = {
+      val modeSet = scala.collection.mutable.SortedSet.empty[String]
+      if (backgroundODSkimsCreatorConfig.modesToBuild.drive) modeSet += "drive"
+      if (backgroundODSkimsCreatorConfig.modesToBuild.walk) modeSet += "walk"
+      if (backgroundODSkimsCreatorConfig.modesToBuild.transit) modeSet += "transit"
+      if (hasDriveTransit) modeSet += "drive_transit"
+      modeSet.mkString(",")
+    }
+
+    val canonicalPeakHours = BackgroundFullSkimsCreator
+      .getPeakHoursFromConfig(beamServices)
+      .map(h => if (h == h.toLong.toDouble) f"${h.toLong}.0" else h.toString)
+      .mkString(",")
+
+    val provenanceMetadata = SkimsProvenanceMetadata(
+      skimsKind = skimsKind,
+      routerType = backgroundODSkimsCreatorConfig.routerType,
+      skimsGeoType = backgroundODSkimsCreatorConfig.skimsGeoType,
+      peakHours = canonicalPeakHours,
+      modesBuilt = canonicalModesBuilt,
+      bifurcateTolls = shouldBifurcateTolls,
+      generateReturnTrips = shouldGenerateReturnTrips,
+      tazCount = beamServices.beamScenario.tazTreeMapForASimSkimmer.orderedTazIds.size
+    )
+
+    val skimmer = createSkimmer(beamServices, odRows, existingSkims, Some(provenanceMetadata))
+
+    implicit val ec = actorSystem.dispatcher
 
     val activeBeamModes = {
       val modes = scala.collection.mutable.ArrayBuffer.empty[BeamMode]
@@ -379,13 +418,15 @@ object FullSkimsCreatorApp extends App with BeamHelper {
   def createSkimmer(
     beamServices: BeamServices,
     rows: Vector[ODRow],
-    existingSkims: Map[(String, String), Vector[ExcerptData]]
+    existingSkims: Map[(String, String), Vector[ExcerptData]],
+    provenanceMetadata: Option[SkimsProvenanceMetadata] = None
   ): AbstractSkimmer = {
     beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.skimsKind match {
-      case "od"                       => createOdSkimmer(beamServices, rows)
-      case "activitySim"              => createActivitySimSkimmer(beamServices, rows, existingSkims)
-      case "activitySimOmx"           => createActivitySimOmxSkimmer(beamServices, rows, existingSkims)
-      case "activitySimZarr" | "zarr" => createActivitySimZarrSkimmer(beamServices, rows, existingSkims)
+      case "od"             => createOdSkimmer(beamServices, rows)
+      case "activitySim"    => createActivitySimSkimmer(beamServices, rows, existingSkims)
+      case "activitySimOmx" => createActivitySimOmxSkimmer(beamServices, rows, existingSkims, provenanceMetadata)
+      case "activitySimZarr" | "zarr" =>
+        createActivitySimZarrSkimmer(beamServices, rows, existingSkims, provenanceMetadata)
       case skimsKind =>
         throw new IllegalArgumentException(
           s"Unexpected skims kind ($skimsKind)"
@@ -436,7 +477,8 @@ object FullSkimsCreatorApp extends App with BeamHelper {
   def createActivitySimOmxSkimmer(
     beamServices: BeamServices,
     rows: Vector[ODRow],
-    existingSkims: Map[(String, String), Vector[ExcerptData]]
+    existingSkims: Map[(String, String), Vector[ExcerptData]],
+    provenanceMetadata: Option[SkimsProvenanceMetadata] = None
   ): ActivitySimSkimmer =
     new ActivitySimSkimmer(beamServices.matsimServices, beamServices.beamScenario, beamServices.beamConfig) {
 
@@ -449,7 +491,7 @@ object FullSkimsCreatorApp extends App with BeamHelper {
           }
         }.iterator
         ProfilingUtils.timed(s"writeFullOmxSkims", v => logger.info(v)) {
-          ActivitySimOmxWriter.writeToOmx(filePath, skimData, geoUnits)
+          ActivitySimOmxWriter.writeToOmx(filePath, skimData, geoUnits, provenanceMetadata)
         }
         logger.info("Written {} x {} OMX file to {}", geoUnits.size, geoUnits.size, filePath)
       }
@@ -458,7 +500,8 @@ object FullSkimsCreatorApp extends App with BeamHelper {
   def createActivitySimZarrSkimmer(
     beamServices: BeamServices,
     rows: Vector[ODRow],
-    existingSkims: Map[(String, String), Vector[ExcerptData]]
+    existingSkims: Map[(String, String), Vector[ExcerptData]],
+    provenanceMetadata: Option[SkimsProvenanceMetadata] = None
   ): ActivitySimSkimmer =
     new ActivitySimSkimmer(beamServices.matsimServices, beamServices.beamScenario, beamServices.beamConfig) {
 
@@ -471,7 +514,7 @@ object FullSkimsCreatorApp extends App with BeamHelper {
           }
         }.iterator
         ProfilingUtils.timed(s"writeFullZarrSkims", v => logger.info(v)) {
-          ActivitySimZarrWriter.writeToZarr(filePath, skimData, geoUnits)
+          ActivitySimZarrWriter.writeToZarr(filePath, skimData, geoUnits, provenanceMetadata)
         }
         logger.info("Written {} x {} Zarr directory to {}", geoUnits.size, geoUnits.size, filePath)
       }

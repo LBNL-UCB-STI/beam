@@ -22,7 +22,10 @@ class SeattleTollVerificationSpec extends AnyWordSpecLike with Matchers {
 
   private lazy val config = BeamConfig(
     testConfig("test/input/beamville/beam.conf")
-      .withValue("beam.agentsim.toll.filePath", com.typesafe.config.ConfigValueFactory.fromAnyRef(tollCsvFile.getAbsolutePath))
+      .withValue(
+        "beam.agentsim.toll.filePath",
+        com.typesafe.config.ConfigValueFactory.fromAnyRef(tollCsvFile.getAbsolutePath)
+      )
       .resolve()
   )
 

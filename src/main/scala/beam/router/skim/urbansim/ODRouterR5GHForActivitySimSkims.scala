@@ -268,6 +268,7 @@ case class ODRouterR5GHForActivitySimSkims(
 }
 
 case class DualR5Router(primaryRouter: Router, secondRouter: Option[Router]) extends Router {
+
   override def calcRoute(
     request: RoutingRequest,
     buildDirectCarRoute: Boolean,

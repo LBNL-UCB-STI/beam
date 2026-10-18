@@ -10,7 +10,8 @@ import com.typesafe.scalalogging.LazyLogging
 import com.bc.zarr.storage.FileSystemStore
 import ucar.ma2.{Index3D, Array => NetcdfArray}
 
-import java.nio.file.Paths
+import java.nio.file.{Files, Paths}
+import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.seqAsJavaListConverter
 
 object ActivitySimZarrWriter extends LazyLogging {
@@ -18,7 +19,8 @@ object ActivitySimZarrWriter extends LazyLogging {
   def writeToZarr(
     filePath: String,
     skimData: Iterator[ExcerptData],
-    geoUnits: Seq[String]
+    geoUnits: Seq[String],
+    provenanceMetadata: Option[SkimsProvenanceMetadata] = None
   ): Unit = try {
     logger.info(s"Starting writeToZarr with filePath: $filePath")
 
@@ -31,7 +33,7 @@ object ActivitySimZarrWriter extends LazyLogging {
       } yield pathType -> limitedData
     ).toMap
 
-    logger.info(s"pathTypeToMatrixData keys: ${pathTypeToMatrixData.keys.map(_.toString).mkString(", ")}")
+    logger.info(s"pathTypeToMatrixData keys: ${pathTypeToMatrixData.keys.map(_.toString).toSeq.sorted.mkString(", ")}")
 
     // Check if geoUnits are 1-based continuous integers
     try {
@@ -59,6 +61,7 @@ object ActivitySimZarrWriter extends LazyLogging {
 
     // Create 0-based TAZ IDs for coordinates, allowing ActivitySim to skip re-indexing
     val coordArray = geoUnits.indices.toArray // [0, 1, 2, ..., n-1]
+    val zoneNumbers: Array[Int] = SkimsProvenanceMetadata.buildZoneNumbers(geoUnits)
 
     val timePeriods = ActivitySimTimeBin.values.toIndexedSeq // Keep as enum values for index lookup
     val timePeriodNames = timePeriods.map(_.entryName)
@@ -83,27 +86,30 @@ object ActivitySimZarrWriter extends LazyLogging {
 
     val failuresAndSuccesses = skimDataSeq
       .groupBy(_.pathType.toString)
-      .mapValues(v => (v.map(_.getValue(TRIPS)).sum, v.map(_.getValue(FAILURES)).sum))
+      .toSeq
+      .sortBy(_._1)
+      .map { case (k, v) => k -> (v.map(_.getValue(TRIPS)).sum, v.map(_.getValue(FAILURES)).sum) }
     logger.info(s"Total counts by path type: ${failuresAndSuccesses.mkString(", ")}")
 
     // --- Zarr Directory Store Implementation using com.bc.zarr ---
+    val targetPath = Paths.get(filePath)
+    if (Files.exists(targetPath)) {
+      com.bc.zarr.ZarrUtils.deleteDirectoryTreeRecursively(targetPath)
+    }
 
-    val store = new FileSystemStore(Paths.get(filePath))
+    val store = new FileSystemStore(targetPath)
     logger.info(s"Zarr Directory Store created/opened at: $filePath")
 
     var rootGroup: com.bc.zarr.ZarrGroup = null
     try {
       rootGroup = com.bc.zarr.ZarrGroup.create(store)
       logger.info("Root Zarr group created successfully")
-      val rootAttrs = rootGroup.getAttributes
-      rootAttrs.put("original_zone_ids", geoUnits.asJava)
-      rootAttrs.put("taz_format", "arbitrary")
-      rootGroup.writeAttributes(rootAttrs)
 
       var dataset_count = 0
       val shape = Array[Int](geoUnits.size, geoUnits.size, timePeriods.size)
       val zeroOffset = Array[Int](0, 0, 0)
       val idx = new Index3D(shape)
+      val canonicalNaN = SkimsProvenanceMetadata.canonicalizeFloat(Float.NaN)
 
       val compressor = com.bc.zarr.CompressorFactory.create(
         "blosc",
@@ -121,7 +127,7 @@ object ActivitySimZarrWriter extends LazyLogging {
         .chunks(chunkShape: _*)
         .dataType(DataType.f4)
         .compressor(compressor)
-        .fillValue(Float.NaN)
+        .fillValue(canonicalNaN)
 
       // Store indices as coordinates
       val originCoordParams = new com.bc.zarr.ArrayParams()
@@ -129,11 +135,18 @@ object ActivitySimZarrWriter extends LazyLogging {
         .dataType(DataType.i4)
         .fillValue(-1)
       val originCoord = rootGroup.createArray("otaz", originCoordParams)
-      originCoord.write(coordArray, Array(geoUnits.size), Array(0)) // Write 1, 2, 3, ...
+      originCoord.write(coordArray, Array(geoUnits.size), Array(0))
 
       // Similar for destination
       val destCoord = rootGroup.createArray("dtaz", originCoordParams)
-      destCoord.write(coordArray, Array(geoUnits.size), Array(0)) // Write 1, 2, 3, ...
+      destCoord.write(coordArray, Array(geoUnits.size), Array(0))
+
+      // Also write 1D int32 zone_number lookup matching OMX /lookup/zone_number
+      val zoneNumberCoord = rootGroup.createArray("zone_number", originCoordParams)
+      zoneNumberCoord.write(zoneNumbers, Array(geoUnits.size), Array(0))
+      val zoneNumberAttrs = new java.util.LinkedHashMap[String, Object]()
+      zoneNumberAttrs.put("_ARRAY_DIMENSIONS", java.util.Arrays.asList("otaz"))
+      zoneNumberCoord.writeAttributes(zoneNumberAttrs)
 
       // For time periods, use indices
       val timeCoordParams = new com.bc.zarr.ArrayParams()
@@ -143,26 +156,32 @@ object ActivitySimZarrWriter extends LazyLogging {
       val timeCoord = rootGroup.createArray("time_period", timeCoordParams)
       timeCoord.write(Array(0, 1, 2, 3, 4), Array(timePeriods.size), Array(0))
 
-      // Add labels as attributes
-      val timeAttrs = timeCoord.getAttributes()
-      timeAttrs.put("labels", timePeriodNames.asJava)
+      // Add labels as attributes in deterministic key order
+      val timeAttrs = new java.util.LinkedHashMap[String, Object]()
       timeAttrs.put("_ARRAY_DIMENSIONS", java.util.Arrays.asList("time_period"))
+      timeAttrs.put("labels", timePeriodNames.asJava)
       timeCoord.writeAttributes(timeAttrs)
 
-      // Add _ARRAY_DIMENSIONS to coordinate arrays (optional but good practice)
-      val originAttrs = originCoord.getAttributes()
+      // Add _ARRAY_DIMENSIONS to coordinate arrays
+      val originAttrs = new java.util.LinkedHashMap[String, Object]()
       originAttrs.put("_ARRAY_DIMENSIONS", java.util.Arrays.asList("otaz"))
       originCoord.writeAttributes(originAttrs)
 
-      val destAttrs = destCoord.getAttributes()
+      val destAttrs = new java.util.LinkedHashMap[String, Object]()
       destAttrs.put("_ARRAY_DIMENSIONS", java.util.Arrays.asList("dtaz"))
       destCoord.writeAttributes(destAttrs)
 
       logger.info(s"Grouped data has ${groupedData.size} unique path types and metrics combinations.")
 
-      groupedData.foreach { case ((pathType, metrics), excerpts) =>
-        logger.info(s"Processing path type: $pathType with metrics: ${metrics.mkString(", ")}")
-        val metricToArray = metrics.map { metric =>
+      // Collect 2D (pathType_metric__timePeriod) logical slices to compute the exact same logical_matrices_sha256 as OMX
+      val logical2DSlices = ArrayBuffer.empty[(String, Array[Int], Array[Float])]
+      val shape2D = Array[Int](geoUnits.size, geoUnits.size)
+      val n = geoUnits.size
+
+      groupedData.toSeq.sortBy(_._1._1).foreach { case ((pathType, metrics), excerpts) =>
+        val sortedMetrics = metrics.toSeq.sortBy(_.toString)
+        logger.info(s"Processing path type: $pathType with metrics: ${sortedMetrics.mkString(", ")}")
+        val metricToArray = sortedMetrics.map { metric =>
           val matrixName = s"${pathType}_${metric}"
           logger.debug(s"Creating dataset '$matrixName' with shape ${shape.mkString("x")}")
           dataset_count += 1
@@ -171,46 +190,70 @@ object ActivitySimZarrWriter extends LazyLogging {
 
           // Create a NetcdfArray to fill data
           val netcdfArray = NetcdfArray.factory(ucar.ma2.DataType.FLOAT, shape)
-          java.util.Arrays.fill(netcdfArray.getStorage.asInstanceOf[Array[Float]], Float.NaN)
+          java.util.Arrays.fill(netcdfArray.getStorage.asInstanceOf[Array[Float]], canonicalNaN)
 
           (metric, (zarrArray, netcdfArray))
-        }.toMap
+        }
 
-        excerpts.foreach { excerptData =>
-          for {
-            row     <- geoUnitMapping.get(excerptData.originId)
-            column  <- geoUnitMapping.get(excerptData.destinationId)
-            timeIdx <- timePeriodLookup.get(excerptData.timePeriodString)
-            if timeIdx >= 0
-          } {
-            metricToArray.foreach { case (metric, (_, netcdfArray)) =>
-              val value = excerptData.getValue(metric).toFloat * getUnitConversion(metric)
-              netcdfArray.setFloat(idx.set(row, column, timeIdx), value)
-            }
+        val metricToArrayMap = metricToArray.toMap
+        val observedTimeIndices = scala.collection.mutable.SortedSet.empty[Int]
+
+        // Sort excerpts deterministically by (row, column, timeIdx)
+        val sortedExcerpts = excerpts
+          .flatMap { excerptData =>
+            for {
+              row     <- geoUnitMapping.get(excerptData.originId)
+              column  <- geoUnitMapping.get(excerptData.destinationId)
+              timeIdx <- timePeriodLookup.get(excerptData.timePeriodString)
+              if timeIdx >= 0
+            } yield (row, column, timeIdx, excerptData)
+          }
+          .sortBy { case (r, c, t, _) => (r, c, t) }
+
+        sortedExcerpts.foreach { case (row, column, timeIdx, excerptData) =>
+          observedTimeIndices += timeIdx
+          sortedMetrics.foreach { metric =>
+            val (_, netcdfArray) = metricToArrayMap(metric)
+            val rawValue = excerptData.getValue(metric).toFloat * getUnitConversion(metric)
+            val value = SkimsProvenanceMetadata.canonicalizeFloat(rawValue)
+            netcdfArray.setFloat(idx.set(row, column, timeIdx), value)
           }
         }
 
         metricToArray.foreach { case (metric, (zarrArray, netcdfArray)) =>
-          {
-            try {
-              zarrArray.write(netcdfArray.get1DJavaArray(netcdfArray.getDataType), shape, zeroOffset)
-            } catch {
-              case e: java.lang.NoSuchMethodError =>
-                val conversion = getUnitConversion(metric)
-                logger.info(s"Writing value ($metric) with conversion: $conversion")
-                logger.error(
-                  s"Failed to initialize data for ${metric.toString} at offset ${zeroOffset
-                    .mkString("Array(", ", ", ")")}: ${e.getMessage}",
-                  e
-                )
-            }
+          try {
+            zarrArray.write(netcdfArray.get1DJavaArray(netcdfArray.getDataType), shape, zeroOffset)
+          } catch {
+            case e: java.lang.NoSuchMethodError =>
+              val conversion = getUnitConversion(metric)
+              logger.info(s"Writing value ($metric) with conversion: $conversion")
+              logger.error(
+                s"Failed to initialize data for ${metric.toString} at offset ${zeroOffset
+                  .mkString("Array(", ", ", ")")}: ${e.getMessage}",
+                e
+              )
           }
 
-          val attrs = zarrArray.getAttributes()
-          attrs.put("mode", pathType)
-          attrs.put("measure", metric.toString)
-          attrs.put("timePeriods", timePeriodNames.toList.asJava)
+          observedTimeIndices.foreach { timeIdx =>
+            val tpName = timePeriodNames(timeIdx)
+            val slice2D = Array.fill[Float](n * n)(canonicalNaN)
+            var r = 0
+            while (r < n) {
+              var c = 0
+              while (c < n) {
+                slice2D(r * n + c) = netcdfArray.getFloat(idx.set(r, c, timeIdx))
+                c += 1
+              }
+              r += 1
+            }
+            logical2DSlices += ((s"${pathType}_${metric}__$tpName", shape2D, slice2D))
+          }
+
+          val attrs = new java.util.LinkedHashMap[String, Object]()
           attrs.put("_ARRAY_DIMENSIONS", java.util.Arrays.asList("otaz", "dtaz", "time_period"))
+          attrs.put("measure", metric.toString)
+          attrs.put("mode", pathType)
+          attrs.put("timePeriods", timePeriodNames.toList.asJava)
 
           zarrArray.writeAttributes(attrs)
 
@@ -218,8 +261,35 @@ object ActivitySimZarrWriter extends LazyLogging {
         }
       }
 
+      val logicalSha256 = SkimsProvenanceMetadata.computeLogicalMatricesSha256(
+        zoneNumbers = zoneNumbers,
+        sortedMatrices = logical2DSlices.sortBy(_._1).toSeq
+      )
+
+      val rootAttrsList = ArrayBuffer[(String, Object)](
+        "beam_skims_schema_version" -> provenanceMetadata
+          .map(_.beamSkimsSchemaVersion)
+          .getOrElse(SkimsProvenanceMetadata.SchemaVersion),
+        "logical_matrices_sha256" -> logicalSha256,
+        "original_zone_ids"       -> geoUnits.asJava,
+        "taz_count"               -> Integer.valueOf(geoUnits.size),
+        "taz_format"              -> "arbitrary"
+      )
+      provenanceMetadata.foreach { meta =>
+        rootAttrsList += ("bifurcate_tolls"       -> java.lang.Boolean.valueOf(meta.bifurcateTolls))
+        rootAttrsList += ("generate_return_trips" -> java.lang.Boolean.valueOf(meta.generateReturnTrips))
+        rootAttrsList += ("modes_built"           -> meta.modesBuilt)
+        rootAttrsList += ("peak_hours"            -> meta.peakHours)
+        rootAttrsList += ("router_type"           -> meta.routerType)
+        rootAttrsList += ("skims_geo_type"        -> meta.skimsGeoType)
+        rootAttrsList += ("skims_kind"            -> meta.skimsKind)
+      }
+      val rootAttrs = new java.util.LinkedHashMap[String, Object]()
+      rootAttrsList.sortBy(_._1).foreach { case (k, v) => rootAttrs.put(k, v) }
+      rootGroup.writeAttributes(rootAttrs)
+
       logger.info(
-        s"Zarr Directory Store written successfully with $dataset_count datasets."
+        s"Zarr Directory Store written successfully with $dataset_count datasets and logical hash $logicalSha256."
       )
 
     } finally {

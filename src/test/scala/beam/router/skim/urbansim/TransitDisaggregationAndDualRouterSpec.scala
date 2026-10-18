@@ -71,7 +71,7 @@ class TransitDisaggregationAndDualRouterSpec extends AnyWordSpecLike with Matche
 
       val combined = ODRouterR5GHForActivitySimSkims.unionItineraries(it1, it2)
       combined should have size 4
-      combined should contain allOf(busTrip1, busTrip2, railTrip)
+      combined should contain allOf (busTrip1, busTrip2, railTrip)
     }
   }
 
@@ -144,7 +144,7 @@ class TransitDisaggregationAndDualRouterSpec extends AnyWordSpecLike with Matche
 
       // Verify mapped path types
       val pathTypes = selectedTrips.map(t => ActivitySimPathType.determineTripPathTypeAndFleet(t)._1)
-      pathTypes should contain allOf(ActivitySimPathType.WLK_LOC_WLK, ActivitySimPathType.WLK_LRF_WLK)
+      pathTypes should contain allOf (ActivitySimPathType.WLK_LOC_WLK, ActivitySimPathType.WLK_LRF_WLK)
     }
 
     "keep walk trip if buildDirectWalkRoute is true" in {
@@ -362,7 +362,11 @@ class TransitDisaggregationAndDualRouterSpec extends AnyWordSpecLike with Matche
             emittedEvents += SkimRecord(ActivitySimPathType.SOVTOLL, 0.0, 0.0)
           } else {
             // Tolled route: recorded as SOVTOLL with value toll in VTOLL
-            emittedEvents += SkimRecord(ActivitySimPathType.SOVTOLL, bridgeTollInCents = 0.0, valueTollInCents = toll * 100.0)
+            emittedEvents += SkimRecord(
+              ActivitySimPathType.SOVTOLL,
+              bridgeTollInCents = 0.0,
+              valueTollInCents = toll * 100.0
+            )
             tolledCarODs.put((src, dst, time), java.lang.Boolean.TRUE)
           }
         }
@@ -442,4 +446,3 @@ class TransitDisaggregationAndDualRouterSpec extends AnyWordSpecLike with Matche
     }
   }
 }
-
