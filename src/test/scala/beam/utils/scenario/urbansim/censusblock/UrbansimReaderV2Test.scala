@@ -610,5 +610,40 @@ class UrbansimReaderV2Test extends AnyWordSpec with Matchers {
       ParquetReaders.parseDouble("NaN") shouldBe 0.0
       ParquetReaders.parseDouble("42.5") shouldBe 42.5
     }
+
+    "leave legDepartureTime empty on unexecuted legs and convert activityEndTime seconds to hours" in {
+      // 1. Unexecuted leg with departure_time (hours) but no legDepartureTime should leave legDepartureTime = None
+      val unexecutedLegInput = InputPlanElement(
+        tripId = Some("10"),
+        tourId = Some("20"),
+        personId = "p1",
+        planElementIndex = 2,
+        activityElement = Leg,
+        tripMode = Some("CAR"),
+        ActivityType = None,
+        x = None,
+        y = None,
+        departureTime = Some(8.5),
+        legDepartureTime = None,
+        legTravelTime = None
+      )
+      val merger = new PlanMerger(Map("CAR" -> "car"))
+      val mergedLeg = merger.merge(Iterator(unexecutedLegInput)).next()
+      mergedLeg.legDepartureTime shouldBe None
+      mergedLeg.legTravelTime shouldBe None
+
+      // 2. CSV InputPlanElement with activityEndTime (seconds) and no departure_time converts to hours (/ 3600.0)
+      val mapCsvEnd = new java.util.HashMap[String, String]()
+      mapCsvEnd.put("personId", "p1")
+      mapCsvEnd.put("planElementIndex", "1")
+      mapCsvEnd.put("planElementType", "activity")
+      mapCsvEnd.put("activityType", "Home")
+      mapCsvEnd.put("activityLocationX", "0.0")
+      mapCsvEnd.put("activityLocationY", "0.0")
+      mapCsvEnd.put("activityEndTime", "28800.0")
+      val elemFromActivityEnd = InputPlanElement.transform(mapCsvEnd)
+      elemFromActivityEnd.departureTime shouldBe Some(8.0)
+    }
   }
 }
+

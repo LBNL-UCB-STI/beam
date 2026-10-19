@@ -208,7 +208,8 @@ class ParquetPlanReader(path: String) extends BaseParquetReader[InputPlanElement
         getFieldFromNames(record, "ActivityType", "activityType").map(_.toString).filterNot(isNullOrNanString),
       x = readDoubleOpt(getFieldFromNames(record, "x", "activityLocationX")),
       y = readDoubleOpt(getFieldFromNames(record, "y", "activityLocationY")),
-      departureTime = readDoubleOpt(getFieldFromNames(record, "departure_time", "departureTime", "activityEndTime")),
+      departureTime = readDoubleOpt(getFieldFromNames(record, "departure_time", "departureTime"))
+        .orElse(readDoubleOpt(getFieldOpt(record, "activityEndTime")).map(_ / 3600.0)),
       expectedDurationMinutes = readDoubleOpt(getFieldOpt(record, "trip_dur_min")),
       expectedCostDollars = readDoubleOpt(getFieldOpt(record, "trip_cost_dollars")),
       planIndex = readPlanIndex(record),

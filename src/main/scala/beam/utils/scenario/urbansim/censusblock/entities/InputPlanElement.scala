@@ -63,9 +63,14 @@ object InputPlanElement extends EntityTransformer[InputPlanElement] {
     val yWgs = getFromNames(m, "y", "activityLocationY")
       .filterNot(isNullOrNanString)
       .flatMap(s => scala.util.Try(s.toDouble).toOption)
-    val departureTime = getFromNames(m, "departure_time", "departureTime", "activityEndTime")
+    val departureTime = getFromNames(m, "departure_time", "departureTime")
       .filterNot(isNullOrNanString)
       .flatMap(s => scala.util.Try(s.toDouble).toOption)
+      .orElse(
+        getFromNames(m, "activityEndTime")
+          .filterNot(isNullOrNanString)
+          .flatMap(s => scala.util.Try(s.toDouble / 3600.0).toOption)
+      )
     val legDepartureTime =
       getFromNames(m, "legDepartureTime", "leg_departure_time", "legdeparturetime").filterNot(isNullOrNanString)
     val legTravelTime =

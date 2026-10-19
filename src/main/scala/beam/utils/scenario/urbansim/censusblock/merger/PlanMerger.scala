@@ -1,6 +1,6 @@
 package beam.utils.scenario.urbansim.censusblock.merger
 
-import beam.utils.scenario.urbansim.censusblock.entities.{InputPlanElement, Leg}
+import beam.utils.scenario.urbansim.censusblock.entities.InputPlanElement
 import beam.utils.scenario.{PersonId, PlanElement}
 
 class PlanMerger(modeMap: Map[String, String]) extends Merger[InputPlanElement, PlanElement] {
@@ -23,11 +23,7 @@ class PlanMerger(modeMap: Map[String, String]) extends Merger[InputPlanElement, 
       inputPlanElement.y,
       inputPlanElement.departureTime,
       inputPlanElement.tripMode.map(convertMode),
-      legDepartureTime = inputPlanElement.legDepartureTime.orElse(
-        if (inputPlanElement.activityElement == Leg)
-          inputPlanElement.departureTime.map(_.toString)
-        else None
-      ),
+      legDepartureTime = inputPlanElement.legDepartureTime,
       legTravelTime = inputPlanElement.legTravelTime,
       legExpectedTravelTime = inputPlanElement.expectedDurationMinutes,
       legExpectedCost = inputPlanElement.expectedCostDollars,
