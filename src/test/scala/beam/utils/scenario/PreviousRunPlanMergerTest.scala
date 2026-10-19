@@ -220,10 +220,11 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
       )
     }
 
-    "should take only selected plan as planIndex 0 for replaced persons and preserve multi-plan memory for newly added persons" in {
+    "should take only selected plan as planIndex 0 for replaced persons, trim NaN-scored old plans first, and preserve multi-plan memory for newly added persons" in {
       val existingOld = Seq(
-        createPlanElement("0", 0, 0, 49499, planSelected = true, score = 10.0),
-        createPlanElement("0", 0, 1, 49500, planSelected = true, score = 10.0)
+        createPlanElement("0", 0, 0, 49499, planSelected = true, score = -100.0),
+        createPlanElement("0", 0, 1, 49500, planSelected = true, score = -100.0),
+        createPlanElement("0", 1, 0, 48000, planSelected = false, score = Double.NaN)
       )
       val multiPlanNew = Seq(
         // Existing person "0": unselected plan 0 and selected plan 1 in plansToMerge
@@ -236,7 +237,7 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
       )
 
       val res = PreviousRunPlanMerger
-        .merge(existingOld, multiPlanNew, 1.0, 1.0, Some(5), new Random(1))
+        .merge(existingOld, multiPlanNew, 1.0, 1.0, Some(1), new Random(1))
         .toList
         .sortBy(p => (p.personId.id.toInt, p.planIndex, p.planElementIndex))
 
@@ -246,9 +247,9 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
           // Newly merged selected plan becomes planIndex 0, selected = true
           createPlanElement("0", 0, 0, 50000, planSelected = true, score = 20.0),
           createPlanElement("0", 0, 1, 50001, planSelected = true, score = 20.0),
-          // Old plan shifted to planIndex 1, selected = false
-          createPlanElement("0", 1, 0, 49499, planSelected = false, score = 10.0),
-          createPlanElement("0", 1, 1, 49500, planSelected = false, score = 10.0)
+          // Old finite-scored plan (-100.0) is kept at planIndex 1 while NaN-scored plan is trimmed
+          createPlanElement("0", 1, 0, 49499, planSelected = false, score = -100.0),
+          createPlanElement("0", 1, 1, 49500, planSelected = false, score = -100.0)
         )
       )
 

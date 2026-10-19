@@ -194,13 +194,13 @@ class UrbansimReaderV2Test extends AnyWordSpec with Matchers {
           p.planSelected shouldBe true
         }
 
-        // Test lowercase columns and missing planSelected defaulting to planIndex == 0
+        // Test lowercase columns, NaN planScore preservation, and missing planSelected defaulting to planIndex == 0
         val csvFileLower = tempDir.resolve("plans_lower.csv")
         val contentLower =
           """trip_id,tour_id,person_id,trip_mode,ActivityElement,PlanElementIndex,ActivityType,x,y,departure_time,planindex,planscore,planselected
             |1,1,200,car,activity,0,Home,-122.4,37.7,8.0,2,100.0,1
             |1,1,201,car,activity,0,Home,-122.4,37.7,8.0,0,50.0,
-            |1,1,201,car,activity,0,Home,-122.4,37.7,8.0,1,60.0,
+            |1,1,201,car,activity,0,Home,-122.4,37.7,8.0,1,NaN,
             |""".stripMargin
         Files.write(csvFileLower, contentLower.getBytes("UTF-8"))
 
@@ -226,6 +226,7 @@ class UrbansimReaderV2Test extends AnyWordSpec with Matchers {
         p201Plan0.planSelected shouldBe true
         val p201Plan1 = plansLower.find(p => p.personId.id == "201" && p.planIndex == 1).get
         p201Plan1.planSelected shouldBe false
+        p201Plan1.planScore.isNaN shouldBe true
       } finally {
         org.apache.commons.io.FileUtils.deleteDirectory(tempDir.toFile)
       }
@@ -267,7 +268,7 @@ class UrbansimReaderV2Test extends AnyWordSpec with Matchers {
           .optionalDouble("y")
           .optionalDouble("departure_time")
           .optionalInt("planIndex")
-          .optionalDouble("planScore")
+          .optionalString("planScore")
           .optionalString("planSelected")
           .endRecord()
 
@@ -287,7 +288,7 @@ class UrbansimReaderV2Test extends AnyWordSpec with Matchers {
           r0.put("y", 37.7)
           r0.put("departure_time", 8.0)
           r0.put("planIndex", 0)
-          r0.put("planScore", -10.5)
+          r0.put("planScore", "-10.5")
           r0.put("planSelected", "false")
           writer.write(r0)
 
@@ -302,11 +303,12 @@ class UrbansimReaderV2Test extends AnyWordSpec with Matchers {
           r1.put("y", 37.7)
           r1.put("departure_time", 9.0)
           r1.put("planIndex", 1)
-          r1.put("planScore", 42.25)
+          r1.put("planScore", "42.25")
           r1.put("planSelected", "true")
           writer.write(r1)
 
           // Missing/NaN planSelected on planIndex 2 should default to false (since planIndex != 0)
+          // and "NaN" planScore should be preserved as Double.NaN
           val r2 = new GenericData.Record(schema)
           r2.put("trip_id", "3")
           r2.put("tour_id", "1")
@@ -318,7 +320,7 @@ class UrbansimReaderV2Test extends AnyWordSpec with Matchers {
           r2.put("y", 37.7)
           r2.put("departure_time", 10.0)
           r2.put("planIndex", 2)
-          r2.put("planScore", 5.0)
+          r2.put("planScore", "NaN")
           r2.put("planSelected", "NaN")
           writer.write(r2)
         } finally {
@@ -348,7 +350,7 @@ class UrbansimReaderV2Test extends AnyWordSpec with Matchers {
         plans(1).planSelected shouldBe true
 
         plans(2).planIndex shouldBe 2
-        plans(2).planScore shouldBe 5.0
+        plans(2).planScore.isNaN shouldBe true
         plans(2).planSelected shouldBe false
       } finally {
         org.apache.commons.io.FileUtils.deleteDirectory(tempDir.toFile)

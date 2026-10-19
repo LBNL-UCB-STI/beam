@@ -552,6 +552,45 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
       "CAR"
     )
   }
+
+  test("already-resolved car_hov and hov_teleportation plans should not be re-transformed or skew HOV balance") {
+    val acts = Seq(
+      Act("Home", 1100.0, 1100.0),
+      Act("Shopping", 2.0, 2.0),
+      Act("Work", 1200.0, 1200.0),
+      Act("Home", 1100.0, 1100.0)
+    )
+
+    // Historical plans with already-resolved modes (e.g. from prior iterations in PILATES):
+    // - Person 10 has a mixed hov2_teleportation + car_hov2 tour that would fail isForcedHOVTeleportationTrip if re-evaluated
+    // - Person 11 has an all-car_hov3 tour that would be flipped to hov3_teleportation if balance counters are non-zero
+    val historicalPlan10 = newTrip(
+      10,
+      0,
+      modes = Seq(HOV2_TELEPORTATION.value, CAR_HOV2.value, HOV2_TELEPORTATION.value),
+      activities = acts
+    ).toSeq
+    val historicalPlan11 = newTrip(
+      11,
+      0,
+      modes = Seq(CAR_HOV3.value, CAR_HOV3.value, CAR_HOV3.value),
+      activities = acts
+    ).toSeq
+
+    // Person 1 has a forced hov3_teleportation trip (HOV3 + WALK), making forcedHOV3Teleports > 0
+    val unresolvedForcedTeleport = newTrip(
+      1,
+      0,
+      modes = Seq("HOV3", "HOV3", "WALK"),
+      activities = acts
+    ).toSeq
+
+    val input = unresolvedForcedTeleport ++ historicalPlan10 ++ historicalPlan11
+    val output = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(input).toSeq
+
+    output.filter(_.personId.id == "10") shouldBe historicalPlan10
+    output.filter(_.personId.id == "11") shouldBe historicalPlan11
+  }
 }
 
 object HOVModeTransformerTest {

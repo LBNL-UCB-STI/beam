@@ -95,7 +95,7 @@ object HOVModeTransformer extends ExponentialLazyLogging {
 
     val allHOVUserPlans: Set[PersonPlanKey] =
       plansProbablyWithHOV
-        .filter(x => x.legMode.exists(m => m.toLowerCase.contains(hov2) || m.toLowerCase.contains(hov3)))
+        .filter(x => x.legMode.exists(m => isHOV2(m) || isHOV3(m)))
         .map(planKey)
         .toSet
 
@@ -157,13 +157,12 @@ object HOVModeTransformer extends ExponentialLazyLogging {
           } else if (counts.thereAreMoreHOVCars) {
             replaceHOVwithTeleportation(trip, counts)
           } else {
-            val transformedTrip = mapRandomHOVTeleportationOrCar(trip)
-            transformedTrip.foreach {
+            trip.foreach {
               case leg if itIsAnHOV2Leg(leg) => summaryStats("randomHOV2Choices") += 1
               case leg if itIsAnHOV3Leg(leg) => summaryStats("randomHOV3Choices") += 1
               case _                         =>
             }
-            transformedTrip
+            mapRandomHOVTeleportationOrCar(trip)
           }
         } else {
           trip
@@ -224,7 +223,7 @@ object HOVModeTransformer extends ExponentialLazyLogging {
 
     def addLeg(leg: PlanElement): Unit = personToTrip.get(planKey(leg)) match {
       case Some(trip) => trip.append(leg)
-      case None =>
+      case None       =>
         //not possible if there are no bugs, as before splitting plans are checked if it is possible
         throw new RuntimeException(
           s"Trip should be started from activity. Can't append leg to the trip, missing trip for person ${leg.personId}"
@@ -295,12 +294,12 @@ object HOVModeTransformer extends ExponentialLazyLogging {
 
   def itIsAnHOV2Leg(planElement: PlanElement): Boolean = {
     planElement.planElementType == PlanElement.Leg &&
-    planElement.legMode.exists(legMode => legMode.toLowerCase.contains(hov2))
+    planElement.legMode.exists(isHOV2)
   }
 
   def itIsAnHOV3Leg(planElement: PlanElement): Boolean = {
     planElement.planElementType == PlanElement.Leg &&
-    planElement.legMode.exists(legMode => legMode.toLowerCase.contains(hov3))
+    planElement.legMode.exists(isHOV3)
   }
 
   def itIsASOVLeg(planElement: PlanElement): Boolean = {

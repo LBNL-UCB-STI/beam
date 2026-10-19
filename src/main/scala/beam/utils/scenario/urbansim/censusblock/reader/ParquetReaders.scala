@@ -61,7 +61,8 @@ class ParquetPlanReader(path: String) extends BaseParquetReader[InputPlanElement
       case n: java.lang.Number => Some(n.doubleValue())
       case s: CharSequence =>
         val str = s.toString.trim
-        if (isNullOrNanString(str)) None
+        if (str.isEmpty || str.equalsIgnoreCase("null")) None
+        else if (str.equalsIgnoreCase("nan")) Some(Double.NaN)
         else Try(str.toDouble).toOption
       case _ => None
     }
@@ -91,9 +92,12 @@ class ParquetPlanReader(path: String) extends BaseParquetReader[InputPlanElement
       ActivityType = getFieldOpt(record, "ActivityType").map(_.toString).filterNot(isNullOrNanString),
       x = getFieldOpt(record, "x").map(_.toString).filterNot(isNullOrNanString).map(_.toDouble),
       y = getFieldOpt(record, "y").map(_.toString).filterNot(isNullOrNanString).map(_.toDouble),
-      departureTime = getFieldOpt(record, "departure_time").map(_.toString).filterNot(isNullOrNanString).map(_.toDouble),
-      expectedDurationMinutes = getFieldOpt(record, "trip_dur_min").map(_.toString).filterNot(isNullOrNanString).map(_.toDouble),
-      expectedCostDollars = getFieldOpt(record, "trip_cost_dollars").map(_.toString).filterNot(isNullOrNanString).map(_.toDouble),
+      departureTime =
+        getFieldOpt(record, "departure_time").map(_.toString).filterNot(isNullOrNanString).map(_.toDouble),
+      expectedDurationMinutes =
+        getFieldOpt(record, "trip_dur_min").map(_.toString).filterNot(isNullOrNanString).map(_.toDouble),
+      expectedCostDollars =
+        getFieldOpt(record, "trip_cost_dollars").map(_.toString).filterNot(isNullOrNanString).map(_.toDouble),
       planIndex = readPlanIndex(record),
       planScore = readPlanScore(record),
       planSelected = readPlanSelected(record)
