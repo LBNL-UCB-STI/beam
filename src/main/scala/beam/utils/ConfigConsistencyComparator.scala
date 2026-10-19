@@ -156,13 +156,16 @@ object ConfigConsistencyComparator extends LazyLogging {
       }
     }
 
+    val isFreightEnabled = Try(userConf.getBoolean("beam.agentsim.agents.freight.enabled")).getOrElse(false)
+
     ConfigResolveOptions.defaults()
     userConf
       .entrySet()
       .asScala
       .map(entry => (entry.getKey, resolve(entry.getValue)))
       .filter { case (key, value) =>
-        val shouldCheck = !ignorePaths.contains(key)
+        val isDisabledFreightPath = !isFreightEnabled && key.startsWith("beam.agentsim.agents.freight.")
+        val shouldCheck = !ignorePaths.contains(key) && !isDisabledFreightPath
         shouldCheck && key.toLowerCase.endsWith("filepath") && value.nonEmpty && !new File(value).isFile
       }
       .toSeq
