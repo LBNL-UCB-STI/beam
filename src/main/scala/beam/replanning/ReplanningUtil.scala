@@ -13,11 +13,42 @@ import scala.collection.JavaConverters._
 object ReplanningUtil extends LazyLogging {
 
   def makeExperiencedMobSimCompatible[T <: Plan, I](person: HasPlansAndId[T, I]): Unit = {
-    val experiencedPlan = person.getSelectedPlan.getCustomAttributes
+    val selectedPlan = person.getSelectedPlan
+    if (Option(selectedPlan.getAttributes.getAttribute("beamRealizedUpdated")).contains(true)) {
+      logger.debug(
+        s"Skipping makeExperiencedMobSimCompatible for person ${person.getId}: selectedPlan already updated realized legs in-place."
+      )
+      return
+    }
+
+    val experiencedPlan = selectedPlan.getCustomAttributes
       .get(PlanCalcScoreConfigGroup.EXPERIENCED_PLAN_KEY)
       .asInstanceOf[Plan]
 
     if (experiencedPlan != null && experiencedPlan.getPlanElements.size() > 0) {
+      val selectedLegs = selectedPlan.getPlanElements.asScala.collect { case leg: Leg => leg }
+      val experiencedLegs = experiencedPlan.getPlanElements.asScala.collect { case leg: Leg => leg }
+      if (selectedLegs.size != experiencedLegs.size) {
+        logger.warn(
+          s"Leg count mismatch between selectedPlan (${selectedLegs.size}) and experiencedPlan (${experiencedLegs.size}) for person ${person.getId}; skipping replacing selectedPlan to avoid multimodal corruption."
+        )
+        return
+      }
+
+      // Preserve score from selectedPlan
+      if (selectedPlan.getScore != null) {
+        experiencedPlan.setScore(selectedPlan.getScore)
+      }
+
+      // Preserve custom leg attributes
+      selectedLegs.zip(experiencedLegs).foreach { case (selLeg, expLeg) =>
+        Option(selLeg.getAttributes).foreach { attrs =>
+          attrs.getAsMap.asScala.foreach { case (k, v) =>
+            expLeg.getAttributes.putAttribute(k, v)
+          }
+        }
+      }
+
       // keep track of the vehicles that been used during previous simulation
       for (i <- 0 until (experiencedPlan.getPlanElements.size() - 1)) {
         if (i >= person.getSelectedPlan.getPlanElements.size() || i >= experiencedPlan.getPlanElements.size()) {
@@ -50,13 +81,18 @@ object ReplanningUtil extends LazyLogging {
         case (_, _) =>
       }
       val attributes = experiencedPlan.getAttributes
-      val modalityStyle = if (person.getSelectedPlan.getAttributes.getAttribute("modality-style") == null) { "" }
-      else {
-        person.getSelectedPlan.getAttributes.getAttribute("modality-style")
+      Option(selectedPlan.getAttributes).foreach { attrs =>
+        attrs.getAsMap.asScala.foreach { case (k, v) =>
+          attributes.putAttribute(k, v)
+        }
       }
-      val scores = if (person.getSelectedPlan.getAttributes.getAttribute("scores") == null) { "" }
+      val modalityStyle = if (attributes.getAttribute("modality-style") == null) { "" }
       else {
-        person.getSelectedPlan.getAttributes.getAttribute("scores")
+        attributes.getAttribute("modality-style")
+      }
+      val scores = if (attributes.getAttribute("scores") == null) { "" }
+      else {
+        attributes.getAttribute("scores")
       }
       attributes.putAttribute("modality-style", modalityStyle)
       attributes.putAttribute("scores", scores)
@@ -103,11 +139,25 @@ object ReplanningUtil extends LazyLogging {
 
   def addBeamTripsToPlanWithOnlyActivities(originalPlan: Plan, trips: Vector[EmbodiedBeamTrip]): Plan = {
     val newPlan = PopulationUtils.createPlan(originalPlan.getPerson)
+    if (originalPlan.getScore != null) {
+      newPlan.setScore(originalPlan.getScore)
+    }
+    Option(originalPlan.getAttributes).foreach { attrs =>
+      attrs.getAsMap.asScala.foreach { case (k, v) =>
+        newPlan.getAttributes.putAttribute(k, v)
+      }
+    }
     val tripsLength = trips.length
     for (i <- 0 until originalPlan.getPlanElements.size() - 1) {
       newPlan.getPlanElements.add(originalPlan.getPlanElements.get(i))
       if (tripsLength > i) {
-        val newLeg = PopulationUtils.createLeg(trips(i).tripClassifier.value)
+        val trip = trips(i)
+        val newLeg = PopulationUtils.createLeg(trip.tripClassifier.value)
+        newLeg.setTravelTime(trip.totalTravelTimeInSecs.toDouble)
+        trip.legs.headOption.foreach { firstBeamLeg =>
+          newLeg.setDepartureTime(firstBeamLeg.beamLeg.startTime.toDouble)
+        }
+        newLeg.getAttributes.putAttribute("vehicles", trip.vehiclesInTrip.mkString(","))
         newPlan.getPlanElements.add(newLeg)
       }
     }
@@ -117,6 +167,14 @@ object ReplanningUtil extends LazyLogging {
 
   def addNoModeBeamTripsToPlanWithOnlyActivities(originalPlan: Plan): Plan = {
     val newPlan = PopulationUtils.createPlan(originalPlan.getPerson)
+    if (originalPlan.getScore != null) {
+      newPlan.setScore(originalPlan.getScore)
+    }
+    Option(originalPlan.getAttributes).foreach { attrs =>
+      attrs.getAsMap.asScala.foreach { case (k, v) =>
+        newPlan.getAttributes.putAttribute(k, v)
+      }
+    }
     for (i <- 0 until originalPlan.getPlanElements.size() - 1) {
       newPlan.getPlanElements.add(originalPlan.getPlanElements.get(i))
       val newLeg = PopulationUtils.createLeg("")
