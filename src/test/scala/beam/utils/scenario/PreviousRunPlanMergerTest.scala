@@ -262,6 +262,39 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
       )
     }
 
+    "should not select NaN-scored plan for unreplaced persons even with positive beta in Gumbel selection" in {
+      val oldPlansWithNan = Seq(
+        // Plan 0: valid score 10.0
+        createPlanElement("0", 0, 0, 1000, planSelected = true, score = 10.0),
+        // Plan 1: NaN score
+        createPlanElement("0", 1, 0, 2000, planSelected = false, score = Double.NaN)
+      )
+      // With fraction = 0.0, person "0" is not replaced, so oldElementsBeforeChoosing applies
+      val res = PreviousRunPlanMerger
+        .merge(
+          oldPlansWithNan,
+          Seq.empty,
+          fractionOfPlansToUpdate = 0.0,
+          populationSample = 1.0,
+          maximumNumberOfPlansToKeep = Some(2),
+          random = new Random(42),
+          beta = Some(1.0)
+        )
+        .toList
+        .sortBy(p => (p.personId.id.toInt, p.planIndex, p.planElementIndex))
+
+      res should have size 2
+      val selectedPlan = res.filter(_.planSelected)
+      selectedPlan should have size 1
+      selectedPlan.head.planIndex shouldBe 0
+      selectedPlan.head.planScore shouldBe 10.0
+
+      val unselectedPlan = res.filterNot(_.planSelected)
+      unselectedPlan should have size 1
+      unselectedPlan.head.planIndex shouldBe 1
+      unselectedPlan.head.planScore.isNaN shouldBe true
+    }
+
   }
 
   "PreviousRunPlanMerger with valid inputs" should {

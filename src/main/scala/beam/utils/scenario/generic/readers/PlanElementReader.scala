@@ -178,14 +178,16 @@ object XmlPlanElementReader extends PlanElementReader {
   ): PlanElement = {
     PlanElement(
       tripId = Option(activity.getAttributes.getAttribute("trip_id"))
-        .map(_.toString.filter(x => x.isDigit || x.equals('.')))
+        .map(_.toString.trim)
+        .filterNot(s => s.isEmpty || s.equalsIgnoreCase("null"))
         .getOrElse(""),
       tourId = Option(activity.getAttributes.getAttribute("tour_id"))
-        .map(_.toString.filter(x => x.isDigit || x.equals('.')))
+        .map(_.toString.trim)
+        .filterNot(s => s.isEmpty || s.equalsIgnoreCase("null"))
         .getOrElse(""),
       personId = PersonId(person.getId.toString),
       planIndex = planIdx,
-      planScore = plan.getScore,
+      planScore = Option(plan.getScore).map(_.toDouble).getOrElse(Double.NaN),
       planSelected = person.getSelectedPlan == plan,
       planElementType = PlanElement.Activity,
       planElementIndex = planElementIdx,
@@ -211,14 +213,16 @@ object XmlPlanElementReader extends PlanElementReader {
   private def toPlanElement(leg: Leg, plan: Plan, planIdx: Int, person: Person, planElementIdx: Int): PlanElement =
     PlanElement(
       tripId = Option(leg.getAttributes.getAttribute("trip_id"))
-        .map(_.toString.filter(x => x.isDigit || x.equals('.')))
+        .map(_.toString.trim)
+        .filterNot(s => s.isEmpty || s.equalsIgnoreCase("null"))
         .getOrElse(""),
       tourId = Option(leg.getAttributes.getAttribute("tour_id"))
-        .map(_.toString.filter(x => x.isDigit || x.equals('.')))
+        .map(_.toString.trim)
+        .filterNot(s => s.isEmpty || s.equalsIgnoreCase("null"))
         .getOrElse(""),
       personId = PersonId(person.getId.toString),
       planIndex = planIdx,
-      planScore = plan.getScore,
+      planScore = Option(plan.getScore).map(_.toDouble).getOrElse(Double.NaN),
       planSelected = person.getSelectedPlan == plan,
       planElementType = PlanElement.Leg,
       planElementIndex = planElementIdx,

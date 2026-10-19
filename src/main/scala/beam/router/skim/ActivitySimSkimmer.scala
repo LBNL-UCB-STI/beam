@@ -392,7 +392,9 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]
   ): Seq[ExcerptData] = {
     ActivitySimPathType.allPathTypes.flatMap { pathType =>
-      ActivitySimTimeBin.values.flatMap(timeBin => getExcerptDataOption(timeBin, origin, destination, pathType, None, skim))
+      ActivitySimTimeBin.values.flatMap(timeBin =>
+        getExcerptDataOption(timeBin, origin, destination, pathType, None, skim)
+      )
     }
   }
 

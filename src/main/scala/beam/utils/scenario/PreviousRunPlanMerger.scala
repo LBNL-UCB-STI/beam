@@ -104,7 +104,11 @@ object PreviousRunPlanMerger extends LazyLogging {
       elements
         .groupBy(_.planIndex)
         .toList
-        .sortBy { case (_, elements) => -elements.head.planScore + drawFromGumbel(beta.getOrElse(0.0), random) }
+        .sortBy { case (_, elements) =>
+          val score = elements.head.planScore
+          if (score.isNaN) Double.PositiveInfinity
+          else -score + drawFromGumbel(beta.getOrElse(0.0), random)
+        }
         .zipWithIndex
         .take(maximumNumberOfPlansToKeep.getOrElse(0))
         .flatMap { case ((_, elems), idx) =>

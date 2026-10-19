@@ -16,13 +16,27 @@ class ParquetPersonReader(path: String) extends BaseParquetReader[InputPersonInf
         case _: AvroRuntimeException => None // Field doesn't exist in schema
       }
 
+    val age = record.get("age") match {
+      case n: java.lang.Number => n.intValue()
+      case other               => Try(other.toString.toDouble.toInt).getOrElse(0)
+    }
+    val sex = record.get("sex") match {
+      case n: java.lang.Number => Sex.determineSex(n.intValue())
+      case other               => Sex.determineSex(Try(other.toString.toDouble.toInt).getOrElse(0))
+    }
+    val valueOfTime = Try(record.get("value_of_time")).toOption.flatMap {
+      case null                => None
+      case n: java.lang.Number => Some(n.doubleValue())
+      case other               => Try(other.toString.toDouble).toOption
+    }
+
     InputPersonInfo(
       personId = record.get("person_id").toString.split("\\.")(0),
       householdId = record.get("household_id").toString.split("\\.")(0),
-      age = record.get("age").toString.toDouble.toInt,
-      sex = Sex.determineSex(record.get("sex").toString.toDouble.toInt),
+      age = age,
+      sex = sex,
       industry = industryField,
-      valueOfTime = Try(record.get("value_of_time")).map(_.toString.toDouble).toOption // TODO: probably a better way
+      valueOfTime = valueOfTime
     )
   }
 }
@@ -80,12 +94,30 @@ class ParquetPlanReader(path: String) extends BaseParquetReader[InputPlanElement
     }
   }
 
+  private def readDouble(opt: Option[AnyRef]): Option[Double] = {
+    opt.flatMap {
+      case n: java.lang.Number => Some(n.doubleValue())
+      case s: CharSequence =>
+        val str = s.toString.trim
+        if (isNullOrNanString(str)) None
+        else Try(str.toDouble).toOption
+      case other => Try(other.toString.toDouble).toOption
+    }
+  }
+
   override protected def transform(record: GenericRecord): InputPlanElement = {
     val personId = getFieldFromNames(record, "person_id", "personId")
       .map(_.toString.split("\\.")(0))
       .getOrElse(throw new IllegalArgumentException(s"Missing person_id in parquet record: $record"))
     val planElementIndex = getFieldFromNames(record, "PlanElementIndex", "planElementIndex")
-      .map(_.toString.toInt)
+      .flatMap {
+        case n: java.lang.Number => Some(n.intValue())
+        case s: CharSequence =>
+          val str = s.toString.trim
+          if (isNullOrNanString(str)) None
+          else Try(str.toDouble.toInt).toOption
+        case other => Try(other.toString.toDouble.toInt).toOption
+      }
       .getOrElse(throw new IllegalArgumentException(s"Missing planElementIndex in parquet record: $record"))
     val activityElement = getFieldFromNames(record, "ActivityElement", "activityElement", "planElementType")
       .map(v => ActivityType.determineActivity(v.toString))
@@ -100,22 +132,11 @@ class ParquetPlanReader(path: String) extends BaseParquetReader[InputPlanElement
       tripMode = getFieldFromNames(record, "trip_mode", "legMode").map(_.toString).filterNot(isNullOrNanString),
       ActivityType =
         getFieldFromNames(record, "ActivityType", "activityType").map(_.toString).filterNot(isNullOrNanString),
-      x = getFieldFromNames(record, "x", "activityLocationX")
-        .map(_.toString)
-        .filterNot(isNullOrNanString)
-        .map(_.toDouble),
-      y = getFieldFromNames(record, "y", "activityLocationY")
-        .map(_.toString)
-        .filterNot(isNullOrNanString)
-        .map(_.toDouble),
-      departureTime = getFieldFromNames(record, "departure_time", "departureTime", "activityEndTime")
-        .map(_.toString)
-        .filterNot(isNullOrNanString)
-        .map(_.toDouble),
-      expectedDurationMinutes =
-        getFieldOpt(record, "trip_dur_min").map(_.toString).filterNot(isNullOrNanString).map(_.toDouble),
-      expectedCostDollars =
-        getFieldOpt(record, "trip_cost_dollars").map(_.toString).filterNot(isNullOrNanString).map(_.toDouble),
+      x = readDouble(getFieldFromNames(record, "x", "activityLocationX")),
+      y = readDouble(getFieldFromNames(record, "y", "activityLocationY")),
+      departureTime = readDouble(getFieldFromNames(record, "departure_time", "departureTime", "activityEndTime")),
+      expectedDurationMinutes = readDouble(getFieldOpt(record, "trip_dur_min")),
+      expectedCostDollars = readDouble(getFieldOpt(record, "trip_cost_dollars")),
       planIndex = readPlanIndex(record),
       planScore = readPlanScore(record),
       planSelected = readPlanSelected(record),
@@ -132,11 +153,26 @@ class ParquetPlanReader(path: String) extends BaseParquetReader[InputPlanElement
 class ParquetHouseholdReader(path: String) extends BaseParquetReader[InputHousehold](path) {
 
   override protected def transform(record: GenericRecord): InputHousehold = {
+    val carsVal = Try(record.get("cars")).getOrElse(record.get("auto_ownership"))
+    val cars = carsVal match {
+      case n: java.lang.Number => n.intValue()
+      case other               => Try(other.toString.toDouble.toInt).getOrElse(0)
+    }
+    val incomeVal = record.get("income")
+    val income = incomeVal match {
+      case n: java.lang.Number => n.intValue()
+      case other               => Try(other.toString.toDouble.toInt).getOrElse(0)
+    }
+    val blockIdVal = record.get("block_id")
+    val blockId = blockIdVal match {
+      case n: java.lang.Number => n.longValue()
+      case other               => Try(other.toString.toDouble.toLong).getOrElse(other.toString.toLong)
+    }
     InputHousehold(
       householdId = record.get("household_id").toString.split("\\.")(0),
-      cars = Try(record.get("cars")).getOrElse(record.get("auto_ownership")).toString.toDouble.toInt,
-      income = record.get("income").toString.toDouble.toInt,
-      blockId = record.get("block_id").toString.toLong
+      cars = cars,
+      income = income,
+      blockId = blockId
     )
   }
 }
@@ -144,10 +180,23 @@ class ParquetHouseholdReader(path: String) extends BaseParquetReader[InputHouseh
 class ParquetBlockReader(path: String) extends BaseParquetReader[Block](path) {
 
   override protected def transform(record: GenericRecord): Block = {
+    val blockIdVal = record.get("block_id")
+    val blockId = blockIdVal match {
+      case n: java.lang.Number => n.longValue()
+      case other               => Try(other.toString.toDouble.toLong).getOrElse(other.toString.toLong)
+    }
+    val x = record.get("x") match {
+      case n: java.lang.Number => n.doubleValue()
+      case other               => Try(other.toString.toDouble).getOrElse(0.0)
+    }
+    val y = record.get("y") match {
+      case n: java.lang.Number => n.doubleValue()
+      case other               => Try(other.toString.toDouble).getOrElse(0.0)
+    }
     Block(
-      blockId = record.get("block_id").toString.toLong,
-      x = record.get("x").toString.toDouble,
-      y = record.get("y").toString.toDouble
+      blockId = blockId,
+      x = x,
+      y = y
     )
   }
 }

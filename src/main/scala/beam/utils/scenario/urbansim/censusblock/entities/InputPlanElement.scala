@@ -50,7 +50,7 @@ object InputPlanElement extends EntityTransformer[InputPlanElement] {
       .map(_.split("\\.")(0))
       .getOrElse(throw new IllegalArgumentException(s"Missing person_id in record: $m"))
     val planElementIndex = getFromNames(m, "PlanElementIndex", "planElementIndex")
-      .map(_.toInt)
+      .flatMap(s => scala.util.Try(s.toDouble.toInt).toOption)
       .getOrElse(throw new IllegalArgumentException(s"Missing planElementIndex in record: $m"))
     val activityElement = getFromNames(m, "ActivityElement", "activityElement", "planElementType")
       .map(ActivityType.determineActivity)

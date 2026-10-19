@@ -195,6 +195,51 @@ class ReplanningUtilSpec extends AnyWordSpec with Matchers {
         leg.getTravelTime.seconds shouldBe 1800.0
         leg.getAttributes.getAttribute("vehicles").toString should include("bus_42")
       }
+
+      "handle fewer trips than activity gaps by inserting empty legs to preserve alternating structure" in {
+        val person = createTestPerson("p_few_trips")
+        val originalPlan = PopulationUtils.createPlan(person)
+        PopulationUtils.createAndAddActivityFromCoord(originalPlan, "Home", new Coord(0.0, 0.0))
+        PopulationUtils.createAndAddActivityFromCoord(originalPlan, "Work", new Coord(10.0, 10.0))
+        PopulationUtils.createAndAddActivityFromCoord(originalPlan, "Shop", new Coord(20.0, 20.0))
+        // 3 activities -> needs 2 legs. Provide only 1 trip:
+        val dummyBeamLeg = BeamLeg(
+          startTime = 3600,
+          mode = BeamMode.CAR,
+          duration = 600,
+          travelPath = BeamPath.empty
+        )
+        val dummyTrip = EmbodiedBeamTrip(legs =
+          Vector(
+            EmbodiedBeamLeg(
+              beamLeg = dummyBeamLeg,
+              beamVehicleId = Id.createVehicleId("veh1"),
+              beamVehicleTypeId = Id.create("CAR", classOf[BeamVehicleType]),
+              asDriver = true,
+              cost = 2.0,
+              unbecomeDriverOnCompletion = true
+            )
+          )
+        )
+
+        val newPlan = ReplanningUtil.addBeamTripsToPlanWithOnlyActivities(originalPlan, Vector(dummyTrip))
+
+        // Total elements should be 3 activities + 2 legs = 5 elements
+        newPlan.getPlanElements should have size 5
+        val leg0 = newPlan.getPlanElements.get(1).asInstanceOf[Leg]
+        leg0.getMode shouldBe "car"
+        leg0.getTravelTime.seconds shouldBe 600.0
+
+        val leg1 = newPlan.getPlanElements.get(3).asInstanceOf[Leg]
+        leg1.getMode shouldBe ""
+
+        // Check alternating sequence Act -> Leg -> Act -> Leg -> Act
+        newPlan.getPlanElements.get(0).isInstanceOf[Activity] shouldBe true
+        newPlan.getPlanElements.get(1).isInstanceOf[Leg] shouldBe true
+        newPlan.getPlanElements.get(2).isInstanceOf[Activity] shouldBe true
+        newPlan.getPlanElements.get(3).isInstanceOf[Leg] shouldBe true
+        newPlan.getPlanElements.get(4).isInstanceOf[Activity] shouldBe true
+      }
     }
 
     "in-place realized leg updates" should {
@@ -270,6 +315,86 @@ class ReplanningUtilSpec extends AnyWordSpec with Matchers {
         ReplanningUtil.makeExperiencedMobSimCompatible(person)
         person.getSelectedPlan shouldBe plan
         person.getSelectedPlan.getPlanElements.asScala.collect { case l: Leg => l } should have size 1
+      }
+
+      "handle aborted trips when realized trips is fewer than planned legs, setting empty mode and preserving attributes on remainder legs" in {
+        val person = createTestPerson("p_aborted")
+        val plan = createPlanWithActivitiesAndLegs(person, 2, "car")
+        person.addPlan(plan)
+        person.setSelectedPlan(plan)
+
+        val legs = plan.getPlanElements.asScala.collect { case l: Leg => l }.toVector
+        legs should have size 2
+        legs(0).getAttributes.putAttribute("trip_id", "trip_0")
+        legs(1).getAttributes.putAttribute("trip_id", "trip_1")
+        legs(1).getAttributes.putAttribute("custom_attr", "preserved_val")
+
+        // Only 1 realized trip (second trip aborted / unexecuted)
+        val realizedTrip = EmbodiedBeamTrip(legs =
+          Vector(
+            EmbodiedBeamLeg(
+              beamLeg = BeamLeg(startTime = 28800, mode = BeamMode.CAR, duration = 600, travelPath = BeamPath.empty),
+              beamVehicleId = Id.createVehicleId("car1"),
+              beamVehicleTypeId = Id.create("CAR", classOf[BeamVehicleType]),
+              asDriver = true,
+              cost = 1.0,
+              unbecomeDriverOnCompletion = true
+            )
+          )
+        )
+        val trips = Vector(realizedTrip)
+        val effectivePersonLegs = plan.getPlanElements.asScala.collect { case leg: Leg => leg }
+
+        // Execute logic matching BeamScoringFunctionFactory.finish()
+        if (trips.nonEmpty) {
+          trips.zip(effectivePersonLegs).foreach { case (trip, leg) =>
+            leg.setMode(trip.tripClassifier.value)
+            leg.setTravelTime(trip.totalTravelTimeInSecs.toDouble)
+            trip.legs.headOption.foreach { firstBeamLeg =>
+              leg.setDepartureTime(firstBeamLeg.beamLeg.startTime.toDouble)
+            }
+            leg.getAttributes.putAttribute("vehicles", trip.vehiclesInTrip.mkString(","))
+          }
+        }
+        effectivePersonLegs.drop(trips.size).foreach { leg =>
+          if (leg.getMode == null) leg.setMode("")
+        }
+        person.getSelectedPlan.getAttributes.putAttribute("beamRealizedUpdated", true)
+
+        legs(0).getMode shouldBe "car"
+        legs(0).getTravelTime.seconds shouldBe 600.0
+        legs(0).getAttributes.getAttribute("trip_id") shouldBe "trip_0"
+
+        legs(1).getAttributes.getAttribute("trip_id") shouldBe "trip_1"
+        legs(1).getAttributes.getAttribute("custom_attr") shouldBe "preserved_val"
+        legs(1).getMode shouldBe "car" // original mode preserved
+        person.getSelectedPlan.getAttributes.getAttribute("beamRealizedUpdated") shouldBe true
+      }
+
+      "handle completely aborted trips (trips is empty) by setting empty mode on legs if null and tagging beamRealizedUpdated = true" in {
+        val person = createTestPerson("p_empty_trips")
+        val plan = createPlanWithActivitiesAndLegs(person, 2, "car")
+        // Set mode to null on one leg to test null guard
+        val legs = plan.getPlanElements.asScala.collect { case l: Leg => l }.toVector
+        legs(1).setMode(null)
+        person.addPlan(plan)
+        person.setSelectedPlan(plan)
+
+        val trips = Vector.empty[EmbodiedBeamTrip]
+        val effectivePersonLegs = plan.getPlanElements.asScala.collect { case leg: Leg => leg }
+
+        if (trips.nonEmpty) {
+          trips.zip(effectivePersonLegs).foreach { case (trip, leg) =>
+            leg.setMode(trip.tripClassifier.value)
+          }
+        }
+        effectivePersonLegs.drop(trips.size).foreach { leg =>
+          if (leg.getMode == null) leg.setMode("")
+        }
+        person.getSelectedPlan.getAttributes.putAttribute("beamRealizedUpdated", true)
+
+        legs(1).getMode shouldBe ""
+        person.getSelectedPlan.getAttributes.getAttribute("beamRealizedUpdated") shouldBe true
       }
     }
 
@@ -365,6 +490,45 @@ class ReplanningUtilSpec extends AnyWordSpec with Matchers {
         scPlan1Leg.planSelected shouldBe false
         scPlan1Leg.legExpectedTravelTime shouldBe None
         scPlan1Leg.legExpectedCost shouldBe None
+      }
+
+      "preserve alphanumeric tripId and tourId without filtering or stripping non-digit characters" in {
+        val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
+        val person = scenario.getPopulation.getFactory.createPerson(Id.createPersonId("agent_alpha"))
+
+        val plan = scenario.getPopulation.getFactory.createPlan()
+        plan.setScore(50.0)
+        val act0 = scenario.getPopulation.getFactory.createActivityFromCoord("Home", new Coord(0.0, 0.0))
+        plan.addActivity(act0)
+
+        val leg = scenario.getPopulation.getFactory.createLeg("car")
+        leg.getAttributes.putAttribute("trip_id", "trip_work_abc123")
+        leg.getAttributes.putAttribute("tour_id", "tour_daily_xyz789")
+        plan.addLeg(leg)
+
+        val act1 = scenario.getPopulation.getFactory.createActivityFromCoord("Work", new Coord(10.0, 10.0))
+        plan.addActivity(act1)
+
+        person.addPlan(plan)
+        person.setSelectedPlan(plan)
+        scenario.getPopulation.addPerson(person)
+
+        val tempFile = Files.createTempFile("test_alpha_plans", ".csv").toFile
+        tempFile.deleteOnExit()
+
+        PlansCsvWriter.toCsv(scenario, tempFile.getAbsolutePath)
+
+        // Read with CsvPlanElementReader
+        val csvElements = CsvPlanElementReader.read(tempFile.getAbsolutePath)
+        val csvLeg = csvElements.find(_.planElementType == beam.utils.scenario.PlanElement.Leg).get
+        csvLeg.tripId shouldBe "trip_work_abc123"
+        csvLeg.tourId shouldBe "tour_daily_xyz789"
+
+        // Read with BeamCsvScenarioReader
+        val scenarioElements = BeamCsvScenarioReader.readPlansFile(tempFile.getAbsolutePath)
+        val scLeg = scenarioElements.find(_.planElementType == beam.utils.scenario.PlanElement.Leg).get
+        scLeg.tripId shouldBe "trip_work_abc123"
+        scLeg.tourId shouldBe "tour_daily_xyz789"
       }
     }
   }

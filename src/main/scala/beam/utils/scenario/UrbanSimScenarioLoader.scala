@@ -748,7 +748,11 @@ class UrbanSimScenarioLoader(
           val planElements = plansByIndex(planIndex)
           val firstElem = planElements.head
           val plan = PopulationUtils.createPlan(person)
-          plan.setScore(firstElem.planScore)
+          if (!firstElem.planScore.isNaN) {
+            plan.setScore(firstElem.planScore)
+          } else {
+            plan.setScore(null.asInstanceOf[java.lang.Double])
+          }
           person.addPlan(plan)
           if (planIndex == selectedPlanIndex) {
             person.setSelectedPlan(plan)

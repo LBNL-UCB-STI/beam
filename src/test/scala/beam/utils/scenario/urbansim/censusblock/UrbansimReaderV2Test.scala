@@ -371,8 +371,10 @@ class UrbansimReaderV2Test extends AnyWordSpec with Matchers {
       val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
       val person1 = scenario.getPopulation.getFactory.createPerson(org.matsim.api.core.v01.Id.createPersonId("p1"))
       val person2 = scenario.getPopulation.getFactory.createPerson(org.matsim.api.core.v01.Id.createPersonId("p2"))
+      val person3 = scenario.getPopulation.getFactory.createPerson(org.matsim.api.core.v01.Id.createPersonId("p3"))
       scenario.getPopulation.addPerson(person1)
       scenario.getPopulation.addPerson(person2)
+      scenario.getPopulation.addPerson(person3)
 
       val mockBeamScenario = mock(classOf[BeamScenario])
       val beamConfigBase = BeamConfig(TestConfigUtils.testConfig("test/input/beamville/beam.conf").resolve())
@@ -417,13 +419,15 @@ class UrbansimReaderV2Test extends AnyWordSpec with Matchers {
 
       // Provide p1's plans out-of-order (planIndex 1 before planIndex 0)
       // Provide p2's plans with all planSelected = false to verify fallback to lowest planIndex
+      // Provide p3's plan with score = Double.NaN to verify plan.getScore is null for unexecuted plans
       val elements = Seq(
         mkAct("p1", 1, 30.0, selected = true, 0, "Home", 0.0, 0.0, 9.0),
         mkAct("p1", 1, 30.0, selected = true, 1, "Work", 10.0, 10.0, 18.0),
         mkAct("p1", 0, 15.0, selected = false, 0, "Home", 0.0, 0.0, 8.0),
         mkAct("p1", 0, 15.0, selected = false, 1, "Work", 10.0, 10.0, 17.0),
         mkAct("p2", 2, 20.0, selected = false, 0, "Home", 0.0, 0.0, 8.0),
-        mkAct("p2", 1, 10.0, selected = false, 0, "Home", 0.0, 0.0, 8.0)
+        mkAct("p2", 1, 10.0, selected = false, 0, "Home", 0.0, 0.0, 8.0),
+        mkAct("p3", 0, Double.NaN, selected = true, 0, "Home", 0.0, 0.0, 8.0)
       )
 
       val mockLoader = new beam.utils.scenario.UrbanSimScenarioLoader(
@@ -446,8 +450,14 @@ class UrbansimReaderV2Test extends AnyWordSpec with Matchers {
       person2.getPlans.get(0).getScore shouldBe 10.0
       person2.getPlans.get(1).getScore shouldBe 20.0
       person2.getSelectedPlan shouldBe person2.getPlans.get(0)
+
+      person3.getPlans should have size 1
+      person3.getPlans.get(0).getScore shouldBe null
+      person3.getSelectedPlan shouldBe person3.getPlans.get(0)
+
       mockLoader.resolveSelectedPlanIndex(elements.filter(_.personId.id == "p1")) shouldBe 1
       mockLoader.resolveSelectedPlanIndex(elements.filter(_.personId.id == "p2")) shouldBe 1
+      mockLoader.resolveSelectedPlanIndex(elements.filter(_.personId.id == "p3")) shouldBe 0
     }
 
     "preserve legDepartureTime and legTravelTime in InputPlanElement and PlanMerger" in {
@@ -520,6 +530,28 @@ class UrbansimReaderV2Test extends AnyWordSpec with Matchers {
       leg.legTravelTime shouldBe Some("1800.0")
       leg.legExpectedTravelTime shouldBe Some(30.0)
       leg.legExpectedCost shouldBe Some(5.0)
+    }
+
+    "parse pandas float formatted integers for planElementIndex in InputPlanElement" in {
+      val mapFloat = new java.util.HashMap[String, String]()
+      mapFloat.put("person_id", "p1")
+      mapFloat.put("PlanElementIndex", "0.0")
+      mapFloat.put("ActivityElement", "activity")
+      mapFloat.put("ActivityType", "Home")
+      mapFloat.put("x", "0.0")
+      mapFloat.put("y", "0.0")
+      val elem = InputPlanElement.transform(mapFloat)
+      elem.planElementIndex shouldBe 0
+
+      val mapFloatCamel = new java.util.HashMap[String, String]()
+      mapFloatCamel.put("personId", "p1")
+      mapFloatCamel.put("planElementIndex", "3.0")
+      mapFloatCamel.put("planElementType", "activity")
+      mapFloatCamel.put("activityType", "Work")
+      mapFloatCamel.put("activityLocationX", "10.0")
+      mapFloatCamel.put("activityLocationY", "20.0")
+      val elemCamel = InputPlanElement.transform(mapFloatCamel)
+      elemCamel.planElementIndex shouldBe 3
     }
   }
 }

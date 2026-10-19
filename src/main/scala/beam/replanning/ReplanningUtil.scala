@@ -36,8 +36,10 @@ object ReplanningUtil extends LazyLogging {
       }
 
       // Preserve score from selectedPlan
-      if (selectedPlan.getScore != null) {
+      if (selectedPlan.getScore != null && !selectedPlan.getScore.isNaN) {
         experiencedPlan.setScore(selectedPlan.getScore)
+      } else {
+        experiencedPlan.setScore(null.asInstanceOf[java.lang.Double])
       }
 
       // Preserve custom leg attributes
@@ -139,8 +141,10 @@ object ReplanningUtil extends LazyLogging {
 
   def addBeamTripsToPlanWithOnlyActivities(originalPlan: Plan, trips: Vector[EmbodiedBeamTrip]): Plan = {
     val newPlan = PopulationUtils.createPlan(originalPlan.getPerson)
-    if (originalPlan.getScore != null) {
+    if (originalPlan.getScore != null && !originalPlan.getScore.isNaN) {
       newPlan.setScore(originalPlan.getScore)
+    } else {
+      newPlan.setScore(null.asInstanceOf[java.lang.Double])
     }
     Option(originalPlan.getAttributes).foreach { attrs =>
       attrs.getAsMap.asScala.foreach { case (k, v) =>
@@ -159,6 +163,9 @@ object ReplanningUtil extends LazyLogging {
         }
         newLeg.getAttributes.putAttribute("vehicles", trip.vehiclesInTrip.mkString(","))
         newPlan.getPlanElements.add(newLeg)
+      } else {
+        val newLeg = PopulationUtils.createLeg("")
+        newPlan.getPlanElements.add(newLeg)
       }
     }
     newPlan.getPlanElements.add(originalPlan.getPlanElements.get(originalPlan.getPlanElements.size() - 1))
@@ -167,8 +174,10 @@ object ReplanningUtil extends LazyLogging {
 
   def addNoModeBeamTripsToPlanWithOnlyActivities(originalPlan: Plan): Plan = {
     val newPlan = PopulationUtils.createPlan(originalPlan.getPerson)
-    if (originalPlan.getScore != null) {
+    if (originalPlan.getScore != null && !originalPlan.getScore.isNaN) {
       newPlan.setScore(originalPlan.getScore)
+    } else {
+      newPlan.setScore(null.asInstanceOf[java.lang.Double])
     }
     Option(originalPlan.getAttributes).foreach { attrs =>
       attrs.getAsMap.asScala.foreach { case (k, v) =>

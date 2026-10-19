@@ -47,7 +47,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           toPlanInfo(
             planIndex = planIndex,
             personId = plan.getPerson.getId.toString,
-            planScore = plan.getScore,
+            planScore = Option(plan.getScore).map(_.toDouble).getOrElse(Double.NaN),
             isSelectedPlan = isSelected,
             planElement = planElement,
             planeElementIndex = planElementIndex
@@ -81,10 +81,12 @@ object PlansCsvWriter extends ScenarioCsvWriter {
         val route = Option(leg.getRoute)
         PlanElement(
           tripId = Option(leg.getAttributes.getAttribute("trip_id"))
-            .map(_.toString.filter(x => x.isDigit || x.equals('.')))
+            .map(_.toString.trim)
+            .filterNot(s => s.isEmpty || s.equalsIgnoreCase("null"))
             .getOrElse(""),
           tourId = Option(leg.getAttributes.getAttribute("tour_id"))
-            .map(_.toString.filter(x => x.isDigit || x.equals('.')))
+            .map(_.toString.trim)
+            .filterNot(s => s.isEmpty || s.equalsIgnoreCase("null"))
             .getOrElse(""),
           personId = PersonId(personId),
           planIndex = planIndex,

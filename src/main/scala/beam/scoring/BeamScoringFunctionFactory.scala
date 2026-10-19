@@ -164,8 +164,11 @@ class BeamScoringFunctionFactory @Inject() (
             }
             leg.getAttributes.putAttribute("vehicles", trip.vehiclesInTrip.mkString(","))
           }
-          person.getSelectedPlan.getAttributes.putAttribute("beamRealizedUpdated", true)
         }
+        effectivePersonLegs.drop(trips.size).foreach { leg =>
+          if (leg.getMode == null) leg.setMode("")
+        }
+        person.getSelectedPlan.getAttributes.putAttribute("beamRealizedUpdated", true)
 
         // TODO: Factor in ivt multipliers from ASim to downweight extra time on transit:
 //        ivt_cost_multiplier: 0.6
