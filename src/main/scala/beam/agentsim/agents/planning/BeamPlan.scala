@@ -99,7 +99,9 @@ object BeamPlan {
       "modality-style",
       Option(plan.getAttributes.getAttribute("modality-style")).getOrElse("")
     )
-    newPlan.setScore(plan.getScore)
+    if (plan.getScore != null && !plan.getScore.isNaN) {
+      newPlan.setScore(plan.getScore)
+    }
     newPlan
   }
 
@@ -122,7 +124,7 @@ class BeamPlan extends Plan {
   // Implementation of Legacy Interface
   private var person: Person = _
   private var actsLegs: Vector[PlanElement] = Vector()
-  private var score: Double = Double.NaN
+  private var score: java.lang.Double = null
   private var planType: String = ""
 
   lazy val legs: Vector[Leg] = actsLegs flatMap {
@@ -137,14 +139,20 @@ class BeamPlan extends Plan {
 
   private def getTourIdFromMatsimLeg(legOption: Option[Leg]): Option[Int] = {
     legOption.flatMap { leg =>
-      Option(leg.getAttributes.getAttribute("tour_id")) match {
-        case Some(value: String) if value.nonEmpty =>
-          try {
-            Some(value.toInt)
-          } catch {
-            case _: NumberFormatException => None
-          }
-        case _ => None
+      Option(leg.getAttributes.getAttribute("tour_id")).flatMap {
+        case n: Number =>
+          if (n.doubleValue().isNaN) None
+          else Some(n.intValue())
+        case other =>
+          val str = other.toString.trim
+          if (str.isEmpty || str.equalsIgnoreCase("null") || str.equalsIgnoreCase("nan")) None
+          else
+            try {
+              Some(str.toInt)
+            } catch {
+              case _: NumberFormatException =>
+                Some(str.hashCode & 0x7fffffff)
+            }
       }
     }
   }
@@ -161,7 +169,7 @@ class BeamPlan extends Plan {
 //  }
 
   private def getTourModeFromMatsimLeg(leg: Leg): Option[BeamTourMode] = {
-    if (person.getId.toString.startsWith(FREIGHT_ID_PREFIX)) {
+    if (person != null && person.getId != null && person.getId.toString.startsWith(FREIGHT_ID_PREFIX)) {
       Some(BeamTourMode.FREIGHT_TOUR)
     } else {
       Option(leg.getAttributes.getAttribute("tour_mode")).flatMap(x => BeamTourMode.fromString(x.toString))
@@ -470,7 +478,9 @@ class BeamPlan extends Plan {
 
   override def getScore: java.lang.Double = score
 
-  override def setScore(newScore: lang.Double): Unit = score = newScore
+  override def setScore(newScore: lang.Double): Unit = {
+    score = if (newScore != null && !newScore.isNaN) newScore else null
+  }
 
   override def getPlanElements: java.util.List[PlanElement] = actsLegs.asJava
 }

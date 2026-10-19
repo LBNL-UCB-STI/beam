@@ -64,7 +64,8 @@ object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
   private def toPlanInfo(rec: java.util.Map[String, String]): PlanElement = {
     // Somehow Plan file has columns in camelCase, not snake_case
     val tripId = if (rec.get("tripId") != null) {
-      rec.get("tripId").filter(x => (x.isDigit || x.equals('.')))
+      val s = rec.get("tripId").trim
+      if (s.isEmpty || s.equalsIgnoreCase("null")) "" else s
     } else {
       ""
     }

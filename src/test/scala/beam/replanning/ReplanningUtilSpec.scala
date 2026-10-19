@@ -1,9 +1,11 @@
 package beam.replanning
 
 import java.nio.file.Files
+import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.scoring.BeamScoringFunctionFactory
 import beam.utils.csv.readers.BeamCsvScenarioReader
 import beam.utils.csv.writers.PlansCsvWriter
 import beam.utils.scenario.generic.readers.CsvPlanElementReader
@@ -343,23 +345,7 @@ class ReplanningUtilSpec extends AnyWordSpec with Matchers {
           )
         )
         val trips = Vector(realizedTrip)
-        val effectivePersonLegs = plan.getPlanElements.asScala.collect { case leg: Leg => leg }
-
-        // Execute logic matching BeamScoringFunctionFactory.finish()
-        if (trips.nonEmpty) {
-          trips.zip(effectivePersonLegs).foreach { case (trip, leg) =>
-            leg.setMode(trip.tripClassifier.value)
-            leg.setTravelTime(trip.totalTravelTimeInSecs.toDouble)
-            trip.legs.headOption.foreach { firstBeamLeg =>
-              leg.setDepartureTime(firstBeamLeg.beamLeg.startTime.toDouble)
-            }
-            leg.getAttributes.putAttribute("vehicles", trip.vehiclesInTrip.mkString(","))
-          }
-        }
-        effectivePersonLegs.drop(trips.size).foreach { leg =>
-          if (leg.getMode == null) leg.setMode("")
-        }
-        person.getSelectedPlan.getAttributes.putAttribute("beamRealizedUpdated", true)
+        BeamScoringFunctionFactory.updateRealizedLegs(person, trips)
 
         legs(0).getMode shouldBe "car"
         legs(0).getTravelTime.seconds shouldBe 600.0
@@ -381,17 +367,7 @@ class ReplanningUtilSpec extends AnyWordSpec with Matchers {
         person.setSelectedPlan(plan)
 
         val trips = Vector.empty[EmbodiedBeamTrip]
-        val effectivePersonLegs = plan.getPlanElements.asScala.collect { case leg: Leg => leg }
-
-        if (trips.nonEmpty) {
-          trips.zip(effectivePersonLegs).foreach { case (trip, leg) =>
-            leg.setMode(trip.tripClassifier.value)
-          }
-        }
-        effectivePersonLegs.drop(trips.size).foreach { leg =>
-          if (leg.getMode == null) leg.setMode("")
-        }
-        person.getSelectedPlan.getAttributes.putAttribute("beamRealizedUpdated", true)
+        BeamScoringFunctionFactory.updateRealizedLegs(person, trips)
 
         legs(1).getMode shouldBe ""
         person.getSelectedPlan.getAttributes.getAttribute("beamRealizedUpdated") shouldBe true
@@ -529,6 +505,60 @@ class ReplanningUtilSpec extends AnyWordSpec with Matchers {
         val scLeg = scenarioElements.find(_.planElementType == beam.utils.scenario.PlanElement.Leg).get
         scLeg.tripId shouldBe "trip_work_abc123"
         scLeg.tourId shouldBe "tour_daily_xyz789"
+      }
+    }
+
+    "empty plan handling" should {
+      "safely handle plans with empty elements in addBeamTripsToPlanWithOnlyActivities" in {
+        val emptyPlan = PopulationUtils.createPlan()
+        val trips = Vector.empty[EmbodiedBeamTrip]
+        val result = ReplanningUtil.addBeamTripsToPlanWithOnlyActivities(emptyPlan, trips)
+        result.getPlanElements.size() shouldBe 0
+      }
+
+      "safely handle plans with empty elements in addNoModeBeamTripsToPlanWithOnlyActivities" in {
+        val emptyPlan = PopulationUtils.createPlan()
+        val result = ReplanningUtil.addNoModeBeamTripsToPlanWithOnlyActivities(emptyPlan)
+        result.getPlanElements.size() shouldBe 0
+      }
+    }
+
+    "BeamPlan score and tour normalization" should {
+      "normalize Double.NaN to null score for MATSim RandomUnscoredPlanSelector compatibility" in {
+        val matsimPlan = PopulationUtils.createPlan()
+        matsimPlan.setScore(Double.NaN)
+        val beamPlan = BeamPlan(matsimPlan)
+        beamPlan.getScore shouldBe null
+
+        val freshPlan = new BeamPlan
+        freshPlan.getScore shouldBe null
+        freshPlan.setScore(java.lang.Double.valueOf(Double.NaN))
+        freshPlan.getScore shouldBe null
+        freshPlan.setScore(123.45)
+        freshPlan.getScore shouldBe 123.45
+        freshPlan.setScore(null)
+        freshPlan.getScore shouldBe null
+      }
+
+      "preserve and group alphanumeric tourId without loss or NumberFormatException" in {
+        val matsimPlan = PopulationUtils.createPlan()
+        val act0 = PopulationUtils.createActivityFromCoord("Home", new Coord(0.0, 0.0))
+        matsimPlan.addActivity(act0)
+        val leg0 = PopulationUtils.createLeg("car")
+        leg0.getAttributes.putAttribute("tour_id", "tour_alpha_1")
+        matsimPlan.addLeg(leg0)
+        val act1 = PopulationUtils.createActivityFromCoord("Work", new Coord(10.0, 10.0))
+        matsimPlan.addActivity(act1)
+        val leg1 = PopulationUtils.createLeg("car")
+        leg1.getAttributes.putAttribute("tour_id", "tour_alpha_1")
+        matsimPlan.addLeg(leg1)
+        val act2 = PopulationUtils.createActivityFromCoord("Home", new Coord(0.0, 0.0))
+        matsimPlan.addActivity(act2)
+
+        val beamPlan = BeamPlan(matsimPlan)
+        beamPlan.tours.length shouldBe 2
+        val expectedTourId = "tour_alpha_1".hashCode & 0x7fffffff
+        beamPlan.tours(1).tourId shouldBe expectedTourId
       }
     }
   }

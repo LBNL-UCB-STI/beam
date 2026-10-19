@@ -151,24 +151,27 @@ object ReplanningUtil extends LazyLogging {
         newPlan.getAttributes.putAttribute(k, v)
       }
     }
-    val tripsLength = trips.length
-    for (i <- 0 until originalPlan.getPlanElements.size() - 1) {
-      newPlan.getPlanElements.add(originalPlan.getPlanElements.get(i))
-      if (tripsLength > i) {
-        val trip = trips(i)
-        val newLeg = PopulationUtils.createLeg(trip.tripClassifier.value)
-        newLeg.setTravelTime(trip.totalTravelTimeInSecs.toDouble)
-        trip.legs.headOption.foreach { firstBeamLeg =>
-          newLeg.setDepartureTime(firstBeamLeg.beamLeg.startTime.toDouble)
+    val planElementsSize = originalPlan.getPlanElements.size()
+    if (planElementsSize > 0) {
+      val tripsLength = trips.length
+      for (i <- 0 until planElementsSize - 1) {
+        newPlan.getPlanElements.add(originalPlan.getPlanElements.get(i))
+        if (tripsLength > i) {
+          val trip = trips(i)
+          val newLeg = PopulationUtils.createLeg(trip.tripClassifier.value)
+          newLeg.setTravelTime(trip.totalTravelTimeInSecs.toDouble)
+          trip.legs.headOption.foreach { firstBeamLeg =>
+            newLeg.setDepartureTime(firstBeamLeg.beamLeg.startTime.toDouble)
+          }
+          newLeg.getAttributes.putAttribute("vehicles", trip.vehiclesInTrip.mkString(","))
+          newPlan.getPlanElements.add(newLeg)
+        } else {
+          val newLeg = PopulationUtils.createLeg("")
+          newPlan.getPlanElements.add(newLeg)
         }
-        newLeg.getAttributes.putAttribute("vehicles", trip.vehiclesInTrip.mkString(","))
-        newPlan.getPlanElements.add(newLeg)
-      } else {
-        val newLeg = PopulationUtils.createLeg("")
-        newPlan.getPlanElements.add(newLeg)
       }
+      newPlan.getPlanElements.add(originalPlan.getPlanElements.get(planElementsSize - 1))
     }
-    newPlan.getPlanElements.add(originalPlan.getPlanElements.get(originalPlan.getPlanElements.size() - 1))
     newPlan
   }
 
@@ -184,12 +187,15 @@ object ReplanningUtil extends LazyLogging {
         newPlan.getAttributes.putAttribute(k, v)
       }
     }
-    for (i <- 0 until originalPlan.getPlanElements.size() - 1) {
-      newPlan.getPlanElements.add(originalPlan.getPlanElements.get(i))
-      val newLeg = PopulationUtils.createLeg("")
-      newPlan.getPlanElements.add(newLeg)
+    val planElementsSize = originalPlan.getPlanElements.size()
+    if (planElementsSize > 0) {
+      for (i <- 0 until planElementsSize - 1) {
+        newPlan.getPlanElements.add(originalPlan.getPlanElements.get(i))
+        val newLeg = PopulationUtils.createLeg("")
+        newPlan.getPlanElements.add(newLeg)
+      }
+      newPlan.getPlanElements.add(originalPlan.getPlanElements.get(planElementsSize - 1))
     }
-    newPlan.getPlanElements.add(originalPlan.getPlanElements.get(originalPlan.getPlanElements.size() - 1))
     newPlan
   }
 }

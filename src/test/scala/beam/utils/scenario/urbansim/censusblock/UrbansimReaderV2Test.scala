@@ -5,6 +5,7 @@ import beam.utils.TestConfigUtils
 import beam.utils.scenario.{InputType, PlanElement}
 import beam.utils.scenario.urbansim.censusblock.entities.{Activity, ActivityType, InputPlanElement, Leg}
 import beam.utils.scenario.urbansim.censusblock.merger.PlanMerger
+import beam.utils.scenario.urbansim.censusblock.reader.ParquetReaders
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -552,6 +553,62 @@ class UrbansimReaderV2Test extends AnyWordSpec with Matchers {
       mapFloatCamel.put("activityLocationY", "20.0")
       val elemCamel = InputPlanElement.transform(mapFloatCamel)
       elemCamel.planElementIndex shouldBe 3
+    }
+
+    "parse pandas float, NaN, and null representations safely across ParquetReaders" in {
+      // 1. readPlanSelected / parsePlanSelected
+      ParquetReaders.parsePlanSelected(java.lang.Double.valueOf(Double.NaN)) shouldBe None
+      ParquetReaders.parsePlanSelected(Double.NaN) shouldBe None
+      ParquetReaders.parsePlanSelected("NaN") shouldBe None
+      ParquetReaders.parsePlanSelected("nan") shouldBe None
+      ParquetReaders.parsePlanSelected("null") shouldBe None
+      ParquetReaders.parsePlanSelected("") shouldBe None
+      ParquetReaders.parsePlanSelected(null) shouldBe None
+      ParquetReaders.parsePlanSelected(java.lang.Double.valueOf(1.0)) shouldBe Some(true)
+      ParquetReaders.parsePlanSelected(java.lang.Double.valueOf(0.0)) shouldBe Some(false)
+      ParquetReaders.parsePlanSelected("1.0") shouldBe Some(true)
+      ParquetReaders.parsePlanSelected("0.0") shouldBe Some(false)
+      ParquetReaders.parsePlanSelected("true") shouldBe Some(true)
+      ParquetReaders.parsePlanSelected("false") shouldBe Some(false)
+
+      // 2. readPlanIndex / parsePlanIndex
+      ParquetReaders.parsePlanIndex(java.lang.Double.valueOf(Double.NaN)) shouldBe None
+      ParquetReaders.parsePlanIndex(Double.NaN) shouldBe None
+      ParquetReaders.parsePlanIndex("NaN") shouldBe None
+      ParquetReaders.parsePlanIndex("null") shouldBe None
+      ParquetReaders.parsePlanIndex(null) shouldBe None
+      ParquetReaders.parsePlanIndex(java.lang.Double.valueOf(2.0)) shouldBe Some(2)
+      ParquetReaders.parsePlanIndex("2.0") shouldBe Some(2)
+      ParquetReaders.parsePlanIndex(0) shouldBe Some(0)
+
+      // 3. parsePlanScore
+      ParquetReaders.parsePlanScore(java.lang.Double.valueOf(Double.NaN)).get.isNaN shouldBe true
+      ParquetReaders.parsePlanScore("NaN").get.isNaN shouldBe true
+      ParquetReaders.parsePlanScore("nan").get.isNaN shouldBe true
+      ParquetReaders.parsePlanScore("null") shouldBe None
+      ParquetReaders.parsePlanScore("") shouldBe None
+      ParquetReaders.parsePlanScore(null) shouldBe None
+      ParquetReaders.parsePlanScore(123.45) shouldBe Some(123.45)
+      ParquetReaders.parsePlanScore("123.45") shouldBe Some(123.45)
+
+      // 4. readDoubleOpt
+      ParquetReaders.readDoubleOpt(Some(java.lang.Double.valueOf(Double.NaN))) shouldBe None
+      ParquetReaders.readDoubleOpt(Some("NaN")) shouldBe None
+      ParquetReaders.readDoubleOpt(Some("null")) shouldBe None
+      ParquetReaders.readDoubleOpt(Some("15.5")) shouldBe Some(15.5)
+      ParquetReaders.readDoubleOpt(Some(null)) shouldBe None
+      ParquetReaders.readDoubleOpt(None) shouldBe None
+
+      // 5. parseInt, parseLong, parseDouble
+      ParquetReaders.parseInt(Double.NaN) shouldBe 0
+      ParquetReaders.parseInt("NaN") shouldBe 0
+      ParquetReaders.parseInt("2.0") shouldBe 2
+      ParquetReaders.parseLong(Double.NaN) shouldBe 0L
+      ParquetReaders.parseLong("NaN") shouldBe 0L
+      ParquetReaders.parseLong("100.0") shouldBe 100L
+      ParquetReaders.parseDouble(Double.NaN) shouldBe 0.0
+      ParquetReaders.parseDouble("NaN") shouldBe 0.0
+      ParquetReaders.parseDouble("42.5") shouldBe 42.5
     }
   }
 }
