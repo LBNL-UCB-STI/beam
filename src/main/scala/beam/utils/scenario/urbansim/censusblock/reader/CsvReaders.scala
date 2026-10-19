@@ -29,8 +29,29 @@ class CsvPlanReader(path: String) extends BaseCsvReader[InputPlanElement](path) 
 
   override val transformer = new EntityTransformer[InputPlanElement] {
 
+    private def parseBoolean(s: String): Option[Boolean] = {
+      s.trim.toLowerCase match {
+        case "true" | "t" | "1" | "1.0"  => Some(true)
+        case "false" | "f" | "0" | "0.0" => Some(false)
+        case other                       => Try(other.toBoolean).toOption
+      }
+    }
+
+    private def getOptionalNonEmpty(record: java.util.Map[String, String], key: String): Option[String] =
+      Option(record.get(key)).map(_.trim).filter(_.nonEmpty)
+
     override def transform(record: java.util.Map[String, String]): InputPlanElement = {
       val personId = record.get("person_id").split("\\.")(0)
+      val planIndex = getOptionalNonEmpty(record, "planIndex")
+        .orElse(getOptionalNonEmpty(record, "planindex"))
+        .flatMap(s => Try(s.toDouble.toInt).toOption)
+      val planScore = getOptionalNonEmpty(record, "planScore")
+        .orElse(getOptionalNonEmpty(record, "planscore"))
+        .flatMap(s => Try(s.toDouble).toOption)
+      val planSelected = getOptionalNonEmpty(record, "planSelected")
+        .orElse(getOptionalNonEmpty(record, "planselected"))
+        .flatMap(parseBoolean)
+
       InputPlanElement(
         tripId = Option(record.get("trip_id")),
         tourId = Option(record.get("tour_id")),
@@ -39,11 +60,14 @@ class CsvPlanReader(path: String) extends BaseCsvReader[InputPlanElement](path) 
         activityElement = ActivityType.determineActivity(record.get("ActivityElement")),
         tripMode = Option(record.get("trip_mode")),
         ActivityType = Option(record.get("ActivityType")),
-        x = Option(record.get("x")).map(_.toDouble),
-        y = Option(record.get("y")).map(_.toDouble),
-        departureTime = Option(record.get("departure_time")).map(_.toDouble),
-        expectedDurationMinutes = Option(record.get("trip_dur_min")).map(_.toString.toDouble),
-        expectedCostDollars = Option(record.get("trip_cost_dollars")).map(_.toString.toDouble)
+        x = getOptionalNonEmpty(record, "x").map(_.toDouble),
+        y = getOptionalNonEmpty(record, "y").map(_.toDouble),
+        departureTime = getOptionalNonEmpty(record, "departure_time").map(_.toDouble),
+        expectedDurationMinutes = getOptionalNonEmpty(record, "trip_dur_min").flatMap(s => Try(s.toDouble).toOption),
+        expectedCostDollars = getOptionalNonEmpty(record, "trip_cost_dollars").flatMap(s => Try(s.toDouble).toOption),
+        planIndex = planIndex,
+        planScore = planScore,
+        planSelected = planSelected
       )
     }
   }

@@ -231,7 +231,16 @@ class UrbanSimScenarioLoader(
     val personIdToTravelStats: Map[PersonId, PersonTravelStats] =
       plans
         .groupBy(_.personId)
-        .map(x => (x._1, plansToTravelStats(x._2)))
+        .map { case (personId, personPlans) =>
+          val selectedPlans = personPlans.filter(_.planSelected)
+          val effectivePlans = if (selectedPlans.nonEmpty) {
+            selectedPlans
+          } else {
+            val minPlanIndex = personPlans.map(_.planIndex).min
+            personPlans.filter(_.planIndex == minPlanIndex)
+          }
+          (personId, plansToTravelStats(effectivePlans))
+        }
 
     val personId2Score: Map[PersonId, Double] =
       householdIdToPersons.flatMap { case (_, persons) =>
@@ -723,54 +732,30 @@ class UrbanSimScenarioLoader(
   }
 
   private[utils] def applyPlans(plans: Iterable[PlanElement]): Unit = {
-    // holds data related to plan element index and whether it will be inserted in selected plan or not
-    case class State(planIndex: Int, planSelected: Boolean)
+    // Map keyed by (PersonId MATSIM Id, planIndex) to existing Plan
+    val personPlanMap: mutable.Map[(Id[Person], Int), Plan] = mutable.Map.empty
 
-    // person and their list of plans
-    // an index of state in map values (vector) will be the same as `person.getPlans` index
-    val store: mutable.Map[PersonId, Vector[State]] = mutable.Map.empty
-
-    // updates person/plans store internally
-    // add new plan to person if not exist or select appropriate plan based on plan index/selected to operate on
-    // set selected plan if not already
     def getPlan(person: Person, planInfo: PlanElement): Plan = {
-      val currentPlanSize = person.getPlans.size()
-      val (plan, state) = if (currentPlanSize == 0) {
-        val newState = State(planInfo.planIndex, planInfo.planSelected)
-        val plan = PopulationUtils.createPlan(person)
-        plan.setScore(planInfo.planScore)
-        store += (planInfo.personId -> Vector(newState))
-        person.addPlan(plan)
-        if (planInfo.planSelected) {
-          person.setSelectedPlan(plan)
-        }
-        plan -> newState
-      } else {
-        val lookingFor = State(planInfo.planIndex, planInfo.planSelected)
-        val states = store(planInfo.personId)
-        val index = states.zipWithIndex.find(_._1 == lookingFor).map(_._2).getOrElse {
-          // couldn't find in store, create new plan
+      personPlanMap.getOrElseUpdate(
+        (person.getId, planInfo.planIndex), {
           val newPlan = PopulationUtils.createPlan(person)
           newPlan.setScore(planInfo.planScore)
           person.addPlan(newPlan)
           if (planInfo.planSelected) {
             person.setSelectedPlan(newPlan)
           }
-          store += (planInfo.personId -> (states :+ lookingFor))
-          currentPlanSize
+          newPlan
         }
-        person.getPlans.get(index) -> lookingFor
-      }
-      if (person.getSelectedPlan == null && state.planSelected) {
-        person.setSelectedPlan(plan)
-      }
-      plan
+      )
     }
 
     plans.foreach { planInfo: PlanElement =>
       val person = population.getPersons.get(Id.createPersonId(planInfo.personId.id))
       if (person != null) {
         val plan = getPlan(person, planInfo)
+        if (planInfo.planSelected && person.getSelectedPlan == null) {
+          person.setSelectedPlan(plan)
+        }
         val planElement = planInfo.planElementType
         if (planElement == PlanElement.Leg) {
           buildAndAddLegToPlan(plan, planInfo)
@@ -794,6 +779,12 @@ class UrbanSimScenarioLoader(
             act.setEndTime(endTime * 60 * 60)
           }
         }
+      }
+    }
+
+    population.getPersons.values().asScala.foreach { person =>
+      if (person.getSelectedPlan == null && !person.getPlans.isEmpty) {
+        person.setSelectedPlan(person.getPlans.get(0))
       }
     }
   }

@@ -16,10 +16,21 @@ case class InputPlanElement(
   y: Option[Double],
   departureTime: Option[Double],
   expectedDurationMinutes: Option[Double] = None,
-  expectedCostDollars: Option[Double] = None
+  expectedCostDollars: Option[Double] = None,
+  planIndex: Option[Int] = None,
+  planScore: Option[Double] = None,
+  planSelected: Option[Boolean] = None
 )
 
 object InputPlanElement extends EntityTransformer[InputPlanElement] {
+
+  private def parseBoolean(s: String): Option[Boolean] = {
+    s.trim.toLowerCase match {
+      case "true" | "t" | "1" | "1.0"  => Some(true)
+      case "false" | "f" | "0" | "0.0" => Some(false)
+      case other                       => scala.util.Try(other.toBoolean).toOption
+    }
+  }
 
   override def transform(m: util.Map[String, String]): InputPlanElement = {
     val tripId = getOptional(m, "trip_id")
@@ -34,6 +45,15 @@ object InputPlanElement extends EntityTransformer[InputPlanElement] {
     val departureTime = getOptional(m, "departure_time").map(_.toDouble)
     val expectedDurationMinutes = getOptional(m, "trip_dur_min").map(_.toDouble)
     val expectedCostDollars = getOptional(m, "trip_cost_dollars").map(_.toDouble)
+    val planIndex = getOptional(m, "planIndex")
+      .orElse(getOptional(m, "planindex"))
+      .flatMap(s => scala.util.Try(s.trim.toDouble.toInt).toOption)
+    val planScore = getOptional(m, "planScore")
+      .orElse(getOptional(m, "planscore"))
+      .flatMap(s => scala.util.Try(s.trim.toDouble).toOption)
+    val planSelected = getOptional(m, "planSelected")
+      .orElse(getOptional(m, "planselected"))
+      .flatMap(parseBoolean)
 
     InputPlanElement(
       tripId,
@@ -47,7 +67,10 @@ object InputPlanElement extends EntityTransformer[InputPlanElement] {
       yWgs,
       departureTime,
       expectedDurationMinutes,
-      expectedCostDollars
+      expectedCostDollars,
+      planIndex,
+      planScore,
+      planSelected
     )
   }
 }
