@@ -220,6 +220,47 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
       )
     }
 
+    "should take only selected plan as planIndex 0 for replaced persons and preserve multi-plan memory for newly added persons" in {
+      val existingOld = Seq(
+        createPlanElement("0", 0, 0, 49499, planSelected = true, score = 10.0),
+        createPlanElement("0", 0, 1, 49500, planSelected = true, score = 10.0)
+      )
+      val multiPlanNew = Seq(
+        // Existing person "0": unselected plan 0 and selected plan 1 in plansToMerge
+        createPlanElement("0", 0, 0, 40000, planSelected = false, score = 5.0),
+        createPlanElement("0", 1, 0, 50000, planSelected = true, score = 20.0),
+        createPlanElement("0", 1, 1, 50001, planSelected = true, score = 20.0),
+        // Newly added person "9": has both planIndex 0 (unselected) and planIndex 1 (selected)
+        createPlanElement("9", 0, 0, 60000, planSelected = false, score = 15.0),
+        createPlanElement("9", 1, 0, 70000, planSelected = true, score = 30.0)
+      )
+
+      val res = PreviousRunPlanMerger
+        .merge(existingOld, multiPlanNew, 1.0, 1.0, Some(5), new Random(1))
+        .toList
+        .sortBy(p => (p.personId.id.toInt, p.planIndex, p.planElementIndex))
+
+      val person0Plans = res.filter(_.personId.id == "0")
+      person0Plans should be(
+        Seq(
+          // Newly merged selected plan becomes planIndex 0, selected = true
+          createPlanElement("0", 0, 0, 50000, planSelected = true, score = 20.0),
+          createPlanElement("0", 0, 1, 50001, planSelected = true, score = 20.0),
+          // Old plan shifted to planIndex 1, selected = false
+          createPlanElement("0", 1, 0, 49499, planSelected = false, score = 10.0),
+          createPlanElement("0", 1, 1, 49500, planSelected = false, score = 10.0)
+        )
+      )
+
+      val person9Plans = res.filter(_.personId.id == "9")
+      person9Plans should be(
+        Seq(
+          createPlanElement("9", 0, 0, 60000, planSelected = false, score = 15.0),
+          createPlanElement("9", 1, 0, 70000, planSelected = true, score = 30.0)
+        )
+      )
+    }
+
   }
 
   "PreviousRunPlanMerger with valid inputs" should {

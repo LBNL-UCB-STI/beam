@@ -8,13 +8,14 @@ class PlanMerger(modeMap: Map[String, String]) extends Merger[InputPlanElement, 
   def merge(inputIterator: Iterator[InputPlanElement]): Iterator[PlanElement] = inputIterator.map(transform)
 
   private def transform(inputPlanElement: InputPlanElement): PlanElement = {
+    val planIndex = inputPlanElement.planIndex.getOrElse(0)
     PlanElement(
       inputPlanElement.tripId.getOrElse(""),
       inputPlanElement.tourId.getOrElse(""),
       PersonId(inputPlanElement.personId),
-      inputPlanElement.planIndex.getOrElse(0),
+      planIndex,
       inputPlanElement.planScore.getOrElse(0.0),
-      planSelected = inputPlanElement.planSelected.getOrElse(true),
+      planSelected = inputPlanElement.planSelected.getOrElse(planIndex == 0),
       PlanElement.PlanElementType(inputPlanElement.activityElement.toString),
       inputPlanElement.planElementIndex,
       inputPlanElement.ActivityType,

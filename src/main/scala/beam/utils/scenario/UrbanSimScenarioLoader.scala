@@ -132,7 +132,8 @@ class UrbanSimScenarioLoader(
       HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(inputPlans)
     }
 
-    val (plans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlansCorrected)).getOrElse(inputPlans -> false)
+    val (plans, plansMerged) =
+      previousRunPlanMerger.map(_.merge(inputPlansCorrected)).getOrElse(inputPlansCorrected -> false)
 
     val householdIds = households.map(_.householdId.id).toSet
 
@@ -217,6 +218,15 @@ class UrbanSimScenarioLoader(
     persons.filter(person => personIdsWithPlan.contains(person.personId))
   }
 
+  private[utils] def resolveSelectedPlanIndex(personPlans: Iterable[PlanElement]): Int = {
+    val selectedIndices = personPlans.iterator.filter(_.planSelected).map(_.planIndex)
+    if (selectedIndices.nonEmpty) {
+      selectedIndices.min
+    } else {
+      personPlans.iterator.map(_.planIndex).min
+    }
+  }
+
   private[utils] def applyHousehold(
     households: Iterable[HouseholdInfo],
     householdIdToPersons: Map[HouseholdId, Iterable[PersonInfo]],
@@ -232,13 +242,8 @@ class UrbanSimScenarioLoader(
       plans
         .groupBy(_.personId)
         .map { case (personId, personPlans) =>
-          val selectedPlans = personPlans.filter(_.planSelected)
-          val effectivePlans = if (selectedPlans.nonEmpty) {
-            selectedPlans
-          } else {
-            val minPlanIndex = personPlans.map(_.planIndex).min
-            personPlans.filter(_.planIndex == minPlanIndex)
-          }
+          val selectedPlanIndex = resolveSelectedPlanIndex(personPlans)
+          val effectivePlans = personPlans.filter(_.planIndex == selectedPlanIndex)
           (personId, plansToTravelStats(effectivePlans))
         }
 
@@ -732,59 +737,47 @@ class UrbanSimScenarioLoader(
   }
 
   private[utils] def applyPlans(plans: Iterable[PlanElement]): Unit = {
-    // Map keyed by (PersonId MATSIM Id, planIndex) to existing Plan
-    val personPlanMap: mutable.Map[(Id[Person], Int), Plan] = mutable.Map.empty
-
-    def getPlan(person: Person, planInfo: PlanElement): Plan = {
-      personPlanMap.getOrElseUpdate(
-        (person.getId, planInfo.planIndex), {
-          val newPlan = PopulationUtils.createPlan(person)
-          newPlan.setScore(planInfo.planScore)
-          person.addPlan(newPlan)
-          if (planInfo.planSelected) {
-            person.setSelectedPlan(newPlan)
+    plans.groupBy(_.personId).foreach { case (personId, personPlans) =>
+      val person = population.getPersons.get(Id.createPersonId(personId.id))
+      if (person != null && personPlans.nonEmpty) {
+        val selectedPlanIndex = resolveSelectedPlanIndex(personPlans)
+        val plansByIndex = personPlans.groupBy(_.planIndex)
+        plansByIndex.keys.toSeq.sorted.foreach { planIndex =>
+          val planElements = plansByIndex(planIndex)
+          val firstElem = planElements.head
+          val plan = PopulationUtils.createPlan(person)
+          plan.setScore(firstElem.planScore)
+          person.addPlan(plan)
+          if (planIndex == selectedPlanIndex) {
+            person.setSelectedPlan(plan)
           }
-          newPlan
-        }
-      )
-    }
-
-    plans.foreach { planInfo: PlanElement =>
-      val person = population.getPersons.get(Id.createPersonId(planInfo.personId.id))
-      if (person != null) {
-        val plan = getPlan(person, planInfo)
-        if (planInfo.planSelected && person.getSelectedPlan == null) {
-          person.setSelectedPlan(plan)
-        }
-        val planElement = planInfo.planElementType
-        if (planElement == PlanElement.Leg) {
-          buildAndAddLegToPlan(plan, planInfo)
-        } else if (planElement == PlanElement.Activity) {
-          assert(
-            planInfo.activityLocationX.isDefined,
-            s"planElement is `activity`, but `x` is None! planInfo: $planInfo"
-          )
-          assert(
-            planInfo.activityLocationY.isDefined,
-            s"planElement is `activity`, but `y` is None! planInfo: $planInfo"
-          )
-          val coord = utmCoord(planInfo.activityLocationX.get, planInfo.activityLocationY.get, fromExistingPlans = true)
-          val activityType = planInfo.activityType.getOrElse(
-            throw new IllegalStateException(
-              s"planElement is `activity`, but `activityType` is None. planInfo: $planInfo"
-            )
-          )
-          val act = PopulationUtils.createAndAddActivityFromCoord(plan, activityType, coord)
-          planInfo.activityEndTime.foreach { endTime =>
-            act.setEndTime(endTime * 60 * 60)
+          planElements.toSeq.sortBy(_.planElementIndex).foreach { planInfo =>
+            val planElement = planInfo.planElementType
+            if (planElement == PlanElement.Leg) {
+              buildAndAddLegToPlan(plan, planInfo)
+            } else if (planElement == PlanElement.Activity) {
+              assert(
+                planInfo.activityLocationX.isDefined,
+                s"planElement is `activity`, but `x` is None! planInfo: $planInfo"
+              )
+              assert(
+                planInfo.activityLocationY.isDefined,
+                s"planElement is `activity`, but `y` is None! planInfo: $planInfo"
+              )
+              val coord =
+                utmCoord(planInfo.activityLocationX.get, planInfo.activityLocationY.get, fromExistingPlans = true)
+              val activityType = planInfo.activityType.getOrElse(
+                throw new IllegalStateException(
+                  s"planElement is `activity`, but `activityType` is None. planInfo: $planInfo"
+                )
+              )
+              val act = PopulationUtils.createAndAddActivityFromCoord(plan, activityType, coord)
+              planInfo.activityEndTime.foreach { endTime =>
+                act.setEndTime(endTime * 60 * 60)
+              }
+            }
           }
         }
-      }
-    }
-
-    population.getPersons.values().asScala.foreach { person =>
-      if (person.getSelectedPlan == null && !person.getPlans.isEmpty) {
-        person.setSelectedPlan(person.getPlans.get(0))
       }
     }
   }
