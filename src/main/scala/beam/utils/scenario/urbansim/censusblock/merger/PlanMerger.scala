@@ -1,6 +1,6 @@
 package beam.utils.scenario.urbansim.censusblock.merger
 
-import beam.utils.scenario.urbansim.censusblock.entities.InputPlanElement
+import beam.utils.scenario.urbansim.censusblock.entities.{InputPlanElement, Leg}
 import beam.utils.scenario.{PersonId, PlanElement}
 
 class PlanMerger(modeMap: Map[String, String]) extends Merger[InputPlanElement, PlanElement] {
@@ -14,7 +14,7 @@ class PlanMerger(modeMap: Map[String, String]) extends Merger[InputPlanElement, 
       inputPlanElement.tourId.getOrElse(""),
       PersonId(inputPlanElement.personId),
       planIndex,
-      inputPlanElement.planScore.getOrElse(0.0),
+      inputPlanElement.planScore.getOrElse(if (planIndex == 0) 0.0 else Double.NaN),
       planSelected = inputPlanElement.planSelected.getOrElse(planIndex == 0),
       PlanElement.PlanElementType(inputPlanElement.activityElement.toString),
       inputPlanElement.planElementIndex,
@@ -23,8 +23,12 @@ class PlanMerger(modeMap: Map[String, String]) extends Merger[InputPlanElement, 
       inputPlanElement.y,
       inputPlanElement.departureTime,
       inputPlanElement.tripMode.map(convertMode),
-      legDepartureTime = None,
-      legTravelTime = None,
+      legDepartureTime = inputPlanElement.legDepartureTime.orElse(
+        if (inputPlanElement.activityElement == Leg)
+          inputPlanElement.departureTime.map(_.toString)
+        else None
+      ),
+      legTravelTime = inputPlanElement.legTravelTime,
       legExpectedTravelTime = inputPlanElement.expectedDurationMinutes,
       legExpectedCost = inputPlanElement.expectedCostDollars,
       legRouteType = None,

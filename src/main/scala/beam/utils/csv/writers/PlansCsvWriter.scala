@@ -13,6 +13,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
 
   override protected val fields: Seq[String] = Seq(
     "tripId",
+    "tourId",
     "personId",
     "planIndex",
     "planScore",
@@ -98,12 +99,14 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           legMode = mode,
           legDepartureTime = leg.getDepartureTime.toOption.map(_.toString),
           legTravelTime = leg.getTravelTime.toOption.map(_.toString),
-          legExpectedTravelTime =
-            Option(leg.getAttributes.getAttribute("trip_dur_min")).map(_.toString).filterNot(_.isEmpty).map(_.toDouble),
+          legExpectedTravelTime = Option(leg.getAttributes.getAttribute("trip_dur_min"))
+            .map(_.toString)
+            .filterNot(_.isEmpty)
+            .flatMap(s => scala.util.Try(s.toDouble).toOption),
           legExpectedCost = Option(leg.getAttributes.getAttribute("trip_cost_dollars"))
             .map(_.toString)
             .filterNot(_.isEmpty)
-            .map(_.toDouble),
+            .flatMap(s => scala.util.Try(s.toDouble).toOption),
           legRouteType = route.map(_.getRouteType),
           legRouteStartLink = route.map(_.getStartLinkId.toString),
           legRouteEndLink = route.map(_.getEndLinkId.toString),
@@ -156,6 +159,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
   private def toLine(planInfo: PlanElement): String = {
     Seq(
       planInfo.tripId,
+      planInfo.tourId,
       planInfo.personId.id,
       planInfo.planIndex,
       planInfo.planScore,
@@ -184,7 +188,8 @@ object PlansCsvWriter extends ScenarioCsvWriter {
     val simStep = if (iterationLevel) "iteration" else "simulation"
     OutputDataDescriptorObject("PlansCsvWriter", s"plans.csv.gz", iterationLevel)(
       s"""
-      tripId              | Empty column. This table contains person plan elements at the beginning of $simStep.
+      tripId              | Trip id.
+      tourId              | Tour id.
       personId            | Person id
       planIndex           | Plan index
       planScore           | Plan score

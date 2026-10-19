@@ -2,7 +2,9 @@ package beam.utils.scenario.urbansim.censusblock
 
 import beam.sim.common.GeoUtils
 import beam.utils.TestConfigUtils
-import beam.utils.scenario.InputType
+import beam.utils.scenario.{InputType, PlanElement}
+import beam.utils.scenario.urbansim.censusblock.entities.{Activity, ActivityType, InputPlanElement, Leg}
+import beam.utils.scenario.urbansim.censusblock.merger.PlanMerger
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -446,6 +448,78 @@ class UrbansimReaderV2Test extends AnyWordSpec with Matchers {
       person2.getSelectedPlan shouldBe person2.getPlans.get(0)
       mockLoader.resolveSelectedPlanIndex(elements.filter(_.personId.id == "p1")) shouldBe 1
       mockLoader.resolveSelectedPlanIndex(elements.filter(_.personId.id == "p2")) shouldBe 1
+    }
+
+    "preserve legDepartureTime and legTravelTime in InputPlanElement and PlanMerger" in {
+      val mapSnake = new java.util.HashMap[String, String]()
+      mapSnake.put("person_id", "p1")
+      mapSnake.put("PlanElementIndex", "2")
+      mapSnake.put("ActivityElement", "leg")
+      mapSnake.put("trip_id", "trip_1")
+      mapSnake.put("tour_id", "tour_1")
+      mapSnake.put("trip_mode", "car")
+      mapSnake.put("leg_departure_time", "28800.0")
+      mapSnake.put("leg_travel_time", "1800.0")
+      mapSnake.put("trip_dur_min", "30.0")
+      mapSnake.put("trip_cost_dollars", "5.0")
+
+      val elemSnake = InputPlanElement.transform(mapSnake)
+      elemSnake.tripId shouldBe Some("trip_1")
+      elemSnake.tourId shouldBe Some("tour_1")
+      elemSnake.legDepartureTime shouldBe Some("28800.0")
+      elemSnake.legTravelTime shouldBe Some("1800.0")
+
+      val mapCamel = new java.util.HashMap[String, String]()
+      mapCamel.put("personId", "p1")
+      mapCamel.put("planElementIndex", "2")
+      mapCamel.put("planElementType", "leg")
+      mapCamel.put("tripId", "trip_2")
+      mapCamel.put("tourId", "tour_2")
+      mapCamel.put("legMode", "car")
+      mapCamel.put("legDepartureTime", "29000.0")
+      mapCamel.put("legTravelTime", "1500.0")
+
+      val elemCamel = InputPlanElement.transform(mapCamel)
+      elemCamel.tripId shouldBe Some("trip_2")
+      elemCamel.tourId shouldBe Some("tour_2")
+      elemCamel.legDepartureTime shouldBe Some("29000.0")
+      elemCamel.legTravelTime shouldBe Some("1500.0")
+
+      val act1 = InputPlanElement(
+        tripId = None,
+        tourId = None,
+        personId = "p1",
+        planElementIndex = 1,
+        activityElement = Activity,
+        tripMode = None,
+        ActivityType = Some("Home"),
+        x = Some(0.0),
+        y = Some(0.0),
+        departureTime = Some(8.0)
+      )
+      val act2 = InputPlanElement(
+        tripId = None,
+        tourId = None,
+        personId = "p1",
+        planElementIndex = 3,
+        activityElement = Activity,
+        tripMode = None,
+        ActivityType = Some("Work"),
+        x = Some(10.0),
+        y = Some(10.0),
+        departureTime = Some(17.0)
+      )
+
+      val modeMap = Map("CAR" -> "car", "WALK" -> "walk")
+      val merger = new PlanMerger(modeMap)
+      val merged = merger.merge(Iterator(act1, elemSnake, act2)).toSeq
+      val leg = merged.find(_.planElementType == PlanElement.Leg).get
+      leg.tripId shouldBe "trip_1"
+      leg.tourId shouldBe "tour_1"
+      leg.legDepartureTime shouldBe Some("28800.0")
+      leg.legTravelTime shouldBe Some("1800.0")
+      leg.legExpectedTravelTime shouldBe Some(30.0)
+      leg.legExpectedCost shouldBe Some(5.0)
     }
   }
 }

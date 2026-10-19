@@ -81,26 +81,50 @@ class ParquetPlanReader(path: String) extends BaseParquetReader[InputPlanElement
   }
 
   override protected def transform(record: GenericRecord): InputPlanElement = {
-    val personId = record.get("person_id").toString.split("\\.")(0)
+    val personId = getFieldFromNames(record, "person_id", "personId")
+      .map(_.toString.split("\\.")(0))
+      .getOrElse(throw new IllegalArgumentException(s"Missing person_id in parquet record: $record"))
+    val planElementIndex = getFieldFromNames(record, "PlanElementIndex", "planElementIndex")
+      .map(_.toString.toInt)
+      .getOrElse(throw new IllegalArgumentException(s"Missing planElementIndex in parquet record: $record"))
+    val activityElement = getFieldFromNames(record, "ActivityElement", "activityElement", "planElementType")
+      .map(v => ActivityType.determineActivity(v.toString))
+      .getOrElse(throw new IllegalArgumentException(s"Missing activityElement in parquet record: $record"))
+
     InputPlanElement(
-      tripId = getFieldOpt(record, "trip_id").map(_.toString).filterNot(isNullOrNanString),
-      tourId = getFieldOpt(record, "tour_id").map(_.toString).filterNot(isNullOrNanString),
+      tripId = getFieldFromNames(record, "trip_id", "tripId").map(_.toString).filterNot(isNullOrNanString),
+      tourId = getFieldFromNames(record, "tour_id", "tourId").map(_.toString).filterNot(isNullOrNanString),
       personId = personId,
-      planElementIndex = record.get("PlanElementIndex").toString.toInt,
-      activityElement = ActivityType.determineActivity(record.get("ActivityElement").toString),
-      tripMode = getFieldOpt(record, "trip_mode").map(_.toString).filterNot(isNullOrNanString),
-      ActivityType = getFieldOpt(record, "ActivityType").map(_.toString).filterNot(isNullOrNanString),
-      x = getFieldOpt(record, "x").map(_.toString).filterNot(isNullOrNanString).map(_.toDouble),
-      y = getFieldOpt(record, "y").map(_.toString).filterNot(isNullOrNanString).map(_.toDouble),
-      departureTime =
-        getFieldOpt(record, "departure_time").map(_.toString).filterNot(isNullOrNanString).map(_.toDouble),
+      planElementIndex = planElementIndex,
+      activityElement = activityElement,
+      tripMode = getFieldFromNames(record, "trip_mode", "legMode").map(_.toString).filterNot(isNullOrNanString),
+      ActivityType =
+        getFieldFromNames(record, "ActivityType", "activityType").map(_.toString).filterNot(isNullOrNanString),
+      x = getFieldFromNames(record, "x", "activityLocationX")
+        .map(_.toString)
+        .filterNot(isNullOrNanString)
+        .map(_.toDouble),
+      y = getFieldFromNames(record, "y", "activityLocationY")
+        .map(_.toString)
+        .filterNot(isNullOrNanString)
+        .map(_.toDouble),
+      departureTime = getFieldFromNames(record, "departure_time", "departureTime", "activityEndTime")
+        .map(_.toString)
+        .filterNot(isNullOrNanString)
+        .map(_.toDouble),
       expectedDurationMinutes =
         getFieldOpt(record, "trip_dur_min").map(_.toString).filterNot(isNullOrNanString).map(_.toDouble),
       expectedCostDollars =
         getFieldOpt(record, "trip_cost_dollars").map(_.toString).filterNot(isNullOrNanString).map(_.toDouble),
       planIndex = readPlanIndex(record),
       planScore = readPlanScore(record),
-      planSelected = readPlanSelected(record)
+      planSelected = readPlanSelected(record),
+      legDepartureTime = getFieldFromNames(record, "legDepartureTime", "leg_departure_time", "legdeparturetime")
+        .map(_.toString)
+        .filterNot(isNullOrNanString),
+      legTravelTime = getFieldFromNames(record, "legTravelTime", "leg_travel_time", "legtraveltime")
+        .map(_.toString)
+        .filterNot(isNullOrNanString)
     )
   }
 }

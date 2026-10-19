@@ -57,12 +57,14 @@ class UrbanSimScenarioLoader(
 
   private def buildAndAddLegToPlan(currentPlan: Plan, planElement: PlanElement): Leg = {
     val leg = PopulationUtils.createAndAddLeg(currentPlan, planElement.legMode.getOrElse(""))
-    planElement.legDepartureTime.foreach(v => leg.setDepartureTime(v.toDouble))
-    planElement.legTravelTime.foreach(travelTimeStr => {
-      val travelTime = travelTimeStr.toDouble
-      if (travelTime == beam.UNDEFINED_TIME) leg.setTravelTimeUndefined()
+    planElement.legDepartureTime
+      .flatMap(v => scala.util.Try(v.toDouble).toOption)
+      .filterNot(_.isNaN)
+      .foreach(v => leg.setDepartureTime(v))
+    planElement.legTravelTime.flatMap(v => scala.util.Try(v.toDouble).toOption).foreach { travelTime =>
+      if (travelTime == beam.UNDEFINED_TIME || travelTime.isNaN) leg.setTravelTimeUndefined()
       else leg.setTravelTime(travelTime)
-    })
+    }
     planElement.legMode.foreach(v => leg.setMode(v))
     leg.getAttributes.putAttribute("trip_id", planElement.tripId)
     leg.getAttributes.putAttribute("tour_id", planElement.tourId)

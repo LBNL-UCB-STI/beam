@@ -69,47 +69,72 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
     )
   }
 
+  private def parseDouble(s: String): Option[Double] = {
+    Option(s)
+      .map(_.trim)
+      .filter(v => v.nonEmpty && !v.equalsIgnoreCase("null") && !v.equalsIgnoreCase("none"))
+      .flatMap { v =>
+        if (v.equalsIgnoreCase("nan")) Some(Double.NaN)
+        else Try(v.toDouble).toOption
+      }
+  }
+
+  private def parseString(s: String): Option[String] = {
+    Option(s).map(_.trim).filter(v => v.nonEmpty && !v.equalsIgnoreCase("null") && !v.equalsIgnoreCase("none"))
+  }
+
+  private def parseBoolean(s: String): Option[Boolean] = {
+    Option(s).map(_.trim.toLowerCase).flatMap {
+      case "true" | "t" | "1" | "1.0"  => Some(true)
+      case "false" | "f" | "0" | "0.0" => Some(false)
+      case other                       => Try(other.toBoolean).toOption
+    }
+  }
+
   private[readers] def toPlanInfo(rec: java.util.Map[String, String]): PlanElement = {
     val personId = getIfNotNull(rec, "personId")
-    val planIndex = getIfNotNull(rec, "planIndex").toInt
+    val planIndex = parseDouble(rec.get("planIndex")).map(_.toInt).getOrElse(0)
     val planElementType = getIfNotNull(rec, "planElementType")
-    val planElementIndex = getIfNotNull(rec, "planElementIndex").toInt
-    val activityType = Option(rec.get("activityType"))
+    val planElementIndex = parseDouble(rec.get("planElementIndex")).map(_.toInt).getOrElse(0)
+    val activityType = parseString(rec.get("activityType"))
     val linkIds =
       Option(rec.get("legRouteLinks")).map(_.split(ArrayItemSeparator).map(_.trim)).getOrElse(Array.empty[String])
+    val tripId = Option(rec.get("tripId"))
+      .orElse(Option(rec.get("trip_id")))
+      .map(_.filter(x => x.isDigit || x.equals('.')))
+      .filterNot(s => s.isEmpty || s.equalsIgnoreCase("null"))
+      .getOrElse("")
+    val tourId = Option(rec.get("tourId"))
+      .orElse(Option(rec.get("tour_id")))
+      .map(_.filter(x => x.isDigit || x.equals('.')))
+      .filterNot(s => s.isEmpty || s.equalsIgnoreCase("null"))
+      .getOrElse("")
+
     PlanElement(
-      tripId = if (rec.get("trip_id") != null) {
-        rec.get("trip_id").filter(x => (x.isDigit || x.equals('.')))
-      } else {
-        ""
-      },
-      tourId = if (rec.get("tour_id") != null) {
-        rec.get("tour_id").filter(x => (x.isDigit || x.equals('.')))
-      } else {
-        ""
-      },
+      tripId = tripId,
+      tourId = tourId,
       personId = PersonId(personId),
       planIndex = planIndex,
-      planScore = getOrDefault(rec, "planScore", "0").toDouble,
-      planSelected = getOrDefault(rec, "planSelected", "false").toBoolean,
+      planScore = parseDouble(rec.get("planScore")).getOrElse(Double.NaN),
+      planSelected = parseBoolean(rec.get("planSelected")).getOrElse(true),
       planElementType = PlanElement.PlanElementType(planElementType),
       planElementIndex = planElementIndex,
       activityType = activityType,
-      activityLocationX = Option(rec.get("activityLocationX")).map(_.toDouble),
-      activityLocationY = Option(rec.get("activityLocationY")).map(_.toDouble),
-      activityEndTime = Option(rec.get("activityEndTime")).map(_.toDouble),
-      legMode = Option(rec.get("legMode")),
-      legDepartureTime = Option(rec.get("legDepartureTime")),
-      legTravelTime = Option(rec.get("legTravelTime")),
-      legExpectedTravelTime = Option(rec.get("trip_dur_min")).map(_.toDouble),
-      legExpectedCost = Option(rec.get("trip_cost_dollars")).map(_.toDouble),
-      legRouteType = Option(rec.get("legRouteType")),
-      legRouteStartLink = Option(rec.get("legRouteStartLink")),
-      legRouteEndLink = Option(rec.get("legRouteEndLink")),
-      legRouteTravelTime = Option(rec.get("legRouteTravelTime")).map(_.toDouble),
-      legRouteDistance = Option(rec.get("legRouteDistance")).map(_.toDouble),
+      activityLocationX = parseDouble(rec.get("activityLocationX")),
+      activityLocationY = parseDouble(rec.get("activityLocationY")),
+      activityEndTime = parseDouble(rec.get("activityEndTime")),
+      legMode = parseString(rec.get("legMode")),
+      legDepartureTime = parseString(rec.get("legDepartureTime")),
+      legTravelTime = parseString(rec.get("legTravelTime")),
+      legExpectedTravelTime = parseDouble(rec.get("trip_dur_min")),
+      legExpectedCost = parseDouble(rec.get("trip_cost_dollars")),
+      legRouteType = parseString(rec.get("legRouteType")),
+      legRouteStartLink = parseString(rec.get("legRouteStartLink")),
+      legRouteEndLink = parseString(rec.get("legRouteEndLink")),
+      legRouteTravelTime = parseDouble(rec.get("legRouteTravelTime")),
+      legRouteDistance = parseDouble(rec.get("legRouteDistance")),
       legRouteLinks = linkIds,
-      geoId = Option(rec.get("geoId"))
+      geoId = parseString(rec.get("geoId"))
     )
   }
 
