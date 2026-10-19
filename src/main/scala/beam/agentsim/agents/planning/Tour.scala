@@ -4,14 +4,19 @@ import org.matsim.api.core.v01.population.{Activity, PlanElement}
 import org.matsim.utils.objectattributes.attributable.Attributes
 
 class Tour(
-  var tourId: Int = 0,
+  var tourId: String = "",
   private var tripsInternal: Vector[Trip] = Vector(),
   val originActivity: Option[Activity] = None
 ) extends PlanElement {
 
+  def this(tourId: Int) = this(tourId.toString)
+  def this(tourId: Int, tripsInternal: Vector[Trip], originActivity: Option[Activity]) =
+    this(tourId.toString, tripsInternal, originActivity)
+
   def trips: Seq[Trip] = tripsInternal
 
-  def setTourId(newTourId: Int): Unit = { tourId = newTourId }
+  def setTourId(newTourId: String): Unit = { tourId = newTourId }
+  def setTourId(newTourId: Int): Unit = { tourId = newTourId.toString }
 
   def activities: Seq[Activity] = originActivity.toSeq ++ trips.map(_.activity)
 

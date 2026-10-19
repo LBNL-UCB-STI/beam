@@ -172,7 +172,7 @@ class BeamPlanSpec extends AnyWordSpecLike with Matchers with BeamHelper {
       val beamPlan = BeamPlan(matsimPlan)
       val tours = beamPlan.tours
       tours.length should be(4)
-      tours.map(_.tourId).intersect(Vector(101, 102, 103)).length should be(3)
+      tours.map(_.tourId).intersect(Vector("101", "102", "103")).length should be(3)
 
       val mandatoryTour = beamPlan.getTourContaining(1)
       val subTour = beamPlan.getTourContaining(2)
@@ -259,7 +259,7 @@ class BeamPlanSpec extends AnyWordSpecLike with Matchers with BeamHelper {
       val beamPlan = BeamPlan(matsimPlan)
       val tours = beamPlan.tours
       tours.length should be(4)
-      tours.map(_.tourId).intersect(Vector(101, 102, 103)).length should be(3)
+      tours.map(_.tourId).intersect(Vector("101", "102", "103")).length should be(3)
 
       val mandatoryTour = beamPlan.getTourContaining(1)
       val subTour = beamPlan.getTourContaining(2)

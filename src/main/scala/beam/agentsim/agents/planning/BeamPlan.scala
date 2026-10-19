@@ -137,22 +137,14 @@ class BeamPlan extends Plan {
     case _             => None
   }
 
-  private def getTourIdFromMatsimLeg(legOption: Option[Leg]): Option[Int] = {
+  private def getTourIdFromMatsimLeg(legOption: Option[Leg]): Option[String] = {
     legOption.flatMap { leg =>
       Option(leg.getAttributes.getAttribute("tour_id")).flatMap {
-        case n: Number =>
-          if (n.doubleValue().isNaN) None
-          else Some(n.intValue())
+        case n: Number if n.doubleValue().isNaN => None
         case other =>
           val str = other.toString.trim
           if (str.isEmpty || str.equalsIgnoreCase("null") || str.equalsIgnoreCase("nan")) None
-          else
-            try {
-              Some(str.toInt)
-            } catch {
-              case _: NumberFormatException =>
-                Some(str.hashCode & 0x7fffffff)
-            }
+          else Some(str)
       }
     }
   }
@@ -183,7 +175,7 @@ class BeamPlan extends Plan {
   def createToursFromMatsimPlan(): Unit = {
     tours = Vector()
     var currentTourIndex = -1
-    var currentTour = new Tour(-1)
+    var currentTour = new Tour("")
     var previousLeg: Option[Leg] = None
     // partial step for nested subtours
 //    val subTourBaseLocations: mutable.Seq[Coord] = mutable.Seq.empty[Coord]
@@ -203,7 +195,7 @@ class BeamPlan extends Plan {
         if (startNewTour) {
           currentTourIndex += 1
           currentTour.setTourId(
-            getTourIdFromMatsimLeg(previousLeg).getOrElse(currentTourIndex)
+            getTourIdFromMatsimLeg(previousLeg).getOrElse(currentTourIndex.toString)
           )
           if (!tours.map(_.tourId).contains(currentTour.tourId)) {
             tours = tours :+ currentTour
@@ -234,7 +226,7 @@ class BeamPlan extends Plan {
     if (currentTour.trips.nonEmpty) {
       currentTourIndex += 1
       currentTour.setTourId(
-        getTourIdFromMatsimLeg(previousLeg).getOrElse(currentTourIndex)
+        getTourIdFromMatsimLeg(previousLeg).getOrElse(currentTourIndex.toString)
       )
       if (!tours.map(_.tourId).contains(currentTour.tourId)) {
         tours = tours :+ currentTour

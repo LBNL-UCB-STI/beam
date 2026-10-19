@@ -557,8 +557,7 @@ class ReplanningUtilSpec extends AnyWordSpec with Matchers {
 
         val beamPlan = BeamPlan(matsimPlan)
         beamPlan.tours.length shouldBe 2
-        val expectedTourId = "tour_alpha_1".hashCode & 0x7fffffff
-        beamPlan.tours(1).tourId shouldBe expectedTourId
+        beamPlan.tours(1).tourId shouldBe "tour_alpha_1"
       }
     }
   }
