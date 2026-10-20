@@ -27,26 +27,7 @@ class CsvPersonReader(path: String) extends BaseCsvReader[InputPersonInfo](path)
 
 class CsvPlanReader(path: String) extends BaseCsvReader[InputPlanElement](path) {
 
-  override val transformer = new EntityTransformer[InputPlanElement] {
-
-    override def transform(record: java.util.Map[String, String]): InputPlanElement = {
-      val personId = record.get("person_id").split("\\.")(0)
-      InputPlanElement(
-        tripId = Option(record.get("trip_id")),
-        tourId = Option(record.get("tour_id")),
-        personId = personId,
-        planElementIndex = record.get("PlanElementIndex").toInt,
-        activityElement = ActivityType.determineActivity(record.get("ActivityElement")),
-        tripMode = Option(record.get("trip_mode")),
-        ActivityType = Option(record.get("ActivityType")),
-        x = Option(record.get("x")).map(_.toDouble),
-        y = Option(record.get("y")).map(_.toDouble),
-        departureTime = Option(record.get("departure_time")).map(_.toDouble),
-        expectedDurationMinutes = Option(record.get("trip_dur_min")).map(_.toString.toDouble),
-        expectedCostDollars = Option(record.get("trip_cost_dollars")).map(_.toString.toDouble)
-      )
-    }
-  }
+  override val transformer: EntityTransformer[InputPlanElement] = InputPlanElement
 }
 
 class CsvHouseholdReader(path: String) extends BaseCsvReader[InputHousehold](path) {

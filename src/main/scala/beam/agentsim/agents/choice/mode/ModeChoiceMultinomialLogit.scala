@@ -619,14 +619,18 @@ class ModeChoiceMultinomialLogit(
       ).head
 
       val newScaledTime = if (overrideAttributes) {
-        modeChoiceData.scaledTime / mods.getOrElse("travelTimeRatio", 1.0)
+        val ratio = mods.getOrElse("travelTimeRatio", 1.0)
+        if (ratio > 0.0) modeChoiceData.scaledTime / ratio else modeChoiceData.scaledTime
       } else { modeChoiceData.scaledTime }
 
-      // Placeholder to subtract off other components (e.g. cost) if they differ from expected values
+      val newCost = if (overrideAttributes) {
+        val expectedCostOpt = mods.get("expectedCost").filterNot(_.isNaN)
+        expectedCostOpt.getOrElse(modeChoiceData.cost)
+      } else { modeChoiceData.cost }
 
       utilityOf(
         trip.tripClassifier,
-        modeChoiceData.cost,
+        newCost,
         newScaledTime,
         modeChoiceData.numTransfers,
         modeChoiceData.transitOccupancyLevel

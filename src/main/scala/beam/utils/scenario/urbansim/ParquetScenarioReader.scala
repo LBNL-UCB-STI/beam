@@ -73,7 +73,8 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
   private[scenario] def toPlanInfo(rec: GenericRecord): PlanElement = {
     // Somehow Plan file has columns in camelCase, not snake_case
     val tripId = if (rec.get("tripId") != null) {
-      rec.get("tripId").toString.filter(x => (x.isDigit || x.equals('.')))
+      val s = rec.get("tripId").toString.trim
+      if (s.isEmpty || s.equalsIgnoreCase("null")) "" else s
     } else {
       ""
     }

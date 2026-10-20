@@ -104,7 +104,11 @@ object PreviousRunPlanMerger extends LazyLogging {
       elements
         .groupBy(_.planIndex)
         .toList
-        .sortBy { case (_, elements) => -elements.head.planScore + drawFromGumbel(beta.getOrElse(0.0), random) }
+        .sortBy { case (_, elements) =>
+          val score = elements.head.planScore
+          if (score.isNaN) Double.PositiveInfinity
+          else -score + drawFromGumbel(beta.getOrElse(0.0), random)
+        }
         .zipWithIndex
         .take(maximumNumberOfPlansToKeep.getOrElse(0))
         .flatMap { case ((_, elems), idx) =>
@@ -119,16 +123,45 @@ object PreviousRunPlanMerger extends LazyLogging {
           }
         }
     }
+    def resolveSelectedPlanIndex(personElements: Iterable[PlanElement]): Int = {
+      val selectedIndices = personElements.iterator.filter(_.planSelected).map(_.planIndex)
+      if (selectedIndices.nonEmpty) selectedIndices.min
+      else personElements.iterator.map(_.planIndex).min
+    }
+
     val elementsFromExistingPersonsToAdd =
-      plansToMerge.filter(shouldReplace).map(_.copy(planSelected = true, planIndex = 0))
+      plansToMerge
+        .filter(shouldReplace)
+        .groupBy(_.personId)
+        .flatMap { case (_, personElements) =>
+          val selectedIdx = resolveSelectedPlanIndex(personElements)
+          personElements
+            .filter(_.planIndex == selectedIdx)
+            .map(_.copy(planSelected = true, planIndex = 0))
+        }
     val shouldAdd = (plan: PlanElement) => personIdsToAdd.contains(plan.personId)
-    val elementsFromNewPersonsToAdd = plansToMerge.filter(shouldAdd).map(_.copy(planSelected = true, planIndex = 0))
+    val elementsFromNewPersonsToAdd =
+      plansToMerge
+        .filter(shouldAdd)
+        .groupBy(_.personId)
+        .flatMap { case (_, personElements) =>
+          val distinctIndices = personElements.map(_.planIndex).toSet
+          if (distinctIndices.size <= 1) {
+            personElements.map(_.copy(planSelected = true, planIndex = 0))
+          } else {
+            val selectedIdx = resolveSelectedPlanIndex(personElements)
+            personElements.map(elem => elem.copy(planSelected = elem.planIndex == selectedIdx))
+          }
+        }
     val unselectedPlanElements = {
       oldToBeReplaced.groupBy(_.personId).flatMap { case (_, elements) =>
         elements
           .groupBy(_.planIndex)
           .toList
-          .sortBy { case (_, elements) => -elements.head.planScore }
+          .sortBy { case (_, elements) =>
+            val score = elements.head.planScore
+            if (score.isNaN) Double.PositiveInfinity else -score
+          }
           .zipWithIndex
           .take(maximumNumberOfPlansToKeep.getOrElse(0))
           .flatMap { case ((_, elems), idx) =>

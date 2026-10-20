@@ -2877,7 +2877,7 @@ class PersonWithTourModeSpec
         )
 
         val personAgent = getUnderlyingPersonAgent(householdActor, "adoption-agent-case")
-        val parentTour = personAgent._experiencedBeamPlan.tours.find(_.tourId == 100).get
+        val parentTour = personAgent._experiencedBeamPlan.tours.find(_.tourId == "100").get
         val parentStrat = personAgent._experiencedBeamPlan.getStrategy[TourModeChoiceStrategy](parentTour)
         assert(
           parentStrat.tourVehicle.contains(emergencyCar.id),
@@ -3264,7 +3264,7 @@ class PersonWithTourModeSpec
         )
 
         // 4. Assert: egress car is still the parent tour's vehicle afterwards!
-        val parentTour = personAgent._experiencedBeamPlan.tours.find(_.tourId == 100).get
+        val parentTour = personAgent._experiencedBeamPlan.tours.find(_.tourId == "100").get
         val parentStrat = personAgent._experiencedBeamPlan.getStrategy[TourModeChoiceStrategy](parentTour)
         assert(
           parentStrat.tourVehicle.contains(egressCarId),

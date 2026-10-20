@@ -213,7 +213,11 @@ class BeamScenarioLoader(
             )
           } else {
             val currentPlan = PopulationUtils.createPlan(person)
-            currentPlan.setScore(listOfElementsGroupedByPlan.head.planScore)
+            if (!listOfElementsGroupedByPlan.head.planScore.isNaN) {
+              currentPlan.setScore(listOfElementsGroupedByPlan.head.planScore)
+            } else {
+              currentPlan.setScore(null.asInstanceOf[java.lang.Double])
+            }
             person.addPlan(currentPlan)
 
             val personWithoutSelectedPlan = person.getSelectedPlan == null

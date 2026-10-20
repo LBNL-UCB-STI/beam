@@ -71,53 +71,63 @@ object HOVModeTransformer extends ExponentialLazyLogging {
   private val allCarModesWithHOV: Set[String] =
     (allCarModes ++ allHOVModes).toSet
 
+  private type PersonPlanKey = (PersonId, Int)
+
+  private def planKey(planElement: PlanElement): PersonPlanKey =
+    (planElement.personId, planElement.planIndex)
+
+  private final class HOVBalanceCounts {
+    var forcedHOV2Teleports: Int = 0
+    var forcedHOV3Teleports: Int = 0
+    var forcedCarHOV2Count: Int = 0
+    var forcedCarHOV3Count: Int = 0
+
+    def thereAreMoreHOVTeleportations: Boolean =
+      (forcedHOV2Teleports > forcedCarHOV2Count) || (forcedHOV3Teleports > forcedCarHOV3Count * 2)
+
+    def thereAreMoreHOVCars: Boolean =
+      (forcedCarHOV2Count > forcedHOV2Teleports) || (forcedCarHOV3Count * 2 > forcedHOV3Teleports)
+  }
+
   def transformHOVtoHOVCARorHOVTeleportation(
     plansProbablyWithHOV: Iterable[PlanElement]
   ): Iterable[PlanElement] = {
 
-    val allHOVUsers: Set[PersonId] =
+    val allHOVUserPlans: Set[PersonPlanKey] =
       plansProbablyWithHOV
-        .filter(x => x.legMode.exists(m => m.toLowerCase.contains(hov2) || m.toLowerCase.contains(hov3)))
-        .map(_.personId)
+        .filter(x => x.legMode.exists(m => isHOV2(m) || isHOV3(m)))
+        .map(planKey)
         .toSet
 
-    var forcedHOV2Teleports = 0
-    var forcedHOV3Teleports = 0
-
-    var forcedCarHOV2Count = 0
-    var forcedCarHOV3Count = 0
-
-    def thereAreMoreHOVTeleportations: Boolean = {
-      (forcedHOV2Teleports > forcedCarHOV2Count) || (forcedHOV3Teleports > forcedCarHOV3Count * 2)
+    val balanceByGroup = mutable.HashMap.empty[(Boolean, Int), HOVBalanceCounts]
+    def countsFor(planElement: PlanElement): HOVBalanceCounts = {
+      val groupKey = if (planElement.planSelected) (true, 0) else (false, planElement.planIndex)
+      balanceByGroup.getOrElseUpdate(groupKey, new HOVBalanceCounts)
     }
 
-    def thereAreMoreHOVCars: Boolean = {
-      (forcedCarHOV2Count > forcedHOV2Teleports) || (forcedCarHOV3Count * 2 > forcedHOV3Teleports)
-    }
-
-    def replaceHOVwithCar(trip: List[PlanElement]): List[PlanElement] = {
+    def replaceHOVwithCar(trip: List[PlanElement], counts: HOVBalanceCounts): List[PlanElement] = {
       trip.map {
         case hov2Leg if itIsAnHOV2Leg(hov2Leg) =>
-          forcedHOV2Teleports -= 1
+          counts.forcedHOV2Teleports -= 1
           summaryStats("forcedCarHOV2Count") += 1
           hov2Leg.copy(legMode = Some(CAR_HOV2.value))
         case hov3Leg if itIsAnHOV3Leg(hov3Leg) =>
           // as car_hov3 contains two passengers, reduce by 2
-          forcedHOV3Teleports -= 2
+          counts.forcedHOV3Teleports -= 2
           summaryStats("forcedCarHOV3Count") += 1
           hov3Leg.copy(legMode = Some(CAR_HOV3.value))
         case other => other
       }
     }
 
-    def replaceHOVwithTeleportation(trip: List[PlanElement]): List[PlanElement] = {
+    def replaceHOVwithTeleportation(trip: List[PlanElement], counts: HOVBalanceCounts): List[PlanElement] = {
       trip.map {
         case hov2Leg if itIsAnHOV2Leg(hov2Leg) =>
-          forcedCarHOV2Count -= 1
+          counts.forcedCarHOV2Count -= 1
           summaryStats("forcedHOV2Teleports") += 1
           hov2Leg.copy(legMode = Some(HOV2_TELEPORTATION.value))
         case hov3Leg if itIsAnHOV3Leg(hov3Leg) =>
-          forcedCarHOV3Count -= 1
+          counts.forcedCarHOV3Count -= 1
           summaryStats("forcedHOV3Teleports") += 1
           hov3Leg.copy(legMode = Some(HOV3_TELEPORTATION.value))
         case other => other
@@ -126,33 +136,33 @@ object HOVModeTransformer extends ExponentialLazyLogging {
 
     val tripsTransformed: Iterable[List[PlanElement]] = splitToTrips(plansProbablyWithHOV)
       .map { trip =>
-        if (allHOVUsers.contains(trip.head.personId)) {
+        if (allHOVUserPlans.contains(planKey(trip.head))) {
+          val counts = countsFor(trip.head)
           if (isForcedHOVTeleportationTrip(trip)) {
             val (mappedTrip, forcedHOV2, forcedHOV3) = mapToForcedHOVTeleportation(trip)
-            forcedHOV2Teleports += forcedHOV2
-            forcedHOV3Teleports += forcedHOV3
+            counts.forcedHOV2Teleports += forcedHOV2
+            counts.forcedHOV3Teleports += forcedHOV3
             summaryStats("forcedHOV2Teleports") += forcedHOV2
             summaryStats("forcedHOV3Teleports") += forcedHOV3
             mappedTrip
           } else if (isForcedCarHOVTrip(trip)) {
             val (mappedTrip, forcedHOV2, forcedHOV3) = mapToForcedCarHOVTrip(trip)
-            forcedCarHOV2Count += forcedHOV2
-            forcedCarHOV3Count += forcedHOV3
+            counts.forcedCarHOV2Count += forcedHOV2
+            counts.forcedCarHOV3Count += forcedHOV3
             summaryStats("forcedCarHOV2Count") += forcedHOV2
             summaryStats("forcedCarHOV3Count") += forcedHOV3
             mappedTrip
-          } else if (thereAreMoreHOVTeleportations) {
-            replaceHOVwithCar(trip)
-          } else if (thereAreMoreHOVCars) {
-            replaceHOVwithTeleportation(trip)
+          } else if (counts.thereAreMoreHOVTeleportations) {
+            replaceHOVwithCar(trip, counts)
+          } else if (counts.thereAreMoreHOVCars) {
+            replaceHOVwithTeleportation(trip, counts)
           } else {
-            val transformedTrip = mapRandomHOVTeleportationOrCar(trip)
-            transformedTrip.foreach {
+            trip.foreach {
               case leg if itIsAnHOV2Leg(leg) => summaryStats("randomHOV2Choices") += 1
               case leg if itIsAnHOV3Leg(leg) => summaryStats("randomHOV3Choices") += 1
               case _                         =>
             }
-            transformedTrip
+            mapRandomHOVTeleportationOrCar(trip)
           }
         } else {
           trip
@@ -170,16 +180,16 @@ object HOVModeTransformer extends ExponentialLazyLogging {
   }
 
   def joinTripsIntoPlans(tripsTransformed: Iterable[List[PlanElement]]): Iterable[PlanElement] = {
-    val personToLastActivity = mutable.HashMap.empty[PersonId, PlanElement]
+    val personPlanToLastActivity = mutable.HashMap.empty[PersonPlanKey, PlanElement]
     val plans = tripsTransformed.map { trip =>
-      val personId = trip.head.personId
-      val tripToAdd = personToLastActivity.get(personId) match {
+      val key = planKey(trip.head)
+      val tripToAdd = personPlanToLastActivity.get(key) match {
         // we need to remove the first activity because it is a duplicate
         // that was added while plans were split to trips
         case Some(lastSeenActivity) if lastSeenActivity == trip.head => trip.tail
         case _                                                       => trip
       }
-      personToLastActivity(personId) = trip.last
+      personPlanToLastActivity(key) = trip.last
       tripToAdd
     }
 
@@ -187,18 +197,19 @@ object HOVModeTransformer extends ExponentialLazyLogging {
   }
 
   /**
-    * Splits provided plans to trips. Each sub collection is a separate trip for separate person.
+    * Splits provided plans to trips. Each sub collection is a separate trip for separate (person, planIndex).
     */
   def splitToTrips(planElements: Iterable[PlanElement]): Iterable[List[PlanElement]] = {
     val trips = mutable.ListBuffer.empty[List[PlanElement]]
-    val personToTrip = mutable.HashMap.empty[PersonId, mutable.ListBuffer[PlanElement]]
+    val personToTrip = mutable.HashMap.empty[PersonPlanKey, mutable.ListBuffer[PlanElement]]
     val homeActivity = "home"
-    val plansByPerson = mutable.LinkedHashMap.empty[PersonId, mutable.ListBuffer[PlanElement]]
+    val plansByPerson = mutable.LinkedHashMap.empty[PersonPlanKey, mutable.ListBuffer[PlanElement]]
 
     planElements.foreach { plan =>
-      plansByPerson.get(plan.personId) match {
+      val key = planKey(plan)
+      plansByPerson.get(key) match {
         case Some(plans) => plans.append(plan)
-        case None        => plansByPerson(plan.personId) = mutable.ListBuffer(plan)
+        case None        => plansByPerson(key) = mutable.ListBuffer(plan)
       }
     }
 
@@ -210,7 +221,7 @@ object HOVModeTransformer extends ExponentialLazyLogging {
       isHomeActivity(plans.head) && isHomeActivity(plans.last)
     }
 
-    def addLeg(leg: PlanElement): Unit = personToTrip.get(leg.personId) match {
+    def addLeg(leg: PlanElement): Unit = personToTrip.get(planKey(leg)) match {
       case Some(trip) => trip.append(leg)
       case None       =>
         //not possible if there are no bugs, as before splitting plans are checked if it is possible
@@ -219,26 +230,29 @@ object HOVModeTransformer extends ExponentialLazyLogging {
         )
     }
 
-    def addActivity(activity: PlanElement): Unit = personToTrip.get(activity.personId) match {
-      case Some(trip) if isHomeActivity(activity) && trip.size > 1 =>
-        trips.append(trip.toList :+ activity)
-        personToTrip.remove(activity.personId)
+    def addActivity(activity: PlanElement): Unit = {
+      val key = planKey(activity)
+      personToTrip.get(key) match {
+        case Some(trip) if isHomeActivity(activity) && trip.size > 1 =>
+          trips.append(trip.toList :+ activity)
+          personToTrip.remove(key)
 
-        // we should start a new trip in case a person will continue, if not we will drop this orphaned home activity later
-        // this also creates a home activity duplicates later when we join trips back together
-        // i.e.
-        // original plans: home - leg - work - leg - home - leg - other - leg - home
-        // splitted trip1: home - leg - work - leg - home
-        //          trip2: home - leg - other - leg - home
-        personToTrip(activity.personId) = mutable.ListBuffer(activity)
+          // we should start a new trip in case a person will continue, if not we will drop this orphaned home activity later
+          // this also creates a home activity duplicates later when we join trips back together
+          // i.e.
+          // original plans: home - leg - work - leg - home - leg - other - leg - home
+          // splitted trip1: home - leg - work - leg - home
+          //          trip2: home - leg - other - leg - home
+          personToTrip(key) = mutable.ListBuffer(activity)
 
-      case Some(trip) if isHomeActivity(activity) && trip.size == 1 =>
-        // replace home activity
-        personToTrip(activity.personId) = mutable.ListBuffer(activity)
+        case Some(trip) if isHomeActivity(activity) && trip.size == 1 =>
+          // replace home activity
+          personToTrip(key) = mutable.ListBuffer(activity)
 
-      case Some(trip) => trip.append(activity)
+        case Some(trip) => trip.append(activity)
 
-      case None => personToTrip(activity.personId) = mutable.ListBuffer(activity)
+        case None => personToTrip(key) = mutable.ListBuffer(activity)
+      }
     }
 
     val cantSplitTripsForPersons = mutable.ListBuffer.empty[PersonId]
@@ -269,7 +283,7 @@ object HOVModeTransformer extends ExponentialLazyLogging {
 
     if (personToTrip.nonEmpty) {
       val cnt = personToTrip.size
-      val persons = personToTrip.keySet.mkString(",")
+      val persons = personToTrip.keySet.map(_._1).mkString(",")
       logger.warn(
         s"There are $cnt trips which did not end with Home activity. Affected persons: $persons"
       )
@@ -280,12 +294,12 @@ object HOVModeTransformer extends ExponentialLazyLogging {
 
   def itIsAnHOV2Leg(planElement: PlanElement): Boolean = {
     planElement.planElementType == PlanElement.Leg &&
-    planElement.legMode.exists(legMode => legMode.toLowerCase.contains(hov2))
+    planElement.legMode.exists(isHOV2)
   }
 
   def itIsAnHOV3Leg(planElement: PlanElement): Boolean = {
     planElement.planElementType == PlanElement.Leg &&
-    planElement.legMode.exists(legMode => legMode.toLowerCase.contains(hov3))
+    planElement.legMode.exists(isHOV3)
   }
 
   def itIsASOVLeg(planElement: PlanElement): Boolean = {

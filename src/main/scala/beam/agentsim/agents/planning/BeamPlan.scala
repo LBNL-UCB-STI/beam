@@ -99,7 +99,9 @@ object BeamPlan {
       "modality-style",
       Option(plan.getAttributes.getAttribute("modality-style")).getOrElse("")
     )
-    newPlan.setScore(plan.getScore)
+    if (plan.getScore != null && !plan.getScore.isNaN) {
+      newPlan.setScore(plan.getScore)
+    }
     newPlan
   }
 
@@ -122,7 +124,7 @@ class BeamPlan extends Plan {
   // Implementation of Legacy Interface
   private var person: Person = _
   private var actsLegs: Vector[PlanElement] = Vector()
-  private var score: Double = Double.NaN
+  private var score: java.lang.Double = null
   private var planType: String = ""
 
   lazy val legs: Vector[Leg] = actsLegs flatMap {
@@ -135,16 +137,14 @@ class BeamPlan extends Plan {
     case _             => None
   }
 
-  private def getTourIdFromMatsimLeg(legOption: Option[Leg]): Option[Int] = {
+  private def getTourIdFromMatsimLeg(legOption: Option[Leg]): Option[String] = {
     legOption.flatMap { leg =>
-      Option(leg.getAttributes.getAttribute("tour_id")) match {
-        case Some(value: String) if value.nonEmpty =>
-          try {
-            Some(value.toInt)
-          } catch {
-            case _: NumberFormatException => None
-          }
-        case _ => None
+      Option(leg.getAttributes.getAttribute("tour_id")).flatMap {
+        case n: Number if n.doubleValue().isNaN => None
+        case other =>
+          val str = other.toString.trim
+          if (str.isEmpty || str.equalsIgnoreCase("null") || str.equalsIgnoreCase("nan")) None
+          else Some(str)
       }
     }
   }
@@ -161,7 +161,7 @@ class BeamPlan extends Plan {
 //  }
 
   private def getTourModeFromMatsimLeg(leg: Leg): Option[BeamTourMode] = {
-    if (person.getId.toString.startsWith(FREIGHT_ID_PREFIX)) {
+    if (person != null && person.getId != null && person.getId.toString.startsWith(FREIGHT_ID_PREFIX)) {
       Some(BeamTourMode.FREIGHT_TOUR)
     } else {
       Option(leg.getAttributes.getAttribute("tour_mode")).flatMap(x => BeamTourMode.fromString(x.toString))
@@ -175,7 +175,7 @@ class BeamPlan extends Plan {
   def createToursFromMatsimPlan(): Unit = {
     tours = Vector()
     var currentTourIndex = -1
-    var currentTour = new Tour(-1)
+    var currentTour = new Tour("")
     var previousLeg: Option[Leg] = None
     // partial step for nested subtours
 //    val subTourBaseLocations: mutable.Seq[Coord] = mutable.Seq.empty[Coord]
@@ -195,7 +195,7 @@ class BeamPlan extends Plan {
         if (startNewTour) {
           currentTourIndex += 1
           currentTour.setTourId(
-            getTourIdFromMatsimLeg(previousLeg).getOrElse(currentTourIndex)
+            getTourIdFromMatsimLeg(previousLeg).getOrElse(currentTourIndex.toString)
           )
           if (!tours.map(_.tourId).contains(currentTour.tourId)) {
             tours = tours :+ currentTour
@@ -226,7 +226,7 @@ class BeamPlan extends Plan {
     if (currentTour.trips.nonEmpty) {
       currentTourIndex += 1
       currentTour.setTourId(
-        getTourIdFromMatsimLeg(previousLeg).getOrElse(currentTourIndex)
+        getTourIdFromMatsimLeg(previousLeg).getOrElse(currentTourIndex.toString)
       )
       if (!tours.map(_.tourId).contains(currentTour.tourId)) {
         tours = tours :+ currentTour
@@ -470,7 +470,9 @@ class BeamPlan extends Plan {
 
   override def getScore: java.lang.Double = score
 
-  override def setScore(newScore: lang.Double): Unit = score = newScore
+  override def setScore(newScore: lang.Double): Unit = {
+    score = if (newScore != null && !newScore.isNaN) newScore else null
+  }
 
   override def getPlanElements: java.util.List[PlanElement] = actsLegs.asJava
 }

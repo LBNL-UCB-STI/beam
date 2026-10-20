@@ -139,16 +139,7 @@ class BeamScoringFunctionFactory @Inject() (
         person.getSelectedPlan.getAttributes
           .putAttribute("scores", MapStringDouble(Map("NA" -> Double.NaN)))
 
-        val personLegs = person.getSelectedPlan.getPlanElements.asScala.collect { case leg: Leg => leg }
-        if (personLegs.isEmpty) {
-          val newPlan = ReplanningUtil.addBeamTripsToPlanWithOnlyActivities(person.getSelectedPlan, trips.toVector)
-          person.addPlan(newPlan)
-          person.removePlan(person.getSelectedPlan)
-          person.setSelectedPlan(newPlan)
-        }
-        trips.zip(personLegs).map { case (trip, leg) =>
-          leg.getAttributes.putAttribute("vehicles", trip.vehiclesInTrip.mkString(","))
-        }
+        val effectivePersonLegs = BeamScoringFunctionFactory.updateRealizedLegs(person, trips)
 
         // TODO: Factor in ivt multipliers from ASim to downweight extra time on transit:
 //        ivt_cost_multiplier: 0.6
@@ -159,17 +150,27 @@ class BeamScoringFunctionFactory @Inject() (
 //        ivt_com_multiplier: 0.7
 
         val tripsWithUpdatedAttributes = trips
-          .zip(personLegs)
+          .zip(effectivePersonLegs)
           .map { case (x, y) =>
-            x -> Map("travelTimeRatio" -> (Option(y.getAttributes.getAttribute("trip_dur_min")) match {
+            val travelTimeRatio = Option(y.getAttributes.getAttribute("trip_dur_min")) match {
               case Some(expectedTravelTime) =>
-                x.totalTravelTimeInSecs.toDouble / 60.0 / NumberUtils.toDouble(expectedTravelTime.toString)
+                val parsedDur = NumberUtils.toDouble(expectedTravelTime.toString, Double.NaN)
+                val expectedSecs = if (!parsedDur.isNaN) parsedDur * 60.0 else 0.0
+                if (expectedSecs > 0.0) x.totalTravelTimeInSecs.toDouble / expectedSecs else 1.0
               case None =>
                 logger.debug(s"Missing expected travel time ratio for leg $y")
                 1.0
-            }))
+            }
+            val baseMap = Map("travelTimeRatio" -> travelTimeRatio)
+            val withCost = Option(y.getAttributes.getAttribute("trip_cost_dollars")) match {
+              case Some(expectedCostObj) =>
+                val parsedCost = NumberUtils.toDouble(expectedCostObj.toString, Double.NaN)
+                if (!parsedCost.isNaN) baseMap + ("expectedCost" -> parsedCost) else baseMap
+              case None => baseMap
+            }
+            x -> withCost
           }
-          .toMap
+          .toMap ++ trips.drop(effectivePersonLegs.size).map(_ -> Map.empty[String, Double]).toMap
         val allDayExpectedScore = if (beamConfig.beam.replanning.subtractExpectedScores) {
           modeChoiceCalculator.computeAllDayUtility(
             tripsWithUpdatedAttributes,
@@ -211,6 +212,7 @@ class BeamScoringFunctionFactory @Inject() (
           )
         } // keep scores no further below -100k to keep MATSim happy (doesn't like -Infinity) but knowing
         // that if changes to utility function drive the true scores below -100k, this will need to be replaced with another big number.
+        person.getSelectedPlan.setScore(finalScore)
 
         // Write the individual's trip scores to csv
         writeTripScoresToCSV()
@@ -410,10 +412,44 @@ class BeamScoringFunctionFactory @Inject() (
 /**
   * A companion object for the BeamScoringFunctionFactory class
   */
-object BeamScoringFunctionFactory extends OutputDataDescriptor {
+object BeamScoringFunctionFactory extends OutputDataDescriptor with LazyLogging {
 
   final val agentTripScoreFileBaseName = "agentTripScores"
   final val linkStatsFileBaseName = "generalizedLinkStats"
+
+  def updateRealizedLegs(person: Person, trips: Seq[EmbodiedBeamTrip]): Seq[Leg] = {
+    val personLegs = person.getSelectedPlan.getPlanElements.asScala.collect { case leg: Leg => leg }
+    val effectivePersonLegs = if (personLegs.isEmpty) {
+      val newPlan = ReplanningUtil.addBeamTripsToPlanWithOnlyActivities(person.getSelectedPlan, trips.toVector)
+      person.addPlan(newPlan)
+      person.removePlan(person.getSelectedPlan)
+      person.setSelectedPlan(newPlan)
+      newPlan.getPlanElements.asScala.collect { case leg: Leg => leg }
+    } else {
+      personLegs
+    }
+
+    if (trips.size != effectivePersonLegs.size) {
+      logger.warn(
+        s"Mismatch in trips size (${trips.size}) and effective person legs size (${effectivePersonLegs.size}) for person ${person.getId}"
+      )
+    }
+    if (trips.nonEmpty) {
+      trips.zip(effectivePersonLegs).foreach { case (trip, leg) =>
+        leg.setMode(trip.tripClassifier.value)
+        leg.setTravelTime(trip.totalTravelTimeInSecs.toDouble)
+        trip.legs.headOption.foreach { firstBeamLeg =>
+          leg.setDepartureTime(firstBeamLeg.beamLeg.startTime.toDouble)
+        }
+        leg.getAttributes.putAttribute("vehicles", trip.vehiclesInTrip.mkString(","))
+      }
+    }
+    effectivePersonLegs.drop(trips.size).foreach { leg =>
+      if (leg.getMode == null) leg.setMode("")
+    }
+    person.getSelectedPlan.getAttributes.putAttribute("beamRealizedUpdated", true)
+    effectivePersonLegs
+  }
 
   /**
     * Get description of fields written to the output files.

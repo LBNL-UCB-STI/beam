@@ -57,12 +57,14 @@ class UrbanSimScenarioLoader(
 
   private def buildAndAddLegToPlan(currentPlan: Plan, planElement: PlanElement): Leg = {
     val leg = PopulationUtils.createAndAddLeg(currentPlan, planElement.legMode.getOrElse(""))
-    planElement.legDepartureTime.foreach(v => leg.setDepartureTime(v.toDouble))
-    planElement.legTravelTime.foreach(travelTimeStr => {
-      val travelTime = travelTimeStr.toDouble
-      if (travelTime == beam.UNDEFINED_TIME) leg.setTravelTimeUndefined()
+    planElement.legDepartureTime
+      .flatMap(v => scala.util.Try(v.toDouble).toOption)
+      .filterNot(_.isNaN)
+      .foreach(v => leg.setDepartureTime(v))
+    planElement.legTravelTime.flatMap(v => scala.util.Try(v.toDouble).toOption).foreach { travelTime =>
+      if (travelTime == beam.UNDEFINED_TIME || travelTime.isNaN) leg.setTravelTimeUndefined()
       else leg.setTravelTime(travelTime)
-    })
+    }
     planElement.legMode.foreach(v => leg.setMode(v))
     leg.getAttributes.putAttribute("trip_id", planElement.tripId)
     leg.getAttributes.putAttribute("tour_id", planElement.tourId)
@@ -132,7 +134,8 @@ class UrbanSimScenarioLoader(
       HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(inputPlans)
     }
 
-    val (plans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlansCorrected)).getOrElse(inputPlans -> false)
+    val (plans, plansMerged) =
+      previousRunPlanMerger.map(_.merge(inputPlansCorrected)).getOrElse(inputPlansCorrected -> false)
 
     val householdIds = households.map(_.householdId.id).toSet
 
@@ -217,6 +220,15 @@ class UrbanSimScenarioLoader(
     persons.filter(person => personIdsWithPlan.contains(person.personId))
   }
 
+  private[utils] def resolveSelectedPlanIndex(personPlans: Iterable[PlanElement]): Int = {
+    val selectedIndices = personPlans.iterator.filter(_.planSelected).map(_.planIndex)
+    if (selectedIndices.nonEmpty) {
+      selectedIndices.min
+    } else {
+      personPlans.iterator.map(_.planIndex).min
+    }
+  }
+
   private[utils] def applyHousehold(
     households: Iterable[HouseholdInfo],
     householdIdToPersons: Map[HouseholdId, Iterable[PersonInfo]],
@@ -231,7 +243,11 @@ class UrbanSimScenarioLoader(
     val personIdToTravelStats: Map[PersonId, PersonTravelStats] =
       plans
         .groupBy(_.personId)
-        .map(x => (x._1, plansToTravelStats(x._2)))
+        .map { case (personId, personPlans) =>
+          val selectedPlanIndex = resolveSelectedPlanIndex(personPlans)
+          val effectivePlans = personPlans.filter(_.planIndex == selectedPlanIndex)
+          (personId, plansToTravelStats(effectivePlans))
+        }
 
     val personId2Score: Map[PersonId, Double] =
       householdIdToPersons.flatMap { case (_, persons) =>
@@ -723,75 +739,49 @@ class UrbanSimScenarioLoader(
   }
 
   private[utils] def applyPlans(plans: Iterable[PlanElement]): Unit = {
-    // holds data related to plan element index and whether it will be inserted in selected plan or not
-    case class State(planIndex: Int, planSelected: Boolean)
-
-    // person and their list of plans
-    // an index of state in map values (vector) will be the same as `person.getPlans` index
-    val store: mutable.Map[PersonId, Vector[State]] = mutable.Map.empty
-
-    // updates person/plans store internally
-    // add new plan to person if not exist or select appropriate plan based on plan index/selected to operate on
-    // set selected plan if not already
-    def getPlan(person: Person, planInfo: PlanElement): Plan = {
-      val currentPlanSize = person.getPlans.size()
-      val (plan, state) = if (currentPlanSize == 0) {
-        val newState = State(planInfo.planIndex, planInfo.planSelected)
-        val plan = PopulationUtils.createPlan(person)
-        plan.setScore(planInfo.planScore)
-        store += (planInfo.personId -> Vector(newState))
-        person.addPlan(plan)
-        if (planInfo.planSelected) {
-          person.setSelectedPlan(plan)
-        }
-        plan -> newState
-      } else {
-        val lookingFor = State(planInfo.planIndex, planInfo.planSelected)
-        val states = store(planInfo.personId)
-        val index = states.zipWithIndex.find(_._1 == lookingFor).map(_._2).getOrElse {
-          // couldn't find in store, create new plan
-          val newPlan = PopulationUtils.createPlan(person)
-          newPlan.setScore(planInfo.planScore)
-          person.addPlan(newPlan)
-          if (planInfo.planSelected) {
-            person.setSelectedPlan(newPlan)
+    plans.groupBy(_.personId).foreach { case (personId, personPlans) =>
+      val person = population.getPersons.get(Id.createPersonId(personId.id))
+      if (person != null && personPlans.nonEmpty) {
+        val selectedPlanIndex = resolveSelectedPlanIndex(personPlans)
+        val plansByIndex = personPlans.groupBy(_.planIndex)
+        plansByIndex.keys.toSeq.sorted.foreach { planIndex =>
+          val planElements = plansByIndex(planIndex)
+          val firstElem = planElements.head
+          val plan = PopulationUtils.createPlan(person)
+          if (!firstElem.planScore.isNaN) {
+            plan.setScore(firstElem.planScore)
+          } else {
+            plan.setScore(null.asInstanceOf[java.lang.Double])
           }
-          store += (planInfo.personId -> (states :+ lookingFor))
-          currentPlanSize
-        }
-        person.getPlans.get(index) -> lookingFor
-      }
-      if (person.getSelectedPlan == null && state.planSelected) {
-        person.setSelectedPlan(plan)
-      }
-      plan
-    }
-
-    plans.foreach { planInfo: PlanElement =>
-      val person = population.getPersons.get(Id.createPersonId(planInfo.personId.id))
-      if (person != null) {
-        val plan = getPlan(person, planInfo)
-        val planElement = planInfo.planElementType
-        if (planElement == PlanElement.Leg) {
-          buildAndAddLegToPlan(plan, planInfo)
-        } else if (planElement == PlanElement.Activity) {
-          assert(
-            planInfo.activityLocationX.isDefined,
-            s"planElement is `activity`, but `x` is None! planInfo: $planInfo"
-          )
-          assert(
-            planInfo.activityLocationY.isDefined,
-            s"planElement is `activity`, but `y` is None! planInfo: $planInfo"
-          )
-          val coord = utmCoord(planInfo.activityLocationX.get, planInfo.activityLocationY.get, fromExistingPlans = true)
-          val activityType = planInfo.activityType.getOrElse(
-            throw new IllegalStateException(
-              s"planElement is `activity`, but `activityType` is None. planInfo: $planInfo"
-            )
-          )
-          val act = PopulationUtils.createAndAddActivityFromCoord(plan, activityType, coord)
-          planInfo.activityEndTime.foreach { endTime =>
-            act.setEndTime(endTime * 60 * 60)
+          person.addPlan(plan)
+          if (planIndex == selectedPlanIndex) {
+            person.setSelectedPlan(plan)
+          }
+          planElements.toSeq.sortBy(_.planElementIndex).foreach { planInfo =>
+            val planElement = planInfo.planElementType
+            if (planElement == PlanElement.Leg) {
+              buildAndAddLegToPlan(plan, planInfo)
+            } else if (planElement == PlanElement.Activity) {
+              assert(
+                planInfo.activityLocationX.isDefined,
+                s"planElement is `activity`, but `x` is None! planInfo: $planInfo"
+              )
+              assert(
+                planInfo.activityLocationY.isDefined,
+                s"planElement is `activity`, but `y` is None! planInfo: $planInfo"
+              )
+              val coord =
+                utmCoord(planInfo.activityLocationX.get, planInfo.activityLocationY.get, fromExistingPlans = true)
+              val activityType = planInfo.activityType.getOrElse(
+                throw new IllegalStateException(
+                  s"planElement is `activity`, but `activityType` is None. planInfo: $planInfo"
+                )
+              )
+              val act = PopulationUtils.createAndAddActivityFromCoord(plan, activityType, coord)
+              planInfo.activityEndTime.foreach { endTime =>
+                act.setEndTime(endTime * 60 * 60)
+              }
+            }
           }
         }
       }

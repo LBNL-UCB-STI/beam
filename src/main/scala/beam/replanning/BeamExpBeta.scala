@@ -16,8 +16,6 @@ class BeamExpBeta @Inject() (services: BeamServices) extends PlansStrategyAdopte
       s"Before ExpBetaPlanSelector (iteration: [$iterationNumber]): Person-${person.getId} - ${person.getPlans.size()}"
     )
 
-    ReplanningUtil.makeExperiencedMobSimCompatible(person)
-
     val plan = new ExpBetaPlanSelector(1).selectPlan(person)
 
     person.setSelectedPlan(plan)

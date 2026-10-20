@@ -466,6 +466,131 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
       "CAR"
     )
   }
+
+  test("multi-plan person keeps (personId, planIndex) isolated in splitToTrips, joinTripsIntoPlans, and transform") {
+    val home = Act("Home", 1100.0, 1100.0)
+    val work = Act("Work", 1200.0, 1200.0)
+    val shop = Act("Shopping", 1300.0, 1300.0)
+
+    // Person 1 has two plans:
+    // planIndex 0 (unselected, score -10): HOV3 + CAR (must become car_hov3 + CAR)
+    // planIndex 1 (selected, score 20): CAR + CAR (no HOV legs; must remain untouched and preserve planElementIndex 0..4)
+    val plan0 = newTrip(
+      personId = 1,
+      startIndex = 0,
+      modes = Seq("HOV3", "CAR"),
+      activities = Seq(home, shop, home)
+    ).zipWithIndex.map { case (elem, idx) =>
+      elem.copy(planIndex = 0, planScore = -10.0, planSelected = false, planElementIndex = idx)
+    }
+
+    val plan1 = newTrip(
+      personId = 1,
+      startIndex = 0,
+      modes = Seq("CAR", "CAR"),
+      activities = Seq(home, work, home)
+    ).zipWithIndex.map { case (elem, idx) =>
+      elem.copy(planIndex = 1, planScore = 20.0, planSelected = true, planElementIndex = idx)
+    }
+
+    val inputPlans = plan0 ++ plan1
+
+    val split = HOVModeTransformer.splitToTrips(inputPlans)
+    split.size shouldBe 2
+    val joined = HOVModeTransformer.joinTripsIntoPlans(split)
+    joined.filter(_.planIndex == 0).map(_.planElementIndex) shouldBe (0 until plan0.size)
+    joined.filter(_.planIndex == 1).map(_.planElementIndex) shouldBe (0 until plan1.size)
+
+    val transformed = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(inputPlans).toSeq
+    val transformedPlan0 = transformed.filter(_.planIndex == 0).sortBy(_.planElementIndex)
+    val transformedPlan1 = transformed.filter(_.planIndex == 1).sortBy(_.planElementIndex)
+
+    transformedPlan0.map(_.planElementIndex) shouldBe (0 until plan0.size)
+    transformedPlan0.flatMap(_.legMode) shouldBe Seq("car_hov3", "CAR")
+    transformedPlan0.forall(p => !p.planSelected && p.planScore == -10.0) shouldBe true
+
+    transformedPlan1 shouldBe plan1
+  }
+
+  test("unselected multi-plan HOV trips do not skew selected-plan HOV car/teleportation balance") {
+    val acts = Seq(
+      Act("Home", 1100.0, 1100.0),
+      Act("Shopping", 2.0, 2.0),
+      Act("Work", 1200.0, 1200.0),
+      Act("Home", 1100.0, 1100.0)
+    )
+
+    def withPlanMeta(elems: Iterable[PlanElement], planIdx: Int, selected: Boolean): Seq[PlanElement] =
+      elems.toSeq.zipWithIndex.map { case (e, i) =>
+        e.copy(planIndex = planIdx, planSelected = selected, planElementIndex = i)
+      }
+
+    // Selected plans: person 3 is forced to car_hov3 (because of CAR leg), so persons 1 and 2 selected plans
+    // should balance it by becoming hov3_teleportation.
+    // Person 3 also has 10 unselected plans forced to car_hov3; those unselected plans must NOT cause
+    // additional selected plans to be forced to teleportation or vice versa.
+    val selectedPlans =
+      withPlanMeta(newTrip(1, 0, modes = Seq("HOV3", "HOV3", "WALK"), activities = acts), 0, selected = true) ++
+      withPlanMeta(newTrip(2, 0, modes = Seq("HOV3", "HOV3", "WALK"), activities = acts), 0, selected = true) ++
+      withPlanMeta(newTrip(3, 0, modes = Seq("HOV3", "HOV3", "CAR"), activities = acts), 0, selected = true)
+
+    val unselectedPlans = (1 to 10).flatMap { planIdx =>
+      withPlanMeta(newTrip(3, 0, modes = Seq("HOV3", "HOV3", "WALK"), activities = acts), planIdx, selected = false)
+    }
+
+    val processed = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(unselectedPlans ++ selectedPlans)
+    val selectedProcessed = processed.filter(_.planSelected)
+    selectedProcessed.flatMap(_.legMode).toList shouldBe List(
+      "hov3_teleportation",
+      "hov3_teleportation",
+      "WALK",
+      "hov3_teleportation",
+      "hov3_teleportation",
+      "WALK",
+      "car_hov3",
+      "car_hov3",
+      "CAR"
+    )
+  }
+
+  test("already-resolved car_hov and hov_teleportation plans should not be re-transformed or skew HOV balance") {
+    val acts = Seq(
+      Act("Home", 1100.0, 1100.0),
+      Act("Shopping", 2.0, 2.0),
+      Act("Work", 1200.0, 1200.0),
+      Act("Home", 1100.0, 1100.0)
+    )
+
+    // Historical plans with already-resolved modes (e.g. from prior iterations in PILATES):
+    // - Person 10 has a mixed hov2_teleportation + car_hov2 tour that would fail isForcedHOVTeleportationTrip if re-evaluated
+    // - Person 11 has an all-car_hov3 tour that would be flipped to hov3_teleportation if balance counters are non-zero
+    val historicalPlan10 = newTrip(
+      10,
+      0,
+      modes = Seq(HOV2_TELEPORTATION.value, CAR_HOV2.value, HOV2_TELEPORTATION.value),
+      activities = acts
+    ).toSeq
+    val historicalPlan11 = newTrip(
+      11,
+      0,
+      modes = Seq(CAR_HOV3.value, CAR_HOV3.value, CAR_HOV3.value),
+      activities = acts
+    ).toSeq
+
+    // Person 1 has a forced hov3_teleportation trip (HOV3 + WALK), making forcedHOV3Teleports > 0
+    val unresolvedForcedTeleport = newTrip(
+      1,
+      0,
+      modes = Seq("HOV3", "HOV3", "WALK"),
+      activities = acts
+    ).toSeq
+
+    val input = unresolvedForcedTeleport ++ historicalPlan10 ++ historicalPlan11
+    val output = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(input).toSeq
+
+    output.filter(_.personId.id == "10") shouldBe historicalPlan10
+    output.filter(_.personId.id == "11") shouldBe historicalPlan11
+  }
 }
 
 object HOVModeTransformerTest {

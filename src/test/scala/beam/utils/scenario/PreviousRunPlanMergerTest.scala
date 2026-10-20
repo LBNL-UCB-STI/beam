@@ -220,6 +220,81 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
       )
     }
 
+    "should take only selected plan as planIndex 0 for replaced persons, trim NaN-scored old plans first, and preserve multi-plan memory for newly added persons" in {
+      val existingOld = Seq(
+        createPlanElement("0", 0, 0, 49499, planSelected = true, score = -100.0),
+        createPlanElement("0", 0, 1, 49500, planSelected = true, score = -100.0),
+        createPlanElement("0", 1, 0, 48000, planSelected = false, score = Double.NaN)
+      )
+      val multiPlanNew = Seq(
+        // Existing person "0": unselected plan 0 and selected plan 1 in plansToMerge
+        createPlanElement("0", 0, 0, 40000, planSelected = false, score = 5.0),
+        createPlanElement("0", 1, 0, 50000, planSelected = true, score = 20.0),
+        createPlanElement("0", 1, 1, 50001, planSelected = true, score = 20.0),
+        // Newly added person "9": has both planIndex 0 (unselected) and planIndex 1 (selected)
+        createPlanElement("9", 0, 0, 60000, planSelected = false, score = 15.0),
+        createPlanElement("9", 1, 0, 70000, planSelected = true, score = 30.0)
+      )
+
+      val res = PreviousRunPlanMerger
+        .merge(existingOld, multiPlanNew, 1.0, 1.0, Some(1), new Random(1))
+        .toList
+        .sortBy(p => (p.personId.id.toInt, p.planIndex, p.planElementIndex))
+
+      val person0Plans = res.filter(_.personId.id == "0")
+      person0Plans should be(
+        Seq(
+          // Newly merged selected plan becomes planIndex 0, selected = true
+          createPlanElement("0", 0, 0, 50000, planSelected = true, score = 20.0),
+          createPlanElement("0", 0, 1, 50001, planSelected = true, score = 20.0),
+          // Old finite-scored plan (-100.0) is kept at planIndex 1 while NaN-scored plan is trimmed
+          createPlanElement("0", 1, 0, 49499, planSelected = false, score = -100.0),
+          createPlanElement("0", 1, 1, 49500, planSelected = false, score = -100.0)
+        )
+      )
+
+      val person9Plans = res.filter(_.personId.id == "9")
+      person9Plans should be(
+        Seq(
+          createPlanElement("9", 0, 0, 60000, planSelected = false, score = 15.0),
+          createPlanElement("9", 1, 0, 70000, planSelected = true, score = 30.0)
+        )
+      )
+    }
+
+    "should not select NaN-scored plan for unreplaced persons even with positive beta in Gumbel selection" in {
+      val oldPlansWithNan = Seq(
+        // Plan 0: valid score 10.0
+        createPlanElement("0", 0, 0, 1000, planSelected = true, score = 10.0),
+        // Plan 1: NaN score
+        createPlanElement("0", 1, 0, 2000, planSelected = false, score = Double.NaN)
+      )
+      // With fraction = 0.0, person "0" is not replaced, so oldElementsBeforeChoosing applies
+      val res = PreviousRunPlanMerger
+        .merge(
+          oldPlansWithNan,
+          Seq.empty,
+          fractionOfPlansToUpdate = 0.0,
+          populationSample = 1.0,
+          maximumNumberOfPlansToKeep = Some(2),
+          random = new Random(42),
+          beta = Some(1.0)
+        )
+        .toList
+        .sortBy(p => (p.personId.id.toInt, p.planIndex, p.planElementIndex))
+
+      res should have size 2
+      val selectedPlan = res.filter(_.planSelected)
+      selectedPlan should have size 1
+      selectedPlan.head.planIndex shouldBe 0
+      selectedPlan.head.planScore shouldBe 10.0
+
+      val unselectedPlan = res.filterNot(_.planSelected)
+      unselectedPlan should have size 1
+      unselectedPlan.head.planIndex shouldBe 1
+      unselectedPlan.head.planScore.isNaN shouldBe true
+    }
+
   }
 
   "PreviousRunPlanMerger with valid inputs" should {
