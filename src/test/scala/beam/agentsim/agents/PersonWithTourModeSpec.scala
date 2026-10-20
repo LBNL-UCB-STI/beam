@@ -4097,7 +4097,9 @@ class PersonWithTourModeSpec
       }
     }
 
-    it("should fall back to expensive CAR trip using held freight truck on mid-tour route failure and keep truck for next leg") {
+    it(
+      "should fall back to expensive CAR trip using held freight truck on mid-tour route failure and keep truck for next leg"
+    ) {
       val eventsManager = new EventsManagerImpl()
       eventsManager.addHandler(new BasicEventHandler {
         override def handleEvent(event: Event): Unit = event match {

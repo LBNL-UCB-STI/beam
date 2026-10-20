@@ -646,4 +646,3 @@ class UrbansimReaderV2Test extends AnyWordSpec with Matchers {
     }
   }
 }
-
