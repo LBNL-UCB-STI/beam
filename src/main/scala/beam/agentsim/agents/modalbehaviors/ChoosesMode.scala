@@ -1838,10 +1838,23 @@ trait ChoosesMode {
         // Keep the already-held vehicle unless this choice selected a more specific one. This allows a failed or
         // reset subtour to continue carrying an inherited parent-tour vehicle through replanning.
         val parentTourStrategy = getParentTourStrategy(personData)
+        val freightTourVehicle = if (this.id.toString.startsWith(FREIGHT_ID_PREFIX)) {
+          chosenTrip.vehiclesInTrip
+            .find(v => beamVehicles.get(v).exists(_.vehicle.isFreight || BeamVehicle.isFreightVehicle(v)))
+            .orElse(choosesModeData.personData.currentTourPersonalVehicle)
+            .orElse(beamVehicles.values.find(v => v.vehicle.isFreight || BeamVehicle.isFreightVehicle(v.id)).map(_.id))
+            .orElse(
+              choosesModeData.availablePersonalStreetVehicles
+                .find(v => v.vehicle.isFreight || BeamVehicle.isFreightVehicle(v.id))
+                .map(_.id)
+            )
+        } else None
+
         sanitizeTourVehicleId(
           chosenCurrentTourPersonalVehicle
             .get(chosenTrip)
             .flatten
+            .orElse(freightTourVehicle)
             .orElse(choosesModeData.personData.currentTourPersonalVehicle)
             .orElse(getInheritedTourVehicle(choosesModeData.personData, allAvailableStreetVehicles)),
           effectiveParentTourVehicle(parentTourStrategy),
@@ -1850,12 +1863,29 @@ trait ChoosesMode {
       }
 
       def gotoFinishingModeChoice(chosenTrip: EmbodiedBeamTrip) = {
+        val effectiveTourMode = if (this.id.toString.startsWith(FREIGHT_ID_PREFIX)) {
+          chosenCurrentTourMode.orElse(Some(FREIGHT_TOUR))
+        } else {
+          chosenCurrentTourMode
+        }
+        val tourPersonalVehicle = resolvedCurrentTourPersonalVehicle(chosenTrip)
+        if (this.id.toString.startsWith(FREIGHT_ID_PREFIX)) {
+          val currentTour = _experiencedBeamPlan.getTourContaining(nextAct)
+          val tourStrategy = _experiencedBeamPlan.getTourStrategy[TourModeChoiceStrategy](nextAct)
+          _experiencedBeamPlan.putStrategy(
+            currentTour,
+            tourStrategy.copy(
+              tourMode = tourStrategy.tourMode.orElse(Some(FREIGHT_TOUR)),
+              tourVehicle = tourStrategy.tourVehicle.orElse(tourPersonalVehicle)
+            )
+          )
+        }
         goto(FinishingModeChoice) using choosesModeData.safeCopy(
           personData = personData.copy(
             restOfCurrentTrip = List.empty[EmbodiedBeamLeg],
             currentTripMode = Some(chosenTrip.tripClassifier),
-            currentTourMode = chosenCurrentTourMode,
-            currentTourPersonalVehicle = resolvedCurrentTourPersonalVehicle(chosenTrip),
+            currentTourMode = effectiveTourMode,
+            currentTourPersonalVehicle = tourPersonalVehicle,
             passengerSchedule = PassengerSchedule()
           ),
           pendingChosenTrip = Some(chosenTrip),
@@ -2102,6 +2132,35 @@ trait ChoosesMode {
             )
           }
 
+          def gotoExpensiveFreightTrip(): State = {
+            logger.error(
+              f"Routing request for freight agent ${this.id} failed. Creating a bushwhacking CAR trip from " +
+              f"$currentPersonLocation to ${nextAct.getCoord}"
+            )
+            val heldFreightVehicleOpt: Option[VehicleOrToken] = choosesModeData.personData.currentTourPersonalVehicle
+              .flatMap(id => beamVehicles.get(id))
+              .orElse(beamVehicles.values.find(v => v.vehicle.isFreight || BeamVehicle.isFreightVehicle(v.id)))
+              .orElse(allAvailableStreetVehicles.find(v => v.vehicle.isFreight || BeamVehicle.isFreightVehicle(v.id)))
+              .orElse(
+                choosesModeData.availablePersonalStreetVehicles
+                  .find(v => v.vehicle.isFreight || BeamVehicle.isFreightVehicle(v.id))
+              )
+              .orElse(
+                beamVehicles.values.find(v => v.id != body.id && (v.streetVehicle.mode == CAR || v.vehicle.isFreight))
+              )
+
+            val vehiclesForFreightFallback = heldFreightVehicleOpt.map(Vector(_)).getOrElse(allAvailableStreetVehicles)
+            val expensiveFreightTrip =
+              createExpensiveVehicleTrip(
+                currentPersonLocation,
+                nextAct,
+                vehiclesForFreightFallback,
+                routingResponse,
+                CAR
+              )
+            gotoFinishingModeChoice(expensiveFreightTrip)
+          }
+
           effectiveModeOpt match {
             case Some(CAV) =>
               // Special case, if you are using household CAV, no choice was necessary you just use this mode
@@ -2151,20 +2210,8 @@ trait ChoosesMode {
                 }
               )
               gotoFinishingModeChoice(teleportationTripWithoutRoute)
-            case Some(CAR) if this.id.toString.startsWith(FREIGHT_ID_PREFIX) =>
-              logger.error(
-                f"Routing request for freight agent ${this.id} failed. Creating a bushwhacking CAR trip from " +
-                f"$currentPersonLocation to ${nextAct.getCoord}"
-              )
-              val expensiveFreightTrip =
-                createExpensiveVehicleTrip(
-                  currentPersonLocation,
-                  nextAct,
-                  allAvailableStreetVehicles,
-                  routingResponse,
-                  CAR
-                )
-              gotoFinishingModeChoice(expensiveFreightTrip)
+            case Some(CAR | FREIGHT) if this.id.toString.startsWith(FREIGHT_ID_PREFIX) =>
+              gotoExpensiveFreightTrip()
             case Some(CAR | CAR_HOV2 | CAR_HOV3)
                 if newAndTourVehicles.isEmpty &&
                   beamScenario.beamConfig.beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt =>
@@ -2399,6 +2446,8 @@ trait ChoosesMode {
                   retryingIntermodalMode = if (shouldRetryFinalIntermodalEgress) Some(mode) else None
                 )(agent = this, context = f"Replanning after failed mode choice, with planned mode $mode")
               }
+            case _ if this.id.toString.startsWith(FREIGHT_ID_PREFIX) =>
+              gotoExpensiveFreightTrip()
             case _ =>
               // Bad things happen but we want them to continue their day, so we signal to downstream that trip should
               // be made to be expensive. If we're on a car or bike based tour and still hold our own tour vehicle, we
@@ -2422,7 +2471,18 @@ trait ChoosesMode {
     mode: BeamMode,
     allowedVehicleModes: Seq[BeamMode] = Seq(CAR, FREIGHT)
   ) = {
-    availableStreetVehicles.find(v => allowedVehicleModes.contains(v.streetVehicle.mode)) match {
+    val candidateVehicle: Option[VehicleOrToken] = availableStreetVehicles
+      .find(v => allowedVehicleModes.contains(v.streetVehicle.mode))
+      .orElse {
+        if (this.id.toString.startsWith(FREIGHT_ID_PREFIX)) {
+          beamVehicles.values
+            .find(v => v.vehicle.isFreight || BeamVehicle.isFreightVehicle(v.id))
+            .orElse(
+              beamVehicles.values.find(v => v.id != body.id && (v.streetVehicle.mode == CAR || v.vehicle.isFreight))
+            )
+        } else None
+      }
+    candidateVehicle match {
       case Some(availableVehicle) =>
         val agentToVehicleLeg = RoutingWorker
           .createBushwackingTrip(

@@ -4096,6 +4096,284 @@ class PersonWithTourModeSpec
         killSchedulerAndDrain(scheduler, householdActor, parkingManager)
       }
     }
+
+    it(
+      "should fall back to expensive CAR trip using held freight truck on mid-tour route failure and keep truck for next leg"
+    ) {
+      val eventsManager = new EventsManagerImpl()
+      eventsManager.addHandler(new BasicEventHandler {
+        override def handleEvent(event: Event): Unit = event match {
+          case _: ModeChoiceEvent | _: TourModeChoiceEvent | _: ActivityEndEvent | _: ActivityStartEvent |
+              _: ReplanningEvent =>
+            self ! event
+          case _ =>
+        }
+      })
+
+      val carrierId = "ft-carrier-midtour"
+      val pId = Id.createPersonId(carrierId)
+      val truckId = Id.createVehicleId("ft-truck-midtour")
+      val vehicleType = beamScenario
+        .vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+        .copy(vehicleUse = beam.agentsim.agents.vehicles.VehicleUse.Freight)
+      val freightManagerId =
+        VehicleManager.createOrGetReservedFor(carrierId, Some(VehicleManager.TypeEnum.Freight)).managerId
+      val truck = new BeamVehicle(
+        truckId,
+        new Powertrain(0.0),
+        vehicleType,
+        vehicleManagerId = new java.util.concurrent.atomic.AtomicReference(freightManagerId)
+      )
+      val vehicleProbe = TestProbe()
+      truck.setManager(Some(vehicleProbe.ref))
+
+      val household = householdsFactory.createHousehold(Id.create(s"$carrierId-hh", classOf[Household]))
+      val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
+      val person: Person = createFreightPersonWithDepotTours(pId, truckId)
+      population.addPerson(person)
+      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
+
+      val scheduler = TestActorRef[BeamAgentScheduler](
+        SchedulerProps(
+          beamConfig,
+          stopTick = 24 * 60 * 60,
+          maxWindow = 10,
+          new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
+        )
+      )
+      val parkingLocation = new Coord(167138.4, 1117.0)
+      val parkingManager = system.actorOf(Props(new AnotherTrivialParkingManager(parkingLocation)))
+      val schedulerProbe = TestProbe()
+
+      val allVehicles = Map(truck.id -> truck)
+      val householdActor = TestActorRef[HouseholdActor](
+        Props(
+          new HouseholdActor(
+            services,
+            beamScenario,
+            _ => modeChoiceCalculator,
+            scheduler,
+            beamScenario.transportNetwork,
+            services.tollCalculator,
+            self,
+            self,
+            parkingManager,
+            self,
+            eventsManager,
+            population,
+            household,
+            allVehicles,
+            new Coord(0.0, 0.0),
+            Vector(),
+            Set.empty,
+            new RouteHistory(beamConfig),
+            VehiclesAdjustment.getVehicleAdjustment(beamScenario),
+            configHolder
+          )
+        )
+      )
+
+      val linkIds = Array[Int](228, 206, 180, 178, 184, 102)
+
+      def respondFreightTour(routingRequest: RoutingRequest, targetAgent: ActorRef): Unit = {
+        val personVehicle = routingRequest.streetVehicles.find(_.mode == WALK).get
+        targetAgent ! RoutingResponse(
+          Vector(
+            EmbodiedBeamTrip(
+              legs = Vector(
+                EmbodiedBeamLeg.dummyLegAt(
+                  routingRequest.departureTime,
+                  personVehicle.id,
+                  false,
+                  services.geo.utm2Wgs(routingRequest.originUTM),
+                  WALK,
+                  personVehicle.vehicleTypeId
+                ),
+                createEmbodiedBeamLeg(routingRequest, truck.toStreetVehicle, linkIds, 50d),
+                EmbodiedBeamLeg.dummyLegAt(
+                  routingRequest.departureTime + 250,
+                  personVehicle.id,
+                  true,
+                  services.geo.utm2Wgs(routingRequest.destinationUTM),
+                  WALK,
+                  personVehicle.vehicleTypeId
+                )
+              )
+            )
+          ),
+          requestId = routingRequest.requestId,
+          request = Some(routingRequest),
+          isEmbodyWithCurrentTravelTime = false,
+          triggerId = routingRequest.triggerId
+        )
+      }
+
+      def handleFreightParkingAndWalk(parkingRoutingRequest: RoutingRequest, parkingAgent: ActorRef): Unit = {
+        parkingAgent ! RoutingResponse(
+          itineraries = Vector(
+            EmbodiedBeamTrip(
+              legs = Vector(
+                EmbodiedBeamLeg(
+                  beamLeg = BeamLeg(
+                    startTime = parkingRoutingRequest.departureTime,
+                    mode = BeamMode.CAR,
+                    duration = 50,
+                    travelPath = BeamPath(
+                      linkIds = Array(142, 60, 58, 62, 80),
+                      linkTravelTime = Array(50, 50, 50, 50, 50),
+                      transitStops = None,
+                      startPoint = SpaceTime(
+                        services.geo.utm2Wgs(parkingRoutingRequest.originUTM),
+                        parkingRoutingRequest.departureTime
+                      ),
+                      endPoint =
+                        SpaceTime(services.geo.utm2Wgs(parkingLocation), parkingRoutingRequest.departureTime + 200),
+                      distanceInM = 1000d
+                    )
+                  ),
+                  beamVehicleId = truck.id,
+                  truck.beamVehicleType.id,
+                  asDriver = true,
+                  cost = 0.0,
+                  unbecomeDriverOnCompletion = true
+                )
+              )
+            )
+          ),
+          requestId = parkingRoutingRequest.requestId,
+          request = Some(parkingRoutingRequest),
+          isEmbodyWithCurrentTravelTime = false,
+          triggerId = parkingRoutingRequest.triggerId
+        )
+
+        val walkFromParkingRoutingRequest = fishForMessage(30.seconds) {
+          case req: RoutingRequest if req.personId.contains(pId) => true
+          case _                                                 => false
+        }.asInstanceOf[RoutingRequest]
+        val walkAgent = lastSender
+        walkAgent ! RoutingResponse(
+          itineraries = Vector(
+            EmbodiedBeamTrip(
+              legs = Vector(
+                EmbodiedBeamLeg(
+                  beamLeg = BeamLeg(
+                    startTime = walkFromParkingRoutingRequest.departureTime,
+                    mode = BeamMode.WALK,
+                    duration = 50,
+                    travelPath = BeamPath(
+                      linkIds = Array(80, 101),
+                      linkTravelTime = Array(50, 50),
+                      transitStops = None,
+                      startPoint =
+                        SpaceTime(services.geo.utm2Wgs(parkingLocation), walkFromParkingRoutingRequest.departureTime),
+                      endPoint = SpaceTime(
+                        services.geo.utm2Wgs(walkFromParkingRoutingRequest.destinationUTM),
+                        walkFromParkingRoutingRequest.departureTime + 50
+                      ),
+                      distanceInM = 100d
+                    )
+                  ),
+                  beamVehicleId = walkFromParkingRoutingRequest.streetVehicles.find(_.mode == WALK).get.id,
+                  walkFromParkingRoutingRequest.streetVehicles.find(_.mode == WALK).get.vehicleTypeId,
+                  asDriver = true,
+                  cost = 0.0,
+                  unbecomeDriverOnCompletion = true
+                )
+              )
+            )
+          ),
+          requestId = walkFromParkingRoutingRequest.requestId,
+          request = Some(walkFromParkingRoutingRequest),
+          isEmbodyWithCurrentTravelTime = false,
+          triggerId = walkFromParkingRoutingRequest.triggerId
+        )
+      }
+
+      try {
+        scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
+        scheduler.tell(StartSchedule(0), schedulerProbe.ref)
+        truck.setManager(Some(vehicleProbe.ref))
+
+        // Tour 1 leg 1: depot -> delivery 1 (succeeds normally)
+        val req1 = fishForMessage(30.seconds) {
+          case req: RoutingRequest if req.personId.contains(pId) => true
+          case _                                                 => false
+        }.asInstanceOf[RoutingRequest]
+        val agent1 = lastSender
+        truck.setManager(Some(vehicleProbe.ref))
+        assert(req1.streetVehicles.exists(_.id == truckId))
+        respondFreightTour(req1, agent1)
+
+        fishForMessage(30.seconds) { case mce: ModeChoiceEvent if mce.personId == pId => true; case _ => false }
+        fishForMessage(30.seconds) { case aee: ActivityEndEvent if aee.getPersonId == pId => true; case _ => false }
+        val parking1 = fishForMessage(30.seconds) {
+          case req: RoutingRequest if req.personId.contains(pId) => true
+          case _                                                 => false
+        }.asInstanceOf[RoutingRequest]
+        handleFreightParkingAndWalk(parking1, lastSender)
+        fishForMessage(30.seconds) { case ase: ActivityStartEvent if ase.getPersonId == pId => true; case _ => false }
+
+        // Tour 1 leg 2: delivery 1 -> depot (ROUTING FAILS MID-TOUR)
+        val req2 = fishForMessage(30.seconds) {
+          case req: RoutingRequest if req.personId.contains(pId) => true
+          case _                                                 => false
+        }.asInstanceOf[RoutingRequest]
+        val agent2 = lastSender
+        truck.setManager(Some(vehicleProbe.ref))
+        assert(req2.streetVehicles.exists(_.id == truckId), "Leg 2 routing request should include the freight truck")
+
+        // Respond with empty routes to simulate routing failure on leg 2
+        agent2 ! RoutingResponse(
+          Vector.empty,
+          req2.requestId,
+          Some(req2),
+          isEmbodyWithCurrentTravelTime = false,
+          triggerId = req2.triggerId
+        )
+
+        // Mid-tour failure must produce an expensive CAR trip using the truck, NOT a WALK trip
+        val mce2 = fishForMessage(30.seconds) {
+          case mce: ModeChoiceEvent if mce.personId == pId => true
+          case _                                           => false
+        }.asInstanceOf[ModeChoiceEvent]
+        assert(mce2.mode === "car", s"Mid-tour freight route failure must fall back to car, got ${mce2.mode}")
+        assert(mce2.chosenTrip.vehiclesInTrip.contains(truckId), "Mid-tour fallback trip must keep and use the truck")
+        assert(
+          mce2.chosenTrip.tripClassifier == BeamMode.CAR,
+          s"Trip classifier must be CAR to match MatsimPlan, got ${mce2.chosenTrip.tripClassifier}"
+        )
+
+        val failMsgs = vehicleProbe.receiveWhile(300.millis) { case m => m }
+        assert(
+          !failMsgs.exists(_.isInstanceOf[ReleaseVehicle]),
+          "Freight truck must not be released on mid-tour route failure"
+        )
+
+        // Verify that the person agent state and experienced beam plan retain the truck and FREIGHT_TOUR mode
+        val personAgent = getUnderlyingPersonAgent(householdActor, pId.toString)
+        val basePersonData = getBasePersonData(personAgent)
+        assert(
+          basePersonData.currentTourPersonalVehicle.contains(truckId),
+          s"Agent must retain truck in currentTourPersonalVehicle, found ${basePersonData.currentTourPersonalVehicle}"
+        )
+        assert(
+          basePersonData.currentTourMode.contains(BeamTourMode.FREIGHT_TOUR),
+          s"Agent must retain FREIGHT_TOUR in currentTourMode, found ${basePersonData.currentTourMode}"
+        )
+        val nextAct = personAgent.nextActivity(basePersonData).get
+        val nextActTourStrat = personAgent._experiencedBeamPlan.getTourStrategy[TourModeChoiceStrategy](nextAct)
+        assert(
+          nextActTourStrat.tourMode.contains(BeamTourMode.FREIGHT_TOUR),
+          s"Experienced plan must retain FREIGHT_TOUR strategy, found ${nextActTourStrat.tourMode}"
+        )
+        assert(
+          nextActTourStrat.tourVehicle.contains(truckId),
+          s"Experienced plan must retain truck vehicle strategy, found ${nextActTourStrat.tourVehicle}"
+        )
+      } finally {
+        killSchedulerAndDrain(scheduler, householdActor, parkingManager)
+      }
+    }
   }
 
   describe("Recovery fallback tests (B4)") {
