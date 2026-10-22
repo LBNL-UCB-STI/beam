@@ -2,6 +2,8 @@
 
 ![](docs/_static/figs/BEAM_DarkBlue.png)
 
+[![BEAM CI](https://github.com/LBNL-UCB-STI/beam/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/LBNL-UCB-STI/beam/actions/workflows/ci.yml)
+[![BEAM Weekly Integration Tests](https://github.com/LBNL-UCB-STI/beam/actions/workflows/weekly-integration.yml/badge.svg)](https://github.com/LBNL-UCB-STI/beam/actions/workflows/weekly-integration.yml)
 [![BEAM Docs](https://github.com/LBNL-UCB-STI/beam/actions/workflows/docs.yml/badge.svg)](https://lbnl-ucb-sti.github.io/beam/)
 
 BEAM stands for Behavior, Energy, Autonomy, and Mobility. The model is being developed as a framework for a series of

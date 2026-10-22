@@ -30,13 +30,16 @@ remotes {
 import org.apache.tools.ant.filters.ReplaceTokens
 
 task deployToNersc {
+    doFirst {
         def propsFileName = "${project.rootDir}/gradle.deploy.properties"
         if (project.hasProperty('propsFile')) {
             propsFileName = project.findProperty('propsFile')
         }
 
         def propsFile = new Properties()
-        propsFile.load(project.file(propsFileName).newDataInputStream())
+        if (project.file(propsFileName).exists()) {
+            propsFile.load(project.file(propsFileName).newDataInputStream())
+        }
 
         ext.getParameterValue = { paramName ->
             if (project.hasProperty(paramName)) {
@@ -46,20 +49,19 @@ task deployToNersc {
             }
         }
 
-        def runName = "${ext.getParameterValue('runName')}"
-        def git_user_email = "${getCurrentGitUserEmail()}"
-        def branch = "${ext.getParameterValue('beamBranch') ?: getCurrentGitBranch()}"
-        def dataBranch = "${ext.getParameterValue('dataBranch') ?: 'develop'}"
-        def commit = "${ext.getParameterValue('beamCommit') ?: 'HEAD'}"
-        def configs = "${ext.getParameterValue('beamConfigs') ?: ext.getParameterValue(getCurrentGitBranch() + '.configs')}"
-        def max_ram = '100g'
-        def google_api_key = "${System.getenv('GOOGLE_API_KEY') ?: 'not-set-in-env'}"
-        def s3_publish = "${ext.getParameterValue('s3Backup') ?: true}"
-        def aws_access_key_id = "${System.getenv('AWS_ACCESS_KEY_ID') ?: 'not-set-in-env'}"
-        def aws_secret_access_key = "${System.getenv('AWS_SECRET_ACCESS_KEY') ?: 'not-set-in-env'}"
-        def region = "${ext.getParameterValue('region') ?: defaultRegion}"
+        ext.runName = "${ext.getParameterValue('runName')}"
+        ext.git_user_email = "${getCurrentGitUserEmail()}"
+        ext.branch = "${ext.getParameterValue('beamBranch') ?: getCurrentGitBranch()}"
+        ext.dataBranch = "${ext.getParameterValue('dataBranch') ?: 'develop'}"
+        ext.commit = "${ext.getParameterValue('beamCommit') ?: 'HEAD'}"
+        ext.configs = "${ext.getParameterValue('beamConfigs') ?: ext.getParameterValue(getCurrentGitBranch() + '.configs')}"
+        ext.max_ram = '100g'
+        ext.google_api_key = "${System.getenv('GOOGLE_API_KEY') ?: 'not-set-in-env'}"
+        ext.s3_publish = "${ext.getParameterValue('s3Backup') ?: true}"
+        ext.aws_access_key_id = "${System.getenv('AWS_ACCESS_KEY_ID') ?: 'not-set-in-env'}"
+        ext.aws_secret_access_key = "${System.getenv('AWS_SECRET_ACCESS_KEY') ?: 'not-set-in-env'}"
+        ext.region = "${ext.getParameterValue('region') ?: defaultRegion}"
 
-    doFirst {
         copy {
             from("${project.rootDir}/nersc/src/main/bash/shifter_job.sh") {
                 filter(ReplaceTokens, tokens: ['jobName': runName.toString(), 'userEmail': git_user_email.toString()])
