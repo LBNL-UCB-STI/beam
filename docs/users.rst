@@ -251,6 +251,15 @@ The ``sf-light`` scenario is based on the City of San Francisco, including the S
 
 .. image:: _static/figs/sf-light.png
 
+**Production Regional Scenarios (Git Submodules)**
+
+Full-scale regional scenarios (such as ``production/sfbay``, ``production/austin``, ``production/seattle``, ``production/detroit``, ``production/newyork``, and ``production/dallas``) are maintained in separate repositories and linked under ``production/`` as Git submodules so a standard ``git clone`` stays lightweight.
+
+To initialize and pull the data for a specific regional scenario (for example, ``production/sfbay``), run::
+
+    git submodule update --init production/sfbay
+    cd production/sfbay && git lfs pull && cd ../..
+
 Inputs
 ^^^^^^^
 

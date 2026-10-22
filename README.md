@@ -25,17 +25,29 @@ designed to flexibly and efficiently link with other models of transportation sy
 implementation to be built from scratch while relying only on free and publicly available data processed through several
 widely-used and opensource tools.
 
+## Quickstart
+
+Prerequisites: **Java 11 JDK** (e.g., `brew install --cask temurin@11` on macOS or `sudo apt-get install openjdk-11-jdk` on Ubuntu) and **[Git LFS](https://git-lfs.com/)**.
+
+```bash
+git clone https://github.com/LBNL-UCB-STI/beam.git
+cd beam
+git lfs install && git lfs pull
+./gradlew :run -PmaxRAM=8g -PappArgs="['--config', 'test/input/beamville/beam.conf']"
+```
+
+Simulation outputs (summary CSVs, plots, and per-iteration event files) are written to `output/beamville/`.
+
 ## Documentation
 
-The BEAM team maintains both a [Github wiki](https://github.com/LBNL-UCB-STI/beam/wiki)
-and [online documentation](http://beam-lbnl.readthedocs.io/en/latest/about.html)
+The BEAM source documentation is located in [`docs/`](docs/index.rst), alongside the [GitHub Wiki](https://github.com/LBNL-UCB-STI/beam/wiki) and [online documentation](http://beam-lbnl.readthedocs.io/en/latest/about.html).
 
 ### Getting started:
 
 - Try running BEAM with our
-  simple [getting started guide](http://beam-lbnl.readthedocs.io/en/latest/users.html#getting-started)
-- Check out the [developer guide](http://beam-lbnl.readthedocs.io/en/latest/developers.html) for more detailed
-  information on using or contributing to the BEAM project
+  simple [User's Guide (`docs/users.rst`)](docs/users.rst) and [Tutorial (`docs/tutorial.rst`)](docs/tutorial.rst)
+- Check out the [Developer's Guide (`docs/developers.rst`)](docs/developers.rst) for more detailed
+  information on configuring, extending, or contributing to the BEAM project
 
 ### Questions:
 
