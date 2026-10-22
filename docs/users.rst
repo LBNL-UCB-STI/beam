@@ -14,34 +14,49 @@ System Requirements
 ^^^^^^^^^^^^^^^^^^^
 
 * At least 8GB RAM
-* Windows, Mac OSX, Linux
-* Java Development Kit 11. Oracle JDK 11: https://www.oracle.com/java/technologies/downloads/#java11. You can also use OpenJDK 11 JDK. For Ubuntu you can get it installed by running `sudo apt-get install openjdk-11-jdk`
-* Verify that you have both java runtime and java compiler:
+* Windows, macOS (Intel or Apple Silicon), Linux
+* Java Development Kit (JDK) 11 (BEAM requires JDK 11 specifically and is not currently compatible with newer or older Java versions)
+* Git and Git-LFS
+* We also recommend downloading the VIA visualization app and obtaining a free or paid license: https://simunto.com/via/
+
+Prerequisites
+^^^^^^^^^^^^^
+
+**Install Java 11 (JDK 11)**
+
+BEAM requires **Java 11 JDK**. We recommend installing OpenJDK 11 (such as Eclipse Temurin 11) using a package manager or `SDKMAN! <https://sdkman.io/>`_:
+
+* **Cross-platform (SDKMAN!)**:
+
+  .. code-block:: bash
+
+      sdk install java 11.0.21-tem
+
+* **macOS (Homebrew — Intel or Apple Silicon M1/M2/M3/M4)**:
+
+  .. code-block:: bash
+
+      brew install --cask temurin@11
+
+* **Ubuntu / Debian**:
+
+  .. code-block:: bash
+
+      sudo apt-get update && sudo apt-get install -y openjdk-11-jdk
+
+* **Manual Download**: You can also download OpenJDK 11 from `Adoptium (Temurin 11) <https://adoptium.net/temurin/releases/?version=11>`_ or `Oracle JDK 11 <https://www.oracle.com/java/technologies/downloads/#java11>`_.
+
+Verify that both the Java runtime (``java``) and compiler (``javac``) report version 11:
 
 .. code-block:: bash
 
-    ubuntu@ip-172-31-14-187:~/git/beam$ java -version
+    $ java -version
     openjdk version "11.0.21" 2023-10-17
     OpenJDK Runtime Environment (build 11.0.21+9-post-Ubuntu-0ubuntu122.04)
     OpenJDK 64-Bit Server VM (build 11.0.21+9-post-Ubuntu-0ubuntu122.04, mixed mode, sharing)
 
-    ubuntu@ip-172-31-14-187:~/git/beam$ javac -version
+    $ javac -version
     javac 11.0.21
-
-* We also recommend downloading the VIA visualization app and obtaining a free or paid license: https://simunto.com/via/
-* Git and Git-LFS
-
-Prerequisites :
-^^^^^^^^^^^^^^^
-
-**Install Java**
-
-BEAM requires Java 11 JDK. If a different version of java is already installed on your system, please upgrade the version to 11.
-See this `link <https://www.oracle.com/java/technologies/downloads/#java11>`_ for steps to check the current version of your JDK.
-
-If java is not already installed on your system , please follow this `download manual <https://www.java.com/en/download/manual.jsp>`_ to install java on your system.
-
-Please note that BEAM is currently compatible only with Java 11 and is not compatible with any of the older or recent versions.
 
 
 GIT-LFS Configuration
@@ -90,36 +105,21 @@ Now you're ready to run BEAM!
 Running BEAM
 ^^^^^^^^^^^^
 
-Inside of the respository is a folder 'test/input' containing several scenarios and configurations you can experiment with.
+Inside the repository is a folder ``test/input`` containing several scenarios and configurations you can experiment with.
 
-The simplest, smallest, and fastest is the beamville scenario (described below). Try to run beamville with this command::
+The simplest, smallest, and fastest is the ``beamville`` scenario (described below). Run ``beamville`` with ``-PmaxRAM=8g`` so the JVM heap fits comfortably on a standard laptop or workstation::
 
-  ./gradlew :run -PappArgs="['--config', 'test/input/beamville/beam.conf']"
+  ./gradlew :run -PmaxRAM=8g -PappArgs="['--config', 'test/input/beamville/beam.conf']"
 
+.. note::
+   By default, ``gradle.properties`` sets ``maxRAM=140g`` for large cloud production servers. On a local machine, pass ``-PmaxRAM=8g`` (or ``-PmaxRAM=10g``) directly on the command line as shown above, or set the ``MAXRAM`` environment variable in your shell:
 
-The BEAM application by default sets max RAM allocation to 140g (see **maxRAM** setting in gradle.properties). This needs to
-be adjusted based on the available memory on your system.
+   * **macOS / Linux**: ``export MAXRAM=10g``
+   * **Windows**: ``setx MAXRAM="10g"``
 
-The max allocatable RAM value can be overriden by setting the environment variable **MAXRAM** to the required value.
+The outputs are written to the ``output`` directory, where you will see results appear in a timestamped subfolder such as ``output/beamville/beamville__%DATE_TIME%``.
 
-On Ubuntu , the environment variable can be set using the below command :
-
-.. code-block:: bash
-
-    export MAXRAM=10g
-
-where 10g = 10GB
-
-Similarly on windows it can be set using the below command :
-
-.. code-block:: bash
-
-    setx MAXRAM="10g"
-
-
-The outputs are written to the 'output' directory, should see results appear in a sub-folder called "beamville/beamville_%DATE_TIME%".
-
-Optionally you can also run BEAM from your favourite IDE . Check the below section on how to configure and run BEAM using Intellij IDEA.
+Optionally you can also run BEAM from your favorite IDE. Check the section below on how to configure and run BEAM using IntelliJ IDEA.
 
 There is a way to watch real-time graphs from a BEAM run, see :ref:`real-time-graphs`.
 
@@ -234,17 +234,20 @@ For example here is a shell script which might be used to run the docker image. 
       --mount source="$(pwd)/$output_folder_name",destination=/app/output,type=bind \
       $beam_image --config=$config
 
+.. note::
+   **Apple Silicon (M1/M2/M3/M4) Macs**: Pre-built ``beammodel/beam`` images on Docker Hub are compiled for ``linux/amd64``. On Apple Silicon, pass ``--platform linux/amd64`` to ``docker run`` / ``docker create`` (with Rosetta 2 emulation enabled in Docker Desktop), or build a native ARM64 image locally with ``./gradlew -Ptag=beammodel/beam:1.1.0 buildImage``.
+
 
 
 Scenarios
 ^^^^^^^^^
-We have provided two scenarios for you to explore under the `test/input` directory.
+We have provided two scenarios for you to explore under the ``test/input`` directory.
 
-The `beamville` test scenario is a toy network consisting of a 4 x 4 block gridded road network, a light rail transit agency, a bus transit agency, and a population of ~50 agents.
+The ``beamville`` test scenario is a toy network consisting of a 4 x 4 block gridded road network, a light rail transit agency, a bus transit agency, and a population of ~50 agents.
 
 .. image:: _static/figs/beamville-net.png
 
-The `sf-light` scenario is based on the City of San Francisco, including the SF Muni public transit service and a range of sample populations from 1000 to 25,000 agents.
+The ``sf-light`` scenario is based on the City of San Francisco, including the SF Muni public transit service and a range of sample populations from 1000 to 25,000 agents.
 
 .. image:: _static/figs/sf-light.png
 
@@ -253,29 +256,68 @@ Inputs
 
 For more detailed inputs documentation, see :ref:`model-inputs`.
 
-BEAM follows the `MATSim convention`_ for most of the inputs required to run a simulation, though some inputs files can alternatively be provided in CSV instead of XML format. Also, the road network and transit system inputs are based on the `R5 requirements`_. The following is a brief overview of the minimum requirements needed to conduct a BEAM run. 
+BEAM supports two primary input formats for population, households, and agent plans:
+
+1. **MATSim XML convention** (e.g., ``test/input/beamville/beam.conf``): Standard `MATSim convention`_ XML files for population and households.
+2. **UrbanSim / ActivitySim tabular format** (e.g., ``test/input/sf-light/sf-light-urbansim-5k-hh.conf``): Compressed CSV (``.csv.gz``) or Parquet files for households, persons, plans, blocks, and TAZs.
+
+In both cases, road network and transit system inputs follow the `R5 requirements`_.
 
 .. _MATSim convention: https://matsim.org/docs
 .. _R5 requirements: https://github.com/conveyal/r5
 
-* A configuration file (e.g. `beam.conf`)
-* The person population and corresponding attributes files (e.g. `population.xml` and `populationAttributes.xml`)
-* The household population and corresponding attributes files (e.g. `households.xml` and `householdAttributes.xml`)
-* The personal vehicle fleet (e.g. `vehicles.csv`)
-* The definition of vehicle types including for personal vehicles and the public transit fleet (e.g. `vehicleTypes.csv`)
-* A directory containing network and transit data used by R5 (e.g. `r5/`)
-* The open street map network (e.g. `r5/beamville.osm`)
-* GTFS archives, one for each transit agency (e.g. `r5/bus.zip`)
+A typical scenario directory looks like this::
+
+    test/input/beamville/
+    ├── beam.conf                   # Scenario configuration file (inherits from common/matsim.conf or beam-template.conf)
+    ├── vehicleTypes.csv            # Vehicle type definitions (seating capacity, powertrain, fuel/battery specs)
+    ├── vehicles.csv                # Initial personal vehicle fleet
+    ├── taz-centers.csv             # Traffic Analysis Zone (TAZ) centroids
+    ├── population.xml              # (MATSim XML format) Agent plans and activities
+    ├── households.xml              # (MATSim XML format) Household definitions and vehicle ownership
+    ├── urbansim/                   # (Alternatively, UrbanSim/ActivitySim CSV.gz or Parquet tables)
+    │   ├── households.csv.gz
+    │   ├── persons.csv.gz
+    │   ├── plans.csv.gz
+    │   └── blocks.csv.gz
+    └── r5/                         # Road and transit network inputs for R5 router
+        ├── beamville.osm.pbf       # OpenStreetMap road network (.osm or .osm.pbf)
+        ├── bus.zip                 # GTFS transit feed archive (one .zip per transit agency)
+        ├── train.zip               # GTFS transit feed archive
+        └── network.dat             # Compiled R5 network cache (auto-generated on first run)
 
 Outputs
 ^^^^^^^
-At the conclusion of a BEAM run using the default `beamville` scenario, the output files in the should look like this when the run is complete:
+At the conclusion of a BEAM run using the default ``beamville`` scenario, the output directory (``output/<scenario>/<run_name>__<timestamp>/``) contains top-level run summaries and an ``ITERS/`` folder with detailed per-iteration results:
 
 .. image:: _static/figs/beamville-outputs.png
 
-Each iteration of the run produces a sub-folder under the `ITERS` directory. Within these, several automatically generated outputs are written including plots of modal usage, TNC dead heading, and energy consumption by mode. 
+**Anatomy of a BEAM Output Directory**
 
-In addition, raw outputs are available in the two events file (one from the AgentSim and one from the PhysSim, see :ref:`matsim-events` for more details), titled `%ITER%.events.csv` and `%ITER%.physSimEvents.xml.gz` respectively.
+When inspecting a completed run, the most useful files for new users are::
+
+    output/beamville/beamville__2024-06-25_16-55-30_abc/
+    ├── beam.conf                             # Snapshot of the scenario config used for this run
+    ├── fullBeamConfig.conf                   # Fully resolved configuration (including all defaults)
+    ├── beamLog.out                           # Complete simulation console and debug log
+    ├── summaryStats.csv                      # High-level iteration-by-iteration summary metrics (mode shares, VMT, energy, scores)
+    ├── referenceRealizedModeChoice.csv       # Mode choice counts and shares across iterations compared to reference
+    ├── modeChoice.png                        # Summary plot of modal split across iterations
+    ├── energyConsumption.png                 # Summary plot of energy consumption by mode across iterations
+    └── ITERS/
+        └── it.0/                             # Outputs for Iteration 0 (repeated for it.1, it.2, ...)
+            ├── 0.events.csv.gz               # Primary AgentSim event stream (ModeChoice, PathTraversal, PersonCost, ActStart/ActEnd, etc.)
+            ├── 0.physSimEvents.xml.gz        # Link-level traffic simulation events from PhysSim (EnterLink, LeaveLink, etc.)
+            ├── 0.linkstats.csv.gz            # Hourly road link volumes, capacities, and travel times
+            ├── 0.plans.csv.gz                # Agent plans (selected and experienced) at the end of the iteration
+            └── 0.skimsOD_Aggregated.csv.gz   # Origin-Destination travel time and cost skims (alongside other 0.skims*.csv.gz files)
+
+Each iteration of the run produces a subfolder under ``ITERS/``. Within these, several automatically generated plots and CSV tables are written including modal usage, ride-hail deadheading, charging events, and energy consumption by mode.
+
+For detailed event analysis, two raw event streams are produced in each ``ITERS/it.N/`` folder (see :ref:`matsim-events` and :ref:`model-outputs` for full schemas):
+
+* ``%ITER%.events.csv.gz`` (or ``.csv``): High-level behavioral, mode choice, vehicle movement (``PathTraversalEvent``), ride-hail, and refueling events from AgentSim.
+* ``%ITER%.physSimEvents.xml.gz``: Link-by-link vehicle traversal events from the physical traffic assignment (PhysSim).
 
 Data Analysis
 ^^^^^^^^^^^^^

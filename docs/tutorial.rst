@@ -23,6 +23,9 @@ In case you are using docker you need to run the following command::
 
     docker run --rm -v ./output:/app/output -v ./test:/app/test -e JAVA_OPTS='-Xmx10g' beammodel/beam:1.1.0 --config test/input/sf-light/sf-light-urbansim-5k-hh.conf
 
+.. note::
+   On Apple Silicon (M1/M2/M3/M4) Macs, add ``--platform linux/amd64`` to ``docker create`` and ``docker run`` when using the pre-built ``beammodel/beam`` image from Docker Hub.
+
 
 Urbansim SF-light Scenario with mode choice in Beam
 ---------------------------------------------------
