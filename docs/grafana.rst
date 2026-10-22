@@ -50,7 +50,7 @@ Requirements
 Installation
 """""""""""""""""""
 
-There is an official `installation guide for Mac users <https://docs.docker.com/docker-for-windows/install>`_.
+There is an official `installation guide for Mac users <https://docs.docker.com/desktop/setup/install/mac-install/>`_.
 
 Otherwise download and install `Docker CE for Mac (Stable) <https://download.docker.com/mac/stable/Docker.dmg>`_.
 

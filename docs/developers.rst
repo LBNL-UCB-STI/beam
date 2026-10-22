@@ -40,7 +40,7 @@ Then you can make a copy of the config template under::
 
 and start customizing the configurations to your use case.
 
-To add new parameters or change the structure of the configuration class itself, simply edit the `config-template.conf` file and run the gradle task::
+To add new parameters or change the structure of the configuration class itself, simply edit the `src/main/resources/beam-template.conf` file and run the gradle task::
 
   ./gradlew generateConfig
 
@@ -53,7 +53,7 @@ BEAM supports using an environment variable to optionally specify a directory to
 
 Depending on your operating system, the manner in which you want to run the BEAM application or gradle tasks, the specific place where you set these variables will differ. To run from the command line, add these statements to your .bash_profile file::
 
-  export BEAM_OUTPUT=/path/to/your/preferred/output/destination/`
+  export BEAM_OUTPUT=/path/to/your/preferred/output/destination/
 
 To run from IntelliJ as an "Application", edit the "Environment Variables" field in your Run Configuration to look like this::
 
@@ -128,11 +128,7 @@ If that occurs, you can configure IntelliJ to utilize the one used in your termi
 Developing with Multiple Java Versions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-As BEAM now has a branch to support Java 8 along with the default of Java 11 you may find it necessary to
-switch Java versions readily. In that case, you can easily do this with tooling such as
-`jabba <https://github.com/shyiko/jabba>`_ or `SDKMAN <https://sdkman.io/>`_. Each allows you to download different
-versions of the JDK and install them to your terminal session via commands such as
-`jabba install [VERSION]` then `jabba use [VERSION]`.
+BEAM requires **Java 11 (JDK 11)** as its build and runtime target (`sourceCompatibility = 1.11`). If you work on other projects that require newer or older JDK versions, you may find it useful to switch Java versions readily with tooling such as `jabba <https://github.com/shyiko/jabba>`_ or `SDKMAN <https://sdkman.io/>`_. Each allows you to download different versions of the JDK and activate them in your terminal session via commands such as `sdk install java 11.0.21-tem` or `jabba install [VERSION]` followed by `jabba use [VERSION]`.
 
 Production Data And Git Submodules
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -228,7 +224,7 @@ Organizing jupyter notebooks
 
 4. It is possible to mount local folders to jupyter.
 One needs to copy 'jupyter/.foldersToMapInJupyter.txt' file to 'jupyter/local_files' folder and fill the file with all required folder to be mounted,
-one location per row. Folders will be mounted during execution of jupyterStar gradle command.
+one location per row. Folders will be mounted during execution of jupyterStart gradle command.
 For windows users - be sure docker is updated and configured to use linux containers.
 
 
@@ -381,7 +377,7 @@ ScalaTest allows you to define different test categories by tagging your tests. 
          ...
       }
 
-This code marks the test with `com.beam.tags.Periodic` tag. You can also specify multiple tags as a comma separated parameter list in `taggedAs` method. Following code demonstrate the use of multiple tags::
+This code marks the test with `beam.tags.Periodic` tag. You can also specify multiple tags as a comma separated parameter list in `taggedAs` method. Following code demonstrate the use of multiple tags::
 
    "The agentsim" must {
       ...
@@ -393,112 +389,44 @@ This code marks the test with `com.beam.tags.Periodic` tag. You can also specify
       ...
    }
 
-You can find details about scheduling a continuous integration build under DevOps section 'Configure Periodic Jobs' in the internal wiki.
+You can find details about scheduling a continuous integration build in `.github/workflows/ci.yml`.
 
 Instructions for forking BEAM
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-These instructions are based on `this page <https://confluence.atlassian.com/bitbucket/current-limitations-for-git-lfs-with-bitbucket-828781638.html>`_
 
-1. Clone BEAM repo
+1. Fork `LBNL-UCB-STI/beam <https://github.com/LBNL-UCB-STI/beam>`_ on GitHub and clone your fork:
 
 .. code-block:: bash
 
-    git clone https://github.com/LBNL-UCB-STI/beam
-
+    git clone https://github.com/<your-username>/beam.git
     cd beam
 
-
-When asked for user name and password for LFS server (http://52.15.173.229:8080) enter anything but do not leave them blank.
-
-2. Fetch Git LFS files
+2. Add the public repository as an `upstream` remote and pull Git LFS test fixtures:
 
 .. code-block:: bash
 
-    git lfs fetch origin
+    git remote add upstream https://github.com/LBNL-UCB-STI/beam.git
+    git lfs install
+    git lfs pull
 
-Many tutorials on cloning Git LFS repos say one should use
-
-.. code-block:: bash
-
-    git lfs fetch --all origin
-
-However, in BEAM this represents over 15 GB data and often fails.
-
-3. Add new origin
+3. Keep your local `develop` branch synced with `upstream/develop`:
 
 .. code-block:: bash
 
-    git remote add new-origin <URL to new repo>
-
-4. Create internal master branch, master branch will used to track public repo
-
-.. code-block:: bash
-
-    git branch master-internal
-    git checkout master-internal
-
-5. Update .lfsconfig to have only the new LFS repo
-
-.. code-block:: bash
-
-    [lfs] url = <URL to new LFS repo>
-
-Note: for Bitbucket, the <URL to new LFS repo> is <URL to new repo>/info/lfs
-
-6. Commit changes
-
-.. code-block:: bash
-
-    git commit --all
-
-7. Push to new repo
-
-.. code-block:: bash
-
-    git push new-origin --all
-
-**There will be errors saying that many files are missing (LFS upload missing objects). That is OK.**
-
-.. note:: As of this writing, the repo has around 250 MB LFS data. However, the push fails if the LFS server sets a low limit on LFS data. For example, it fails for Bitbucket free which sets a limit of 1 GB LFS data
-
-8. Set master-internal as default branch in the repository's website.
-
-9. Clone the new repo
-
-.. code-block:: bash
-
-    git clone <URL to new repo>
-    cd <folder of new repo>
-
-.. note:: Cloning might take a few minutes since the repo is quite large.
-
-If everything turned out well, the cloning process should not ask for the credentials for BEAM's LFS server (http://52.15.173.229:8080).
-
-10. Add public repo as upstream remote
-
-.. code-block:: bash
-
-   git remote add upstream https://github.com/LBNL-UCB-STI/beam
-
-
-11. Set master branch to track public remote and pull latest changes
-
-.. code-block:: bash
-
-   git fetch upstream
-   git checkout -b master upstream/master
-   git pull
+    git fetch upstream
+    git checkout develop
+    git merge upstream/develop
 
 Build BEAM docker image
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 To build Beam docker image run (in the root of Beam project)::
 
-    $ ./gradlew -Ptag=beammodel/beam:0.9.12 buildImage
+    $ ./gradlew -Ptag=beammodel/beam:1.1.0 buildImage
 
 Once you have the image you can run Beam in Docker. Here is an example how to run test/input/beamville/beam.conf scenario on Windows OS::
 
    $ docker run -v c:/repos/beam/output:/app/output -e JAVA_OPTS='-Xmx12g' \
-      beammodel/beam:0.9.12 --config test/input/beamville/beam.conf
+      beammodel/beam:1.1.0 --config test/input/beamville/beam.conf
 
 Docker run command mounts host folder c:/repos/beam/output to be /app/output which allows to see the output of the Beam run. It also passes environment variable e JAVA_OPTS to the container in order to set maximum heap size for Java application.
 

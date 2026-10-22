@@ -109,7 +109,7 @@ Note that this event corresponds to the moment of choosing a mode, if mode choic
 * Expected Maximum Utility - The logsum from the utility function used to evaluate modal alternatives. If the mode choice model is not a random utility based model, then this will be left blank.
 * Location - Link ID of the nearest location.
 * Available Alternatives - Comma-separated list of the alternatives considered by the agent during the mode choice process.
-* Persona Vehicle Available - Boolean denoting whether this agent had a personal vehicle available to them during the mode choice process.
+* Personal Vehicle Available - Boolean denoting whether this agent had a personal vehicle available to them during the mode choice process.
 * Length - the length of the chosen trip in meters.
 * Tour index - the index of the chosen trip within the current tour of the agent (e.g. 0 means the first trip of the tour, 1 is the second trip, etc.)
 
@@ -168,12 +168,12 @@ It indicates that a vehicle finished charging.
 
 FleetStoredElectricityEvent
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-This events happens at the beginning of each iteration and provides data about total amount of stored electric power
-    in a fleet of vehicles.
+This event occurs at the beginning and end of each iteration and provides data about the total amount of stored electric power in a fleet of vehicles.
 
+* Time - Time of the event.
 * fleetId - The fleet id: ridehail-fleet-$fleet_name for a ride-hail fleet or all-private-vehicles for all the private vehicles.
-* storedElectricityInJoules - Total stored electricity power of the fleet in Joules.
-* storageCapacityInJoules - Total electric capacity of the fleet in Joules.
+* storedElectricityInJoules - Total stored electricity power (primary fuel) of the fleet in Joules.
+* storageCapacityInJoules - Total electric storage capacity (primary fuel) of the fleet in Joules.
 
 LeavingParkingEvent
 ~~~~~~~~~~~~~~~~~~~
@@ -195,7 +195,7 @@ A vehicle parks.
 
 * vehicle - The id of the vehicle.
 * driver - The id of the driver.
-* cost - ost in dollars for the parking stall.
+* cost - Cost in dollars for the parking stall.
 * locationX - X coordinate of the parking stall.
 * locationY - Y coordinate of the parking stall.
 * parkingType - Type of parking: Residential, Public, Workplace.
@@ -278,7 +278,7 @@ AgencyRevenueEvent
 Indicating a person pays for a transit vehicle at entering the vehicle.
 
 * agencyId - The id of the transit agency.
-* revenue - The amount of money payed.
+* revenue - The amount of money paid.
 
 PersonCostEvent
 ~~~~~~~~~~~~~~~
@@ -311,13 +311,3 @@ It indicates a request of reservation of a ride-hail vehicle.
 * endX - X coordinate of the destination. Coordinates are output in WGS (lat/lon).
 * endY - Y coordinate of the destination. Coordinates are output in WGS (lat/lon).
 * requireWheelchair - Whether or not the person requested a wheelchair.
-
-FleetStoredElectricityEvent
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-It reports about total stored electricity event of a particular fleet. It happens twice per a simulation: at the beginning
-and at the end.
-
-* Time - time of the event.
-* Fleet Id - the fleet id.
-* Stored Electricity in Joules - Sum of stored electricity (primary fuel) of all the electric vehicles of the fleet.
-* Storage Capacity in Joules - Sum of storage capacity (primary fuel) of all the electric vehicles of the fleet.

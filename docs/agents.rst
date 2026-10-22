@@ -1,34 +1,46 @@
 BeamAgents
 ==========
 
-BEAM is composed of Actors. Some of these Actors are BeamAgents. BeamAgents inherit the Akka FSM trait which provides a domain-specific language for programming agent actions as a finite state machine. 
+BEAM is composed of Akka Actors, and the entities that exhibit autonomous decision-making within the simulation are implemented as ``BeamAgent`` actors. ``BeamAgent`` inherits the Akka ``FSM`` (Finite State Machine) trait, which provides a domain-specific language for modeling step-by-step agent behavior, state transitions, and responses to simulation events.
 
-*How are BeamAgents different from Actors?*
+*How are BeamAgents different from regular Actors?*
 
-In general, we reserve "BeamAgent" (also referred to as "Agent") for entities in the simulation that exhibit agency. I.e. they don't just change state but they have some degree of control or autonomy over themselves or other Agents. 
+In BEAM, we reserve ``BeamAgent`` (also referred to as an "Agent") for entities that exhibit agency—meaning they actively make choices, follow schedules, or coordinate other agents:
 
-A Person or a Manager is an Agent, but a Vehicle is only a tool used by Agents, so it is not a BeamAgent in BEAM.
+* **Agents**: ``PersonAgent``, ``RideHailAgent``, ``TransitDriverAgent``, and ``FreightCarrier`` / ``PayloadPlansConverter`` drivers are ``BeamAgent`` instances.
+* **Service Managers / Routers**: Actors like ``RideHailManager``, ``ParkingManager``, ``ChargingNetworkManager``, and ``BeamRouter`` respond to requests from agents to allocate shared resources or compute routes.
+* **Passive Entities**: A ``BeamVehicle`` is a resource used by agents (storing powertrain, fuel/state-of-charge, and seating capacity), not a ``BeamAgent`` itself.
 
-Also, only BeamAgents can schedule callbacks with the BeamAgentScheduler. So any entity that needs to schedule itself (or be scheduled by other entities) to execute some process at a defined time within the simulation should be designed as a BeamAgent.
-
-Programming a BeamAgent involves constructing a finite state machine and the corresponding logic that responds to Akka messages from different states and then optionally transitions between states.
+Only ``BeamAgent`` instances (and manager actors) schedule time-stepped triggers with the ``BeamAgentScheduler``, which advances the within-day discrete-event simulation (`AgentSim`) in strict chronological order.
 
 Person Agents
 -------------
 
-Person agents follows their plans for the day. During Mode Choice phase they interact with Router, RideHailManager, ParkingManger.
-After choosing a mode for the current trip they follow the trip schedule in order to reach the next activity location.
+Each ``PersonAgent`` represents a synthetic traveler executing a daily plan made up of **Activities** (e.g., ``Home``, ``Work``, ``Shopping``) separated by **Legs** (trips between activities).
+
+1. **Departure & Mode Choice**: When an activity ends, the ``PersonAgent`` wakes up at its scheduled departure time. If the trip does not already have a locked mode, the agent queries ``BeamRouter`` for travel alternatives (walk, bike, drive, transit, ride-hail, pooled ride-hail, cav) and queries ``RideHailManager`` or household vehicles for availability. It then evaluates a multinomial logit (or tour-based) mode choice model to select a mode and route.
+2. **Trip Execution**: The agent traverses each leg segment—walking to transit stops, boarding/alighting transit vehicles driven by ``TransitDriverAgent``, waiting for a ``RideHailAgent`` pickup, or driving a household ``BeamVehicle``.
+3. **Parking & Charging**: When driving a personal or shared vehicle, ``PersonAgent`` interacts with ``ParkingManager`` and ``ChargingNetworkManager`` near the destination to find a parking stall or EV charger, then walks the final egress leg to the next activity.
+4. **Between-Iteration Replanning**: Across simulation iterations, agents can mutate or switch between plans in their memory (clearing modes, departure times, or routes) based on experienced utility scores to reach dynamic user equilibrium.
 
 Ride Hail Agents
 ----------------
 
-Ride Hail Agents keep the RideHailManger updated with their current location. They do various RideHailManger commands including
-repositioning, customer pickup. They refuel their vehicles if they need to.
+Each ``RideHailAgent`` controls an on-demand mobility (TNC / taxi / autonomous fleet) vehicle and remains in continuous communication with the central ``RideHailManager``:
+
+* **Customer Pickup & Dropoff**: Executes single-passenger or pooled multi-passenger dispatches assigned by ``RideHailManager``, emitting ``PathTraversalEvent`` records for both deadheading (empty repositioning/pickup) and revenue service legs.
+* **Repositioning**: During idle periods, follows relocation commands from ``RideHailManager`` to move toward areas of anticipated demand.
+* **Refueling & Charging**: Monitors vehicle state of charge / fuel level and visits fast-charging depots or public stations via ``ChargingNetworkManager`` when needed.
 
 Transit Driver Agents
 ---------------------
 
-Transit Driver Agents follows the transit schedules.
+Each ``TransitDriverAgent`` operates a public transit vehicle (bus, rail, ferry, or tram) along a fixed GTFS schedule and route imported through R5:
+
+* Moves from stop to stop according to scheduled departure times and network link travel times.
+* Manages vehicle passenger capacity, allowing ``PersonAgent`` travelers to board and alight at scheduled transit stops.
+* Emits ``PathTraversalEvent`` records with transit mode, occupancy, and energy consumption for every stop-to-stop segment.
+
 
 
 

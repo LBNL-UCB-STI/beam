@@ -2,7 +2,7 @@
 
 ![](docs/_static/figs/BEAM_DarkBlue.png)
 
-[![Documentation Status](https://readthedocs.org/projects/beam-lbnl/badge/?version=latest)](http://beam-lbnl.readthedocs.io/en/latest/?badge=latest)
+[![BEAM Docs](https://github.com/LBNL-UCB-STI/beam/actions/workflows/docs.yml/badge.svg)](https://lbnl-ucb-sti.github.io/beam/)
 
 BEAM stands for Behavior, Energy, Autonomy, and Mobility. The model is being developed as a framework for a series of
 research studies and demonstration projects in transportation at Lawrence Berkeley National Laboratory with
@@ -25,17 +25,29 @@ designed to flexibly and efficiently link with other models of transportation sy
 implementation to be built from scratch while relying only on free and publicly available data processed through several
 widely-used and opensource tools.
 
+## Quickstart
+
+Prerequisites: **Java 11 JDK** (e.g., `brew install --cask temurin@11` on macOS or `sudo apt-get install openjdk-11-jdk` on Ubuntu) and **[Git LFS](https://git-lfs.com/)**.
+
+```bash
+git clone https://github.com/LBNL-UCB-STI/beam.git
+cd beam
+git lfs install && git lfs pull
+./gradlew :run -PmaxRAM=8g -PappArgs="['--config', 'test/input/beamville/beam.conf']"
+```
+
+Simulation outputs (summary CSVs, plots, and per-iteration event files) are written to `output/beamville/`.
+
 ## Documentation
 
-The BEAM team maintains both a [Github wiki](https://github.com/LBNL-UCB-STI/beam/wiki)
-and [online documentation](http://beam-lbnl.readthedocs.io/en/latest/about.html)
+The BEAM documentation is published on [GitHub Pages](https://lbnl-ucb-sti.github.io/beam/) from [`docs/`](docs/index.rst), alongside the [GitHub Wiki](https://github.com/LBNL-UCB-STI/beam/wiki).
 
 ### Getting started:
 
 - Try running BEAM with our
-  simple [getting started guide](http://beam-lbnl.readthedocs.io/en/latest/users.html#getting-started)
-- Check out the [developer guide](http://beam-lbnl.readthedocs.io/en/latest/developers.html) for more detailed
-  information on using or contributing to the BEAM project
+  simple [User's Guide (`docs/users.rst`)](docs/users.rst) and [Tutorial (`docs/tutorial.rst`)](docs/tutorial.rst)
+- Check out the [Developer's Guide (`docs/developers.rst`)](docs/developers.rst) for more detailed
+  information on configuring, extending, or contributing to the BEAM project
 
 ### Questions:
 

@@ -8,13 +8,13 @@ Configuration file
 ------------------
 The BEAM configuration file controls where BEAM will source input data and the value of parameters. To see an example of the latest version of this file:
 
-https://github.com/LBNL-UCB-STI/beam/blob/master/test/input/beamville/beam.conf
+https://github.com/LBNL-UCB-STI/beam/blob/develop/test/input/beamville/beam.conf
 
 The BEAM configuration file contains a hybrid between parameters from MATSim (see namespace `matsim` in the config file). Not all of the matsim parameters are used by BEAM. Only the specific MATSim parameters described in this document are relevant. Modifying the other parameters will have no impact. In future releases of BEAM, the irrelevant parameters will be removed.
 
-In order to see example configuration options for a particular release of BEAM replace `master` in the above URL with the version number, e.g. for Version v0.6.2 go to this link:
+In order to see example configuration options for a particular release of BEAM replace `develop` in the above URL with the release tag, e.g. for Version v1.1.0 go to this link:
 
-https://github.com/LBNL-UCB-STI/beam/blob/v0.6.2/test/input/beamville/beam.conf
+https://github.com/LBNL-UCB-STI/beam/blob/v1.1.0/test/input/beamville/beam.conf
 
 BEAM follows the `MATSim convention`_ for most of the inputs required to run a simulation, though specifying the road network and transit system is based on the `R5 requirements`_. Refer to these external documentation for details on the following inputs.
 
@@ -28,6 +28,7 @@ BEAM follows the `MATSim convention`_ for most of the inputs required to run a s
 * GTFS archives, one for each transit agency (e.g. `r5/bus.zip`)
 
 Config Options
+--------------
 
 The following is a list of the most commonly used configuration options in approximate order of appearance in the beamville example config file (order need not be preserved so it is ok to rearrange options). A complete listing will be added to this documentation soon.
 

@@ -6,7 +6,7 @@
 Welcome to BEAM docs
 ====================
 
-BEAM extends the [Multi-Agent Transportation Simulation Framework (MATSim)](http://www.matsim.org/) to enable powerful and scalable analysis of urban transportation systems.
+BEAM extends the `Multi-Agent Transportation Simulation Framework (MATSim) <https://www.matsim.org/>`_ to enable powerful and scalable analysis of urban transportation systems.
 
 Contents:
 
@@ -25,6 +25,7 @@ Contents:
    inputs
    outputs
    protocols
+   routing
 
 
 Indices and tables
