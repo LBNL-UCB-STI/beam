@@ -2,7 +2,7 @@
 
 ![](docs/_static/figs/BEAM_DarkBlue.png)
 
-[![Documentation Status](https://readthedocs.org/projects/beam-lbnl/badge/?version=latest)](http://beam-lbnl.readthedocs.io/en/latest/?badge=latest)
+[![BEAM Docs](https://github.com/LBNL-UCB-STI/beam/actions/workflows/docs.yml/badge.svg)](https://lbnl-ucb-sti.github.io/beam/)
 
 BEAM stands for Behavior, Energy, Autonomy, and Mobility. The model is being developed as a framework for a series of
 research studies and demonstration projects in transportation at Lawrence Berkeley National Laboratory with
@@ -40,7 +40,7 @@ Simulation outputs (summary CSVs, plots, and per-iteration event files) are writ
 
 ## Documentation
 
-The BEAM source documentation is located in [`docs/`](docs/index.rst), alongside the [GitHub Wiki](https://github.com/LBNL-UCB-STI/beam/wiki) and [online documentation](http://beam-lbnl.readthedocs.io/en/latest/about.html).
+The BEAM documentation is published on [GitHub Pages](https://lbnl-ucb-sti.github.io/beam/) from [`docs/`](docs/index.rst), alongside the [GitHub Wiki](https://github.com/LBNL-UCB-STI/beam/wiki).
 
 ### Getting started:
 
