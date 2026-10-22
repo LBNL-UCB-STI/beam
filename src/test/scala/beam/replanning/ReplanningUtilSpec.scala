@@ -560,5 +560,58 @@ class ReplanningUtilSpec extends AnyWordSpec with Matchers {
         beamPlan.tours(1).tourId shouldBe "tour_alpha_1"
       }
     }
+
+    "copyRandomPlanAndSelectForMutation" should {
+      "copy leg attributes and plan attributes while skipping beamRealizedUpdated, and isolate cloned attributes" in {
+        val person = createTestPerson("p_replanning")
+        val originalPlan = createPlanWithActivitiesAndLegs(person, 1, "car")
+        originalPlan.setScore(85.0)
+        originalPlan.getAttributes.putAttribute("modality-style", "car-commute")
+        originalPlan.getAttributes.putAttribute("custom_plan_attr", "plan_val_123")
+        originalPlan.getAttributes.putAttribute("beamRealizedUpdated", true)
+
+        val origLeg = originalPlan.getPlanElements.asScala.collectFirst { case l: Leg => l }.get
+        origLeg.getAttributes.putAttribute("trip_id", "trip_999")
+        origLeg.getAttributes.putAttribute("tour_id", "tour_888")
+        origLeg.getAttributes.putAttribute("trip_dur_min", 42.5)
+        origLeg.getAttributes.putAttribute("trip_cost_dollars", 7.50)
+        origLeg.getAttributes.putAttribute("vehicles", "beamCar42")
+        origLeg.getAttributes.putAttribute("custom_leg_attr", "custom_leg_val_xyz")
+
+        person.addPlan(originalPlan)
+        person.setSelectedPlan(originalPlan)
+
+        ReplanningUtil.copyRandomPlanAndSelectForMutation(person)
+
+        person.getPlans.size() shouldBe 2
+        val clonedPlan = person.getSelectedPlan
+        clonedPlan should not be theSameInstanceAs(originalPlan)
+        person.getPlans.asScala should contain(clonedPlan)
+
+        // Plan-level attributes preserved except beamRealizedUpdated
+        clonedPlan.getAttributes.getAttribute("modality-style") shouldBe "car-commute"
+        clonedPlan.getAttributes.getAttribute("custom_plan_attr") shouldBe "plan_val_123"
+        clonedPlan.getAttributes.getAttribute("beamRealizedUpdated") shouldBe null
+
+        // Leg-level attributes preserved
+        val clonedLeg = clonedPlan.getPlanElements.asScala.collectFirst { case l: Leg => l }.get
+        clonedLeg should not be theSameInstanceAs(origLeg)
+        clonedLeg.getAttributes.getAttribute("trip_id") shouldBe "trip_999"
+        clonedLeg.getAttributes.getAttribute("tour_id") shouldBe "tour_888"
+        clonedLeg.getAttributes.getAttribute("trip_dur_min") shouldBe 42.5
+        clonedLeg.getAttributes.getAttribute("trip_cost_dollars") shouldBe 7.50
+        clonedLeg.getAttributes.getAttribute("vehicles") shouldBe "beamCar42"
+        clonedLeg.getAttributes.getAttribute("custom_leg_attr") shouldBe "custom_leg_val_xyz"
+
+        // Mutating cloned leg and cloned plan attributes does not mutate original attributes
+        clonedLeg.getAttributes.putAttribute("trip_id", "mutated_trip")
+        clonedLeg.getAttributes.putAttribute("new_attr", "new_val")
+        origLeg.getAttributes.getAttribute("trip_id") shouldBe "trip_999"
+        origLeg.getAttributes.getAttribute("new_attr") shouldBe null
+
+        clonedPlan.getAttributes.putAttribute("modality-style", "mutated_style")
+        originalPlan.getAttributes.getAttribute("modality-style") shouldBe "car-commute"
+      }
+    }
   }
 }

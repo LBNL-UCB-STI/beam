@@ -133,8 +133,25 @@ object ReplanningUtil extends LazyLogging {
 
   def copyRandomPlanAndSelectForMutation(person: Person): Unit = {
     person.setSelectedPlan(new RandomPlanSelector().selectPlan(person))
-    val newPlan = PopulationUtils.createPlan(person.getSelectedPlan.getPerson)
-    PopulationUtils.copyFromTo(person.getSelectedPlan, newPlan)
+    val sourcePlan = person.getSelectedPlan
+    val newPlan = PopulationUtils.createPlan(sourcePlan.getPerson)
+    PopulationUtils.copyFromTo(sourcePlan, newPlan)
+    val sourceLegs = sourcePlan.getPlanElements.asScala.collect { case leg: Leg => leg }
+    val newLegs = newPlan.getPlanElements.asScala.collect { case leg: Leg => leg }
+    sourceLegs.zip(newLegs).foreach { case (srcLeg, dstLeg) =>
+      Option(srcLeg.getAttributes).foreach { attrs =>
+        attrs.getAsMap.asScala.foreach { case (k, v) =>
+          dstLeg.getAttributes.putAttribute(k, v)
+        }
+      }
+    }
+    Option(sourcePlan.getAttributes).foreach { attrs =>
+      attrs.getAsMap.asScala.foreach {
+        case ("beamRealizedUpdated", _) => // Do not copy realized marker onto newly cloned plan for mutation
+        case (k, v)                     => newPlan.getAttributes.putAttribute(k, v)
+      }
+    }
+    newPlan.getAttributes.removeAttribute("beamRealizedUpdated")
     person.addPlan(newPlan)
     person.setSelectedPlan(newPlan)
   }
