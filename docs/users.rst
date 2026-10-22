@@ -47,41 +47,17 @@ Please note that BEAM is currently compatible only with Java 11 and is not compa
 GIT-LFS Configuration
 ^^^^^^^^^^^^^^^^^^^^^
 
-The installation process for git-lfs client(`v2.3.4`_, latest installer has some issue with node-git-lfs) is very simple. For detailed documentation please consult `github guide`_ for Mac, windows and Linux.
+BEAM uses `Git Large File Storage (Git LFS) <https://git-lfs.com/>`_ for sample scenario networks and test inputs. Install Git LFS using your platform's package manager (for example, ``brew install git-lfs`` on macOS, ``sudo apt-get install git-lfs`` on Ubuntu/Debian, or the built-in Git LFS option in Git for Windows). For detailed instructions, consult the `GitHub Git LFS guide <https://docs.github.com/en/repositories/working-with-files/managing-large-files/installing-git-large-file-storage>`_.
 
-.. _v2.3.4: https://github.com/git-lfs/git-lfs/releases/tag/v2.3.4
-.. _github guide: https://help.github.com/articles/installing-git-large-file-storage/
-
-To verify successful installation, run following command::
+To initialize Git LFS and verify your installation, run::
 
     $ git lfs install
     Git LFS initialized.
+    $ git lfs version
 
-To confirm that you have installed the correct version of client run the following command::
-
-   $ git lfs env
-
-It will print out the installed version, and please make sure it is `git-lfs/2.3.4`.
-
-To update the text pointers with the actual contents of files, run the following command (if it requests credentials, use any username and leave the password empty)::
+After cloning the repository, pull the LFS-tracked scenario files with::
 
    $ git lfs pull
-   Git LFS: (98 of 123 files) 343.22 MB / 542.18 MB
-
-
-**Installing git lfs on windows :**
-
-With Git LFS windows installation, it is common to have the wrong version of git-lfs installed, because in these latest git client version on windows, git lfs comes packaged with the git client.
-
-When installing the git client one needs to uncheck git lfs installation. If mistakenly you installed git lfs with the git client, the following steps are needed to correct it (uninstalling git lfs and installing the required version does not work...):
-
-    * Uninstall git
-    * Install the git client (uncheck lfs installation)
-    * Install git lfs version 2.3.4 separately
-
-Another alternative to above is to get the old git-lfs.exe from the release archives and replace the executable found in
-
-`[INSTALL PATH]\\mingw6\\bin` and `[INSTALL PATH]\\cmd`, where the default installation path usually is `C:\\Program Files\\Git`
 
 
 Installing BEAM
@@ -230,7 +206,7 @@ BEAM in Docker image
 If you need a beam image of a specific version of BEAM then you can build it from the source code. There is a gradle
 command to build a new BEAM Docker image.::
 
-    ./gradlew -Ptag=beammodel/beam:0.9.12 buildImage
+    ./gradlew -Ptag=beammodel/beam:1.1.0 buildImage
 
 If you skip this step docker will download the BEAM image from docker hub.
 
@@ -243,7 +219,7 @@ For example here is a shell script which might be used to run the docker image. 
     #!/bin/bash
 
     config=$1
-    beam_image="beammodel/beam:0.9.12"
+    beam_image="beammodel/beam:1.1.0"
     input_folder_name="test"
     output_folder_name="beam_output"
     mkdir -m 777 $output_folder_name 2>/dev/null
@@ -376,7 +352,7 @@ To get started, we will focus your attention on a few of the most commonly used 
   beam.agentsim.tuning.tollPrice = 1.0
   beam.agentsim.tuning.rideHailPrice = 1.0
 
-* numDriversAsFractionOfPopulation - Defines the # of ride hailing drivers to create. Drivers begin the simulation located at or near the homes of existing agents, uniformly distributed.
+* initialization.procedural.fractionOfInitialVehicleFleet - Defines the number of ride-hailing vehicles/drivers to create as a fraction of the initial household vehicle fleet. Drivers begin the simulation located at or near the homes of existing agents, uniformly distributed.
 * defaultCostPerMile - One component of the 2 part price of ride hail calculation.
 * defaultCostPerMinute - One component of the 2 part price of ride hail calculation.
 * transitCapacity - Scale the number of seats per transit vehicle... actual seats are rounded to nearest whole number. Applies uniformly to all transit vehilces.
@@ -678,7 +654,7 @@ Note that we use the MATSim Sioux Falls scenario as an example. The data for thi
 
 8. Run the conversion tool
 
-* Open command line in beam root directory and run the following command, replace [/path/to/conf/file] with the path to your config file: gradlew matsimConversion -PconfPath=[/path/to/conf/file]
+* Open command line in beam root directory and run the following command, replace [/path/to/conf/file] with the path to your config file: ./gradlew matsimConversion -PconfPath=[/path/to/conf/file]
 
 The tool should produce the following outputs:
 
