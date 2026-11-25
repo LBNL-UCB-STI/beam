@@ -43,7 +43,7 @@ apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
 
 group = 'beam'
-version = '1.1-beta-v260419bis'
+version = '1.1.1-pilates.20261124'
 
 description = """"""
 
@@ -933,6 +933,10 @@ tasks.register('createDockerfile', Dockerfile) {
 
     from 'zaneedell/beam-environment:jdk-11-4.01-v2'
     label(['maintainer': 'LBNL Beam Team'])
+    label([
+        'org.opencontainers.image.source': 'https://github.com/LBNL-UCB-STI/beam',
+        'org.opencontainers.image.version': project.version.toString()
+    ])
     workingDir("/app")
     runCommand("apt-get update && apt-get install -y libblosc-dev")
 
