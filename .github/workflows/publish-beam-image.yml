@@ -1,9 +1,9 @@
-name: Publish Pilates BEAM image
+name: Publish BEAM image
 
 on:
   push:
     tags:
-      - 'v*-pilates.*'
+      - 'v*'
 
 permissions:
   contents: read
