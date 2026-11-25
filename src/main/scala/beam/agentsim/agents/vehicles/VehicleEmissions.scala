@@ -386,73 +386,74 @@ object VehicleEmissions extends LazyLogging {
       if (!emissionsEnabled) {
         EmptyCountyResolver
       } else {
-        require(
-          countyLookup.filePath.trim.nonEmpty,
-          "Emissions countyLookup.filePath must be configured when emissions are enabled."
-        )
-        require(
-          countyLookup.countyFieldName.trim.nonEmpty,
-          "Emissions countyLookup.countyFieldName must be configured when emissions are enabled."
-        )
+        val countyLookupFilePath = countyLookup.filePath.trim
+        val countyFieldName = countyLookup.countyFieldName.trim
 
-        val countyFile = new File(countyLookup.filePath)
-        require(
-          countyFile.exists(),
-          s"Emissions county lookup file does not exist: ${countyFile.getPath}"
-        )
+        if (countyLookupFilePath.isEmpty || countyFieldName.isEmpty) {
+          logger.warn(
+            "Emissions county lookup is not configured. Assuming emissions rates are not county-based and falling back to empty county matching."
+          )
+          EmptyCountyResolver
+        } else {
+          val countyFile = new File(countyLookupFilePath)
+          require(
+            countyFile.exists(),
+            s"Emissions county lookup file does not exist: ${countyFile.getPath}"
+          )
 
-        validateCountyLookupSchema(countyFile, countyLookup.countyFieldName)
-        val countyGeometries = loadCountyGeometries(localCrs, countyFile.getPath, countyLookup.countyFieldName)
-        require(
-          countyGeometries.nonEmpty,
-          s"Emissions county lookup file ${countyFile.getPath} did not contain any usable polygons."
-        )
+          validateCountyLookupSchema(countyFile, countyFieldName)
+          val countyGeometries = loadCountyGeometries(localCrs, countyFile.getPath, countyFieldName)
+          require(
+            countyGeometries.nonEmpty,
+            s"Emissions county lookup file ${countyFile.getPath} did not contain any usable polygons."
+          )
 
-        logger.info(
-          s"Building emissions county resolver from ${countyFile.getPath} using field '${countyLookup.countyFieldName}'."
-        )
+          logger.info(
+            s"Building emissions county resolver from ${countyFile.getPath} using field '$countyFieldName'."
+          )
 
-        val links = network.getLinks.values.asScala.toSeq
-        val maxLinkId = links.map(_.getId.toString.toInt).max
-        val linkIdToCounty = Array.fill[String](maxLinkId + 1)(null)
-        var resolvedWithinPolygon = 0
-        var resolvedToNearestCounty = 0
+          val links = network.getLinks.values.asScala.toSeq
+          val maxLinkId = links.map(_.getId.toString.toInt).max
+          val linkIdToCounty = Array.fill[String](maxLinkId + 1)(null)
+          var resolvedWithinPolygon = 0
+          var resolvedToNearestCounty = 0
 
-        links.foreach { link =>
-          val point = MGC.coord2Point(link.getCoord)
-          val x = point.getX
-          val y = point.getY
-          val containingCounty = countyGeometries.collectFirst {
-            case CountyGeometry(name, geometry, _, envelope) if envelope.contains(x, y) && geometry.contains(point) =>
-              name
-          }
-          val resolvedCounty = containingCounty.orElse {
-            if (countyGeometries.nonEmpty) {
-              Some(countyGeometries.minBy(countyGeometry => countyGeometry.rawGeometry.distance(point)).county)
-            } else {
-              None
+          links.foreach { link =>
+            val point = MGC.coord2Point(link.getCoord)
+            val x = point.getX
+            val y = point.getY
+            val containingCounty = countyGeometries.collectFirst {
+              case CountyGeometry(name, geometry, _, envelope) if envelope.contains(x, y) && geometry.contains(point) =>
+                name
+            }
+            val resolvedCounty = containingCounty.orElse {
+              if (countyGeometries.nonEmpty) {
+                Some(countyGeometries.minBy(countyGeometry => countyGeometry.rawGeometry.distance(point)).county)
+              } else {
+                None
+              }
+            }
+            resolvedCounty.foreach { value =>
+              linkIdToCounty(link.getId.toString.toInt) = value
+              if (containingCounty.contains(value)) {
+                resolvedWithinPolygon += 1
+              } else {
+                resolvedToNearestCounty += 1
+              }
             }
           }
-          resolvedCounty.foreach { value =>
-            linkIdToCounty(link.getId.toString.toInt) = value
-            if (containingCounty.contains(value)) {
-              resolvedWithinPolygon += 1
-            } else {
-              resolvedToNearestCounty += 1
-            }
+
+          logger.info(
+            s"Built emissions county resolver for ${links.size} links. " +
+            s"ResolvedWithinPolygon=$resolvedWithinPolygon, " +
+            s"resolvedToNearestCounty=$resolvedToNearestCounty, " +
+            s"unresolved=${links.size - resolvedWithinPolygon - resolvedToNearestCounty}."
+          )
+
+          new CountyResolver {
+            override def resolve(linkId: Int): Option[String] =
+              if (linkId >= 0 && linkId < linkIdToCounty.length) Option(linkIdToCounty(linkId)) else None
           }
-        }
-
-        logger.info(
-          s"Built emissions county resolver for ${links.size} links. " +
-          s"ResolvedWithinPolygon=$resolvedWithinPolygon, " +
-          s"resolvedToNearestCounty=$resolvedToNearestCounty, " +
-          s"unresolved=${links.size - resolvedWithinPolygon - resolvedToNearestCounty}."
-        )
-
-        new CountyResolver {
-          override def resolve(linkId: Int): Option[String] =
-            if (linkId >= 0 && linkId < linkIdToCounty.length) Option(linkIdToCounty(linkId)) else None
         }
       }
     }

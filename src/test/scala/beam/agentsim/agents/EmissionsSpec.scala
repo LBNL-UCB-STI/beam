@@ -182,11 +182,14 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
         when(matsimServices.getIterationNumber).thenReturn(0)
 
         val link = mock(classOf[Link])
+        when(link.getId).thenReturn(Id.createLinkId("101"))
         val linkAttributes = new Attributes()
         linkAttributes.putAttribute("type", "motorway")
         when(link.getAttributes).thenReturn(linkAttributes)
 
         val networkHelper = mock(classOf[beam.utils.NetworkHelper])
+        when(networkHelper.maxLinkId).thenReturn(101)
+        when(networkHelper.allLinks).thenReturn(Array.tabulate(102)(idx => if (idx == 101) link else null))
         when(networkHelper.getLink(101)).thenReturn(Some(link))
 
         val beamServices = mock(classOf[BeamServices])
@@ -218,7 +221,11 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
         val vehicleEmissions = new VehicleEmissions(
           vehicleTypesBasePaths = IndexedSeq(tempDir.toString),
           vehicleTypes = Map(vehicleTypeId -> vehicleType),
+          countyResolver = new VehicleEmissions.CountyResolver {
+            override def resolve(linkId: Int): Option[String] = None
+          },
           pollutantsFilter = Emissions.values.map(formatName).mkString(","),
+          fuelFilter = beamConfig.beam.agentsim.agents.vehicles.emissions.fuelFilter,
           ratesFilter = beamConfig.beam.agentsim.agents.vehicles.emissions.ratesFilter
         )
 
@@ -265,7 +272,6 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
 
         traversalProfile.map(_.values.keySet).getOrElse(Set.empty) shouldBe Set(
           EmissionsProfile.RUNEX,
-          EmissionsProfile.RUNLOSS,
           EmissionsProfile.PMTW,
           EmissionsProfile.PMBW,
           EmissionsProfile.PRDUST,
@@ -273,10 +279,7 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
         )
         parkingProfile.map(_.values.keySet).getOrElse(Set.empty) shouldBe Set(
           EmissionsProfile.IDLEX,
-          EmissionsProfile.STREX,
-          EmissionsProfile.HOTSOAK,
-          EmissionsProfile.DIURN,
-          EmissionsProfile.RUNLOSS
+          EmissionsProfile.STREX
         )
         traversalProfile.toSeq.flatMap(_.values.values).foreach { emissions =>
           emissions.values.keySet shouldBe Emissions.values.toSet
@@ -288,8 +291,16 @@ class EmissionsSpec extends AnyFunSpecLike with Matchers with BeamHelper with Be
         }
 
         val emittedProcesses = emittedEvents.map(_.emissionsProcess).toSet
-        emittedProcesses shouldBe EmissionsProfile.values.toSet
-        emittedEvents.size shouldBe 11
+        emittedProcesses shouldBe Set(
+          EmissionsProfile.RUNEX,
+          EmissionsProfile.IDLEX,
+          EmissionsProfile.STREX,
+          EmissionsProfile.PMTW,
+          EmissionsProfile.PMBW,
+          EmissionsProfile.PRDUST,
+          EmissionsProfile.PTOEX
+        )
+        emittedEvents.size shouldBe 7
 
         emittedEvents.foreach { event =>
           event.emissions.values.keySet shouldBe Emissions.values.toSet

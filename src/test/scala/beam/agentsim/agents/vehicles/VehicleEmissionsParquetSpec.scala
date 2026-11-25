@@ -148,16 +148,17 @@ class VehicleEmissionsParquetSpec extends AnyFunSpecLike with Matchers with Befo
   }
 
   private def assertStore(store: VehicleEmissions.EmissionsRateFilterStore.EmissionsRateFilter): Unit = {
-    store.keySet should contain(county)
-    store(county).keySet shouldBe EmissionsProfile.values.map(_.toString).toSet
+    store.countyToProcessRates.keySet should contain(county)
+    store.supportedProcesses shouldBe EmissionsProfile.values.map(_.toString).toSet
+    store.countyToProcessRates(county).keySet shouldBe EmissionsProfile.values.map(_.toString).toSet
 
     processActivityValues.foreach { case (process, activityValue) =>
-      val processStore = store(county)(process.toString)
+      val processStore = store.countyToProcessRates(county)(process.toString)
       processStore.usesRoadCategory shouldBe true
       processStore.roadCategoryToActivityRates.keySet should contain(roadCategory)
-      processStore.roadCategoryToActivityRates(roadCategory)(
-        expectedBin(process, activityValue)
-      ) shouldBe expectedEmissions
+      processStore.roadCategoryToActivityRates(roadCategory)
+        .find(_.range == expectedBin(process, activityValue))
+        .map(_.value) shouldBe Some(expectedEmissions)
     }
   }
 

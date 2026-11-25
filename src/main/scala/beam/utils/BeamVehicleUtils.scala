@@ -85,12 +85,12 @@ object BeamVehicleUtils extends LazyLogging {
 
   private[utils] def toVehicleInfo(record: GenericRecord): VehicleInfo = {
     VehicleInfo(
-      vehicleId = getIfNotNull(record, "vehicleId").toString,
+      vehicleId = getFirstNonNull(record, "vehicleId", "vehicle_id").toString,
       vehicleTypeId = getIfNotNull(record, "vehicleTypeId").toString,
       initialSoc = Option(record.getSchema.getField("stateOfCharge"))
         .flatMap(_ => Option(record.get("stateOfCharge")))
         .map(asDouble),
-      householdId = getIfNotNull(record, "householdId").toString
+      householdId = getFirstNonNull(record, "householdId", "household_id").toString
     )
   }
 
@@ -98,6 +98,21 @@ object BeamVehicleUtils extends LazyLogging {
     val value = record.get(column)
     assert(value != null, s"Value in column '$column' is null")
     value
+  }
+
+  private def getFirstNonNull(record: GenericRecord, columns: String*): AnyRef = {
+    columns
+      .collectFirst(Function.unlift { column =>
+        Option(record.getSchema.getField(column)).flatMap(_ => Option(record.get(column)))
+      })
+      .getOrElse {
+        val availableColumns = record.getSchema.getFields.toArray(new Array[org.apache.avro.Schema.Field](0))
+          .map(_.name())
+          .mkString(", ")
+        throw new IllegalArgumentException(
+          s"None of the expected columns [${columns.mkString(", ")}] were present with non-null values. Available columns: $availableColumns"
+        )
+      }
   }
 
   private def asDouble(value: AnyRef): Double = {

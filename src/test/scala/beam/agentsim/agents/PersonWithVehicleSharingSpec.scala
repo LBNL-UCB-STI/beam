@@ -68,6 +68,10 @@ class PersonWithVehicleSharingSpec
         akka.actor.debug.fsm = true
         akka.loglevel = debug
         akka.test.timefactor = 2
+        matsim.modules.plans.insistingOnUsingDeprecatedPersonAttributeFile = true
+        matsim.modules.households.insistingOnUsingDeprecatedHouseholdsAttributeFile = true
+        beam.agentsim.agents.vehicles.emissions.events = false
+        beam.agentsim.agents.vehicles.emissions.skims = false
         """
     )
     .withFallback(testConfig("test/input/beamville/beam.conf"))
@@ -665,7 +669,8 @@ class PersonWithVehicleSharingSpec
 
       person2EntersVehicleEvents.expectNoMessage()
 
-      mockSharedVehicleFleet.expectMsgPF() { case MobilityStatusInquiry(_, SpaceTime(_, 28820), _, _, _, triggerId) =>
+      mockSharedVehicleFleet.expectMsgPF() {
+        case MobilityStatusInquiry(_, SpaceTime(_, 28820), _, _, _, triggerId, _) =>
         mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector(), triggerId)
       }
 
