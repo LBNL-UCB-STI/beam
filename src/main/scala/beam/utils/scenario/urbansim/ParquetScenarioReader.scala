@@ -113,6 +113,10 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     val excludedModes: String = getOrDefault(rec, "excludedModes", "").toString
     val rank: Int = 0
     val industry = Try(Option(rec.get("industry")).map(_.toString)).getOrElse(None)
+    val valueOfTime = Try(Option(rec.get("value_of_time"))).toOption.flatten
+      .orElse(Try(Option(rec.get("valueOfTime"))).toOption.flatten)
+      .map(value => Try(NumberUtils.toDouble(value.toString, 0d)).getOrElse(0d))
+      .getOrElse(0d)
     PersonInfo(
       personId = personId,
       householdId = householdId,
@@ -121,7 +125,7 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
       excludedModes = excludedModes,
       rideHailServiceSubscription = Option(rec.get("ridehail_service_subscription")).map(_.toString).getOrElse(""),
       isFemale = isFemaleValue,
-      valueOfTime = Try(NumberUtils.toDouble(getOrDefault(rec, "valueOfTime", "0").toString, 0d)).getOrElse(0d),
+      valueOfTime = valueOfTime,
       industry = industry
     )
   }

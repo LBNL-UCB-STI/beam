@@ -63,7 +63,8 @@ class ParquetScenarioReaderTest extends AnyWordSpec with Matchers {
           "person_id"    -> "1".asInstanceOf[AnyRef],
           "household_id" -> "2".asInstanceOf[AnyRef],
           "age"          -> 3L.asInstanceOf[AnyRef],
-          "sex"          -> 1L.asInstanceOf[AnyRef]
+          "sex"          -> 1L.asInstanceOf[AnyRef],
+          "valueOfTime"  -> 12.5.asInstanceOf[AnyRef]
         ).asJava
       )
       ParquetScenarioReader.toPersonInfo(gr) should be(
@@ -75,10 +76,24 @@ class ParquetScenarioReaderTest extends AnyWordSpec with Matchers {
           excludedModes = "",
           rideHailServiceSubscription = "",
           isFemale = false,
-          valueOfTime = 0,
+          valueOfTime = 12.5,
           industry = None
         )
       )
+    }
+
+    "read value_of_time from Parquet person records" in {
+      val gr = new GenericRecordMock(
+        Map(
+          "person_id"     -> "1".asInstanceOf[AnyRef],
+          "household_id"  -> "2".asInstanceOf[AnyRef],
+          "age"           -> 3L.asInstanceOf[AnyRef],
+          "sex"           -> 1L.asInstanceOf[AnyRef],
+          "value_of_time" -> 8.75.asInstanceOf[AnyRef]
+        ).asJava
+      )
+
+      ParquetScenarioReader.toPersonInfo(gr).valueOfTime should be(8.75)
     }
 
     "be able to create PlanInfo from GenericRecord" in {

@@ -106,7 +106,8 @@ object BeamVehicleUtils extends LazyLogging {
         Option(record.getSchema.getField(column)).flatMap(_ => Option(record.get(column)))
       })
       .getOrElse {
-        val availableColumns = record.getSchema.getFields.toArray(new Array[org.apache.avro.Schema.Field](0))
+        val availableColumns = record.getSchema.getFields
+          .toArray(new Array[org.apache.avro.Schema.Field](0))
           .map(_.name())
           .mkString(", ")
         throw new IllegalArgumentException(

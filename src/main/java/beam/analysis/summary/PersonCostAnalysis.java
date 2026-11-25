@@ -1,5 +1,6 @@
 package beam.analysis.summary;
 
+import beam.agentsim.agents.freight.FreightEntities;
 import beam.agentsim.events.PersonCostEvent;
 import beam.analysis.IterationSummaryAnalysis;
 import beam.router.Modes;
@@ -42,8 +43,24 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
     this.beamServices = beamServices;
     averageVot=getAverageVOT();
 
-    if(beamServices.matsimServices().getScenario().getHouseholds().getHouseholds().values().stream().filter((Household hh) -> hh.getIncome().getIncome()!=0).count() != beamServices.matsimServices().getScenario().getHouseholds().getHouseholds().size()){
-      logger.error("Some households have income not set - default dummy income values will be used: "+ defaultDummyHouseholdIncome);
+    int zeroIncomeHouseholds = 0;
+    int zeroIncomeFreightHouseholds = 0;
+    for (Household household : beamServices.matsimServices().getScenario().getHouseholds().getHouseholds().values()) {
+      if (household.getIncome().getIncome() == 0) {
+        zeroIncomeHouseholds++;
+        if (household.getId().toString().startsWith(FreightEntities.FREIGHT_ID_PREFIX())) {
+          zeroIncomeFreightHouseholds++;
+        }
+      }
+    }
+    if (zeroIncomeHouseholds > 0) {
+      logger.warn(
+          "Found {} zero-income households ({} synthetic freight, {} other); income-normalized trip-cost stats will use fallback income {}.",
+          zeroIncomeHouseholds,
+          zeroIncomeFreightHouseholds,
+          zeroIncomeHouseholds - zeroIncomeFreightHouseholds,
+          defaultDummyHouseholdIncome
+      );
     }
     this.personToHousehold = buildServicesPersonHouseholds(beamServices.matsimServices().getScenario().getHouseholds());
   }

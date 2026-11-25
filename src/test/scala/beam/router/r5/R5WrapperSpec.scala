@@ -10,10 +10,13 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.{BeamRouter, RoutingWorker}
 import beam.sflight.AbstractSfLightSpec
+import beam.utils.TestConfigUtils.testConfig
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, Logger => LogbackLogger}
 import ch.qos.logback.core.AppenderBase
-import org.matsim.api.core.v01.Id
+import com.conveyal.r5.api.util.LegMode
+import com.typesafe.config.{Config, ConfigFactory}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.slf4j.LoggerFactory
 import org.scalatest.matchers.should.Matchers
 
@@ -21,6 +24,16 @@ import scala.collection.mutable
 import scala.concurrent.duration._
 
 class R5WrapperSpec extends AbstractSfLightSpec("R5WrapperSpec") with Matchers {
+
+  override def config: Config = ConfigFactory
+    .parseString(
+      """
+        |matsim.modules.plans.insistingOnUsingDeprecatedPersonAttributeFile = true
+        |matsim.modules.households.insistingOnUsingDeprecatedHouseholdsAttributeFile = true
+        |""".stripMargin
+    )
+    .withFallback(testConfig("test/input/sf-light/sf-light.conf"))
+    .resolve()
 
   private lazy val carVehicleType = services.beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
 
@@ -33,6 +46,26 @@ class R5WrapperSpec extends AbstractSfLightSpec("R5WrapperSpec") with Matchers {
   }
 
   "R5Wrapper" should {
+
+    "use the scenario timezone for street requests and the GTFS timezone for transit requests" in {
+      val r5Wrapper = getR5Wrapper
+      val request = RoutingWorker.R5Request(
+        from = new Coord(0, 0),
+        to = new Coord(1, 1),
+        time = 0,
+        directMode = LegMode.WALK,
+        accessMode = LegMode.WALK,
+        withTransit = false,
+        egressMode = LegMode.WALK,
+        timeValueOfMoney = 1.0,
+        beamVehicleTypeId = carVehicleType.id
+      )
+
+      r5Wrapper.createProfileRequestFromRequest(request).zoneId shouldBe
+      services.beamScenario.dates.zonedBaseDateTime.getZone
+      r5Wrapper.createProfileRequestFromRequest(request.copy(withTransit = true)).zoneId shouldBe
+      services.beamScenario.transportNetwork.getTimeZone
+    }
 
     "return only car routes when requestedMode is CAR" in {
       val r5Wrapper = getR5Wrapper

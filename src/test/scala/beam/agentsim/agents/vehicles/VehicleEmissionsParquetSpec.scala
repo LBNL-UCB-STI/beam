@@ -156,7 +156,8 @@ class VehicleEmissionsParquetSpec extends AnyFunSpecLike with Matchers with Befo
       val processStore = store.countyToProcessRates(county)(process.toString)
       processStore.usesRoadCategory shouldBe true
       processStore.roadCategoryToActivityRates.keySet should contain(roadCategory)
-      processStore.roadCategoryToActivityRates(roadCategory)
+      processStore
+        .roadCategoryToActivityRates(roadCategory)
         .find(_.range == expectedBin(process, activityValue))
         .map(_.value) shouldBe Some(expectedEmissions)
     }

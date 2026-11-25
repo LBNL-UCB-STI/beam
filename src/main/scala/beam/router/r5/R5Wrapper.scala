@@ -410,9 +410,11 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
   }
 
   private def formatStreetVehicles(streetVehicles: IndexedSeq[StreetVehicle]): String =
-    streetVehicles.map { vehicle =>
-      s"${vehicle.id}:${vehicle.mode}:${vehicle.vehicleTypeId}"
-    }.mkString("[", ", ", "]")
+    streetVehicles
+      .map { vehicle =>
+        s"${vehicle.id}:${vehicle.mode}:${vehicle.vehicleTypeId}"
+      }
+      .mkString("[", ", ", "]")
 
   private def formatStopAccessMap(timesByMode: java.util.HashMap[LegMode, TIntIntMap]): String =
     timesByMode.asScala
@@ -771,7 +773,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     }
   }
 
-  private def createProfileRequestFromRequest(request: R5Request) = {
+  private[r5] def createProfileRequestFromRequest(request: R5Request) = {
     val result = createProfileRequest
     result.fromLon = request.from.getX
     result.fromLat = request.from.getY
@@ -784,6 +786,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     } else {
       util.EnumSet.of(request.directMode)
     }
+    if (request.withTransit) result.zoneId = transportNetwork.getTimeZone
     result
   }
 
@@ -805,7 +808,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     profileRequest.maxTripDurationMinutes = 2 * 60
     profileRequest.wheelchair = false
     profileRequest.bikeTrafficStress = 4
-    profileRequest.zoneId = transportNetwork.getTimeZone
+    profileRequest.zoneId = dates.zonedBaseDateTime.getZone
     // BEAM uses deterministic routing to match scheduled vehicle departure times.
     profileRequest.monteCarloDraws = 0
     profileRequest.date = dates.localBaseDate

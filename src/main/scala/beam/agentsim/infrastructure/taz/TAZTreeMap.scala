@@ -176,23 +176,13 @@ class TAZTreeMap(
     links: Map[Id[Link], Link],
     enableLinkBasedSearch: Boolean
   ): Unit = {
-    val car_walk_links =
+    val carWalkLinks =
       links.filter { case (_, link) =>
         val allowedModes = link.getAllowedModes.asScala
-        var hasCar = false
-        var hasWalk = false
-
-        val iter = allowedModes.iterator
-        while (iter.hasNext && !(hasCar && hasWalk)) {
-          val mode = iter.next()
-          if (mode.equalsIgnoreCase("car")) hasCar = true
-          else if (mode.equalsIgnoreCase("walk")) hasWalk = true
-        }
-
-        hasCar && hasWalk
+        allowedModes.exists(_.equalsIgnoreCase("car")) && allowedModes.exists(_.equalsIgnoreCase("walk"))
       }
     if (tazListContainsGeoms) {
-      if (car_walk_links.nonEmpty) {
+      if (carWalkLinks.nonEmpty) {
         idToTAZMapping.keySet.foreach { id =>
           tazToLinkIdMapping(id) = new QuadTree[Link](
             tazQuadTree.getMinEasting,
@@ -201,12 +191,10 @@ class TAZTreeMap(
             tazQuadTree.getMaxNorthing
           )
         }
-        searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(this, car_walk_links, enableLinkBasedSearch))
-      } else {
-        searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(this, car_walk_links, enableLinkBasedSearch))
       }
+      searchQuadTree = Some(SearchQuadTree.getSearchQuadTree(this, carWalkLinks, enableLinkBasedSearch))
 
-      car_walk_links.foreach {
+      links.foreach {
         case (id, link) =>
           val linkEndCoord = link.getToNode.getCoord
           val linkStartCoord = link.getFromNode.getCoord
@@ -239,15 +227,17 @@ class TAZTreeMap(
           }
 
           closestTAZ match {
-            case Some(taz) if link.getAllowedModes.contains("car") & link.getAllowedModes.contains("walk") =>
-              try {
-                tazToLinkIdMapping(taz.tazId).put(linkMidpoint.getX, linkMidpoint.getY, link)
-              } catch {
-                case e: Throwable =>
-                  unmatchedLinkIds += id
-                  logger.warn(e.toString)
-              }
+            case Some(taz) =>
               linkIdToTAZMapping += (id -> taz.tazId)
+              if (carWalkLinks.contains(id)) {
+                try {
+                  tazToLinkIdMapping(taz.tazId).put(linkMidpoint.getX, linkMidpoint.getY, link)
+                } catch {
+                  case e: Throwable =>
+                    unmatchedLinkIds += id
+                    logger.warn(e.toString)
+                }
+              }
             case None =>
               unmatchedLinkIds += id
             case _ =>

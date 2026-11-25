@@ -671,7 +671,7 @@ class PersonWithVehicleSharingSpec
 
       mockSharedVehicleFleet.expectMsgPF() {
         case MobilityStatusInquiry(_, SpaceTime(_, 28820), _, _, _, triggerId, _) =>
-        mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector(), triggerId)
+          mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector(), triggerId)
       }
 
       // agent has no car available, so will ask for new route

@@ -95,7 +95,7 @@ trait PopulationAdjustment extends LazyLogging {
 
     // log error if excluded modes attributes is missing for at least one person in the population
     if (persons.size != excludedModesPerPerson.size) {
-      logError("Not all agents have person attributes - is attributes file missing ?")
+      logError("Not all agents have the 'excluded-modes' person attribute - is the attributes file missing?")
     }
   }
 

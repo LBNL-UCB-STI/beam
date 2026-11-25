@@ -64,9 +64,13 @@ class BeamVehicleUtilsSpec extends AnyWordSpecLike with Matchers {
     val schemaFields = fields.map { case (name, value) =>
       val schema = value match {
         case _: java.lang.Double | _: Double =>
-          Schema.createUnion(java.util.Arrays.asList(Schema.create(Schema.Type.NULL), Schema.create(Schema.Type.DOUBLE)))
+          Schema.createUnion(
+            java.util.Arrays.asList(Schema.create(Schema.Type.NULL), Schema.create(Schema.Type.DOUBLE))
+          )
         case _ =>
-          Schema.createUnion(java.util.Arrays.asList(Schema.create(Schema.Type.NULL), Schema.create(Schema.Type.STRING)))
+          Schema.createUnion(
+            java.util.Arrays.asList(Schema.create(Schema.Type.NULL), Schema.create(Schema.Type.STRING))
+          )
       }
       new Schema.Field(name, schema, null, Schema.Field.NULL_DEFAULT_VALUE)
     }
