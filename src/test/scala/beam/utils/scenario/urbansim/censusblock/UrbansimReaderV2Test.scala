@@ -1,12 +1,20 @@
 package beam.utils.scenario.urbansim.censusblock
 
 import beam.sim.common.GeoUtils
-import beam.utils.TestConfigUtils
-import beam.utils.scenario.InputType
+import beam.utils.scenario.VehicleInfo
+import org.apache.avro.Schema
+import org.apache.avro.generic.{GenericData, GenericRecord}
+import org.apache.hadoop.conf.Configuration
+import org.apache.parquet.avro.AvroParquetWriter
+import org.apache.parquet.hadoop.metadata.CompressionCodecName
+import org.apache.parquet.hadoop.util.HadoopOutputFile
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
+import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
+
+import scala.collection.JavaConverters._
 
 class UrbansimReaderV2Test extends AnyWordSpec with Matchers {
   private val testDataPath = "test/test-resources/urbansim_v2"
@@ -133,5 +141,74 @@ class UrbansimReaderV2Test extends AnyWordSpec with Matchers {
         )
       }
     }
+
+    "read scenario-folder vehicle files by their extension" in {
+      val directory = Files.createTempDirectory("urbansim-v2-vehicles")
+      try {
+        val householdPath = directory.resolve("households.csv")
+        Files.write(
+          householdPath,
+          "household_id,cars,income,block_id\n".getBytes(StandardCharsets.UTF_8)
+        )
+
+        val parquetVehiclePath = directory.resolve("vehicles.parquet")
+        writeVehicleParquet(parquetVehiclePath)
+        val csvVehiclePath = directory.resolve("vehicles.csv")
+        Files.write(
+          csvVehiclePath,
+          "vehicleId,vehicleTypeId,stateOfCharge,householdId\nveh-csv,sedan,0.5,hh-1\n".getBytes(StandardCharsets.UTF_8)
+        )
+
+        def reader(vehiclePath: Path) = new UrbansimReaderV2(
+          inputPersonPath = directory.resolve("persons.csv").toString,
+          inputPlanPath = directory.resolve("plans.csv").toString,
+          inputHouseholdPath = householdPath.toString,
+          inputVehiclePath = vehiclePath.toString,
+          inputBlockPath = directory.resolve("blocks.csv").toString,
+          geoUtils = testGeoUtils,
+          shouldConvertWgs2Utm = false,
+          modeMap = Map.empty,
+          fileFormat = "csv"
+        )
+
+        reader(parquetVehiclePath).getVehicles.toSeq shouldBe Seq(
+          VehicleInfo("veh-parquet", "sedan", Some(0.75), "hh-1")
+        )
+        reader(csvVehiclePath).getVehicles.toSeq shouldBe Seq(
+          VehicleInfo("veh-csv", "sedan", Some(0.5), "hh-1")
+        )
+      } finally {
+        val paths = Files.walk(directory)
+        try paths.iterator().asScala.toSeq.reverse.foreach(Files.deleteIfExists)
+        finally paths.close()
+      }
+    }
+  }
+
+  private def writeVehicleParquet(path: Path): Unit = {
+    val fields = List("vehicleId", "vehicleTypeId", "householdId").map { name =>
+      new Schema.Field(name, Schema.create(Schema.Type.STRING), "", null)
+    } :+ new Schema.Field(
+      "stateOfCharge",
+      Schema.create(Schema.Type.DOUBLE),
+      "",
+      null
+    )
+    val schema = Schema.createRecord("Vehicle", "", "beam", false, fields.asJava)
+    val outputFile = HadoopOutputFile.fromPath(new org.apache.hadoop.fs.Path(path.toUri), new Configuration())
+    val writer = AvroParquetWriter
+      .builder[GenericRecord](outputFile)
+      .withSchema(schema)
+      .withCompressionCodec(CompressionCodecName.SNAPPY)
+      .build()
+
+    try {
+      val record = new GenericData.Record(schema)
+      record.put("vehicleId", "veh-parquet")
+      record.put("vehicleTypeId", "sedan")
+      record.put("stateOfCharge", 0.75d)
+      record.put("householdId", "hh-1")
+      writer.write(record)
+    } finally writer.close()
   }
 }
